@@ -499,21 +499,53 @@ namespace Rasa.Test.Gameplay
             private readonly BootcampRuntimeTestHarness.Harness _harness;
             private uint _nextSlot = 10;
 
+            /// <summary>The kraftwerks row the bench's station stands for: what its jobs are kept under.</summary>
+            internal const uint StationId = 7;
+
             internal KraftwerksManager Station { get; }
             internal DynamicObject Object { get; }
             internal Client Client => _harness.Client;
             internal MapChannel Map => _harness.BootcampMap;
+            internal MissionTestContext Context => _harness.Context;
 
             /// <summary>A job of the player's at the station, finished, and not yet reported to them.</summary>
             internal CraftingJob FinishedJob()
             {
-                var jobs = (Dictionary<(ulong, uint), List<CraftingJob>>)typeof(KraftwerksManager)
+                var jobs = (Dictionary<(uint, uint), List<CraftingJob>>)typeof(KraftwerksManager)
                     .GetField("_jobs", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).GetValue(Station);
                 var job = new CraftingJob { ResultItemId = 77, ResultClassId = ModuleItemClass, ResultItemTemplateId = Body1Item, Count = 1, CraftingPage = 1, FinishTick = Environment.TickCount64 - 1 };
 
-                jobs[(Object.EntityId, Client.Player.Id)] = new List<CraftingJob> { job };
+                jobs[(StationId, Client.Player.Id)] = new List<CraftingJob> { job };
 
                 return job;
+            }
+
+            /// <summary>The station as another manager would know it: as after a restart.</summary>
+            internal KraftwerksManager Restarted()
+            {
+                var manager = new KraftwerksManager(_harness.Context);
+                Register(manager);
+                manager.LoadJobs();
+                return manager;
+            }
+
+            /// <summary>The rows of crafting_job.</summary>
+            internal List<Rasa.Structures.Char.CraftingJobEntry> Rows()
+            {
+                using var unit = _harness.Context.CreateChar();
+                return unit.CraftingJobs.GetAll();
+            }
+
+            private void Register(KraftwerksManager manager)
+            {
+                // Already in the world, as far as the worker is concerned: it is registered, and the
+                // worker would otherwise put it into the cells again.
+                Object.IsInWorld = true;
+                manager.Register(new KraftwerksManager.Station
+                {
+                    Entry = new KraftwerksEntry { Id = StationId, MapContextId = Client.Player.MapContextId, Comment = "bench" },
+                    Object = Object
+                }, Map);
             }
 
             internal Bench()
@@ -527,6 +559,7 @@ namespace Rasa.Test.Gameplay
                     MapContextId = Client.Player.MapContextId
                 };
                 EntityManager.Instance.RegisterDynamicObject(Object);
+                Register(Station);
 
                 Template(Mimeogel, MimeogelClass, InventoryCategory.Crafting, 50000);
                 Template(Body1Item, ModuleItemClass, InventoryCategory.Crafting, 5000);
@@ -634,6 +667,7 @@ namespace Rasa.Test.Gameplay
             public void Dispose()
             {
                 EntityManager.Instance.DynamicObjects.Remove(Object.EntityId);
+                Map.Kraftwerks.Remove(StationId);
                 _harness.Dispose();
             }
         }
@@ -670,6 +704,140 @@ namespace Rasa.Test.Gameplay
 
             return sent.OfType<SystemMessagePacket>().SingleOrDefault()?.TextMessage;
         }
+
+        [TestMethod]
+        public void AJobIsARowFromAcceptanceToTakingAndIsThereAgainAfterARestart()
+        {
+            using var bench = new Bench();
+
+            var armor = bench.GiveGear(ArmorClass, LootQuality.Rare, 23, Body1, 0, Body5);
+            var sent = bench.After((station, id) => station.RequestSalvageItem(bench.Client, new RequestSalvageItemPacket { KraftwerksId = id, ItemId = armor.EntityId, CraftingAction = 2 }));
+            var job = Jobs(sent).Single();
+
+            // The ingredients went when the job was accepted; so did its row, whose id is the job's.
+            var row = bench.Rows().Single();
+            Assert.AreEqual((ulong)row.Id, job.ResultItemId);
+            Assert.IsTrue(job.Persisted);
+            Assert.AreEqual((bench.Client.Player.Id, Bench.StationId, MimeogelClass, Mimeogel, 88u, KraftwerksManager.SalvagePage),
+                (row.CharacterId, row.KraftwerksId, row.ResultClassId, row.ResultTemplateId, row.Count, row.CraftingPage));
+            Assert.IsTrue(row.FinishAt <= DateTime.UtcNow.AddSeconds(1));
+
+            // The server comes back: a manager that knows nothing but the rows has the job, for the
+            // same station and the same player, and the window shows it on the station's use.
+            var restarted = bench.Restarted();
+            sent = bench.After((_, id) => restarted.Use(bench.Client, bench.Object, KraftwerksManager.UseObjectArgId));
+            var loaded = Jobs(sent).Single();
+
+            Assert.AreEqual((job.ResultItemId, MimeogelClass, Mimeogel, 88u, KraftwerksManager.SalvagePage), (loaded.ResultItemId, loaded.ResultClassId, loaded.ResultItemTemplateId, loaded.Count, loaded.CraftingPage));
+            Assert.IsTrue(loaded.IsFinished);
+            Assert.IsTrue(loaded.Persisted);
+            Assert.AreEqual(0u, bench.Carried(MimeogelClass), "still the station's until it is taken");
+
+            // Taken from the station after the restart: the Mimeogel is the player's and the row is gone.
+            sent = bench.After((_, id) => restarted.RequestRetrieveAllFinishedItems(bench.Client, new RequestRetrieveAllFinishedItemsPacket { KraftwerksId = id }));
+            Assert.AreEqual(0, Jobs(sent).Count);
+            Assert.AreEqual(88u, bench.Carried(MimeogelClass));
+            Assert.AreEqual(0, bench.Rows().Count);
+        }
+
+        [TestMethod]
+        public void AJobWithTimeLeftKeepsItAcrossARestartAndAFinishedOneIsReportedOnTheStationsMap()
+        {
+            using var bench = new Bench();
+
+            // A job that the station is still working on, as a fabrication leaves one.
+            using (var unit = bench.Context.CreateChar())
+            {
+                unit.CraftingJobs.Add(new Rasa.Structures.Char.CraftingJobEntry
+                {
+                    CharacterId = bench.Client.Player.Id, KraftwerksId = Bench.StationId, ResultClassId = ModuleItemClass, ResultTemplateId = Body1Item,
+                    Count = 1, CraftingPage = KraftwerksManager.FabricationPage, QualityId = 1, FinishAt = DateTime.UtcNow.AddMinutes(5)
+                });
+                unit.CraftingJobs.Add(new Rasa.Structures.Char.CraftingJobEntry
+                {
+                    CharacterId = bench.Client.Player.Id, KraftwerksId = Bench.StationId, ResultClassId = ModuleItemClass, ResultTemplateId = Body2Item,
+                    Count = 2, CraftingPage = KraftwerksManager.FabricationPage, QualityId = 1, FinishAt = DateTime.UtcNow.AddMinutes(-5)
+                });
+                // A row at a station that is not placed: left alone.
+                unit.CraftingJobs.Add(new Rasa.Structures.Char.CraftingJobEntry
+                {
+                    CharacterId = bench.Client.Player.Id, KraftwerksId = 999, ResultClassId = ModuleItemClass, ResultTemplateId = Body2Item,
+                    Count = 1, CraftingPage = KraftwerksManager.FabricationPage, QualityId = 1, FinishAt = DateTime.UtcNow
+                });
+            }
+
+            var restarted = bench.Restarted();
+            var sent = bench.After((_, id) => restarted.Use(bench.Client, bench.Object, KraftwerksManager.UseObjectArgId));
+            var jobs = Jobs(sent);
+
+            Assert.AreEqual(2, jobs.Count, "the orphan is not the station's");
+            var running = jobs.Single(j => j.ResultItemTemplateId == Body1Item);
+            var done = jobs.Single(j => j.ResultItemTemplateId == Body2Item);
+
+            Assert.IsFalse(running.IsFinished);
+            Assert.IsTrue(running.TimeLeftSeconds > 290 && running.TimeLeftSeconds <= 300, $"{running.TimeLeftSeconds} s left");
+            Assert.IsTrue(done.IsFinished);
+            Assert.AreEqual(0.0, done.TimeLeftSeconds);
+            Assert.AreEqual(3, bench.Rows().Count, "the orphan row is left where it is");
+
+            // Nothing was reported by the worker yet: the use reported the finished one, and the
+            // worker has nothing more to say until the other finishes.
+            bench.Drain();
+            restarted.Worker(bench.Map);
+            Assert.IsEmpty(bench.Drain().OfType<CraftingStatusPacket>().ToList());
+
+            // Only the finished one can be taken; the other stays, row and all.
+            sent = bench.After((_, id) => restarted.RequestRetrieveAllFinishedItems(bench.Client, new RequestRetrieveAllFinishedItemsPacket { KraftwerksId = id }));
+            Assert.AreEqual(1, Jobs(sent).Count);
+            Assert.AreEqual(2u, bench.Carried(ModuleItemClass));
+            Assert.AreEqual(2, bench.Rows().Count);
+            Assert.IsTrue(bench.Rows().Any(r => r.ResultTemplateId == Body1Item && r.KraftwerksId == Bench.StationId));
+        }
+
+        [TestMethod]
+        public void TheRowsOfAStationOrACharacterGoWithIt()
+        {
+            using var bench = new Bench();
+            var mine = bench.Client.Player.Id;
+
+            using (var unit = bench.Context.CreateChar())
+            {
+                var kept = unit.CraftingJobs.Add(Row(mine, Bench.StationId, 5));
+                unit.CraftingJobs.Add(Row(mine, 44, 1));
+                unit.CraftingJobs.Add(Row(mine + 1, 44, 1));
+                unit.CraftingJobs.Add(Row(mine + 1, Bench.StationId, 1));
+
+                Assert.IsTrue(unit.CraftingJobs.UpdateCount(kept, 3));
+                Assert.AreEqual(3u, unit.CraftingJobs.GetAll().Single(r => r.Id == kept).Count);
+                Assert.IsFalse(unit.CraftingJobs.UpdateCount(123456, 3));
+
+                Assert.AreEqual(2, unit.CraftingJobs.DeleteByKraftwerks(44));
+                Assert.AreEqual(2, unit.CraftingJobs.GetAll().Count);
+                Assert.IsTrue(unit.CraftingJobs.GetAll().All(r => r.KraftwerksId == Bench.StationId));
+
+                // Marked, not saved: the character's rows go with the character's own commit.
+                unit.ExecuteTransaction(() => Assert.AreEqual(1, unit.CraftingJobs.DeleteByCharacter(mine + 1)));
+                Assert.AreEqual(mine, unit.CraftingJobs.GetAll().Single().CharacterId);
+
+                Assert.IsTrue(unit.CraftingJobs.Delete(kept));
+                Assert.IsFalse(unit.CraftingJobs.Delete(kept));
+                Assert.AreEqual(0, unit.CraftingJobs.GetAll().Count);
+            }
+
+            // And a deleted character's jobs go from the manager.
+            var job = bench.FinishedJob();
+            bench.Station.ForgetCharacter(mine);
+            bench.Drain();
+            bench.Station.Use(bench.Client, bench.Object, KraftwerksManager.UseObjectArgId);
+            Assert.AreEqual(0, Jobs(bench.Drain()).Count);
+            Assert.IsFalse(job.FinishReported);
+        }
+
+        private static Rasa.Structures.Char.CraftingJobEntry Row(uint characterId, uint stationId, uint count) => new()
+        {
+            CharacterId = characterId, KraftwerksId = stationId, ResultClassId = ModuleItemClass, ResultTemplateId = Body1Item,
+            Count = count, CraftingPage = KraftwerksManager.FabricationPage, QualityId = 1, FinishAt = DateTime.UtcNow
+        };
 
         [TestMethod]
         public void SalvageDestroysTheItemAndLeavesItsMimeogelToBeTaken()

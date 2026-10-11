@@ -995,6 +995,9 @@ namespace Rasa.Managers
                         // And the cooldowns it logged out with.
                         unitOfWork.CharacterActionReuses.DeleteForCharacter(charactersBySlot.Id);
 
+                        // And whatever the crafting stations were making or holding for it.
+                        unitOfWork.CraftingJobs.DeleteByCharacter(charactersBySlot.Id);
+
                         // Their clan membership: clan_member's foreign key to the character is
                         // Restrict, so with the row standing the delete below failed. The clan
                         // side of it (caches, the members online) waits for the commit.
@@ -1006,6 +1009,7 @@ namespace Rasa.Managers
                 }
 
                 clanDeparture?.Invoke();
+                KraftwerksManager.Instance.ForgetCharacter(charactersBySlot.Id);
 
                 if (listings > 0)
                     Logger.WriteLog(LogType.Debug,

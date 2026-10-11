@@ -86,6 +86,7 @@ namespace Rasa.Repositories.Char
             GmCommandLogs = new GmCommandLog.GmCommandLogRepository(dbContext);
             ChatLogs = new ChatLog.ChatLogRepository(dbContext);
             EconomyLogs = new EconomyLog.EconomyLogRepository(dbContext);
+            CraftingJobs = new CraftingJob.CraftingJobRepository(dbContext);
             ApiLogs = new ApiLog.ApiLogRepository(dbContext);
             CharacterBossKills = new CharacterBossKill.CharacterBossKillRepository(dbContext);
             CharacterGreetingReads = new CharacterGreetingRead.CharacterGreetingReadRepository(dbContext);
@@ -128,6 +129,7 @@ namespace Rasa.Repositories.Char
         public GmCommandLog.IGmCommandLogRepository GmCommandLogs { get; }
         public ChatLog.IChatLogRepository ChatLogs { get; }
         public EconomyLog.IEconomyLogRepository EconomyLogs { get; }
+        public CraftingJob.ICraftingJobRepository CraftingJobs { get; }
         public ApiLog.IApiLogRepository ApiLogs { get; }
         public CharacterBossKill.ICharacterBossKillRepository CharacterBossKills { get; }
         public CharacterGreetingRead.ICharacterGreetingReadRepository CharacterGreetingReads { get; }

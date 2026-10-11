@@ -1430,6 +1430,54 @@ namespace Rasa.Migrations.SqliteChar
                     b.ToTable("control_point_state");
                 });
 
+            modelBuilder.Entity("Rasa.Structures.Char.CraftingJobEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<uint>("CharacterId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("character_id");
+
+                    b.Property<uint>("Count")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("count");
+
+                    b.Property<uint>("CraftingPage")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("crafting_page");
+
+                    b.Property<DateTime>("FinishAt")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("finish_at");
+
+                    b.Property<uint>("KraftwerksId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("kraftwerks_id");
+
+                    b.Property<uint>("QualityId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("quality_id");
+
+                    b.Property<uint>("ResultClassId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("result_class_id");
+
+                    b.Property<uint>("ResultTemplateId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("result_template_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex(new[] { "CharacterId" }, "crafting_job_index_character_id");
+
+                    b.HasIndex(new[] { "KraftwerksId" }, "crafting_job_index_kraftwerks_id");
+
+                    b.ToTable("crafting_job");
+                });
+
             modelBuilder.Entity("Rasa.Structures.Char.EconomyLogEntry", b =>
                 {
                     b.Property<uint>("Id")

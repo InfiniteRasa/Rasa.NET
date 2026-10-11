@@ -52,6 +52,9 @@ namespace Rasa.Structures
         public Actor UsedBy { get; set; }
 
         public string Comment { get; set; }
+
+        /// <summary>For a crafting station, the kraftwerks row it stands for (KraftwerksManager): what its jobs are kept under. 0 for anything else.</summary>
+        public uint KraftwerksId { get; set; }
         public string ScenarioKey { get; set; }
         public string SceneRunId { get; set; }
         public uint SceneOwnerCharacterId { get; set; }

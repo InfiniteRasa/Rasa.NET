@@ -68,6 +68,8 @@
             throw new System.NotSupportedException("This character unit of work has no chat log.");
         EconomyLog.IEconomyLogRepository EconomyLogs =>
             throw new System.NotSupportedException("This character unit of work has no economy log.");
+        CraftingJob.ICraftingJobRepository CraftingJobs =>
+            throw new System.NotSupportedException("This character unit of work has no crafting job store.");
         CharacterBossKill.ICharacterBossKillRepository CharacterBossKills =>
             throw new System.NotSupportedException("This character unit of work has no boss kill store.");
         CharacterGreetingRead.ICharacterGreetingReadRepository CharacterGreetingReads =>

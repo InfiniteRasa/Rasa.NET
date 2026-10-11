@@ -33,6 +33,12 @@ namespace Rasa.Managers
     /// recipe's time goes on the station for that player; the result is created when they take
     /// it. The window's other four pages - salvage, extraction, integration, upgrade - work on
     /// the modules an item carries, and are in KraftwerksManager.Modules.
+    ///
+    /// A job is a crafting_job row from the moment it is accepted until it is taken: the
+    /// ingredients and credits went when it was made, so a restart, a station a GM moved or a map
+    /// closed used to lose them and the product with them. Jobs are kept under the station's
+    /// kraftwerks row id, which outlives the entity id a moved station gets, and loaded again at
+    /// start with the time they had left (LoadJobs).
     /// </summary>
     public partial class KraftwerksManager
     {
@@ -54,7 +60,8 @@ namespace Rasa.Managers
         /// <summary>The crafting window's fabrication page (generated.shared.crafting CRAFTACTION_FABRICATION); the page a job reports decides which page the window reopens on.</summary>
         public const uint FabricationPage = 1;
 
-        private ulong _nextJobId = 1;
+        /// <summary>Ids for the jobs no row holds - a station with no row, a write that failed - well clear of the row ids.</summary>
+        private ulong _nextJobId = 1UL << 40;
 
         private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
         private readonly ManifestationManager _currencyManager;
@@ -62,8 +69,8 @@ namespace Rasa.Managers
         /// <summary>Every station by database id, live object included.</summary>
         private readonly Dictionary<uint, Station> _stations = new Dictionary<uint, Station>();
 
-        /// <summary>Jobs per (station entity, character), for CraftingStatus.</summary>
-        private readonly Dictionary<(ulong station, uint character), List<CraftingJob>> _jobs = new Dictionary<(ulong, uint), List<CraftingJob>>();
+        /// <summary>Jobs per (kraftwerks row, character), for CraftingStatus. What crafting_job holds, kept in step with it.</summary>
+        private readonly Dictionary<(uint station, uint character), List<CraftingJob>> _jobs = new Dictionary<(uint, uint), List<CraftingJob>>();
 
         public class Station
         {
@@ -113,6 +120,56 @@ namespace Rasa.Managers
                     placed++;
 
             Logger.WriteLog(LogType.Initialize, $"Loaded {placed} crafting stations ({entries.Count} rows)");
+
+            LoadJobs();
+        }
+
+        /// <summary>
+        /// The jobs the stations were making or holding when the server last ran, with the time
+        /// each had left: a job that finished meanwhile is finished, and its crafter is told the
+        /// first time they are on the station's map (Worker). A row at a station that is not
+        /// placed - its map not loaded, its row gone by hand - is left in the table and logged.
+        /// </summary>
+        internal void LoadJobs()
+        {
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+            var rows = unitOfWork.CraftingJobs.GetAll();
+            var now = DateTime.UtcNow;
+            var tick = Environment.TickCount64;
+            var loaded = 0;
+            var orphaned = 0;
+
+            foreach (var row in rows)
+            {
+                if (!_stations.ContainsKey(row.KraftwerksId))
+                {
+                    orphaned++;
+                    continue;
+                }
+
+                var key = (row.KraftwerksId, row.CharacterId);
+
+                if (!_jobs.TryGetValue(key, out var jobs))
+                    _jobs[key] = jobs = new List<CraftingJob>();
+
+                jobs.Add(new CraftingJob
+                {
+                    ResultItemId = row.Id,
+                    ResultClassId = row.ResultClassId,
+                    ResultItemTemplateId = row.ResultTemplateId,
+                    Count = row.Count,
+                    CraftingPage = row.CraftingPage,
+                    QualityId = row.QualityId,
+                    FinishTick = tick + (long)Math.Max(0, (row.FinishAt - now).TotalMilliseconds),
+                    Persisted = true
+                });
+                loaded++;
+            }
+
+            Logger.WriteLog(LogType.Initialize, $"Loaded {loaded} crafting jobs ({rows.Count} rows)");
+
+            if (orphaned > 0)
+                Logger.WriteLog(LogType.Error, $"{orphaned} crafting job row(s) are at stations that are not placed; left in crafting_job");
         }
 
         /// <summary>
@@ -145,10 +202,17 @@ namespace Rasa.Managers
                 }
             };
 
-            _stations[entry.Id] = station;
-            mapChannel.Kraftwerks[entry.Id] = station.Object;
+            Register(station, mapChannel);
 
             return station;
+        }
+
+        /// <summary>Puts a station in the table and its map's list; its object carries the row id its jobs are kept under.</summary>
+        internal void Register(Station station, MapChannel mapChannel)
+        {
+            station.Object.KraftwerksId = station.Entry.Id;
+            _stations[station.Entry.Id] = station;
+            mapChannel.Kraftwerks[station.Entry.Id] = station.Object;
         }
 
         /// <summary>Takes a station out of the world and its map's list; the row is untouched.</summary>
@@ -198,13 +262,13 @@ namespace Rasa.Managers
                 if (!entry.Value.Any(job => !job.FinishReported && job.IsFinished))
                     continue;
 
-                if (!EntityManager.Instance.TryGetObject(stationId, out var station) || station.MapContextId != mapChannel.MapInfo.MapContextId)
+                if (!_stations.TryGetValue(stationId, out var station) || station.Entry.MapContextId != mapChannel.MapInfo.MapContextId)
                     continue;
 
                 var client = mapChannel.ClientList.FirstOrDefault(c => c?.Player != null && c.Player.Id == characterId && c.State == ClientState.Ingame);
 
                 if (client != null)
-                    SendStatus(client, station);
+                    SendStatus(client, station.Object);
             }
         }
 
@@ -260,7 +324,7 @@ namespace Rasa.Managers
 
         private List<CraftingJob> JobsFor(Client client, DynamicObject station)
         {
-            return _jobs.TryGetValue((station.EntityId, client.Player.Id), out var jobs) ? jobs : new List<CraftingJob>();
+            return _jobs.TryGetValue((station.KraftwerksId, client.Player.Id), out var jobs) ? jobs : new List<CraftingJob>();
         }
 
         /// <summary>Whether a job at any station is making an item of this template for the character.</summary>
@@ -269,12 +333,74 @@ namespace Rasa.Managers
 
         private List<CraftingJob> JobsForWriting(Client client, DynamicObject station)
         {
-            var key = (station.EntityId, client.Player.Id);
+            var key = (station.KraftwerksId, client.Player.Id);
 
             if (!_jobs.TryGetValue(key, out var jobs))
                 _jobs[key] = jobs = new List<CraftingJob>();
 
             return jobs;
+        }
+
+        /// <summary>
+        /// A job accepted: its row, whose id is the job's from now on. A station with no row (one
+        /// made by hand, outside the table) or a write that failed leaves the job in memory alone,
+        /// under an id of its own, and the failure is logged - the ingredients have gone either way.
+        /// </summary>
+        private void Persist(Client client, DynamicObject station, CraftingJob job)
+        {
+            if (_gameUnitOfWorkFactory != null && station.KraftwerksId != 0)
+            {
+                using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+                var id = unitOfWork.CraftingJobs.Add(new Structures.Char.CraftingJobEntry
+                {
+                    CharacterId = client.Player.Id,
+                    KraftwerksId = station.KraftwerksId,
+                    ResultClassId = job.ResultClassId,
+                    ResultTemplateId = job.ResultItemTemplateId,
+                    Count = job.Count,
+                    CraftingPage = job.CraftingPage,
+                    QualityId = job.QualityId,
+                    FinishAt = DateTime.UtcNow.AddMilliseconds(Math.Max(0, job.FinishTick - Environment.TickCount64))
+                });
+
+                if (id != 0)
+                {
+                    job.ResultItemId = id;
+                    job.Persisted = true;
+                    return;
+                }
+
+                Logger.WriteLog(LogType.Error, $"crafting job for {client.Player.FamilyName} at station {station.KraftwerksId} could not be saved; it is held in memory until the server stops");
+            }
+
+            job.ResultItemId = _nextJobId++;
+        }
+
+        /// <summary>What is left of a job after a hand-over that did not take all of it.</summary>
+        private void Keep(CraftingJob job)
+        {
+            if (!job.Persisted)
+                return;
+
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+            unitOfWork.CraftingJobs.UpdateCount((uint)job.ResultItemId, job.Count);
+        }
+
+        /// <summary>A job taken whole: its row goes.</summary>
+        private void Forget(CraftingJob job)
+        {
+            if (!job.Persisted)
+                return;
+
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+            unitOfWork.CraftingJobs.Delete((uint)job.ResultItemId);
+        }
+
+        /// <summary>A character deleted: their jobs go from memory. The rows went with the character (CharacterManager).</summary>
+        internal void ForgetCharacter(uint characterId)
+        {
+            foreach (var key in _jobs.Keys.Where(key => key.character == characterId).ToList())
+                _jobs.Remove(key);
         }
 
         /// <summary>
@@ -475,7 +601,6 @@ namespace Rasa.Managers
 
             var job = new CraftingJob
             {
-                ResultItemId = _nextJobId++,
                 ResultClassId = (uint)result.Class,
                 ResultItemTemplateId = recipe.ResultTemplateId,
                 Count = recipe.ResultAmount,
@@ -484,6 +609,7 @@ namespace Rasa.Managers
                 FinishTick = Environment.TickCount64 + recipe.KraftwerksSeconds * 1000L
             };
 
+            Persist(client, station, job);
             jobs.Add(job);
 
             Logger.WriteLog(LogType.Debug, $"{player.FamilyName} fabricates {recipe.ResultAmount} x template {recipe.ResultTemplateId} from schematic {recipe.TemplateId} at station {station.EntityId}, ready in {recipe.KraftwerksSeconds} s");
@@ -558,13 +684,24 @@ namespace Rasa.Managers
             var jobs = JobsForWriting(client, station);
 
             foreach (var job in jobs.Where(j => j.IsFinished && which(j)).ToList())
+            {
+                var before = job.Count;
+
                 if (HandOver(client, job))
+                {
                     jobs.Remove(job);
-                else
-                    break;
+                    Forget(job);
+                    continue;
+                }
+
+                if (job.Count != before)
+                    Keep(job);
+
+                break;
+            }
 
             if (jobs.Count == 0)
-                _jobs.Remove((station.EntityId, client.Player.Id));
+                _jobs.Remove((station.KraftwerksId, client.Player.Id));
 
             SendStatus(client, station);
         }
@@ -647,6 +784,18 @@ namespace Rasa.Managers
                 return false;
 
             Unplace(station);
+
+            // The jobs it was making or holding go with it: there is no station to take them from.
+            foreach (var key in _jobs.Keys.Where(key => key.station == station.Entry.Id).ToList())
+                _jobs.Remove(key);
+
+            using (var charUnitOfWork = _gameUnitOfWorkFactory.CreateChar())
+            {
+                var gone = charUnitOfWork.CraftingJobs.DeleteByKraftwerks(station.Entry.Id);
+
+                if (gone > 0)
+                    Logger.WriteLog(LogType.Debug, $"crafting station {station.Entry.Id} was deleted with {gone} job(s) on it; they went with it");
+            }
 
             return true;
         }

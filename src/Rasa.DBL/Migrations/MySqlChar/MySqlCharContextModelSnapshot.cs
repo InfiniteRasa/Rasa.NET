@@ -1454,6 +1454,56 @@ namespace Rasa.Migrations.MySqlChar
                     b.ToTable("control_point_state");
                 });
 
+            modelBuilder.Entity("Rasa.Structures.Char.CraftingJobEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
+                    b.Property<uint>("CharacterId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("character_id");
+
+                    b.Property<uint>("Count")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("count");
+
+                    b.Property<uint>("CraftingPage")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("crafting_page");
+
+                    b.Property<DateTime>("FinishAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("finish_at");
+
+                    b.Property<uint>("KraftwerksId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("kraftwerks_id");
+
+                    b.Property<uint>("QualityId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("quality_id");
+
+                    b.Property<uint>("ResultClassId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("result_class_id");
+
+                    b.Property<uint>("ResultTemplateId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("result_template_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex(new[] { "CharacterId" }, "crafting_job_index_character_id");
+
+                    b.HasIndex(new[] { "KraftwerksId" }, "crafting_job_index_kraftwerks_id");
+
+                    b.ToTable("crafting_job");
+                });
+
             modelBuilder.Entity("Rasa.Structures.Char.EconomyLogEntry", b =>
                 {
                     b.Property<uint>("Id")
