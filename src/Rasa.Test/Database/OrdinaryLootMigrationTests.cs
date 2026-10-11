@@ -18,7 +18,7 @@ namespace Rasa.Test.Database
     public class OrdinaryLootMigrationTests
     {
         internal const string PreviousMigration = FlatLootArchiveMigrationTests.ArchiveMigration;
-        internal const string SchemaMigration = "20261202000100_Add_ordinary_loot_tables";
+        internal const string SchemaMigration = "20261203000100_Add_ordinary_loot_tables";
         private static readonly string[] Tables =
         {
             "loot_profile", "ordinary_loot_group", "loot_item", "creature_loot_binding", "loot_map_policy"

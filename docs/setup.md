@@ -485,15 +485,15 @@ fixed. Apply the matching World migrations and deploy the required C# mission
 scripts; there is no separate active-release requirement.
 
 Ordinary loot also validates and copies migrated World rows before Game accepts
-clients. The paired `20261202000100_Add_ordinary_loot_tables` schema and
-`20261202000200_Wilderness_ordinary_loot_v1` data migration make map 1220 require
+clients. The paired `20261203000100_Add_ordinary_loot_tables` schema and
+`20261203000200_Wilderness_ordinary_loot_v1` data migration make map 1220 require
 complete ordinary bindings. Invalid content blocks readiness; applying matching
 migrations and restarting loads the catalog, without a live-reload command.
 See [ordinary-loot deployment and tuning](loot.md#how-to-tune-and-deploy-ordinary-loot).
 
-The preceding `20261202000000_Archive_flat_loot_pools` transition preserves
+The preceding `20261203000000_Archive_flat_loot_pools` transition preserves
 incoming numeric flat-pool configurations as inactive `legacy_flat_*` tables.
-It follows the unchanged incoming `20261201000000_Add_bootcamp_trainees` tail.
+It follows the unchanged incoming `20261202000000_Place_bootcamp_base_npcs` tail.
 Nonempty archives block ordinary-loot readiness until an explicit authoring
 decision resolves them; no percentages become weights and no rows are discarded.
 The gametools loot editor/API uses only the version-2 weighted contract and
@@ -540,7 +540,7 @@ previously applied migration data.
 
 Ordinary loot chances and candidate pools are data too. Use a new paired World
 data migration, not edits to an applied seed/helper or gameplay constants.
-World history is forward-dated through `20261202000200`; a scaffold's current-date
+World history is forward-dated through `20261203000200`; a scaffold's current-date
 ID may sort before installed content. Before using it, assign an ID after the
 current tail and keep both providers' filenames/designer attributes consistent.
 See the [verified tuning example and ordering steps](loot.md#how-to-tune-and-deploy-ordinary-loot).

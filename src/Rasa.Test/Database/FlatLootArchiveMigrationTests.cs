@@ -14,8 +14,8 @@ namespace Rasa.Test.Database
     [TestClass]
     public class FlatLootArchiveMigrationTests
     {
-        internal const string IncomingTail = "20261201000000_Add_bootcamp_trainees";
-        internal const string ArchiveMigration = "20261202000000_Archive_flat_loot_pools";
+        internal const string IncomingTail = "20261202000000_Place_bootcamp_base_npcs";
+        internal const string ArchiveMigration = "20261203000000_Archive_flat_loot_pools";
         private static readonly string[] FlatTables = { "loot_group", "loot_group_item", "creature_loot_group" };
 
         [TestMethod]

@@ -4,7 +4,7 @@ using Rasa.Structures.World;
 namespace Rasa.Services.Preloader.Loot
 {
     /// <summary>
-    /// Frozen ordinary content inventoried on an owned SQLite World; schema boundary 20261202000100.
+    /// Frozen ordinary content inventoried on an owned SQLite World; schema boundary 20261203000100.
     /// All rates, equal within-species junk weights, ammunition assignments and level bands
     /// are reconstructed starting balance, not recovered retail distributions.
     /// Native identities come from itemtemplate -> itemtemplate_itemclass -> entityclass/
@@ -45,7 +45,7 @@ namespace Rasa.Services.Preloader.Loot
         private const string Provenance = "reconstructed starter balance; native IDs verified against migrated World";
         private const string NativeEvidence =
             "Native itemtemplate/class links, Item augmentation, inventory category, visibility, stack, flags, "
-            + "equip slots and class-keyed level/skill requirements verified at schema boundary 20261202000100. "
+            + "equip slots and class-keyed level/skill requirements verified at schema boundary 20261203000100. "
             + "Medpack 44917 -> class 21969, level 1, item action 419 (ItemTemplateActionPreloader). "
             + "Rates and pool selection are reconstruction, not retail evidence. ";
         private const string Thrax = NativeEvidence + "Thrax junk 41665/41666 -> classes 20306/20307; cartridges 28 -> 3147.";

@@ -18,7 +18,8 @@ namespace Rasa.Test.Missions
     [DoNotParallelize]
     public class BootcampCaptureTheFlagInteractionTests
     {
-        private static readonly uint[] ForeanNames = { 7874, 7890, 7986 };
+        /// <summary>The three escorts' creature rows: Forean initiates as seeded, Infantrymen with pistols since Place_bootcamp_base_npcs.</summary>
+        private static readonly uint[] EscortIds = { 510213, 510214, 510215 };
 
         [TestMethod]
         public void TheBridgeHasTheCorrectInfantryAndAfsFightingBeforeTheCaveExit()
@@ -49,13 +50,13 @@ namespace Rasa.Test.Missions
         }
 
         [TestMethod]
-        public void ThreeExistingForeansJoinAsMarkedEscortsWhenCaptureTheFlagIsAccepted()
+        public void ThreeExistingInfantrymenJoinAsMarkedEscortsWhenCaptureTheFlagIsAccepted()
         {
             using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true);
             SpawnPoolManager.Instance.SpawnPoolWorker(harness.BootcampMap, 0);
-            var foreans = Actors(harness).Where(actor => ForeanNames.Contains(actor.NameId)).ToArray();
-            Assert.AreEqual(3, foreans.Length, "The Foreans must be present at the firing range before accepting the mission.");
-            CollectionAssert.AreEquivalent(ForeanNames, foreans.Select(actor => actor.NameId).ToArray());
+            var foreans = Actors(harness).Where(actor => EscortIds.Contains(actor.DbId)).ToArray();
+            Assert.AreEqual(3, foreans.Length, "The escorts must be present at the firing range before accepting the mission.");
+            CollectionAssert.AreEquivalent(EscortIds, foreans.Select(actor => actor.DbId).ToArray());
             Assert.IsTrue(foreans.All(actor => actor.SpawnPool.FollowOwnerCharacterId == 0));
             foreach (var forean in foreans)
                 AssertGrounded(harness, forean);
@@ -63,7 +64,7 @@ namespace Rasa.Test.Missions
             AcceptCapture(harness);
 
             CollectionAssert.AreEquivalent(foreans,
-                Actors(harness).Where(actor => ForeanNames.Contains(actor.NameId)).ToArray());
+                Actors(harness).Where(actor => EscortIds.Contains(actor.DbId)).ToArray());
             Assert.IsTrue(foreans.All(actor =>
                 actor.SpawnPool.FollowOwnerCharacterId == harness.Client.Player.Id &&
                 actor.Controller.CurrentAction == BehaviorManager.BehaviorActionFollow));
@@ -97,7 +98,7 @@ namespace Rasa.Test.Missions
         }
 
         [TestMethod]
-        public void EscortMarkersReturnOnVisibilityAndFreshReconnectWithoutDuplicatingForeans()
+        public void EscortMarkersReturnOnVisibilityAndFreshReconnectWithoutDuplicatingEscorts()
         {
             using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true);
             SpawnPoolManager.Instance.SpawnPoolWorker(harness.BootcampMap, 0);
@@ -116,7 +117,7 @@ namespace Rasa.Test.Missions
             harness.MovePlayerTo(new Vector3(380, 120, 158));
             CellManager.Instance.UpdateVisibility(harness.Client);
 
-            var foreans = Actors(harness).Where(actor => ForeanNames.Contains(actor.NameId)).ToArray();
+            var foreans = Actors(harness).Where(actor => EscortIds.Contains(actor.DbId)).ToArray();
             Assert.AreEqual(3, foreans.Length);
             Assert.IsTrue(foreans.All(actor => actor.SpawnPool.FollowOwnerCharacterId == harness.Client.Player.Id));
             Assert.AreEqual(3, harness.Drain().OfType<CreatePhysicalEntityPacket>()
@@ -124,13 +125,13 @@ namespace Rasa.Test.Missions
         }
 
         [TestMethod]
-        public void ForeanEscortsFollowFromTheRangeToTheExistingCaveExit()
+        public void EscortsFollowFromTheRangeToTheExistingCaveExit()
         {
             using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true);
             SpawnPoolManager.Instance.SpawnPoolWorker(harness.BootcampMap, 0);
             AcceptCapture(harness);
             Assert.IsTrue(harness.Manager.TryGetAreaDefinition(1994, 439, out var exit));
-            var foreans = Actors(harness).Where(actor => ForeanNames.Contains(actor.NameId)).ToArray();
+            var foreans = Actors(harness).Where(actor => EscortIds.Contains(actor.DbId)).ToArray();
             harness.MovePlayerTo(exit.Position);
             CellManager.Instance.UpdateVisibility(harness.Client);
 
@@ -146,11 +147,11 @@ namespace Rasa.Test.Missions
         }
 
         [TestMethod]
-        public void ReconnectRestoresSurvivingForeansNearThePlayersSavedPosition()
+        public void ReconnectRestoresSurvivingEscortsNearThePlayersSavedPosition()
         {
             using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true);
             ReachTizzik(harness);
-            var fallen = Actors(harness).Single(actor => actor.NameId == 7874);
+            var fallen = Actors(harness).Single(actor => actor.DbId == 510213);
             KillWithPlayerMissile(harness, fallen);
             var savedPosition = new Vector3(100, 109.65f, 135);
             harness.MovePlayerTo(savedPosition);
@@ -160,8 +161,8 @@ namespace Rasa.Test.Missions
 
             harness.ReconnectFresh();
 
-            var survivors = Actors(harness).Where(actor => ForeanNames.Contains(actor.NameId)).ToArray();
-            CollectionAssert.AreEquivalent(new uint[] { 7890, 7986 }, survivors.Select(actor => actor.NameId).ToArray());
+            var survivors = Actors(harness).Where(actor => EscortIds.Contains(actor.DbId)).ToArray();
+            CollectionAssert.AreEquivalent(new uint[] { 510214, 510215 }, survivors.Select(actor => actor.DbId).ToArray());
             foreach (var survivor in survivors)
             {
                 Assert.IsTrue(Vector3.Distance(survivor.Position, savedPosition) < 8,
@@ -196,7 +197,7 @@ namespace Rasa.Test.Missions
 
             Assert.AreEqual(CharacterState.Dead, tizzik.State);
             Assert.AreEqual(MissionObjectiveState.Completed, harness.Client.Player.Missions[1994].Objectives[1].State,
-                "The owned Forean escort's kill must count for the player.");
+                "The owned escort's kill must count for the player.");
         }
 
         [TestMethod]
@@ -205,7 +206,7 @@ namespace Rasa.Test.Missions
             using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true);
             ReachTizzik(harness);
             var tizzik = Actors(harness).Single(actor => actor.DbId == BootcampRuntimeTestHarness.TizzikGiCreatureId);
-            var escort = Actors(harness).First(actor => ForeanNames.Contains(actor.NameId));
+            var escort = Actors(harness).First(actor => EscortIds.Contains(actor.DbId));
             escort.SpawnPool.FollowOwnerCharacterId = 999;
             CreatureManager.Instance.SetLocation(escort, tizzik.Position + new Vector3(0, 0, 6), 0, 1985);
 
@@ -244,7 +245,7 @@ namespace Rasa.Test.Missions
             Assert.IsTrue(harness.Manager.CompleteOfferedObjective(harness.Client, youngblood.EntityId, 1994, 3, 1));
             Assert.IsTrue(harness.Manager.CompleteOfferedMission(harness.Client, youngblood.EntityId, 1994, null, null));
             harness.Manager.TickScenarios(harness.Client);
-            Assert.IsTrue(Actors(harness).Where(actor => ForeanNames.Contains(actor.NameId))
+            Assert.IsTrue(Actors(harness).Where(actor => EscortIds.Contains(actor.DbId))
                 .All(actor => actor.SpawnPool.FollowOwnerCharacterId == 0));
 
             harness.ReconnectFresh();
@@ -263,12 +264,12 @@ namespace Rasa.Test.Missions
         // on a loaded CI runner, and in class order on Windows. It needs an injectable clock.
         [Ignore("Quarantined: depends on wall-clock time; see the linked issue.")]
         [GitHubWorkItem("https://github.com/InfiniteRasa/Rasa.NET/issues/132")]
-        public void ForeanEscortsCanFollowFromTheCaveExitToTheReclaimedBase()
+        public void EscortsCanFollowFromTheCaveExitToTheReclaimedBase()
         {
             using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true);
             ReachTizzik(harness);
             Assert.IsTrue(harness.Manager.TryGetAreaDefinition(1994, 439, out var exit));
-            var foreans = Actors(harness).Where(actor => ForeanNames.Contains(actor.NameId)).ToArray();
+            var foreans = Actors(harness).Where(actor => EscortIds.Contains(actor.DbId)).ToArray();
             Assert.AreEqual(3, foreans.Length);
             for (var index = 0; index < foreans.Length; index++)
             {

@@ -125,8 +125,8 @@ mission additions can raise its quality.
 
 ## Reference: frozen Wilderness v1
 
-The paired schema migration is `20261202000100_Add_ordinary_loot_tables`.
-The data pair `20261202000200_Wilderness_ordinary_loot_v1` follows it and calls
+The paired schema migration is `20261203000100_Add_ordinary_loot_tables`.
+The data pair `20261203000200_Wilderness_ordinary_loot_v1` follows it and calls
 the frozen
 [`WildernessOrdinaryLootV1`](../src/Rasa.DBL/Services/Preloader/Loot/WildernessOrdinaryLootV1.cs)
 helper. It installs 27 profiles, 83 groups, 179 candidates, 36 bindings and one
@@ -172,12 +172,12 @@ historical `20261128000000_Add_loot_groups` migration still creates `loot_group`
 `loot_group_item` and `creature_loot_group`, with their original numeric keys
 and independent per-item percentage chances.
 
-After the incoming `20261201000000_Add_bootcamp_trainees` tail, both providers
-run `20261202000000_Archive_flat_loot_pools`. It renames those three tables to
+After the incoming `20261202000000_Place_bootcamp_base_npcs` tail, both providers
+run `20261203000000_Archive_flat_loot_pools`. It renames those three tables to
 `legacy_flat_loot_group`, `legacy_flat_loot_group_item` and
 `legacy_flat_creature_loot_group`, preserving every row and value. Rollback
 restores the original names. The weighted schema and Wilderness content then
-follow at `20261202000100` and `20261202000200`.
+follow at `20261203000100` and `20261203000200`.
 
 These are inactive compatibility archives, not a second loot backend.
 The flat generator, publisher and write repository have been removed.
@@ -218,17 +218,17 @@ the published catalog. Existing captured profiles and corpses remain intact.
    `MySqlWorldContext` with the repository's EF 9.0.20 tool, following
    [setup](setup.md#creating-migrations). Assign the same unique ID ordered after
    the latest installed/repository World history. This repository already has
-   forward-dated IDs through `20261202000200`; scaffolding on October 7, 2026
+   forward-dated IDs through `20261203000200`; scaffolding on October 8, 2026
    would generate an earlier timestamp. Do not use that raw timestamp.
 
    With the current tail, an example next ID is
-   `20261202000300_Tune_wilderness_loot_v2`. Recheck both histories if later
+   `20261203000300_Tune_wilderness_loot_v2`. Recheck both histories if later
    migrations have since been added. **Before building, scripting or applying
    the pair**, rename the scaffolded files in both `Migrations\SqliteWorld` and
    `Migrations\MySqlWorld` to
-   `20261202000300_Tune_wilderness_loot_v2.cs` and
-   `20261202000300_Tune_wilderness_loot_v2.Designer.cs`, and set each designer to
-   `[Migration("20261202000300_Tune_wilderness_loot_v2")]`.
+   `20261203000300_Tune_wilderness_loot_v2.cs` and
+   `20261203000300_Tune_wilderness_loot_v2.Designer.cs`, and set each designer to
+   `[Migration("20261203000300_Tune_wilderness_loot_v2")]`.
    Keep the scaffolded class/partial names and provider `DbContext` attributes
    consistent. A data-only migration has no model diff; do not add schema
    operations or hand-edit snapshots to disguise one. Never deploy the raw

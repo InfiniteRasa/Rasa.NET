@@ -2,8 +2,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Rasa.Context.World;
 
 #nullable disable
@@ -11,10 +11,9 @@ using Rasa.Context.World;
 namespace Rasa.Migrations.SqliteWorld
 {
     [DbContext(typeof(SqliteWorldContext))]
-    [Migration("20261202000200_Wilderness_ordinary_loot_v1")]
-    partial class Wilderness_ordinary_loot_v1
+    [Migration("20261203000000_Archive_flat_loot_pools")]
+    partial class Archive_flat_loot_pools
     {
-        /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
@@ -515,31 +514,6 @@ namespace Rasa.Migrations.SqliteWorld
                     b.HasKey("Id");
 
                     b.ToTable("creature");
-                });
-
-            modelBuilder.Entity("Rasa.Structures.World.CreatureLootBindingEntry", b =>
-                {
-                    b.Property<uint>("MapContextId")
-                        .HasColumnType("int(11)")
-                        .HasColumnName("map_context_id");
-
-                    b.Property<uint>("CreatureId")
-                        .HasColumnType("int(11)")
-                        .HasColumnName("creature_id");
-
-                    b.Property<string>("ProfileKey")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("varchar(64)")
-                        .HasColumnName("profile_key");
-
-                    b.HasKey("MapContextId", "CreatureId");
-
-                    b.HasIndex("CreatureId");
-
-                    b.HasIndex("ProfileKey");
-
-                    b.ToTable("creature_loot_binding");
                 });
 
             modelBuilder.Entity("Rasa.Structures.World.CreatureLootGroupEntry", b =>
@@ -1154,100 +1128,6 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasName("PK_loot_group_item");
 
                     b.ToTable("legacy_flat_loot_group_item");
-                });
-
-            modelBuilder.Entity("Rasa.Structures.World.LootItemEntry", b =>
-                {
-                    b.Property<string>("ProfileKey")
-                        .HasMaxLength(64)
-                        .HasColumnType("varchar(64)")
-                        .HasColumnName("profile_key");
-
-                    b.Property<string>("GroupKey")
-                        .HasMaxLength(32)
-                        .HasColumnType("varchar(32)")
-                        .HasColumnName("group_key");
-
-                    b.Property<uint>("ItemTemplateId")
-                        .HasColumnType("int(11)")
-                        .HasColumnName("item_template_id");
-
-                    b.Property<int>("MaximumQuantity")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("maximum_quantity");
-
-                    b.Property<int>("MinimumQuantity")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("minimum_quantity");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("sort_order");
-
-                    b.Property<int>("Weight")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("weight");
-
-                    b.HasKey("ProfileKey", "GroupKey", "ItemTemplateId");
-
-                    b.HasIndex("ItemTemplateId");
-
-                    b.ToTable("loot_item", t =>
-                        {
-                            t.HasCheckConstraint("CK_loot_item_quantities", "minimum_quantity > 0 AND maximum_quantity >= minimum_quantity");
-
-                            t.HasCheckConstraint("CK_loot_item_weight", "weight > 0");
-                        });
-                });
-
-            modelBuilder.Entity("Rasa.Structures.World.LootMapPolicyEntry", b =>
-                {
-                    b.Property<uint>("MapContextId")
-                        .HasColumnType("int(11)")
-                        .HasColumnName("map_context_id");
-
-                    b.Property<bool>("RequireProfiles")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("require_profiles");
-
-                    b.HasKey("MapContextId");
-
-                    b.ToTable("loot_map_policy");
-                });
-
-            modelBuilder.Entity("Rasa.Structures.World.LootProfileEntry", b =>
-                {
-                    b.Property<string>("ProfileKey")
-                        .HasMaxLength(64)
-                        .HasColumnType("varchar(64)")
-                        .HasColumnName("profile_key");
-
-                    b.Property<string>("ContentRevision")
-                        .IsRequired()
-                        .HasColumnType("varchar(32)")
-                        .HasColumnName("content_revision");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("description");
-
-                    b.Property<string>("EvidenceNotes")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("evidence_notes");
-
-                    b.Property<string>("Provenance")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("provenance");
-
-                    b.HasKey("ProfileKey");
-
-                    b.ToTable("loot_profile", t =>
-                        {
-                            t.HasCheckConstraint("CK_loot_profile_key_length", "LENGTH(profile_key) BETWEEN 1 AND 64");
-                        });
                 });
 
             modelBuilder.Entity("Rasa.Structures.World.MapEmitterEntry", b =>
@@ -2820,52 +2700,6 @@ namespace Rasa.Migrations.SqliteWorld
                     b.ToTable("npc_package");
                 });
 
-            modelBuilder.Entity("Rasa.Structures.World.OrdinaryLootGroupEntry", b =>
-                {
-                    b.Property<string>("ProfileKey")
-                        .HasMaxLength(64)
-                        .HasColumnType("varchar(64)")
-                        .HasColumnName("profile_key");
-
-                    b.Property<string>("GroupKey")
-                        .HasMaxLength(32)
-                        .HasColumnType("varchar(32)")
-                        .HasColumnName("group_key");
-
-                    b.Property<int>("ChanceBasisPoints")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("chance_basis_points");
-
-                    b.Property<byte>("Kind")
-                        .HasColumnType("tinyint(3)")
-                        .HasColumnName("kind");
-
-                    b.Property<int>("MaximumRolls")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("maximum_rolls");
-
-                    b.Property<int>("MinimumRolls")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("minimum_rolls");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("sort_order");
-
-                    b.HasKey("ProfileKey", "GroupKey");
-
-                    b.ToTable("ordinary_loot_group", t =>
-                        {
-                            t.HasCheckConstraint("CK_ordinary_loot_group_chance", "chance_basis_points BETWEEN 0 AND 10000");
-
-                            t.HasCheckConstraint("CK_ordinary_loot_group_key_length", "LENGTH(group_key) BETWEEN 1 AND 32");
-
-                            t.HasCheckConstraint("CK_ordinary_loot_group_kind", "kind IN (1, 2, 3, 4)");
-
-                            t.HasCheckConstraint("CK_ordinary_loot_group_rolls", "minimum_rolls >= 0 AND maximum_rolls >= minimum_rolls");
-                        });
-                });
-
             modelBuilder.Entity("Rasa.Structures.World.RandomNameEntry", b =>
                 {
                     b.Property<string>("Name")
@@ -3109,10 +2943,6 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnType("REAL")
                         .HasColumnName("pos_z");
 
-                    b.Property<double>("Radius")
-                        .HasColumnType("REAL")
-                        .HasColumnName("radius");
-
                     b.Property<uint>("RespawnTime")
                         .HasColumnType("INTEGER")
                         .HasColumnName("respown_time");
@@ -3120,6 +2950,10 @@ namespace Rasa.Migrations.SqliteWorld
                     b.Property<double>("Rotation")
                         .HasColumnType("REAL")
                         .HasColumnName("rotation");
+
+                    b.Property<double>("Radius")
+                        .HasColumnType("REAL")
+                        .HasColumnName("radius");
 
                     b.HasKey("Id");
 
@@ -3381,51 +3215,6 @@ namespace Rasa.Migrations.SqliteWorld
                     b.ToTable("weaponclass");
                 });
 
-            modelBuilder.Entity("Rasa.Structures.World.CreatureLootBindingEntry", b =>
-                {
-                    b.HasOne("Rasa.Structures.World.CreatureEntry", null)
-                        .WithMany()
-                        .HasForeignKey("CreatureId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Rasa.Structures.World.MapInfoEntry", null)
-                        .WithMany()
-                        .HasForeignKey("MapContextId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Rasa.Structures.World.LootProfileEntry", null)
-                        .WithMany()
-                        .HasForeignKey("ProfileKey")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Rasa.Structures.World.LootItemEntry", b =>
-                {
-                    b.HasOne("Rasa.Structures.World.ItemTemplateEntry", null)
-                        .WithMany()
-                        .HasForeignKey("ItemTemplateId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Rasa.Structures.World.OrdinaryLootGroupEntry", null)
-                        .WithMany()
-                        .HasForeignKey("ProfileKey", "GroupKey")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Rasa.Structures.World.LootMapPolicyEntry", b =>
-                {
-                    b.HasOne("Rasa.Structures.World.MapInfoEntry", null)
-                        .WithMany()
-                        .HasForeignKey("MapContextId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("Rasa.Structures.World.MissionActionEntry", b =>
                 {
                     b.HasOne("Rasa.Structures.World.MissionRewardDefinitionEntry", null)
@@ -3670,15 +3459,6 @@ namespace Rasa.Migrations.SqliteWorld
                         .IsRequired();
 
                     b.Navigation("Transition");
-                });
-
-            modelBuilder.Entity("Rasa.Structures.World.OrdinaryLootGroupEntry", b =>
-                {
-                    b.HasOne("Rasa.Structures.World.LootProfileEntry", null)
-                        .WithMany()
-                        .HasForeignKey("ProfileKey")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
                 });
 
             modelBuilder.Entity("Rasa.Structures.World.MissionContentDefinitionEntry", b =>

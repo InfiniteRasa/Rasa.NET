@@ -513,6 +513,10 @@ namespace Rasa.Test.Missions
             if (report.BlocksReadiness)
                 throw new InvalidOperationException(
                     string.Join(" | ", report.Diagnostics.Select(diagnostic => diagnostic.Code)));
+            var hasOrdinaryLootSchema = worldContext.Database.GetAppliedMigrations()
+                .Contains(Rasa.Test.Database.OrdinaryLootMigrationTests.SchemaMigration);
+            if (!hasOrdinaryLootSchema && worldMigration == null)
+                throw new InvalidOperationException("The current Bootcamp fixture requires the ordinary-loot migrations.");
             var singletons = new ManagerInstances(
                 maps,
                 objects,
@@ -523,7 +527,8 @@ namespace Rasa.Test.Missions
                 clan,
                 auction,
                 social,
-                factory);
+                factory,
+                hasOrdinaryLootSchema);
             LoadBootcampLootContent(worldContext);
             LoadBootcampNav(maps);
             if (useWorldContent)
@@ -1443,10 +1448,13 @@ namespace Rasa.Test.Missions
                 object clan,
                 AuctionHouseManager auction,
                 object social,
-                IGameUnitOfWorkFactory factory)
+                IGameUnitOfWorkFactory factory,
+                bool hasOrdinaryLootSchema)
             {
                 using var world = factory.CreateWorld();
-                _ordinaryLootCatalog = new Rasa.Test.Gameplay.OrdinaryLootCatalogScope(world);
+                _ordinaryLootCatalog = hasOrdinaryLootSchema
+                    ? new Rasa.Test.Gameplay.OrdinaryLootCatalogScope(world)
+                    : new Rasa.Test.Gameplay.OrdinaryLootCatalogScope((Rasa.Loot.OrdinaryLootCatalog)null);
                 _previousMaps = _mapsField.GetValue(null);
                 _previousObjects = _objectsField.GetValue(null);
                 _previousCreatures = _creaturesField.GetValue(null);
@@ -1479,7 +1487,8 @@ namespace Rasa.Test.Missions
                 items.ItemTemplateItemClass = new Dictionary<uint, EntityClasses>(
                     ItemManager.Instance.ItemTemplateItemClass);
                 _itemsField.SetValue(null, items);
-                _lootField.SetValue(null, new LootDispenserManager(factory, missionManager: missions));
+                _lootField.SetValue(null, new LootDispenserManager(factory, missionManager: missions,
+                    ordinaryLootResolver: hasOrdinaryLootSchema ? null : (map, creature) => null));
                 _spawnsField.SetValue(null, new SpawnPoolManager(factory));
             }
 

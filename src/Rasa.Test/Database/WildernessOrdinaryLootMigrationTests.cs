@@ -22,7 +22,7 @@ namespace Rasa.Test.Database
     [DoNotParallelize]
     public class WildernessOrdinaryLootMigrationTests
     {
-        internal const string ContentMigration = "20261202000200_Wilderness_ordinary_loot_v1";
+        internal const string ContentMigration = "20261203000200_Wilderness_ordinary_loot_v1";
         private const string ThraxRegular = "wilderness_v1_thrax_10_14";
         private static readonly uint[] Bosses =
         {

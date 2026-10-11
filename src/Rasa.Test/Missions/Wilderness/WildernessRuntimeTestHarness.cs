@@ -81,7 +81,7 @@ namespace Rasa.Test.Missions.Wilderness
                 World.ChangeTracker.Clear();
             }
             Func<uint, uint, Rasa.Loot.OrdinaryLootProfile> historicalLoot = null;
-            if (World.Database.GetAppliedMigrations().Contains("20261202000100_Add_ordinary_loot_tables"))
+            if (World.Database.GetAppliedMigrations().Contains("20261203000100_Add_ordinary_loot_tables"))
             {
                 using var world = CreateWorld();
                 var catalog = new Rasa.Test.Gameplay.OrdinaryLootCatalogScope(world);
