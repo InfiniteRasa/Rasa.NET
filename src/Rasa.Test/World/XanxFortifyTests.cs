@@ -12,7 +12,9 @@ namespace Rasa.Test.World
 
     /// <summary>
     /// A Xanx's meal (CR_XANX_DEVOUR) is XANX_FORTIFY: for the argument's DURATION it raises the
-    /// Xanx's maximum health by the heal amount, and its health with it (CreatureHabits.Fortify).
+    /// Xanx's maximum health by part of the heal amount - at most a quarter of its maximum - and its
+    /// health with it, and the rest of the meal heals it up to the raised maximum
+    /// (CreatureHabits.Fortify).
     /// </summary>
     [TestClass]
     [DoNotParallelize]
@@ -47,13 +49,16 @@ namespace Rasa.Test.World
             var health = xanx.Attributes[Attributes.Health];
             var fortify = xanx.ActiveEffects.Values.Single(e => e.TypeId == CreatureHabits.XanxFortifyTypeId);
 
-            Assert.AreEqual(1000 + amount, health.CurrentMax, "its maximum raised by the meal");
-            Assert.AreEqual(400 + amount, health.Current, "and its health with it: what it regains");
+            Assert.IsGreaterThan(250, amount, "a level 10 Xanx's meal is more than the raise can take");
+            Assert.AreEqual(1250, health.CurrentMax, "its maximum raised by a quarter, not by the meal's 2,181");
+            Assert.AreEqual(1250, health.Current, "and the rest of the meal heals it to the raised maximum");
             Assert.IsTrue(fortify.ExpiresTick - Environment.TickCount64 is > 299000 and <= 300000, "DURATION 300 s");
 
-            // A second meal replaces the first: one raise, not two.
+            // A second meal replaces the first: one raise, not two, and not a quarter of the raised maximum.
+            health.Current = 900;
             CreatureHabits.Fortify(world.Map, xanx, info);
-            Assert.AreEqual(1000 + amount, health.CurrentMax);
+            Assert.AreEqual(1250, health.CurrentMax);
+            Assert.AreEqual(1250, health.Current);
             Assert.AreEqual(1, xanx.ActiveEffects.Values.Count(e => e.TypeId == CreatureHabits.XanxFortifyTypeId));
 
             // When it ends the maximum goes back, and the health is capped to it.
@@ -62,6 +67,32 @@ namespace Rasa.Test.World
 
             Assert.AreEqual(1000, health.CurrentMax);
             Assert.IsTrue(health.Current <= 1000);
+        }
+
+        [TestMethod]
+        public void AHighLevelXanxsMealRaisesItsMaximumByAQuarterNotByTheScaledHealAmount()
+        {
+            // Level 30: the heal amount scales to 12,337, which all went onto the maximum.
+            using var world = new WorldTestContext();
+            var xanx = Xanx(world, 1000, level: 30, maximum: 2652);
+            var info = Devour();
+
+            Assert.AreEqual(12337, CreatureHabits.MealAmount(xanx, info));
+
+            CreatureHabits.Fortify(world.Map, xanx, info);
+
+            var health = xanx.Attributes[Attributes.Health];
+
+            Assert.AreEqual(2652 + 663, health.CurrentMax, "a quarter of 2,652");
+            Assert.AreEqual(2652 + 663, health.Current, "healed to it");
+        }
+
+        [TestMethod]
+        public void AMealSmallerThanAQuarterGoesOnTheMaximumWhole()
+        {
+            Assert.AreEqual(200, CreatureHabits.FortifyRaise(200, 1000));
+            Assert.AreEqual(250, CreatureHabits.FortifyRaise(2181, 1000));
+            Assert.AreEqual(0, CreatureHabits.FortifyRaise(500, 0));
         }
 
         [TestMethod]
@@ -94,7 +125,7 @@ namespace Rasa.Test.World
             return info;
         }
 
-        private Creature Xanx(WorldTestContext world, int health)
+        private Creature Xanx(WorldTestContext world, int health, uint level = 10, int maximum = 1000)
         {
             _xanx = new Creature
             {
@@ -105,10 +136,10 @@ namespace Rasa.Test.World
                 Position = Vector3.Zero,
                 EntityClass = EntityClasses.HumanBaseMale,
                 State = CharacterState.Idle,
-                Level = 10,
+                Level = level,
                 AppearanceData = new Dictionary<EquipmentData, AppearanceData>()
             };
-            _xanx.Attributes[Attributes.Health] = new ActorAttributes(Attributes.Health, 1000, 1000, health, 0, 0);
+            _xanx.Attributes[Attributes.Health] = new ActorAttributes(Attributes.Health, maximum, maximum, health, 0, 0);
             EntityManager.Instance.RegisterEntity(_xanx.EntityId, EntityType.Creature);
             EntityManager.Instance.RegisterCreature(_xanx);
             EntityManager.Instance.RegisterActor(_xanx.EntityId, _xanx);
