@@ -48,6 +48,7 @@ namespace Rasa.Repositories.World
             ItemModules = new ItemModuleRepository(dbContext);
             AmbientNpcs = new AmbientNpcRepository(dbContext);
             WorldDestructibles = new WorldDestructibleRepository(dbContext);
+            WorldUsables = new WorldUsableRepository(dbContext);
             LootGroups = new LootGroupRepository(dbContext);
             SpawnPoolArrivals = spawnPoolArrivalRepository;
             Recipes = recipeRepository;
@@ -76,6 +77,7 @@ namespace Rasa.Repositories.World
         public IItemModuleRepository ItemModules { get; }
         public IAmbientNpcRepository AmbientNpcs { get; }
         public IWorldDestructibleRepository WorldDestructibles { get; }
+        public IWorldUsableRepository WorldUsables { get; }
         public ILootGroupRepository LootGroups { get; }
         public ISpawnPoolArrivalRepository SpawnPoolArrivals { get; }
         public IRecipeRepository Recipes { get; }

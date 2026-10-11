@@ -3337,6 +3337,95 @@ namespace Rasa.Migrations.MySqlWorld
                     b.ToTable("world_destructible");
                 });
 
+            modelBuilder.Entity("Rasa.Structures.World.WorldUsableEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("id");
+
+                    b.Property<uint>("ActionArg")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("action_arg");
+
+                    b.Property<uint>("ClassId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("class_id");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("varchar(128)")
+                        .HasColumnName("comment");
+
+                    b.Property<uint>("DamageMax")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("damage_max");
+
+                    b.Property<uint>("DamageMin")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("damage_min");
+
+                    b.Property<uint>("IntervalMaxSeconds")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("interval_max_seconds");
+
+                    b.Property<uint>("IntervalMinSeconds")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("interval_min_seconds");
+
+                    b.Property<uint>("ItemClassId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("item_class_id");
+
+                    b.Property<uint>("ItemCount")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("item_count");
+
+                    b.Property<uint>("ItemTemplateId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("item_template_id");
+
+                    b.Property<uint>("MapContextId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("map_context_id");
+
+                    b.Property<double>("PosX")
+                        .HasColumnType("double")
+                        .HasColumnName("pos_x");
+
+                    b.Property<double>("PosY")
+                        .HasColumnType("double")
+                        .HasColumnName("pos_y");
+
+                    b.Property<double>("PosZ")
+                        .HasColumnType("double")
+                        .HasColumnName("pos_z");
+
+                    b.Property<double>("Radius")
+                        .HasColumnType("double")
+                        .HasColumnName("radius");
+
+                    b.Property<uint>("ResetSeconds")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("reset_seconds");
+
+                    b.Property<double>("Rotation")
+                        .HasColumnType("double")
+                        .HasColumnName("rotation");
+
+                    b.Property<uint>("State")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("state");
+
+                    b.Property<uint>("Usable")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("usable");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("world_usable");
+                });
+
             modelBuilder.Entity("Rasa.Structures.World.WormholeLockEntry", b =>
                 {
                     b.Property<uint>("Id")

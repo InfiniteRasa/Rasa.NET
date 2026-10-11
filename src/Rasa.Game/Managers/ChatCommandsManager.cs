@@ -276,6 +276,7 @@ namespace Rasa.Managers
             RegisterCommand(".pose", GmLevel.GameMaster, PoseCommand, "pose");
             RegisterCommand(".ambient", GmLevel.GameMaster, AmbientCommand, "class | clear");
             RegisterCommand(".destructible", GmLevel.GameMaster, DestructibleCommand, "action", "arg1", "arg2", "arg3", "arg4", "arg5");
+            RegisterCommand(".worldusable", GmLevel.GameMaster, WorldUsableCommand, "action", "arg1", "arg2", "arg3", "arg4", "arg5", "arg6", "arg7", "arg8");
             RegisterCommand(".removeobj", GmLevel.GameMaster, RemoveObjectCommand, "entityId");
             RegisterCommand(".moveobj", GmLevel.GameMaster, MoveObjectCommand, "entityId", "x", "y", "z", "rotation");
             RegisterCommand(".rename", GmLevel.GameMaster, RenameCommand, "part", "newName", "familyName");
@@ -921,6 +922,243 @@ namespace Rasa.Managers
             // Logged as .where is, with the class, so the line is all a row of ambient_npc needs.
             Logger.WriteLog(LogType.Command,
                 $"[.ambient] {_client.Player.FamilyName}: class={chosen.ClassId} {AmbientNpcs.ShortName(chosen)} map={_client.Player.MapContextId} pos=({position.X:0.####}, {position.Y:0.####}, {position.Z:0.####}) rot={rotation:0.####}");
+        }
+
+        /// <summary>How far .worldusable looks for the nearest placed object when no row id is given.</summary>
+        private const float NearestWorldUsableRange = 30f;
+
+        /// <summary>
+        /// .worldusable: the usable world objects the server puts down (PlacedUsables).
+        ///   .worldusable classes [word]          - the classes that can be placed, with their kind and states
+        ///   .worldusable put &lt;class&gt; [key=value ...] - at your feet, facing your way; not saved. Keys: state,
+        ///                                     usable (0/1), item (template), itemclass, count, reset, min, max,
+        ///                                     dmin, dmax, radius, arg - as world_usable's columns
+        ///   .worldusable near                    - what is placed within 30 m
+        ///   .worldusable state &lt;state&gt; [row]     - sets it, to everyone in range
+        ///   .worldusable blast [row]             - sets off a random explosion or a bomb now
+        ///   .worldusable clear                   - takes away what .worldusable put put down
+        /// A put logs the WorldUsablePreloader Row line for where it stands.
+        /// </summary>
+        private void WorldUsableCommand(string[] parts)
+        {
+            var player = _client.Player;
+            var mapChannel = player.MapChannel;
+            var sub = parts.Length > 1 ? parts[1].ToLowerInvariant() : string.Empty;
+
+            void Say(string text) => CommunicatorManager.Instance.SystemMessage(_client, text);
+
+            string Describe(PlacedUsables.Live live) =>
+                $"{(live.Placement.IsPutDown ? "put down" : $"row {live.Placement.Id}")}: {(uint)live.Placement.ClassId} "
+                + $"{EntityClassManager.Instance.GetClassInfo(live.Placement.ClassId)?.ClassName} ({live.Placement.Kind}), {live.State} ({(int)live.State})"
+                + $"{(live.Placement.Usable ? ", usable" : "")}, {Vector3.Distance(live.Object.Position, player.Position):0.0} m away";
+
+            PlacedUsables.Live Target(string row)
+            {
+                if (row != null)
+                {
+                    var byRow = uint.TryParse(row, out var rowId) ? PlacedUsables.LiveOf(mapChannel, rowId) : null;
+
+                    if (byRow == null)
+                        Say($"No world_usable row {row} on this map.");
+
+                    return byRow;
+                }
+
+                var nearest = PlacedUsables.On(mapChannel)
+                    .Where(live => Vector3.Distance(live.Object.Position, player.Position) <= NearestWorldUsableRange)
+                    .OrderBy(live => Vector3.DistanceSquared(live.Object.Position, player.Position))
+                    .FirstOrDefault();
+
+                if (nearest == null)
+                    Say($"Nothing placed within {NearestWorldUsableRange:0} m.");
+
+                return nearest;
+            }
+
+            switch (sub)
+            {
+                case "classes":
+                    {
+                        var words = parts.Skip(2).Where(word => word.Length > 0).ToList();
+                        var classes = EntityClassManager.Instance.LoadedEntityClasses.Values
+                            .Where(c => c?.ClassName != null && PlacedUsables.WhyNot((EntityClasses)c.ClassId, out _, out _) == null)
+                            .Where(c => words.All(word => c.ClassName.Contains(word, StringComparison.OrdinalIgnoreCase)))
+                            .OrderBy(c => c.ClassName)
+                            .ToList();
+
+                        Say($"{classes.Count} class(es) that can be placed: id, name, kind, and its states (the first is the default).");
+
+                        foreach (var c in classes.Take(25))
+                        {
+                            PlacedUsables.WhyNot((EntityClasses)c.ClassId, out var augmentation, out var kind);
+                            Say($"{c.ClassId} {c.ClassName} ({kind}: {string.Join(", ", PlacedUsables.StatesOf[augmentation].Select(state => $"{(int)state}"))})");
+                        }
+
+                        if (classes.Count > 25)
+                            Say($"... and {classes.Count - 25} more; add a word to narrow it: .worldusable classes door");
+
+                        return;
+                    }
+
+                case "put":
+                    {
+                        if (parts.Length < 3)
+                        {
+                            Say("usage: .worldusable put <class id or name> [state=N usable=1 item=N itemclass=N count=N reset=S min=S max=S dmin=N dmax=N radius=M arg=N]");
+                            return;
+                        }
+
+                        EntityClasses classId;
+
+                        if (uint.TryParse(parts[2], out var id))
+                            classId = (EntityClasses)id;
+                        else
+                        {
+                            var named = EntityClassManager.Instance.LoadedEntityClasses.Values
+                                .Where(c => c?.ClassName != null && c.ClassName.Contains(parts[2], StringComparison.OrdinalIgnoreCase)
+                                    && PlacedUsables.WhyNot((EntityClasses)c.ClassId, out _, out _) == null)
+                                .ToList();
+                            var exact = named.FirstOrDefault(c => c.ClassName.Equals(parts[2], StringComparison.OrdinalIgnoreCase))
+                                ?? (named.Count == 1 ? named[0] : null);
+
+                            if (exact == null)
+                            {
+                                Say(named.Count == 0
+                                    ? $"No class that can be placed is named like '{parts[2]}'. See .worldusable classes."
+                                    : $"{named.Count} classes match '{parts[2]}': {string.Join(", ", named.Take(6).Select(c => c.ClassName))}{(named.Count > 6 ? ", ..." : "")}");
+                                return;
+                            }
+
+                            classId = (EntityClasses)exact.ClassId;
+                        }
+
+                        var row = new Structures.World.WorldUsableEntry { ClassId = (uint)classId };
+
+                        foreach (var pair in parts.Skip(3))
+                        {
+                            var kv = pair.Split('=', 2);
+
+                            if (kv.Length != 2 || !double.TryParse(kv[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var value) || value < 0)
+                            {
+                                Say($"'{pair}' is no key=value. Keys: state, usable, item, itemclass, count, reset, min, max, dmin, dmax, radius, arg.");
+                                return;
+                            }
+
+                            var number = (uint)value;
+
+                            switch (kv[0].ToLowerInvariant())
+                            {
+                                case "state": row.State = number; break;
+                                case "usable": row.Usable = number; break;
+                                case "item": row.ItemTemplateId = number; break;
+                                case "itemclass": row.ItemClassId = number; break;
+                                case "count": row.ItemCount = number; break;
+                                case "reset": row.ResetSeconds = number; break;
+                                case "min": row.IntervalMinSeconds = number; break;
+                                case "max": row.IntervalMaxSeconds = number; break;
+                                case "dmin": row.DamageMin = number; break;
+                                case "dmax": row.DamageMax = number; break;
+                                case "radius": row.Radius = value; break;
+                                case "arg": row.ActionArg = number; break;
+                                default:
+                                    Say($"'{kv[0]}' is no key. Keys: state, usable, item, itemclass, count, reset, min, max, dmin, dmax, radius, arg.");
+                                    return;
+                            }
+                        }
+
+                        var position = _client.Movement.Position;
+                        var rotation = _client.Movement.ViewDirection.X;
+
+                        row.PosX = position.X;
+                        row.PosY = position.Y;
+                        row.PosZ = position.Z;
+                        row.Rotation = rotation;
+
+                        var live = PlacedUsables.PutDown(mapChannel, row, out var why);
+
+                        if (live == null)
+                        {
+                            Say($"Not placed: {why}.");
+                            return;
+                        }
+
+                        Say($"{Describe(live)}. Not saved; .worldusable clear takes it away.");
+
+                        var line = FormattableString.Invariant(
+                            $"Row(id, {player.MapContextId}, {(uint)classId}, {position.X:0.####}, {position.Y:0.####}, {position.Z:0.####}, {rotation:0.####}, \"{EntityClassManager.Instance.GetClassInfo(classId)?.ClassName}\", state: {row.State}, usable: {(row.Usable != 0 ? "true" : "false")}, itemTemplateId: {row.ItemTemplateId}, itemClassId: {row.ItemClassId}, itemCount: {row.ItemCount}, resetSeconds: {row.ResetSeconds}, intervalMinSeconds: {row.IntervalMinSeconds}, intervalMaxSeconds: {row.IntervalMaxSeconds}, damageMin: {row.DamageMin}, damageMax: {row.DamageMax}, radius: {row.Radius:0.##}, actionArg: {row.ActionArg})");
+
+                        Say(line);
+                        Logger.WriteLog(LogType.Command, $"[.worldusable] {player.FamilyName}: {line}");
+                        return;
+                    }
+
+                case "near":
+                    {
+                        var near = PlacedUsables.On(mapChannel)
+                            .Where(live => Vector3.Distance(live.Object.Position, player.Position) <= NearestWorldUsableRange)
+                            .OrderBy(live => Vector3.DistanceSquared(live.Object.Position, player.Position))
+                            .ToList();
+
+                        if (near.Count == 0)
+                            Say($"Nothing placed within {NearestWorldUsableRange:0} m; {PlacedUsables.On(mapChannel).Count} on this map.");
+
+                        foreach (var live in near.Take(15))
+                            Say(Describe(live));
+
+                        return;
+                    }
+
+                case "state":
+                    {
+                        if (parts.Length < 3 || !uint.TryParse(parts[2], out var state))
+                        {
+                            Say("usage: .worldusable state <state id> [row] - see .worldusable classes for a class's states");
+                            return;
+                        }
+
+                        var live = Target(parts.Length > 3 ? parts[3] : null);
+
+                        if (live == null)
+                            return;
+
+                        if (!PlacedUsables.StatesOf[live.Placement.Augmentation].Contains((UseObjectState)state))
+                        {
+                            Say($"{state} is not one of its states: {string.Join(", ", PlacedUsables.StatesOf[live.Placement.Augmentation].Select(s => (int)s))}.");
+                            return;
+                        }
+
+                        PlacedUsables.SetState(live, (UseObjectState)state, player.EntityId);
+                        Say($"Now {Describe(live)}.");
+                        return;
+                    }
+
+                case "blast":
+                    {
+                        var live = Target(parts.Length > 2 ? parts[2] : null);
+
+                        if (live == null)
+                            return;
+
+                        if (live.Placement.Kind is not (PlacedUsables.Kind.Explosion or PlacedUsables.Kind.Bomb))
+                        {
+                            Say($"Only a random explosion or a bomb goes off: {Describe(live)}.");
+                            return;
+                        }
+
+                        var hit = PlacedUsables.Blast(live);
+                        Say($"Boom: {hit.Count} player(s) hit. {Describe(live)}.");
+                        return;
+                    }
+
+                case "clear":
+                    Say($"Took away {PlacedUsables.TakeAwayPutDown(mapChannel)} object(s) put down with .worldusable put.");
+                    return;
+
+                default:
+                    Say("usage: .worldusable classes [word] | put <class> [key=value ...] | near | state <state> [row] | blast [row] | clear");
+                    Say("       put stands it at your feet, facing your way, not saved, and prints the WorldUsablePreloader Row line for a migration.");
+                    return;
+            }
         }
 
         /// <summary>How far .destructible looks for the nearest placed object when no row id is given.</summary>

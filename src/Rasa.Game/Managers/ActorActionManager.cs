@@ -142,6 +142,13 @@ namespace Rasa.Managers
                         break;
                     }
 
+                    // A usable world object the server put down (PlacedUsables).
+                    if (PlacedUsables.IsUseOf(action))
+                    {
+                        PlacedUsables.UseRecovery(mapChannel, action);
+                        break;
+                    }
+
                     // A logos shrine teaches its logos whatever arg its class is used with: two of
                     // them, classes 21214 (FEW) and 21414 (VICTORY), carry the footlocker's 1, and
                     // the arg alone sent theirs to the footlocker's recovery, which teaches nothing.

@@ -24,6 +24,8 @@
             throw new System.NotSupportedException("This world unit of work has no ambient NPC data.");
         IWorldDestructibleRepository WorldDestructibles =>
             throw new System.NotSupportedException("This world unit of work has no world destructible data.");
+        IWorldUsableRepository WorldUsables =>
+            throw new System.NotSupportedException("This world unit of work has no world usable data.");
 
         ILootGroupRepository LootGroups =>
             throw new System.NotSupportedException("This world unit of work has no loot pool data.");

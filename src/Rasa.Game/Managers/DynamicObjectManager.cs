@@ -227,6 +227,13 @@ namespace Rasa.Managers
                 return;
             }
 
+            // A usable world object the server put down (PlacedUsables): its own rules.
+            if (obj.DynamicObjectType == DynamicObjectType.PlacedUsable)
+            {
+                PlacedUsables.RequestUse(client, obj, packet);
+                return;
+            }
+
             // A destructible world object the server put down (PlacedDestructibles): shot, not used.
             if (obj.DynamicObjectType == DynamicObjectType.Destructible)
             {

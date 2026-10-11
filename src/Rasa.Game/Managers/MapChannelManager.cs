@@ -433,6 +433,9 @@ namespace Rasa.Managers
                     // The destructible objects the server put down: back when due, and the creature spawners spawning.
                     Guard("PlacedDestructibles.Worker", mapChannel, () => PlacedDestructibles.Worker(mapChannel));
 
+                    // The usable objects the server put down: back when due, bombs going off, random explosions.
+                    Guard("PlacedUsables.Worker", mapChannel, () => PlacedUsables.Worker(mapChannel));
+
                     // Crab Mines: seeking, running, going off.
                     Guard("AbilityManager.CrabMineWorker", mapChannel, () => AbilityManager.Instance.CrabMineWorker(mapChannel));
 
@@ -1560,6 +1563,7 @@ namespace Rasa.Managers
 
             // What was placed on it (PlacedDestructibles), its force fields out of ForceFields' list too.
             PlacedDestructibles.Forget(map);
+            PlacedUsables.Forget(map);
 
             var dynamicObjects = map.MapCellInfo.Cells.Values
                 .SelectMany(cell => cell.DynamicObjectList)
@@ -1608,6 +1612,9 @@ namespace Rasa.Managers
 
             // Nor the destructible objects the server puts down: rows by map (world_destructible).
             PlacedDestructibles.Place(map);
+
+            // And the usable ones (world_usable).
+            PlacedUsables.Place(map);
         }
     }
 }

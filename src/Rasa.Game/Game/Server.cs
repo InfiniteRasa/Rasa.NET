@@ -580,6 +580,7 @@ namespace Rasa.Game
 
             // After the spawn pools and the creatures: a spawner's creature is the one its map's pools use.
             PlacedDestructibles.Init(GameUnitOfWorkFactory);
+            PlacedUsables.Init(GameUnitOfWorkFactory);
             MapMarkerManager.Instance.MapMarkerInit();
             SpawnPoolManager.Instance.ValidatePools();
             RecipeManager.Instance.RecipeInit();
