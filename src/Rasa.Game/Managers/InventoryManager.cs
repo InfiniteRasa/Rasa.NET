@@ -2494,6 +2494,38 @@ namespace Rasa.Managers
 
             // So do the listed ones.
             ShowAuctions(client, true);
+
+            // And the clan lockbox's. The client keeps its slot lists across a map change and
+            // loses the item entities, and the lockbox was the one list nothing filled again:
+            // it showed empty until the next login or the next change to it.
+            ResendClanLockbox(client);
+        }
+
+        /// <summary>
+        /// The clan lockbox as the server holds it for this player, to a client that has lost the
+        /// items: their data, then the whole list again (InventoryReload, which the client
+        /// handles as a fresh InventoryCreate). Nothing for a player with no clan, or one whose
+        /// lockbox list has not been built (InitClanInventory does that on login).
+        /// </summary>
+        internal void ResendClanLockbox(Client client)
+        {
+            var lockbox = client.Player.Inventory.ClanInventory;
+
+            if (client.Player.ClanId == 0 || lockbox.Count == 0)
+                return;
+
+            foreach (var entityId in lockbox)
+            {
+                if (entityId == 0)
+                    continue;
+
+                var item = EntityManager.Instance.GetItem(entityId);
+
+                if (item != null)
+                    ItemManager.Instance.SendItemDataToClient(client, item, false);
+            }
+
+            client.CallMethod(SysEntity.ClientInventoryManagerId, new InventoryReloadPacket(InventoryType.ClanInventory, lockbox, (int)ClanLockboxTab.TotalSlots));
         }
 
         public void SetupLocalClanInventory(Client client)

@@ -10,6 +10,8 @@ namespace Rasa.Test.World
     using Rasa.Managers;
     using Rasa.Packets;
     using Rasa.Packets.Clan.Server;
+    using Rasa.Packets.Game.Server;
+    using Rasa.Packets.Inventory.Server;
     using Rasa.Packets.MapChannel.Server;
     using Rasa.Packets.Protocol;
     using Rasa.Repositories.UnitOfWork;
@@ -73,6 +75,63 @@ namespace Rasa.Test.World
             {
                 EntityManager.Instance.UnregisterDynamicObject(lockbox.EntityId);
                 EntityManager.Instance.FreeEntity(lockbox.EntityId);
+            }
+        }
+
+        [TestMethod]
+        public void AMapChangeShowsTheLockboxItemsAgain()
+        {
+            using var context = MissionTestContext.WithCompletableMission(429);
+            var client = context.Client;
+            var inventory = new InventoryManager(context);
+
+            // The client keeps its slot lists across a map change but loses every item entity, and
+            // the arrival (ResendForMap) sends every other list's items again; the lockbox's it did
+            // not, so the lockbox showed empty until the next login or the next change to it.
+            var item = ItemManager.StageItem(ItemManager.Instance.GetItemTemplateById(28), 1, "");
+            EntityManager.Instance.RegisterEntity(item.EntityId, EntityType.Item);
+            EntityManager.Instance.RegisterItem(item.EntityId, item);
+
+            try
+            {
+                client.Player.ClanId = 77;
+                client.Player.Inventory.ResetClanInventory();
+                client.Player.Inventory.ClanInventory[3] = item.EntityId;
+                WorldTestContext.Drain(client);
+
+                inventory.ResendForMap(client);
+
+                var calls = Calls(client);
+                var created = calls.FindIndex(c => c.Packet is CreatePhysicalEntityPacket p && p.EntityId == item.EntityId);
+                var reloaded = calls.FindIndex(c => c.Packet is InventoryReloadPacket p && p.InventoryType == InventoryType.ClanInventory);
+
+                Assert.IsTrue(created >= 0, "the item's entity again");
+                Assert.IsTrue(calls.Any(c => c.EntityId == item.EntityId && c.Packet is ItemInfoPacket), "and its data");
+                Assert.IsTrue(reloaded > created, "then the list, with the items in place");
+
+                var reload = (InventoryReloadPacket)calls[reloaded].Packet;
+                Assert.AreEqual((int)ClanLockboxTab.TotalSlots, reload.Items.Count);
+                Assert.AreEqual(item.EntityId, reload.Items[3]);
+                Assert.AreEqual(1, calls.Count(c => c.Packet is InventoryReloadPacket), "once");
+
+                // A member of no clan is sent no lockbox.
+                client.Player.ClanId = 0;
+                WorldTestContext.Drain(client);
+                inventory.ResendForMap(client);
+                Assert.IsFalse(Calls(client).Any(c => c.Packet is InventoryReloadPacket p && p.InventoryType == InventoryType.ClanInventory));
+
+                // Nor is one whose lockbox list was never built: the login builds it.
+                client.Player.ClanId = 77;
+                client.Player.Inventory.ClanInventory.Clear();
+                WorldTestContext.Drain(client);
+                inventory.ResendForMap(client);
+                Assert.IsFalse(Calls(client).Any(c => c.Packet is InventoryReloadPacket p && p.InventoryType == InventoryType.ClanInventory));
+            }
+            finally
+            {
+                EntityManager.Instance.UnregisterEntity(item.EntityId);
+                EntityManager.Instance.UnregisterItem(item.EntityId);
+                EntityManager.Instance.FreeEntity(item.EntityId);
             }
         }
 
