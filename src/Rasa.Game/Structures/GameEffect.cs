@@ -53,6 +53,14 @@ namespace Rasa.Structures
         public long NextTickTick { get; set; }
 
         /// <summary>
+        /// Whether its first tick was an interval in when it was attached ("every N seconds for
+        /// D": the ticks fall at N, 2N, ... D), rather than at once (0, N, ... D - N). Set by
+        /// Attach; decides whether the tick that falls on expiry is one of its own
+        /// (GameEffectManager.TicksAtExpiry).
+        /// </summary>
+        public bool FirstTickDelayed { get; set; }
+
+        /// <summary>
         /// Whether the client is given the time left (the tooltip's 'duration', which is what puts
         /// a timer on the icon and in the tooltip). False for an effect whose end the server keeps
         /// pushing out while a condition holds - the Shield Drone's shield lasts as long as the

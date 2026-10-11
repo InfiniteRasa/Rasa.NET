@@ -175,6 +175,8 @@ namespace Rasa.Managers
                 foreach (var existing in actor.ActiveEffects.Values.Where(e => e.TypeId == effect.TypeId && !e.IsSkillPassive).ToList())
                     DettachEffect(mapChannel, actor, existing);
 
+            effect.FirstTickDelayed = effect.TickIntervalMs > 0 && effect.NextTickTick > Environment.TickCount64;
+
             AddToList(actor, effect);
             mapChannel.ActorsWithEffects.Add(actor);
             if (effect.TickDamageMax > 0 && actor is Creature attackedCreature)
@@ -607,6 +609,18 @@ namespace Rasa.Managers
 
                     if (effect.IsExpired)
                     {
+                        // Its last tick falls on its expiry, and expiry was tested first: every
+                        // damage and heal over time delivered one tick fewer than its duration
+                        // and interval give. It ticks once more before it goes. A tick that kills
+                        // the holder takes the effect with it, as any lethal tick does.
+                        if (TicksAtExpiry(effect))
+                        {
+                            Tick(mapChannel, actor, effect);
+
+                            if (!actor.ActiveEffects.ContainsKey(effect.EffectId))
+                                continue;
+                        }
+
                         DettachEffect(mapChannel, actor, effect);
                         effect.OnExpired?.Invoke(mapChannel, actor, effect);
                         continue;
@@ -617,6 +631,33 @@ namespace Rasa.Managers
                 }
             }
         }
+
+        /// <summary>
+        /// Whether an effect that has run out still has the tick that falls on its expiry to
+        /// deliver: a damage or heal over time - not an aura, a drain or one ticked by its own
+        /// OnTick, for which a last pass at the moment it ends means nothing or the wrong thing -
+        /// whose first tick was an interval in (<see cref="GameEffect.FirstTickDelayed"/>), so its
+        /// ticks run N, 2N, ... up to and including D, and whose next tick is due no later than
+        /// its expiry. One that ticked at once already had its D / N ticks, at 0 to D - N.
+        /// <see cref="ExpiryTickToleranceMs"/> covers the clock being read twice when the
+        /// effect was made, once for the expiry and once for the first tick.
+        /// </summary>
+        internal static bool TicksAtExpiry(GameEffect effect)
+        {
+            if (!effect.FirstTickDelayed || effect.TickIntervalMs <= 0 || effect.IsPaused)
+                return false;
+
+            if (effect.OnTick != null || effect.AuraRadius > 0 || effect.AdrenalineDrainPercentPerSecond > 0)
+                return false;
+
+            if (effect.TickDamageMax <= 0 && effect.TickHealMax <= 0 && effect.TickAdrenaline <= 0)
+                return false;
+
+            return effect.NextTickTick <= effect.ExpiresTick + Math.Min(ExpiryTickToleranceMs, effect.TickIntervalMs / 2);
+        }
+
+        /// <summary>How far after the expiry its last tick may fall and still be its own: see <see cref="TicksAtExpiry"/>.</summary>
+        public const int ExpiryTickToleranceMs = 100;
 
         /// <summary>
         /// A dead player on the worker's pass. Their death took off everything but what it keeps
