@@ -184,13 +184,23 @@ namespace Rasa.Managers
         /// </summary>
         public static bool Knockback(MapChannel mapChannel, Creature target, Actor source, float distance, int typeId, DamageType damageType, int extraStunMs = 0)
         {
-            if (target == null || source == null || distance <= 0f || target.State == CharacterState.Dead || target.State == CharacterState.Dying)
+            return source != null && Knockback(mapChannel, target, source, source.Position, source.EntityId, distance, typeId, damageType, extraStunMs);
+        }
+
+        /// <summary>
+        /// A knockback from a point rather than an actor - an object's blast (ObjectAbilities) -
+        /// with the entity that threw it named as its source. source is the actor behind it, if
+        /// there is one; none for a blast that is nobody's.
+        /// </summary>
+        public static bool Knockback(MapChannel mapChannel, Creature target, Actor source, Vector3 from, ulong sourceId, float distance, int typeId, DamageType damageType, int extraStunMs = 0)
+        {
+            if (target == null || distance <= 0f || target.State == CharacterState.Dead || target.State == CharacterState.Dying)
                 return false;
 
             if (!target.Attributes.TryGetValue(Attributes.Health, out var health) || health.Current <= 0)
                 return false;
 
-            var dir = AwayFrom(source.Position, target.Position);
+            var dir = AwayFrom(from, target.Position);
             var destination = KnockbackDestination(mapChannel, target.Position, dir, distance);
 
             // An emplacement is knocked down where it stands, not off its mount. Nor is anything
@@ -210,7 +220,7 @@ namespace Rasa.Managers
                 TypeId = typeId,
                 EffectId = GameEffectManager.Instance.NextEffectId(mapChannel),
                 EffectLevel = 1,
-                SourceId = source.EntityId,
+                SourceId = sourceId,
                 Source = source,
                 SourceLevel = (source as Manifestation)?.Level ?? 1,
                 IsBuff = false,

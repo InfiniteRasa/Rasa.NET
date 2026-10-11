@@ -103,7 +103,17 @@ namespace Rasa.Managers
         /// </summary>
         public static bool Knockback(MapChannel mapChannel, Manifestation player, Actor source, float distance, int extraStunMs = 0, float turnDegrees = 0f)
         {
-            if (!CanBeHeld(player) || source == null || distance <= 0f || mapChannel == null)
+            return source != null && Knockback(mapChannel, player, source, source.Position, source.EntityId, distance, extraStunMs, turnDegrees);
+        }
+
+        /// <summary>
+        /// A knockback from a point rather than an actor - an object's blast (ObjectAbilities) -
+        /// with the entity that threw it named as its source. source is the actor behind it, if
+        /// there is one; none for a blast that is nobody's.
+        /// </summary>
+        public static bool Knockback(MapChannel mapChannel, Manifestation player, Actor source, Vector3 from, ulong sourceId, float distance, int extraStunMs = 0, float turnDegrees = 0f)
+        {
+            if (!CanBeHeld(player) || distance <= 0f || mapChannel == null)
                 return false;
 
             if (Stuns.Roll(ResistPercent(player, DamageType.KnockBack)))
@@ -113,7 +123,7 @@ namespace Rasa.Managers
             }
 
             // Straight away from the source, or turned off it by the attack's KNOCKBACK_HEADING (CrowdControl.TurnOf).
-            var dir = CrowdControl.Turned(CrowdControl.AwayFrom(source.Position, player.Position), turnDegrees);
+            var dir = CrowdControl.Turned(CrowdControl.AwayFrom(from, player.Position), turnDegrees);
             var destination = CrowdControl.KnockbackDestination(mapChannel, player.Position, dir, distance);
             var travelled = Vector3.Distance(player.Position, destination);
             var downMs = KnockdownMs(travelled, extraStunMs);
@@ -124,7 +134,7 @@ namespace Rasa.Managers
                 TypeId = CrowdControl.KnockbackTypeId,
                 EffectId = GameEffectManager.Instance.NextEffectId(mapChannel),
                 EffectLevel = 1,
-                SourceId = source.EntityId,
+                SourceId = sourceId,
                 Source = source,
                 SourceLevel = (source as Manifestation)?.Level ?? (int)((source as Creature)?.Level ?? 1),
                 IsBuff = false,
