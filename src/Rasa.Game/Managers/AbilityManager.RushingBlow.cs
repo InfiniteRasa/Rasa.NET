@@ -121,7 +121,8 @@ namespace Rasa.Managers
         /// <summary>
         /// The player is leaving their map - a map change, a logout, a dropped connection
         /// (ManifestationManager.RemovePlayerCharacter). A charge of theirs ends with nothing
-        /// sent: the clients that were running them are losing them anyway.
+        /// sent: the clients that were running them are losing them anyway. Their Crab Mines go
+        /// too (CrabMinesLeaving).
         ///
         /// A charge used to be ended only by the ChargeWorker of the map it began on, which runs
         /// while that map has players. A performer who changed map mid-charge left it behind on
@@ -135,6 +136,9 @@ namespace Rasa.Managers
 
             lock (ChargesLock)
                 Charges.RemoveAll(c => c.Player == player);
+
+            // And their Crab Mines, which nothing on an emptied map would ever clear.
+            CrabMinesLeaving(player);
         }
 
         /// <summary>

@@ -38,7 +38,7 @@ namespace Rasa.Managers
     /// - within DetonateRange of it, it explodes;
     /// - killed, it explodes where it fell;
     /// - after Lifetime, it plays the self-destruct windup where it stands and explodes after it;
-    /// - its owner leaving the map takes it away unexploded.
+    /// - its owner leaving the map takes it away unexploded, as they leave (CrabMinesLeaving).
     /// The explosion damages every hostile creature within EFFECT_RADIUS of the mine, credited to
     /// the owner, and the mine is taken out of the world CrabMineBlastLingerMs later - long enough
     /// for the clients to have the blast and start its FX, and not the three seconds of 409's
@@ -101,11 +101,33 @@ namespace Rasa.Managers
             return Math.Max(0, perPumpMod) * Math.Max(pumpsOwned, (int)levelUsed);
         }
 
-        /// <summary>The player's mines still in play.</summary>
+        /// <summary>
+        /// The player's mines still in play, on the map they are on: the three-mine limit is a
+        /// limit on what they have out around them. A mine left on a map they are no longer on is
+        /// on its way out (CrabMinesLeaving) and does not hold the ability back anywhere.
+        /// </summary>
         public static int CrabMinesOf(Manifestation player)
         {
             lock (CrabMinesLock)
-                return CrabMines.Count(m => m.Owner == player && m.RemoveAt == 0);
+                return CrabMines.Count(m => m.Owner == player && m.RemoveAt == 0 && m.MapChannel == player.MapChannel);
+        }
+
+        /// <summary>
+        /// The player is leaving their map (AbilityManager.PlayerLeaving): their mines are taken
+        /// away unexploded, and the limit's block with them. The worker of the mine's map used to
+        /// be the only thing that did it, and it runs only while that map has players; three
+        /// mines left on a map that then emptied stayed in the list, and the Sapper could not put
+        /// one down anywhere until they relogged or somebody walked onto that map.
+        /// </summary>
+        internal static void CrabMinesLeaving(Manifestation player)
+        {
+            List<CrabMine> theirs;
+
+            lock (CrabMinesLock)
+                theirs = CrabMines.Where(m => m.Owner == player).ToList();
+
+            foreach (var mine in theirs)
+                RemoveCrabMine(mine);
         }
 
         public static bool IsCrabMine(Creature creature)
