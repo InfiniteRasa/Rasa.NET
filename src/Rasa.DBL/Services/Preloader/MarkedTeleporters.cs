@@ -36,7 +36,7 @@ namespace Rasa.Services.Preloader
     /// (-14538672 for -145.38672) and is left as it is: put right, it would be a second pad,
     /// one that is gained, 0.2 m from the local teleporter that is there (549), where the
     /// client's map marks a local teleporter and no waypoint. It is still a waypoint row of
-    /// Thunderhead's that nobody can reach, which Thunderhead Cartographer asks for
+    /// Thunderhead's that nobody can reach, and Thunderhead Cartographer leaves it out
     /// (WaypointTitles).
     ///
     /// The statements are safe to repeat, and exact in reverse: Down leaves each row as it was.
