@@ -371,7 +371,18 @@ namespace Rasa.Managers
 
                 var movement = new Movement(at, client.Movement?.ViewDirection ?? new Vector2(0f, 0f));
                 client.CellMoveObject(client, new MoveObjectMessage(player.EntityId, movement), false);
+
+                // In the cells around where they stand now, as local travel does: the map links
+                // are looked for in those cells, and so is everyone who should see them get up.
+                CellManager.Instance.UpdateVisibility(client);
             }
+
+            // Standing in whatever map link they got up in, as one who has just arrived through
+            // it does: it does not fire until they walk out and back in. The link worker passes
+            // over the dead, so it had never seen them in it, and a revive inside one went
+            // through it on its next pass (BR-157: the Alia Das hospital, inside the AFS
+            // Arena's link; the Comm Tower Entrance hospital, inside the way out to Incline).
+            MapLinkManager.Instance.PlacedOnMap(client);
 
             // Actor.Recv_Revived: stood up, and the death, hospital and revive windows closed.
             CellManager.Instance.CellCallMethod(mapChannel, player, new RevivedPacket(reviver?.EntityId ?? player.EntityId));
