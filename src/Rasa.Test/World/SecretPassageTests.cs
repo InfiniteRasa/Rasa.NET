@@ -394,6 +394,52 @@ namespace Rasa.Test.World
             Assert.IsTrue(Methods(watching).Any(packet => packet is TeleportFailedPacket), "the effect is not stopped for those who saw it start");
         }
 
+        // The client finishes a Teleport by where the body is when the Teleport's delay is up
+        // (actor.py _TelportMovementCompleted: the camera put behind the body, the area round it
+        // loaded, the arrival played), and only the MoveObject moves the body. Sent after the
+        // Teleport with 5 ms, the teleport finished where the player had stood: their view stayed
+        // in the cave, the alcove went as their cells changed, and the shrine came with their
+        // next step.
+        [TestMethod]
+        public void TheBodyIsMovedBeforeTheTeleportAndTheTeleportWaitsForIt()
+        {
+            using var world = new WorldTestContext();
+
+            world.Map.NavMesh = WildernessNavMesh();
+
+            var now = 1000L;
+            var manager = Travel(world, () => { }, () => now);
+            var client = world.CreateClient();
+            var player = client.Player;
+
+            CellManager.Instance.AddToWorld(client);
+            player.PlaceAt(new Vector3(835f, 286.2f, 736f));
+            player.MoveBudget = 60;
+            WorldTestContext.Drain(client);
+
+            Assert.IsTrue(client.HandleMovement(new Movement(new Vector3(835f, 286.2f, 737.5f), Vector2.Zero)));
+            Assert.IsNotNull(client.PendingTransfer);
+            WorldTestContext.Drain(client);
+
+            now += DynamicObjectManager.PassageHoldMs;
+            manager.PassagesWorker(world.Map);
+            Assert.AreEqual(ClientState.Teleporting, client.State);
+
+            var sent = WorldTestContext.Drain(client).Select(packet => packet.Message).ToList();
+            var moved = sent.FindIndex(message => message is MoveObjectMessage move && move.EntityId == player.EntityId);
+            var teleport = sent.FindIndex(message => message is CallMethodMessage call && call.Packet is TeleportPacket);
+            var begin = sent.FindIndex(message => message is CallMethodMessage call && call.Packet is BeginTeleportPacket);
+
+            Assert.IsTrue(moved >= 0, "the body is moved");
+            Assert.IsTrue(teleport >= 0 && begin >= 0, "the teleport is sent");
+            Assert.IsTrue(moved < begin && begin < teleport, "the body first, then BeginTeleport, then the Teleport");
+            Assert.AreEqual(SecretPassages.AliaCavernsDoor.Destination, ((MoveObjectMessage)sent[moved]).Movement.Position);
+
+            var packet = (TeleportPacket)((CallMethodMessage)sent[teleport]).Packet;
+            Assert.AreEqual(DynamicObjectManager.TeleportDelayMs, packet.Delay, "the client is given time to move the body first");
+            Assert.IsTrue(packet.Delay >= 200, "a few frames on a slow client");
+        }
+
         private static void AssertNear(Vector3 expected, Vector3 actual, float tolerance, string what)
         {
             Assert.IsTrue(Vector3.Distance(expected, actual) <= tolerance, $"{what}: expected {expected}, was {actual}");

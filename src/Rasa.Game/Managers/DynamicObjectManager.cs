@@ -1910,6 +1910,19 @@ namespace Rasa.Managers
         }
 
         /// <summary>
+        /// How long the traveller's client waits after the Teleport before it finishes it: the
+        /// camera put behind the body, the area round the body preloaded and the arrival effect
+        /// played (actor.py Recv_Teleport, _TelportMovementCompleted; the controller it resets is
+        /// the camera's: UserController::Reset in the client goes to the camera controller).
+        /// All three go by where the body is at that moment, and only the MoveObject moves the
+        /// body, when the client's movement controller next runs. So the MoveObject is sent
+        /// before the Teleport (DepartLocalTravel), and the delay gives the client a few frames
+        /// to apply it even if it reads both in one frame and runs its scheduled methods before
+        /// its controllers; it was 5 ms. The player is faded out through it.
+        /// </summary>
+        internal const uint TeleportDelayMs = 250;
+
+        /// <summary>
         /// The second half: the player moved, their client told to play the teleport and answer
         /// it, and everyone at the far end shown them there.
         /// </summary>
@@ -1923,6 +1936,17 @@ namespace Rasa.Managers
             client.SetWorldPosition(destination, rotation);
             CellManager.Instance.UpdateVisibility(client);
 
+            // The body to the traveller's own client first, then to everyone around. Directly,
+            // because a cell broadcast goes to the Ingame clients in the cells
+            // (CellManager.GetClientsInCells) and the traveller is Teleporting now: sent as a
+            // broadcast that included them, it reached everyone but them. Their body stayed
+            // where they had gone in while the server had them at the far end, the Teleport
+            // played where they stood, the alcove went as their cells changed, and their next
+            // step, refused for where it came from, put them right. Before the Teleport, because
+            // the client finishes the Teleport by where the body is (TeleportDelayMs).
+            client.MoveObject(client.Player.EntityId, client.Movement);
+            client.CellMoveObject(client, new MoveObjectMessage(client.Player.EntityId, client.Movement), true);
+
             // BeginTeleport before the Teleport, as the dropships send it. The client answers a
             // Teleport with TeleportAcknowledge only if a BeginTeleport has queued the answer
             // (actor.py BeginTeleport -> _TeleportAckQueue; Recv_Teleport -> _TeleportAck, which
@@ -1932,8 +1956,7 @@ namespace Rasa.Managers
             // when it timed out.
             client.CallMethod(SysEntity.ClientMethodId, new BeginTeleportPacket());
             client.CallMethod(client.Player.EntityId,
-                new TeleportPacket(destination, rotation, TeleportType.Default, 5));
-            client.CellMoveObject(client, new MoveObjectMessage(client.Player.EntityId, client.Movement), false);
+                new TeleportPacket(destination, rotation, TeleportType.Default, TeleportDelayMs));
         }
 
         /// <summary>
@@ -2176,15 +2199,12 @@ namespace Rasa.Managers
 
                 // No TeleportArrival to the player's own client: it plays its own arrival when
                 // the Teleport's delay is up (actor.py _TelportMovementCompleted), and that is also
-                // where it resets its movement controller to where the MoveObject put the body
-                // and loads the area round it. Their client sends this acknowledgement from
-                // Recv_Teleport itself, so an arrival sent back for it could reach the client
-                // before that delay was up, and _PlayTeleportArrivalFX takes away the
-                // tmp_teleportType _TelportMovementCompleted needs: the arrival played, but the
-                // controller kept the player where they had stood and nothing round the far end
-                // was loaded. Seen at the Alia Caverns alcove, where the player stands still in
-                // the effect: they came back where they had gone in, the alcove (an entity, out
-                // of sight of the far end) faded, and the next step put them in the shrine.
+                // where it puts the camera behind the body and loads the area round it
+                // (TeleportDelayMs). Their client sends this acknowledgement from Recv_Teleport
+                // itself, so an arrival sent back for it could reach the client before that
+                // delay was up, and _PlayTeleportArrivalFX takes away the tmp_teleportType
+                // _TelportMovementCompleted needs: the arrival would play and the rest never
+                // happen.
                 //
                 // Through a passage: everyone already at the far end sees them arrive (actor.py
                 // _PlayTeleportArrivalFX), as at a dropship's pad.

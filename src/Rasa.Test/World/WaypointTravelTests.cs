@@ -99,12 +99,19 @@ namespace Rasa.Test.World
 
             manager.SelectWaypoint(client, new SelectWaypointPacket { MapInstanceId = world.Map.MapInfo.MapContextId, WaypointId = 20 });
 
-            var sent = WorldTestContext.Drain(client).Select(p => p.Message)
-                .OfType<CallMethodMessage>().Select(p => p.Packet).ToList();
+            var messages = WorldTestContext.Drain(client).Select(p => p.Message).ToList();
+            var sent = messages.OfType<CallMethodMessage>().Select(p => p.Packet).ToList();
             var begin = sent.FindIndex(packet => packet is BeginTeleportPacket);
             var teleport = sent.FindIndex(packet => packet is TeleportPacket);
             Assert.IsTrue(begin >= 0, "BeginTeleport sent");
             Assert.IsLessThan(teleport, begin, "BeginTeleport first");
+
+            // And the body before either: the client finishes the Teleport by where the body is
+            // when the delay is up (DynamicObjectManager.TeleportDelayMs).
+            var moved = messages.FindIndex(message => message is MoveObjectMessage move && move.EntityId == client.Player.EntityId);
+            var beginAt = messages.FindIndex(message => message is CallMethodMessage call && call.Packet is BeginTeleportPacket);
+            Assert.IsTrue(moved >= 0 && moved < beginAt, "the MoveObject before the BeginTeleport");
+            Assert.AreEqual(DynamicObjectManager.TeleportDelayMs, ((TeleportPacket)sent[teleport]).Delay);
         }
 
         [TestMethod]
