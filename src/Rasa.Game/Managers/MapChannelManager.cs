@@ -1446,11 +1446,14 @@ namespace Rasa.Managers
         /// Whether any map still lists a connection of this account, on its client list or its
         /// login queue. A connection that has closed stays on its map's list until the worker has
         /// taken its character out of the world, so this is true for exactly as long as a
-        /// character of the account may still be there.
+        /// character of the account may still be there. The private, shared and squad instances
+        /// are maps too: a body left in one held the account there as long as one left on a base
+        /// map did, but was not found here, so a new login of the account was let in, and the old
+        /// body's removal saved its character over the new session's (BR-198).
         /// </summary>
         public bool HoldsClientOf(uint accountId)
         {
-            foreach (var mapChannel in MapChannelArray.Values)
+            foreach (var mapChannel in MapChannelArray.Values.Concat(_privateInstances.Snapshot()).Distinct())
             {
                 foreach (var client in mapChannel.ClientList)
                     if (client?.AccountEntry?.Id == accountId)

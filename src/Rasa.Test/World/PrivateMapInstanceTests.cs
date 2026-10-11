@@ -49,6 +49,39 @@ namespace Rasa.Test.World
                 maps.FindOwnedPrivateInstance(publicMap.MapInfo.MapContextId, 8));
         }
 
+        // BR-198: an account whose body is still on a private instance's list - the connection
+        // closed, the worker yet to take the character out - is held there as one on a base map
+        // is. Let in before the removal, the new session was saved over by the old body's.
+        [TestMethod]
+        public void ABodyLeftOnAPrivateInstanceHoldsTheAccount()
+        {
+            using var world = new WorldTestContext();
+            var service = new PrivateMapInstanceService();
+            var maps = new MapChannelManager(null, privateInstances: service);
+            maps.MapChannelArray.Add(world.Map.MapInfo.MapContextId, world.Map);
+            var instance = maps.GetOrCreatePrivateInstance(world.Map.MapInfo.MapContextId, 7);
+            var client = world.CreateClient();
+            typeof(Client).GetProperty(nameof(Client.AccountEntry)).SetValue(client, new GameAccountEntry { Id = 41, SelectedSlot = 1 });
+            world.Map.ClientList.Remove(client);
+
+            Assert.IsFalse(maps.HoldsClientOf(41), "nowhere yet");
+
+            instance.ClientList.Add(client);
+            Assert.IsTrue(maps.HoldsClientOf(41), "on a private instance's list");
+            Assert.IsFalse(maps.HoldsClientOf(42), "another account");
+
+            instance.ClientList.Remove(client);
+            instance.QueuedClients.Enqueue(client);
+            Assert.IsTrue(maps.HoldsClientOf(41), "in a private instance's login queue");
+
+            MapChannelManager.RemoveQueuedClient(instance, client);
+            Assert.IsFalse(maps.HoldsClientOf(41), "taken out: free to log in");
+
+            world.Map.ClientList.Add(client);
+            Assert.IsTrue(maps.HoldsClientOf(41), "on a base map, as before");
+            world.Map.ClientList.Remove(client);
+        }
+
         [TestMethod]
         public void MapChannelWorkerTicksEveryPrivateInstanceExactlyOnce()
         {
