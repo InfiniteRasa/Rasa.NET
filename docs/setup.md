@@ -279,7 +279,7 @@ The `/ingame` endpoints take no key, and are the ones the startup log calls `end
 | `POST /addaccount` | Creates a login; see below. Off until it is turned on. |
 | `POST /ingame/session/exchange`, `GET /ingame/items`, `GET /ingame/items/categories`, `GET /ingame/items/{id}` | The in-game API; see [REST and in-game APIs](#rest-and-in-game-apis) above. Each is off until it is turned on. |
 | `GET /monsterflags`, `POST /updatemonsterflags` | The flags of the creature classes, read and changed; see Game tools below. Off until turned on. |
-| `GET /lootpools`, `POST /updatelootpools` | The loot pools, read and replaced; see Game tools below. Off until turned on. |
+| `GET /lootpools`, `POST /updatelootpools` | Canonical weighted ordinary-loot profiles, read and edited; see Game tools below. Off until turned on. |
 | `GET /usersonline` | Every account online, with the character it is playing; see Who is online below. Off until turned on. |
 | `POST /kickuser` | Disconnects an account that is online; see Kicking a player below. Off until turned on. |
 
@@ -412,17 +412,24 @@ The editors in the repository's [`gametools`](../gametools/README.md) folder are
 |---|---|
 | `GET /monsterflags` | Every creature class with its flags (`creature_class_flag`): `{"schema":"rasa.creature_flags/1","source":"server","creatures":[{"class_id":6032,"class_name":"Bane_Amoeboid_v1","flags":[5,71]}]}` |
 | `POST /updatemonsterflags` | `{"creatures":[{"class_id":6032,"flags":[5,71,142]}]}` gives each class named exactly these flags, in the database and in the running server. A class not named is not touched. |
-| `GET /lootpools` | Every loot pool and which creature rows have which (`loot_group`, `loot_group_item`, `creature_loot_group`): `{"format":"rasa-loot-tables","version":1,"source":"server","groups":[{"id":1,"name":"Thrax junk","note":"","items":[{"itemTemplateId":28,"chance":5,"minQuantity":1,"maxQuantity":3}]}],"assignments":[{"creatureId":118,"groupId":1}]}` |
-| `POST /updatelootpools` | The same shape. It replaces every pool and assignment, in the database in one transaction and in the running server, where the next kill rolls it. |
+| `GET /lootpools` | Actual canonical profiles, groups, weighted candidates, map/creature bindings, policies and provenance. Format `rasa-weighted-loot-profiles`, version `2`; see the [weighted contract](../gametools/README.md#weighted-loot-contract). |
+| `POST /updatelootpools` | That same weighted contract. Replaces named profiles' groups/items and upserts bindings/policies, retaining unnamed content. Native validation and one World transaction precede catalog publication. Legacy flat percentages are rejected, never converted or archived. |
 
 | Status | Meaning |
 |---|---|
 | `200` | Read, or changed: `{"result":"updated",...}` with counts, and `"warnings"` when there is something to remark on. |
 | `400` | The body is not that JSON, or names a class, flag, item or creature the server has not got. `error` says so and `problems` lists what is wrong. Nothing was changed. |
 | `415` | The body was not sent as `application/json`. |
-| `503` | The server has not finished starting. |
+| `500` | Database save failed. Durable and published loot are unchanged; check the server log and retry. |
+| `503` | The server has not finished starting, or nonempty inactive archives block weighted-loot readiness (with diagnostics). |
 
-A creature that has loot pools drops what they roll, with the few credits every corpse has: each item of each pool is rolled on its own at its `chance`, a percent, and gives from `minQuantity` to `maxQuantity`, never more than a stack. A creature with no pool drops what it always has. The three tables ship empty; on MySQL they have to be created before this version is started, as for any migration.
+Group admission uses integer basis points (`10000` = `100%`). Candidate weights
+are relative selections after admission, not independent drop percentages.
+Quantity and roll bounds are inclusive. Native stack limits, item usability and
+required-map coverage are checked by the canonical catalog. See [ordinary
+loot](loot.md) for the frozen Wilderness v1 data and explicit no-item profiles.
+Apply the reviewed migrations before startup; MySQL uses the explicit migration
+workflow below.
 
 All four follow the rules of `/addaccount`: off with no entry of their own, never public because `Rest.Public` is, opened by their own `ApiKey` or the global one.
 
@@ -577,6 +584,22 @@ mission diagnostic and refuses to print `Server ready!` until the content is
 fixed. Apply the matching World migrations and deploy the required C# mission
 scripts; there is no separate active-release requirement.
 
+Ordinary loot also validates and copies migrated World rows before Game accepts
+clients. The paired `20261203000100_Add_ordinary_loot_tables` schema and
+`20261203000200_Wilderness_ordinary_loot_v1` data migration make map 1220 require
+complete ordinary bindings. Invalid content blocks readiness; applying matching
+migrations and restarting loads the catalog, without a live-reload command.
+See [ordinary-loot deployment and tuning](loot.md#how-to-tune-and-deploy-ordinary-loot).
+
+The preceding `20261203000000_Archive_flat_loot_pools` transition preserves
+incoming numeric flat-pool configurations as inactive `legacy_flat_*` tables.
+It follows the unchanged incoming `20261202000000_Place_bootcamp_base_npcs` tail.
+Nonempty archives block ordinary-loot readiness until an explicit authoring
+decision resolves them; no percentages become weights and no rows are discarded.
+The gametools loot editor/API uses only the version-2 weighted contract and
+never writes those archives. See the
+[archive and authoring boundary](loot.md#reference-legacy-flat-configuration-boundary).
+
 The .NET 10 platform update itself requires no schema change. Apply the
 repository's migrations in their recorded order, subject to the fresh-database
 boundary below.
@@ -615,7 +638,19 @@ migrations, using shared helpers where appropriate. See [mission authoring](miss
 Keep schema changes separate, and add a new migration instead of modifying
 previously applied migration data.
 
+Ordinary loot chances and candidate pools are data too. Use a new paired World
+data migration, not edits to an applied seed/helper or gameplay constants.
+World history is forward-dated through `20261203000200`; a scaffold's current-date
+ID may sort before installed content. Before using it, assign an ID after the
+current tail and keep both providers' filenames/designer attributes consistent.
+See the [verified tuning example and ordering steps](loot.md#how-to-tune-and-deploy-ordinary-loot).
+
 Always ensure, that a migration only does one or the other. This is very easy, as we use code first approach. If you're developing a feature that requires an update to the schema of one or more of the databases, change the entry classes in RASA.DBL/Structures or add new entries by creating the class and adding a DbSet<EntryClass> to the respective DbContext. Then, create a migration applying those changes by executing the following commands:
+
+Historical exception: the incoming `20261120000000_Add_item_modules` and
+`20261121000000_Add_module_crafting` pairs combine table creation and seed
+insertion. Their applied IDs and operations are preserved; do not repeat that
+coupling in new migrations.
 
 - `dotnet ef migrations add <Name_of_the_Migration> --context=MySqlAuthContext`
 - `dotnet ef migrations add <Name_of_the_Migration> --context=SqliteAuthContext`

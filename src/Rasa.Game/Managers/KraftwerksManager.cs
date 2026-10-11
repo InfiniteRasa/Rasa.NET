@@ -635,7 +635,7 @@ namespace Rasa.Managers
         /// What was fabricated carries its maker's name. Mimeogel and modules do not: they were
         /// salvaged, taken out or upgraded, not made.
         /// </summary>
-        private bool HandOver(Client client, CraftingJob job)
+        private bool HandOver(Client client, DynamicObject station, CraftingJob job)
         {
             // Character Unique: the job stays on the station while one is held.
             if (!InventoryManager.Instance.MayReceive(client.Player, ItemManager.Instance.GetItemTemplateById(job.ResultItemTemplateId)))
@@ -643,6 +643,9 @@ namespace Rasa.Managers
                 InventoryManager.TellCharacterUnique(client);
                 return false;
             }
+
+            if (job.CraftingPage != FabricationPage)
+                return HandOverModule(client, station, job);
 
             var classInfo = EntityClassManager.Instance.GetClassInfo((EntityClasses)job.ResultClassId);
             var stackSize = Math.Max(1u, classInfo?.ItemClassInfo?.StackSize ?? 1u);
@@ -711,7 +714,7 @@ namespace Rasa.Managers
             {
                 var before = job.Count;
 
-                if (HandOver(client, job))
+                if (HandOver(client, station, job))
                 {
                     jobs.Remove(job);
                     Forget(job);

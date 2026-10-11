@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -18,13 +19,16 @@ namespace Rasa.Test.Gameplay
     using Rasa.Context.World;
     using Rasa.Data;
     using Rasa.Game;
+    using Rasa.Game.Handlers;
     using Rasa.Managers;
+    using Rasa.Missions;
     using Rasa.Packets;
     using Rasa.Packets.Communicator.Server;
     using Rasa.Packets.Crafting.Client;
     using Rasa.Packets.Crafting.Server;
     using Rasa.Packets.Inventory.Server;
     using Rasa.Packets.MapChannel.Server;
+    using Rasa.Packets.Mission.Server;
     using Rasa.Repositories.World;
     using Rasa.Services.Preloader;
     using Rasa.Structures;
@@ -497,6 +501,10 @@ namespace Rasa.Test.Gameplay
             private const uint OtherTemplate = 990404;
 
             private readonly BootcampRuntimeTestHarness.Harness _harness;
+            private readonly FieldInfo _missionSingleton = typeof(MissionApplication)
+                .GetField("_instance", BindingFlags.Static | BindingFlags.NonPublic);
+            private object _previousMission;
+            private bool _watchingProgress;
             private uint _nextSlot = 10;
 
             /// <summary>The kraftwerks row the bench's station stands for: what its jobs are kept under.</summary>
@@ -530,7 +538,7 @@ namespace Rasa.Test.Gameplay
             }
 
             /// <summary>The rows of crafting_job.</summary>
-            internal List<Rasa.Structures.Char.CraftingJobEntry> Rows()
+            internal List<Rasa.Structures.Char.CraftingJobEntry> JobRows()
             {
                 using var unit = _harness.Context.CreateChar();
                 return unit.CraftingJobs.GetAll();
@@ -551,6 +559,9 @@ namespace Rasa.Test.Gameplay
             internal Bench()
             {
                 _harness = BootcampRuntimeTestHarness.CreateFromPendingSelection();
+                var native = new ItemModuleRepository(_harness.WorldContext);
+                ItemModules.Load(native.GetModuleClasses(), native.GetModuleEffects());
+                ItemModules.LoadCrafting(native.GetModuleItems(), native.GetModifiableClasses());
                 Station = new KraftwerksManager(_harness.Context);
                 Object = new DynamicObject
                 {
@@ -607,8 +618,8 @@ namespace Rasa.Test.Gameplay
                 return item;
             }
 
-            internal Item GiveStack(uint templateId, uint stack) =>
-                Give(EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[templateId]].ItemTemplates[templateId], stack, 100 + _nextSlot++);
+            internal Item GiveStack(uint templateId, uint stack, uint? slot = null) =>
+                Give(EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[templateId]].ItemTemplates[templateId], stack, slot ?? 100 + _nextSlot++);
 
             internal Item GiveGear(uint classId, LootQuality quality, int level, params uint[] modules)
             {
@@ -647,6 +658,13 @@ namespace Rasa.Test.Gameplay
                 return unit.Items.GetItem(item.Id).CrafterName;
             }
 
+            internal void SetCrafter(Item item, string name)
+            {
+                item.Crafter = name;
+                using var unit = Context.CreateChar();
+                unit.Items.UpdateCrafter(item);
+            }
+
             /// <summary>The one item of the template in the pack.</summary>
             internal Item Only(uint templateId) => Client.Player.Inventory.PersonalInventory
                 .Where(entityId => entityId != 0)
@@ -664,8 +682,89 @@ namespace Rasa.Test.Gameplay
                 return _harness.Drain();
             }
 
+            internal IReadOnlyList<PythonPacket> Route(ClientPythonPacket packet)
+            {
+                var singleton = typeof(KraftwerksManager).GetField("_instance", BindingFlags.Static | BindingFlags.NonPublic);
+                var previous = singleton.GetValue(null);
+                singleton.SetValue(null, Station);
+                _harness.Drain();
+                try
+                {
+                    var handler = new ClientPacketHandler();
+                    handler.RegisterClient(Client);
+                    new PacketRouter<ClientPacketHandler, GameOpcode>().RoutePacket(handler, packet);
+                    return _harness.Drain();
+                }
+                finally
+                {
+                    singleton.SetValue(null, previous);
+                }
+            }
+
+            internal string[] DurableSnapshot()
+            {
+                using var context = Context.Open();
+                return Rows(context, "select item_id, item_template_id, stack_size, module_1, module_2, module_3, module_4, crafter_name from items order by item_id")
+                    .Concat(Rows(context, "select * from character_inventory order by item_id")).ToArray();
+            }
+
+            internal string RuntimeSnapshot() => string.Join("|", Client.Player.Inventory.PersonalInventory) + "\n" +
+                string.Join("\n", Client.Player.Inventory.PersonalInventory.Where(id => id != 0)
+                    .Select(id => EntityManager.Instance.GetItem(id))
+                    .Select(item => $"{item.Id}:{item.StackSize}:{item.OwnerId}:{item.OwnerSlotId}:{string.Join(",", item.ModuleIds)}:{item.Crafter}")) +
+                $"\nmodulesChanged={Client.Player.ModulesChanged}\n" +
+                string.Join("\n", Client.Player.Attributes.OrderBy(entry => entry.Key)
+                    .Select(entry => $"{entry.Key}:{entry.Value.Current}:{entry.Value.CurrentMax}"));
+
+            internal List<CraftingJob> JobBag()
+            {
+                // The jobs are the station's by its kraftwerks id (crafting_job.kraftwerks_id).
+                var field = typeof(KraftwerksManager).GetField("_jobs", BindingFlags.NonPublic | BindingFlags.Instance);
+                var bags = (Dictionary<(uint, uint), List<CraftingJob>>)field.GetValue(Station);
+                var key = (StationId, Client.Player.Id);
+                if (!bags.TryGetValue(key, out var jobs))
+                    bags[key] = jobs = new List<CraftingJob>();
+                return jobs;
+            }
+
+            internal void FillCraftingBag()
+            {
+                for (uint slot = 100; slot < 150; slot++)
+                    if (Client.Player.Inventory.PersonalInventory[(int)slot] == 0)
+                        GiveStack(Body5Item, 5000, slot);
+            }
+
+            internal void WatchItemProgress(MissionProgressEventKind kind, uint itemClass)
+            {
+                using var definition = MissionTestContext.WithItemProgressMission(kind, itemClass, 1000);
+                var manager = new MissionApplication(Context, definition.Manager.LoadedMissions);
+                _previousMission = _missionSingleton.GetValue(null);
+                _missionSingleton.SetValue(null, manager);
+                _watchingProgress = true;
+                Context.SeedMission(Client.Player.Id, 321, (uint)MissionState.Active, false);
+                Context.SeedObjective(Client.Player.Id, 321, 1, MissionObjectiveState.Incomplete,
+                    itemCounters: new Dictionary<uint, uint> { [itemClass] = 0 });
+                using var unit = Context.CreateChar();
+                manager.Hydrate(Client.Player, unit.CharacterMissions.Get(Client.Player.Id),
+                    unit.CharacterMissionProgress.Get(Client.Player.Id));
+                Assert.AreEqual(0u, Client.Player.Missions[321].Objectives[1].ItemCounters[itemClass]);
+                Drain();
+            }
+
+            internal void AssertItemProgress(uint itemClass, uint expected)
+            {
+                Assert.AreEqual(expected, Client.Player.Missions[321].Objectives[1].ItemCounters[itemClass],
+                    "Runtime mission item progress.");
+                using var unit = Context.CreateChar();
+                Assert.AreEqual(expected, unit.CharacterMissionProgress.Get(Client.Player.Id, 321)
+                    .Missions[321].Objectives[1].ItemCounters[itemClass],
+                    "Durable mission item progress.");
+            }
+
             public void Dispose()
             {
+                if (_watchingProgress)
+                    _missionSingleton.SetValue(null, _previousMission);
                 EntityManager.Instance.DynamicObjects.Remove(Object.EntityId);
                 Map.Kraftwerks.Remove(StationId);
                 _harness.Dispose();
@@ -715,7 +814,7 @@ namespace Rasa.Test.Gameplay
             var job = Jobs(sent).Single();
 
             // The ingredients went when the job was accepted; so did its row, whose id is the job's.
-            var row = bench.Rows().Single();
+            var row = bench.JobRows().Single();
             Assert.AreEqual((ulong)row.Id, job.ResultItemId);
             Assert.IsTrue(job.Persisted);
             Assert.AreEqual((bench.Client.Player.Id, Bench.StationId, MimeogelClass, Mimeogel, 88u, KraftwerksManager.SalvagePage),
@@ -737,7 +836,7 @@ namespace Rasa.Test.Gameplay
             sent = bench.After((_, id) => restarted.RequestRetrieveAllFinishedItems(bench.Client, new RequestRetrieveAllFinishedItemsPacket { KraftwerksId = id }));
             Assert.AreEqual(0, Jobs(sent).Count);
             Assert.AreEqual(88u, bench.Carried(MimeogelClass));
-            Assert.AreEqual(0, bench.Rows().Count);
+            Assert.AreEqual(0, bench.JobRows().Count);
         }
 
         [TestMethod]
@@ -778,7 +877,7 @@ namespace Rasa.Test.Gameplay
             Assert.IsTrue(running.TimeLeftSeconds > 290 && running.TimeLeftSeconds <= 300, $"{running.TimeLeftSeconds} s left");
             Assert.IsTrue(done.IsFinished);
             Assert.AreEqual(0.0, done.TimeLeftSeconds);
-            Assert.AreEqual(3, bench.Rows().Count, "the orphan row is left where it is");
+            Assert.AreEqual(3, bench.JobRows().Count, "the orphan row is left where it is");
 
             // Nothing was reported by the worker yet: the use reported the finished one, and the
             // worker has nothing more to say until the other finishes.
@@ -790,8 +889,8 @@ namespace Rasa.Test.Gameplay
             sent = bench.After((_, id) => restarted.RequestRetrieveAllFinishedItems(bench.Client, new RequestRetrieveAllFinishedItemsPacket { KraftwerksId = id }));
             Assert.AreEqual(1, Jobs(sent).Count);
             Assert.AreEqual(2u, bench.Carried(ModuleItemClass));
-            Assert.AreEqual(2, bench.Rows().Count);
-            Assert.IsTrue(bench.Rows().Any(r => r.ResultTemplateId == Body1Item && r.KraftwerksId == Bench.StationId));
+            Assert.AreEqual(2, bench.JobRows().Count);
+            Assert.IsTrue(bench.JobRows().Any(r => r.ResultTemplateId == Body1Item && r.KraftwerksId == Bench.StationId));
         }
 
         [TestMethod]
@@ -838,6 +937,878 @@ namespace Rasa.Test.Gameplay
             CharacterId = characterId, KraftwerksId = stationId, ResultClassId = ModuleItemClass, ResultTemplateId = Body1Item,
             Count = count, CraftingPage = KraftwerksManager.FabricationPage, QualityId = 1, FinishAt = DateTime.UtcNow
         };
+
+        [TestMethod]
+        [DataRow(2u, false)]
+        [DataRow(3u, true)]
+        [DataRow(4u, false)]
+        [DataRow(4u, true)]
+        [DataRow(5u, false)]
+        [DataRow(5u, true)]
+        public void ModuleConsumptionAndFeesPreserveMissionProgress(uint page, bool watchFee)
+        {
+            using var bench = new Bench();
+            var target = bench.GiveGear(ArmorClass, LootQuality.Rare, 23,
+                page == KraftwerksManager.ExtractionPage ? Body1 : 0);
+            var input = page == KraftwerksManager.SalvagePage ? target : bench.GiveStack(Body1Item, 2);
+            bench.GiveStack(Mimeogel, 100);
+            var itemClass = watchFee ? MimeogelClass :
+                page == KraftwerksManager.SalvagePage ? ArmorClass : ModuleItemClass;
+            bench.WatchItemProgress(MissionProgressEventKind.ItemConsumed, itemClass);
+            var before = bench.Carried(itemClass);
+            var sawWrite = false;
+            bench.Context.BeforeSave = database =>
+            {
+                if (!database.ChangeTracker.Entries<Rasa.Structures.Char.CharacterMissionObjectiveItemCounterEntry>()
+                    .Any(entry => entry.Entity.MissionId == 321 && entry.State != EntityState.Unchanged))
+                    return;
+                sawWrite = true;
+                Assert.AreEqual(0u, bench.Client.Player.Missions[321].Objectives[1].ItemCounters[itemClass]);
+                Assert.IsFalse(bench.Drain().OfType<UpdateObjectiveItemCounterPacket>().Any());
+            };
+            var sent = bench.Route(ModuleRequest(bench, page, input, target));
+            bench.Context.BeforeSave = null;
+            Assert.IsTrue(Succeeded(sent));
+            var consumed = before - bench.Carried(itemClass);
+            Assert.IsTrue(consumed > 0);
+            bench.AssertItemProgress(itemClass, consumed);
+            Assert.IsTrue(sawWrite, "Progress must participate in the crafting transaction.");
+            Assert.HasCount(1, sent.OfType<UpdateObjectiveItemCounterPacket>().ToArray());
+        }
+
+        [TestMethod]
+        [DataRow(2u)]
+        [DataRow(3u)]
+        [DataRow(4u)]
+        [DataRow(5u)]
+        public void ModuleMissionProgressFailureRollsBackCraftingAndRetryCountsOnce(uint page)
+        {
+            using var bench = new Bench();
+            var target = bench.GiveGear(ArmorClass, LootQuality.Rare, 23,
+                page == KraftwerksManager.ExtractionPage ? Body1 : 0);
+            var input = page == KraftwerksManager.SalvagePage ? target : bench.GiveStack(Body1Item, 2);
+            bench.GiveStack(Mimeogel, 100);
+            var itemClass = page == KraftwerksManager.SalvagePage ? ArmorClass : MimeogelClass;
+            bench.WatchItemProgress(MissionProgressEventKind.ItemConsumed, itemClass);
+            var before = bench.DurableSnapshot();
+            var runtime = bench.RuntimeSnapshot();
+            var count = bench.Carried(itemClass);
+            bench.Context.BeforeSave = database =>
+            {
+                if (database.ChangeTracker.Entries<Rasa.Structures.Char.CharacterMissionObjectiveItemCounterEntry>()
+                    .Any(entry => entry.Entity.MissionId == 321 && entry.State != EntityState.Unchanged))
+                    throw new DbUpdateException("Owned module mission-progress failure.");
+            };
+            var sent = bench.Route(ModuleRequest(bench, page, input, target));
+            bench.Context.BeforeSave = null;
+            Assert.IsNotNull(Refusal(sent));
+            CollectionAssert.AreEqual(before, bench.DurableSnapshot());
+            Assert.AreEqual(runtime, bench.RuntimeSnapshot());
+            bench.AssertItemProgress(itemClass, 0);
+            Assert.IsFalse(sent.OfType<UpdateObjectiveItemCounterPacket>().Any());
+            Assert.IsEmpty(bench.JobBag());
+            sent = bench.Route(ModuleRequest(bench, page, input, target));
+            Assert.IsTrue(Succeeded(sent));
+            bench.AssertItemProgress(itemClass, count - bench.Carried(itemClass));
+            Assert.HasCount(1, sent.OfType<UpdateObjectiveItemCounterPacket>().ToArray());
+        }
+
+        [TestMethod]
+        public void ModuleOutputClaimsPreserveOnlyCommittedPartialAcquisitionProgress()
+        {
+            using var bench = new Bench();
+            var input = bench.GiveStack(Body1Item, 7);
+            var fee = bench.GiveStack(Mimeogel, 49999);
+            var job = Jobs(bench.Route(ModuleRequest(bench, KraftwerksManager.SalvagePage, input, null))).Single();
+            Assert.AreEqual(14u, job.Count);
+            bench.FillCraftingBag();
+            bench.WatchItemProgress(MissionProgressEventKind.ItemAcquired, MimeogelClass);
+            var before = bench.DurableSnapshot();
+            bench.Context.BeforeSave = database =>
+            {
+                if (database.ChangeTracker.Entries<Rasa.Structures.Char.CharacterMissionObjectiveItemCounterEntry>()
+                    .Any(entry => entry.Entity.MissionId == 321 && entry.State != EntityState.Unchanged))
+                    throw new DbUpdateException("Owned output acquisition-progress failure.");
+            };
+            var request = new RequestRetrieveFinishedCraftItemPacket
+            { KraftwerksId = bench.Object.EntityId, ItemId = job.ResultItemId };
+            var sent = bench.Route(request);
+            bench.Context.BeforeSave = null;
+            Assert.IsNotNull(Refusal(sent));
+            CollectionAssert.AreEqual(before, bench.DurableSnapshot());
+            Assert.AreEqual(14u, job.Count);
+            Assert.AreEqual(49999u, fee.StackSize);
+            bench.AssertItemProgress(MimeogelClass, 0);
+            Assert.IsFalse(sent.OfType<UpdateObjectiveItemCounterPacket>().Any());
+
+            sent = bench.Route(request);
+            Assert.AreEqual(13u, job.Count);
+            Assert.AreEqual(50000u, fee.StackSize);
+            bench.AssertItemProgress(MimeogelClass, 1);
+            Assert.HasCount(1, sent.OfType<UpdateObjectiveItemCounterPacket>().ToArray());
+            sent = bench.Route(request);
+            Assert.AreEqual(13u, job.Count);
+            bench.AssertItemProgress(MimeogelClass, 1);
+            Assert.IsFalse(sent.OfType<UpdateObjectiveItemCounterPacket>().Any());
+            InventoryManager.Instance.ReduceStackCount(bench.Client, InventoryType.Personal, fee, 13);
+            sent = bench.Route(request);
+            Assert.AreEqual(0u, job.Count);
+            bench.AssertItemProgress(MimeogelClass, 14);
+            Assert.HasCount(1, sent.OfType<UpdateObjectiveItemCounterPacket>().ToArray());
+            sent = bench.Route(request);
+            bench.AssertItemProgress(MimeogelClass, 14);
+            Assert.IsFalse(sent.OfType<UpdateObjectiveItemCounterPacket>().Any());
+        }
+
+        [TestMethod]
+        public void IntegrationTargetWriteFailureRollsBackStockFeeTargetAndPublication()
+        {
+            using var bench = new Bench();
+            var armor = bench.GiveGear(ArmorClass, LootQuality.Rare, 23);
+            var modules = bench.GiveStack(Body1Item, 2);
+            var fee = bench.GiveStack(Mimeogel, 100);
+            var before = bench.DurableSnapshot();
+            var slots = bench.Client.Player.Inventory.PersonalInventory.ToArray();
+            bench.Client.Player.ModulesChanged = false;
+            var hit = false;
+            bench.Context.BeforeSave = context =>
+            {
+                if (context.ChangeTracker.Entries<Rasa.Structures.Char.ItemEntry>()
+                    .Any(entry => entry.Entity.ItemId == armor.Id && entry.Entity.Module1 == Body1))
+                {
+                    hit = true;
+                    throw new DbUpdateException("owned fixture target write failure");
+                }
+            };
+            IReadOnlyList<PythonPacket> sent = Array.Empty<PythonPacket>();
+            Exception failure = null;
+            try
+            {
+                sent = bench.Route(new RequestIntegrateItemPacket
+                {
+                    KraftwerksId = bench.Object.EntityId, TargetItemId = armor.EntityId,
+                    ModuleItemId = modules.EntityId, Slot = 0, CraftingAction = 4
+                });
+            }
+            catch (Exception error) { failure = error; }
+            bench.Context.BeforeSave = null;
+
+            Console.WriteLine($"Target failure reached={hit}; runtime stock={modules.StackSize}, fee={fee.StackSize}, modules={string.Join(",", armor.ModuleIds)}, crafter={armor.Crafter}; escaped={failure?.GetType().Name}");
+            Assert.IsTrue(hit, "the real target write must be reached");
+            Assert.AreEqual(string.Join("\n", before), string.Join("\n", bench.DurableSnapshot()),
+                "input, fee, modules and crafter must all roll back");
+            CollectionAssert.AreEqual(slots, bench.Client.Player.Inventory.PersonalInventory.ToArray());
+            Assert.AreEqual(2u, modules.StackSize);
+            Assert.AreEqual(100u, fee.StackSize);
+            CollectionAssert.AreEqual(new uint[4], armor.ModuleIds.ToArray());
+            Assert.AreEqual("", armor.Crafter);
+            Assert.IsFalse(bench.Client.Player.ModulesChanged);
+            Assert.IsNull(failure, "expected storage failures are answered, not thrown out of CLIENTREQUEST");
+            Assert.AreEqual(GameOpcode.CraftingFailure, sent.OfType<CraftingResultPacket>().Single().Opcode);
+            Assert.AreEqual(0, Jobs(sent).Count);
+            Assert.IsFalse(sent.OfType<ItemInfoPacket>().Any());
+            Assert.IsFalse(sent.OfType<DisplayClientMessagePacket>().Any(packet => packet.MsgId == PlayerMessage.PmCraftingSuccess));
+        }
+
+        private static ClientPythonPacket ModuleRequest(Bench bench, uint page, Item input, Item target) => page switch
+        {
+            KraftwerksManager.SalvagePage => new RequestSalvageItemPacket
+            { KraftwerksId = bench.Object.EntityId, ItemId = input.EntityId, CraftingAction = page },
+            KraftwerksManager.ExtractionPage => new RequestExtractModulePacket
+            { KraftwerksId = bench.Object.EntityId, ItemId = target.EntityId, Slot = 0, CraftingAction = page },
+            KraftwerksManager.IntegrationPage => new RequestIntegrateItemPacket
+            { KraftwerksId = bench.Object.EntityId, TargetItemId = target.EntityId, ModuleItemId = input.EntityId, Slot = 0, CraftingAction = page },
+            _ => new RequestUpgradeItemPacket
+            { KraftwerksId = bench.Object.EntityId, ItemId = input.EntityId, CraftingAction = page }
+        };
+
+        [TestMethod]
+        [DataRow(2u, 1, false)]
+        [DataRow(2u, 1, true)]
+        [DataRow(2u, 2, false)]
+        [DataRow(2u, 2, true)]
+        [DataRow(3u, 1, false)]
+        [DataRow(3u, 1, true)]
+        [DataRow(3u, 2, false)]
+        [DataRow(3u, 2, true)]
+        [DataRow(4u, 1, false)]
+        [DataRow(4u, 1, true)]
+        [DataRow(4u, 2, false)]
+        [DataRow(4u, 2, true)]
+        [DataRow(4u, 3, false)]
+        [DataRow(4u, 3, true)]
+        [DataRow(4u, 4, false)]
+        [DataRow(4u, 4, true)]
+        [DataRow(5u, 1, false)]
+        [DataRow(5u, 1, true)]
+        [DataRow(5u, 2, false)]
+        [DataRow(5u, 2, true)]
+        public void EveryModuleWritePhaseRollsBackAndCanRetry(uint page, int phase, bool afterWrite)
+        {
+            using var bench = new Bench();
+            var target = bench.GiveGear(ArmorClass, LootQuality.Rare, 23,
+                page == KraftwerksManager.ExtractionPage ? Body1 : 0);
+            var input = page == KraftwerksManager.SalvagePage ? target : bench.GiveStack(Body1Item, 2);
+            bench.GiveStack(Mimeogel, 100);
+            bench.Client.Player.ModulesChanged = false;
+            var durable = bench.DurableSnapshot();
+            var runtime = bench.RuntimeSnapshot();
+            var saves = 0;
+            var hit = false;
+            Action<Rasa.Context.Char.SqliteCharContext> probe = context =>
+            {
+                Assert.IsNotNull(context.Database.CurrentTransaction, "every crafting write must join its owning transaction");
+                Assert.AreEqual(runtime, bench.RuntimeSnapshot(), "runtime state cannot be published before commit");
+                Assert.AreEqual(0, bench.Drain().Count, "no inventory, module, status or success packet before commit");
+                if (++saves == phase)
+                {
+                    hit = true;
+                    throw new DbUpdateException($"owned fixture {page}/{phase}/{afterWrite}");
+                }
+            };
+            if (afterWrite) bench.Context.AfterSave = probe;
+            else bench.Context.BeforeSave = probe;
+            var request = ModuleRequest(bench, page, input, target);
+            var sent = bench.Route(request);
+            bench.Context.BeforeSave = null;
+            bench.Context.AfterSave = null;
+
+            Assert.IsTrue(hit, "the selected persistence phase must be reached");
+            CollectionAssert.AreEqual(durable, bench.DurableSnapshot());
+            Assert.AreEqual(runtime, bench.RuntimeSnapshot());
+            Assert.IsNotNull(Refusal(sent));
+            Assert.AreEqual(0, Jobs(sent).Count);
+            Assert.IsFalse(sent.OfType<ItemInfoPacket>().Any());
+            Assert.IsFalse(sent.OfType<InventoryRemoveItemPacket>().Any());
+
+            sent = bench.Route(request);
+            Assert.IsTrue(Succeeded(sent));
+            Assert.AreEqual(page == KraftwerksManager.IntegrationPage ? 0 : 1, Jobs(sent).Count);
+            Assert.AreEqual(page == KraftwerksManager.SalvagePage ? 0u :
+                page == KraftwerksManager.ExtractionPage ? 2u : 1u, input.StackSize);
+            if (page == KraftwerksManager.IntegrationPage || page == KraftwerksManager.ExtractionPage)
+            {
+                Assert.IsTrue(bench.Client.Player.ModulesChanged);
+                CollectionAssert.AreEqual(target.ModuleIds.ToArray(), bench.Saved(target));
+                Assert.AreEqual(target.Crafter, bench.SavedCrafter(target));
+            }
+        }
+
+        [TestMethod]
+        [DataRow(1, false)]
+        [DataRow(1, true)]
+        [DataRow(2, false)]
+        [DataRow(2, true)]
+        [DataRow(3, false)]
+        [DataRow(3, true)]
+        [DataRow(4, false)]
+        [DataRow(4, true)]
+        [DataRow(5, false)]
+        [DataRow(5, true)]
+        [DataRow(6, false)]
+        [DataRow(6, true)]
+        public void WholeInputAndFeeDeletionFailuresRollBackAndRetry(int phase, bool afterWrite)
+        {
+            using var bench = new Bench();
+            var target = bench.GiveGear(ArmorClass, LootQuality.Rare, 23);
+            var input = bench.GiveStack(Body1Item, 1);
+            var cost = ItemModules.IntegrationCost(input, target);
+            Assert.AreEqual(9u, cost);
+            var fee = bench.GiveStack(Mimeogel, cost);
+            var durable = bench.DurableSnapshot();
+            var runtime = bench.RuntimeSnapshot();
+            var saves = 0;
+            var hit = false;
+            Action<Rasa.Context.Char.SqliteCharContext> probe = context =>
+            {
+                Assert.IsNotNull(context.Database.CurrentTransaction);
+                Assert.AreEqual(runtime, bench.RuntimeSnapshot());
+                if (++saves == phase)
+                {
+                    hit = true;
+                    throw new DbUpdateException("owned fixture complete input/fee deletion");
+                }
+            };
+            if (afterWrite) bench.Context.AfterSave = probe;
+            else bench.Context.BeforeSave = probe;
+            var request = ModuleRequest(bench, KraftwerksManager.IntegrationPage, input, target);
+            var sent = bench.Route(request);
+            bench.Context.BeforeSave = null;
+            bench.Context.AfterSave = null;
+            Assert.IsTrue(hit);
+            Assert.IsNotNull(Refusal(sent));
+            CollectionAssert.AreEqual(durable, bench.DurableSnapshot());
+            Assert.AreEqual(runtime, bench.RuntimeSnapshot());
+            Assert.IsTrue(Succeeded(bench.Route(request)));
+            Assert.IsFalse(bench.InPack(input));
+            Assert.IsFalse(bench.InPack(fee));
+            using var unit = bench.Context.CreateChar();
+            Assert.IsNull(unit.Items.GetItem(input.Id));
+            Assert.IsNull(unit.Items.GetItem(fee.Id));
+            CollectionAssert.AreEqual(new[] { Body1, 0u, 0u, 0u }, bench.Saved(target));
+        }
+
+        [TestMethod]
+        [DataRow(1, false, false)]
+        [DataRow(1, true, false)]
+        [DataRow(2, false, false)]
+        [DataRow(2, true, false)]
+        [DataRow(1, false, true)]
+        [DataRow(1, true, true)]
+        public void ModuleOutputClaimFailureRollsBackAndRetryDoesNotDuplicate(int phase, bool afterWrite, bool merge)
+        {
+            using var bench = new Bench();
+            var input = bench.GiveStack(Body1Item, 2);
+            bench.GiveStack(Mimeogel, 100);
+            if (merge)
+                bench.GiveStack(Body2Item, 3);
+            var sent = bench.Route(ModuleRequest(bench, KraftwerksManager.UpgradePage, input, null));
+            Assert.IsTrue(Succeeded(sent));
+            var job = Jobs(sent).Single();
+            var before = bench.DurableSnapshot();
+            var runtime = bench.RuntimeSnapshot();
+            var hit = false;
+            var saves = 0;
+            Action<Rasa.Context.Char.SqliteCharContext> probe = context =>
+            {
+                Assert.IsNotNull(context.Database.CurrentTransaction);
+                Assert.AreEqual(runtime, bench.RuntimeSnapshot());
+                Assert.AreEqual(1u, job.Count);
+                if (++saves == phase)
+                {
+                    hit = true;
+                    throw new DbUpdateException("owned fixture output saved but not committed");
+                }
+            };
+            if (afterWrite) bench.Context.AfterSave = probe;
+            else bench.Context.BeforeSave = probe;
+            Exception failure = null;
+            try
+            {
+                sent = bench.Route(new RequestRetrieveFinishedCraftItemPacket
+                { KraftwerksId = bench.Object.EntityId, ItemId = job.ResultItemId });
+            }
+            catch (Exception error) { failure = error; }
+            bench.Context.BeforeSave = null;
+            bench.Context.AfterSave = null;
+            Assert.IsTrue(hit);
+            CollectionAssert.AreEqual(before, bench.DurableSnapshot(), "a failed output claim cannot leave an orphan item");
+            Assert.AreEqual(runtime, bench.RuntimeSnapshot());
+            Assert.AreEqual(1u, job.Count);
+            Assert.IsNull(failure, "output storage failure must notify the client and retain the job");
+            Assert.IsNotNull(Refusal(sent));
+            Assert.AreSame(job, Jobs(sent).Single());
+
+            sent = bench.Route(new RequestRetrieveFinishedCraftItemPacket
+            { KraftwerksId = bench.Object.EntityId, ItemId = job.ResultItemId });
+            Assert.AreEqual(0, Jobs(sent).Count);
+            Assert.AreEqual(merge ? 4u : 1u, bench.Only(Body2Item).StackSize);
+            var claimed = bench.DurableSnapshot();
+            sent = bench.Route(new RequestRetrieveFinishedCraftItemPacket
+            { KraftwerksId = bench.Object.EntityId, ItemId = job.ResultItemId });
+            CollectionAssert.AreEqual(claimed, bench.DurableSnapshot());
+            Assert.AreEqual(0, Jobs(sent).Count);
+        }
+
+        [TestMethod]
+        [DataRow(false)]
+        [DataRow(true)]
+        public void NewModuleOutputReceiptMustMatchItsModuleAndCrafterData(bool changeCrafter)
+        {
+            using var bench = new Bench();
+            var input = bench.GiveStack(Body1Item, 2);
+            bench.GiveStack(Mimeogel, 100);
+            var job = Jobs(bench.Route(ModuleRequest(bench, KraftwerksManager.UpgradePage, input, null))).Single();
+            var durable = bench.DurableSnapshot();
+            var runtime = bench.RuntimeSnapshot();
+            var saves = 0;
+            var hit = false;
+            bench.Context.AfterSave = context =>
+            {
+                if (++saves != 2)
+                    return;
+                bench.Context.AfterSave = null;
+                hit = true;
+                context.Database.ExecuteSqlRaw(changeCrafter
+                    ? $"update items set crafter_name = 'Wrong maker' where item_template_id = {Body2Item}"
+                    : $"update items set module_1 = {Mind5} where item_template_id = {Body2Item}");
+            };
+            var sent = bench.Route(new RequestRetrieveFinishedCraftItemPacket
+            { KraftwerksId = bench.Object.EntityId, ItemId = job.ResultItemId });
+            bench.Context.AfterSave = null;
+            Assert.IsTrue(hit);
+            CollectionAssert.AreEqual(durable, bench.DurableSnapshot());
+            Assert.AreEqual(runtime, bench.RuntimeSnapshot());
+            Assert.AreEqual(1u, job.Count);
+            Assert.IsNotNull(Refusal(sent));
+            sent = bench.Route(new RequestRetrieveFinishedCraftItemPacket
+            { KraftwerksId = bench.Object.EntityId, ItemId = job.ResultItemId });
+            Assert.AreEqual(0, Jobs(sent).Count);
+            var output = bench.Only(Body2Item);
+            CollectionAssert.AreEqual(new uint[4], bench.Saved(output));
+            Assert.AreEqual("", bench.SavedCrafter(output));
+        }
+
+        [TestMethod]
+        [DataRow("input-count")]
+        [DataRow("fee-count")]
+        [DataRow("input-slot")]
+        [DataRow("input-owner")]
+        [DataRow("target-slot")]
+        [DataRow("target-owner")]
+        [DataRow("target-inventory")]
+        [DataRow("target-module")]
+        [DataRow("target-crafter")]
+        public void DurableStateChangedAfterTheWindowOpenedIsRefused(string change)
+        {
+            using var bench = new Bench();
+            var target = bench.GiveGear(ArmorClass, LootQuality.Rare, 23);
+            var input = bench.GiveStack(Body1Item, 2);
+            var fee = bench.GiveStack(Mimeogel, 100);
+            var sql = change switch
+            {
+                "input-count" => $"update items set stack_size = 1 where item_id = {input.Id}",
+                "fee-count" => $"update items set stack_size = 0 where item_id = {fee.Id}",
+                "input-slot" => $"update character_inventory set slot_id = 145 where item_id = {input.Id}",
+                "input-owner" => $"update character_inventory set character_id = 1 where item_id = {input.Id}",
+                "target-slot" => $"update character_inventory set slot_id = 40 where item_id = {target.Id}",
+                "target-owner" => $"update character_inventory set character_id = 1 where item_id = {target.Id}",
+                "target-inventory" => $"update character_inventory set invenotry_type = 2 where item_id = {target.Id}",
+                "target-module" => $"update items set module_2 = {Mind5} where item_id = {target.Id}",
+                _ => $"update items set crafter_name = 'Somebody' where item_id = {target.Id}"
+            };
+            using (var context = bench.Context.Open())
+                context.Database.ExecuteSqlRaw(sql);
+            var durable = bench.DurableSnapshot();
+            var runtime = bench.RuntimeSnapshot();
+            var sent = bench.Route(ModuleRequest(bench, KraftwerksManager.IntegrationPage, input, target));
+            Assert.IsNotNull(Refusal(sent));
+            CollectionAssert.AreEqual(durable, bench.DurableSnapshot(), "do not overwrite the competing durable state");
+            Assert.AreEqual(runtime, bench.RuntimeSnapshot());
+            Assert.AreEqual(0, Jobs(sent).Count);
+        }
+
+        [TestMethod]
+        [DataRow(false)]
+        [DataRow(true)]
+        public void InputOrFeeChangingAfterPlanningRollsBack(bool changeFee)
+        {
+            using var bench = new Bench();
+            var target = bench.GiveGear(ArmorClass, LootQuality.Rare, 23);
+            var input = bench.GiveStack(Body1Item, 2);
+            var fee = bench.GiveStack(Mimeogel, 100);
+            var durable = bench.DurableSnapshot();
+            var runtime = bench.RuntimeSnapshot();
+            var reads = 0;
+            var hit = false;
+            bench.Context.BeforeQuery = context =>
+            {
+                if (context.Database.CurrentTransaction == null)
+                    return;
+                // Prepare's second batched item read is after all stock/fee/target planning.
+                bench.Context.BeforeCommand = sql =>
+                {
+                    if (!sql.Contains("\"items\"") || !sql.Contains("json_each") || ++reads != 2)
+                        return;
+                    bench.Context.BeforeCommand = null;
+                    hit = true;
+                    context.Database.ExecuteSqlRaw($"update items set stack_size = 0 where item_id = {(changeFee ? fee.Id : input.Id)}");
+                };
+                bench.Context.BeforeQuery = null;
+            };
+            var sent = bench.Route(ModuleRequest(bench, KraftwerksManager.IntegrationPage, input, target));
+            bench.Context.BeforeQuery = null;
+            bench.Context.BeforeCommand = null;
+            Assert.IsTrue(hit, "the post-planning inventory revalidation read must be reached");
+            Assert.IsNotNull(Refusal(sent));
+            CollectionAssert.AreEqual(durable, bench.DurableSnapshot());
+            Assert.AreEqual(runtime, bench.RuntimeSnapshot());
+            Assert.AreEqual(0, Jobs(sent).Count);
+            Assert.IsTrue(Succeeded(bench.Route(ModuleRequest(bench, KraftwerksManager.IntegrationPage, input, target))));
+        }
+
+        [TestMethod]
+        [DataRow("module")]
+        [DataRow("crafter")]
+        [DataRow("quantity")]
+        [DataRow("slot")]
+        public void FinalTargetReceiptMismatchRollsBackInsteadOfPublishing(string change)
+        {
+            using var bench = new Bench();
+            var target = bench.GiveGear(ArmorClass, LootQuality.Rare, 23);
+            var input = bench.GiveStack(Body1Item, 2);
+            bench.GiveStack(Mimeogel, 100);
+            var durable = bench.DurableSnapshot();
+            var runtime = bench.RuntimeSnapshot();
+            var hit = false;
+            bench.Context.AfterSave = context =>
+            {
+                if (!context.ChangeTracker.Entries<Rasa.Structures.Char.ItemEntry>()
+                    .Any(entry => entry.Entity.ItemId == target.Id && entry.Entity.CrafterName == bench.Client.Player.FamilyName))
+                    return;
+                bench.Context.AfterSave = null;
+                hit = true;
+                context.Database.ExecuteSqlRaw(change switch
+                {
+                    "module" => $"update items set module_4 = {Mind5} where item_id = {target.Id}",
+                    "crafter" => $"update items set crafter_name = 'Intruder' where item_id = {target.Id}",
+                    "quantity" => $"update items set stack_size = 2 where item_id = {target.Id}",
+                    _ => $"update character_inventory set slot_id = 40 where item_id = {target.Id}"
+                });
+            };
+            var sent = bench.Route(ModuleRequest(bench, KraftwerksManager.IntegrationPage, input, target));
+            bench.Context.AfterSave = null;
+            Assert.IsTrue(hit);
+            Assert.IsNotNull(Refusal(sent));
+            CollectionAssert.AreEqual(durable, bench.DurableSnapshot());
+            Assert.AreEqual(runtime, bench.RuntimeSnapshot());
+            Assert.IsTrue(Succeeded(bench.Route(ModuleRequest(bench, KraftwerksManager.IntegrationPage, input, target))));
+        }
+
+        [TestMethod]
+        [DataRow(2u, false)]
+        [DataRow(3u, false)]
+        [DataRow(4u, false)]
+        [DataRow(5u, false)]
+        [DataRow(2u, true)]
+        [DataRow(3u, true)]
+        [DataRow(5u, true)]
+        public void LateStationOrJobAdmissionChangeRollsBack(uint page, bool fillJobs)
+        {
+            using var bench = new Bench();
+            var target = bench.GiveGear(ArmorClass, LootQuality.Rare, 23,
+                page == KraftwerksManager.ExtractionPage ? Body1 : 0);
+            var input = page == KraftwerksManager.SalvagePage ? target : bench.GiveStack(Body1Item, 2);
+            bench.GiveStack(Mimeogel, 100);
+            var durable = bench.DurableSnapshot();
+            var runtime = bench.RuntimeSnapshot();
+            var hit = false;
+            bench.Context.AfterSave = _ =>
+            {
+                bench.Context.AfterSave = null;
+                hit = true;
+                if (fillJobs)
+                    for (var index = 0; index < KraftwerksManager.MaxJobsPerStation; index++)
+                        bench.JobBag().Add(new CraftingJob { ResultItemId = (ulong)index + 1000, FinishTick = 0, Count = 1 });
+                else
+                    EntityManager.Instance.DynamicObjects.Remove(bench.Object.EntityId);
+            };
+            var sent = bench.Route(ModuleRequest(bench, page, input, target));
+            bench.Context.AfterSave = null;
+            Assert.IsTrue(hit);
+            Assert.IsNotNull(Refusal(sent));
+            CollectionAssert.AreEqual(durable, bench.DurableSnapshot());
+            Assert.AreEqual(runtime, bench.RuntimeSnapshot());
+            if (fillJobs)
+                bench.JobBag().Clear();
+            else
+                EntityManager.Instance.DynamicObjects[bench.Object.EntityId] = bench.Object;
+            Assert.IsTrue(Succeeded(bench.Route(ModuleRequest(bench, page, input, target))));
+        }
+
+        [TestMethod]
+        public void FullJobBagRefusesOutputPagesButStillAllowsIntegration()
+        {
+            using var bench = new Bench();
+            var target = bench.GiveGear(ArmorClass, LootQuality.Rare, 23, Spirit1);
+            var input = bench.GiveStack(Body1Item, 2);
+            bench.GiveStack(Mimeogel, 100);
+            for (var index = 0; index < KraftwerksManager.MaxJobsPerStation; index++)
+                bench.JobBag().Add(new CraftingJob { ResultItemId = (ulong)index + 1000, FinishTick = 0, Count = 1 });
+            var durable = bench.DurableSnapshot();
+            foreach (var page in new[] { KraftwerksManager.SalvagePage, KraftwerksManager.UpgradePage })
+            {
+                var sent = bench.Route(ModuleRequest(bench, page, input, target));
+                Assert.IsNotNull(Refusal(sent));
+                CollectionAssert.AreEqual(durable, bench.DurableSnapshot());
+            }
+            var extract = bench.Route(new RequestExtractModulePacket
+            { KraftwerksId = bench.Object.EntityId, ItemId = target.EntityId, Slot = 0, CraftingAction = 3 });
+            Assert.IsNotNull(Refusal(extract));
+            CollectionAssert.AreEqual(durable, bench.DurableSnapshot());
+            var integration = bench.Route(new RequestIntegrateItemPacket
+            {
+                KraftwerksId = bench.Object.EntityId, TargetItemId = target.EntityId,
+                ModuleItemId = input.EntityId, Slot = 1, CraftingAction = 4
+            });
+            Assert.IsTrue(Succeeded(integration));
+            Assert.AreEqual(KraftwerksManager.MaxJobsPerStation, Jobs(integration).Count);
+        }
+
+        [TestMethod]
+        public void FullInventoryRetainsModuleOutputUntilItCanBeClaimed()
+        {
+            using var bench = new Bench();
+            var input = bench.GiveStack(Body1Item, 2);
+            bench.GiveStack(Mimeogel, 100);
+            var job = Jobs(bench.Route(ModuleRequest(bench, KraftwerksManager.UpgradePage, input, null))).Single();
+            bench.FillCraftingBag();
+            var durable = bench.DurableSnapshot();
+            var sent = bench.Route(new RequestRetrieveFinishedCraftItemPacket
+            { KraftwerksId = bench.Object.EntityId, ItemId = job.ResultItemId });
+            Assert.AreEqual(GameOpcode.CraftingFailure, sent.OfType<CraftingResultPacket>().Single().Opcode);
+            Assert.AreEqual(PlayerMessage.PmInventoryFull, sent.OfType<DisplayClientMessagePacket>().Single().MsgId);
+            CollectionAssert.AreEqual(durable, bench.DurableSnapshot());
+            Assert.AreEqual(1u, job.Count);
+
+            var blockerId = bench.Client.Player.Inventory.PersonalInventory[149];
+            var blocker = EntityManager.Instance.GetItem(blockerId);
+            InventoryManager.Instance.ReduceStackCount(bench.Client, InventoryType.Personal, blocker, blocker.StackSize);
+            sent = bench.Route(new RequestRetrieveFinishedCraftItemPacket
+            { KraftwerksId = bench.Object.EntityId, ItemId = job.ResultItemId });
+            Assert.AreEqual(0u, job.Count);
+            Assert.AreEqual(0, Jobs(sent).Count);
+            Assert.AreEqual(1u, bench.Only(Body2Item).StackSize);
+            var after = bench.DurableSnapshot();
+            sent = bench.Route(new RequestRetrieveFinishedCraftItemPacket
+            { KraftwerksId = bench.Object.EntityId, ItemId = job.ResultItemId });
+            CollectionAssert.AreEqual(after, bench.DurableSnapshot(), "duplicate claims cannot create another output");
+        }
+
+        [TestMethod]
+        public void PartialSalvageOutputClaimKeepsOnlyTheUnclaimedRemainder()
+        {
+            using var bench = new Bench();
+            var input = bench.GiveStack(Body1Item, 7);
+            var fee = bench.GiveStack(Mimeogel, 49999);
+            var job = Jobs(bench.Route(ModuleRequest(bench, KraftwerksManager.SalvagePage, input, null))).Single();
+            Assert.AreEqual(14u, job.Count);
+            bench.FillCraftingBag();
+            var sent = bench.Route(new RequestRetrieveFinishedCraftItemPacket
+            { KraftwerksId = bench.Object.EntityId, ItemId = job.ResultItemId });
+            Assert.AreEqual(13u, job.Count);
+            Assert.AreSame(job, Jobs(sent).Single());
+            Assert.AreEqual(50000u, fee.StackSize);
+            var after = bench.DurableSnapshot();
+            sent = bench.Route(new RequestRetrieveFinishedCraftItemPacket
+            { KraftwerksId = bench.Object.EntityId, ItemId = job.ResultItemId });
+            CollectionAssert.AreEqual(after, bench.DurableSnapshot());
+            Assert.AreEqual(13u, job.Count);
+            InventoryManager.Instance.ReduceStackCount(bench.Client, InventoryType.Personal, fee, 13);
+            sent = bench.Route(new RequestRetrieveFinishedCraftItemPacket
+            { KraftwerksId = bench.Object.EntityId, ItemId = job.ResultItemId });
+            Assert.AreEqual(0, Jobs(sent).Count);
+            Assert.AreEqual(50000u, fee.StackSize);
+        }
+
+        [TestMethod]
+        [DataRow(false, 1, false)]
+        [DataRow(false, 1, true)]
+        [DataRow(false, 2, false)]
+        [DataRow(false, 2, true)]
+        [DataRow(true, 1, false)]
+        [DataRow(true, 1, true)]
+        public void ExternalSetAndClearKeepTheirThrowingContractWithoutRuntimeMutation(bool clear, int phase, bool afterWrite)
+        {
+            using var bench = new Bench();
+            var target = bench.GiveGear(ArmorClass, LootQuality.Rare, 23, Spirit1, Mind5);
+            var durable = bench.DurableSnapshot();
+            bench.Client.Player.ModulesChanged = false;
+            var runtime = bench.RuntimeSnapshot();
+            var saves = 0;
+            var hit = false;
+            Action<Rasa.Context.Char.SqliteCharContext> probe = context =>
+            {
+                Assert.IsNotNull(context.Database.CurrentTransaction);
+                Assert.AreEqual(runtime, bench.RuntimeSnapshot());
+                if (++saves == phase)
+                {
+                    hit = true;
+                    throw new DbUpdateException("owned fixture external module write");
+                }
+            };
+            if (afterWrite) bench.Context.AfterSave = probe;
+            else bench.Context.BeforeSave = probe;
+            Exception failure = null;
+            void Change()
+            {
+                if (clear)
+                    ItemModules.Clear(bench.Client, target, bench.Context);
+                else
+                    ItemModules.Set(bench.Client, target, 0, Body1, bench.Context, "Modifier");
+            }
+            try { Change(); }
+            catch (Exception error) { failure = error; }
+            bench.Context.BeforeSave = null;
+            bench.Context.AfterSave = null;
+            Assert.IsTrue(hit);
+            Assert.IsInstanceOfType<DbUpdateException>(failure);
+            CollectionAssert.AreEqual(durable, bench.DurableSnapshot());
+            Assert.AreEqual(runtime, bench.RuntimeSnapshot());
+            Assert.AreEqual(0, bench.Drain().Count);
+            Change();
+            CollectionAssert.AreEqual(target.ModuleIds.ToArray(), bench.Saved(target));
+            Assert.AreEqual(clear ? 0u : Body1, target.ModuleIds[0]);
+            Assert.AreEqual(clear ? "" : "Modifier", target.Crafter);
+            Assert.AreEqual(target.Crafter, bench.SavedCrafter(target));
+            Assert.IsTrue(bench.Client.Player.ModulesChanged);
+            Assert.AreEqual(1, bench.Drain().OfType<ItemInfoPacket>().Count());
+        }
+
+        [TestMethod]
+        [DataRow(2u, "input")]
+        [DataRow(3u, "target")]
+        [DataRow(4u, "target")]
+        [DataRow(4u, "input")]
+        [DataRow(5u, "input")]
+        [DataRow(3u, "fee")]
+        [DataRow(4u, "fee")]
+        [DataRow(5u, "fee")]
+        public void AssignmentProtectedInputsTargetsAndFeesCannotBeUsed(uint page, string protectedRole)
+        {
+            using var bench = new Bench();
+            var target = bench.GiveGear(ArmorClass, LootQuality.Rare, 23,
+                page == KraftwerksManager.ExtractionPage ? Body1 : 0);
+            var input = bench.GiveStack(Body1Item, 2);
+            var fee = bench.GiveStack(Mimeogel, 100);
+            var item = protectedRole == "target" ? target : protectedRole == "fee" ? fee : input;
+            using (var unit = bench.Context.CreateChar())
+                unit.CharacterMissionItems.Save(new Rasa.Structures.Char.CharacterMissionItemEntry
+                {
+                    CharacterId = bench.Client.Player.Id, MissionId = 1990,
+                    AssignmentId = Guid.NewGuid().ToString("N"), Generation = 1,
+                    ItemKey = "protected-crafting-fixture", ItemId = item.Id, Quantity = item.StackSize
+                });
+            var durable = bench.DurableSnapshot();
+            var runtime = bench.RuntimeSnapshot();
+            var sent = bench.Route(ModuleRequest(bench, page, input, target));
+            Assert.IsNotNull(Refusal(sent));
+            CollectionAssert.AreEqual(durable, bench.DurableSnapshot());
+            Assert.AreEqual(runtime, bench.RuntimeSnapshot());
+            Assert.AreEqual(0, Jobs(sent).Count);
+        }
+
+        [TestMethod]
+        public void WornItemBonusesChangeOnlyAfterSetOrClearCommits()
+        {
+            using var bench = new Bench();
+            var gear = bench.GiveGear(ArmorClass, LootQuality.Rare, 23);
+            var packSlot = gear.OwnerSlotId;
+            var wornSlot = (uint)EquipmentData.Helmet;
+            using (var unit = bench.Context.CreateChar())
+                unit.CharacterInventories.MoveInvItem(bench.Client.AccountEntry.Id, bench.Client.Player.Id,
+                    (uint)InventoryType.EquipedInventory, wornSlot, gear.Id);
+            bench.Client.Player.Inventory.PersonalInventory[(int)packSlot] = 0;
+            gear.OwnerSlotId = wornSlot;
+            bench.Client.Player.Inventory.EquippedInventory[(int)wornSlot] = gear.EntityId;
+            ManifestationManager.Instance.UpdateStatsValues(bench.Client, true);
+            var body = bench.Client.Player.Attributes[Attributes.Body].CurrentMax;
+            bench.Client.Player.ModulesChanged = false;
+            bench.Drain();
+            bench.Context.AfterSave = _ => throw new DbUpdateException("owned fixture worn module");
+            Exception failure = null;
+            try { ItemModules.Set(bench.Client, gear, 0, Body1, bench.Context); }
+            catch (Exception error) { failure = error; }
+            bench.Context.AfterSave = null;
+            Assert.IsInstanceOfType<DbUpdateException>(failure);
+            Assert.AreEqual(0, ItemModuleBonuses.Of(bench.Client.Player).Body);
+            ItemModuleBonuses.Worker(bench.Client.Player.MapChannel);
+            Assert.AreEqual(body, bench.Client.Player.Attributes[Attributes.Body].CurrentMax);
+            Assert.IsFalse(bench.Client.Player.ModulesChanged);
+            ItemModules.Set(bench.Client, gear, 0, Body1, bench.Context);
+            Assert.AreEqual(3, ItemModuleBonuses.Of(bench.Client.Player).Body);
+            Assert.AreEqual(body, bench.Client.Player.Attributes[Attributes.Body].CurrentMax, "existing next-tick semantics");
+            ItemModuleBonuses.Worker(bench.Client.Player.MapChannel);
+            Assert.AreEqual(body + 3, bench.Client.Player.Attributes[Attributes.Body].CurrentMax);
+            Assert.IsFalse(bench.Client.Player.ModulesChanged);
+            ItemModules.Clear(bench.Client, gear, bench.Context);
+            ItemModuleBonuses.Worker(bench.Client.Player.MapChannel);
+            Assert.AreEqual(body, bench.Client.Player.Attributes[Attributes.Body].CurrentMax);
+            CollectionAssert.AreEqual(new uint[4], bench.Saved(gear));
+        }
+
+        [TestMethod]
+        public void ExternalModuleWriteRejectsAStaleUnregisteredItemInstance()
+        {
+            using var bench = new Bench();
+            var target = bench.GiveGear(ArmorClass, LootQuality.Rare, 23);
+            var stale = new Item(target.ItemTemplateId, target.StackSize, target.CurrentHitPoints, target.Color)
+            {
+                Id = target.Id, ItemTemplate = target.ItemTemplate,
+                OwnerId = target.OwnerId, OwnerSlotId = target.OwnerSlotId
+            };
+            var durable = bench.DurableSnapshot();
+            var runtime = bench.RuntimeSnapshot();
+            Exception failure = null;
+            try { ItemModules.Set(bench.Client, stale, 0, Body1, bench.Context); }
+            catch (Exception error) { failure = error; }
+            Assert.IsNotNull(failure, "a noncanonical item instance cannot publish a module edit to the player's inventory");
+            CollectionAssert.AreEqual(durable, bench.DurableSnapshot());
+            Assert.AreEqual(runtime, bench.RuntimeSnapshot());
+            Assert.AreEqual(0, bench.Drain().Count);
+        }
+
+        [TestMethod]
+        [DataRow(2u)]
+        [DataRow(3u)]
+        [DataRow(4u)]
+        [DataRow(5u)]
+        public void PreflightProtectionReadFailureIsAnExplicitCraftingFailure(uint page)
+        {
+            using var bench = new Bench();
+            var target = bench.GiveGear(ArmorClass, LootQuality.Rare, 23,
+                page == KraftwerksManager.ExtractionPage ? Body1 : 0);
+            var input = bench.GiveStack(Body1Item, 2);
+            bench.GiveStack(Mimeogel, 100);
+            var durable = bench.DurableSnapshot();
+            var runtime = bench.RuntimeSnapshot();
+            var hit = false;
+            bench.Context.BeforeQuery = _ =>
+            {
+                hit = true;
+                throw new SqliteException("owned fixture protection read failure", 5);
+            };
+            Exception failure = null;
+            IReadOnlyList<PythonPacket> sent = Array.Empty<PythonPacket>();
+            try { sent = bench.Route(ModuleRequest(bench, page, input, target)); }
+            catch (Exception error) { failure = error; }
+            bench.Context.BeforeQuery = null;
+            Assert.IsTrue(hit);
+            Assert.IsNull(failure, "a known persistence failure must not escape CLIENTREQUEST");
+            CollectionAssert.AreEqual(durable, bench.DurableSnapshot());
+            Assert.AreEqual(runtime, bench.RuntimeSnapshot());
+            Assert.IsNotNull(Refusal(sent));
+            Assert.AreEqual(0, Jobs(sent).Count);
+            Assert.IsTrue(Succeeded(bench.Route(ModuleRequest(bench, page, input, target))));
+        }
+
+        [TestMethod]
+        [DataRow("quantity")]
+        [DataRow("template")]
+        [DataRow("station")]
+        public void LateOutputClaimOrStationChangesRollBackTheNewItem(string change)
+        {
+            using var bench = new Bench();
+            var input = bench.GiveStack(Body1Item, 2);
+            bench.GiveStack(Mimeogel, 100);
+            var job = Jobs(bench.Route(ModuleRequest(bench, KraftwerksManager.UpgradePage, input, null))).Single();
+            var durable = bench.DurableSnapshot();
+            var runtime = bench.RuntimeSnapshot();
+            var hit = false;
+            bench.Context.AfterSave = _ =>
+            {
+                bench.Context.AfterSave = null;
+                hit = true;
+                if (change == "quantity") job.Count = 2;
+                else if (change == "template") job.ResultItemTemplateId = Body1Item;
+                else EntityManager.Instance.DynamicObjects.Remove(bench.Object.EntityId);
+            };
+            var sent = bench.Route(new RequestRetrieveFinishedCraftItemPacket
+            { KraftwerksId = bench.Object.EntityId, ItemId = job.ResultItemId });
+            bench.Context.AfterSave = null;
+            Assert.IsTrue(hit);
+            Assert.IsNotNull(Refusal(sent));
+            CollectionAssert.AreEqual(durable, bench.DurableSnapshot());
+            Assert.AreEqual(runtime, bench.RuntimeSnapshot());
+            Assert.AreSame(job, Jobs(sent).Single());
+            job.Count = 1;
+            job.ResultItemTemplateId = Body2Item;
+            EntityManager.Instance.DynamicObjects[bench.Object.EntityId] = bench.Object;
+            sent = bench.Route(new RequestRetrieveFinishedCraftItemPacket
+            { KraftwerksId = bench.Object.EntityId, ItemId = job.ResultItemId });
+            Assert.AreEqual(0, Jobs(sent).Count);
+            Assert.AreEqual(1u, bench.Only(Body2Item).StackSize);
+        }
 
         [TestMethod]
         public void SalvageDestroysTheItemAndLeavesItsMimeogelToBeTaken()
@@ -1025,7 +1996,7 @@ namespace Rasa.Test.Gameplay
             // And whoever made an item, or modified it before, gives way to whoever modifies it now.
             var theirs = bench.GiveGear(ToolClass, LootQuality.Normal, 1);
 
-            theirs.Crafter = "Somebody";
+            bench.SetCrafter(theirs, "Somebody");
             Assert.AreEqual(ItemModules.IntegrationProblem.WrongKindOfItem, ItemModules.CanIntegrate(modules, theirs));
             sent = bench.After((station, id) => station.RequestIntegrateItem(bench.Client, Integrate(id, theirs, modules, 0)));
             Assert.AreEqual("That module is for another kind of item.", Refusal(sent));
@@ -1033,7 +2004,7 @@ namespace Rasa.Test.Gameplay
 
             var made = bench.GiveGear(ArmorClass, LootQuality.Normal, 1);
 
-            made.Crafter = "Somebody";
+            bench.SetCrafter(made, "Somebody");
             sent = bench.After((station, id) => station.RequestIntegrateItem(bench.Client, Integrate(id, made, modules, 0)));
             Assert.IsTrue(Succeeded(sent));
             Assert.AreEqual(name, made.Crafter);

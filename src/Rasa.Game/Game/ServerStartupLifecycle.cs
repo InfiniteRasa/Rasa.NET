@@ -5,6 +5,7 @@ namespace Rasa.Game
     internal sealed class ServerStartupLifecycle
     {
         private readonly Func<bool> _validateMissionReadiness;
+        private readonly Func<bool> _validateLootReadiness;
         private readonly Action _startLoop;
         private readonly Action _setupCommunicator;
         private readonly Action _createListener;
@@ -18,6 +19,7 @@ namespace Rasa.Game
 
         internal ServerStartupLifecycle(
             Func<bool> validateMissionReadiness,
+            Func<bool> validateLootReadiness,
             Action startLoop,
             Action setupCommunicator,
             Action createListener,
@@ -31,6 +33,8 @@ namespace Rasa.Game
         {
             _validateMissionReadiness = validateMissionReadiness ??
                                         throw new ArgumentNullException(nameof(validateMissionReadiness));
+            _validateLootReadiness = validateLootReadiness ??
+                                    throw new ArgumentNullException(nameof(validateLootReadiness));
             _startLoop = startLoop ?? throw new ArgumentNullException(nameof(startLoop));
             _setupCommunicator = setupCommunicator ?? throw new ArgumentNullException(nameof(setupCommunicator));
             _createListener = createListener ?? throw new ArgumentNullException(nameof(createListener));
@@ -55,6 +59,9 @@ namespace Rasa.Game
             try
             {
                 if (!_validateMissionReadiness())
+                    return false;
+                step = "checking the ordinary loot tables";
+                if (!_validateLootReadiness())
                     return false;
 
                 // The world first, then the doors: everything loaded before anything can connect,

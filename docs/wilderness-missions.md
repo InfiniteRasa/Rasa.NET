@@ -12,6 +12,16 @@ a runtime JSON catalog, another mission engine, a publication step, or client
 changes. Preserve Bootcamp `1990/1992/1994/1995/2005`, its normal/retry/skip
 qualification, and its existing Rogers handoff.
 
+Ordinary loot on map 1220 is a separate required
+[five-table World catalog](loot.md). Its frozen `wilderness_ordinary_loot_v1`
+rows use verified native candidates with reconstructed rates, not recovered
+Wilderness distributions or endgame Epic guarantees. Reward-eligible native
+sources and scene actors need explicit bindings unless they have authored loot
+overrides; missing required coverage blocks startup. Ordinary squad allocation
+precedes additive personal mission drops, including mission 479's heart.
+See [data-only tuning](loot.md#how-to-tune-and-deploy-ordinary-loot) and
+[native kill/request evidence](world-testing.md#ordinary-loot-regression).
+
 ## Evidence and coverage
 
 `N` means native identity or an explicit native text fact. `S` means the existing

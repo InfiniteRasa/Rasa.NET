@@ -539,6 +539,26 @@ namespace Rasa.Test.Gameplay
         }
 
         [TestMethod]
+        [DataRow(false)]
+        [DataRow(true)]
+        public void MissingModuleOrCrafterRowIsReportedAsAWriteFailure(bool crafter)
+        {
+            using var harness = BootcampRuntimeTestHarness.CreateFromPendingSelection();
+            using var unit = harness.Context.CreateChar();
+            var change = new Item(28, 1, 100, 0) { Id = uint.MaxValue, Crafter = "Modifier" };
+            change.SetModule(0, Body1);
+            Exception failure = null;
+            try
+            {
+                if (crafter) unit.Items.UpdateCrafter(change);
+                else unit.Items.UpdateModules(change);
+            }
+            catch (Exception error) { failure = error; }
+            Assert.IsInstanceOfType<DbUpdateConcurrencyException>(failure,
+                "module/crafter writes must not log and return success when the row is missing");
+        }
+
+        [TestMethod]
         public void AGameMasterPutsModulesOnAnItemAndTheyAreKeptWithIt()
         {
             const uint rifle = 990311;

@@ -22,6 +22,11 @@ namespace Rasa.Test.World
                     calls.Add("validate-missions");
                     return false;
                 },
+                validateLootReadiness: () =>
+                {
+                    calls.Add("validate-loot");
+                    return true;
+                },
                 startLoop: () => calls.Add("start-loop"),
                 setupCommunicator: () => calls.Add("setup-communicator"),
                 createListener: () => calls.Add("create-listener"),
@@ -48,6 +53,11 @@ namespace Rasa.Test.World
                     calls.Add("validate-missions");
                     return true;
                 },
+                validateLootReadiness: () =>
+                {
+                    calls.Add("validate-loot");
+                    return true;
+                },
                 startLoop: () => calls.Add("start-loop"),
                 setupCommunicator: () => calls.Add("setup-communicator"),
                 createListener: () => calls.Add("create-listener"),
@@ -63,6 +73,7 @@ namespace Rasa.Test.World
                 new[]
                 {
                     "validate-missions",
+                    "validate-loot",
                     "load-remaining",
                     "create-listener",
                     "register-login-queue",
@@ -85,6 +96,11 @@ namespace Rasa.Test.World
                     calls.Add("validate-missions");
                     return true;
                 },
+                validateLootReadiness: () =>
+                {
+                    calls.Add("validate-loot");
+                    return true;
+                },
                 startLoop: () => calls.Add("start-loop"),
                 setupCommunicator: () => calls.Add("setup-communicator"),
                 createListener: () =>
@@ -104,6 +120,7 @@ namespace Rasa.Test.World
                 new[]
                 {
                     "validate-missions",
+                    "validate-loot",
                     "load-remaining",
                     "create-listener",
                     "cleanup"
@@ -123,7 +140,7 @@ namespace Rasa.Test.World
             Assert.HasCount(1, reports);
             Assert.AreEqual("opening the client port", reports[0].Step);
             Assert.AreSame(boom, reports[0].Error);
-            CollectionAssert.AreEqual(new[] { "validate-missions", "load-remaining", "cleanup" }, calls.ToArray());
+            CollectionAssert.AreEqual(new[] { "validate-missions", "validate-loot", "load-remaining", "cleanup" }, calls.ToArray());
         }
 
         [TestMethod]
@@ -207,6 +224,11 @@ namespace Rasa.Test.World
                     calls.Add("validate-missions");
                     return true;
                 }),
+                validateLootReadiness: () =>
+                {
+                    calls.Add("validate-loot");
+                    return true;
+                },
                 startLoop: Step("start-loop"),
                 setupCommunicator: Step("setup-communicator"),
                 createListener: createListener ?? Step("create-listener"),

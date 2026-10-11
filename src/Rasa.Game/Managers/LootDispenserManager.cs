@@ -10,6 +10,7 @@ namespace Rasa.Managers
     using Data;
     using Game;
     using Game.Missions.Persistence;
+    using Rasa.Loot;
     using Packets.Communicator.Server;
     using Packets.LootDispenser.Server;
     using Packets.MapChannel.Client;
@@ -48,6 +49,8 @@ namespace Rasa.Managers
         private readonly Func<Client, double> _distance;
         private readonly Action<Item> _beforeItemPublication;
         private readonly Func<int, int, int> _lootRoll;
+        private readonly Func<uint, uint, OrdinaryLootProfile> _ordinaryLootResolver;
+        private readonly Action<LootDispenser> _beforeCorpsePublication;
         private readonly object _retirementSyncRoot = new object();
         private readonly Dictionary<ulong, PendingRetirement> _pendingRetirements = new();
 
@@ -93,7 +96,9 @@ namespace Rasa.Managers
             Func<Client, double> distance = null,
             MissionApplication missionManager = null,
             Action<Item> beforeItemPublication = null,
-            Func<int, int, int> lootRoll = null)
+            Func<int, int, int> lootRoll = null,
+            Func<uint, uint, OrdinaryLootProfile> ordinaryLootResolver = null,
+            Action<LootDispenser> beforeCorpsePublication = null)
         {
             _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
             _missionManager = missionManager;
@@ -102,6 +107,8 @@ namespace Rasa.Managers
                 Config.GameConfig.DefaultCorpseLootDistance);
             _beforeItemPublication = beforeItemPublication;
             _lootRoll = lootRoll ?? Random.Shared.Next;
+            _ordinaryLootResolver = ordinaryLootResolver ?? ((map, creature) => OrdinaryLootCatalog.Current.Resolve(map, creature));
+            _beforeCorpsePublication = beforeCorpsePublication;
         }
 
         internal void AttachInfo(Client client, LootDispenser loot)
@@ -290,7 +297,10 @@ namespace Rasa.Managers
         internal LootDispenser Create(Client killer, Creature creature, List<Client> looters, uint partyId, ActorGameplayPolicy policy = null)
         {
             RetryPendingRetirements();
-            var mapChannel = killer.Player.MapChannel;
+            var mapChannel = creature?.RuntimeMapChannel;
+            var mapContextId = mapChannel?.MapInfo?.MapContextId ?? 0;
+            var creatureId = creature?.DbId ?? 0;
+            ValidateCreationSource(killer, creature, mapChannel, mapContextId, creatureId);
             var owner = looters.Count > 0 ? looters[0] : killer;
             var loot = new LootDispenser();
             loot.IsLootable = true;
@@ -309,15 +319,42 @@ namespace Rasa.Managers
 
             loot.Looters.Add(loot.Owner);
 
-            CreateLoot(owner, loot, (policy ?? Game.Missions.World.CreatureGameplayRules.Policy(creature)).Loot, partyId);
-
-            lock (mapChannel.LootSyncRoot)
+            try
             {
-                mapChannel.LootDispensers.Add(loot.EntityId, loot);
-                creature.CorpseLootEntityId = loot.EntityId;
-            }
+                CreateLoot(killer, owner, loot, (policy ?? Game.Missions.World.CreatureGameplayRules.Policy(creature)).Loot,
+                    mapContextId, creatureId, partyId);
 
-            return loot;
+                lock (mapChannel.LootSyncRoot)
+                {
+                    _beforeCorpsePublication?.Invoke(loot);
+                    ValidateCreationSource(killer, creature, mapChannel, mapContextId, creatureId);
+                    mapChannel.LootDispensers.Add(loot.EntityId, loot);
+                    creature.CorpseLootEntityId = loot.EntityId;
+                }
+                return loot;
+            }
+            catch
+            {
+                lock (mapChannel.LootSyncRoot)
+                    Retire(mapChannel, loot, false, failedCreation: true);
+                throw;
+            }
+        }
+
+        private static void ValidateCreationSource(Client killer, Creature corpse, MapChannel map,
+            uint mapContextId, uint creatureId)
+        {
+            if (killer?.Player == null || map?.MapInfo == null || corpse == null ||
+                !ReferenceEquals(killer.Player.MapChannel, map) ||
+                map.MapInfo.MapContextId != mapContextId || killer.Player.MapContextId != mapContextId ||
+                !ReferenceEquals(corpse.RuntimeMapChannel, map) ||
+                corpse.MapContextId != mapContextId || corpse.DbId != creatureId ||
+                corpse.State != CharacterState.Dead || corpse.CorpseLootEntityId != 0 ||
+                !MapInstanceScope.TryGetCreature(map, corpse.EntityId, out var registered) ||
+                !ReferenceEquals(corpse, registered) ||
+                !map.MapCellInfo.Cells.Values.Any(cell => cell.CreatureList.Contains(corpse)))
+                throw new GameplayRejectionException(
+                    $"Corpse loot source is not current: map {mapContextId}, creature {creatureId}.");
         }
 
         private void AppendMissionLoot(Client owner, LootDispenser loot)
@@ -385,143 +422,54 @@ namespace Rasa.Managers
                 loot.Looters.Add(owner.Player.EntityId);
         }
 
-        /// <summary>
-        /// One Random, not one per call. Three `new Random()` in a row seeded from the clock gave
-        /// three values from the same tick, so the quality tracked the item count.
-        /// </summary>
-        private static readonly Random Roll = new Random();
-
-        private LootDispenser CreateLoot(Client killer, LootDispenser loot, AuthoredLootProfile profile, uint partyId = 0)
+        private void CreateLoot(Client killer, Client owner, LootDispenser loot, AuthoredLootProfile profile,
+            uint mapContextId, uint creatureId, uint partyId)
         {
+            IEnumerable<(uint TemplateId, uint Quantity)> drops;
             if (profile != null)
-                return CreateAuthoredLoot(killer, loot, profile, partyId);
-
-            // A creature that has been given loot pools drops what they roll (LootPools).
-            if (loot.Corpse != null && LootPools.Current.For(loot.Corpse.DbId) is { Count: > 0 } pools)
-                return CreatePoolLoot(killer, loot, pools, partyId);
-
-            int giveLoot;
-
-            lock (Roll)
+                drops = profile.Roll(_lootRoll);
+            else
             {
-                giveLoot = Roll.Next(0, 2);
-                loot.Credits = Roll.Next(1, 10);
-                loot.LootQuality = (LootQuality)Roll.Next(1, 7);
+                var ordinary = _ordinaryLootResolver(mapContextId, creatureId);
+                drops = ordinary != null ? ordinary.Roll(_lootRoll) :
+                    _lootRoll(0, 2) == 0 ? Array.Empty<(uint, uint)>() : new[] { (28U, 3U) };
             }
-
-            if (giveLoot > 0)
-            {
-                // A real item, made now rather than at the moment it is taken. The corpse window
-                // resolves every row to an entity and silently drops the ones it cannot
-                // (corpselootwindow: GetEntity(itemId), continue on None), so a row without an
-                // item behind it is an empty window. It also means what is taken is what was
-                // rolled, rather than a second item built from the same template.
-                var item = ItemManager.Instance.CreateFromTemplateId(28, (uint)giveLoot * 3);
-
-                if (item != null)
-                    loot.LootItems.Add(new LootItem(item, killer.Player.EntityId, partyId));
-            }
-
-            return loot;
+            MaterializeCorpseItems(killer, owner, loot, drops.ToArray(), mapContextId, creatureId, partyId);
         }
 
-        /// <summary>
-        /// The loot of a creature with loot pools: the credits every corpse has, and an item for
-        /// each row of its pools that came up, made now, as the ordinary loot's are, so that the
-        /// corpse window has an entity behind every row. A row whose item the server has not
-        /// got gives nothing, and one that asks for more than a stack gives a stack. If the
-        /// items cannot be stored the corpse has its credits and no more: a kill is not undone
-        /// by its loot.
-        /// </summary>
-        private LootDispenser CreatePoolLoot(Client owner, LootDispenser loot, IReadOnlyList<LootPool> pools, uint partyId)
+        private void MaterializeCorpseItems(Client killer, Client owner, LootDispenser loot,
+            IReadOnlyList<(uint TemplateId, uint Quantity)> drops, uint mapContextId, uint creatureId, uint partyId)
         {
-            var staged = new List<Item>();
-            var committed = false;
-
-            try
-            {
-                var drops = LootPools.Roll(pools, _lootRoll);
-
-                if (drops.Count > 0)
-                {
-                    using var unit = _gameUnitOfWorkFactory.CreateChar();
-                    unit.ExecuteTransaction(() =>
-                    {
-                        foreach (var (templateId, quantity) in drops)
-                        {
-                            var template = ItemManager.Instance.GetItemTemplateById(templateId);
-                            var itemClass = template == null ? null :
-                                EntityClassManager.Instance.GetClassInfo(template.Class)?.ItemClassInfo;
-
-                            if (itemClass == null)
-                                continue;
-
-                            var item = ItemManager.StageItem(template, Math.Min(quantity, Math.Max(1u, itemClass.StackSize)), string.Empty);
-                            staged.Add(item);
-                            item.Id = unit.Items.CreateItem(item);
-                            if (item.Id == 0)
-                                throw new GameplayRejectionException($"Loot pool item {templateId} was not persisted.");
-                        }
-                    });
-                }
-
-                committed = true;
-            }
-            catch (Exception error) when (error is GameplayRejectionException || error is DbException || error is DbUpdateException || error is InvalidOperationException)
-            {
-                Logger.WriteLog(LogType.Error, $"Loot pool items for creature {loot.Corpse?.DbId} could not be made: {error.Message}");
-            }
-            finally
-            {
-                if (!committed)
-                {
-                    foreach (var item in staged)
-                        EntityManager.Instance.FreeEntity(item.EntityId);
-
-                    staged.Clear();
-                }
-            }
-
             loot.Credits = _lootRoll(1, 10);
             loot.LootQuality = LootQuality.Junk;
-
-            foreach (var item in staged)
-            {
-                EntityManager.Instance.RegisterEntity(item.EntityId, EntityType.Item);
-                EntityManager.Instance.RegisterItem(item.EntityId, item);
-                loot.LootItems.Add(new LootItem(item, owner.Player.EntityId, partyId));
-                var quality = (LootQuality)item.ItemTemplate.QualityId;
-                if (quality.Rank() > loot.LootQuality.Rank())
-                    loot.LootQuality = quality;
-            }
-
-            return loot;
-        }
-
-        private LootDispenser CreateAuthoredLoot(Client owner, LootDispenser loot, AuthoredLootProfile profile, uint partyId = 0)
-        {
             var staged = new List<Item>();
             var committed = false;
             try
             {
+                if (_gameUnitOfWorkFactory == null)
+                    throw new GameplayRejectionException("No character persistence factory is available for corpse loot.");
                 using var unit = _gameUnitOfWorkFactory.CreateChar();
                 unit.ExecuteTransaction(() =>
                 {
-                    foreach (var drop in profile.Roll(_lootRoll))
+                    TransactionValidation.AtCommitBoundary(unit,
+                        () => ValidateCreationSource(killer, loot.Corpse, loot.Map, mapContextId, creatureId));
+                    foreach (var drop in drops)
                     {
-                        var template = ItemManager.Instance.GetItemTemplateById(drop.TemplateId);
-                        var itemClass = template == null ? null :
-                            EntityClassManager.Instance.GetClassInfo(template.Class)?.ItemClassInfo;
-                        if (itemClass == null || drop.Quantity > itemClass.StackSize)
-                            throw new GameplayRejectionException($"Invalid authored loot template {drop.TemplateId}.");
+                        var template = InventoryManager.InventoryPlan.RequireTemplate(drop.TemplateId);
+                        var itemClass = EntityClassManager.Instance.GetClassInfo(template.Class).ItemClassInfo;
+                        if (drop.Quantity == 0 || drop.Quantity > itemClass.StackSize)
+                            throw new GameplayRejectionException($"Invalid corpse loot quantity for template {drop.TemplateId}.");
                         var item = ItemManager.StageItem(template, drop.Quantity, string.Empty);
                         staged.Add(item);
                         item.Id = unit.Items.CreateItem(item);
                         if (item.Id == 0)
-                            throw new GameplayRejectionException($"Authored loot item {drop.TemplateId} was not persisted.");
+                            throw new GameplayRejectionException($"Corpse loot item {drop.TemplateId} was not persisted.");
                     }
                 });
                 committed = true;
+                // Keep every committed item reachable by retirement even if registration fails partway.
+                foreach (var item in staged)
+                    loot.LootItems.Add(new LootItem(item, owner.Player.EntityId, partyId));
             }
             finally
             {
@@ -530,18 +478,14 @@ namespace Rasa.Managers
                         EntityManager.Instance.FreeEntity(item.EntityId);
             }
 
-            loot.Credits = _lootRoll(1, 10);
-            loot.LootQuality = LootQuality.Junk;
             foreach (var item in staged)
             {
                 EntityManager.Instance.RegisterEntity(item.EntityId, EntityType.Item);
                 EntityManager.Instance.RegisterItem(item.EntityId, item);
-                loot.LootItems.Add(new LootItem(item, owner.Player.EntityId, partyId));
                 var quality = (LootQuality)item.ItemTemplate.QualityId;
                 if (quality.Rank() > loot.LootQuality.Rank())
                     loot.LootQuality = quality;
             }
-            return loot;
         }
 
         /// <summary>
@@ -1416,10 +1360,11 @@ namespace Rasa.Managers
             float.IsFinite(value.Y) &&
             float.IsFinite(value.Z);
 
-        private List<RetirementNotice> Retire(MapChannel map, LootDispenser loot, bool notify)
+        private List<RetirementNotice> Retire(MapChannel map, LootDispenser loot, bool notify, bool failedCreation = false)
         {
-            if (!map.LootDispensers.TryGetValue(loot.EntityId, out var current) ||
-                !ReferenceEquals(current, loot))
+            var published = map.LootDispensers.TryGetValue(loot.EntityId, out var current) &&
+                ReferenceEquals(current, loot);
+            if (!published && !failedCreation)
                 return new List<RetirementNotice>();
 
             var unclaimed = loot.LootItems
@@ -1497,11 +1442,15 @@ namespace Rasa.Managers
             if (!durableCleanupSucceeded)
                 QueueRetirement(loot.EntityId, loot.UnitOfWorkFactory ?? _gameUnitOfWorkFactory,
                     unclaimed.Select(item => item.ItemId).ToArray(),
-                    unclaimed.Select(item => item.EntityId).ToArray());
+                    failedCreation ? unclaimed.Select(item => item.EntityId).Append(loot.EntityId).ToArray() :
+                        unclaimed.Select(item => item.EntityId).ToArray());
+            else if (failedCreation)
+                EntityManager.Instance.FreeEntity(loot.EntityId);
 
             loot.LootItems.Clear();
             loot.Credits = 0;
-            map.LootDispensers.Remove(loot.EntityId);
+            if (published)
+                map.LootDispensers.Remove(loot.EntityId);
 
             if (loot.Corpse?.CorpseLootEntityId == loot.EntityId)
                 loot.Corpse.CorpseLootEntityId = 0;

@@ -7,6 +7,7 @@ using System.Net.Http;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -16,6 +17,7 @@ namespace Rasa.Test.Networking
     using Rasa.Api;
     using Rasa.Config;
     using Rasa.Managers;
+    using Rasa.Structures.World;
 
     /// <summary>
     /// The REST API's side of the editors in the repository's gametools folder: that a web page
@@ -273,7 +275,7 @@ namespace Rasa.Test.Networking
                 StringAssert.StartsWith(got, "HTTP/1.1 200 OK\r\n");
                 StringAssert.Contains(got, "\r\nAccess-Control-Allow-Origin: null\r\n");
                 StringAssert.Contains(got, "\r\nVary: Origin\r\n");
-                StringAssert.Contains(got, "\"format\":\"rasa-loot-tables\"");
+                StringAssert.Contains(got, "\"format\":\"rasa-weighted-loot-profiles\"");
             }
             finally
             {
@@ -303,8 +305,8 @@ namespace Rasa.Test.Networking
 
                 // Three thousand items in one group: some 200 KB, twenty-five times the usual cap.
                 var items = string.Join(",", Enumerable.Range(1, 3000).Select(id =>
-                    $"{{\"itemTemplateId\":{id},\"itemName\":\"A name for the reader of the file\",\"chance\":2.5,\"minQuantity\":1,\"maxQuantity\":2}}"));
-                var body = "{\"format\":\"rasa-loot-tables\",\"version\":1,\"groups\":[{\"id\":1,\"name\":\"Everything\",\"note\":\"\",\"items\":[" + items + "]}],\"assignments\":[]}";
+                    $"{{\"profileKey\":\"test\",\"groupKey\":\"gear\",\"itemTemplateId\":{id},\"itemName\":\"A name for the reader of the file\",\"weight\":5,\"minimumQuantity\":1,\"maximumQuantity\":2,\"sortOrder\":0}}"));
+                var body = EmptyWeighted.Replace("\"items\":[]", "\"items\":[" + items + "]");
 
                 Assert.IsGreaterThan(ApiServer.MaxBodyBytes * 20, body.Length);
 
@@ -318,11 +320,11 @@ namespace Rasa.Test.Networking
                     using var answered = Wait(http.SendAsync(request));
 
                     Assert.AreEqual(HttpStatusCode.OK, answered.StatusCode);
-                    Assert.AreEqual("{\"result\":\"updated\",\"groups\":1,\"items\":3000,\"assignments\":0}", Wait(answered.Content.ReadAsStringAsync()));
+                    Assert.AreEqual("{\"result\":\"updated\",\"profiles\":0,\"groups\":0,\"items\":3000,\"bindings\":0,\"mapPolicies\":0}", Wait(answered.Content.ReadAsStringAsync()));
                     Assert.AreEqual("null", answered.Headers.GetValues("Access-Control-Allow-Origin").Single());
                 }
 
-                Assert.AreEqual(3000, pools.Set.ItemCount);
+                Assert.AreEqual(3000, pools.Set.Items.Count);
 
                 var head = "POST /updatelootpools HTTP/1.1\r\nHost: test\r\nContent-Type: application/json\r\n";
 
@@ -344,7 +346,7 @@ namespace Rasa.Test.Networking
                 StringAssert.StartsWith(sentWhole, "HTTP/1.1 401 ");
                 StringAssert.Contains(sentWhole, "\r\nAccess-Control-Allow-Origin: null\r\n");
                 StringAssert.EndsWith(sentWhole, "{\"error\":\"unauthorized\"}");
-                Assert.AreEqual(3000, pools.Set.ItemCount, "And none of it reaches the endpoint.");
+                Assert.AreEqual(3000, pools.Set.Items.Count, "And none of it reaches the endpoint.");
 
                 // With the key, as much as the endpoint takes and no more.
                 StringAssert.StartsWith(Exchange(port, head + $"X-API-Key: {Key}\r\nContent-Length: {GameToolsEndpoint.BodyBytes + 1}\r\n\r\n"), "HTTP/1.1 413 ");
@@ -376,8 +378,8 @@ namespace Rasa.Test.Networking
             try
             {
                 var port = api.LocalEndPoint.Port;
-                var items = string.Join(",", Enumerable.Range(1, 400).Select(id => $"{{\"itemTemplateId\":{id},\"chance\":2.5,\"minQuantity\":1,\"maxQuantity\":2}}"));
-                var body = "{\"groups\":[{\"id\":1,\"name\":\"Slowly\",\"items\":[" + items + "]}]}";
+                var items = string.Join(",", Enumerable.Range(1, 400).Select(id => $"{{\"profileKey\":\"test\",\"groupKey\":\"gear\",\"itemTemplateId\":{id},\"weight\":5,\"minimumQuantity\":1,\"maximumQuantity\":2,\"sortOrder\":0}}"));
+                var body = EmptyWeighted.Replace("\"items\":[]", "\"items\":[" + items + "]");
 
                 Assert.IsGreaterThan(ApiServer.MaxBodyBytes, body.Length);
 
@@ -406,8 +408,8 @@ namespace Rasa.Test.Networking
                 var answer = reader.ReadToEnd();
 
                 StringAssert.StartsWith(answer, "HTTP/1.1 200 OK\r\n");
-                StringAssert.EndsWith(answer, "{\"result\":\"updated\",\"groups\":1,\"items\":400,\"assignments\":0}");
-                Assert.AreEqual(400, pools.Set.ItemCount);
+                StringAssert.EndsWith(answer, "{\"result\":\"updated\",\"profiles\":0,\"groups\":0,\"items\":400,\"bindings\":0,\"mapPolicies\":0}");
+                Assert.AreEqual(400, pools.Set.Items.Count);
             }
             finally
             {
@@ -546,185 +548,231 @@ namespace Rasa.Test.Networking
 
             early.Register(new MonsterFlagsEndpoint());
             early.Register(new UpdateMonsterFlagsEndpoint());
-            early.Register(new LootPoolsEndpoint());
-            early.Register(new UpdateLootPoolsEndpoint());
+            early.Register(new WeightedLootEndpoint());
+            early.Register(new UpdateWeightedLootEndpoint());
             early.Apply(config);
 
             Assert.AreEqual(503, early.Respond(Get("/monsterflags", Key)).Status);
             Assert.AreEqual(503, early.Respond(Post("/updatemonsterflags", "{\"creatures\":[]}")).Status);
             Assert.AreEqual(503, early.Respond(Get("/lootpools", Key)).Status);
-            Assert.AreEqual(503, early.Respond(Post("/updatelootpools", "{\"groups\":[]}")).Status);
+            Assert.AreEqual(503, early.Respond(Post("/updatelootpools", EmptyWeighted)).Status);
         }
 
         [TestMethod]
-        public void LootPoolsAreGivenAsTheEditorsProjectFileAndTakenFromIt()
+        public void WeightedProfilesAreGivenAsTheEditorsProjectFileAndTakenFromIt()
         {
             var api = Api(Keyed(), out _, out var pools);
-
-            pools.Set = new LootPoolSet(
-                new[]
-                {
-                    new LootPool(2, "Level 30 gear", "", new[] { new LootPoolItem(1200, 0.25, 1, 1) }),
-                    new LootPool(1, "Thrax \"junk\"", "what a Thrax carries", new[] { new LootPoolItem(28, 50, 1, 3), new LootPoolItem(40, 12.5, 2, 2) })
-                },
-                new (uint, uint)[] { (500, 2), (500, 1), (77, 1), (77, 9) });
-
+            pools.Set = new OrdinaryLootContentSnapshot(
+                new[] { new LootProfileEntry { ProfileKey = "test", Description = "Thrax \"gear\"",
+                    ContentRevision = "test_v1", Provenance = "Reconstructed", EvidenceNotes = "Reviewed fixture" } },
+                new[] { new OrdinaryLootGroupEntry { ProfileKey = "test", GroupKey = "gear",
+                    Kind = LootGroupKind.Equipment, ChanceBasisPoints = 2500, MinimumRolls = 1, MaximumRolls = 2, SortOrder = -1 } },
+                new[] { new LootItemEntry { ProfileKey = "test", GroupKey = "gear", ItemTemplateId = 1200,
+                    Weight = 7, MinimumQuantity = 1, MaximumQuantity = 3, SortOrder = 2 } },
+                new[] { new CreatureLootBindingEntry { MapContextId = 1220, CreatureId = 500, ProfileKey = "test" } },
+                new[] { new LootMapPolicyEntry { MapContextId = 1220, RequireProfiles = true } });
             var read = api.Respond(Get("/lootpools", Key));
-
             Assert.AreEqual(200, read.Status);
-
             using (var document = JsonDocument.Parse(read.Json))
             {
                 var root = document.RootElement;
-
-                Assert.AreEqual("rasa-loot-tables", root.GetProperty("format").GetString());
-                Assert.AreEqual(1, root.GetProperty("version").GetInt32());
+                Assert.AreEqual("rasa-weighted-loot-profiles", root.GetProperty("format").GetString());
+                Assert.AreEqual(2, root.GetProperty("version").GetInt32());
                 Assert.AreEqual("server", root.GetProperty("source").GetString());
-
-                var groups = root.GetProperty("groups").EnumerateArray().ToList();
-
-                Assert.HasCount(2, groups);
-                Assert.AreEqual(1u, groups[0].GetProperty("id").GetUInt32(), "By id.");
-                Assert.AreEqual("Thrax \"junk\"", groups[0].GetProperty("name").GetString());
-                Assert.AreEqual("what a Thrax carries", groups[0].GetProperty("note").GetString());
-
-                var first = groups[0].GetProperty("items").EnumerateArray().First();
-
-                Assert.AreEqual(28u, first.GetProperty("itemTemplateId").GetUInt32());
-                Assert.AreEqual(50d, first.GetProperty("chance").GetDouble());
-                Assert.AreEqual(1u, first.GetProperty("minQuantity").GetUInt32());
-                Assert.AreEqual(3u, first.GetProperty("maxQuantity").GetUInt32());
-                Assert.AreEqual(0.25d, groups[1].GetProperty("items").EnumerateArray().Single().GetProperty("chance").GetDouble());
-
-                // A pool that is not there is nobody's.
-                CollectionAssert.AreEqual(
-                    new[] { "77:1", "500:1", "500:2" },
-                    root.GetProperty("assignments").EnumerateArray().Select(link => $"{link.GetProperty("creatureId").GetUInt32()}:{link.GetProperty("groupId").GetUInt32()}").ToArray());
+                var profile = root.GetProperty("profiles")[0];
+                Assert.AreEqual("Reconstructed", profile.GetProperty("provenance").GetString());
+                Assert.AreEqual("Reviewed fixture", profile.GetProperty("evidenceNotes").GetString());
+                Assert.AreEqual(2500, root.GetProperty("groups")[0].GetProperty("chanceBasisPoints").GetInt32());
+                Assert.AreEqual(7, root.GetProperty("items")[0].GetProperty("weight").GetInt32());
+                Assert.AreEqual(3, root.GetProperty("items")[0].GetProperty("maximumQuantity").GetInt32());
+                Assert.AreEqual(1220u, root.GetProperty("bindings")[0].GetProperty("mapContextId").GetUInt32());
+                Assert.IsTrue(root.GetProperty("mapPolicies")[0].GetProperty("requireProfiles").GetBoolean());
+                Assert.IsFalse(root.TryGetProperty("assignments", out _));
             }
-
-            // What was read can be sent back as it is, and what the editor saves, names and all.
-            pools.Set = LootPoolSet.Empty;
+            var before = JsonSerializer.Serialize(pools.Set);
+            pools.Set = new OrdinaryLootContentSnapshot(Array.Empty<LootProfileEntry>(), Array.Empty<OrdinaryLootGroupEntry>(),
+                Array.Empty<LootItemEntry>(), Array.Empty<CreatureLootBindingEntry>(), Array.Empty<LootMapPolicyEntry>());
             Assert.AreEqual(200, api.Respond(Post("/updatelootpools", read.Json)).Status);
-            Assert.AreEqual(3, pools.Set.ItemCount);
-            Assert.HasCount(3, pools.Set.Assignments);
-
-            var written = api.Respond(Post("/updatelootpools",
-                "{\"format\":\"rasa-loot-tables\",\"version\":1,\"savedAt\":\"2026-10-07T12:00:00Z\",\"groups\":[" +
-                "{\"id\":4,\"name\":\"  Caretaker salves \",\"note\":\" as the text says \",\"items\":[" +
-                "{\"itemTemplateId\":900,\"itemName\":\"Mafenide\",\"chance\":12.34567,\"minQuantity\":2,\"maxQuantity\":5}," +
-                "{\"itemTemplateId\":901,\"chance\":100}," +
-                "{\"itemTemplateId\":902,\"chance\":0,\"minQuantity\":4}]}," +
-                "{\"id\":5,\"name\":\"Empty\",\"comment\":\"from the SQL column's name\"}]," +
-                "\"assignments\":[{\"creatureId\":3000,\"creatureName\":\"Caretaker\",\"groupId\":4},{\"creatureId\":3000,\"groupId\":4},{\"creatureId\":3001,\"groupId\":5}]}"));
-
-            Assert.AreEqual(200, written.Status, written.Json);
-            Assert.AreEqual("{\"result\":\"updated\",\"groups\":2,\"items\":3,\"assignments\":2,\"warnings\":[\"group 5 has no items\"]}", written.Json);
-
-            var salves = pools.Set.Pools[0];
-
-            Assert.AreEqual("Caretaker salves", salves.Name);
-            Assert.AreEqual("as the text says", salves.Note);
-            Assert.AreEqual(12.3457, salves.Items[0].Chance, "A chance is kept to four places.");
-            Assert.AreEqual((2u, 5u), (salves.Items[0].Minimum, salves.Items[0].Maximum));
-            Assert.AreEqual((1u, 1u), (salves.Items[1].Minimum, salves.Items[1].Maximum), "One, when the file does not say how many.");
-            Assert.AreEqual((4u, 4u), (salves.Items[2].Minimum, salves.Items[2].Maximum), "As many as the least, when the file does not say the most.");
-            Assert.AreEqual("from the SQL column's name", pools.Set.Pools[1].Note);
-            Assert.HasCount(1, pools.Set.For(3000), "A creature has a pool once.");
-
-            // An empty project is no pools at all.
-            Assert.AreEqual("{\"result\":\"updated\",\"groups\":0,\"items\":0,\"assignments\":0}", api.Respond(Post("/updatelootpools", "{\"groups\":[]}")).Json);
-            Assert.IsEmpty(pools.Set.Pools);
+            Assert.AreEqual(before, JsonSerializer.Serialize(pools.Set), "No percent rounding or quantity tidying.");
         }
 
         [TestMethod]
-        public void LootPoolsAreRefusedWholeWhenAnyOfThemWillNotDo()
+        public void WeightedTransportRejectsAmbiguousOrWrongTypesWithoutCallingTheStore()
         {
             var api = Api(Keyed(), out _, out var pools);
-            var before = pools.Set = new LootPoolSet(new[] { new LootPool(1, "Kept", "", null) }, null);
-
+            var before = pools.Set;
             ApiResponse Sent(string body) => api.Respond(Post("/updatelootpools", body));
-
             Assert.AreEqual(400, Sent("{").Status);
-            StringAssert.Contains(Sent("{\"assignments\":[]}").Json, "groups array");
-
-            var bad = Sent("{\"groups\":[" +
-                           "{\"name\":\"No id\"}," +
-                           "{\"id\":1,\"name\":\"\"}," +
-                           "{\"id\":1,\"name\":\"Again\"}," +
-                           "{\"id\":2,\"name\":\"" + new string('n', 101) + "\",\"note\":\"" + new string('c', 201) + "\"}," +
-                           "{\"id\":3,\"name\":\"Items\",\"items\":{}}," +
-                           "{\"id\":4,\"name\":\"Rows\",\"items\":[" +
-                           "{\"chance\":5}," +
-                           "{\"itemTemplateId\":10,\"chance\":5},{\"itemTemplateId\":10,\"chance\":6}," +
-                           "{\"itemTemplateId\":11}," +
-                           "{\"itemTemplateId\":12,\"chance\":100.5}," +
-                           "{\"itemTemplateId\":13,\"chance\":-1}," +
-                           "{\"itemTemplateId\":14,\"chance\":\"5\"}," +
-                           "{\"itemTemplateId\":15,\"chance\":5,\"minQuantity\":0}," +
-                           "{\"itemTemplateId\":16,\"chance\":5,\"maxQuantity\":100001}," +
-                           "{\"itemTemplateId\":17,\"chance\":5,\"minQuantity\":3,\"maxQuantity\":2}]}]," +
-                           "\"assignments\":[{\"creatureId\":7},{\"creatureId\":7,\"groupId\":40},{\"creatureId\":0,\"groupId\":4}]}");
-
-            Assert.AreEqual(400, bad.Status);
-
-            var problems = Problems(bad);
-
-            StringAssert.Contains(problems[0], "groups[0]: id");
-            StringAssert.Contains(problems[1], "groups[1] (group 1): name must be 1 to 100 letters");
-            StringAssert.Contains(problems[2], "group 1 is there twice");
-            Assert.IsTrue(problems.Any(problem => problem.Contains("(group 2): note must be no more than 200")));
-            Assert.IsTrue(problems.Any(problem => problem.Contains("(group 3): items must be an array")));
-            Assert.IsTrue(problems.Any(problem => problem.Contains("items[0]: itemTemplateId")));
-            Assert.IsTrue(problems.Any(problem => problem.Contains("item 10 is in the group twice")));
-
-            foreach (var item in new[] { 11, 12, 13, 14 })
-                Assert.IsTrue(problems.Any(problem => problem.Contains($"(item {item}): chance must be a percent from 0 to 100")), item.ToString());
-
-            foreach (var item in new[] { 15, 16 })
-                Assert.IsTrue(problems.Any(problem => problem.Contains($"(item {item}): minQuantity and maxQuantity")), item.ToString());
-
-            Assert.IsTrue(problems.Any(problem => problem.Contains("(item 17): maxQuantity is less than minQuantity")));
-            Assert.AreSame(before, pools.Set, "Nothing reaches the store.");
-
-            // More problems than are worth a list are counted.
-            var many = Sent("{\"groups\":[" + string.Join(",", Enumerable.Range(0, 30).Select(_ => "{\"id\":0}")) + "]}");
-            var listed = Problems(many);
-
-            Assert.HasCount(GameToolsEndpoint.ProblemsListed + 1, listed);
-            Assert.AreEqual("and 10 more", listed[^1]);
-
-            // And a body that is nothing but problems is not gone through to its end.
-            foreach (var nothing in new[]
-                     {
-                         "{\"groups\":[" + string.Join(",", Enumerable.Repeat("0", 50000)) + "]}",
-                         "{\"groups\":[{\"id\":1,\"name\":\"Rows\",\"items\":[" + string.Join(",", Enumerable.Repeat("0", 50000)) + "]}]}",
-                         "{\"groups\":[],\"assignments\":[" + string.Join(",", Enumerable.Repeat("0", 50000)) + "]}"
-                     })
-            {
-                listed = Problems(Sent(nothing));
-
-                Assert.HasCount(GameToolsEndpoint.ProblemsListed + 1, listed);
-                Assert.AreEqual($"and more: looking stopped at {StoreAnswer.MostKept}", listed[^1]);
-            }
-
-            // A group nobody gave: its own problem, with the creature's number.
-            StringAssert.Contains(
-                Problems(Sent("{\"groups\":[{\"id\":4,\"name\":\"Rows\"}],\"assignments\":[{\"creatureId\":7,\"groupId\":40}]}")).Single(),
-                "creature 7 is given group 40, which is not in the file");
-
-            // What the store itself will not have: an item or a creature the server has not got.
-            pools.Refuse = "creature 7 is not a creature row the server has";
-
-            var refused = Sent("{\"groups\":[{\"id\":4,\"name\":\"Rows\"}],\"assignments\":[{\"creatureId\":7,\"groupId\":4}]}");
-
+            Assert.AreEqual(400, Sent("{}").Status);
+            StringAssert.Contains(Sent(EmptyWeighted.Replace("\"items\":[],", "")).Json, "items must be an array");
+            Assert.AreEqual(400, Sent(EmptyWeighted.Replace("\"version\":2", "\"version\":1")).Status);
+            StringAssert.Contains(Sent(EmptyWeighted.Replace("\"items\":[]", "\"items\":[{\"weight\":1.5}]")).Json, "wrong field type");
+            StringAssert.Contains(Sent(EmptyWeighted.Replace("\"items\":[]", "\"items\":[{\"chance\":5,\"weight\":3}]")).Json, "percent");
+            var metadata = Sent(EmptyWeighted.Replace("\"profiles\":[]", "\"profiles\":[{\"profileKey\":\"test\"}]"));
+            Assert.AreEqual(400, metadata.Status, "Missing metadata must not silently erase the stored provenance.");
+            StringAssert.Contains(metadata.Json, "provenance");
+            Assert.AreSame(before, pools.Set);
+            pools.Refuse = "map 1220, creature 7: required ordinary loot profile binding is missing";
+            var refused = Sent(EmptyWeighted);
             Assert.AreEqual(400, refused.Status);
-            CollectionAssert.AreEqual(new[] { "creature 7 is not a creature row the server has" }, Problems(refused));
+            CollectionAssert.AreEqual(new[] { pools.Refuse }, Problems(refused));
+            Assert.AreSame(before, pools.Set);
+            pools.FailureStatus = 500;
+            Assert.AreEqual(500, Sent(EmptyWeighted).Status);
+        }
+
+        [TestMethod]
+        [DynamicData(nameof(WeightedRowFieldFaults))]
+        public void EveryWeightedRowFieldMustBeExplicitAndCorrectlyTyped(string collection, string field, string fault)
+        {
+            var api = Api(Keyed(), out _, out var pools);
+            var before = pools.Set;
+            var body = JsonNode.Parse(CompleteWeighted);
+            var row = body[collection][0].AsObject();
+            if (fault == "omitted") row.Remove(field);
+            else row[field] = fault == "null" ? null : JsonNode.Parse(fault);
+
+            var answer = api.Respond(Post("/updatelootpools", body.ToJsonString()));
+
+            Assert.AreEqual(400, answer.Status, $"{collection}[0].{field} {fault}: {answer.Json}");
+            StringAssert.Contains(answer.Json, $"{collection}[0].{field}");
+            Assert.AreEqual(0, pools.ReplaceCalls, "Invalid transport must not reach persistence.");
+            Assert.AreSame(before, pools.Set);
+        }
+
+        public static IEnumerable<object[]> WeightedRowFieldFaults()
+        {
+            using var document = JsonDocument.Parse(CompleteWeighted);
+            foreach (var collection in new[] { "profiles", "groups", "items", "bindings", "mapPolicies" })
+                foreach (var field in document.RootElement.GetProperty(collection)[0].EnumerateObject())
+                {
+                    yield return new object[] { collection, field.Name, "omitted" };
+                    yield return new object[] { collection, field.Name, "null" };
+                    yield return new object[] { collection, field.Name,
+                        field.Value.ValueKind == JsonValueKind.String ? "1" :
+                        field.Value.ValueKind is JsonValueKind.True or JsonValueKind.False ? "0" : "\"1\"" };
+                    if (field.Value.ValueKind == JsonValueKind.Number)
+                        yield return new object[] { collection, field.Name, "1.5" };
+                }
+        }
+
+        [TestMethod]
+        public void ExplicitZeroAdmissionRollsOrdersAndFalsePolicyRemainValidTransport()
+        {
+            var api = Api(Keyed(), out _, out var pools);
+            var body = JsonNode.Parse(CompleteWeighted);
+            foreach (var field in new[] { "chanceBasisPoints", "minimumRolls", "maximumRolls", "sortOrder" })
+                body["groups"][0][field] = 0;
+            body["items"][0]["sortOrder"] = 0;
+            body["mapPolicies"][0]["requireProfiles"] = false;
+            Assert.AreEqual(200, api.Respond(Post("/updatelootpools", body.ToJsonString())).Status);
+            Assert.AreEqual(1, pools.ReplaceCalls);
+            Assert.AreEqual(0, pools.Set.Groups.Single().ChanceBasisPoints);
+            Assert.AreEqual(0, pools.Set.Groups.Single().MaximumRolls);
+            Assert.IsFalse(pools.Set.MapPolicies.Single().RequireProfiles);
+        }
+
+        [TestMethod]
+        [DataRow("profiles")]
+        [DataRow("groups")]
+        [DataRow("items")]
+        [DataRow("bindings")]
+        [DataRow("mapPolicies")]
+        public void WeightedCollectionsRequireObjectRowsBeforeCallingTheStore(string collection)
+        {
+            var api = Api(Keyed(), out _, out var pools);
+            var before = pools.Set;
+            foreach (var value in new[] { "null", "[]", "\"row\"", "1" })
+            {
+                var body = JsonNode.Parse(CompleteWeighted);
+                body[collection][0] = JsonNode.Parse(value);
+                var answer = api.Respond(Post("/updatelootpools", body.ToJsonString()));
+                Assert.AreEqual(400, answer.Status, answer.Json);
+                StringAssert.Contains(answer.Json, collection + "[0]");
+            }
+            Assert.AreEqual(0, pools.ReplaceCalls);
+            Assert.AreSame(before, pools.Set);
+        }
+
+        [TestMethod]
+        public void WeightedPresenceChecksPreserveCaseInsensitiveWireCompatibility()
+        {
+            var api = Api(Keyed(), out _, out var pools);
+            var body = CompleteWeighted.Replace("\"profileKey\"", "\"PROFILEKEY\"")
+                .Replace("\"chanceBasisPoints\"", "\"ChanceBasisPoints\"")
+                .Replace("\"requireProfiles\"", "\"RequireProfiles\"");
+            Assert.AreEqual(200, api.Respond(Post("/updatelootpools", body)).Status);
+            Assert.AreEqual("test", pools.Set.Profiles.Single().ProfileKey);
+            Assert.AreEqual(5000, pools.Set.Groups.Single().ChanceBasisPoints);
+            Assert.IsTrue(pools.Set.MapPolicies.Single().RequireProfiles);
+        }
+
+        [TestMethod]
+        [DataRow("profiles", "profileKey")]
+        [DataRow("groups", "chanceBasisPoints")]
+        [DataRow("items", "sortOrder")]
+        [DataRow("bindings", "creatureId")]
+        [DataRow("mapPolicies", "requireProfiles")]
+        public void DuplicateWeightedCollectionsCannotBypassRequiredFields(string collection, string field)
+        {
+            var api = Api(Keyed(), out _, out var pools);
+            var before = pools.Set;
+            var body = JsonNode.Parse(CompleteWeighted);
+            var incomplete = body[collection].DeepClone();
+            incomplete[0].AsObject().Remove(field);
+            var json = body.ToJsonString();
+            json = json[..^1] + ",\"" + collection.ToUpperInvariant() + "\":" + incomplete.ToJsonString() + "}";
+            var answer = api.Respond(Post("/updatelootpools", json));
+            Assert.AreEqual(400, answer.Status, answer.Json);
+            Assert.AreEqual(0, pools.ReplaceCalls);
+            Assert.AreSame(before, pools.Set);
+        }
+
+        [TestMethod]
+        [DataRow("profiles", "description")]
+        [DataRow("profiles", "profileKey")]
+        [DataRow("groups", "profileKey")]
+        [DataRow("items", "profileKey")]
+        [DataRow("bindings", "profileKey")]
+        public void DuplicateWeightedRowPropertiesCannotBypassJsonTypes(string collection, string field)
+        {
+            var api = Api(Keyed(), out _, out var pools);
+            var before = pools.Set;
+            var body = JsonNode.Parse(CompleteWeighted);
+            var row = body[collection][0].ToJsonString();
+            var duplicate = row[..^1] + ",\"" + field.ToUpperInvariant() + "\":null}";
+            var answer = api.Respond(Post("/updatelootpools", body.ToJsonString().Replace(row, duplicate)));
+            Assert.AreEqual(400, answer.Status, answer.Json);
+            Assert.AreEqual(0, pools.ReplaceCalls);
             Assert.AreSame(before, pools.Set);
         }
 
         #endregion
 
         #region Fixture
+
+        [TestMethod]
+        public void LootReadUsesTheVersionedCanonicalWeightedContract()
+        {
+            var api = Api(Keyed(), out _, out _);
+            using var document = JsonDocument.Parse(api.Respond(Get("/lootpools", Key)).Json);
+            Assert.AreEqual("rasa-weighted-loot-profiles", document.RootElement.GetProperty("format").GetString());
+            Assert.AreEqual(2, document.RootElement.GetProperty("version").GetInt32());
+            foreach (var name in new[] { "profiles", "groups", "items", "bindings", "mapPolicies" })
+                Assert.AreEqual(JsonValueKind.Array, document.RootElement.GetProperty(name).ValueKind, name);
+        }
+
+        [TestMethod]
+        public void FlatPercentageProjectsAreRejectedRatherThanReinterpreted()
+        {
+            var api = Api(Keyed(), out _, out _);
+            var answer = api.Respond(Post("/updatelootpools",
+                "{\"format\":\"rasa-loot-tables\",\"version\":1,\"groups\":[],\"assignments\":[]}"));
+            Assert.AreEqual(400, answer.Status);
+            StringAssert.Contains(answer.Json, "percent");
+            StringAssert.Contains(answer.Json, "weight");
+            StringAssert.Contains(answer.Json, "explicitly");
+        }
 
         /// <summary>The settings the editors want: every endpoint behind one key, the four of theirs on.</summary>
         private static RestApiConfig Keyed()
@@ -753,8 +801,8 @@ namespace Rasa.Test.Networking
             api.Register(new HealthCheckEndpoint(status));
             api.Register(new MonsterFlagsEndpoint { Store = flags });
             api.Register(new UpdateMonsterFlagsEndpoint { Store = flags });
-            api.Register(new LootPoolsEndpoint { Store = pools });
-            api.Register(new UpdateLootPoolsEndpoint { Store = pools });
+            api.Register(new WeightedLootEndpoint { Store = pools });
+            api.Register(new UpdateWeightedLootEndpoint { Store = pools });
             api.Apply(config);
 
             return api;
@@ -781,25 +829,37 @@ namespace Rasa.Test.Networking
             }
         }
 
-        private sealed class PoolStore : ILootPoolStore
+        private const string EmptyWeighted = "{\"format\":\"rasa-weighted-loot-profiles\",\"version\":2,\"profiles\":[],\"groups\":[],\"items\":[],\"bindings\":[],\"mapPolicies\":[]}";
+        private const string CompleteWeighted = """
+            {"format":"rasa-weighted-loot-profiles","version":2,
+             "profiles":[{"profileKey":"test","description":"","contentRevision":"v2","provenance":"","evidenceNotes":""}],
+             "groups":[{"profileKey":"test","groupKey":"gear","kind":4,"chanceBasisPoints":5000,"minimumRolls":1,"maximumRolls":2,"sortOrder":0}],
+             "items":[{"profileKey":"test","groupKey":"gear","itemTemplateId":900,"weight":1,"minimumQuantity":1,"maximumQuantity":1,"sortOrder":0}],
+             "bindings":[{"mapContextId":10,"creatureId":1,"profileKey":"test"}],
+             "mapPolicies":[{"mapContextId":10,"requireProfiles":true}]}
+            """;
+
+        private sealed class PoolStore : IWeightedLootStore
         {
-            internal LootPoolSet Set { get; set; } = LootPoolSet.Empty;
+            internal OrdinaryLootContentSnapshot Set { get; set; } = new(Array.Empty<LootProfileEntry>(),
+                Array.Empty<OrdinaryLootGroupEntry>(), Array.Empty<LootItemEntry>(),
+                Array.Empty<CreatureLootBindingEntry>(), Array.Empty<LootMapPolicyEntry>());
             internal string Refuse { get; set; }
+            internal int FailureStatus { get; set; } = 400;
+            internal int ReplaceCalls { get; private set; }
 
-            public LootPoolSet Read() => Set;
+            public OrdinaryLootContentSnapshot Read() => Set;
 
-            public StoreAnswer Replace(LootPoolSet set)
+            public StoreAnswer Replace(OrdinaryLootContentSnapshot set)
             {
-                var answer = new StoreAnswer();
+                ReplaceCalls++;
+                var answer = new StoreAnswer { FailureStatus = FailureStatus };
 
                 if (Refuse != null)
                 {
                     answer.Problems.Add(Refuse);
                     return answer;
                 }
-
-                foreach (var pool in set.Pools.Where(pool => pool.Items.Count == 0))
-                    answer.Warnings.Add($"group {pool.Id} has no items");
 
                 Set = set;
 

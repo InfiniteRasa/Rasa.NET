@@ -599,6 +599,7 @@ namespace Rasa.Test.Missions
                 NpcMissions = null;
                 NpcMissionRewards = null;
                 MissionContent = new MissionContentRepository(context);
+                OrdinaryLoot = new OrdinaryLootRepository(context);
                 NpcPackages = new NpcPackageRepository(context);
                 RandomNames = null;
                 Spawnpools = new SpawnpoolRepository(context);
@@ -622,6 +623,7 @@ namespace Rasa.Test.Missions
             public INpcMissionRepository NpcMissions { get; }
             public INpcMissionRewardRepository NpcMissionRewards { get; }
             public IMissionContentRepository MissionContent { get; }
+            public IOrdinaryLootRepository OrdinaryLoot { get; }
             public INpcPackageRepository NpcPackages { get; }
             public IPlayerRandomNameRepository RandomNames { get; }
             public ISpawnpoolRepository Spawnpools { get; }

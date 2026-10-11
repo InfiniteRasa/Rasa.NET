@@ -1377,6 +1377,8 @@ namespace Rasa.Test.Missions
             public INpcMissionRepository NpcMissions { get; }
             public INpcMissionRewardRepository NpcMissionRewards { get; }
             public IMissionContentRepository MissionContent => null;
+            public IOrdinaryLootRepository OrdinaryLoot =>
+                throw new NotSupportedException("This legacy mission fixture has no ordinary loot content.");
             public INpcPackageRepository NpcPackages => null;
             public IPlayerRandomNameRepository RandomNames => null;
             public ISpawnpoolRepository Spawnpools => null;

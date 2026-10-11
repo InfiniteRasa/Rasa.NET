@@ -66,6 +66,10 @@ namespace Rasa.Test.Missions
         private readonly List<Creature> _npcs = new();
         private readonly HashSet<ulong> _originalItems = EntityManager.Instance.Items.Keys.ToHashSet();
         private readonly List<uint> _addedTemplates = new();
+        private readonly System.Reflection.FieldInfo _lootSingleton = typeof(LootDispenserManager)
+            .GetField("_instance", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+        private object _previousLoot;
+        private bool _hasSyntheticLootScope;
         private int _charUnitsCreated;
         private string Database => Path.Combine(_directory, "missions");
 
@@ -121,6 +125,10 @@ namespace Rasa.Test.Missions
             Manager = new MissionApplication(this, definitions, rewards ?? new Dictionary<uint, MissionRewardDefinition>(),
                 new ManifestationManager(this), beforeRewardItemPublication,
                 beforeMissionPacketPublication, utcNow: utcNow);
+            _previousLoot = _lootSingleton.GetValue(null);
+            _lootSingleton.SetValue(null, new LootDispenserManager(this, missionManager: Manager,
+                ordinaryLootResolver: ResolveSyntheticLegacyLoot, lootRoll: (minimum, maximum) => minimum));
+            _hasSyntheticLootScope = true;
         }
 
         internal static MissionTestContext WithDefinitions(params uint[] missionIds) =>
@@ -912,6 +920,13 @@ namespace Rasa.Test.Missions
         public IWorldUnitOfWork CreateWorld() =>
             throw new InvalidOperationException("Unexpected world database access.");
 
+        internal Rasa.Loot.OrdinaryLootProfile ResolveSyntheticLegacyLoot(uint mapContextId, uint creatureId)
+        {
+            if (mapContextId != Map.MapInfo.MapContextId)
+                throw new InvalidOperationException($"Synthetic mission fixture has no loot scope for map {mapContextId}.");
+            return null;
+        }
+
         internal SqliteCharContext Open() =>
             new(
                 Options.Create(new DatabaseConfiguration
@@ -984,6 +999,8 @@ namespace Rasa.Test.Missions
                 ItemManager.Instance.ItemTemplateItemClass.Remove(templateId);
             }
             _world?.Dispose();
+            if (_hasSyntheticLootScope)
+                _lootSingleton.SetValue(null, _previousLoot);
             SqliteConnection.ClearAllPools();
             Directory.Delete(_directory, true);
         }

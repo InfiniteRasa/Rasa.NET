@@ -82,14 +82,16 @@ namespace Rasa.Repositories.Char.Items
         ///
         /// A row that is not there updates nothing, which EF reports as a concurrency failure:
         /// that is the missing row the tracking query used to find, logged the way it was.
+        /// Module and crafter edits instead require a row and propagate the failure to their
+        /// transaction owner.
         /// </summary>
-        private void UpdateColumn(IItemChange item, string column, Action<ItemEntry> write)
+        private void UpdateColumn(IItemChange item, string column, Action<ItemEntry> write, bool requireRow = false)
         {
-            UpdateColumns(item, new[] { column }, write);
+            UpdateColumns(item, new[] { column }, write, requireRow);
         }
 
         /// <summary>The same for the columns one change writes together.</summary>
-        private void UpdateColumns(IItemChange item, string[] columns, Action<ItemEntry> write)
+        private void UpdateColumns(IItemChange item, string[] columns, Action<ItemEntry> write, bool requireRow = false)
         {
             // Already tracked here - Attach refuses a second instance of the same key - so it is
             // written where it is, with everything else it carries left alone.
@@ -114,7 +116,7 @@ namespace Rasa.Repositories.Char.Items
             {
                 _charContext.SaveChanges();
             }
-            catch (DbUpdateConcurrencyException)
+            catch (DbUpdateConcurrencyException) when (!requireRow)
             {
                 Logger.WriteLog(LogType.Error, $"Item {item.Id} does not exist; update skipped.");
             }
@@ -158,10 +160,10 @@ namespace Rasa.Repositories.Char.Items
             UpdateColumn(item, nameof(ItemEntry.Color), entry => entry.Color = item.Color);
         }
 
-        /// <summary>The name the item's tooltip gives as "Modified By".</summary>
+        /// <summary>The name the item's tooltip gives as "Modified By"; a missing row is a write failure.</summary>
         public void UpdateCrafter(IItemChange item)
         {
-            UpdateColumn(item, nameof(ItemEntry.CrafterName), entry => entry.CrafterName = item.Crafter ?? "");
+            UpdateColumn(item, nameof(ItemEntry.CrafterName), entry => entry.CrafterName = item.Crafter ?? "", requireRow: true);
         }
 
         public void UpdateCurrentHitPoints(IItemChange item)
@@ -175,12 +177,12 @@ namespace Rasa.Repositories.Char.Items
             UpdateColumn(item, nameof(ItemEntry.StackSize), entry => entry.StackSize = item.StackSize);
         }
 
-        /// <summary>The item's four module slots, written together.</summary>
+        /// <summary>The item's four module slots, written together; a missing row is a write failure.</summary>
         public void UpdateModules(IItemChange item)
         {
             UpdateColumns(item,
                 new[] { nameof(ItemEntry.Module1), nameof(ItemEntry.Module2), nameof(ItemEntry.Module3), nameof(ItemEntry.Module4) },
-                entry => entry.SetModules(item.ModuleIds));
+                entry => entry.SetModules(item.ModuleIds), requireRow: true);
         }
     }
 }

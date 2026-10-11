@@ -1,15 +1,19 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 
 namespace Rasa.Managers
 {
     using Data;
     using Game;
     using Game.Missions.Persistence;
+    using Missions;
     using Packets.Communicator.Server;
     using Packets.Crafting.Client;
     using Packets.Crafting.Server;
+    using Repositories.Char;
+    using Repositories.UnitOfWork;
     using Structures;
 
     /// <summary>
@@ -65,9 +69,18 @@ namespace Rasa.Managers
                 return null;
             }
 
-            if (MissionItemProtection.IsProtected(item, _gameUnitOfWorkFactory))
+            try
             {
-                Fail(client, station, "A mission's item cannot be used at a crafting station.");
+                if (MissionItemProtection.IsProtected(item, _gameUnitOfWorkFactory))
+                {
+                    Fail(client, station, "A mission's item cannot be used at a crafting station.");
+                    return null;
+                }
+            }
+            catch (Exception error) when (GameplayRejectionException.IsExpected(error))
+            {
+                Logger.WriteLog(LogType.Error, $"{request} item {item.Id} protection check failed: {error}");
+                Fail(client, station, "The item's mission protection could not be checked. Nothing was consumed; try again.");
                 return null;
             }
 
@@ -106,31 +119,119 @@ namespace Rasa.Managers
             return false;
         }
 
-        private void Pay(Client client, uint cost)
+        private bool CommitModuleCraft(Client client, DynamicObject station, Item input, uint quantity,
+            uint cost, Item target = null, int slot = 0, uint moduleId = 0, string modifiedBy = null)
         {
-            if (cost == 0)
-                return;
-
-            var missing = InventoryManager.Instance.RemoveItemsByClass(client, (EntityClasses)ItemModules.MimeogelClassId, cost);
-
-            if (missing != 0)
-                Logger.WriteLog(LogType.Error, $"{client.Player.FamilyName}: {missing} of {cost} {Mimeogel} could not be taken after the count passed");
+            InventoryManager.InventoryPlan inventory = null;
+            ItemModules.ModuleMutation mutation = null;
+            var progress = MissionProgressPublicationPlan.Empty;
+            try
+            {
+                using var unit = _gameUnitOfWorkFactory.CreateChar();
+                unit.ExecuteTransaction(() =>
+                {
+                    var items = new[] { input, target }.Where(item => item != null).Distinct().ToArray();
+                    unit.Enlist(() => new ModuleCraftAdmission(this, client, station, unit, items,
+                        quantity > 0 ? input : null, target));
+                    inventory = InventoryManager.InventoryPlan.For(client, unit);
+                    var events = new List<MissionProgressEvent>();
+                    if (quantity > 0)
+                        events.Add(inventory.ConsumeEntity(input.EntityId, quantity));
+                    var remaining = cost;
+                    foreach (var entityId in client.Player.Inventory.PersonalInventory.Where(id => id != 0))
+                    {
+                        if (remaining == 0)
+                            break;
+                        var fee = EntityManager.Instance.GetItem(entityId);
+                        if ((uint)fee.ItemTemplate.Class != ItemModules.MimeogelClassId ||
+                            MissionItemProtection.IsProtected(fee, unit))
+                            continue;
+                        var taken = Math.Min(remaining, fee.StackSize);
+                        events.Add(inventory.ConsumeEntity(entityId, taken));
+                        remaining -= taken;
+                    }
+                    if (remaining != 0)
+                        throw new GameplayRejectionException("The Mimeomech fee is no longer available.");
+                    if (target != null)
+                        mutation = ItemModules.PlanSet(client, target, slot, moduleId, unit, modifiedBy);
+                    progress = MissionApplication.Instance.PlanProgress(client, events, unit);
+                });
+            }
+            catch (Exception error) when (GameplayRejectionException.IsExpected(error))
+            {
+                Logger.WriteLog(LogType.Error, $"Module crafting for {client.Player.FamilyName} at station {station.EntityId} failed: {error}");
+                Fail(client, station, "Crafting could not be saved, or its items or station changed. Nothing was consumed; try again.");
+                return false;
+            }
+            inventory.Publish(client);
+            mutation?.Publish();
+            progress.Publish(client);
+            return true;
         }
 
-        /// <summary>
-        /// Takes items off a stack in the pack - all of it destroys the item - and says whether
-        /// they went: ReduceStackCount refuses quietly.
-        /// </summary>
-        private static bool Consume(Client client, Item item, uint quantity)
+        private sealed class ModuleCraftAdmission : ITransactionParticipant
         {
-            var before = item.StackSize;
-            var entityId = item.EntityId;
+            private readonly KraftwerksManager _manager;
+            private readonly Client _client;
+            private readonly Manifestation _player;
+            private readonly DynamicObject _station;
+            private readonly ICharUnitOfWork _unit;
+            private readonly Item[] _items;
+            private readonly ItemModules.ModuleSnapshot[] _snapshots;
+            private readonly Item _consumed;
+            private readonly Item _modified;
+            private readonly CraftingJob[] _jobs;
 
-            InventoryManager.Instance.ReduceStackCount(client, InventoryType.Personal, item, quantity);
+            internal ModuleCraftAdmission(KraftwerksManager manager, Client client, DynamicObject station,
+                ICharUnitOfWork unit, Item[] items, Item consumed, Item modified)
+            {
+                _manager = manager;
+                _client = client;
+                _player = client.Player;
+                _station = station;
+                _unit = unit;
+                _items = items;
+                _consumed = consumed;
+                _modified = modified;
+                _snapshots = items.Select(item => new ItemModules.ModuleSnapshot(item)).ToArray();
+                _jobs = manager.JobsFor(client, station).ToArray();
+                RequireAdmission();
+            }
 
-            return quantity >= before
-                ? !client.Player.Inventory.PersonalInventory.Contains(entityId)
-                : item.StackSize == before - quantity;
+            private void RequireAdmission()
+            {
+                if (!ReferenceEquals(_client.Player, _player) ||
+                    !EntityManager.Instance.TryGetObject(_station.EntityId, out var current) ||
+                    !ReferenceEquals(current, _station) || !_station.IsEnabled ||
+                    _station.DynamicObjectType != DynamicObjectType.Kraftwerks ||
+                    _station.MapContextId != _player.MapContextId ||
+                    Vector3.Distance(_player.Position, _station.Position) > InteractionRange + 2f ||
+                    !_jobs.SequenceEqual(_manager.JobsFor(_client, _station)) ||
+                    (_consumed == null || _modified == null) &&
+                        (_jobs.Length >= MaxJobsPerStation || _jobs.Any(job => !job.IsFinished)))
+                    throw new GameplayRejectionException("Module crafting station admission changed.");
+                foreach (var item in _items)
+                    if (MissionItemProtection.IsProtected(item, _unit))
+                        throw new GameplayRejectionException("A mission's item cannot be used at a crafting station.");
+            }
+
+            public void Prepare()
+            {
+                RequireAdmission();
+                foreach (var snapshot in _snapshots)
+                    snapshot.RequireDurable(_unit);
+            }
+
+            public void ValidateCommitBoundary()
+            {
+                RequireAdmission();
+                for (var index = 0; index < _items.Length; index++)
+                    if (_items[index] != _modified)
+                        _snapshots[index].RequireDurable(_unit, _items[index] == _consumed);
+            }
+
+            public void Committed() { }
+            public void Dispose() { }
         }
 
         /// <summary>A finished job for the player at the station: something to take, made when it is taken.</summary>
@@ -155,6 +256,92 @@ namespace Rasa.Managers
         {
             SendStatus(client, station);
             client.CallMethod(station.EntityId, CraftingResultPacket.Success(client.Player.EntityId));
+        }
+
+        private bool HandOverModule(Client client, DynamicObject station, CraftingJob job)
+        {
+            InventoryManager.InventoryPlan inventory = null;
+            var progress = MissionProgressPublicationPlan.Empty;
+            var amount = 0u;
+            var full = false;
+            try
+            {
+                using var unit = _gameUnitOfWorkFactory.CreateChar();
+                unit.ExecuteTransaction(() =>
+                {
+                    unit.Enlist(() => new ModuleOutputClaim(this, client, station, job));
+                    inventory = InventoryManager.InventoryPlan.For(client, unit);
+                    var template = InventoryManager.InventoryPlan.RequireTemplate(job.ResultItemTemplateId);
+                    if ((uint)template.Class != job.ResultClassId)
+                        throw new GameplayRejectionException("Module output class does not match its template.");
+                    amount = Math.Min(job.Count, inventory.GrantCapacity(job.ResultItemTemplateId));
+                    if (amount == 0)
+                    {
+                        full = true;
+                        throw new GameplayRejectionException("The module output inventory category is full.");
+                    }
+                    inventory.Grant(job.ResultItemTemplateId, amount);
+                    progress = MissionApplication.Instance.PlanProgress(client,
+                        new[] { MissionProgressEvent.ItemAcquired(job.ResultClassId, amount) }, unit);
+                });
+            }
+            catch (Exception error) when (GameplayRejectionException.IsExpected(error))
+            {
+                Logger.WriteLog(LogType.Error, $"Module output claim {job.ResultItemId} for {client.Player.FamilyName} failed: {error}");
+                if (full)
+                    Fail(client, station, PlayerMessage.PmInventoryFull);
+                else
+                    Fail(client, station, "The finished item could not be saved. It remains at the station; try again.");
+                return false;
+            }
+            job.Count -= amount;
+            inventory.Publish(client);
+            progress.Publish(client);
+            if (job.Count == 0)
+                return true;
+            client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmInventoryFull,
+                new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+            return false;
+        }
+
+        private sealed class ModuleOutputClaim : ITransactionParticipant
+        {
+            private readonly KraftwerksManager _manager;
+            private readonly Client _client;
+            private readonly DynamicObject _station;
+            private readonly CraftingJob _job;
+            private readonly (ulong id, uint template, uint @class, uint count, uint page, uint quality, long finish) _original;
+
+            internal ModuleOutputClaim(KraftwerksManager manager, Client client, DynamicObject station, CraftingJob job)
+            {
+                _manager = manager;
+                _client = client;
+                _station = station;
+                _job = job;
+                _original = State();
+                RequireClaim();
+            }
+
+            private (ulong, uint, uint, uint, uint, uint, long) State() =>
+                (_job.ResultItemId, _job.ResultItemTemplateId, _job.ResultClassId, _job.Count,
+                    _job.CraftingPage, _job.QualityId, _job.FinishTick);
+
+            private void RequireClaim()
+            {
+                if (_original != State() || _job.Count == 0 || !_job.IsFinished ||
+                    !_manager.JobsFor(_client, _station).Contains(_job) ||
+                    !EntityManager.Instance.TryGetObject(_station.EntityId, out var current) ||
+                    !ReferenceEquals(current, _station) || !_station.IsEnabled ||
+                    _station.DynamicObjectType != DynamicObjectType.Kraftwerks ||
+                    _station.MapContextId != _client.Player.MapContextId ||
+                    Vector3.Distance(_client.Player.Position, _station.Position) > InteractionRange + 2f)
+                    throw new GameplayRejectionException("Module output claim or station changed.");
+            }
+
+            public void Prepare() => RequireClaim();
+            public void ValidateCommitBoundary() => RequireClaim();
+            public void Committed() { }
+            public void Dispose() { }
         }
 
         /// <summary>RequestSalvageItem(kraftwerksId, itemId, CRAFTACTION_SALVAGE): the item, all of its stack, for Mimeogel.</summary>
@@ -191,12 +378,8 @@ namespace Rasa.Managers
 
             var templateId = item.ItemTemplate.ItemTemplateId;
 
-            if (!Consume(client, item, item.StackSize))
-            {
-                Logger.WriteLog(LogType.Error, $"{client.Player.FamilyName}: item {item.Id} could not be taken for salvage");
-                Fail(client, station, null);
+            if (!CommitModuleCraft(client, station, item, item.StackSize, 0))
                 return;
-            }
 
             Produce(client, station, mimeogel, value, SalvagePage, (uint)mimeogel.QualityId);
             Logger.WriteLog(LogType.Debug, $"{client.Player.FamilyName} salvages item {item.Id} (template {templateId}) for {value} {Mimeogel} at station {station.EntityId}");
@@ -239,8 +422,8 @@ namespace Rasa.Managers
             if (!CanPay(client, station, module.ExtractCost) || !HasRoom(client, station))
                 return;
 
-            Pay(client, module.ExtractCost);
-            ItemModules.Set(client, item, (int)packet.Slot, 0, _gameUnitOfWorkFactory);
+            if (!CommitModuleCraft(client, station, null, 0, module.ExtractCost, item, (int)packet.Slot))
+                return;
             Produce(client, station, result, 1, ExtractionPage, ItemModules.QualityOfModuleItem(module));
             Logger.WriteLog(LogType.Debug, $"{client.Player.FamilyName} extracts module {moduleId} from slot {packet.Slot} of item {item.Id} for {module.ExtractCost} {Mimeogel} at station {station.EntityId}");
             Succeed(client, station);
@@ -296,16 +479,9 @@ namespace Rasa.Managers
 
             ItemModules.TryGetModuleItem(moduleItem, out var module, out _);
 
-            // The module first: it is the one thing here that can still be refused.
-            if (!Consume(client, moduleItem, 1))
-            {
-                Logger.WriteLog(LogType.Error, $"{client.Player.FamilyName}: module item {moduleItem.Id} could not be taken for integration");
-                Fail(client, station, null);
+            if (!CommitModuleCraft(client, station, moduleItem, 1, cost, target, (int)packet.Slot,
+                module.ModuleId, client.Player.FamilyName))
                 return;
-            }
-
-            Pay(client, cost);
-            ItemModules.Set(client, target, (int)packet.Slot, module.ModuleId, _gameUnitOfWorkFactory, client.Player.FamilyName);
             Logger.WriteLog(LogType.Debug, $"{client.Player.FamilyName} integrates module {module.ModuleId} into slot {packet.Slot} of item {target.Id} for {cost} {Mimeogel} at station {station.EntityId}");
             Succeed(client, station);
             client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmCraftingSuccess, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
@@ -338,14 +514,8 @@ namespace Rasa.Managers
             if (!CanPay(client, station, module.UpgradeCost) || !HasRoom(client, station))
                 return;
 
-            if (!Consume(client, item, 1))
-            {
-                Logger.WriteLog(LogType.Error, $"{client.Player.FamilyName}: module item {item.Id} could not be taken for an upgrade");
-                Fail(client, station, null);
+            if (!CommitModuleCraft(client, station, item, 1, module.UpgradeCost))
                 return;
-            }
-
-            Pay(client, module.UpgradeCost);
             Produce(client, station, result, 1, UpgradePage, ItemModules.QualityOfModuleItem(upgrade));
             Logger.WriteLog(LogType.Debug, $"{client.Player.FamilyName} upgrades module {module.ModuleId} to {upgrade.ModuleId} for {module.UpgradeCost} {Mimeogel} at station {station.EntityId}");
             Succeed(client, station);

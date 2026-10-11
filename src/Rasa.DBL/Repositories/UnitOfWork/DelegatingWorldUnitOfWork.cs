@@ -36,7 +36,6 @@ namespace Rasa.Repositories.UnitOfWork
         public IAmbientNpcRepository AmbientNpcs => _parent.AmbientNpcs;
         public IWorldDestructibleRepository WorldDestructibles => _parent.WorldDestructibles;
         public IWorldUsableRepository WorldUsables => _parent.WorldUsables;
-        public ILootGroupRepository LootGroups => _parent.LootGroups;
         public ISpawnPoolArrivalRepository SpawnPoolArrivals => _parent.SpawnPoolArrivals;
         public IRecipeRepository Recipes => _parent.Recipes;
 
@@ -45,6 +44,8 @@ namespace Rasa.Repositories.UnitOfWork
         public INpcMissionRewardRepository NpcMissionRewards => _parent.NpcMissionRewards;
 
         public IMissionContentRepository MissionContent => _parent.MissionContent;
+
+        public IOrdinaryLootRepository OrdinaryLoot => _parent.OrdinaryLoot;
 
         public INpcPackageRepository NpcPackages => _parent.NpcPackages;
 

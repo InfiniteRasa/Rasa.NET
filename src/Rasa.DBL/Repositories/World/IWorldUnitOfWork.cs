@@ -27,13 +27,12 @@
         IWorldUsableRepository WorldUsables =>
             throw new System.NotSupportedException("This world unit of work has no world usable data.");
 
-        ILootGroupRepository LootGroups =>
-            throw new System.NotSupportedException("This world unit of work has no loot pool data.");
         ISpawnPoolArrivalRepository SpawnPoolArrivals { get; }
         IRecipeRepository Recipes { get; }
         INpcMissionRepository NpcMissions { get; }
         INpcMissionRewardRepository NpcMissionRewards { get; }
         IMissionContentRepository MissionContent { get; }
+        IOrdinaryLootRepository OrdinaryLoot { get; }
         INpcPackageRepository NpcPackages { get; }
         IPlayerRandomNameRepository RandomNames { get; }
         ISpawnpoolRepository Spawnpools { get; }

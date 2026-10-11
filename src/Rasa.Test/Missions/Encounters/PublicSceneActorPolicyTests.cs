@@ -715,7 +715,8 @@ namespace Rasa.Test.Missions.Encounters
                 SetSingleton(typeof(MissionApplication), Context.Manager);
                 SetSingleton(typeof(CreatureManager), Creatures);
                 SetSingleton(typeof(LootDispenserManager), new LootDispenserManager(Context,
-                    missionManager: Context.Manager, lootRoll: (minimum, maximum) => minimum));
+                    missionManager: Context.Manager, lootRoll: (minimum, maximum) => minimum,
+                    ordinaryLootResolver: Context.ResolveSyntheticLegacyLoot));
             }
 
             internal Creature Actor(string run, string role) => Context.Map.MapCellInfo.Cells.Values

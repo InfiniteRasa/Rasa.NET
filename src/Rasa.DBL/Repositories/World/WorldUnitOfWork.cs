@@ -26,6 +26,7 @@ namespace Rasa.Repositories.World
             INpcMissionRepository npcMissionRepository,
             INpcMissionRewardRepository npcMissionRewardRepository,
             IMissionContentRepository missionContentRepository,
+            IOrdinaryLootRepository ordinaryLootRepository,
             INpcPackageRepository npcPackageRepository,
             IPlayerRandomNameRepository randomNameRepository,
             ISpawnpoolRepository spawnpoolRepository,
@@ -49,12 +50,12 @@ namespace Rasa.Repositories.World
             AmbientNpcs = new AmbientNpcRepository(dbContext);
             WorldDestructibles = new WorldDestructibleRepository(dbContext);
             WorldUsables = new WorldUsableRepository(dbContext);
-            LootGroups = new LootGroupRepository(dbContext);
             SpawnPoolArrivals = spawnPoolArrivalRepository;
             Recipes = recipeRepository;
             NpcMissions = npcMissionRepository;
             NpcMissionRewards = npcMissionRewardRepository;
             MissionContent = missionContentRepository;
+            OrdinaryLoot = ordinaryLootRepository;
             NpcPackages = npcPackageRepository;
             RandomNames = randomNameRepository;
             Spawnpools = spawnpoolRepository;
@@ -78,12 +79,12 @@ namespace Rasa.Repositories.World
         public IAmbientNpcRepository AmbientNpcs { get; }
         public IWorldDestructibleRepository WorldDestructibles { get; }
         public IWorldUsableRepository WorldUsables { get; }
-        public ILootGroupRepository LootGroups { get; }
         public ISpawnPoolArrivalRepository SpawnPoolArrivals { get; }
         public IRecipeRepository Recipes { get; }
         public INpcMissionRepository NpcMissions { get; }
         public INpcMissionRewardRepository NpcMissionRewards { get; }
         public IMissionContentRepository MissionContent { get; }
+        public IOrdinaryLootRepository OrdinaryLoot { get; }
         public INpcPackageRepository NpcPackages { get; }
         public IPlayerRandomNameRepository RandomNames { get; }
         public ISpawnpoolRepository Spawnpools { get; }

@@ -426,6 +426,7 @@ namespace Rasa.Game
             // is up.
             return new ServerStartupLifecycle(
                 ValidateMissionReadiness,
+                ValidateOrdinaryLootReadiness,
                 () => Loop.Start(),
                 SetupCommunicator,
                 CreateListenerSocket,
@@ -442,6 +443,28 @@ namespace Rasa.Game
             EntityClassManager.Instance.LoadEntityClasses();
             var missionValidation = MissionApplication.Instance.LoadMissions();
             return LogMissionValidationAndCheckReadiness(missionValidation);
+        }
+
+        private bool ValidateOrdinaryLootReadiness()
+        {
+            using var world = GameUnitOfWorkFactory.CreateWorld();
+            return LoadOrdinaryLootAndCheckReadiness(world);
+        }
+
+        internal static bool LoadOrdinaryLootAndCheckReadiness(Repositories.World.IWorldUnitOfWork world)
+        {
+            try
+            {
+                Loot.OrdinaryLootCatalog.Publish(Loot.OrdinaryLootCatalog.Load(world));
+                return true;
+            }
+            catch (Loot.LootContentException error)
+            {
+                foreach (var diagnostic in error.Diagnostics)
+                    Logger.WriteLog(LogType.Error, diagnostic);
+                Logger.WriteLog(LogType.Error, "Ordinary loot content validation failed; the Game server will not report ready.");
+                return false;
+            }
         }
 
         private void CreateListenerSocket()
@@ -487,12 +510,12 @@ namespace Rasa.Game
             // gametools' editors read and write the creature flags and the loot pools through
             // these; each of the four is off until its own entry in ApiConfig turns it on.
             var monsterFlags = new MonsterFlagStore(GameUnitOfWorkFactory);
-            var lootPools = new LootPoolStore(GameUnitOfWorkFactory);
+            var weightedLoot = new WeightedLootStore(GameUnitOfWorkFactory);
 
             api.MonsterFlags.Store = monsterFlags;
             api.UpdateMonsterFlags.Store = monsterFlags;
-            api.LootPools.Store = lootPools;
-            api.UpdateLootPools.Store = lootPools;
+            api.WeightedLoot.Store = weightedLoot;
+            api.UpdateWeightedLoot.Store = weightedLoot;
 
             // POST /kickuser kicks on the world loop and waits for it; every request the API is
             // sent goes on its log, in the character database.
@@ -587,8 +610,6 @@ namespace Rasa.Game
             RecipeManager.Instance.RecipeInit();
             ItemModules.Init(GameUnitOfWorkFactory);
 
-            // What creatures drop (loot_group and its two tables); none, until pools are given.
-            LootPools.Init(GameUnitOfWorkFactory);
             AbilityManager.Instance.AbilityInit();
             ManifestationManager.Instance.LoadSkillClasses();
 

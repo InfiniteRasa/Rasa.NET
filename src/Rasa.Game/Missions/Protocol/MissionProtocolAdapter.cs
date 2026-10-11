@@ -45,12 +45,22 @@ namespace Rasa.Managers
             _utcNow = clock; _beforeMissionPacketPublication = beforePublication;
             _canShare = canShare;
         }
-        public IReadOnlyDictionary<uint, MissionInfo> BuildStatusSnapshot(Manifestation player)
+        // Internal/GM callers can inspect completed assignments, but the client mission journal
+        // must only receive missions that have not actually been turned in and rewarded.
+        // A completable Active mission (or a Success mission) still requires turn-in.
+        public IReadOnlyDictionary<uint, MissionInfo> BuildStatusSnapshot(Manifestation player) =>
+            BuildStatusSnapshot(player, includeCompleted: true);
+
+        private IReadOnlyDictionary<uint, MissionInfo> BuildClientStatusSnapshot(Manifestation player) =>
+            BuildStatusSnapshot(player, includeCompleted: false);
+
+        private IReadOnlyDictionary<uint, MissionInfo> BuildStatusSnapshot(Manifestation player, bool includeCompleted)
         {
             var snapshot = new Dictionary<uint, MissionInfo>();
             foreach (var entry in player.Missions)
             {
-                if (!_catalog.TryGetOperational(entry.Key, out var definition) ||
+                if ((!includeCompleted && entry.Value.State == MissionState.Completed) ||
+                    !_catalog.TryGetOperational(entry.Key, out var definition) ||
                     !MissionApplication.IsPublishedState(entry.Value.State))
                     continue;
 
@@ -91,14 +101,15 @@ namespace Rasa.Managers
             var shown = missionIds.Any(missionId =>
                 client.Player.Missions.TryGetValue(missionId, out var runtimeMission) &&
                 _catalog.TryGetOperational(missionId, out _) &&
-                MissionApplication.IsPublishedState(runtimeMission.State));
+                MissionApplication.IsPublishedState(runtimeMission.State) &&
+                runtimeMission.State != MissionState.Completed);
 
             if (!shown)
                 return;
 
             PublishMissionPacket(
                 client,
-                new MissionStatusInfoPacket(BuildStatusSnapshot(client.Player)),
+                new MissionStatusInfoPacket(BuildClientStatusSnapshot(client.Player)),
                 description);
         }
 
@@ -191,7 +202,7 @@ namespace Rasa.Managers
         {
             PublishMissionPacket(
                 client,
-                new MissionStatusInfoPacket(BuildStatusSnapshot(client.Player)),
+                new MissionStatusInfoPacket(BuildClientStatusSnapshot(client.Player)),
                 "mission status snapshot");
         }
 

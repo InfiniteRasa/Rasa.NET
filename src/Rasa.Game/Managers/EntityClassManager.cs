@@ -47,20 +47,12 @@ namespace Rasa.Managers
 
             foreach (var entityClass in entityClassList)
             {
-                // Parse AugmentationList
-                var augList = new List<AugmentationType>();
-                var augmentations = Regex.Split(entityClass.AugList, @"\D+");
-
-                foreach (var value in augmentations)
-                    if (int.TryParse(value, out var augmentation))
-                        augList.Add((AugmentationType)augmentation);
-
                 LoadedEntityClasses.Add((EntityClasses)entityClass.Id, new EntityClass(
                     entityClass.Id,
                     entityClass.ClassName,
                     entityClass.MeshId,
                     entityClass.ClassCollisionRole,
-                    augList,
+                    ParseAugmentations(entityClass.AugList),
                     entityClass.TargetFlag != 0
                     ));
             };
@@ -111,6 +103,15 @@ namespace Rasa.Managers
             Logger.WriteLog(LogType.Error, $"entityClassId  {entityClassId} is not present in LoadedEntityClasses");
 
             return null;
+        }
+
+        internal static List<AugmentationType> ParseAugmentations(string augmentationList)
+        {
+            var result = new List<AugmentationType>();
+            foreach (var value in Regex.Split(augmentationList, @"\D+"))
+                if (int.TryParse(value, out var augmentation))
+                    result.Add((AugmentationType)augmentation);
+            return result;
         }
 
         public ArmorClassInfo GetArmorClassInfo(Item armor)

@@ -92,6 +92,11 @@ namespace Rasa.Context.World
         public DbSet<MissionScenarioEntry> MissionScenarioEntries { get; set; }
         public DbSet<MissionScenarioStepEntry> MissionScenarioStepEntries { get; set; }
         public DbSet<MissionEvidenceEntry> MissionEvidenceEntries { get; set; }
+        public DbSet<LootProfileEntry> LootProfileEntries { get; set; }
+        public DbSet<OrdinaryLootGroupEntry> OrdinaryLootGroupEntries { get; set; }
+        public DbSet<LootItemEntry> LootItemEntries { get; set; }
+        public DbSet<CreatureLootBindingEntry> CreatureLootBindingEntries { get; set; }
+        public DbSet<LootMapPolicyEntry> LootMapPolicyEntries { get; set; }
         public DbSet<NpcPackageEntry> NpcPackageEntries { get; set; }
         public DbSet<RandomNameEntry> RandomNameEntries { get; set; }
         public DbSet<SpawnPoolEntry> SpawnPoolEntries { get; set; }
@@ -124,6 +129,7 @@ namespace Rasa.Context.World
             SetupLootGroups(modelBuilder);
             SetupSkillCharacter(modelBuilder);
             SetupMissionContent(modelBuilder);
+            SetupOrdinaryLoot(modelBuilder);
             modelBuilder.Entity<MissionSceneBindingEntry>()
                 .HasKey(entry => new { entry.MissionId, entry.ContentRevision });
             modelBuilder.Entity<MissionExperienceBindingEntry>()
@@ -143,6 +149,71 @@ namespace Rasa.Context.World
                 "(repeat_kind IN (0, 1) AND cooldown_seconds IS NULL AND reset_second_utc IS NULL) OR " +
                 "(repeat_kind = 2 AND cooldown_seconds IS NOT NULL AND cooldown_seconds > 0 AND reset_second_utc IS NULL) OR " +
                 "(repeat_kind = 3 AND cooldown_seconds IS NULL AND reset_second_utc IS NOT NULL AND reset_second_utc BETWEEN 0 AND 86399)"));
+        }
+
+        private void SetupOrdinaryLoot(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<LootProfileEntry>()
+                .ToTable(table => table.HasCheckConstraint(
+                    "CK_loot_profile_key_length", "LENGTH(profile_key) BETWEEN 1 AND 64"));
+
+            modelBuilder.Entity<OrdinaryLootGroupEntry>()
+                .HasKey(entry => new { entry.ProfileKey, entry.GroupKey });
+            modelBuilder.Entity<OrdinaryLootGroupEntry>()
+                .HasOne<LootProfileEntry>().WithMany()
+                .HasForeignKey(entry => entry.ProfileKey).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<OrdinaryLootGroupEntry>()
+                .Property(entry => entry.Kind).HasConversion<byte>()
+                .AsUnsignedTinyInt(_dbContextPropertyModifier, 3);
+            modelBuilder.Entity<OrdinaryLootGroupEntry>()
+                .ToTable(table =>
+                {
+                    table.HasCheckConstraint("CK_ordinary_loot_group_key_length", "LENGTH(group_key) BETWEEN 1 AND 32");
+                    table.HasCheckConstraint("CK_ordinary_loot_group_kind", "kind IN (1, 2, 3, 4)");
+                    table.HasCheckConstraint("CK_ordinary_loot_group_chance", "chance_basis_points BETWEEN 0 AND 10000");
+                    table.HasCheckConstraint("CK_ordinary_loot_group_rolls", "minimum_rolls >= 0 AND maximum_rolls >= minimum_rolls");
+                });
+
+            modelBuilder.Entity<LootItemEntry>()
+                .HasKey(entry => new { entry.ProfileKey, entry.GroupKey, entry.ItemTemplateId });
+            modelBuilder.Entity<LootItemEntry>()
+                .HasOne<OrdinaryLootGroupEntry>().WithMany()
+                .HasForeignKey(entry => new { entry.ProfileKey, entry.GroupKey }).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<LootItemEntry>()
+                .HasOne<ItemTemplateEntry>().WithMany()
+                .HasForeignKey(entry => entry.ItemTemplateId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<LootItemEntry>()
+                .Property(entry => entry.ItemTemplateId).AsUnsignedInt(_dbContextPropertyModifier, 11);
+            modelBuilder.Entity<LootItemEntry>()
+                .ToTable(table =>
+                {
+                    table.HasCheckConstraint("CK_loot_item_weight", "weight > 0");
+                    table.HasCheckConstraint("CK_loot_item_quantities",
+                        "minimum_quantity > 0 AND maximum_quantity >= minimum_quantity");
+                });
+
+            modelBuilder.Entity<CreatureLootBindingEntry>()
+                .HasKey(entry => new { entry.MapContextId, entry.CreatureId });
+            modelBuilder.Entity<CreatureLootBindingEntry>()
+                .HasOne<LootProfileEntry>().WithMany()
+                .HasForeignKey(entry => entry.ProfileKey).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<CreatureLootBindingEntry>()
+                .HasOne<MapInfoEntry>().WithMany()
+                .HasForeignKey(entry => entry.MapContextId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<CreatureLootBindingEntry>()
+                .HasOne<CreatureEntry>().WithMany()
+                .HasForeignKey(entry => entry.CreatureId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<CreatureLootBindingEntry>()
+                .Property(entry => entry.MapContextId).AsUnsignedInt(_dbContextPropertyModifier, 11);
+            modelBuilder.Entity<CreatureLootBindingEntry>()
+                .Property(entry => entry.CreatureId).AsUnsignedInt(_dbContextPropertyModifier, 11);
+
+            modelBuilder.Entity<LootMapPolicyEntry>()
+                .HasOne<MapInfoEntry>().WithMany()
+                .HasForeignKey(entry => entry.MapContextId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<LootMapPolicyEntry>()
+                .Property(entry => entry.MapContextId).ValueGeneratedNever()
+                .AsUnsignedInt(_dbContextPropertyModifier, 11);
         }
 
         /// <summary>
@@ -197,11 +268,14 @@ namespace Rasa.Context.World
         /// <summary>A pool holds an item once, and a creature has a pool once: each row is its pair.</summary>
         private static void SetupLootGroups(ModelBuilder modelBuilder)
         {
+            // Table archival is a rename, not a rewrite of the historical keys or rows.
+            modelBuilder.Entity<LootGroupEntry>()
+                .HasKey(e => e.Id).HasName("PK_loot_group");
             modelBuilder.Entity<LootGroupItemEntry>()
-                .HasKey(e => new { e.GroupId, e.ItemTemplateId });
+                .HasKey(e => new { e.GroupId, e.ItemTemplateId }).HasName("PK_loot_group_item");
 
             modelBuilder.Entity<CreatureLootGroupEntry>()
-                .HasKey(e => new { e.CreatureId, e.GroupId });
+                .HasKey(e => new { e.CreatureId, e.GroupId }).HasName("PK_creature_loot_group");
         }
 
         private void SetupExperienceForLevel(ModelBuilder modelBuilder)

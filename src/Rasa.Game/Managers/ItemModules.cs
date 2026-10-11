@@ -7,6 +7,7 @@ namespace Rasa.Managers
     using Data;
     using Game;
     using Packets.MapChannel.Server;
+    using Repositories.Char;
     using Repositories.UnitOfWork;
     using Structures;
     using Structures.Char;
@@ -167,41 +168,158 @@ namespace Rasa.Managers
         /// </summary>
         public static void Set(Client client, Item item, int slot, uint moduleId, IGameUnitOfWorkFactory factory, string modifiedBy = null)
         {
-            item.SetModule(slot, moduleId);
-
-            if (modifiedBy != null)
-                item.Crafter = modifiedBy;
-
-            Save(client, item, factory, modifiedBy != null);
+            ModuleMutation mutation = null;
+            using var unit = factory.CreateChar();
+            unit.ExecuteTransaction(() => mutation = PlanSet(client, item, slot, moduleId, unit, modifiedBy));
+            mutation.Publish();
         }
 
         /// <summary>Empties every slot of the item.</summary>
         public static void Clear(Client client, Item item, IGameUnitOfWorkFactory factory)
         {
-            for (var slot = 0; slot < Slots; slot++)
-                item.SetModule(slot, 0);
-
-            Save(client, item, factory);
+            ModuleMutation mutation = null;
+            using var unit = factory.CreateChar();
+            unit.ExecuteTransaction(() => mutation = unit.Enlist(() =>
+                new ModuleMutation(client, item, new uint[Slots], null, unit)));
+            mutation.Publish();
         }
 
-        private static void Save(Client client, Item item, IGameUnitOfWorkFactory factory, bool crafter = false)
+        internal static ModuleMutation PlanSet(Client client, Item item, int slot, uint moduleId,
+            ICharUnitOfWork unit, string modifiedBy = null)
         {
-            using (var unitOfWork = factory.CreateChar())
-            {
-                unitOfWork.Items.UpdateModules(item);
+            var modules = item.ModuleIds.ToArray();
+            modules[slot] = moduleId;
+            return unit.Enlist(() => new ModuleMutation(client, item, modules, modifiedBy, unit));
+        }
 
-                if (crafter)
-                    unitOfWork.Items.UpdateCrafter(item);
+        internal sealed class ModuleSnapshot
+        {
+            private readonly Item _item;
+            private readonly uint _id;
+            private readonly uint _template;
+            private readonly uint _owner;
+            private readonly uint _slot;
+            private readonly uint _count;
+            private readonly uint[] _modules;
+            private readonly string _crafter;
+
+            internal ModuleSnapshot(Item item)
+            {
+                _item = item;
+                _id = item.Id;
+                _template = item.ItemTemplateId;
+                _owner = item.OwnerId;
+                _slot = item.OwnerSlotId;
+                _count = item.StackSize;
+                _modules = item.ModuleIds.ToArray();
+                _crafter = item.Crafter ?? "";
             }
 
-            var classInfo = EntityClassManager.Instance.GetClassInfo(item.ItemTemplate.Class);
+            internal void RequireRuntime()
+            {
+                if (_item.Id != _id || _item.ItemTemplateId != _template ||
+                    _item.OwnerId != _owner || _item.OwnerSlotId != _slot || _item.StackSize != _count ||
+                    !_modules.SequenceEqual(_item.ModuleIds) || (_item.Crafter ?? "") != _crafter)
+                    throw new GameplayRejectionException("Crafting item runtime state changed.");
+            }
 
-            if (client != null && classInfo != null)
-                client.CallMethod(item.EntityId, new ItemInfoPacket(item, classInfo));
+            internal void RequireDurable(ICharUnitOfWork unit, bool consumed = false)
+            {
+                RequireRuntime();
+                var row = unit.Items.GetItem(_id);
+                if (consumed && row == null)
+                    return;
+                if (row?.ItemTemplateId != _template || !consumed && row.StackSize != _count ||
+                    !_modules.SequenceEqual(row.Modules) || (row.CrafterName ?? "") != _crafter)
+                    throw new GameplayRejectionException("Crafting item durable modules, crafter or quantity changed.");
+            }
+        }
 
-            // Worn or in hand, what it gives its owner has changed (ItemModuleBonuses).
-            if (client?.Player != null)
-                client.Player.ModulesChanged = true;
+        internal sealed class ModuleMutation : ITransactionParticipant
+        {
+            private readonly Client _client;
+            private readonly Manifestation _player;
+            private readonly Item _item;
+            private readonly Item _change;
+            private readonly ModuleSnapshot _snapshot;
+            private readonly ICharUnitOfWork _unit;
+            private readonly bool _writeCrafter;
+            private readonly uint _accountId;
+            private readonly uint _characterId;
+            private bool _committed;
+            private bool _published;
+
+            internal ModuleMutation(Client client, Item item, uint[] modules, string modifiedBy, ICharUnitOfWork unit)
+            {
+                _client = client;
+                _player = client?.Player;
+                _item = item;
+                _snapshot = new ModuleSnapshot(item);
+                _unit = unit;
+                _writeCrafter = modifiedBy != null;
+                _accountId = client?.AccountEntry?.Id ?? 0;
+                _characterId = client?.Player?.Id ?? 0;
+                _change = new Item(item.ItemTemplateId, item.StackSize, item.CurrentHitPoints, item.Color)
+                { Id = item.Id, Crafter = modifiedBy ?? item.Crafter ?? "" };
+                for (var slot = 0; slot < Slots; slot++)
+                    _change.SetModule(slot, modules[slot]);
+                RequireOwner();
+                _snapshot.RequireDurable(unit);
+            }
+
+            private void RequireOwner()
+            {
+                if (_client == null)
+                    return;
+                var rows = _unit.CharacterInventories.GetItems(_accountId).Where(row => row.ItemId == _item.Id).ToArray();
+                if (_client.AccountEntry?.Id != _accountId || _client.Player?.Id != _characterId ||
+                    !ReferenceEquals(_client.Player, _player) ||
+                    EntityManager.Instance.GetEntityType(_item.EntityId) != EntityType.Item ||
+                    !ReferenceEquals(EntityManager.Instance.GetItem(_item.EntityId), _item) ||
+                    _item.OwnerId != _characterId || rows.Length != 1 ||
+                    rows[0].CharacterId != _characterId || rows[0].SlotId != _item.OwnerSlotId)
+                    throw new GameplayRejectionException("Module target ownership or slot changed.");
+            }
+
+            public void Prepare()
+            {
+                RequireOwner();
+                _snapshot.RequireDurable(_unit);
+                _unit.Items.UpdateModules(_change);
+                if (_writeCrafter)
+                    _unit.Items.UpdateCrafter(_change);
+            }
+
+            public void ValidateCommitBoundary()
+            {
+                RequireOwner();
+                _snapshot.RequireRuntime();
+                var saved = _unit.Items.GetItem(_item.Id);
+                if (saved?.ItemTemplateId != _change.ItemTemplateId || saved.StackSize != _change.StackSize ||
+                    !saved.Modules.SequenceEqual(_change.ModuleIds) || (saved.CrafterName ?? "") != _change.Crafter)
+                    throw new GameplayRejectionException("Module target persistence did not match the planned change.");
+            }
+
+            public void Committed() => _committed = true;
+            public void Dispose() { }
+
+            internal void Publish()
+            {
+                if (!_committed)
+                    throw new InvalidOperationException("Only committed module changes can be published.");
+                if (_published)
+                    return;
+                _published = true;
+                for (var slot = 0; slot < Slots; slot++)
+                    _item.SetModule(slot, _change.ModuleIds[slot]);
+                _item.Crafter = _change.Crafter;
+                if (_client?.Player != null)
+                    _client.Player.ModulesChanged = true;
+                var classInfo = EntityClassManager.Instance.GetClassInfo(_item.ItemTemplate.Class);
+                if (_client != null && classInfo != null)
+                    MissionApplication.TryPublish(() => _client.CallMethod(_item.EntityId, new ItemInfoPacket(_item, classInfo)),
+                        $"item {_item.Id} module data");
+            }
         }
 
         #region The crafting station's rules (shared/craftingnew.py)
