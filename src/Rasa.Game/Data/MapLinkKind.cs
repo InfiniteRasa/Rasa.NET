@@ -16,6 +16,12 @@ namespace Rasa.Data
         TeamBlue = 3,
 
         /// <summary>The way from a team's base back to the staging area, off the team.</summary>
-        TeamLeave = 4
+        TeamLeave = 4,
+
+        /// <summary>
+        /// Where the winning team of a battleground's match is put when it ends: the link's
+        /// arrival (Battlegrounds.WinnersArrival). Nobody walks into it; the row is disabled.
+        /// </summary>
+        TeamWinners = 5
     }
 }

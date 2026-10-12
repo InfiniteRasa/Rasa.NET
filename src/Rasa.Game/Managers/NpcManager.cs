@@ -167,8 +167,17 @@ namespace Rasa.Managers
                 Missions.ObjectConversations.Open(client, entityId);
                 return;
             }
-            if (!Missions.TryOpenNpcConversation(client, entityId, out var creature, out var conversation))
+            if (!Missions.TryOpenNpcConversation(client, entityId, out var creature, out var conversation, out var outOfReach))
+            {
+                // The client's own check is 5 m body to body and tells the player when it fails;
+                // a request it let through that the server's wider gate still refuses used to
+                // fall silent. The same message the client would have given.
+                if (outOfReach)
+                    client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmTargetOutOfRange,
+                        new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+
                 return;
+            }
 
             var convoDataDict = conversation.CreateConversationData();
 
@@ -674,7 +683,9 @@ namespace Rasa.Managers
             // its sell price. Adding an item that was already there merged it with itself and
             // wrote the doubled stack to the row, then inserted a second inventory row for the
             // same item id; on the next login the player had two of it, both doubled.
-            if (NpcInReach(client, packet.VendorEntityId, IsVendorNpc, "a vendor") == null)
+            var vendorNpc = NpcInReach(client, packet.VendorEntityId, IsVendorNpc, "a vendor");
+
+            if (vendorNpc == null)
                 return;
 
             var buyback = client.Player.Inventory.BuybackItems;
@@ -692,6 +703,13 @@ namespace Rasa.Managers
             {
                 buyback.Remove(packet.ItemEntityId);
                 client.CallMethod(SysEntity.ClientInventoryManagerId, new RemoveBuybackItemPacket(packet.ItemEntityId));
+                return;
+            }
+
+            // Character Unique: sold, it was no longer held, and one may have come since.
+            if (!InventoryManager.Instance.MayReceive(client.Player, item.ItemTemplate))
+            {
+                InventoryManager.TellCharacterUnique(client);
                 return;
             }
 
@@ -732,6 +750,7 @@ namespace Rasa.Managers
                     Logger.WriteLog(LogType.Error,
                         $"Could not refund partial buyback purchase for character {client.Player.Id}.");
                 price = (long) unitPrice * placed;
+                quantity = placed;
             }
             else
             {
@@ -739,6 +758,9 @@ namespace Rasa.Managers
                 client.CallMethod(SysEntity.ClientInventoryManagerId, new RemoveBuybackItemPacket(packet.ItemEntityId));
             }
 
+            EconomyAudit.Instance.Record(Structures.Char.EconomyLogKind.VendorBuyback, vendorNpc.Npc?.Vendor?.VendorPackageId ?? 0,
+                EconomyAudit.ItemLine(client, placedItem ?? item, (int)quantity),
+                EconomyAudit.MoneyLine(client, CurencyType.Credits, -price));
         }
 
         public void RequestVendorPurchase(Client client, RequestVendorPurchasePacket packet)
@@ -771,10 +793,9 @@ namespace Rasa.Managers
 
             // Character Unique ("Item is unique per character"): one per character. A stack is
             // still one item, so a unique stackable can be bought as one stack of any size.
-            if (vendorItem.ItemTemplate.HasCharacterUniqueFlag &&
-                InventoryManager.Instance.HoldsTemplate(client.Player, vendorItem.ItemTemplate.ItemTemplateId))
+            if (!InventoryManager.Instance.MayReceive(client.Player, vendorItem.ItemTemplate))
             {
-                client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmItemCharacterUnique, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+                InventoryManager.TellCharacterUnique(client);
                 return;
             }
 
@@ -804,13 +825,17 @@ namespace Rasa.Managers
             // purchase the player cannot afford never reaches it.
             var total = (long) unitPrice * packet.Quantity;
 
-            if (client.Player.Credits[CurencyType.Credits] < total)
+            // Paid in what the counter is priced in, as the client's window shows it: prestige at
+            // a prestige vendor, credits anywhere else (VendorPackages).
+            var currency = VendorPackages.CurrencyOf(vendor.VendorPackageId);
+
+            if (!client.Player.Credits.TryGetValue(currency, out var funds) || funds < total)
             {
                 client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmInsufficientFunds, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
                 return;
             }
 
-            if (!_currencyManager.LossCredits(client, (int)total))
+            if (!_currencyManager.LossCurrency(client, currency, (int)total))
                 return;
 
             // A fresh item with its own row in the items table, holding the whole quantity.
@@ -818,7 +843,7 @@ namespace Rasa.Managers
 
             if (boughtItem == null)
             {
-                if (!_currencyManager.GainCredits(client, (int)total))
+                if (!_currencyManager.RefundCurrency(client, currency, (int)total))
                     Logger.WriteLog(LogType.Error,
                         $"Could not refund failed vendor purchase for character {client.Player.Id}.");
                 return;
@@ -848,7 +873,7 @@ namespace Rasa.Managers
 
                 if (placed == 0)
                 {
-                    if (!_currencyManager.GainCredits(client, (int)total))
+                    if (!_currencyManager.RefundCurrency(client, currency, (int)total))
                         Logger.WriteLog(LogType.Error,
                             $"Could not refund failed vendor purchase for character {client.Player.Id}.");
                     client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmInventoryFull, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
@@ -860,7 +885,7 @@ namespace Rasa.Managers
                 total = (long) unitPrice * quantity;
                 var refund = charged - total;
                 if (refund > 0 &&
-                    !_currencyManager.GainCredits(client, (int)refund))
+                    !_currencyManager.RefundCurrency(client, currency, (int)refund))
                     Logger.WriteLog(LogType.Error,
                         $"Could not refund partial vendor purchase for character {client.Player.Id}.");
             }
@@ -872,6 +897,11 @@ namespace Rasa.Managers
             // name where the class has one, the number where it has not.
             client.CallMethod(SysEntity.ClientMethodId, new GotLootPacket(packet.VendorEntityId,
                 (uint)vendorItem.ItemTemplate.Class, quantity, placedItem?.EntityId ?? 0));
+
+            // The stack it went into when it was merged whole; the bought row otherwise.
+            EconomyAudit.Instance.Record(Structures.Char.EconomyLogKind.VendorBuy, vendor.VendorPackageId,
+                EconomyAudit.ItemLine(client, placedItem ?? boughtItem, (int)quantity),
+                EconomyAudit.MoneyLine(client, currency, -total));
         }
 
         /// <summary>
@@ -1004,6 +1034,17 @@ namespace Rasa.Managers
             // Mended, a broken item's modules count again (ItemModuleBonuses).
             client.Player.ModulesChanged = true;
 
+            // The sum's row names the item it mended.
+            var paid = EconomyAudit.MoneyLine(client, CurencyType.Credits, -cost);
+
+            if (paid != null)
+            {
+                paid.ItemId = item.Id;
+                paid.ItemTemplateId = item.ItemTemplate.ItemTemplateId;
+            }
+
+            EconomyAudit.Instance.Record(Structures.Char.EconomyLogKind.VendorRepair, 0, paid);
+
             // Worn armour that is being worn gave less to the armour bar than it will now.
             if (client.Player.Inventory.EquippedInventory.Contains(itemEntityId)
                 && EntityClassManager.Instance.GetClassInfo(item.ItemTemplate.Class)?.ArmorClassInfo != null)
@@ -1019,7 +1060,9 @@ namespace Rasa.Managers
             if (packet.Quantity <= 0)
                 return;
 
-            if (NpcInReach(client, packet.VendorEntityId, IsVendorNpc, "a vendor") == null)
+            var vendorNpc = NpcInReach(client, packet.VendorEntityId, IsVendorNpc, "a vendor");
+
+            if (vendorNpc == null)
                 return;
 
             // Sold already, or also held somewhere a sale does not clear. An item is in one list
@@ -1082,6 +1125,9 @@ namespace Rasa.Managers
                 !_currencyManager.GainCredits(client, (int)sellPrice))
                 return;
 
+            // What left the pack: the item it was in, even when part of a stack is split off below.
+            var soldFrom = soldItem;
+
             if (quantity < soldItem.StackSize)
             {
                 // Selling part of a stack. The whole stack used to go, for the price of the part:
@@ -1121,6 +1167,10 @@ namespace Rasa.Managers
 
             buyback.Add(soldItem.EntityId);
             client.CallMethod(SysEntity.ClientInventoryManagerId, new AddBuybackItemPacket(soldItem.EntityId, (int) sellPrice, buyback.Count));
+
+            EconomyAudit.Instance.Record(Structures.Char.EconomyLogKind.VendorSell, vendorNpc.Npc?.Vendor?.VendorPackageId ?? 0,
+                EconomyAudit.ItemLine(client, soldFrom, -(int)quantity),
+                EconomyAudit.MoneyLine(client, CurencyType.Credits, sellPrice));
         }
 
         /// <summary>What an item on the buyback list costs to buy back: what it sold for, its unit sell price times the stack.</summary>

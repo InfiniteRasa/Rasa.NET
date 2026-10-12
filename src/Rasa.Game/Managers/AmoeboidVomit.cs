@@ -229,11 +229,7 @@ namespace Rasa.Managers
                 ExpiresTick = Environment.TickCount64 + BirthMs(classId)
             });
 
-            CellManager.Instance.CellCallMethod(mapChannel, child,
-                new PerformWindupPacket(PerformType.TwoArgs, BirthAction, classId));
-
-            CellManager.Instance.CellCallMethod(mapChannel, child,
-                new AbilityRecoveryPacket(BirthAction, classId, AbilityRecoveryPacket.HitDataKind.None));
+            CreatureSummons.PlayBirth(mapChannel, child, classId);
 
             return child;
         }

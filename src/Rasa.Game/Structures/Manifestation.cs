@@ -6,6 +6,7 @@ namespace Rasa.Structures
 {
     using Char;
     using Data;
+    using Managers;
     using Repositories.Char.Character;
 
     public class Manifestation : Actor, ICharacterChange
@@ -34,7 +35,6 @@ namespace Rasa.Structures
         public uint TotalTimePlayed { get; set; }
         public DateTime? TimeSinceLastPlayed { get; set; }
         public uint ClanId { get; set; }
-        public string ClanName { get; set; }
         public int LockboxCredits { get; set; }
         public int LockboxTabs { get; set; }
         public Dictionary<CurencyType, int> Credits = new();
@@ -126,6 +126,9 @@ namespace Rasa.Structures
         /// <summary>The same for the weapon checks (Managers.WeaponChecks).</summary>
         public long WeaponCheckLogTick { get; set; }
         public int WeaponCheckHits { get; set; }
+
+        /// <summary>When this player was last told a shot's target was out of range (WeaponChecks.Tell).</summary>
+        public long WeaponRangeToldTick { get; set; }
 
         /// <summary>
         /// The clients that hold this player's entity from beyond their cells: squad and team
@@ -229,8 +232,25 @@ namespace Rasa.Structures
             }
         }
         public bool Disconected { get; set; }
-        /// <summary>Set by RequestLogout, cleared by CancelLogoutRequest.</summary>
+        /// <summary>
+        /// A logout was asked for (MapChannelManager.RequestLogout) and has not been cancelled
+        /// (CancelLogoutRequest), nor overtaken by a death or by leaving the map. What
+        /// CharacterLogout needs to find.
+        /// </summary>
         public bool LogoutActive { get; set; }
+
+        /// <summary>
+        /// Whether the logout asked for is still in its countdown
+        /// (MapChannelManager.LogoutDelayMs, and LogoutPendingGraceMs over): what travel, the
+        /// NPCs and a squad's instance refuse the player during. LogoutActive alone used to say
+        /// so, and only the window's Cancel button cleared it: a logout window closed another
+        /// way - a death, another centre dialog (logoutwindow.py Show hands Hide to the dialog
+        /// manager) - left the player refused all of those until a relog. The window is modal
+        /// while it is open, so once the countdown is over a request that reaches the server is
+        /// the player doing something else, with the window gone, and is not refused.
+        /// </summary>
+        public bool LogoutPending =>
+            LogoutActive && Environment.TickCount64 - LogoutRequestedTick <= MapChannelManager.LogoutDelayMs + MapChannelManager.LogoutPendingGraceMs;
 
         /// <summary>
         /// Whether this player is in a fight, as the server counts it: they have dealt or taken
@@ -262,6 +282,9 @@ namespace Rasa.Structures
 
         /// <summary>Environment.TickCount64 at which combat lapses, refreshed by every hit.</summary>
         public long CombatExpiresAt { get; set; }
+
+        /// <summary>The pain and critical-hit lines pending and when the next may be said (Managers.PlayerVoices).</summary>
+        public Managers.PlayerVoiceState Voice { get; } = new Managers.PlayerVoiceState();
 
         /// <summary>
         /// What the character left the world with last time - health, armour, power, Rez Trauma -

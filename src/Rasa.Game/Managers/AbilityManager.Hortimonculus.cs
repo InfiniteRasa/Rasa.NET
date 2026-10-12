@@ -54,8 +54,19 @@ namespace Rasa.Managers
     /// - at no health, or when its owner leaves the map, it dies (DESTROYED) and is taken away
     ///   PlantRemoveMs later.
     ///
-    /// Not done: the plant being attacked. Creatures only fight actors, and there is no PvP, so
-    /// nothing the server runs targets it.
+    /// Attacked (DestroyableStatelessSwitch: "a Usable that does nothing, but which can be
+    /// destroyed"; to anyone but its owner and their squad it is of the owner's category, and
+    /// it is damageable): every client is told canBeDamaged, so an enemy can target it.
+    /// - a player who is an enemy of its owner's across a wargame (Pvp), or a creature of such a
+    ///   player's, may hit it: a weapon's shot or swing (MissileManager) and a constant-fire
+    ///   weapon's pulse (ConstantFire) land on its hit points as they are, as on a Personal
+    ///   Waypoint's, and the attacker's PvP Safety comes off;
+    /// - a creature fights it by its hate table (Threat): the plant's healing - its ticks and a
+    ///   direct use - draws the hate of the creatures that hate whoever it healed to the plant,
+    ///   not to its owner, and a creature that hates the plant most fights it, walking up to it
+    ///   as to a Personal Waypoint. Any combatant creature that could fight its owner may; none
+    ///   goes looking for it unprovoked (no aggro scan finds it);
+    /// - at no hit points it dies as it does when it has decayed to none.
     /// </summary>
     public partial class AbilityManager
     {
@@ -409,7 +420,9 @@ namespace Rasa.Managers
                     tick.BuffIds.Add(member.EntityId);
                 }
 
-                var healed = ActorManager.Instance.Heal(member, plant.HealAmount, plant.Owner.EntityId);
+                // Credited to its owner, whose side of a fight decides who it may heal (Pvp); the
+                // hate it draws goes to the plant (Threat.FromHealing).
+                var healed = ActorManager.Instance.Heal(member, plant.HealAmount, plant.Owner.EntityId, plant.Object.EntityId);
 
                 if (healed > 0)
                     tick.Entries.Add(new TickEntry { EntityId = member.EntityId, Amount = healed });
@@ -420,6 +433,97 @@ namespace Rasa.Managers
             // It decays whether or not anyone needed it.
             Damage(plant, plant.HealAmount, now);
         }
+
+        #region Attacked
+
+        /// <summary>
+        /// Whether this actor may harm the plant: a player who is an enemy of its owner's across a
+        /// wargame, a creature of such a player's, and a free creature that could fight its owner
+        /// - which a creature only gets round to when the plant is on its hate table (Threat).
+        /// A dying plant is harmed by nobody.
+        /// </summary>
+        private static bool MayHarmPlant(Actor attacker, Plant plant)
+        {
+            if (attacker == null || plant == null || plant.RemoveAt != 0 || plant.Health <= 0
+                || !MapInstanceScope.Contains(plant.MapChannel, attacker))
+                return false;
+
+            return attacker switch
+            {
+                Manifestation player => Pvp.AreEnemies(player, plant.Owner),
+                Creature creature when creature.MasterEntityId != 0 => Pvp.AreEnemies(Pvp.Controller(creature), plant.Owner),
+                Creature creature => TargetCategories.MayFightPlayer(creature.TargetCategory, plant.Owner.CombatCategory),
+                _ => false
+            };
+        }
+
+        /// <summary>Whether the entity is a Hortimonculus this actor may attack: a shot at it is let go (MissileManager.MissileLaunch).</summary>
+        public static bool PlantMayBeAttackedBy(Actor attacker, ulong entityId) => MayHarmPlant(attacker, PlantOf(entityId));
+
+        /// <summary>Whether the entity is a Hortimonculus this creature may fight and keep at (BehaviorManager.MayFight, Threat.CanFight).</summary>
+        public static bool PlantMayBeFoughtBy(Creature creature, ulong entityId) => PlantMayBeAttackedBy(creature, entityId);
+
+        /// <summary>Where a Hortimonculus stands, alive or dying: what a creature fighting it walks up to. False for anything else.</summary>
+        public static bool TryGetPlantPosition(ulong entityId, out Vector3 position)
+        {
+            var plant = PlantOf(entityId);
+
+            position = plant?.Object.Position ?? default;
+
+            return plant != null;
+        }
+
+        /// <summary>Its hit points now; 0 for anything that is not a Hortimonculus.</summary>
+        public static int PlantHealthOf(ulong entityId) => PlantOf(entityId)?.Health ?? 0;
+
+        /// <summary>
+        /// A missile at an object landing (MissileManager.MissileTrigger). False when the object
+        /// is no Hortimonculus. Its damage goes on the plant's hit points as it is, and what it
+        /// took is what the hit shows.
+        /// </summary>
+        internal static bool PlantTakeHit(Missile missile)
+        {
+            var plant = PlantOf(missile.TargetEntityId);
+
+            if (plant == null)
+                return false;
+
+            missile.DamageA = MayHarmPlant(missile.Source, plant) ? Struck(plant, missile.DamageA, missile.Source) : 0;
+
+            return true;
+        }
+
+        /// <summary>
+        /// A hit that is no missile - a constant-fire weapon's pulse (ConstantFire). What the
+        /// plant took, or null when the entity is not a Hortimonculus the attacker may harm.
+        /// </summary>
+        public static int? PlantTakeDamage(Actor attacker, ulong entityId, int amount)
+        {
+            var plant = PlantOf(entityId);
+
+            if (plant == null || !MayHarmPlant(attacker, plant))
+                return null;
+
+            return Struck(plant, amount, attacker);
+        }
+
+        private static int Struck(Plant plant, int amount, Actor attacker)
+        {
+            var taken = Math.Min(Math.Max(0, amount), plant.Health);
+
+            if (taken <= 0)
+                return 0;
+
+            // An attack on an enemy's is an attack on an enemy: the attacker's PvP Safety comes off (Pvp.Attack).
+            if (Pvp.Controller(attacker) is Manifestation player)
+                Pvp.EndSafety(plant.MapChannel, player);
+
+            Damage(plant, taken, Environment.TickCount64);
+
+            return taken;
+        }
+
+        #endregion
 
         /// <summary>Takes health off the plant, and kills it at none.</summary>
         private static void Damage(Plant plant, int amount, long now)
@@ -543,8 +647,9 @@ namespace Rasa.Managers
                     ticksLeft--;
                     remaining -= amount;
 
-                    // Named as healing itself: the plant is no actor to credit it to.
-                    var healed = ActorManager.Instance.Heal(holder, amount, holder.EntityId);
+                    // Named as healing itself: the plant is no actor to credit it to. The hate it
+                    // draws goes to the plant, as its ticks' does.
+                    var healed = ActorManager.Instance.Heal(holder, amount, holder.EntityId, plant.Object.EntityId);
                     var tick = new GameEffectTickPacket(effect.EffectId, GameEffectTickPacket.TickKind.Heal);
 
                     if (healed > 0)

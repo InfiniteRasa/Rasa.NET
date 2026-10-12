@@ -149,8 +149,11 @@ namespace Rasa.Test.World
                 if (logout)
                 {
                     client.State = ClientState.LoggedIn;
+                    client.FeudChallengesShown.Add(7);
                     maps.RemovePlayer(client, true);
                     Assert.AreEqual(ClientState.CharacterSelection, client.State);
+                    // BR-227: the client clears its challenge indicators with the world.
+                    Assert.AreEqual(0, client.FeudChallengesShown.Count);
                 }
                 else
                 {

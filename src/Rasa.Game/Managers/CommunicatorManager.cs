@@ -590,7 +590,10 @@ namespace Rasa.Managers
                 {
                     CharacterName = match.Player.Name,
                     FamilyName = match.Player.FamilyName,
-                    ClanName = match.Player.ClanName,
+                    // By the clan they are in now. Manifestation.ClanName was read here, which
+                    // was set at login and never after, so a character who joined, left or was
+                    // kicked from a clan since logging in was listed with the clan they had then.
+                    ClanName = ClanManager.Instance.ClanNameOf(match.Player.ClanId),
                     // The client omits the title when this is None, and titledata has no
                     // entry for 0, which is what an untitled character carries.
                     TitleId = match.Player.CurrentTitle == 0 ? null : match.Player.CurrentTitle,
@@ -1050,6 +1053,9 @@ namespace Rasa.Managers
         public void PlayTutorialAudio(Client client, uint? audioSetId)
         {
             client.CallMethod(SysEntity.ClientMethodId, new PlayTutorialAudioPacket(audioSetId));
+
+            // The player's own pain lines go out the same way and would cut it short (PlayerVoices).
+            PlayerVoices.VoiceOverSent(client.Player, audioSetId == null);
         }
 
         /// <summary>Stops the tutorial voice-over this player is hearing, if any.</summary>

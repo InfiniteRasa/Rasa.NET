@@ -32,8 +32,13 @@ namespace Rasa.Managers
     /// bolt as the client has it. A stun in the data (STUN_CHANCE / STUN_DURATION) lands through
     /// PlayerCrowdControl as any creature attack's does.
     ///
-    /// Not done: the storm (EFFECT_DURATION_MS, EFFECT_DAMAGE_MIN..MAX), which only
-    /// CR_BRANN_LIGHTNING's _BOSS_OPERATION argument carries, and no Brann spawns.
+    /// The storm, as a player's P5 bolt leaves one: an argument with EFFECT_DURATION_MS and
+    /// EFFECT_DAMAGE_MAX puts LIGHTNINGSTORM_EFFECT on the target for that long, ticking every
+    /// EFFECT_INTERVAL_MS (2 s when not given) for EFFECT_DAMAGE_MIN..MAX - by the same row factor
+    /// as the arc - on the target and on whatever else the creature may fight within
+    /// AbilityManager.LightningStormRadius of it, the player storm's radius, which is not in the
+    /// client either. Only CR_BRANN_LIGHTNING's argument 5 (_BOSS_OPERATION: 6 s, every 2 s, 60-90)
+    /// has a storm, and no creature_action row uses it yet: nothing spawns with it.
     /// </summary>
     public static class CreatureLightning
     {
@@ -99,6 +104,9 @@ namespace Rasa.Managers
 
                 if (extra > 0)
                     hit.Arcs.Add(Deal(mapChannel, attacker, target, extra, extraType));
+
+                if (Alive(target) && info.Has(AbilityProperty.EffectDurationMs) && info.Get(AbilityProperty.EffectDamageMax) > 0)
+                    AttachStorm(mapChannel, attacker, missile.CreatureAction, info, target);
             }
 
             var arcDamage = (int)Math.Round(info.Get(AbilityProperty.ArcDamage) * RowScale(missile.CreatureAction, info));
@@ -111,6 +119,79 @@ namespace Rasa.Managers
 
             foreach (var other in ArcTo(mapChannel, attacker, target, info.Get(AbilityProperty.ArcRadius)))
                 hit.Arcs.Add(Deal(mapChannel, attacker, other, arcDamage, DamageType.Electrical));
+        }
+
+        /// <summary>The storm's damage per tick: EFFECT_DAMAGE_MIN..MAX by the row's factor (RowScale).</summary>
+        public static (int Min, int Max) StormDamageOf(CreatureAction row, ActionLevelInfo info)
+        {
+            var scale = RowScale(row, info);
+            var min = (int)Math.Round(info.Get(AbilityProperty.EffectDamageMin) * scale);
+            var max = (int)Math.Round(Math.Max(info.Get(AbilityProperty.EffectDamageMin), info.Get(AbilityProperty.EffectDamageMax)) * scale);
+
+            return (Math.Max(0, min), Math.Max(min, max));
+        }
+
+        /// <summary>Puts the storm on the target, as AbilityManager.AttachLightningStorm does for a player's.</summary>
+        public static GameEffect AttachStorm(MapChannel mapChannel, Creature attacker, CreatureAction row, ActionLevelInfo info, Actor target)
+        {
+            var intervalMs = Math.Max(500, info.Get(AbilityProperty.EffectIntervalMs, 2000));
+            var (min, max) = StormDamageOf(row, info);
+            var now = Environment.TickCount64;
+
+            if (max <= 0)
+                return null;
+
+            var storm = new GameEffect
+            {
+                TypeId = AbilityManager.LightningStormTypeId,
+                EffectId = GameEffectManager.Instance.NextEffectId(mapChannel),
+                EffectLevel = info.Level,
+                ActionId = info.ActionId,
+                SourceId = attacker.EntityId,
+                Source = attacker,
+                SourceLevel = (int)attacker.Level,
+                IsBuff = false,
+                AnnounceOnAttach = true,
+                ExpiresTick = now + info.Get(AbilityProperty.EffectDurationMs),
+                TickDamageType = (DamageType)info.Get(AbilityProperty.DamageType, (int)DamageType.Electrical),
+                TickScaleType = 0,          // the row's numbers are already the creature's
+                TickIntervalMs = intervalMs,
+                NextTickTick = now + intervalMs
+            };
+
+            storm.OnTick = (m, holder, effect) => StormTick(m, holder, effect, min, max);
+
+            GameEffectManager.Instance.Attach(mapChannel, target, storm);
+
+            return storm;
+        }
+
+        /// <summary>One tick of a creature's storm: its holder, then everything else the creature may fight around it, each its own roll.</summary>
+        public static void StormTick(MapChannel mapChannel, Actor holder, GameEffect storm, int min, int max)
+        {
+            if (holder == null)
+                return;
+
+            // The storm is the creature's: gone with it, as a player's is when they leave the map.
+            if (!(storm.Source is Creature attacker) || attacker.State == CharacterState.Dead || attacker.MapContextId != mapChannel.MapInfo.MapContextId
+                || !EntityManager.Instance.Creatures.ContainsKey(attacker.EntityId) || !Alive(holder))
+            {
+                GameEffectManager.Instance.DettachEffect(mapChannel, holder, storm);
+                return;
+            }
+
+            int Roll() => Random.Shared.Next(min, max + 1);
+
+            // Around the holder first, while it is still there to be the centre.
+            var others = CreatureAreaAttacks.FoesAround(mapChannel, attacker, holder.Position, AbilityManager.LightningStormRadius, holder);
+            var tick = new GameEffectTickPacket(storm.EffectId, GameEffectTickPacket.TickKind.Storm);
+
+            tick.Entries.Add(Deal(mapChannel, attacker, holder, Roll(), storm.TickDamageType));
+
+            foreach (var other in others)
+                tick.ArcEntries.Add(Deal(mapChannel, attacker, other, Roll(), storm.TickDamageType));
+
+            CellManager.Instance.CellCallMethod(mapChannel, holder, tick);
         }
 
         /// <summary>Up to ArcTargets players other than the target within radius of it that the creature may fight, nearest first.</summary>

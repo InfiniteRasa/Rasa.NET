@@ -476,7 +476,7 @@ namespace Rasa.Test.Missions
                 .Distinct();
 
         /// <summary>Loads the item template's class the way the harness loads the Bootcamp loot (LoadBootcampLootContent).</summary>
-        private static void LoadTemplate(BootcampRuntimeTestHarness.Harness harness, uint template)
+        internal static void LoadTemplate(BootcampRuntimeTestHarness.Harness harness, uint template)
         {
             var world = harness.WorldContext;
             var link = world.Set<ItemTemplateItemClassEntry>().AsNoTracking().Single(row => row.ItemTemplateId == template);

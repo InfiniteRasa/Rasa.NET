@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Hosting;
 
 namespace Rasa
 {
@@ -16,7 +17,7 @@ namespace Rasa
 
         private readonly IRasaServer _server;
 
-        public GameHost(IRasaServer server) : base(server)
+        public GameHost(IRasaServer server, IHostApplicationLifetime lifetime) : base(server, lifetime)
         {
             _server = server;
         }

@@ -266,8 +266,21 @@ namespace Rasa.Managers
             // What the hit puts on the creature is announced by the hit, when the shot is seen
             // to land: attached quietly and named in this creature's entry of the recovery
             // (HitEffects). With no entry to name them in they announce themselves, as before.
-            using (HitEffects.On(creature, missile.Source, HitOf(missile, creature)?.TargetEffectIds))
+            using (HitEffects.On(creature, missile.Source, HitOf(missile, creature)?.TargetEffectIds, StrikeMsOf(missile, creature)))
                 return ApplyHitEffects(mapChannel, creature, missile);
+        }
+
+        /// <summary>
+        /// How long, at most, after the recovery arrives the client plays the hit on this actor:
+        /// the shot's flight to it from where the shooter stands (ShotFlight). 0 for a swing or
+        /// a creature's attack, which the server does not time.
+        /// </summary>
+        private static int StrikeMsOf(Missile missile, Actor struck)
+        {
+            if (missile?.FlightVelocity is not int velocity || missile.Source == null || struck == null)
+                return 0;
+
+            return ShotFlight.Ms(Vector3.Distance(missile.Source.Position, struck.Position), velocity);
         }
 
         /// <summary>The missile's entry for a hit on this actor in the recovery it will be sent in, or null.</summary>
@@ -493,6 +506,10 @@ namespace Rasa.Managers
             // Reflective Armor and the Guardian's Reflection send some of it back (Reflection).
             Reflection.Reflect(mapChannel, actor, missile.Source, missile.DamageA, missile.DamageType);
 
+            // What the player says of it, at the end of the tick (PlayerVoices).
+            if (!defeated && actor is Manifestation pained)
+                PlayerVoices.Hurt(pained, armorDecrease + healthDecrease, missile.IsCritical);
+
             // Self Destruct goes off on the next damage its holder takes, and Conversion turns
             // what landed into healing for the squad.
             if (actor is Manifestation victim && armorDecrease + healthDecrease > 0)
@@ -521,8 +538,10 @@ namespace Rasa.Managers
             {
                 var damageType = missile.DamageType == 0 ? DamageType.Physical : missile.DamageType;
 
+                // Its side effect is announced by the hit, as on a creature (HitEffects).
                 if (missile.IsCritical)
-                    CritEffects.OnCritical(mapChannel, enemy, missile.Source, damageType, missile.DamageA);
+                    using (HitEffects.On(enemy, missile.Source, HitOf(missile, enemy)?.TargetEffectIds, StrikeMsOf(missile, enemy)))
+                        CritEffects.OnCritical(mapChannel, enemy, missile.Source, damageType, missile.DamageA);
 
                 WeaponBonus(mapChannel, enemy, missile);
 
@@ -757,6 +776,10 @@ namespace Rasa.Managers
                 // target on entity
                 var targetType = EntityManager.Instance.GetEntityType(action.TargetId);
 
+                // A destructible prop of the .map is in no registry (WorldDestructibles): an object.
+                if (targetType == 0 && WorldDestructibles.TryGetTarget(mapChannel, action.TargetId, out _))
+                    targetType = EntityType.Object;
+
                 if (targetType == 0)
                 {
                     Logger.WriteLog(LogType.Error, $"The missile target doesnt exist: {action.TargetId}");
@@ -794,6 +817,21 @@ namespace Rasa.Managers
 
                     missile.TargetEntityId = action.TargetId;
                     triggerTime = LandsIn(waypointDistance);
+                }
+                else if (targetType == EntityType.Object && AbilityManager.TryGetPlantPosition(action.TargetId, out var plantPosition))
+                {
+                    // A Hortimonculus (AbilityManager): only for an enemy of its owner's or a
+                    // creature fighting it, and the missile lands on its own hit points.
+                    if (!AbilityManager.PlantMayBeAttackedBy(action.Actor, action.TargetId))
+                        return;
+
+                    var plantDistance = Vector3.Distance(plantPosition, action.Actor.Position);
+
+                    if (!float.IsFinite(plantDistance) || plantDistance > MaxTargetDistance)
+                        return;
+
+                    missile.TargetEntityId = action.TargetId;
+                    triggerTime = LandsIn(plantDistance);
                 }
                 else if (targetType == EntityType.Object)
                 {
@@ -876,6 +914,7 @@ namespace Rasa.Managers
             missile.TriggerTime = landsInMs ?? triggerTime;
             missile.AfterWindup = landsInMs.HasValue;
             missile.HeldForFlight = !landsInMs.HasValue && flightVelocity.HasValue && !melee && triggerTime > 0;
+            missile.FlightVelocity = melee ? null : flightVelocity;
 
             // Wound up where its target stands now: a cone points there, a ring around a target
             // lands there, whoever is there when it goes off (CreatureWindups).
@@ -974,18 +1013,28 @@ namespace Rasa.Managers
         /// <summary>
         /// A launcher's splash (Splash): every other hostile creature within the missile's
         /// SplashRadius of where it landed takes SplashDamage as a hit of its own, and is added
-        /// to the missile's hits so the one recovery shows them all.
+        /// to the missile's hits so the one recovery shows them all. A creature's splashes
+        /// whatever it may fight there, players and creatures (CreatureAreaAttacks.FoesAround).
         /// </summary>
         private void SplashAround(MapChannel mapChannel, Missile missile)
         {
-            if (missile.SplashRadius <= 0 || missile.SplashDamage <= 0 || !(missile.Source is Manifestation shooter)
+            if (missile.SplashRadius <= 0 || missile.SplashDamage <= 0 || !(missile.Source is Actor shooter)
                 || missile.TargetActor == null || !IsOnMap(mapChannel, missile.TargetActor))
                 return;
 
-            // The round flew as far as its target, and the splash is as weak as the round (RangeFalloff).
-            var damage = RangeFalloff.Scale(missile.SplashDamage, missile.OptimalRange, shooter.Position, missile.TargetActor.Position);
+            var centre = missile.TargetActor.Position;
+            var victims = shooter switch
+            {
+                Manifestation player => AbilityManager.VictimsWithin(mapChannel, player, centre, missile.SplashRadius),
+                Creature creature when creature.State != CharacterState.Dead && IsOnMap(mapChannel, creature)
+                    => CreatureAreaAttacks.FoesAround(mapChannel, creature, centre, missile.SplashRadius, missile.TargetActor),
+                _ => new List<Actor>()
+            };
 
-            foreach (var victim in AbilityManager.VictimsWithin(mapChannel, shooter, missile.TargetActor.Position, missile.SplashRadius))
+            // The round flew as far as its target, and the splash is as weak as the round (RangeFalloff).
+            var damage = RangeFalloff.Scale(missile.SplashDamage, missile.OptimalRange, shooter.Position, centre);
+
+            foreach (var victim in victims)
                 if (victim != missile.TargetActor)
                     ExtraHit(mapChannel, missile, shooter, victim, damage, false);
         }
@@ -1012,7 +1061,7 @@ namespace Rasa.Managers
         /// resolved as a missile of its own (resistance, armour, threat, what the hit carries) and
         /// added to the missile's hits.
         /// </summary>
-        private void ExtraHit(MapChannel mapChannel, Missile missile, Manifestation shooter, Actor creature, int damage, bool canCrit)
+        private void ExtraHit(MapChannel mapChannel, Missile missile, Actor shooter, Actor creature, int damage, bool canCrit)
         {
             if (creature.State == CharacterState.Dead || creature.State == CharacterState.Dying || damage <= 0 ||
                 !creature.Attributes.TryGetValue(Attributes.Health, out var health) || health.Current <= 0)
@@ -1033,7 +1082,8 @@ namespace Rasa.Managers
                 StunMs = missile.StunMs,
                 RootMs = canCrit ? missile.RootMs : 0,
                 KnockbackChance = canCrit ? missile.KnockbackChance : 0,
-                KnockbackStunMs = missile.KnockbackStunMs
+                KnockbackStunMs = missile.KnockbackStunMs,
+                CreatureAction = missile.CreatureAction
             };
 
             if (canCrit)
@@ -1150,6 +1200,10 @@ namespace Rasa.Managers
         public void MissileTrigger(MapChannel mapChannel, Missile missile)
         {
             var targetType = EntityManager.Instance.GetEntityType(missile.TargetEntityId);
+
+            // A destructible prop of the .map (WorldDestructibles) is an object, as it was at the launch.
+            if (targetType == 0 && WorldDestructibles.IsOne(missile.TargetObject))
+                targetType = EntityType.Object;
 
             // Checked again here: the missile was queued a tick ago, and the target can have
             // left the map (or the world) since.
@@ -1302,8 +1356,8 @@ namespace Rasa.Managers
                     EnterCombat(missile.Source);
                     break;
                 case EntityType.Object:
-                    // A Personal Waypoint, or else a force field.
-                    if (!PersonalWaypoints.TakeHit(missile))
+                    // A Personal Waypoint, a Hortimonculus, or else a force field.
+                    if (!PersonalWaypoints.TakeHit(missile) && !AbilityManager.PlantTakeHit(missile))
                         ForceFields.TakeHit(missile);
 
                     break;

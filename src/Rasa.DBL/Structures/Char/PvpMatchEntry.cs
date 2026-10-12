@@ -80,7 +80,7 @@ namespace Rasa.Structures.Char
         [Required]
         public byte WinnerSide { get; set; }
 
-        /// <summary>How it came to end: time, kills, points, surrender, forfeit, disbanded, gm, cancelled.</summary>
+        /// <summary>How it came to end: time, kills, points, distance, surrender, forfeit, disbanded, gm, cancelled.</summary>
         [Column("reason", TypeName = "varchar(32)")]
         [Required]
         public string Reason { get; set; } = "";

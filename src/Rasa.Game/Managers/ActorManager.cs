@@ -208,7 +208,7 @@ namespace Rasa.Managers
         /// healer's entity id when a visible actor's ability did it, and leave it 0 for
         /// regeneration, a command, or anything else with no actor behind it.
         /// </param>
-        public int Heal(Actor target, int amount, ulong sourceEntityId = 0)
+        public int Heal(Actor target, int amount, ulong sourceEntityId = 0, ulong hateEntityId = 0)
         {
             if (target == null || amount <= 0)
                 return 0;
@@ -257,8 +257,11 @@ namespace Rasa.Managers
                 _ => target.RuntimeMapChannel
             };
 
-            // Healing someone creatures hate draws their hate to the healer.
-            if (sourceEntityId != 0 && sourceEntityId != target.EntityId && target is Manifestation)
+            // Healing someone creatures hate draws their hate to the healer - or to what did the
+            // healing for them, when that is no actor (a Hortimonculus: hateEntityId).
+            if (hateEntityId != 0 && target is Manifestation)
+                Threat.FromHealing(mapChannel, hateEntityId, EntityManager.Instance.GetActor(sourceEntityId), target, applied);
+            else if (sourceEntityId != 0 && sourceEntityId != target.EntityId && target is Manifestation)
                 Threat.FromHealing(mapChannel, EntityManager.Instance.GetActor(sourceEntityId), target, applied);
 
             // No map means nobody can see them, which is not a reason to refuse the heal - the
@@ -331,6 +334,18 @@ namespace Rasa.Managers
 
             if (!target.Attributes.TryGetValue(Attributes.Health, out var health) || health.Current <= 0)
                 return 0;
+
+            // A player's damage, or their creature's, lands on another player only across a
+            // wargame they are on opposite sides of (Pvp.AreEnemies). What a duel, a feud or a
+            // battleground left behind used to go on landing after it ended - a damage-over-time
+            // effect ticking on, a turret on its old aim, a shot in flight - and could kill, with
+            // Rez Trauma and equipment wear as any death. It lands as Immune, as a hit PvP Safety
+            // stops.
+            if (Pvp.IsPvp(source, target) && !Pvp.AreEnemies(Pvp.Controller(source), (Manifestation)target))
+            {
+                outcome = new DamageOutcome { Immune = true };
+                return 0;
+            }
 
             // Immune: nothing taken, nothing started - a creature running home after a leash
             // (BehaviorManager.Leash) does not turn round for it. Nor a player's hit on a player
@@ -431,6 +446,10 @@ namespace Rasa.Managers
                 // Self Destruct goes off on the next damage its holder takes, and Conversion
                 // turns what landed into healing for the squad.
                 AbilityManager.OnPlayerDamaged(mapChannel, victim, armorTaken + healthTaken);
+
+                // A hit, not a tick, is cried at (PlayerVoices); one that brings them down is not.
+                if (!isPeriodic && health.Current > 0)
+                    PlayerVoices.Hurt(victim, armorTaken + healthTaken);
             }
 
             // A player at zero dies - or is defeated, or stands back up (PlayerDeath).
@@ -477,7 +496,7 @@ namespace Rasa.Managers
                     Regenerate(player, power, player.RegenSeconds);
             }
 
-            // Creatures' armour.
+            // Creatures' armour, and their health out of a fight (CreatureHealth).
             CreatureArmor.Regenerate(mapChannel);
         }
 

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -159,6 +159,10 @@ namespace Rasa.Managers
             victim.State = CharacterState.Dead;
             victim.DiedInPvp = pvp;
 
+            // A logout asked for is off: the death closes its window on the client, and nothing
+            // would clear it otherwise (Manifestation.LogoutPending).
+            victim.LogoutActive = false;
+
             // A creature that has killed its target says so (Battlecries).
             Battlecries.KilledTarget(mapChannel, source as Creature);
 
@@ -184,12 +188,10 @@ namespace Rasa.Managers
                 // Nothing goes on fighting a dead player.
                 Threat.Forget(mapChannel, victim);
 
-                // Their effects end with them; Rez Trauma is what stays, and a Hominis Machina's
-                // morph while its Self Revive is unspent - the button is in the morph's drawer.
+                // Their effects end with them, but for what a death keeps (KeptInDeath).
                 var keepMorph = AbilityManager.CanSelfRevive(victim);
 
-                foreach (var effect in victim.ActiveEffects.Values.Where(e => !e.IsSkillPassive && e.TypeId != RezSicknessTypeId && e.Parent == null
-                             && !(keepMorph && e.TypeId == AbilityManager.PolymorphTypeId)).ToList())
+                foreach (var effect in victim.ActiveEffects.Values.Where(e => !KeptInDeath(e, keepMorph)).ToList())
                     GameEffectManager.Instance.DettachEffect(mapChannel, victim, effect);
 
                 if (health != null)
@@ -205,6 +207,17 @@ namespace Rasa.Managers
 
             Logger.WriteLog(LogType.Debug, $"{victim.FamilyName} ({victim.Id}) died{(source != null ? $", killed by {source.EntityId}" : "")}.");
         }
+
+        /// <summary>
+        /// Whether an effect stays on a player through their death: Rez Trauma, the skill
+        /// passives, an aura's effect (its owner's aura takes it off), and a Hominis Machina's
+        /// morph while its Self Revive is unspent - the button is in the morph's drawer
+        /// (<paramref name="keepMorph"/>, AbilityManager.CanSelfRevive). The map's effect worker
+        /// holds a dead player to the same (GameEffectManager.DoWork).
+        /// </summary>
+        internal static bool KeptInDeath(GameEffect effect, bool keepMorph) =>
+            effect.IsSkillPassive || effect.TypeId == RezSicknessTypeId || effect.Parent != null
+            || (keepMorph && effect.TypeId == AbilityManager.PolymorphTypeId);
 
         /// <summary>
         /// What the hospital window is given: the hospitals the player may go back to
@@ -358,7 +371,18 @@ namespace Rasa.Managers
 
                 var movement = new Movement(at, client.Movement?.ViewDirection ?? new Vector2(0f, 0f));
                 client.CellMoveObject(client, new MoveObjectMessage(player.EntityId, movement), false);
+
+                // In the cells around where they stand now, as local travel does: the map links
+                // are looked for in those cells, and so is everyone who should see them get up.
+                CellManager.Instance.UpdateVisibility(client);
             }
+
+            // Standing in whatever map link they got up in, as one who has just arrived through
+            // it does: it does not fire until they walk out and back in. The link worker passes
+            // over the dead, so it had never seen them in it, and a revive inside one went
+            // through it on its next pass (BR-157: the Alia Das hospital, inside the AFS
+            // Arena's link; the Comm Tower Entrance hospital, inside the way out to Incline).
+            MapLinkManager.Instance.PlacedOnMap(client);
 
             // Actor.Recv_Revived: stood up, and the death, hospital and revive windows closed.
             CellManager.Instance.CellCallMethod(mapChannel, player, new RevivedPacket(reviver?.EntityId ?? player.EntityId));

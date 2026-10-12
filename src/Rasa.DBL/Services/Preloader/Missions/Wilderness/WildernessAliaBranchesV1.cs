@@ -14,11 +14,16 @@ namespace Rasa.Services.Preloader.Missions.Wilderness
     {
         private const uint BranchOutcomeFlag = 530002;
 
+        /// <summary>Supplies On The Double (428)'s crate: UsableTreasureDispHumCrateV05, by the Lower Eloh bridge.</summary>
+        public const uint SuppliesCrateClass = 26721;
+        public static readonly ScenePosition SuppliesCratePosition = new ScenePosition(456, 233.9f, 193);
+        public const double SuppliesCrateOrientation = 0;
+
         public static void Up(MigrationBuilder migration)
         {
             ConscientiousObjector(migration, MilpasEscort());
             ConscientiousReports(migration);
-            SuppliesOnTheDouble(migration, 26721, new ScenePosition(456, 233.9f, 193), 0);
+            SuppliesOnTheDouble(migration, SuppliesCrateClass, SuppliesCratePosition, SuppliesCrateOrientation);
             FathersGoodbye(migration);
             LurkingInTheShadows(migration, 76);
             MinerDifficulties(migration);
@@ -169,7 +174,12 @@ namespace Rasa.Services.Preloader.Missions.Wilderness
                 "Native1 retrieves supplies; optional3 exposes a breached seal and spoilage;2 delivers to Elise/package130. Template686/class7706 is the physical shipment.");
             mission.Evidence(2, MissionEvidenceSourceKind.Reconstruction, "repository:docs/wilderness-missions.md",
                 "Active native crate26721 shares mesh20300 with deleted duplicate7707; its dry-bank pose by the Lower Eloh bridge is reconstructed, not a recovered retail spawn. Native use recovers intact supplies; actual100-HP destruction breaches them for300 seconds. Base level5 tools replace unsupported modifiers; cipher97328 retains class25828 with functional weapon/ammo data.");
-            mission.Enable(new MissionSceneDefinition
+            mission.Enable(SuppliesScene(crateClassId, position, orientation));
+        }
+
+        /// <summary>Supplies On The Double (428)'s scene as the mission was first enabled with it (the crate in state 0).</summary>
+        public static MissionSceneDefinition SuppliesScene(uint crateClassId, ScenePosition position, double orientation) =>
+            new MissionSceneDefinition
             {
                 Script = "wilderness.supply-delivery",
                 Actors = new()
@@ -190,8 +200,7 @@ namespace Rasa.Services.Preloader.Missions.Wilderness
                     [2] = SupplyPickup(true),
                     [3] = new SceneSequenceDefinition()
                 }
-            });
-        }
+            };
 
         private static SceneSequenceDefinition SupplyPickup(bool damaged)
         {

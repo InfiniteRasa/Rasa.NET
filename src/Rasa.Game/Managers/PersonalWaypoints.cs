@@ -491,6 +491,29 @@ namespace Rasa.Managers
             }
         }
 
+        /// <summary>
+        /// Takes the player off every Personal Waypoint's list of open windows on the map, and
+        /// says whether any had them. The caller tells the client (DynamicObjectManager.CloseWaypointWindows).
+        /// </summary>
+        internal static bool CloseWindow(MapChannel mapChannel, Client client)
+        {
+            if (mapChannel == null || client == null || !Maps.TryGetValue(mapChannel, out var onMap))
+                return false;
+
+            List<Placed> all;
+
+            lock (onMap)
+                all = onMap.Waypoints.ToList();
+
+            var closed = false;
+
+            foreach (var placed in all)
+                lock (placed.WindowOpen)
+                    closed |= placed.WindowOpen.Remove(client);
+
+            return closed;
+        }
+
         private static void OpenWindow(Client client, Placed placed)
         {
             var mapChannel = client.Player.MapChannel;

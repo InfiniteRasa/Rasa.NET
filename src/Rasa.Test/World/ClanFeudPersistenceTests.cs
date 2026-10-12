@@ -254,9 +254,9 @@ namespace Rasa.Test.World
             var clans = new Clans(world);
             Restart(clans, tick: 1000).ChallengeClanToFeud(clans.Leader(GreenId), "Blue", true);
 
+            // A restart drops every connection: the leader comes back on a new one.
             var second = Restart(clans, tick: 1000);
-            var blueLead = clans.Leader(BlueId);
-            Drain(blueLead);
+            var blueLead = clans.Relog(world, BlueId);
 
             second.PlayerEnteredWorld(clans.Member(BlueId));
             Assert.AreEqual(0, Drain(clans.Member(BlueId)).OfType<ClanWargameInviteReceivedPacket>().Count(), "only the leader answers");
@@ -268,12 +268,98 @@ namespace Rasa.Test.World
             second.PlayerEnteredWorld(blueLead);
             Assert.AreEqual(0, Drain(blueLead).OfType<ClanWargameInviteReceivedPacket>().Count(), "once: a map link is not a new client");
 
+            // Logged out and in again: a new connection, with no indicator, is given it again.
+            var relogged = clans.Relog(world, BlueId);
+            second.PlayerEnteredWorld(relogged);
+            Assert.AreEqual(invite.WargameId, Drain(relogged).OfType<ClanWargameInviteReceivedPacket>().Single().WargameId, "BR-201: a leader who relogs has the challenge again");
+            second.PlayerEnteredWorld(relogged);
+            Assert.AreEqual(0, Drain(relogged).OfType<ClanWargameInviteReceivedPacket>().Count());
+            blueLead = relogged;
+
             second.FeudChallengeResponse(blueLead, "Green", true);
             Assert.IsTrue(second.AreFeuding(GreenId, BlueId));
             Assert.AreEqual(invite.WargameId, second.Feuds.Single().Id, "the feud takes the challenge's id");
 
             Assert.AreEqual(0, Rows().Challenges.Count);
             Assert.AreEqual(invite.WargameId, Rows().Feuds.Single().Id);
+        }
+
+        // BR-201: a challenge made while the server ran was put to the leader online once. A
+        // leader who logged out and in again, or another leader of the clan logging in, had no
+        // indicator for it, and the challenger met "you have already invited" for as long as it
+        // stood.
+        [TestMethod]
+        public void AChallengeMadeWhileTheServerRanIsPutToALeaderWhoLogsIn()
+        {
+            using var world = new WorldTestContext();
+            var clans = new Clans(world);
+            var feuds = Restart(clans, tick: 1000);
+            var blueLead = clans.Leader(BlueId);
+
+            feuds.ChallengeClanToFeud(clans.Leader(GreenId), "Blue", true);
+            var invite = Drain(blueLead).OfType<ClanWargameInviteReceivedPacket>().Single();
+
+            // A map change: the same client, which has the indicator.
+            feuds.PlayerEnteredWorld(blueLead);
+            Assert.AreEqual(0, Drain(blueLead).OfType<ClanWargameInviteReceivedPacket>().Count(), "a map change keeps the indicator");
+
+            // Their next login, and a second leader's.
+            var relogged = clans.Relog(world, BlueId);
+            feuds.PlayerEnteredWorld(relogged);
+            Assert.AreEqual(invite.WargameId, Drain(relogged).OfType<ClanWargameInviteReceivedPacket>().Single().WargameId);
+
+            var officer = clans.Promote(BlueId);
+            feuds.PlayerEnteredWorld(officer);
+            Assert.AreEqual(invite.WargameId, Drain(officer).OfType<ClanWargameInviteReceivedPacket>().Single().WargameId, "any leader can answer");
+
+            // Nothing to a member who cannot answer, and nothing after the challenge is gone.
+            feuds.PlayerEnteredWorld(clans.Relog(world, GreenId));
+            feuds.FeudChallengeResponse(officer, "Green", false);
+            feuds.PlayerEnteredWorld(clans.Relog(world, BlueId));
+            Assert.AreEqual(0, Drain(clans.Leader(BlueId)).OfType<ClanWargameInviteReceivedPacket>().Count());
+        }
+
+        // BR-227: character select keeps the connection while the client clears its indicators.
+        // A leader who went there and came back was never put the challenge again.
+        [TestMethod]
+        public void ALeaderBackFromCharacterSelectIsPutTheChallengeAgain()
+        {
+            using var world = new WorldTestContext();
+            var clans = new Clans(world);
+            var feuds = Restart(clans, tick: 1000);
+            var blueLead = clans.Leader(BlueId);
+
+            feuds.ChallengeClanToFeud(clans.Leader(GreenId), "Blue", true);
+            var invite = Drain(blueLead).OfType<ClanWargameInviteReceivedPacket>().Single();
+
+            ClanFeuds.PlayerLeftWorld(blueLead);
+            feuds.PlayerEnteredWorld(blueLead);
+
+            Assert.AreEqual(invite.WargameId, Drain(blueLead).OfType<ClanWargameInviteReceivedPacket>().Single().WargameId,
+                "the same connection, back in the world");
+            feuds.PlayerEnteredWorld(blueLead);
+            Assert.AreEqual(0, Drain(blueLead).OfType<ClanWargameInviteReceivedPacket>().Count(), "and a map change after it keeps it");
+        }
+
+        // BR-227: a new challenge went to the first leader online only; the others had it at their
+        // next login.
+        [TestMethod]
+        public void ANewChallengeIsPutToEveryLeaderOnline()
+        {
+            using var world = new WorldTestContext();
+            var clans = new Clans(world);
+            var feuds = Restart(clans, tick: 1000);
+            var blueLead = clans.Leader(BlueId);
+            var officer = clans.Promote(BlueId);
+
+            feuds.ChallengeClanToFeud(clans.Leader(GreenId), "Blue", true);
+
+            var invite = Drain(blueLead).OfType<ClanWargameInviteReceivedPacket>().Single();
+            Assert.AreEqual(invite.WargameId, Drain(officer).OfType<ClanWargameInviteReceivedPacket>().Single().WargameId);
+
+            feuds.RevokeClanFeud(clans.Leader(GreenId), "Blue");
+            Assert.AreEqual(1, Said(blueLead, PlayerMessage.PmWargameFeudWasRevoked));
+            Assert.AreEqual(1, Said(officer, PlayerMessage.PmWargameFeudWasRevoked), "both were put it, both are told");
         }
 
         [TestMethod]
@@ -365,6 +451,9 @@ namespace Rasa.Test.World
 
         private static List<PythonPacket> Drain(Client client) => MissionTestContext.Drain(client).ToList();
 
+        private static int Said(Client client, PlayerMessage message) =>
+            Drain(client).OfType<DisplayWargameMessagePacket>().Count(p => p.Message == message);
+
         /// <summary>The store the server has, over a database file: a context per call.</summary>
         private sealed class SqliteStore : ClanFeuds.IStore
         {
@@ -416,6 +505,27 @@ namespace Rasa.Test.World
             public Client Leader(uint clanId) => _members[clanId][0];
             public Client Member(uint clanId) => _members[clanId][1];
 
+            /// <summary>The leader logs out and in: a new connection for the same character.</summary>
+            public Client Relog(WorldTestContext world, uint clanId)
+            {
+                var old = _members[clanId][0];
+                var client = world.CreateClient(clanId * 10, 0);
+                client.Player.ClanId = clanId;
+                client.Player.Id = old.Player.Id;
+                client.Player.FamilyName = old.Player.FamilyName;
+                _members[clanId][0] = client;
+                return client;
+            }
+
+            /// <summary>The second member made a leader too.</summary>
+            public Client Promote(uint clanId)
+            {
+                _promoted.Add(_members[clanId][1].Player.Id);
+                return _members[clanId][1];
+            }
+
+            private readonly HashSet<uint> _promoted = new HashSet<uint>();
+
             public ClanEntry Find(uint clanId) => All.GetValueOrDefault(clanId);
 
             public ClanEntry FindByName(string name) => All.Values.FirstOrDefault(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase));
@@ -426,7 +536,7 @@ namespace Rasa.Test.World
                     return null;
 
                 var index = members.FindIndex(c => c.Player.Id == characterId);
-                return index < 0 ? null : index == 0 ? ClanRank.MinRankToChallenge : (byte)0;
+                return index < 0 ? null : index == 0 || _promoted.Contains(characterId) ? ClanRank.MinRankToChallenge : (byte)0;
             }
 
             public List<Client> Online(uint clanId) => _members.TryGetValue(clanId, out var members) ? members.ToList() : new List<Client>();

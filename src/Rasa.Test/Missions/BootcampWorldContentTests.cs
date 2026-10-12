@@ -715,7 +715,8 @@ namespace Rasa.Test.Missions
                     indicator.PosZ, indicator.Radius, indicator.Show3DEffect));
                 Assert.IsTrue(context.SpawnPoolEntries.AsNoTracking()
                     .Where(entry => entry.Id == 520009 || entry.Id == 520010).All(entry => entry.Mode == 1));
-                Assert.AreEqual(5, context.SpawnPoolEntries.Count(entry => entry.Id >= 510216 && entry.Id <= 510220));
+                // The two AFS soldiers' pools; the three Thrax pools went with Add_bootcamp_cave_in_breach.
+                Assert.AreEqual(2, context.SpawnPoolEntries.Count(entry => entry.Id >= 510216 && entry.Id <= 510220));
                 Assert.AreEqual(29769U, context.CreatureEntries.AsNoTracking().Single(entry => entry.Id == 510216).ClassId);
                 // The escorts: three Forean initiates as this content made them, three Infantrymen
                 // since Place_bootcamp_base_npcs.
@@ -812,10 +813,12 @@ namespace Rasa.Test.Missions
                 var expected = new Dictionary<string, int>
                 {
                     ["mission_content_definition"] = 5, ["mission_prerequisite"] = 4,
-                    ["mission_objective_definition"] = 21, ["mission_objective_transition"] = 27,
-                    ["mission_trigger"] = 27, ["mission_action"] = 80, ["mission_reward_definition"] = 7,
-                    ["mission_reward_item"] = 6, ["mission_indicator"] = 12, ["mission_area"] = 7,
-                    ["mission_spawn_group"] = 12, ["mission_spawn"] = 26, ["mission_scenario"] = 20,
+                    // Add_bootcamp_cave_in_breach adds Capture the Flag's bridge crossing: a transition, its
+                    // trigger, action, area and scenario, and the Thrax wave's group and six spawns.
+                    ["mission_objective_definition"] = 21, ["mission_objective_transition"] = 28,
+                    ["mission_trigger"] = 28, ["mission_action"] = 81, ["mission_reward_definition"] = 7,
+                    ["mission_reward_item"] = 6, ["mission_indicator"] = 12, ["mission_area"] = 8,
+                    ["mission_spawn_group"] = 13, ["mission_spawn"] = 32, ["mission_scenario"] = 21,
                     ["mission_scenario_step"] = 52, ["mission_evidence"] = 17, ["mission_scene_binding"] = 5,
                     ["mission_channel_policy"] = 1, ["mission_repeat_policy"] = 0
                 };

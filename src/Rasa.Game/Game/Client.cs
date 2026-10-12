@@ -153,6 +153,23 @@ namespace Rasa.Game
         /// </summary>
         internal HashSet<Client> FarAllies { get; } = new HashSet<Client>();
 
+        /// <summary>
+        /// Placed in the cells before it was in the world - a dropship arrival, Teleporting until
+        /// the ship sets it down: who it was given then, and who was given it. The cells pass a
+        /// client that is not Ingame over, both ways, until <see cref="Managers.CellManager.CatchUp"/>
+        /// brings it in line. Null for a client placed in the world.
+        /// </summary>
+        internal ArrivalView PlacedView { get; set; }
+
+        internal sealed class ArrivalView
+        {
+            /// <summary>The players its client was given.</summary>
+            public HashSet<Client> Holds { get; } = new HashSet<Client>();
+
+            /// <summary>The players whose clients were given it.</summary>
+            public HashSet<Client> HeldBy { get; } = new HashSet<Client>();
+        }
+
         /// <summary>Environment.TickCount64 at which <see cref="FarAllies"/> is next brought up to date.</summary>
         internal long NextAllySync { get; set; }
 
@@ -164,6 +181,13 @@ namespace Rasa.Game
 
         /// <summary>Whether this connection has been sent the message of the day (Managers.MessageOfTheDay).</summary>
         internal bool MotdSent { get; set; }
+
+        /// <summary>
+        /// The clan feud challenges put to this connection's player since they last entered the
+        /// world, by wargame id (Managers.ClanFeuds.Invite); cleared as they leave it
+        /// (ClanFeuds.PlayerLeftWorld).
+        /// </summary>
+        internal HashSet<uint> FeudChallengesShown { get; } = new HashSet<uint>();
 
         /// <summary>
         /// Whether the account's friends have been told this character is in the world
@@ -568,11 +592,8 @@ namespace Rasa.Game
                         {
                             Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in while the account is banned! User Id: {1}", Socket.RemoteAddress, loginMsg.AccountId);
 
-                            SendMessage(new LoginResponseMessage
-                            {
-                                ErrorCode = LoginErrorCodes.AccountLocked,
-                                Subtype = LoginResponseMessageSubtype.Failed
-                            }, delay: false);
+                            foreach (var refusal in BannedLoginRefusal())
+                                SendMessage(refusal, delay: false);
 
                             LoginFailed();
                             return;
@@ -1038,6 +1059,38 @@ namespace Rasa.Game
         /// </summary>
         private const int MaxFailedLogins = 3;
         private int _failedLogins;
+
+        /// <summary>What a banned account's world login is answered with (<see cref="BannedLoginRefusal"/>).</summary>
+        internal const string BannedReason = "Your account has been banned.";
+
+        /// <summary>
+        /// The answer to a world login from an account that is banned: Auth refuses one at its own
+        /// login screen (BlockedAccount), so this is an account banned after it picked a server.
+        ///
+        /// First FatalError, PM_LOGIN_FAILED ("Login failed: %(reason)s") with
+        /// <see cref="BannedReason"/>: the client's modal error box, whose OK quits the client
+        /// (clientmethod.py Recv_FatalError, OnRequestExit). Then the LoginResponse refusal as
+        /// before, AccountLocked, which the client answers with its own dialog
+        /// (login.py _GameLoginFailed, ID_LOGINERR_ACCOUNT_LOCKED: "Your account is currently
+        /// locked for maintenance.") - kept so the player is told something even if the
+        /// FatalError is not run on the login screen. The client queues a CallMethod for its
+        /// clientmethod entity (sysentity ClientMethodId, registered at start) whatever screen it
+        /// is on, and runs the queue every frame; nothing seen in a client yet.
+        ///
+        /// Both are sent at once, in this order, and the connection is left open as for any
+        /// refused login: OK on the FatalError quits the client, and that closes it.
+        /// </summary>
+        internal static IClientMessage[] BannedLoginRefusal() => new IClientMessage[]
+        {
+            new CallMethodMessage((ulong)SysEntity.ClientMethodId,
+                new Packets.ClientMethod.Server.FatalErrorPacket(PlayerMessage.PmLoginFailed,
+                    new Dictionary<string, string> { ["reason"] = BannedReason })),
+            new LoginResponseMessage
+            {
+                ErrorCode = LoginErrorCodes.AccountLocked,
+                Subtype = LoginResponseMessageSubtype.Failed
+            }
+        };
 
         private void LoginFailed()
         {

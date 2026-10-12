@@ -12,7 +12,8 @@ namespace Rasa.Packets.MapChannel.Server
     /// the effect's tick marker if it ticks on damage. This is how an effect that hurts things
     /// around its holder (Scourge) shows its numbers: the effect's OnTick takes no data, so the
     /// tick is not the way, and the holder is not the one hurt, so a health update on the holder
-    /// is not either.
+    /// is not either. Each entry's rawInfo names the effects the blast put on that target quietly
+    /// (TickEntry.TargetEffectIds, Managers.HitEffects), which the client announces with it.
     /// </summary>
     public class GameEffectAnnounceDamagePacket : ServerPythonPacket
     {
@@ -46,7 +47,8 @@ namespace Rasa.Packets.MapChannel.Server
             {
                 pw.WriteTuple(2);
                 pw.WriteULong(hit.EntityId);
-                DamageInfoWriter.WriteRawInfo(pw, hit.DamageType, hit.Amount, hit.Resisted, hit.IsCritical, hit.DeathBlow, absorbed: hit.Absorbed, wasImmune: hit.WasImmune);
+                DamageInfoWriter.WriteRawInfo(pw, hit.DamageType, hit.Amount, hit.Resisted, hit.IsCritical, hit.DeathBlow, absorbed: hit.Absorbed, wasImmune: hit.WasImmune,
+                    targetEffectIds: hit.TargetEffectIds);
             }
         }
     }

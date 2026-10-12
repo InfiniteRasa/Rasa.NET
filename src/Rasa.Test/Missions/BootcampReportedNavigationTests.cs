@@ -76,7 +76,7 @@ namespace Rasa.Test.Missions
         [TestMethod]
         public void ThraxCannotReplaceAFailedNavmeshQueryWithAStraightLine()
         {
-            using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true);
+            using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true, worldMigration: BootcampCaveInBreachTests.BridgeThraxStood);
             SpawnPoolManager.Instance.SpawnPoolWorker(harness.BootcampMap, 0);
             var thrax = harness.BootcampMap.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList)
                 .First(creature => creature.DbId == 510216);
@@ -145,7 +145,7 @@ namespace Rasa.Test.Missions
         public void BothBridgeSoldiersAndThraxRemainGroundedAndFightAcrossRespawns()
         {
             using var harness = BootcampRuntimeTestHarness.Create(
-                useWorldContent: true, initializeMaps: LoadDefaultNavigation);
+                useWorldContent: true, initializeMaps: LoadDefaultNavigation, worldMigration: BootcampCaveInBreachTests.BridgeThraxStood);
             SpawnPoolManager.Instance.SpawnPoolWorker(harness.BootcampMap, 0);
             var initial = Actors(harness).Where(creature => creature.SpawnPool?.DbId is >= 510216 and <= 510220).ToArray();
             Assert.AreEqual(2, initial.Count(creature => creature.DbId == 510217));

@@ -67,7 +67,7 @@ namespace Rasa.Test.Missions
         [TestMethod]
         public void RouteHasTwelveGroundedPacksOfThreeOrFourLevelEightToThirteenThrax()
         {
-            using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true);
+            using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true, worldMigration: BootcampCaveInBreachTests.BridgeThraxStood);
             var pools = harness.WorldContext.SpawnPoolEntries.AsNoTracking()
                 .Where(pool => pool.MapContextId == 1985 && pool.Id >= 510230 && pool.Id <= 510271)
                 .OrderBy(pool => pool.Id).ToArray();
@@ -113,7 +113,7 @@ namespace Rasa.Test.Missions
         [DataRow(6.01f, false)]
         public void LootableThraxOpensAndClaimsWithinDefaultManualUseRange(float distance, bool allowed)
         {
-            using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true);
+            using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true, worldMigration: BootcampCaveInBreachTests.BridgeThraxStood);
             SpawnPoolManager.Instance.SpawnPoolWorker(harness.BootcampMap, 0);
             var thrax = harness.BootcampMap.MapCellInfo.Cells.Values
                 .SelectMany(cell => cell.CreatureList).First(creature => creature.DbId == 510216);
@@ -165,7 +165,7 @@ namespace Rasa.Test.Missions
         [TestMethod]
         public void PlayerKillCreatesClaimableGuaranteedSkullWithoutDuplicatingTheClaim()
         {
-            using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true);
+            using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true, worldMigration: BootcampCaveInBreachTests.BridgeThraxStood);
             SpawnPoolManager.Instance.SpawnPoolWorker(harness.BootcampMap, 0);
             var thrax = harness.BootcampMap.MapCellInfo.Cells.Values
                 .SelectMany(cell => cell.CreatureList).First(creature => creature.DbId == 510216);
@@ -195,7 +195,7 @@ namespace Rasa.Test.Missions
         [TestMethod]
         public void PopulatedRouteThraxRespawnsAfterTwoMinutesWithANewLife()
         {
-            using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true);
+            using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true, worldMigration: BootcampCaveInBreachTests.BridgeThraxStood);
             SpawnPoolManager.Instance.SpawnPoolWorker(harness.BootcampMap, 0);
             var thrax = harness.BootcampMap.MapCellInfo.Cells.Values
                 .SelectMany(cell => cell.CreatureList).Single(creature => creature.SpawnPool?.DbId == 510230);
@@ -219,7 +219,7 @@ namespace Rasa.Test.Missions
         [TestMethod]
         public void EveryOptionalDropUsesARealTemplateAndCanBeClaimedTogether()
         {
-            using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true);
+            using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true, worldMigration: BootcampCaveInBreachTests.BridgeThraxStood);
             SpawnPoolManager.Instance.SpawnPoolWorker(harness.BootcampMap, 0);
             var thrax = harness.BootcampMap.MapCellInfo.Cells.Values
                 .SelectMany(cell => cell.CreatureList).First(creature => creature.DbId == 510216);
@@ -255,7 +255,7 @@ namespace Rasa.Test.Missions
         [TestMethod]
         public void TizziksScenarioCorpseKeepsItsSkullAvailableAfterTheOneSecondScenarioCleanup()
         {
-            using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true);
+            using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true, worldMigration: BootcampCaveInBreachTests.BridgeThraxStood);
             SpawnPoolManager.Instance.SpawnPoolWorker(harness.BootcampMap, 0);
             harness.SeedMission(harness.Client.Player.Id, 1992, (uint)MissionState.Completed, true);
             var deSimone = BootcampRuntimeTestHarness.FindCreature(

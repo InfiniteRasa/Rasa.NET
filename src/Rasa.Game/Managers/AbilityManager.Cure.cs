@@ -27,7 +27,10 @@ namespace Rasa.Managers
     ///
     /// What counts as a debuff is what the client's tray counts: an effect that is not a buff. A
     /// skill's own standing effect is left alone - it is not on the tray and losing it would take
-    /// the player's weapon skills with it.
+    /// the player's weapon skills with it. So is the price of a death, Rez Trauma and the
+    /// no-healing after it (PlayerDeath.IsDeathPenalty): a cleanse is not a way out of it, as a
+    /// map link and a relog are not. The game has its own item for Rez Trauma, the Rez Trauma Kit
+    /// (CONSUMABLE_RES_TRAUMA_KIT), which asks for the sickness to be on its user.
     /// </summary>
     public partial class AbilityManager
     {
@@ -35,11 +38,14 @@ namespace Rasa.Managers
 
         /// <summary>
         /// Every debuff on an actor that Cure takes off: what the tray shows in red, but for
-        /// the world's own (GameEffect.Environmental) - burning in lava ends by leaving it.
+        /// the world's own (GameEffect.Environmental) - burning in lava ends by leaving it - and
+        /// a death's penalties (PlayerDeath.IsDeathPenalty), which run out on their own.
         /// </summary>
         public static List<GameEffect> DebuffsOn(Actor actor)
         {
-            return actor.ActiveEffects.Values.Where(e => !e.IsBuff && !e.IsSkillPassive && !e.Environmental).ToList();
+            return actor.ActiveEffects.Values
+                .Where(e => !e.IsBuff && !e.IsSkillPassive && !e.Environmental && !PlayerDeath.IsDeathPenalty(e.TypeId))
+                .ToList();
         }
 
         /// <summary>Whether this pump of Cure brings back the dead: P3 Resuscitate and P5 Group Resuscitate (CureAction.canTargetDead).</summary>

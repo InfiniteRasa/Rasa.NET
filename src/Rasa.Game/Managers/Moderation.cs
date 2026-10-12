@@ -110,6 +110,21 @@ namespace Rasa.Managers
             if (!MayActOn(by, account))
                 return new Result(false, $"You cannot kick {account.FamilyName}: their account level is not below yours.");
 
+            return Kick(targets, reason, Who(by));
+        }
+
+        /// <summary>
+        /// Disconnects these connections - all of one account's, from <see cref="Online"/> or
+        /// <see cref="OnlineAccount"/> - after telling the player why; <paramref name="who"/> is
+        /// whoever did it, for the server log. Whether they may is the caller's to have asked.
+        /// </summary>
+        public static Result Kick(List<Client> targets, string reason, string who)
+        {
+            if (targets == null || targets.Count == 0)
+                return new Result(false, "Nobody is online to kick.");
+
+            var account = targets[0].AccountEntry;
+
             reason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
             var notice = "You have been disconnected by a game master" + (reason == null ? "." : $": {reason}");
 
@@ -121,7 +136,7 @@ namespace Rasa.Managers
             }
 
             Logger.WriteLog(LogType.Security,
-                $"{Who(by)} kicked {account.FamilyName} (account {account.Id})" + (reason == null ? "." : $": {reason}"));
+                $"{who} kicked {account.FamilyName} (account {account.Id})" + (reason == null ? "." : $": {reason}"));
 
             return new Result(true, $"Kicked {account.FamilyName}.");
         }
@@ -303,6 +318,10 @@ namespace Rasa.Managers
 
             return chosen.Where(c => c.AccountEntry.Id == accountId).ToList();
         }
+
+        /// <summary>The connections of the account with this id that are online.</summary>
+        public static List<Client> OnlineAccount(uint accountId) =>
+            Connected().Where(c => c.AccountEntry.Id == accountId).ToList();
 
         private static List<Client> Connected()
         {

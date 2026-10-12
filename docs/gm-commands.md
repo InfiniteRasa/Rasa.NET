@@ -96,7 +96,7 @@ These change nothing in the world, except where noted.
 | `.where` | Observer | Your position, facing and map id. Also written to the server log with a `[.where]` tag. |
 | `.getdistance` | Observer | Distance to your selected target. For a creature it measures to the creature's **spawn pool position**, not to the creature. Objects print "ToDo". |
 | `.near` | Observer | Lists the objects and creatures in your cells. The output goes to the **server console**, not to chat. |
-| `.npcinfo` | Observer | For your target: entity id and type. For a creature it adds DB id, target category, health, armour and its regeneration, spawn pool id, its pose if it has one, where it is on its patrol if it has one (`spawnpool_patrol`), its battle cry package if it has one (`creature_battlecry`), and position. |
+| `.npcinfo` | Observer | For your target: entity id and type. For a creature it adds DB id, target category, health, armour and its regeneration, spawn pool id, its pose if it has one, where it is on its patrol if it has one (`spawnpool_patrol`), its battle cry package if it has one (`creature_battlecry`, or a human voice it was given), and position. |
 | `.maperrors` | Observer | The map-errors dialog for the map you are on (the same one an Observer or above gets on entering a broken map). |
 | `.missions [characterId]` | Observer | Mission state for a character: you by default, or the character id given. |
 | `.links` | Observer | Map links on this map, nearest first (up to 10), marking the one you are standing in. |
@@ -169,7 +169,8 @@ A map's start groups are generated in this order:
 | `.givexp <amount>` | Admin | Gives you experience. |
 | `.chg_class <class>` | Admin | Changes your class. Class names: RECRUIT, SOLDIER, SPECIALIST, COMMANDO, RANGER, SAPPER, BIOTECHNICIAN, GRENADIER, GUARDIAN, SNIPER, SPY, DEMOLITIONIST, ENGINEER, MEDIC, EXOBIOLOGIST. |
 | `.givecredits <amount> [familyName]` | Admin | Credits for you or a player in the world. A negative amount takes credits away; the balance stops at zero and never goes negative. The player is told. |
-| `.giveitem <itemTemplateId> [quantity]` | Admin | Puts an item in your own inventory. With no quantity you get a full stack. You are recorded as the crafter, which the item's tooltip shows as "Modified By" and your family name. |
+| `.giveitem <itemTemplateId> [quantity]` | Admin | Puts an item in your own inventory. With no quantity you get a full stack. You are recorded as the crafter, which the item's tooltip shows as "Modified By" and your family name. If your backpack is full, it goes to your pick-up box (see `.mailitem`). |
+| `.mailitem <familyName> <itemTemplateId> [quantity]` | Admin | Sends new items to a player's pick-up box: the Pick Up Items tab of any auctioneer, where they take them into their backpack. Works whether or not the player is online. It goes to the character in the world, otherwise the one selected at character selection. With no quantity, a full stack; a larger quantity is split into stacks. Refused, with nothing made, if the box (30 stacks) has no room for all of it. A Character Unique item is one stack at most, and refused to a character who already has one. |
 | `.givelogos <logosId>` | Admin | Adds a Logos (1–408, with gaps) to your Tabula. Ids the client doesn't know and Logos you already have are refused. |
 | `.removelogos <logosId\|all>` | Admin | Removes one Logos, or all of them, from your Tabula, including the saved rows. |
 | `.givepads` | Admin | Unlocks every dropship pad in the world for you. |
@@ -256,7 +257,7 @@ Values these commands accept:
 | `.minion list` / `.minion clear` | GameMaster | Lists your minions, or dismisses them all. |
 | `.comehere <entityId>` | GameMaster | Sends a `MoveObject` to your own client that brings the entity to you. Only your client sees it move; the server's copy stays put. |
 | `.bark <entityId> <barkId>` | GameMaster | Plays a bark on that entity, on your client only. |
-| `.battlecry [packageId typeId]` | GameMaster | With a creature targeted. Bare, it says which battle cry package the creature has (`creature_battlecry`: its own row's, or else its class's). With a package (2 to 22) and a cry type (1 Aggro, 2 KilledTarget, 3 ReceivedDamage, 4 ReceivedCriticalDamage, 5 Help, 6 CloseToDeath, 7 EnterCombat, 8 ExitCombat, 9 StartPatrol, 10 StopPatrol, 11 ResumePatrol) it plays that cry from the creature for everyone near, whatever package the creature has; it is refused for a pair the client has no sound for. Nothing is saved. A client with "Enable Battle Cries" off hears nothing. |
+| `.battlecry [packageId typeId]` | GameMaster | With a creature targeted. Bare, it says which battle cry package the creature cries with: its own row's in `creature_battlecry`, or else its class's, or else the human voice it was given - an armed human's is rolled for that spawn and says so; a mission escort's is kept for its creature row, so it shows as the row's. With a package (2 to 22) and a cry type (1 Aggro, 2 KilledTarget, 3 ReceivedDamage, 4 ReceivedCriticalDamage, 5 Help, 6 CloseToDeath, 7 EnterCombat, 8 ExitCombat, 9 StartPatrol, 10 StopPatrol, 11 ResumePatrol) it plays that cry from the creature for everyone near, whatever package the creature has; it is refused for a pair the client has no sound for. Nothing is saved. A client with "Enable Battle Cries" off hears nothing. |
 | `.creatureappearance <entityId> <slotId> <classId> <color>` | GameMaster | Sets one appearance slot on a creature. |
 | `.pose [pose]` | GameMaster | Puts your target, a creature, in a pose at the spot it stands on: `standing`, `weaponout`, `crouched`, `crouchedweaponout`, `leaning`, `sitting`, `lyingdown`, `atconsole`, `handtool`, by name or number (1 to 9). `none` takes its pose off. With no pose, says which the target has. It lasts until that creature dies and is not saved; a spawn pool's own pose is its `spawnpool_pose` row. The last five are human only, and `atconsole` and `handtool` female only. |
 | `.creatureloc` | GameMaster | Registered but does nothing: the body is commented out. |
@@ -384,6 +385,7 @@ Typed in the game server's window. There is no account check; the console is the
 | `voice` | Whether voice chat is on, and who is in each squad's group. |
 | `reload config` | Re-reads the configuration. |
 | `motd` | The message of the day in force, how it is shown (once per change or every login), and its translations. |
+| `mailitem <familyName> <itemTemplateId> [quantity]` | The same as `.mailitem`. |
 | `announce <message>` | The same as `.announce`. |
 | `kick <familyName> [reason]` | The same as `.kick`, for any account. |
 | `mute <familyName> <minutes> [reason]` / `unmute <familyName>` | The same as `.mute` / `.unmute`, for any account. |

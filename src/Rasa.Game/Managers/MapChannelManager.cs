@@ -102,6 +102,48 @@ namespace Rasa.Managers
         /// </summary>
         private const int LogoutDelayToleranceMs = 250;
 
+        /// <summary>
+        /// How long past the countdown a requested logout still counts as pending
+        /// (Manifestation.LogoutPending): the client's Logout button enables as its own countdown
+        /// ends, which is a little after the server's.
+        /// </summary>
+        public const int LogoutPendingGraceMs = 1000;
+
+        /// <summary>
+        /// The least time between two restarts of a logout countdown by a fight (FoughtDuringLogout):
+        /// a held trigger or a damage over time is a combat event every tick, and each restart is a
+        /// LogoutTimeRemaining to the client.
+        /// </summary>
+        public const int LogoutRestartGapMs = 1000;
+
+        /// <summary>
+        /// A fight while a logout is requested and not yet under way (ManifestationManager.EnterCombat,
+        /// from dealing damage or taking it): the countdown starts again, and the client is sent
+        /// the fresh one, which disables the window's Logout button until it has run.
+        ///
+        /// The request used to stand for as long as nobody cancelled it, and CharacterLogout asked
+        /// only that the countdown had once run. A client that requested a logout and hid the window
+        /// without cancelling played on - with no restriction once the countdown was over (BR-189)
+        /// - and could leave whenever it liked afterwards, at once, in the middle of a fight. Now
+        /// the countdown has to run without a fight in it, as the window shows.
+        ///
+        /// Restarted at most once per LogoutRestartGapMs, and the server's own clock restarted only
+        /// when the client's is, so the two agree on when the Logout button may be pressed.
+        /// </summary>
+        public static void FoughtDuringLogout(Client client, long now)
+        {
+            var player = client?.Player;
+
+            if (player == null || !player.LogoutActive || player.RemoveFromMap || client.State != ClientState.Ingame)
+                return;
+
+            if (now - player.LogoutRequestedTick < LogoutRestartGapMs)
+                return;
+
+            player.LogoutRequestedTick = now;
+            client.CallMethod(SysEntity.ClientMethodId, new LogoutTimeRemainingPacket(LogoutDelayMs));
+        }
+
         public void CharacterLogout(Client client)
         {
             // Nothing requested, or the request was cancelled.
@@ -110,7 +152,8 @@ namespace Rasa.Managers
 
             // The delay used to be advisory - enforced only by the client's disabled button - so a
             // client that skipped the countdown could leave instantly, mid-fight. Refuse it until
-            // the countdown the server announced has actually run.
+            // the countdown the server announced has actually run, from the request or from the
+            // last fight in it (FoughtDuringLogout).
             var waited = Environment.TickCount64 - client.Player.LogoutRequestedTick;
 
             if (waited < LogoutDelayMs - LogoutDelayToleranceMs)
@@ -240,7 +283,6 @@ namespace Rasa.Managers
                 // register mapChannel
                 MapChannelArray.Add(mapInfo.Id, newMapChannel);
             }
-            Timer.Add("AutoFire", 100, true, null);
             Timer.Add("CheckForObjects", 1000, true, null);
             Timer.Add("ClientEffectUpdate", 500, true, null);
             Timer.Add("CellUpdateVisibility", 1000, true, null);
@@ -289,6 +331,25 @@ namespace Rasa.Managers
             }
         }
 
+        /// <summary>
+        /// Milliseconds since a timed worker last ran on this map, by the manager's clock; 0 the
+        /// first time. The once-a-second workers - the spawn pools' respawn clocks, the Bane
+        /// teleporters, the objects' respawns - used to be handed the loop's own delta, about
+        /// 100 ms, once a second, and so ran at a tenth of the time: a pool of respawn 900 (90 s,
+        /// in tenths of a second) took fifteen minutes. And they run only while the map has
+        /// players, on a server that has clients: the time a map stood empty is counted when it
+        /// next has someone, so what would have come back while nobody was there has.
+        /// </summary>
+        internal long SinceLastRun(MapChannel mapChannel, string worker)
+        {
+            var now = _clock();
+            var elapsed = mapChannel.WorkerRanAt.TryGetValue(worker, out var last) ? Math.Max(0, now - last) : 0;
+
+            mapChannel.WorkerRanAt[worker] = now;
+
+            return elapsed;
+        }
+
         public void MapChannelWorker(long delta)
         {
             Timer.Update(delta);
@@ -298,7 +359,7 @@ namespace Rasa.Managers
             // Clan feuds whose time is up.
             Guard("ClanFeuds.Worker", null, () => ClanFeuds.Instance.Worker());
 
-            // Duel challenges that lapsed and duels whose time is up.
+            // Duel challenges that lapsed, duels whose time is up and duelists too far apart.
             Guard("Duels.Worker", null, () => Duels.Instance.Worker());
 
             // Squad wargame challenges that lapsed and squad wargames whose time is up.
@@ -325,8 +386,12 @@ namespace Rasa.Managers
             // Server-wide lists, ticked once. These used to run inside the per-map loop below,
             // guarded by that map having players, so with N populated maps every auto-fire
             // timer and every dropship advanced N times per tick.
-            if (Timer.IsTriggered("AutoFire"))
-                Guard("ManifestationManager.AutoFireTimerDoWork", null, () => ManifestationManager.Instance.AutoFireTimerDoWork(delta));
+            //
+            // Every tick, not on a 100 ms timer of its own: the loop's ticks run a little
+            // under or over 100 ms, and a tick that came in under did not trip the timer, so
+            // its delta never reached the fire timers - held fire ran slow by every short tick,
+            // on top of the whole-refire reset AutoFireTimerDoWork used to make.
+            Guard("ManifestationManager.AutoFireTimerDoWork", null, () => ManifestationManager.Instance.AutoFireTimerDoWork(delta));
 
             foreach (var mapChannel in MapChannelArray.Values
                          .Concat(_privateInstances.Snapshot())
@@ -336,6 +401,9 @@ namespace Rasa.Managers
 
                 mapChannel.MapChannelElapsed += delta;
                 Guard("DynamicObjectManager.DropshipsWorker", mapChannel, () => DynamicObjectManager.Instance.DropshipsWorker(mapChannel, delta));
+
+                // Passage teleports whose teleport-out effect has played (SecretPassages).
+                Guard("DynamicObjectManager.PassagesWorker", mapChannel, () => DynamicObjectManager.Instance.PassagesWorker(mapChannel));
 
                 // A /killmap asked for since the last tick: done here, between thinks.
                 Guard("MapReset.Worker", mapChannel, () => MapReset.Worker(mapChannel));
@@ -388,6 +456,22 @@ namespace Rasa.Managers
                     // Miasmas whose time as a cloud is up coalesce.
                     Guard("CreatureMiasma.Worker", mapChannel, () => CreatureMiasma.Worker(mapChannel));
 
+                    // Fithik egg clusters someone has walked onto hatch, and grow back.
+                    Guard("FithikEggClusters.Worker", mapChannel, () => FithikEggClusters.Worker(mapChannel));
+
+                    // Bane tunnel doors open as a player comes up to one, and close behind them.
+                    Guard("TunnelDoors.Worker", mapChannel, () => TunnelDoors.Worker(mapChannel));
+
+                    // The .map's destructible props that are due back, and its tesla coils' zapping.
+                    Guard("WorldDestructibles.Worker", mapChannel, () => WorldDestructibles.Worker(mapChannel));
+                    Guard("TeslaCoils.Worker", mapChannel, () => TeslaCoils.Worker(mapChannel));
+
+                    // The destructible objects the server put down: back when due, and the creature spawners spawning.
+                    Guard("PlacedDestructibles.Worker", mapChannel, () => PlacedDestructibles.Worker(mapChannel));
+
+                    // The usable objects the server put down: back when due, bombs going off, random explosions.
+                    Guard("PlacedUsables.Worker", mapChannel, () => PlacedUsables.Worker(mapChannel));
+
                     // Crab Mines: seeking, running, going off.
                     Guard("AbilityManager.CrabMineWorker", mapChannel, () => AbilityManager.Instance.CrabMineWorker(mapChannel));
 
@@ -420,11 +504,18 @@ namespace Rasa.Managers
 
                     // check for objects
                     if (Timer.IsTriggered("CheckForObjects"))
-                        Guard("DynamicObjectManager.DynamicObjectWorker", mapChannel, () => DynamicObjectManager.Instance.DynamicObjectWorker(mapChannel, delta));
+                    {
+                        var sinceObjects = SinceLastRun(mapChannel, "CheckForObjects");
+                        Guard("DynamicObjectManager.DynamicObjectWorker", mapChannel, () => DynamicObjectManager.Instance.DynamicObjectWorker(mapChannel, sinceObjects));
+                    }
 
-                    // check for creatures
+                    // check for creatures: the pools' respawn clocks and the Bane teleporters,
+                    // by the time since this last ran here (SinceLastRun)
                     if (Timer.IsTriggered("CheckForCreatures"))
-                        Guard("SpawnPoolManager.SpawnPoolWorker", mapChannel, () => SpawnPoolManager.Instance.SpawnPoolWorker(mapChannel, delta));
+                    {
+                        var sinceCreatures = SinceLastRun(mapChannel, "CheckForCreatures");
+                        Guard("SpawnPoolManager.SpawnPoolWorker", mapChannel, () => SpawnPoolManager.Instance.SpawnPoolWorker(mapChannel, sinceCreatures));
+                    }
 
                     // check for mapTriggers
                     if (Timer.IsTriggered("CheckForMapTriggers"))
@@ -506,6 +597,9 @@ namespace Rasa.Managers
                         Guard("ActorManager.Regenerate", mapChannel, () => ActorManager.Instance.Regenerate(mapChannel));
 
                     _missionScenarioService?.TickMap(mapChannel);
+
+                    // what the players hurt this tick say of it (PlayerVoices)
+                    Guard("PlayerVoices.Worker", mapChannel, () => PlayerVoices.Worker(mapChannel));
 
                     // the players due a save (AutoSave)
                     if (Timer.IsTriggered("AutoSave"))
@@ -721,8 +815,9 @@ namespace Rasa.Managers
                 client.CallMethod(SysEntity.ClientMethodId, new RequestMovementBlockPacket());
                 _assignPlayer(client);
 
-                // The buffs brought from the map left, now there is somebody to show them to.
-                EffectCarry.Restore(client);
+                // The buffs brought from the map left go on when the ship sets the player down
+                // (DynamicObjectManager, phase 4): until then the player is Teleporting, and an
+                // attach sent around them leaves out their own client.
 
                 // And the padlock on a locked wagered item.
                 InventoryManager.SyncWagerLock(client.Player);
@@ -873,9 +968,8 @@ namespace Rasa.Managers
             MapLinkManager.Instance.PlayerEnteredMap(client);
             _assignPlayer(client);
 
-            // As on any arrival: the buffs carried over, the padlock of a locked wagered item, the
-            // buyback list, the clan's feuds.
-            EffectCarry.Restore(client);
+            // As on any arrival: the padlock of a locked wagered item, the buyback list, the
+            // clan's feuds.
             InventoryManager.SyncWagerLock(client.Player);
             NpcManager.Instance.ResendBuyback(client);
             ClanFeuds.Instance.PlayerEnteredWorld(client);
@@ -883,6 +977,11 @@ namespace Rasa.Managers
 
             client.PendingTransfer = null;
             client.State = ClientState.Ingame;
+
+            // And the buffs carried over, now the player is in the world: an attach sent around a
+            // player who is still Teleporting leaves out their own client, which then never
+            // showed them, nor let a buff be right-clicked off.
+            EffectCarry.Restore(client);
             ResumeMissionScenes(client);
             ManifestationManager.Instance.FinishArrival(client);
             ManifestationManager.Instance.ResetInactivity(client);
@@ -1314,6 +1413,11 @@ namespace Rasa.Managers
             if (logout)
                 RemovalStep(client, "saving cooldowns", () => ActionReuse.Save(client));
 
+            // The client clears its feud challenge indicators with the world; the next entry,
+            // from character select on the same connection too, puts them again.
+            if (logout)
+                RemovalStep(client, "forgetting feud challenges shown", () => ClanFeuds.PlayerLeftWorld(client));
+
             if (logout && player.Disconected == false)
             {
                 RemovalStep(client, "returning to character selection", () => PassClientToCharacterSelection(client));
@@ -1347,11 +1451,14 @@ namespace Rasa.Managers
         /// Whether any map still lists a connection of this account, on its client list or its
         /// login queue. A connection that has closed stays on its map's list until the worker has
         /// taken its character out of the world, so this is true for exactly as long as a
-        /// character of the account may still be there.
+        /// character of the account may still be there. The private, shared and squad instances
+        /// are maps too: a body left in one held the account there as long as one left on a base
+        /// map did, but was not found here, so a new login of the account was let in, and the old
+        /// body's removal saved its character over the new session's (BR-198).
         /// </summary>
         public bool HoldsClientOf(uint accountId)
         {
-            foreach (var mapChannel in MapChannelArray.Values)
+            foreach (var mapChannel in MapChannelArray.Values.Concat(_privateInstances.Snapshot()).Distinct())
             {
                 foreach (var client in mapChannel.ClientList)
                     if (client?.AccountEntry?.Id == accountId)
@@ -1498,6 +1605,10 @@ namespace Rasa.Managers
 
             DynamicObjectManager.Instance.CleanupMapDropships(map);
 
+            // What was placed on it (PlacedDestructibles), its force fields out of ForceFields' list too.
+            PlacedDestructibles.Forget(map);
+            PlacedUsables.Forget(map);
+
             var dynamicObjects = map.MapCellInfo.Cells.Values
                 .SelectMany(cell => cell.DynamicObjectList)
                 .Concat(map.DynamicObjects)
@@ -1539,6 +1650,15 @@ namespace Rasa.Managers
 
             // Nor are the ambient figures: rows by map (ambient_npc).
             AmbientNpcs.Place(map);
+
+            // Nor the doors of the Bane tunnel mouths (TunnelDoors).
+            TunnelDoors.Place(map);
+
+            // Nor the destructible objects the server puts down: rows by map (world_destructible).
+            PlacedDestructibles.Place(map);
+
+            // And the usable ones (world_usable).
+            PlacedUsables.Place(map);
         }
     }
 }

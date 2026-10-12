@@ -784,10 +784,11 @@ namespace Rasa.Test.Missions
         internal Client CreateAdditionalClient(
             uint characterId,
             uint? accountId = null,
-            MissionApplication manager = null)
+            MissionApplication manager = null,
+            byte slot = 0)
         {
             var durableAccountId = accountId ?? characterId;
-            SeedCharacter(durableAccountId, 0, characterId);
+            SeedCharacter(durableAccountId, slot, characterId);
 
             var client = _world.CreateClient(factory: this);
             client.Player.Id = characterId;
@@ -809,7 +810,7 @@ namespace Rasa.Test.Missions
                         {
                             Id = characterId,
                             AccountId = durableAccountId,
-                            Slot = 0,
+                            Slot = slot,
                             Name = $"Character {characterId}",
                             Scale = 1
                         }

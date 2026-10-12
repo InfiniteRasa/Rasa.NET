@@ -128,7 +128,6 @@ namespace Rasa.Managers
             var blast = new GameEffectAnnounceDamagePacket(bomb.EffectId, "DoExplosion");
             var critChance = CriticalHits.AttackerChance(player, false);
             var victims = VictimsWithin(mapChannel, player, player.Position, bomb.TickRadius);
-            var crits = new List<(Actor Victim, int Amount)>();
 
             foreach (var victim in victims)
             {
@@ -137,7 +136,7 @@ namespace Rasa.Managers
                 var amount = GameEffectManager.ApplyResist(victim, rolled, out var resisted, bomb.TickDamageType);
                 var taken = ActorManager.Instance.Damage(mapChannel, victim, amount, player, out var outcome, bomb.TickDamageType);
 
-                blast.Hits.Add(new TickEntry
+                var entry = new TickEntry
                 {
                     EntityId = victim.EntityId,
                     Amount = outcome.Delivered,
@@ -147,19 +146,20 @@ namespace Rasa.Managers
                     DamageType = bomb.TickDamageType,
                     IsCritical = crit,
                     DeathBlow = taken > 0 && victim.Attributes[Attributes.Health].Current <= 0
-                });
+                };
 
-                if (crit && !outcome.Immune)
-                    crits.Add((victim, amount));
+                blast.Hits.Add(entry);
+
+                // A crit's side effect is announced by the blast (HitEffects), so it goes on
+                // before the blast goes out.
+                if (crit && !outcome.Immune && victim.State != CharacterState.Dead && victim.State != CharacterState.Dying && victim.Attributes[Attributes.Health].Current > 0)
+                    using (HitEffects.On(victim, player, entry.TargetEffectIds))
+                        CritEffects.OnCritical(mapChannel, victim, player, bomb.TickDamageType, amount);
             }
 
             // The blast plays where the holder stands, before they are sent home.
             CellManager.Instance.CellCallMethod(mapChannel, player, blast);
             GameEffectManager.Instance.DettachEffect(mapChannel, player, bomb);
-
-            foreach (var (victim, amount) in crits)
-                if (victim.State != CharacterState.Dead && victim.State != CharacterState.Dying && victim.Attributes[Attributes.Health].Current > 0)
-                    CritEffects.OnCritical(mapChannel, victim, player, bomb.TickDamageType, amount);
 
             var client = mapChannel.ClientList.FirstOrDefault(c => c.Player == player);
 
@@ -249,7 +249,7 @@ namespace Rasa.Managers
                     var amount = GameEffectManager.ApplyResist(victim, rolled, out var resisted, damageType);
                     var taken = ActorManager.Instance.Damage(mapChannel, victim, amount, player, out var outcome, damageType);
 
-                    blast.Hits.Add(new TickEntry
+                    var entry = new TickEntry
                     {
                         EntityId = victim.EntityId,
                         Amount = outcome.Delivered,
@@ -259,12 +259,15 @@ namespace Rasa.Managers
                         DamageType = damageType,
                         IsCritical = crit,
                         DeathBlow = taken > 0 && victim.Attributes[Attributes.Health].Current <= 0
-                    });
+                    };
 
+                    blast.Hits.Add(entry);
                     hitAny = true;
 
+                    // A crit's side effect is announced by the blast (HitEffects).
                     if (crit && !outcome.Immune && victim.State != CharacterState.Dead && victim.State != CharacterState.Dying && victim.Attributes[Attributes.Health].Current > 0)
-                        CritEffects.OnCritical(mapChannel, victim, player, damageType, amount);
+                        using (HitEffects.On(victim, player, entry.TargetEffectIds))
+                            CritEffects.OnCritical(mapChannel, victim, player, damageType, amount);
                 }
 
                 CellManager.Instance.CellCallMethod(bomb, blast);

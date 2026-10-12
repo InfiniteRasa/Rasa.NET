@@ -1,3 +1,4 @@
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -233,6 +234,60 @@ namespace Rasa.Test.Missions
             var packet = new RequestSetAbilitySlotPacket();
             packet.Read(reader);
             return packet;
+        }
+
+        [TestMethod]
+        public void AnAbilityRefusedOnLandingForItsItemIsNotPaidFor()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var snowballs = ToyTests.Grant(harness, SnowballTemplate, 3);
+            var manager = ToyTests.CreateManager(harness, 528, 1, SnowballTemplate);
+            using var abilities = UseAbilityManager(manager);
+            var player = harness.Client.Player;
+
+            // Give the throw a power cost, as other consumables have.
+            var actions = (System.Collections.Generic.Dictionary<ActionId, ActionInfo>)typeof(AbilityManager)
+                .GetField("_actions", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(manager);
+            actions[(ActionId)528].Levels[1].Costs.Add(new ActionCost { Attribute = Attributes.Power, Amount = 40 });
+
+            var power = player.Attributes[Attributes.Power];
+            power.Current = 100;
+            power.CurrentMax = 100;
+
+            manager.RequestPerformAbility(harness.Client, ToyTests.Request(528, 1, snowballs.EntityId));
+            var pending = harness.BootcampMap.PerformRecovery.Single(action => action.ActionId == (ActionId)528);
+            Assert.AreEqual(100, power.Current, "paid on landing, not on asking");
+
+            // The landing's checks pass - the snowballs are still in the pack - and the write that
+            // uses one up fails: the consumption is the last thing that can refuse the throw. (A
+            // pet would not do: it keeps its item, so nothing is consumed that could refuse.)
+            harness.Drain();
+            var refused = false;
+            harness.Context.BeforeCommand = sql =>
+            {
+                if (!refused && sql.Contains("UPDATE \"items\"", StringComparison.Ordinal))
+                {
+                    refused = true;
+                    throw new Microsoft.Data.Sqlite.SqliteException("disk I/O error", 10);
+                }
+            };
+
+            try
+            {
+                ToyTests.Land(harness, manager, pending);
+            }
+            finally
+            {
+                harness.Context.BeforeCommand = null;
+            }
+
+            Assert.IsTrue(refused, "the stack's write was reached");
+
+            Assert.AreEqual(PlayerMessage.PmMissingReqItem, harness.Drain().OfType<UserActionFailedPacket>().Single().MsgId);
+            Assert.AreEqual(100, power.Current, "refused, so not paid for: the cost used to be taken before the consumption could refuse");
+            Assert.AreEqual(3U, snowballs.StackSize, "nothing used up");
+            using var unit = harness.Context.CreateChar();
+            Assert.AreEqual(3U, unit.Items.GetItem(snowballs.Id).StackSize);
         }
 
         private static Restore UseAbilityManager(AbilityManager manager)

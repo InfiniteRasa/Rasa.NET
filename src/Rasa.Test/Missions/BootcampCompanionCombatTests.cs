@@ -607,7 +607,7 @@ namespace Rasa.Test.Missions
         [DataRow("effect")]
         public void AttacksWithoutOwnedMissionEscortsDoNotVisitUnrelatedUnloadedCells(string attack)
         {
-            using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true);
+            using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true, worldMigration: BootcampCaveInBreachTests.BridgeThraxStood);
             SpawnPoolManager.Instance.SpawnPoolWorker(harness.BootcampMap, 0);
             Assert.IsFalse(harness.BootcampMap.SpawnPools.Any(pool => pool.FollowOwnerCharacterId > 0));
             var enemy = Actors(harness).First(actor => actor.DbId == 510216);
@@ -732,7 +732,7 @@ namespace Rasa.Test.Missions
 
         private static BootcampRuntimeTestHarness.Harness CreateEscorts()
         {
-            var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true);
+            var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true, worldMigration: BootcampCaveInBreachTests.BridgeThraxStood);
             SpawnPoolManager.Instance.SpawnPoolWorker(harness.BootcampMap, 0);
             harness.SeedMission(harness.Client.Player.Id, 1992, (uint)MissionState.Completed, true);
             var deSimone = Actors(harness).Single(actor => actor.DbId == 510206);

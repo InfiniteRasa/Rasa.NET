@@ -1,20 +1,23 @@
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 
 namespace Rasa.Managers
 {
     using Config;
+    using Data;
     using Game;
+    using Packets.Communicator.Server;
     using Structures;
 
     /// <summary>
     /// Whether a weapon shot could have been aimed at its target. The target of a shot is the
     /// player's selection (SetTargetId), taken as sent: the server checked the target was an
     /// enemy and within 128 m, and nothing else. The retail client acquires a direct target
-    /// only inside the weapon's range (targeting.py sets the reticle's reach to
-    /// Weapon.GetMaxRange, the WEAPON_ATTACK argument's maxRange, which is the range column
-    /// here) and only under the reticle, so a shot at something behind the shooter, or across a
-    /// base with a pistol, is a client that chose its own target.
+    /// under the reticle, but it does not hold the target it keeps to the weapon's range: Direct
+    /// mode targets with checkRange 0 (targeting.py), and a lock keeps a target however far it
+    /// walks. So a shot past the weapon's reach can come from an honest client, and a shot at
+    /// something behind the shooter is more likely one that chose its own target.
     ///
     /// Three checks on a shot with a target (<see cref="WeaponChecksConfig"/>):
     ///
@@ -25,7 +28,9 @@ namespace Rasa.Managers
     ///    whatever the lock.
     ///  - <b>Range.</b> The target is past <see cref="RangeFalloff.FarMultiple"/> times the
     ///    weapon's range and <see cref="RangeSlack"/>: where the shot's damage has already
-    ///    dropped to its floor, and twice as far as the reticle reaches.
+    ///    dropped to its floor. Log only by default: such a shot lands for that floor, a quarter,
+    ///    and a locked target walking off is the commonest way to make one. Refused, the player
+    ///    is told the target is out of range (<see cref="Tell"/>).
     ///  - <b>Sight.</b> Not one of the target's sample points is in the clear from the shooter's
     ///    eyes (Cover), and the target is further than <see cref="SightMinDistance"/>. Log only
     ///    by default: cover already takes the damage down to a tenth, and the server's mesh is
@@ -49,6 +54,9 @@ namespace Rasa.Managers
 
         /// <summary>Quiet time between one player's lines.</summary>
         public const long QuietMs = 5000;
+
+        /// <summary>Quiet time between one player's "target out of range" messages: a held trigger asks again every refire.</summary>
+        public const long ToldQuietMs = 2000;
 
         public static WeaponChecksConfig Config { get; set; } = new WeaponChecksConfig();
 
@@ -74,8 +82,12 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// The first finding about a shot from the player at the target with a weapon of this
+        /// What the checks find about a shot from the player at the target with a weapon of this
         /// range, or null. <paramref name="cover"/> is the map's cover mesh, null for none.
+        ///
+        /// Every check is made: one that only logs does not stand in for one that refuses (BR-225;
+        /// a long shot's range finding, logged by default, used to hide facing and sight). The
+        /// finding is the first that refuses, else the first; its line names the others too.
         /// </summary>
         public static Finding? Judge(Manifestation player, Actor target, float range, Navigation.CoverMesh cover)
         {
@@ -84,30 +96,45 @@ namespace Rasa.Managers
 
             var config = Config ?? new WeaponChecksConfig();
             var distance = Vector3.Distance(player.Position, target.Position);
+            var found = new List<Finding>();
 
             if (Mode(config.Range) != MovementChecksConfig.Off && range > 0)
             {
                 var reach = range * (float)RangeFalloff.FarMultiple + RangeSlack;
 
                 if (!float.IsFinite(distance) || distance > reach)
-                    return new Finding(Check.Range, $"at {target.EntityId} {distance:F0} m away with a weapon of range {range:F0}",
-                        Mode(config.Range) == MovementChecksConfig.Refuse);
+                    found.Add(new Finding(Check.Range, $"{distance:F0} m away with a weapon of range {range:F0}",
+                        Mode(config.Range) == MovementChecksConfig.Refuse));
             }
 
             if (Mode(config.Facing) != MovementChecksConfig.Off && !IsFacing(player, target.Position, FacingHalfAngle))
-                return new Finding(Check.Facing, $"at {target.EntityId}, {AngleTo(player, target.Position):F0} degrees from where they face",
-                    Mode(config.Facing) == MovementChecksConfig.Refuse);
+                found.Add(new Finding(Check.Facing, $"{AngleTo(player, target.Position):F0} degrees from where they face",
+                    Mode(config.Facing) == MovementChecksConfig.Refuse));
 
             if (Mode(config.Sight) != MovementChecksConfig.Off && cover != null && distance > SightMinDistance)
             {
                 var eye = Cover.EyeOf(player);
 
                 if (Cover.Visible(cover, eye, Cover.SamplePoints(target, eye)) <= 0)
-                    return new Finding(Check.Sight, $"at {target.EntityId} {distance:F0} m away, wholly behind cover",
-                        Mode(config.Sight) == MovementChecksConfig.Refuse);
+                    found.Add(new Finding(Check.Sight, $"{distance:F0} m away, wholly behind cover",
+                        Mode(config.Sight) == MovementChecksConfig.Refuse));
             }
 
-            return null;
+            if (found.Count == 0)
+                return null;
+
+            var first = found.Find(finding => finding.Refuse);
+
+            if (!first.Refuse)
+                first = found[0];
+
+            var others = found.FindAll(finding => finding.Check != first.Check);
+            var what = $"at {target.EntityId}, {first.What}";
+
+            foreach (var other in others)
+                what += $"; also {other.What}{(other.Refuse ? "" : " (log)")}";
+
+            return new Finding(first.Check, what, first.Refuse);
         }
 
         /// <summary>Whether the point is within the half-angle of the way the actor faces, over the ground. Standing on it counts as facing it.</summary>
@@ -151,6 +178,27 @@ namespace Rasa.Managers
 
             player.WeaponCheckLogTick = now;
             player.WeaponCheckHits = 0;
+        }
+
+        /// <summary>
+        /// Tells the shooter a refused shot's target is out of range, with the message an ability
+        /// out of range gets (PmTargetOutOfRange), at most once per <see cref="ToldQuietMs"/>. The
+        /// client has played the shot already and nothing else says it did not go. The range check
+        /// only: facing has no message in the client, and sight, like facing, is log only as shipped.
+        /// </summary>
+        public static void Tell(Client client, Finding finding, long now)
+        {
+            var player = client?.Player;
+
+            if (player == null || !finding.Refuse || finding.Check != Check.Range)
+                return;
+
+            if (player.WeaponRangeToldTick != 0 && now < player.WeaponRangeToldTick + ToldQuietMs)
+                return;
+
+            player.WeaponRangeToldTick = now;
+            client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmTargetOutOfRange,
+                new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
         }
 
         private static string Mode(string value)

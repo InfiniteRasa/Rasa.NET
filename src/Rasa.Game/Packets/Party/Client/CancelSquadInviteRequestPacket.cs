@@ -12,12 +12,10 @@
         public override void Read(PythonReader pr)
         {
             pr.ReadTuple();
-            var familyName = pr.ReadUnicodeString();
-
-            if (familyName.Contains("(AFK)"))
-                FamilyName = familyName.Substring(0, familyName.Length - 5);
-            else
-                FamilyName = familyName;
+            // The invitee's name as the inviter's client shows it, "(AFK)" and all (AfkNames). This
+            // cut five characters off a name containing "(AFK)", which was the English element
+            // alone; the French client appends "(Absent)".
+            FamilyName = AfkNames.Strip(pr.ReadUnicodeString());
         }
     }
 }

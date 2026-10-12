@@ -16,5 +16,14 @@ namespace Rasa.Structures
         internal bool HasDeparted { get; set; }
         internal ulong DropshipId { get; set; }
         internal uint ReleaseOwnedPrivateInstancesForCharacterId { get; init; }
+
+        /// <summary>A secret passage's teleport (DynamicObjectManager.TakePassage): the arrival is shown to everyone at the far end too.</summary>
+        internal bool IsPassage { get; init; }
+
+        /// <summary>
+        /// When a teleport held for its effect leaves (DynamicObjectManager.PassagesWorker), on
+        /// the manager's clock; 0 once it has left, or for one that left at once.
+        /// </summary>
+        internal long DepartAt { get; set; }
     }
 }

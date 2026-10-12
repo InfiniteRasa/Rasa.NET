@@ -72,6 +72,9 @@ namespace Rasa.Repositories.UnitOfWork
         public Char.PvpRecord.IPvpRecordRepository PvpRecords => _parent.PvpRecords;
         public Char.GmCommandLog.IGmCommandLogRepository GmCommandLogs => _parent.GmCommandLogs;
         public Char.ChatLog.IChatLogRepository ChatLogs => _parent.ChatLogs;
+        public Char.EconomyLog.IEconomyLogRepository EconomyLogs => _parent.EconomyLogs;
+        public Char.CraftingJob.ICraftingJobRepository CraftingJobs => _parent.CraftingJobs;
+        public Char.ApiLog.IApiLogRepository ApiLogs => _parent.ApiLogs;
         public Char.CharacterBossKill.ICharacterBossKillRepository CharacterBossKills => _parent.CharacterBossKills;
         public Char.CharacterGreetingRead.ICharacterGreetingReadRepository CharacterGreetingReads => _parent.CharacterGreetingReads;
         public Char.SquadInstance.ISquadInstanceRepository SquadInstances => _parent.SquadInstances;

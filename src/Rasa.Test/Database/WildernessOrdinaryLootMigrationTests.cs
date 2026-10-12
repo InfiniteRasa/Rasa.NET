@@ -13,6 +13,7 @@ using Rasa.Data;
 using Rasa.Loot;
 using Rasa.Managers;
 using Rasa.Repositories.World;
+using Rasa.Services.Preloader;
 using Rasa.Structures.World;
 using Rasa.Test.Missions.Wilderness;
 
@@ -104,11 +105,13 @@ namespace Rasa.Test.Database
             AddForeignContent(context);
             var foreign = Serialize(new OrdinaryLootRepository(context).Get());
             migrator.Migrate(ContentMigration);
-            Assert.IsFalse(context.Database.GetPendingMigrations().Any());
+            // Only what is dated after the content migration is still to come: this fork's own.
+            Assert.IsFalse(context.Database.GetPendingMigrations()
+                .Any(id => string.CompareOrdinal(id, ContentMigration) <= 0));
             fresh.Context.GetService<IMigrator>().Migrate();
             var expected = new OrdinaryLootRepository(fresh.Context).Get();
             var actual = new OrdinaryLootRepository(context).Get();
-            Assert.AreEqual(Serialize(expected), Serialize(Owned(actual)));
+            Assert.AreEqual(Serialize(Owned(expected)), Serialize(Owned(actual)));
             CollectionAssert.AreEqual(native, NativeCounts(context));
             AssertFrozen(actual);
 
@@ -119,7 +122,7 @@ namespace Rasa.Test.Database
             Assert.AreEqual(0L, context.Database.SqlQueryRaw<long>(
                 "SELECT COUNT(*) AS Value FROM pragma_foreign_key_check").Single());
             migrator.Migrate(ContentMigration);
-            Assert.AreEqual(Serialize(expected), Serialize(Owned(new OrdinaryLootRepository(context).Get())));
+            Assert.AreEqual(Serialize(Owned(expected)), Serialize(Owned(new OrdinaryLootRepository(context).Get())));
         }
 
         [TestMethod]
@@ -160,7 +163,7 @@ namespace Rasa.Test.Database
             };
             CollectionAssert.AreEquivalent(expectedClassLinks.Keys.ToArray(),
                 content.Items.Select(row => row.ItemTemplateId).Distinct().ToArray());
-            foreach (var binding in content.Bindings)
+            foreach (var binding in Owned(content).Bindings)
             {
                 var band = binding.ProfileKey.Replace("_boss", "").Split('_');
                 var minimum = int.Parse(band[^2]);
@@ -236,7 +239,8 @@ namespace Rasa.Test.Database
             var error = Assert.ThrowsExactly<LootContentException>(() => OrdinaryLootCatalog.Load(world));
             var missing = error.Diagnostics.Where(message => message.Contains("required ordinary loot profile binding is missing"))
                 .Select(message => uint.Parse(message.Split("creature ")[1].Split(':')[0])).Distinct().OrderBy(id => id).ToArray();
-            CollectionAssert.AreEqual(RequiredCreatures, missing);
+            // And this fork's Wilderness Bane turret, which Bind_control_point_turret_loot binds.
+            CollectionAssert.AreEqual(RequiredCreatures.Append(ControlPointTurretLoot.Creature).OrderBy(id => id).ToArray(), missing);
             StringAssert.Contains(error.Message, "mission 682@");
             StringAssert.Contains(error.Message, "actor xanx-1, map 1220, creature 87");
             StringAssert.Contains(error.Message, "control point 3");
@@ -281,12 +285,12 @@ namespace Rasa.Test.Database
             CollectionAssert.AreEquivalent(golden.Select(row => "wilderness_v1_" + row.Profile).ToArray(),
                 content.Profiles.Select(row => row.ProfileKey).ToArray());
             CollectionAssert.AreEquivalent(golden.SelectMany(row => row.Creatures).ToArray(),
-                content.Bindings.Select(row => row.CreatureId).ToArray());
+                Owned(content).Bindings.Select(row => row.CreatureId).ToArray());
             foreach (var (suffix, creatures, junk) in golden)
             {
                 var key = "wilderness_v1_" + suffix;
                 CollectionAssert.AreEquivalent(creatures,
-                    content.Bindings.Where(row => row.MapContextId == 1220 && row.ProfileKey == key)
+                    Owned(content).Bindings.Where(row => row.ProfileKey == key)
                         .Select(row => row.CreatureId).ToArray(), key);
                 var groups = content.Groups.Where(row => row.ProfileKey == key && row.Kind == LootGroupKind.Junk).ToArray();
                 Assert.AreEqual(junk.Length == 0 ? 0 : 1, groups.Length, key);
@@ -420,7 +424,9 @@ namespace Rasa.Test.Database
             rows.Profiles.Where(row => row.ProfileKey.StartsWith("wilderness_v1_", StringComparison.Ordinal)),
             rows.Groups.Where(row => row.ProfileKey.StartsWith("wilderness_v1_", StringComparison.Ordinal)),
             rows.Items.Where(row => row.ProfileKey.StartsWith("wilderness_v1_", StringComparison.Ordinal)),
-            rows.Bindings.Where(row => row.MapContextId == 1220),
+            // The v1 content's own: not the bindings this fork adds after it (Bind_control_point_turret_loot).
+            rows.Bindings.Where(row => row.MapContextId == 1220 &&
+                !(row.MapContextId == ControlPointTurretLoot.Map && row.CreatureId == ControlPointTurretLoot.Creature)),
             rows.MapPolicies.Where(row => row.MapContextId == 1220));
 
         private static string Serialize(OrdinaryLootContentSnapshot rows) => JsonSerializer.Serialize(rows);

@@ -1,4 +1,4 @@
-extern alias RasaGame;
+﻿extern alias RasaGame;
 
 using System;
 using System.Collections.Generic;
@@ -11,6 +11,7 @@ namespace Rasa.Test.Missions
 {
     using ClientState = RasaGame::Rasa.Data.ClientState;
     using Rasa.Data;
+    using Rasa.Game.Missions.Integration;
     using Rasa.Game;
     using Rasa.Managers;
     using Rasa.Missions.Definitions;
@@ -117,7 +118,7 @@ namespace Rasa.Test.Missions
                 {
                     case "disabled": target.IsInteractable = false; break;
                     case "removed": EntityManager.Instance.UnregisterEntity(target.EntityId); break;
-                    case "moved": target.Position = new Vector3(6, 0, 0); break;
+                    case "moved": target.Position = new Vector3(MissionInteractionPolicy.MaxReach + 1, 0, 0); break;
                     case "session": context.Client.InvalidateMissionSession(); break;
                 }
             };
@@ -226,8 +227,8 @@ namespace Rasa.Test.Missions
             var giver = context.AddNpc(77);
             switch (reason)
             {
-                case "outside": giver.Position = new Vector3(5.001f, 0, 0); break;
-                case "vertical": giver.Position = new Vector3(0, 5.001f, 0); break;
+                case "outside": giver.Position = new Vector3(MissionInteractionPolicy.MaxReach + 0.001f, 0, 0); break;
+                case "vertical": giver.Position = new Vector3(0, MissionInteractionPolicy.MaxReach + 0.001f, 0); break;
                 case "nan-player": context.Client.Player.Position = new Vector3(float.NaN, 0, 0); break;
                 case "infinite-target": giver.Position = new Vector3(0, float.PositiveInfinity, 0); break;
                 case "dead-player": context.Client.Player.State = CharacterState.Dead; break;
@@ -241,7 +242,7 @@ namespace Rasa.Test.Missions
                 case "unregistered-player": EntityManager.Instance.UnregisterPlayer(context.Client.Player.EntityId); break;
                 case "transfer": context.Client.PendingTransfer = new PlayerTransfer { OriginMap = context.Map }; break;
                 case "logout": context.Client.State = ClientState.LoggedIn; break;
-                case "pending-logout": context.Client.Player.LogoutActive = true; break;
+                case "pending-logout": context.Client.Player.LogoutActive = true; context.Client.Player.LogoutRequestedTick = System.Environment.TickCount64; break;
                 case "removal": context.Client.Player.RemoveFromMap = true; break;
             }
 
@@ -255,10 +256,13 @@ namespace Rasa.Test.Missions
         }
 
         [TestMethod]
-        public void ConversationAllowsTheExactFiveMetreThreeDimensionalBoundary()
+        public void ConversationAllowsTheExactReachThreeDimensionalBoundary()
         {
             using var context = MissionTestContext.WithDefinitions(321);
-            var giver = context.AddNpc(77, position: new Vector3(3, 4, 0));
+
+            // 6, 8: ten metres, MissionInteractionPolicy.MaxReach exactly.
+            Assert.AreEqual(10f, MissionInteractionPolicy.MaxReach);
+            var giver = context.AddNpc(77, position: new Vector3(6, 8, 0));
 
             Open(context, giver.EntityId);
 
@@ -457,7 +461,7 @@ namespace Rasa.Test.Missions
             Open(context, giver.EntityId);
             client.Player.MoveBudget = 20;
             client.Player.MoveBudgetTick = Environment.TickCount64;
-            Assert.IsTrue(client.HandleMovement(new Movement(new Vector3(6, 0, 0), Vector2.Zero)));
+            Assert.IsTrue(client.HandleMovement(new Movement(new Vector3(MissionInteractionPolicy.MaxReach + 1, 0, 0), Vector2.Zero)));
             client.Player.MoveBudget = 20;
             client.Player.MoveBudgetTick = Environment.TickCount64;
             Assert.IsTrue(client.HandleMovement(new Movement(Vector3.Zero, Vector2.Zero)));
@@ -596,7 +600,7 @@ namespace Rasa.Test.Missions
             Open(context, npc.EntityId);
             switch (changed)
             {
-                case "range": npc.Position = new Vector3(0, 0, 5.001f); break;
+                case "range": npc.Position = new Vector3(0, 0, MissionInteractionPolicy.MaxReach + 0.001f); break;
                 case "dead": npc.State = CharacterState.Dead; break;
                 case "disabled": npc.IsInteractable = false; break;
                 case "owner": npc.SpawnPool = new SpawnPool { ScenarioOwnerCharacterId = 999 }; break;

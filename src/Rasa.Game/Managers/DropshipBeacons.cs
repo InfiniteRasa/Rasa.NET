@@ -399,8 +399,10 @@ namespace Rasa.Managers
             var mapChannel = client.Player.MapChannel;
             var dropships = DynamicObjectManager.Instance.CreateListOfDropships(client);
 
+            // The map the player is on by its context id, which the window's rows are keyed by:
+            // it marks that row "(current)" and draws its pads. The instance number matched no row.
             client.CallMethod(SysEntity.ClientMethodId,
-                new EnteredWaypointPacket(mapChannel.InstanceId, beacon.Ship.MapContextId, dropships, WaypointType.Dropship, WindowNameId));
+                new EnteredWaypointPacket(mapChannel.MapInfo.MapContextId, beacon.Ship.MapContextId, dropships, WaypointType.Dropship, WindowNameId));
         }
 
         private static bool InReach(Client client, Beacon beacon) =>

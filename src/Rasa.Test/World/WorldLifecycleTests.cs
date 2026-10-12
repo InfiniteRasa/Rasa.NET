@@ -1,4 +1,4 @@
-extern alias RasaGame;
+﻿extern alias RasaGame;
 
 using System;
 using System.Linq;
@@ -211,6 +211,49 @@ namespace Rasa.Test.World
 
             Assert.AreSame(original, client.Player);
             Assert.AreEqual(ClientState.Ingame, client.State);
+        }
+
+        [TestMethod]
+        public void ARequestedLogoutIsPendingForItsCountdownAndNotAfter()
+        {
+            using var world = new WorldTestContext();
+            var client = world.CreateClient();
+
+            new MapChannelManager(null).RequestLogout(client);
+
+            Assert.IsTrue(client.Player.LogoutActive);
+            Assert.IsTrue(client.Player.LogoutPending, "in the countdown: travel and the NPCs refuse");
+
+            // The countdown and the grace over it have run, and no CharacterLogout came: the
+            // window went some other way than Cancel - a death, another centre dialog - and the
+            // player is doing something else. Not refused any more; a CharacterLogout would still
+            // be honoured (LogoutActive).
+            client.Player.LogoutRequestedTick = Environment.TickCount64 - MapChannelManager.LogoutDelayMs - MapChannelManager.LogoutPendingGraceMs - 1;
+
+            Assert.IsTrue(client.Player.LogoutActive);
+            Assert.IsFalse(client.Player.LogoutPending);
+
+            // Cancelled: neither.
+            client.Player.LogoutRequestedTick = Environment.TickCount64;
+            new MapChannelManager(null).CancelLogoutRequest(client);
+
+            Assert.IsFalse(client.Player.LogoutActive);
+            Assert.IsFalse(client.Player.LogoutPending);
+        }
+
+        [TestMethod]
+        public void LeavingTheMapEndsARequestedLogout()
+        {
+            using var world = new WorldTestContext();
+            var client = world.CreateClient();
+
+            new MapChannelManager(null).RequestLogout(client);
+            Assert.IsTrue(client.Player.LogoutPending);
+
+            ManifestationManager.Instance.RemovePlayerCharacter(client);
+
+            Assert.IsFalse(client.Player.LogoutActive);
+            Assert.IsFalse(client.Player.LogoutPending);
         }
 
         [TestMethod]

@@ -241,7 +241,15 @@ namespace Rasa.Test.Gameplay
             context.Manager.RequestLootItemFromCorpse(context.Client,
                 new RequestLootItemFromCorpsePacket { EntityId = context.Loot.EntityId, ItemId = context.Item.EntityId });
 
-            Assert.AreEqual(0, Sent(context).Count);
+            // Refused, and the balance in the world put back to the stored one, shown, and the
+            // player told to try again (CharacterManager.PutPurseRight) - nothing else.
+            var sent = Sent(context).Select(message => message.Packet).ToList();
+            var shown = sent.OfType<UpdateCreditsPacket>().Single();
+            Assert.AreEqual(CurencyType.Prestige, shown.Type);
+            Assert.AreEqual(5, shown.Amount);
+            Assert.AreEqual(1, sent.OfType<Rasa.Packets.Communicator.Server.SystemMessagePacket>().Count());
+            Assert.AreEqual(2, sent.Count);
+            Assert.AreEqual(5, context.Client.Player.Credits[CurencyType.Prestige]);
             Assert.AreEqual(5, StoredPrestige(context));
             Assert.AreEqual(0, context.Client.Player.Inventory.PersonalInventory.Count(id => id == context.Item.EntityId));
 

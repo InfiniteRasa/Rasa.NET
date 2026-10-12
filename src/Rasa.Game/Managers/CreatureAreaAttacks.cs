@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 
 namespace Rasa.Managers
@@ -135,6 +136,40 @@ namespace Rasa.Managers
             }
 
             return caught;
+        }
+
+        /// <summary>
+        /// What attacker may fight (BehaviorManager.MayFight) within radius of centre, other than
+        /// except: the players on the map and the creatures in the cells around centre, alive and
+        /// on the map. What a creature's splash and its lightning storm reach.
+        /// </summary>
+        public static List<Actor> FoesAround(MapChannel mapChannel, Creature attacker, Vector3 centre, float radius, Actor except = null)
+        {
+            var found = new List<Actor>();
+
+            if (mapChannel == null || attacker == null || !(radius > 0))
+                return found;
+
+            bool Caught(Actor actor) =>
+                actor != null && actor != except && actor != attacker
+                && actor.State != CharacterState.Dead && actor.State != CharacterState.Dying
+                && actor.Attributes.TryGetValue(Attributes.Health, out var health) && health.Current > 0
+                && actor.MapContextId == mapChannel.MapInfo.MapContextId
+                && Vector3.DistanceSquared(centre, actor.Position) <= radius * radius
+                && BehaviorManager.MayFight(attacker, actor.EntityId);
+
+            foreach (var player in mapChannel.ClientList.Select(client => client?.Player))
+                if (Caught(player))
+                    found.Add(player);
+
+            var seed = CellManager.Instance.GetCellSeed(centre);
+
+            foreach (var cell in CellManager.CellsIn(mapChannel, CellManager.Instance.CreateCellMatrix(mapChannel, seed & 0xFFFF, seed >> 16)))
+                foreach (var creature in cell.CreatureList)
+                    if (!found.Contains(creature) && Caught(creature))
+                        found.Add(creature);
+
+            return found;
         }
     }
 }

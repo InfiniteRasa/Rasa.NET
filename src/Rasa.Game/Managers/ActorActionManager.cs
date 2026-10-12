@@ -134,6 +134,30 @@ namespace Rasa.Managers
                     // does next (a control point changing hands) goes out.
                     DynamicObjectManager.Instance.ReleaseUseLock(action, false);
 
+                    // A usable of the client's .map (MapUsables), whatever its arg: no object of
+                    // the server's has its id.
+                    if (MapUsables.IsUseOf(action))
+                    {
+                        MapUsables.UseRecovery(mapChannel, action);
+                        break;
+                    }
+
+                    // A usable world object the server put down (PlacedUsables).
+                    if (PlacedUsables.IsUseOf(action))
+                    {
+                        PlacedUsables.UseRecovery(mapChannel, action);
+                        break;
+                    }
+
+                    // A logos shrine teaches its logos whatever arg its class is used with: two of
+                    // them, classes 21214 (FEW) and 21414 (VICTORY), carry the footlocker's 1, and
+                    // the arg alone sent theirs to the footlocker's recovery, which teaches nothing.
+                    if (IsLogosShrine(mapChannel, action.SourceId))
+                    {
+                        DynamicObjectManager.Instance.LogosRecovery(mapChannel, action);
+                        break;
+                    }
+
                     switch (action.ActionArgId)
                     {
                         // A Hortimonculus plant is used with arg 1, as a footlocker is; the plant
@@ -196,6 +220,15 @@ namespace Rasa.Managers
                         Logger.WriteLog(LogType.Error, $"PerformAction: unsuported {action.ActionId}");
                     break;
             };
+        }
+
+        private static bool IsLogosShrine(MapChannel mapChannel, ulong entityId)
+        {
+            foreach (var obj in mapChannel.DynamicObjects)
+                if (obj.EntityId == entityId)
+                    return obj is Logos;
+
+            return false;
         }
     }
 }

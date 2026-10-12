@@ -50,8 +50,8 @@ namespace Rasa.Managers
     /// listed as shots of the one pulse. The reach and the angle are ConeWeapons': the action's
     /// own range (maxRange 10 on every (140, arg) row) and 45 degrees either side. A
     /// pulse may leave a pool on the ground (PROPELLANT_POOL_EFFECT 10000047), which is
-    /// <see cref="PropellantPools"/>'; PROPELLANT_PUMP_EFFECT 10000046 has no numbers or
-    /// behaviour in the client and is not done.
+    /// <see cref="PropellantPools"/>'; PROPELLANT_PUMP_EFFECT 10000046 does nothing on the
+    /// client and is not sent (see there).
     ///
     /// Machine guns (WEAPON_MACHINEGUN 149, a charged action in actionModules): the client's
     /// MachinegunAttack is a ConstantFireAttack like the rest - a looping windup while the
@@ -218,7 +218,10 @@ namespace Rasa.Managers
             tick.Pulses.Add(pulse);
 
             // A propellant gun sprays the cone in front of the shooter; the others hit what they aim
-            // at. An enemy player across a wargame is a target like a creature (Pvp).
+            // at, if it is something the player may attack (AbilityManager.IsAttackable): a HOSTILE
+            // or NEUTRAL creature, an enemy's creature, or an enemy player across a wargame. Any
+            // creature at all used to do: a vendor, a mission NPC or a friend's turret could be
+            // shot dead with a machine gun, a leech gun or a polarity gun, as no missile can.
             var targets = new List<Actor>();
             List<Actor> pool = null;
             var poolReach = 0f;
@@ -237,13 +240,20 @@ namespace Rasa.Managers
                 pool = targets.Where(target => target.State != CharacterState.Dead && target.State != CharacterState.Dying).ToList();
                 poolReach = range - ConeWeapons.RangeSlack;
             }
-            else if (ResolveTarget(mapChannel, player) is Actor aimed && (aimed is Creature || Pvp.IsEnemyTarget(player, aimed)))
+            else if (ResolveTarget(mapChannel, player) is Actor aimed && AbilityManager.IsAttackable(player, aimed))
                 targets.Add(aimed);
-            else if (PersonalWaypoints.TakeDamage(player, player.Target, damage) is int taken)
+            else if (PersonalWaypoints.TryGetPosition(player.Target, out var waypointAt) && InReach(player, waypointAt)
+                     && PersonalWaypoints.TakeDamage(player, player.Target, damage) is int taken)
             {
                 // An enemy's Personal Waypoint (PersonalWaypoints): the pulse lands on its own hit
                 // points as it is - no crit, falloff or resistance, as a missile at one.
                 pulse.Add(new TickEntry { EntityId = player.Target, Amount = taken, DamageType = damageType });
+            }
+            else if (AbilityManager.TryGetPlantPosition(player.Target, out var plantAt) && InReach(player, plantAt)
+                     && AbilityManager.PlantTakeDamage(player, player.Target, damage) is int plantTaken)
+            {
+                // An enemy's Hortimonculus (AbilityManager): the same.
+                pulse.Add(new TickEntry { EntityId = player.Target, Amount = plantTaken, DamageType = damageType });
             }
 
             // The modules in what the shooter wears and holds: their armor piercing, and what the
@@ -275,7 +285,7 @@ namespace Rasa.Managers
 
                 pulse.Add(shot);
 
-                // The crit's effect on a creature is announced by this shot of the pulse (HitEffects).
+                // The crit's effect on a creature or an enemy player is announced by this shot of the pulse (HitEffects).
                 if (crit && !outcome.Immune && target.State != CharacterState.Dead && target.State != CharacterState.Dying && target.Attributes[Attributes.Health].Current > 0)
                     using (HitEffects.On(target, player, shot.TargetEffectIds))
                         CritEffects.OnCritical(mapChannel, target, player, damageType, amount);
@@ -374,10 +384,12 @@ namespace Rasa.Managers
             if (amount <= 0 || session.ChargeTargetId == 0)
                 return;
 
-            // A creature, or an enemy player who is still one (Pvp).
-            if (!(EntityManager.Instance.GetActor(session.ChargeTargetId) is Actor target) || target.MapContextId != mapChannel.MapInfo.MapContextId
+            // Still one the player may attack, as the pulses' target had to be: a creature that
+            // changed sides, or an enemy player who no longer is one (Pvp), takes nothing.
+            if (!(EntityManager.Instance.GetActor(session.ChargeTargetId) is Actor target) || !MapInstanceScope.Contains(mapChannel, target)
+                || !InReach(player, target.Position)
                 || target.State == CharacterState.Dead || target.State == CharacterState.Dying
-                || !(target is Creature || Pvp.IsEnemyTarget(player, target)))
+                || !AbilityManager.IsAttackable(player, target))
                 return;
 
             var crit = CriticalHits.Resolve(player, target, false, CriticalHits.AttackerChance(player, false, session.CritBonus), ref amount);
@@ -400,7 +412,7 @@ namespace Rasa.Managers
             args.HitEntities.Add(target.EntityId);
             args.HitData.Add(hit);
 
-            // The crit's effect on a creature is announced by the release's hit, in the recovery that ends the fire (HitEffects).
+            // The crit's effect on a creature or an enemy player is announced by the release's hit, in the recovery that ends the fire (HitEffects).
             if (crit && !outcome.Immune && target.State != CharacterState.Dead && target.State != CharacterState.Dying && target.Attributes[Attributes.Health].Current > 0)
                 using (HitEffects.On(target, player, hit.TargetEffectIds))
                     CritEffects.OnCritical(mapChannel, target, player, session.DamageType, dealt);
@@ -456,7 +468,10 @@ namespace Rasa.Managers
             return session;
         }
 
-        /// <summary>What the shooter is aiming at, if it is still there to be hit.</summary>
+        /// <summary>
+        /// What the shooter is aiming at, if it is still there to be hit: on this map - this
+        /// channel of it, not another instance of the same map (MapInstanceScope) - and in reach.
+        /// </summary>
         private static Actor ResolveTarget(MapChannel mapChannel, Manifestation player)
         {
             if (player.Target == 0)
@@ -464,11 +479,25 @@ namespace Rasa.Managers
 
             var target = EntityManager.Instance.GetActor(player.Target);
 
-            if (target == null || target.MapContextId != mapChannel.MapInfo.MapContextId
+            if (target == null || !MapInstanceScope.Contains(mapChannel, target) || !InReach(player, target.Position)
                 || target.State == CharacterState.Dead || target.State == CharacterState.Dying)
                 return null;
 
             return target;
+        }
+
+        /// <summary>
+        /// Whether something there is in a weapon's reach of the shooter: as far as a missile may
+        /// be aimed (MissileManager.MaxTargetDistance). The selection is the client's, and it
+        /// keeps it for as long as it likes: a trigger held on a creature, a Personal Waypoint or
+        /// a Hortimonculus used to go on landing however far the shooter went from it, and on a
+        /// creature in another instance of the same map, as no missile does.
+        /// </summary>
+        private static bool InReach(Manifestation player, System.Numerics.Vector3 at)
+        {
+            var distance = System.Numerics.Vector3.Distance(player.Position, at);
+
+            return float.IsFinite(distance) && distance <= MissileManager.MaxTargetDistance;
         }
 
         /// <summary>

@@ -9,11 +9,16 @@ namespace Rasa.Hosting
 
     public class RasaHost : BackgroundService
     {
-        private readonly IRasaServer _rasaServer;
+        /// <summary>The process exit code of a server that could not start.</summary>
+        public const int StartFailedExitCode = 1;
 
-        public RasaHost(IRasaServer rasaServer)
+        private readonly IRasaServer _rasaServer;
+        private readonly IHostApplicationLifetime _lifetime;
+
+        public RasaHost(IRasaServer rasaServer, IHostApplicationLifetime lifetime)
         {
             _rasaServer = rasaServer;
+            _lifetime = lifetime;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -24,13 +29,34 @@ namespace Rasa.Hosting
 
             Logger.WriteLog(LogType.Initialize, "*** Initialized {0} Server...", _rasaServer.ServerType);
 
-            if (!_rasaServer.Start())
+            if (!TryStart())
             {
-                Logger.WriteLog(LogType.Error, "Unable to start server!");
+                // The process ends, with an exit code that says so. It used to log this and stay
+                // up with nothing running - the ports closed, the console reading nothing - and
+                // a service manager or a restart script saw a server that was still going. An
+                // exception out of Start ended this method instead, and with no logging set up
+                // for the host that was not shown at all: the process exited 0, silently.
+                Logger.WriteLog(LogType.Error, "Unable to start server! Stopping.");
+                Environment.ExitCode = StartFailedExitCode;
+                _lifetime?.StopApplication();
                 return;
             }
 
             await ProcessCommandsSafe(stoppingToken);
+        }
+
+        private bool TryStart()
+        {
+            try
+            {
+                return _rasaServer.Start();
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, "Starting the server failed:");
+                Logger.WriteLog(LogType.Error, e);
+                return false;
+            }
         }
 
         private async Task ProcessCommandsSafe(CancellationToken stoppingToken)

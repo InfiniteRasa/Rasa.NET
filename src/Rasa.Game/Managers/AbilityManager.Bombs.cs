@@ -86,7 +86,7 @@ namespace Rasa.Managers
                 var amount = GameEffectManager.ApplyResist(victim, rolled, out var resisted, bomb.TickDamageType);
                 var taken = ActorManager.Instance.Damage(mapChannel, victim, amount, player, out var outcome, bomb.TickDamageType);
 
-                blast.Hits.Add(new TickEntry
+                var entry = new TickEntry
                 {
                     EntityId = victim.EntityId,
                     Amount = outcome.Delivered,
@@ -96,10 +96,14 @@ namespace Rasa.Managers
                     DamageType = bomb.TickDamageType,
                     IsCritical = crit,
                     DeathBlow = taken > 0 && victim.Attributes[Attributes.Health].Current <= 0
-                });
+                };
 
+                blast.Hits.Add(entry);
+
+                // A crit's side effect is announced by the blast (HitEffects).
                 if (crit && !outcome.Immune && victim.State != CharacterState.Dead && victim.State != CharacterState.Dying && victim.Attributes[Attributes.Health].Current > 0)
-                    CritEffects.OnCritical(mapChannel, victim, player, bomb.TickDamageType, amount);
+                    using (HitEffects.On(victim, player, entry.TargetEffectIds))
+                        CritEffects.OnCritical(mapChannel, victim, player, bomb.TickDamageType, amount);
             }
 
             // Sent on the holder, which may just have died in its own blast: the client still has it.

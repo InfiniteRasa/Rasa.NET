@@ -27,6 +27,9 @@ namespace Rasa.Structures
         /// <summary>Set once the finished status has been sent, so the worker sends it once.</summary>
         public bool FinishReported { get; set; }
 
+        /// <summary>Whether a crafting_job row holds it, under <see cref="ResultItemId"/> (KraftwerksManager.Persist).</summary>
+        public bool Persisted { get; set; }
+
         public double TimeLeftSeconds => Math.Max(0, (FinishTick - Environment.TickCount64) / 1000.0);
 
         public bool IsFinished => Environment.TickCount64 >= FinishTick;

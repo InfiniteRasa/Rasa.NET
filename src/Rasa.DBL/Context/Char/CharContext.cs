@@ -66,6 +66,9 @@ namespace Rasa.Context.Char
         public DbSet<PvpMatchWagerEntry> PvpMatchWagerEntries { get; set; }
         public DbSet<GmCommandLogEntry> GmCommandLogEntries { get; set; }
         public DbSet<ChatLogEntry> ChatLogEntries { get; set; }
+        public DbSet<EconomyLogEntry> EconomyLogEntries { get; set; }
+        public DbSet<CraftingJobEntry> CraftingJobEntries { get; set; }
+        public DbSet<ApiLogEntry> ApiLogEntries { get; set; }
         public DbSet<SquadInstanceEntry> SquadInstanceEntries { get; set; }
         public DbSet<SquadInstancePoolEntry> SquadInstancePoolEntries { get; set; }
         public DbSet<SquadInstanceVisitorEntry> SquadInstanceVisitorEntries { get; set; }
@@ -179,6 +182,11 @@ namespace Rasa.Context.Char
             modelBuilder.Entity<GameAccountEntry>()
                 .Property(e => e.CanSkipBootcamp)
                 .HasDefaultValue(false);
+
+            modelBuilder.Entity<GameAccountEntry>()
+                .Property(e => e.HybridUnlocks)
+                .AsUnsignedTinyInt(_dbContextPropertyModifier, 3)
+                .HasDefaultValue(0);
 
             modelBuilder.Entity<GameAccountEntry>()
                 .Property(e => e.LastIp)

@@ -1,4 +1,4 @@
-extern alias RasaGame;
+﻿extern alias RasaGame;
 
 using System;
 using System.Collections.Generic;
@@ -58,6 +58,7 @@ namespace Rasa.Test.World
         private static readonly Vector3 BlueBase = new Vector3(-400, 100, 0);
         private static readonly Vector3 Staging = new Vector3(0, 0, -30);
         private static readonly Vector3 Field = new Vector3(0, 100, 0);
+        private static readonly Vector3 UpperFloor = new Vector3(5, 16, -25);
 
         #region Teams
 
@@ -459,6 +460,122 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void ADeserterMayGoBackToTheirOwnTeamWhenItIsTheBiggerOne()
+        {
+            using var f = new Fixture();
+            var deserter = f.Join(Battlegrounds.Red);
+            f.Join(Battlegrounds.Red);
+            f.Join(Battlegrounds.Red);
+            var blueOne = f.Join(Battlegrounds.Blue);
+            var blueTwo = f.Join(Battlegrounds.Blue);
+            f.Join(Battlegrounds.Blue);
+
+            f.Begin();
+
+            // Red deserted by one, then Blue by two: Red is the bigger team when the deserter
+            // comes back, and Blue is closed to them.
+            f.Grounds.PlayerLeft(deserter);
+            f.Grounds.PlayerLeft(blueOne);
+            f.Grounds.PlayerLeft(blueTwo);
+            Assert.AreEqual(2, f.Match.Count(Battlegrounds.Red));
+            Assert.AreEqual(1, f.Match.Count(Battlegrounds.Blue));
+
+            deserter.Player.Position = Staging;
+            Drain(deserter);
+
+            f.Grounds.TakeLink(deserter, f.BlueDoor);
+            Assert.AreEqual(0u, f.Grounds.TeamOf(deserter.Player), "the team they left is the only one");
+            Drain(deserter);
+
+            // Their own team takes them back, two up or not, with nothing said about joining Blue.
+            f.Grounds.TakeLink(deserter, f.RedDoor);
+            Assert.AreEqual(Battlegrounds.Red, f.Grounds.TeamOf(deserter.Player));
+
+            var packets = Packets(deserter);
+            CollectionAssert.DoesNotContain(packets.OfType<DisplaySystemMessagePacket>().Select(p => p.MsgId).ToArray(), PlayerMessage.EdmundrangeCanNotJoinRedTeamBigtext);
+            Assert.IsFalse(packets.OfType<SystemMessagePacket>().Any(m => m.TextMessage.Contains("join Blue Team")));
+
+            // Anyone else is still held to the balance.
+            var newcomer = f.Player();
+            f.Grounds.TakeLink(newcomer, f.RedDoor);
+            Assert.AreEqual(0u, f.Grounds.TeamOf(newcomer.Player), "3 against 1");
+        }
+
+        [TestMethod]
+        public void AGroupTakingTurnsAtOnePlaceCannotComeBackToItAllTogether()
+        {
+            using var f = new Fixture();
+            f.Join(Battlegrounds.Red);
+            f.Join(Battlegrounds.Blue);
+            f.Begin();
+
+            // Each joins Red while the teams are even, and deserts it: one place, taken in turn.
+            var group = new[] { f.Player(), f.Player(), f.Player() };
+
+            foreach (var member in group)
+            {
+                f.Grounds.TakeLink(member, f.RedDoor);
+                Assert.AreEqual(Battlegrounds.Red, f.Grounds.TeamOf(member.Player));
+
+                f.Grounds.PlayerLeft(member);
+                member.Player.Position = Staging;
+                Drain(member);
+            }
+
+            Assert.AreEqual(1, f.Match.Count(Battlegrounds.Red));
+            Assert.AreEqual(1, f.Match.Count(Battlegrounds.Blue));
+
+            // Back all together: the first takes the place back, and the rest are weighed like
+            // anyone. Before, all three were let in past the balance, four against one.
+            f.Grounds.TakeLink(group[0], f.RedDoor);
+            Assert.AreEqual(Battlegrounds.Red, f.Grounds.TeamOf(group[0].Player));
+
+            f.Grounds.TakeLink(group[1], f.RedDoor);
+            f.Grounds.TakeLink(group[2], f.RedDoor);
+
+            Assert.AreEqual(0u, f.Grounds.TeamOf(group[1].Player));
+            Assert.AreEqual(0u, f.Grounds.TeamOf(group[2].Player));
+            Assert.AreEqual(2, f.Match.Count(Battlegrounds.Red), "two against one, as far as the balance lets anyone");
+
+            var said = Packets(group[1]).OfType<SystemMessagePacket>().Select(m => m.TextMessage).ToList();
+            Assert.IsTrue(said.Any(m => m.Contains("wait for a place on Red Team")), "told to wait");
+            Assert.IsFalse(said.Any(m => m.Contains("join Blue Team")), "not to join the team that is closed to them");
+        }
+
+        [TestMethod]
+        public void ADeserterWhosePlaceWasFilledIsWeighedLikeAnyone()
+        {
+            using var f = new Fixture();
+            var deserter = f.Join(Battlegrounds.Red);
+            f.Join(Battlegrounds.Red);
+            var blue = f.Join(Battlegrounds.Blue);
+            f.Join(Battlegrounds.Blue);
+            f.Begin();
+
+            f.Grounds.PlayerLeft(deserter);
+            deserter.Player.Position = Staging;
+            Drain(deserter);
+
+            // A newcomer fills the place on Red, and Blue loses one.
+            var newcomer = f.Player();
+            f.Grounds.TakeLink(newcomer, f.RedDoor);
+            Assert.AreEqual(Battlegrounds.Red, f.Grounds.TeamOf(newcomer.Player));
+            f.Grounds.PlayerLeft(blue);
+
+            // Two against one, and no place of theirs left open: they wait.
+            f.Grounds.TakeLink(deserter, f.RedDoor);
+            Assert.AreEqual(0u, f.Grounds.TeamOf(deserter.Player));
+            Drain(deserter);
+
+            // Blue gets one back, and there is room on Red by the balance.
+            f.Grounds.TakeLink(f.Player(), f.BlueDoor);
+            Assert.AreEqual(2, f.Match.Count(Battlegrounds.Blue));
+
+            f.Grounds.TakeLink(deserter, f.RedDoor);
+            Assert.AreEqual(Battlegrounds.Red, f.Grounds.TeamOf(deserter.Player));
+        }
+
+        [TestMethod]
         public void ALaterDesertionReplacesTheLockoutAndForgivingClearsIt()
         {
             using var f = new Fixture();
@@ -696,15 +813,105 @@ namespace Rasa.Test.World
             Assert.AreEqual(50, f.Prestige[blue], "the loss's");
             Assert.IsFalse(Pvp.AreEnemies(red.Player, blue.Player), "the wargame was the match");
 
-            // The field is as a match finds it, and everyone is behind their doors.
+            // The field is as a match finds it, and the teams have broken up: the winners on the
+            // staging area's upper floor, the losers at its entrance.
             Assert.IsTrue(f.Match.Points.All(p => p.Owner == 0 && p.Object.StateId == UseObjectState.OcpStateUncontrolled));
-            Assert.AreEqual(RedBase, red.Player.Position);
-            Assert.AreEqual(BlueBase, blue.Player.Position);
-            Assert.AreEqual(Battlegrounds.Red, f.Grounds.TeamOf(red.Player), "the teams stand for the next");
+            Assert.AreEqual(UpperFloor, red.Player.Position);
+            Assert.AreEqual(Staging, blue.Player.Position);
+            Assert.AreEqual(0u, f.Grounds.TeamOf(red.Player));
+            Assert.AreEqual(0u, f.Grounds.TeamOf(blue.Player));
 
-            // And the next prepares at once.
+            // The next waits for whoever chooses a team again.
+            f.Tick(1000);
+            Assert.AreEqual(Battlegrounds.Phase.Waiting, f.Match.Phase);
+            Assert.AreEqual(UpperFloor, red.Player.Position, "the upper floor is the staging area's");
+
+            f.Grounds.Join(red, Battlegrounds.Red, force: false);
+            f.Grounds.Join(blue, Battlegrounds.Blue, force: false);
             f.Tick(1000);
             Assert.AreEqual(Battlegrounds.Phase.Preparing, f.Match.Phase);
+        }
+
+        [TestMethod]
+        public void WhenAMatchEndsTheTeamsBreakUpTheWinnersUpstairsAndTheRestAtTheEntrance()
+        {
+            using var f = new Fixture();
+            var red = f.Join(Battlegrounds.Red);
+            var mate = f.Join(Battlegrounds.Red);
+            var blue = f.Join(Battlegrounds.Blue);
+            var fallen = f.Join(Battlegrounds.Blue);
+
+            f.Begin();
+            fallen.Player.Position = Field;
+            fallen.Player.State = CharacterState.Dead;
+
+            foreach (var client in new[] { red, mate, blue, fallen })
+                Drain(client);
+
+            f.Grounds.End(f.Match, Battlegrounds.Red);
+
+            Assert.AreEqual(UpperFloor, red.Player.Position);
+            Assert.AreEqual(UpperFloor, mate.Player.Position);
+            Assert.AreEqual(Staging, blue.Player.Position);
+            Assert.AreEqual(Field, fallen.Player.Position, "a body is left where it lies, to revive");
+            Assert.AreEqual(0, f.Match.Members.Count, "nobody is on a team");
+
+            foreach (var client in new[] { red, mate, blue, fallen })
+            {
+                var packets = Packets(client);
+
+                Assert.AreEqual(1, packets.OfType<LeftTeamPacket>().Count());
+
+                // The match's end says it for everyone: nobody is told of each departure.
+                CollectionAssert.DoesNotContain(Messages(packets), PlayerMessage.PmPvpRedTeamLeave);
+                CollectionAssert.DoesNotContain(Messages(packets), PlayerMessage.PmPvpBlueTeamLeave);
+                Assert.IsTrue(packets.OfType<SystemMessagePacket>().Any(m => m.TextMessage.Contains("Choose a team")));
+            }
+
+            // Nobody deserted: either team can be joined.
+            Assert.IsTrue(f.Grounds.Join(blue, Battlegrounds.Red, force: false));
+        }
+
+        [TestMethod]
+        public void ADrawPutsEveryoneAtTheEntrance()
+        {
+            using var f = new Fixture();
+            var red = f.Join(Battlegrounds.Red);
+            var blue = f.Join(Battlegrounds.Blue);
+
+            f.Begin();
+            f.Grounds.End(f.Match, 0);
+
+            Assert.AreEqual(Staging, red.Player.Position);
+            Assert.AreEqual(Staging, blue.Player.Position);
+        }
+
+        [TestMethod]
+        public void WithNoPlaceForTheWinnersTheyGoToTheEntranceToo()
+        {
+            using var f = new Fixture(winnersLink: false);
+            var red = f.Join(Battlegrounds.Red);
+            var blue = f.Join(Battlegrounds.Blue);
+
+            Assert.IsNull(f.Grounds.WinnersArrival(f.Match));
+
+            f.Begin();
+            f.Grounds.End(f.Match, Battlegrounds.Red);
+
+            Assert.AreEqual(Staging, red.Player.Position);
+            Assert.AreEqual(Staging, blue.Player.Position);
+        }
+
+        [TestMethod]
+        public void TheWinnersArrivalIsNoWayAnywhere()
+        {
+            using var f = new Fixture();
+            var player = f.Player();
+
+            Assert.AreEqual((UpperFloor, 3.1416f), f.Grounds.WinnersArrival(f.Match));
+            Assert.IsTrue(f.Grounds.TakeLink(player, f.Winners), "a battleground's link, and nothing happens");
+            Assert.AreEqual(0u, f.Grounds.TeamOf(player.Player));
+            Assert.AreEqual(0, f.Teleports.Count);
         }
 
         [TestMethod]
@@ -843,6 +1050,14 @@ namespace Rasa.Test.World
             Assert.AreEqual(PlayerMessage.PmControlpointClaiming, claiming.MsgId);
             Assert.AreEqual("Red Team", claiming.Args["faction"]);
             Assert.AreEqual("Whiskey", claiming.Args["cpName"]);
+
+            // Begun again within ControlPoints.ClaimAnnounceGapMs: the match is not told again;
+            // past it, it is.
+            f.Grounds.Claiming(red, point);
+            Assert.AreEqual(0, Packets(red).OfType<DisplayClientMessagePacket>().Count(m => m.MsgId == PlayerMessage.PmControlpointClaiming));
+            f.Now += ControlPoints.ClaimAnnounceGapMs;
+            f.Grounds.Claiming(red, point);
+            Assert.AreEqual(1, Packets(red).OfType<DisplayClientMessagePacket>().Count(m => m.MsgId == PlayerMessage.PmControlpointClaiming));
 
             Assert.IsTrue(f.Grounds.Captured(red, point));
 
@@ -1251,7 +1466,10 @@ namespace Rasa.Test.World
             f.Grounds.End(f.Match, Battlegrounds.Red);
             Drain(watcher);
 
-            // The teams change under the result, and it stays as it was.
+            // The teams change under the result, and it stays as it was: the teams broke up as it
+            // ended, and the winner and a newcomer choose theirs again.
+            Assert.AreEqual(0, f.Match.Members.Count);
+            Assert.IsTrue(f.Grounds.Join(red, Battlegrounds.Red, force: true));
             var late = f.Join(Battlegrounds.Blue);
             f.Grounds.PlayerLeft(blue);
             f.Tick(1000);
@@ -1488,8 +1706,10 @@ namespace Rasa.Test.World
             Assert.AreEqual(red.Player.EntityId, packets.OfType<ScoreBoardIndividualUpdatePacket>().Single().EntityId);
             Assert.AreEqual(blue.Player.EntityId, packets.OfType<ScoreBoardTrackerUpdatePacket>().Single().EntityId);
 
-            // And when the next match's teams are listed: every row emptied, in one.
+            // And when the next match's teams are listed: every row emptied, in one. The teams broke
+            // up as it ended; the winner chooses theirs again.
             f.Grounds.End(f.Match, Battlegrounds.Red);
+            Assert.IsTrue(f.Grounds.Join(red, Battlegrounds.Red, force: true));
             Drain(watcher);
             f.Grounds.PlayerLeft(blue);
             Drain(watcher);
@@ -1917,6 +2137,10 @@ namespace Rasa.Test.World
             Assert.IsTrue(store.Wagers[match.Id].Values.All(w => w.Result == (byte)PvpWagerResult.Kept));
 
             // The next match on the same field is another record; with nobody ahead it is nobody's.
+            // The teams broke up as the first ended: three choose theirs again.
+            Assert.IsTrue(f.Grounds.Join(red, Battlegrounds.Red, force: true));
+            Assert.IsTrue(f.Grounds.Join(mate, Battlegrounds.Red, force: true));
+            Assert.IsTrue(f.Grounds.Join(blue, Battlegrounds.Blue, force: true));
             f.Begin();
             utc = noon.AddMinutes(40);
             f.Grounds.End(f.Match, 0, "time");
@@ -2015,8 +2239,11 @@ namespace Rasa.Test.World
             CollectionAssert.AreEqual(new[] { Battlegrounds.Blue }, f.Ended);
             Assert.IsFalse(f.Prestige.ContainsKey(master), "ended before its minimum time");
 
-            StringAssert.Contains(Say(".bg team none").Last(), "You are on no team.");
+            // The teams broke up as it ended.
+            Assert.AreEqual(0u, f.Grounds.TeamOf(master.Player));
             StringAssert.Contains(Say(".bg team none").Single(), "You were on no team.");
+            StringAssert.Contains(Say(".bg team red").Last(), "You are on Red Team.");
+            StringAssert.Contains(Say(".bg team none").Last(), "You are on no team.");
 
             master.Player.MapChannel = new MapChannel { MapInfo = new MapInfo(999, "elsewhere", 1, 0), ClientList = new List<Client>() };
             master.Player.MapContextId = 999;
@@ -2101,6 +2328,7 @@ namespace Rasa.Test.World
             Assert.AreEqual((byte)MapLinkKind.TeamRed, EdmundRangeSeed.KindTeamRed);
             Assert.AreEqual((byte)MapLinkKind.TeamBlue, EdmundRangeSeed.KindTeamBlue);
             Assert.AreEqual((byte)MapLinkKind.TeamLeave, EdmundRangeSeed.KindTeamLeave);
+            Assert.AreEqual((byte)MapLinkKind.TeamWinners, EdmundRangeSeed.KindTeamWinners);
 
             var config = new RasaGame::Rasa.Config.Config().Battleground;
             Assert.AreEqual(60, config.PrepSeconds);
@@ -2166,6 +2394,19 @@ namespace Rasa.Test.World
                 CollectionAssert.AreEqual(new[] { "9003|2|2374", "9004|3|2374", "9005|4|2374", "9006|4|2374" },
                     Rows("select id, kind, dest_map_context_id from map_link where id between 9003 and 9006 order by id"));
 
+                // The upper floor's teleporters lead where the ground floor's do; the winners'
+                // arrival is a link nobody walks into.
+                CollectionAssert.AreEqual(new[] { "9007|2|1|3", "9008|3|1|3", "9009|5|0|0" },
+                    Rows("select id, kind, enabled, radius from map_link where id between 9007 and 9009 order by id"));
+                Assert.AreEqual(Rows("select dest_pos_x, dest_pos_y, dest_pos_z from map_link where id = 9003").Single(),
+                    Rows("select dest_pos_x, dest_pos_y, dest_pos_z from map_link where id = 9007").Single());
+                Assert.AreEqual(Rows("select dest_pos_x, dest_pos_y, dest_pos_z from map_link where id = 9004").Single(),
+                    Rows("select dest_pos_x, dest_pos_y, dest_pos_z from map_link where id = 9008").Single());
+
+                migrator.Migrate("20261205000000_Fix_creature_attack_animations");
+                Assert.AreEqual("0", Rows("select count(*) from map_link where id between 9007 and 9009").Single());
+                Assert.AreEqual("4", Rows("select count(*) from map_link where id between 9003 and 9006").Single(), "the match's own stay");
+
                 migrator.Migrate("20261106000000_Add_edmund_range_door");
 
                 Assert.AreEqual("0", Rows("select count(*) from creature where id between 595001 and 595004").Single());
@@ -2195,6 +2436,12 @@ namespace Rasa.Test.World
 
             StringAssert.Contains(script, "'20261107000000_Add_edmund_range_match'");
             Assert.AreEqual(16, EdmundRangeSeed.InsertStatements.Count(), "three a creature, and one a table");
+
+            var upper = context.GetService<IMigrator>()
+                .GenerateScript("20261205000000_Fix_creature_attack_animations", "20261206000000_Add_edmund_range_upper_floor");
+
+            foreach (var insert in EdmundRangeSeed.UpperFloorInsertStatements)
+                StringAssert.Contains(upper, insert);
         }
 
         [TestMethod]
@@ -2287,10 +2534,11 @@ namespace Rasa.Test.World
             internal MapLink BlueDoor { get; }
             internal MapLink RedExit { get; }
             internal MapLink BlueExit { get; }
+            internal MapLink Winners { get; }
 
             internal Battlegrounds.Match Match => Grounds.MatchOf(World.Map);
 
-            internal Fixture()
+            internal Fixture(bool winnersLink = true)
             {
                 _previous = InstanceField.GetValue(null);
                 _change = PvpPrestige.Change;
@@ -2357,6 +2605,9 @@ namespace Rasa.Test.World
                 BlueDoor = Link(2, MapLinkKind.TeamBlue, new Vector3(-10, 0, 0), 3f, BlueBase);
                 RedExit = Link(3, MapLinkKind.TeamLeave, RedBase + new Vector3(-8, 0, 5), 1.5f, new Vector3(20, 0, 20));
                 BlueExit = Link(4, MapLinkKind.TeamLeave, BlueBase + new Vector3(8, 0, 5), 1.5f, new Vector3(-20, 0, 20));
+
+                if (winnersLink)
+                    Winners = Link(5, MapLinkKind.TeamWinners, UpperFloor, 0f, UpperFloor, enabled: false, rotation: 3.1416f);
             }
 
             private static ControlPoints.Point Source(uint id, string name, Vector3 position, ulong marker, uint hospital)
@@ -2381,7 +2632,7 @@ namespace Rasa.Test.World
                 return point;
             }
 
-            private MapLink Link(uint id, MapLinkKind kind, Vector3 position, float radius, Vector3 destination)
+            private MapLink Link(uint id, MapLinkKind kind, Vector3 position, float radius, Vector3 destination, bool enabled = true, float rotation = 0f)
             {
                 var link = new MapLink
                 {
@@ -2391,8 +2642,9 @@ namespace Rasa.Test.World
                     Radius = radius,
                     DestMapContextId = MapId,
                     DestPosition = destination,
+                    DestRotation = rotation,
                     Kind = kind,
-                    Enabled = true,
+                    Enabled = enabled,
                     Comment = kind.ToString()
                 };
 

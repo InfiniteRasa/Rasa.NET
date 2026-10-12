@@ -38,12 +38,17 @@ namespace Rasa.Managers
         public readonly Dictionary<ulong, Dropship> Dropships = new Dictionary<ulong, Dropship>();
         public readonly Dictionary<ulong, DynamicObject> Teleporters = new Dictionary<ulong, DynamicObject>();
 
+        /// <summary>The wormhole network's locks (wormhole_lock), read by <see cref="InitWormholes"/>.</summary>
+        public Wormholes Wormholes { get; } = new Wormholes();
+
         /// <summary>
         /// The UseObject arg id each kind of object is used with, which is what picks the recovery
         /// in ActorActionManager. The client reads it off the object's own usabledata row
         /// (client/augmentations/usable.py, defaulting to 1 for a class with no row), and it
         /// matches the object here: all 35 footlocker classes carry 1, all 39 station classes 5,
-        /// 163 of the 166 logos classes 6, and the control point 7.
+        /// and the control point 7. Of the 170 logos classes placed in the world 168 carry 6, but
+        /// 21214 (FEW) and 21414 (VICTORY) carry 1: a logos shrine's recovery is picked by the
+        /// object, whatever the arg (ActorActionManager.IsLogosShrine).
         /// </summary>
         public const uint FootlockerUseArgId = 1;
         public const uint SurveyUseArgId = 3;
@@ -122,6 +127,7 @@ namespace Rasa.Managers
         {
             InitFootlockers();
             InitTeleporters();
+            InitWormholes();
 
             // After the teleporters: a control point's hospital and waypoint are among them.
             ControlPoints.Instance.Init(_gameUnitOfWorkFactory);
@@ -207,12 +213,31 @@ namespace Rasa.Managers
             if (client.State != ClientState.Ingame)
                 return;
 
+            // A usable the client's own .map placed, such as a Forean fire pit: the server has
+            // no object for it.
+            if (MapUsables.TryRequestUse(client, packet))
+                return;
+
             // The id names an object, or it names nothing this can answer. GetObject is the
             // throwing indexer, so any item, creature or player id - or an object id that is no
             // longer registered - closed the connection of whoever sent it.
             if (!EntityManager.Instance.TryGetObject(packet.EntityId, out var obj))
             {
                 Logger.WriteLog(LogType.Debug, $"{client.Player.FamilyName} asked to use {packet.EntityId}, which is not an object.");
+                return;
+            }
+
+            // A usable world object the server put down (PlacedUsables): its own rules.
+            if (obj.DynamicObjectType == DynamicObjectType.PlacedUsable)
+            {
+                PlacedUsables.RequestUse(client, obj, packet);
+                return;
+            }
+
+            // A destructible world object the server put down (PlacedDestructibles): shot, not used.
+            if (obj.DynamicObjectType == DynamicObjectType.Destructible)
+            {
+                Logger.WriteLog(LogType.Debug, $"Object {obj.EntityId} must be destroyed, not used.");
                 return;
             }
 
@@ -391,6 +416,11 @@ namespace Rasa.Managers
                         client.CallMethod(client.Player.EntityId, new PerformWindupPacket(PerformType.TwoArgs, packet.ActionId, packet.ActionArgId));
                         client.CallMethod(packet.EntityId, new UsePacket(client.Player.EntityId, obj.StateId, 100));
                         client.Player.MapChannel.PerformRecovery.Add(new ActionData(client.Player, packet.ActionId, packet.ActionArgId, 100));
+
+                        // A clan's lockbox: the window the Use opens draws the tab count, the
+                        // balance and the history it was last told, on this entity.
+                        if (obj.EntityClassId == EntityClasses.UsableClanLockboxV01)
+                            InventoryManager.Instance.SendClanLockboxState(client, obj.EntityId);
 
                         if (!obj.TriggeredByPlayers.Contains(client))
                             obj.TriggeredByPlayers.Add(client);
@@ -758,6 +788,10 @@ namespace Rasa.Managers
                     dynamicObject.MissionDestruction == null ? PracticeTargetManager.HitPoints : dynamicObject.CurrentHitPoints));
             }
 
+            // A destructible world object the server put down: an object, and its hit points.
+            if (dynamicObject.DynamicObjectType == DynamicObjectType.Destructible)
+                entityData.AddRange(PlacedDestructibles.EntityData(dynamicObject));
+
             client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(dynamicObject.EntityId, dynamicObject.EntityClassId, entityData));
             PublishRewardLoot(client, dynamicObject);
 
@@ -776,6 +810,9 @@ namespace Rasa.Managers
             // A Personal Waypoint: its hit points, and what it is to this client.
             if (dynamicObject.DynamicObjectType == DynamicObjectType.PersonalWaypoint)
                 PersonalWaypoints.Introduce(client, dynamicObject);
+
+            // A propellant pool's proxy: the pool burning on it.
+            PropellantPools.ShowTo(client, dynamicObject);
 
             // Someone is partway through using it. Players are introduced before objects, and the
             // user is standing at it, so this client already has the actor the effect runs to.
@@ -1224,6 +1261,15 @@ namespace Rasa.Managers
                                 dropship.Client.Player.MapContextId == dropship.MapContextId)
                             {
                                 dropship.Client.State = ClientState.Ingame;
+
+                                // Placed while Teleporting, passed over by the cells since: the
+                                // players who landed or walked by meanwhile, both ways (BR-165).
+                                CellManager.Instance.CatchUp(dropship.Client);
+
+                                // The buffs brought from the map left, now the player is in the
+                                // world and an attach around them reaches their own client too.
+                                EffectCarry.Restore(dropship.Client);
+
                                 Maps.ResumeMissionScenes(dropship.Client);
                                 ManifestationManager.Instance.FinishArrival(dropship.Client);
                                 ManifestationManager.Instance.ResetInactivity(dropship.Client);
@@ -1381,6 +1427,7 @@ namespace Rasa.Managers
                                 0));
 
                         var logosId = 0u;
+                        Logos shrine = null;
                         foreach (var entry in mapChannel.DynamicObjects)
                         {
                             if (entry is not Logos logos ||
@@ -1388,13 +1435,19 @@ namespace Rasa.Managers
                                 continue;
 
                             logosId = logos.Id;
+                            shrine = logos;
                             break;
                         }
 
                         var haveLogos = logosId != 0 &&
                                         client.Player.Logos.Any(logos => logos == logosId);
                         if (logosId != 0 && !haveLogos)
-                            CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Logos, logosId);
+                        {
+                            _updateCharacter(client, CharacterUpdate.Logos, logosId);
+
+                            if (client.Player.Logos.Contains(logosId))
+                                PlayLogosAcquire(shrine ?? obj, client.Player);
+                        }
                         (_missionManager ?? MissionApplication.Instance).RecordProgress(
                             client,
                             MissionProgressEvent.Interaction((uint)obj.EntityClassId));
@@ -1403,6 +1456,22 @@ namespace Rasa.Managers
                     }
             }
         }
+        /// <summary>
+        /// The shrine giving up its logos to the player: OBJ_RECEIVE_LOGOS (416) argument 1, whose
+        /// client class (abilities.newobjectability) does nothing but play the action's FX family,
+        /// OBJECT_ABILITY_LOGOS_ELEMENT_ACQUIRE (1027), from the shrine at whoever it hits. Played
+        /// for a logos learned, not for a use of one already held, and seen by everyone around.
+        /// </summary>
+        private static void PlayLogosAcquire(DynamicObject shrine, Manifestation player)
+        {
+            var perform = new PerformObjectAbilityPacket(ActionId.ObjReceiveLogos, LogosAcquireArgId);
+
+            perform.Hits.Add(player.EntityId);
+            CellManager.Instance.CellCallMethod(shrine, perform);
+        }
+
+        /// <summary>OBJ_RECEIVE_LOGOS's one argument in the client's data, (416, 1).</summary>
+        internal const uint LogosAcquireArgId = 1;
         #endregion
 
         #region Waypoint
@@ -1492,6 +1561,24 @@ namespace Rasa.Managers
                 mapChannel.Teleporters.Add(teleporter.Id, newTeleporter);
                 Teleporters.Add(teleporter.Id, newTeleporter);
             }
+        }
+
+        /// <summary>
+        /// Reads wormhole_lock. A row that names a teleporter that is not a world wormhole is
+        /// logged: it matches no trip.
+        /// </summary>
+        internal void InitWormholes()
+        {
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
+            var locks = unitOfWork.Teleporters.GetWormholeLocks();
+
+            foreach (var row in locks)
+                foreach (var id in new[] { row.FromTeleporterId, row.ToTeleporterId })
+                    if (id != 0 && !(Teleporters.TryGetValue(id, out var teleporter) &&
+                                     teleporter.ObjectData is WaypointInfo { WaypointType: WaypointType.Wormhole }))
+                        Logger.WriteLog(LogType.Error, $"wormhole_lock {row.Id} names teleporter {id}, which is not a wormhole.");
+
+            Wormholes.Load(locks);
         }
 
         internal void CheckPlayerWaypoint(Client client, WaypointInfo objectData)
@@ -1617,7 +1704,7 @@ namespace Rasa.Managers
                     return;
                 }
                 if (client.State != ClientState.Ingame || client.Player?.MapChannel == null || client.Player.Id == 0 ||
-                    client.Player.Disconected || client.Player.RemoveFromMap || client.Player.LogoutActive ||
+                    client.Player.Disconected || client.Player.RemoveFromMap || client.Player.LogoutPending ||
                     client.Player.State == CharacterState.Dead ||
                     !CellManager.Instance.IsInWorld(client) ||
                     !Teleporters.TryGetValue(packet.WaypointId, out var teleporter) ||
@@ -1637,6 +1724,12 @@ namespace Rasa.Managers
                 {
                     teleporter = copied;
                     info = copiedInfo;
+                }
+
+                if (info.WaypointType == WaypointType.Wormhole)
+                {
+                    SelectWormhole(client, teleporter, info);
+                    return;
                 }
 
                 // The travel window names the map by the id its row was listed under, and every
@@ -1681,9 +1774,10 @@ namespace Rasa.Managers
 
                 if (isDropship && !isStartingExperienceExit)
                 {
-                    if (Dropships.Values.Any(ship =>
-                            ship.DropshipType == DropshipType.Teleporter &&
-                            ship.Client == client))
+                    // Only a ship taking the player away is a flight. The one that set them down
+                    // stays five seconds after they are free to go (phase 4 to 5) and only lifts
+                    // off; counting it refused every pick made in those first seconds (BR-203).
+                    if (HasActiveDeparture(client))
                     {
                         RejectTravel(client, "A dropship flight is already active.");
                         return;
@@ -1730,11 +1824,74 @@ namespace Rasa.Managers
         }
 
         /// <summary>
+        /// A wormhole picked from a wormhole's window (<see cref="Wormholes"/>): the player must
+        /// be standing in a world wormhole, and the trip from it be open to them. They are put
+        /// down a metre above the wormhole they picked, as at a waypoint: on their own map by a
+        /// local teleport, on another as a door to it takes them (MapChannelManager.EnterMap),
+        /// into the copy of it with room or their squad's instance. Called with the client's
+        /// lock held, by SelectWaypoint.
+        /// </summary>
+        private void SelectWormhole(Client client, DynamicObject destination, WaypointInfo info)
+        {
+            var origin = client.Player.MapChannel;
+            var source = origin.Teleporters.Values.FirstOrDefault(teleporter =>
+                teleporter.ObjectData is WaypointInfo { WaypointType: WaypointType.Wormhole, Contested: false } &&
+                MapInstanceScope.Contains(origin, teleporter) &&
+                client.Player.IsNear2m(teleporter));
+
+            if (source == null)
+            {
+                RejectTravel(client, "No nearby wormhole.");
+                return;
+            }
+
+            var fromId = ((WaypointInfo)source.ObjectData).WaypointId;
+
+            if (info.Contested || info.WaypointId == fromId || !Wormholes.IsOpen(client.Player, fromId, info.WaypointId))
+            {
+                RejectTravel(client, $"Wormhole {info.WaypointId} is not open from {fromId}.");
+                return;
+            }
+
+            var position = destination.Position + new Vector3(0, 1, 0);
+
+            if (!CellManager.TryGetCellCoordinates(position, out _, out _) || !double.IsFinite(destination.Rotation))
+            {
+                RejectTravel(client, "Invalid destination position.");
+                return;
+            }
+
+            if (destination.MapContextId == origin.MapInfo.MapContextId)
+            {
+                BeginLocalTravel(client, origin, position, destination.Rotation);
+                return;
+            }
+
+            if (!Maps.EnterMap(client, destination.MapContextId, position, (float)destination.Rotation))
+                RejectTravel(client, $"Map {destination.MapContextId} could not be entered.");
+        }
+
+        /// <summary>
         /// The player is taken to a place on the map they are on, as a waypoint takes them: held
         /// until the client has acknowledged the teleport (<see cref="TeleportAcknowledge"/>).
         /// Called with the client's lock held, by SelectWaypoint and ReturnToWormhole.
         /// </summary>
         private void BeginLocalTravel(Client client, MapChannel map, Vector3 destination, double rotation)
+        {
+            var transfer = StartLocalTravel(client, map, destination, rotation, 0, false);
+
+            if (transfer != null)
+                DepartLocalTravel(client, transfer);
+        }
+
+        /// <summary>
+        /// The first half of a local teleport: the transfer, the player held where they stand, and
+        /// the teleport-out effect (PreTeleport, actor.py _StartPreTeleportFX: the body fading
+        /// out) shown to everyone who can see them. A teleport held for its effect leaves
+        /// holdMs later (PassagesWorker); the time is added to the deadline the client has to
+        /// answer it by. Null, with the client told, when travel is not configured.
+        /// </summary>
+        private PlayerTransfer StartLocalTravel(Client client, MapChannel map, Vector3 destination, double rotation, int holdMs, bool isPassage)
         {
             var timeout = client.Server?.Config.GameConfig.TransferTimeoutSeconds ??
                 Config.GameConfig.DefaultTransferTimeoutSeconds;
@@ -1742,9 +1899,10 @@ namespace Rasa.Managers
             {
                 Logger.WriteLog(LogType.Error, "TransferTimeoutSeconds must be positive.");
                 RejectTravel(client, "Travel timeout configuration is invalid.");
-                return;
+                return null;
             }
 
+            var now = _clock();
             var transfer = new PlayerTransfer
             {
                 OriginMap = map,
@@ -1753,16 +1911,57 @@ namespace Rasa.Managers
                 DestinationMap = map,
                 DestinationPosition = destination,
                 DestinationRotation = rotation,
-                Deadline = checked(_clock() + timeout * 1000L),
-                IsDropship = false
+                Deadline = checked(now + timeout * 1000L + Math.Max(0, holdMs)),
+                IsDropship = false,
+                IsPassage = isPassage,
+                DepartAt = holdMs > 0 ? now + holdMs : 0
             };
             client.PendingTransfer = transfer;
             client.CallMethod(SysEntity.ClientMethodId, new RequestMovementBlockPacket());
 
             client.CellCallMethod(client, client.Player.EntityId, new PreTeleportPacket(TeleportType.Default));
+
+            return transfer;
+        }
+
+        /// <summary>
+        /// How long the traveller's client waits after the Teleport before it finishes it: the
+        /// camera put behind the body, the area round the body preloaded and the arrival effect
+        /// played (actor.py Recv_Teleport, _TelportMovementCompleted; the controller it resets is
+        /// the camera's: UserController::Reset in the client goes to the camera controller).
+        /// All three go by where the body is at that moment, and only the MoveObject moves the
+        /// body, when the client's movement controller next runs. So the MoveObject is sent
+        /// before the Teleport (DepartLocalTravel), and the delay gives the client a few frames
+        /// to apply it even if it reads both in one frame and runs its scheduled methods before
+        /// its controllers; it was 5 ms. The player is faded out through it.
+        /// </summary>
+        internal const uint TeleportDelayMs = 250;
+
+        /// <summary>
+        /// The second half: the player moved, their client told to play the teleport and answer
+        /// it, and everyone at the far end shown them there.
+        /// </summary>
+        private void DepartLocalTravel(Client client, PlayerTransfer transfer)
+        {
+            var destination = transfer.DestinationPosition;
+            var rotation = transfer.DestinationRotation;
+
+            transfer.DepartAt = 0;
+            CloseWaypointWindows(client, transfer.OriginMap);
             client.State = ClientState.Teleporting;
             client.SetWorldPosition(destination, rotation);
             CellManager.Instance.UpdateVisibility(client);
+
+            // The body to the traveller's own client first, then to everyone around. Directly,
+            // because a cell broadcast goes to the Ingame clients in the cells
+            // (CellManager.GetClientsInCells) and the traveller is Teleporting now: sent as a
+            // broadcast that included them, it reached everyone but them. Their body stayed
+            // where they had gone in while the server had them at the far end, the Teleport
+            // played where they stood, the alcove went as their cells changed, and their next
+            // step, refused for where it came from, put them right. Before the Teleport, because
+            // the client finishes the Teleport by where the body is (TeleportDelayMs).
+            client.MoveObject(client.Player.EntityId, client.Movement);
+            client.CellMoveObject(client, new MoveObjectMessage(client.Player.EntityId, client.Movement), true);
 
             // BeginTeleport before the Teleport, as the dropships send it. The client answers a
             // Teleport with TeleportAcknowledge only if a BeginTeleport has queued the answer
@@ -1773,15 +1972,51 @@ namespace Rasa.Managers
             // when it timed out.
             client.CallMethod(SysEntity.ClientMethodId, new BeginTeleportPacket());
             client.CallMethod(client.Player.EntityId,
-                new TeleportPacket(destination, rotation, TeleportType.Default, 5));
-            client.CellMoveObject(client, new MoveObjectMessage(client.Player.EntityId, client.Movement), false);
+                new TeleportPacket(destination, rotation, TeleportType.Default, TeleportDelayMs));
         }
 
         /// <summary>
+        /// The waypoint, wormhole or Personal Waypoint window the player is leaving by local
+        /// travel, closed as they go: they are taken off the lists of who is at each, and their
+        /// client is told once (ExitedWaypoint).
+        ///
+        /// They were left on the origin's list, for its proximity worker to take them off once
+        /// they were seen to be gone. When that came after the arrival, it did so after the
+        /// destination's worker had opened its window, in the same pass if the destination
+        /// came first in the map's list - and ExitedWaypoint, which names no waypoint, closed
+        /// the window just opened. So in one direction of every pair of waypoints on a map, and
+        /// of wormholes on the same map, the player arrived with no window.
+        /// </summary>
+        private static void CloseWaypointWindows(Client client, MapChannel map)
+        {
+            var closed = false;
+
+            if (map != null)
+                foreach (var teleporter in map.Teleporters.Values)
+                    closed |= teleporter.TriggeredByPlayers.Remove(client);
+
+            closed |= PersonalWaypoints.CloseWindow(map, client);
+
+            if (closed)
+                client.CallMethod(SysEntity.ClientMethodId, new ExitedWaypointPacket());
+        }
+
+        /// <summary>
+        /// How long a player who has walked into a passage that shows itself stands in its
+        /// teleport-out effect before they are moved: 3 seconds, the time the effect takes to
+        /// play out in footage of the Alia Caverns alcove, which then shows the arrival effect at
+        /// the shrine. Nothing in the client gives a time (actor.py has the states of a
+        /// pre-teleport delay, PRE_TELEPORT_DELAY to PRE_TELEPORT_FADE_OUT_COMPLETE, and nothing
+        /// sets them).
+        /// </summary>
+        internal const int PassageHoldMs = 3000;
+
+        /// <summary>
         /// A secret passage that shows itself (SecretPassages): the player who has walked into
-        /// it is taken to its far end as a waypoint takes them - the teleport's effect where
-        /// they stood and where they arrive, held until their client has answered. False when
-        /// they cannot travel now, and nothing has been done.
+        /// it is taken to its far end as a waypoint takes them, but held in its teleport-out
+        /// effect for PassageHoldMs first, where everyone around can see it, and shown arriving
+        /// to everyone at the far end - then held there until their client has answered. False
+        /// when they cannot travel now, and nothing has been done.
         /// </summary>
         internal bool TakePassage(Client client, Vector3 destination, double rotation)
         {
@@ -1789,14 +2024,65 @@ namespace Rasa.Managers
             {
                 if (client.PendingTransfer != null || client.State != ClientState.Ingame ||
                     client.Player?.MapChannel == null || client.Player.Disconected || client.Player.RemoveFromMap ||
-                    client.Player.LogoutActive || client.Player.State == CharacterState.Dead ||
+                    client.Player.LogoutPending || client.Player.State == CharacterState.Dead ||
                     !CellManager.Instance.IsInWorld(client) ||
                     !CellManager.TryGetCellCoordinates(destination, out _, out _) || !double.IsFinite(rotation))
                     return false;
 
-                BeginLocalTravel(client, client.Player.MapChannel, destination, rotation);
+                StartLocalTravel(client, client.Player.MapChannel, destination, rotation, PassageHoldMs, true);
 
                 return client.PendingTransfer != null;
+            }
+        }
+
+        /// <summary>
+        /// Moves on the passage teleports whose effect has played (TakePassage). One whose player
+        /// can no longer go - dead, logging out, gone from the map - is called off: the effect
+        /// stopped for everyone who saw it start (actor.py Recv_TeleportFailed) and the player
+        /// let go where they stand.
+        /// </summary>
+        internal void PassagesWorker(MapChannel map)
+        {
+            if (map == null)
+                return;
+
+            var now = _clock();
+
+            foreach (var client in map.ClientList.ToArray())
+            {
+                var held = client?.PendingTransfer;
+
+                if (held == null || !held.IsPassage || held.DepartAt == 0 || now < held.DepartAt)
+                    continue;
+
+                lock (client.SyncRoot)
+                {
+                    var transfer = client.PendingTransfer;
+
+                    if (transfer != held || transfer.DepartAt == 0)
+                        continue;
+
+                    if (client.State != ClientState.Ingame || client.Player?.MapChannel != transfer.OriginMap ||
+                        client.Player.Disconected || client.Player.RemoveFromMap || client.Player.LogoutPending ||
+                        client.Player.State == CharacterState.Dead || !CellManager.Instance.IsInWorld(client))
+                    {
+                        client.PendingTransfer = null;
+
+                        if (client.Player != null && client.State != ClientState.Disconnected)
+                        {
+                            if (CellManager.Instance.IsInWorld(client))
+                                client.CellCallMethod(client, client.Player.EntityId, new TeleportFailedPacket());
+                            else
+                                client.CallMethod(client.Player.EntityId, new TeleportFailedPacket());
+
+                            client.CallMethod(SysEntity.ClientMethodId, new UnrequestMovementBlockPacket());
+                        }
+
+                        continue;
+                    }
+
+                    DepartLocalTravel(client, transfer);
+                }
             }
         }
 
@@ -1816,7 +2102,7 @@ namespace Rasa.Managers
                     return;
                 }
                 if (client.State != ClientState.Ingame || client.Player?.MapChannel == null || client.Player.Id == 0 ||
-                    client.Player.Disconected || client.Player.RemoveFromMap || client.Player.LogoutActive ||
+                    client.Player.Disconected || client.Player.RemoveFromMap || client.Player.LogoutPending ||
                     client.Player.State == CharacterState.Dead ||
                     !CellManager.Instance.IsInWorld(client))
                 {
@@ -1858,8 +2144,14 @@ namespace Rasa.Managers
                 client.Player.State != CharacterState.Dead && client.PendingTransfer == null &&
                 CellManager.Instance.IsInWorld(client) && destination != null &&
                 CellManager.TryGetCellCoordinates(position, out _, out _) && double.IsFinite(rotation) &&
-                timeout > 0 && !Dropships.Values.Any(ship => ship.Client == client && ship.DropshipType == DropshipType.Teleporter);
+                timeout > 0 && !HasActiveDeparture(client);
         }
+
+        private bool HasActiveDeparture(Client client) =>
+            Dropships.Values.Any(ship =>
+                ship.Client == client &&
+                ship.DropshipType == DropshipType.Teleporter &&
+                ship.Role == DropshipRole.Departure);
 
         internal bool IsOneWayExit(uint mapContextId, uint waypointId) =>
             Characters.StartingExperience.IsExitPad(mapContextId, waypointId);
@@ -1946,11 +2238,27 @@ namespace Rasa.Managers
                 if (CheckTransferTimeout(client) || !PersistTransfer(client))
                     return;
 
+                var transfer = client.PendingTransfer;
+
                 client.PendingTransfer = null;
                 client.State = ClientState.Ingame;
                 Maps.ResumeMissionScenes(client);
                 ManifestationManager.Instance.FinishArrival(client);
-                client.CallMethod(client.Player.EntityId, new TeleportArrivalPacket());
+
+                // No TeleportArrival to the player's own client: it plays its own arrival when
+                // the Teleport's delay is up (actor.py _TelportMovementCompleted), and that is also
+                // where it puts the camera behind the body and loads the area round it
+                // (TeleportDelayMs). Their client sends this acknowledgement from Recv_Teleport
+                // itself, so an arrival sent back for it could reach the client before that
+                // delay was up, and _PlayTeleportArrivalFX takes away the tmp_teleportType
+                // _TelportMovementCompleted needs: the arrival would play and the rest never
+                // happen.
+                //
+                // Through a passage: everyone already at the far end sees them arrive (actor.py
+                // _PlayTeleportArrivalFX), as at a dropship's pad.
+                if (transfer.IsPassage)
+                    client.CellIgnoreSelfCallMethod(client, new TeleportArrivalPacket());
+
                 client.CallMethod(SysEntity.ClientMethodId, new UnrequestMovementBlockPacket());
             }
         }
@@ -2222,7 +2530,9 @@ namespace Rasa.Managers
 
                 CheckPlayerWaypoint(client, objectData);
 
-                var waypointInfoList = CreateListOfWaypoints(client, objectData.WaypointType);
+                var waypointInfoList = objectData.WaypointType == WaypointType.Wormhole
+                    ? CreateListOfWormholes(client, objectData.WaypointId)
+                    : CreateListOfWaypoints(client, objectData.WaypointType);
 
                 // A waypoint's window lists the Personal Waypoints the player may return to.
                 var returnPoints = objectData.WaypointType == WaypointType.Waypoint
@@ -2255,6 +2565,53 @@ namespace Rasa.Managers
                         client.CallMethod(SysEntity.ClientMethodId, new ExitedWaypointPacket());
                 }
             }
+        }
+
+        /// <summary>
+        /// The wormhole travel window for a player standing in the wormhole
+        /// <paramref name="fromId"/>: every other world wormhole the player may go to from it
+        /// (<see cref="Wormholes"/>), grouped by map and placed where it is, on whichever map and
+        /// planet. Whether the player has gained it does not matter. One whose map is not loaded
+        /// is left out, as one the Bane hold would be.
+        /// </summary>
+        internal Dictionary<uint, MapWaypointInfoList> CreateListOfWormholes(Client client, uint fromId)
+        {
+            var wormholes = new Dictionary<uint, MapWaypointInfoList>();
+            var player = client?.Player;
+
+            if (player?.MapChannel == null)
+                return wormholes;
+
+            foreach (var teleporter in Teleporters.Values.OrderBy(teleporter => teleporter.MapContextId))
+            {
+                if (teleporter.ObjectData is not WaypointInfo info ||
+                    info.WaypointType != WaypointType.Wormhole ||
+                    info.Contested || info.WaypointId == fromId ||
+                    !Wormholes.IsOpen(player, fromId, info.WaypointId))
+                    continue;
+
+                var map = Maps.FindByContextId(teleporter.MapContextId);
+
+                if (map == null)
+                    continue;
+
+                if (!wormholes.TryGetValue(teleporter.MapContextId, out var list))
+                {
+                    list = new MapWaypointInfoList(
+                        teleporter.MapContextId,
+                        new List<MapInstanceInfo>
+                        {
+                            new MapInstanceInfo(map.InstanceId, teleporter.MapContextId, MapInstanceStatus.Low)
+                        },
+                        new List<WaypointInfo>());
+
+                    wormholes.Add(teleporter.MapContextId, list);
+                }
+
+                list.Waypoints.Add(new WaypointInfo(info.WaypointId, info.Contested, teleporter.Position, info.WaypointType));
+            }
+
+            return wormholes;
         }
 
         /// <summary>

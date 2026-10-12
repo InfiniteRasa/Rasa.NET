@@ -524,7 +524,13 @@ namespace Rasa.Managers
                 return PlayerMessage.PmHarvestFailNotHarvestable;
 
             var templates = HarvestYield.BySpecies[species.Value];
-            var item = ItemManager.Instance.CreateFromTemplateId(templates[Next(templates.Length)], 1);
+            var templateId = templates[Next(templates.Length)];
+
+            // Character Unique: not one more of what is held.
+            if (!InventoryManager.Instance.MayReceive(client.Player, ItemManager.Instance.GetItemTemplateById(templateId)))
+                return PlayerMessage.PmItemCharacterUnique;
+
+            var item = ItemManager.Instance.CreateFromTemplateId(templateId, 1);
 
             if (item == null)
                 return PlayerMessage.PmHarvestFailNotHarvestable;

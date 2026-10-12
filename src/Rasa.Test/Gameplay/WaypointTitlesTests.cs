@@ -30,6 +30,7 @@ namespace Rasa.Test.Gameplay
         private const uint DivideWanderer = 462;
         private const uint MarshesPathfinder = 491;
         private const uint MarshesWanderer = 493;
+        private const uint ThunderheadCartographer = 769;
 
         // The seven of the recovered Wilderness objective (MissionDefinitionCatalog, 1449/1);
         // 156, Imperial Valley, is a control point's.
@@ -56,7 +57,7 @@ namespace Rasa.Test.Gameplay
                 new Dictionary<string, int>
                 {
                     ["Wilderness"] = 7, ["Divide"] = 11, ["Palisades"] = 8, ["Plateau"] = 11, ["Pools"] = 9, ["Marshes"] = 7,
-                    ["Descent"] = 11, ["Ashen Desert"] = 7, ["Thunderhead"] = 11, ["Abyss"] = 7, ["Crucible"] = 7
+                    ["Descent"] = 11, ["Ashen Desert"] = 7, ["Thunderhead"] = 10, ["Abyss"] = 7, ["Crucible"] = 7
                 }.ToArray(),
                 counts.ToArray());
 
@@ -86,6 +87,15 @@ namespace Rasa.Test.Gameplay
                 Assert.AreEqual(1244u, world[borrowed].MapContextId);
                 Assert.IsFalse(all.Contains(borrowed), $"{borrowed}: the client has no name of its own for it");
             }
+
+            // Outpost Aurora (86): a waypoint row of Thunderhead's nobody can reach, its z a hundred
+            // thousand times off and left so (MarkedTeleporters). The Cartographer asks for the
+            // post's control point waypoint (327) and not for it (BR-170).
+            Assert.AreEqual((byte)WaypointType.Waypoint, world[86].Type);
+            Assert.AreEqual(1911u, world[86].MapContextId);
+            Assert.IsTrue(world[86].PosZ < -100000, "left as it is");
+            Assert.IsFalse(all.Contains(86u), "86: nobody can reach it");
+            Assert.IsTrue(WaypointTitles.WaypointsOf(ThunderheadCartographer).Contains(327u));
 
             // The ids those rows and the other unnamed ones had are gone, or are local teleporters.
             foreach (var old in new uint[] { 534, 624, 583, 575, 622 })

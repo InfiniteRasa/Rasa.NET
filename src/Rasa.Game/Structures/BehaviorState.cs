@@ -54,6 +54,9 @@ namespace Rasa.Structures
 
         /// <summary>How many thinks it has had an attack ready this fight and held it (BehaviorManager.OpensNow).</summary>
         public int OpeningRolls { get; set; }
+
+        /// <summary>Milliseconds of this fight the creature has stood free to act and neither struck nor gained ground (BehaviorManager.Stalled).</summary>
+        public long StalledMs { get; set; }
     }
 
     /// <summary>

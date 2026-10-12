@@ -655,10 +655,30 @@ namespace Rasa.Test.Missions
         }
 
         [TestMethod]
-        public void FullInventoryRejectsTheWholeRewardAndAllowsRetry()
+        public void FullInventorySendsTheRewardItemsToTheInbox()
         {
             using var context = MissionTestContext.WithCompletableMission(429);
             context.FillRewardCategory();
+
+            Assert.IsTrue(context.Manager.CompleteOfferedMission(
+                context.Client, context.Receiver.EntityId, 429, 0));
+
+            using var unit = context.CreateChar();
+            var inboxRows = unit.CharacterInventories.GetItems(context.Client.AccountEntry.Id)
+                .Where(row => row.InventoryType == (uint)InventoryType.InboxInventory).ToList();
+            Assert.IsTrue(inboxRows.Count > 0);
+            Assert.AreEqual(inboxRows.Count, context.Client.Player.Inventory.InboxItems.Count);
+        }
+
+        [TestMethod]
+        public void FullInventoryAndInboxRejectTheWholeRewardAndAllowRetry()
+        {
+            using var context = MissionTestContext.WithCompletableMission(429);
+            context.FillRewardCategory();
+            var inventory = new InventoryManager(context);
+            for (var i = 0; i < Inventory.MaxInboxItems; i++)
+                Assert.IsTrue(inventory.SendToInbox(context.Client, context.CreateInventoryItem(28, 3147, 1)));
+            context.Drain();
             var before = context.ReadRewardTotals();
 
             Assert.IsFalse(context.Manager.CompleteOfferedMission(

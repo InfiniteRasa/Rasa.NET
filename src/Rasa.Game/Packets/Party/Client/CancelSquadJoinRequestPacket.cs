@@ -12,7 +12,8 @@
         public override void Read(PythonReader pr)
         {
             pr.ReadTuple();
-            FamilyName = pr.ReadUnicodeString();
+            // The leader's name as the requester's client shows it, "(AFK)" and all (AfkNames).
+            FamilyName = AfkNames.Strip(pr.ReadUnicodeString());
         }
     }
 }

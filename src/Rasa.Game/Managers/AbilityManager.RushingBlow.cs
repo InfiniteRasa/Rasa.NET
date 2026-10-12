@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -119,6 +119,29 @@ namespace Rasa.Managers
         }
 
         /// <summary>
+        /// The player is leaving their map - a map change, a logout, a dropped connection
+        /// (ManifestationManager.RemovePlayerCharacter). A charge of theirs ends with nothing
+        /// sent: the clients that were running them are losing them anyway. Their Crab Mines go
+        /// too (CrabMinesLeaving).
+        ///
+        /// A charge used to be ended only by the ChargeWorker of the map it began on, which runs
+        /// while that map has players. A performer who changed map mid-charge left it behind on
+        /// a map that could then empty; nothing ended it, and IsCharging kept setting aside every
+        /// Move they sent from the new map - a character that could not move until they relogged.
+        /// </summary>
+        internal static void PlayerLeaving(Manifestation player)
+        {
+            if (player == null)
+                return;
+
+            lock (ChargesLock)
+                Charges.RemoveAll(c => c.Player == player);
+
+            // And their Crab Mines, which nothing on an emptied map would ever clear.
+            CrabMinesLeaving(player);
+        }
+
+        /// <summary>
         /// Starts the charge: the player's client and everyone in range are sent the run to where
         /// it ends, there as the windup ends, and the server carries them along it meanwhile.
         /// </summary>
@@ -183,7 +206,10 @@ namespace Rasa.Managers
             {
                 var pending = mapChannel.PerformRecovery.Any(a => a.Actor == charge.Player && a.ActionId == charge.ActionId && !a.IsInrerrupted);
 
-                if (!pending || charge.Player.State == CharacterState.Dead || charge.Target.MapContextId != charge.Player.MapContextId)
+                // A performer no longer on this map is not carried on it: ended here as well as
+                // in PlayerLeaving, so the list cannot keep one whatever route they left by.
+                if (!pending || charge.Player.State == CharacterState.Dead || charge.Player.MapChannel != mapChannel
+                    || charge.Target.MapContextId != charge.Player.MapContextId)
                 {
                     CutShort(charge);
                     EndCharge(charge);

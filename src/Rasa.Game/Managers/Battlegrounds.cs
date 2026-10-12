@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -102,6 +102,11 @@ namespace Rasa.Managers
     ///    sent the board as it stands. The client keeps a row by the player's entity id and has
     ///    nothing that removes one, so a player back from a logout - another entity - has their
     ///    old row emptied on every client before the new one is sent (<see cref="Retire"/>).
+    ///  - When a match ends the teams break up, as the range had it: the team that won is put
+    ///    on the staging area's upper floor, where the range's vendors were, and everyone else
+    ///    at the main entrance (<see cref="End"/>). A team is chosen again at the teleporters,
+    ///    which the upper floor has a set of too. A player who is dead when it ends is taken
+    ///    off their team and left to revive.
     ///  - The control points' waypoints are closed, and the two depots stand for nothing yet.
     /// </summary>
     public class Battlegrounds
@@ -249,6 +254,9 @@ namespace Rasa.Managers
             /// <summary>The client's id for it, in the scoreboard's game score; 0 if it has none.</summary>
             public uint ClientId { get; set; }
 
+            /// <summary>When "claiming" was last told to the match for this point (<see cref="Now"/>); 0 if it never was. See ControlPoints.ClaimAnnounceGapMs.</summary>
+            public long ClaimAnnouncedAt { get; set; }
+
             public uint Id => Source.Id;
             public string Name => Source.Name;
         }
@@ -291,6 +299,25 @@ namespace Rasa.Managers
             public long ScoresDueAt { get; set; }
 
             public List<Member> Members { get; } = new List<Member>();
+
+            /// <summary>
+            /// Places left open on each team by a desertion in the match being played, and not
+            /// taken by anyone since: what a deserter going back to their team may take past the
+            /// balance check (Join). A place is one player's; whoever joins the team next fills it.
+            /// </summary>
+            public Dictionary<uint, int> OpenPlaces { get; } = new Dictionary<uint, int>();
+
+            public int OpenPlacesOn(uint team) => OpenPlaces.TryGetValue(team, out var open) ? open : 0;
+
+            /// <summary>A place on the team taken, if one was open.</summary>
+            public bool FillOpenPlace(uint team)
+            {
+                if (OpenPlacesOn(team) <= 0)
+                    return false;
+
+                OpenPlaces[team]--;
+                return true;
+            }
 
             /// <summary>
             /// The scoreboard, a row a character: of the match being played; after it, as it ended;
@@ -624,6 +651,18 @@ namespace Rasa.Managers
             return hospital.HasValue ? (hospital.Value, 0f) : ((Vector3, float)?)null;
         }
 
+        /// <summary>
+        /// Where the team that won a match is put when it ends: the arrival of the map's
+        /// TeamWinners link, enabled or not - on Edmund Range the staging area's upper floor.
+        /// Null on a map with none, whose winners go where everyone else does.
+        /// </summary>
+        public (Vector3 Position, float Rotation)? WinnersArrival(Match match)
+        {
+            var link = LinksOn(match.Map).FirstOrDefault(l => l.Kind == MapLinkKind.TeamWinners);
+
+            return link != null ? (link.DestPosition, link.DestRotation) : ((Vector3, float)?)null;
+        }
+
         /// <summary>The middle of a team's base: its hospital.</summary>
         public Vector3? BaseCentre(Match match, uint team)
         {
@@ -724,8 +763,12 @@ namespace Rasa.Managers
         /// </summary>
         public bool TakeLink(Client client, MapLink link)
         {
-            if (link == null || link.Kind < MapLinkKind.TeamRed || link.Kind > MapLinkKind.TeamLeave)
+            if (link == null || link.Kind < MapLinkKind.TeamRed || link.Kind > MapLinkKind.TeamWinners)
                 return false;
+
+            // Not a way anywhere: where the winners of a match are put.
+            if (link.Kind == MapLinkKind.TeamWinners)
+                return true;
 
             var match = MatchOf(client?.Player?.MapChannel);
 
@@ -757,7 +800,8 @@ namespace Rasa.Managers
         /// Puts a player on a team of the match of the channel they are on, and in its base.
         /// Refused, with the client's own words, to a deserter of the other team, to a player
         /// who left a match on another copy of the map within their lockout, and when the team
-        /// has too many more players than the other; <paramref name="force"/> is a game
+        /// has too many more players than the other - unless it is a deserter going back to a
+        /// place their team still has open (Match.OpenPlaces); <paramref name="force"/> is a game
         /// master's, and refuses nothing. Returns whether they are on the team.
         /// </summary>
         public bool Join(Client client, uint team, bool force)
@@ -790,7 +834,9 @@ namespace Rasa.Managers
                     return false;
                 }
 
-                if (_deserters.TryGetValue(player.Id, out var deserted) && deserted != team)
+                var isDeserter = _deserters.TryGetValue(player.Id, out var deserted);
+
+                if (isDeserter && deserted != team)
                 {
                     CommunicatorManager.Instance.DisplaySystemMessage(client,
                         team == Red ? PlayerMessage.EdmundrangeCanNotJoinRedTeamBigtext : PlayerMessage.EdmundrangeCanNotJoinBlueTeamBigtext);
@@ -799,11 +845,22 @@ namespace Rasa.Managers
                     return false;
                 }
 
-                if (match.Count(team) > match.Count(Other(team)) + Math.Max(0, Config.MaxImbalance))
+                // A deserter going back to the team they left is not weighed against the other
+                // one while the place they left is still open: the other team is closed to them for
+                // the rest of the match, and they are taking back their own place, not tipping the
+                // scales. A place is one player's, and whoever joins the team after them fills it,
+                // so a group cannot take turns deserting one place and come back all together past
+                // the balance; with none open, a deserter is weighed like anyone, and told to wait
+                // rather than to join the team that is closed to them.
+                var retakesPlace = isDeserter && match.OpenPlacesOn(team) > 0;
+
+                if (!retakesPlace && match.Count(team) > match.Count(Other(team)) + Math.Max(0, Config.MaxImbalance))
                 {
                     CommunicatorManager.Instance.DisplaySystemMessage(client,
                         team == Red ? PlayerMessage.EdmundrangeCanNotJoinRedTeamBigtext : PlayerMessage.EdmundrangeCanNotJoinBlueTeamBigtext);
-                    Say(client, $"{TeamName(team)} has more players than {TeamName(Other(team))}: join {TeamName(Other(team))}.");
+                    Say(client, isDeserter
+                        ? $"{TeamName(team)} has more players than {TeamName(Other(team))}: wait for a place on {TeamName(team)}."
+                        : $"{TeamName(team)} has more players than {TeamName(Other(team))}: join {TeamName(Other(team))}.");
                     return false;
                 }
             }
@@ -811,6 +868,7 @@ namespace Rasa.Managers
             var member = new Member { Client = client, Team = team };
 
             match.Members.Add(member);
+            match.FillOpenPlace(team);
 
             if (match.Phase == Phase.Running)
                 member.Score = ScoreFor(match, member);
@@ -861,7 +919,7 @@ namespace Rasa.Managers
         /// the staging area with <paramref name="toStaging"/>; a player who is leaving the map
         /// is going somewhere else already.
         /// </summary>
-        private void Leave(Match match, Member member, bool deserting, bool toStaging)
+        private void Leave(Match match, Member member, bool deserting, bool toStaging, bool announce = true)
         {
             if (!match.Members.Remove(member))
                 return;
@@ -873,6 +931,7 @@ namespace Rasa.Managers
             {
                 Lock(player.Id, match.Map.MapInfo.MapContextId, match.Map.InstanceId);
                 _deserters[player.Id] = member.Team;
+                match.OpenPlaces[member.Team] = match.OpenPlacesOn(member.Team) + 1;
                 Logger.WriteLog(LogType.Debug, $"Battleground {match.Map.MapInfo.MapContextId}/{match.Map.InstanceId}: {player.FamilyName} deserted {TeamName(member.Team)}.");
             }
 
@@ -893,7 +952,8 @@ namespace Rasa.Managers
                 foreach (var mate in match.Team(member.Team))
                     mate.Client.CallMethod(SysEntity.ClientTeamManagerId, new RemoveTeamMemberPacket(player.EntityId));
 
-                Tell(match, member.Team == Red ? PlayerMessage.PmPvpRedTeamLeave : PlayerMessage.PmPvpBlueTeamLeave, ("player", player.FamilyName ?? ""));
+                if (announce)
+                    Tell(match, member.Team == Red ? PlayerMessage.PmPvpRedTeamLeave : PlayerMessage.PmPvpBlueTeamLeave, ("player", player.FamilyName ?? ""));
 
                 // Out of the team's chat channel, whether or not there is a client left to tell.
                 CommunicatorManager.Instance.LeaveTeamChannel(client);
@@ -1150,8 +1210,19 @@ namespace Rasa.Managers
             var match = MatchWith(point);
             var member = match?.Find(client);
 
-            if (member != null)
-                Tell(match, PlayerMessage.PmControlpointClaiming, ("faction", TeamName(member.Team)), ("cpName", point.Name));
+            if (member == null)
+                return;
+
+            // Not more than once in ControlPoints.ClaimAnnounceGapMs per point: a use can be
+            // begun as often as the player likes, and each one told the whole match.
+            var now = Now();
+
+            if (point.ClaimAnnouncedAt != 0 && now - point.ClaimAnnouncedAt < ControlPoints.ClaimAnnounceGapMs)
+                return;
+
+            point.ClaimAnnouncedAt = now;
+
+            Tell(match, PlayerMessage.PmControlpointClaiming, ("faction", TeamName(member.Team)), ("cpName", point.Name));
         }
 
         /// <summary>
@@ -1367,6 +1438,7 @@ namespace Rasa.Managers
 
             match.Phase = Phase.Running;
             match.Forced = forced;
+            match.OpenPlaces.Clear();
             match.WargameId = NextWargameId();
             match.MinEndsAt = now + Math.Max(0, Config.MinMinutes) * 60000L;
             match.PhaseEnds = now + Math.Max(1, Math.Max(Config.MinMinutes, Config.MaxMinutes)) * 60000L;
@@ -1468,8 +1540,8 @@ namespace Rasa.Managers
 
         /// <summary>
         /// Ends the match with a winner, or with none: everyone told, the prestige given, the
-        /// deserters who saw it through forgiven, the field reset and everyone back in their base
-        /// for the next.
+        /// deserters who saw it through forgiven, the field reset, and the teams broken up - the
+        /// winners to the staging area's upper floor, everyone else to the main entrance.
         /// </summary>
         public void End(Match match, uint winner, string reason = null)
         {
@@ -1485,6 +1557,7 @@ namespace Rasa.Managers
 
             match.Phase = Phase.Waiting;
             match.Forced = false;
+            match.OpenPlaces.Clear();
             match.ShowsResult = true;
             match.ResultEndsAt = now + ResultMs;
 
@@ -1531,12 +1604,37 @@ namespace Rasa.Managers
 
             ResetField(match, announce: true);
 
-            // Behind their doors again.
-            foreach (var member in match.Members)
-                ToBase(match, member);
+            // The teams break up. Whoever won goes up to the staging area's upper floor, where
+            // the range's vendors were, and whoever lost or drew to the main entrance, where the
+            // door from the CELLAR Arena comes in; the next match is played by whoever chooses a
+            // team again. The scoreboard keeps the result for its time all the same. Nobody is
+            // told of each departure: the match's end says it for everyone.
+            var winners = WinnersArrival(match);
 
-            foreach (var member in match.Members)
-                ShowHospitals(match, member.Client);
+            foreach (var member in match.Members.ToList())
+            {
+                var won = winner != 0 && member.Team == winner;
+                var client = member.Client;
+
+                member.LeaveLink = null;
+                Leave(match, member, deserting: false, toStaging: false, announce: false);
+
+                if (client?.Player == null || client.State != ClientState.Ingame || client.PendingTransfer != null)
+                    continue;
+
+                // A body is not moved: it revives where its player chooses, and a player with
+                // no team who revives outside the staging area is brought to it (Police).
+                if (client.Player.State != CharacterState.Dead && client.Player.State != CharacterState.Dying)
+                {
+                    if (won && winners.HasValue)
+                        Teleport(client, winners.Value.Position, winners.Value.Rotation);
+                    else
+                        Teleport(client, match.Definition.StagingArrival, match.Definition.StagingRotation);
+                }
+
+                Say(client, "Choose a team at the teleporters to play the next match.");
+                ShowHospitals(match, client);
+            }
 
             MatchEnded?.Invoke(match, winner);
         }

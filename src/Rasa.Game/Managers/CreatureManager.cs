@@ -558,7 +558,8 @@ namespace Rasa.Managers
                 creature.Attributes.Add(Attributes.Body, new ActorAttributes(Attributes.Body, creatureStats.Body, creatureStats.Body, creatureStats.Body, 5, 1000));
                 creature.Attributes.Add(Attributes.Mind, new ActorAttributes(Attributes.Mind, creatureStats.Mind, creatureStats.Mind, creatureStats.Mind, 5, 1000));
                 creature.Attributes.Add(Attributes.Spirit, new ActorAttributes(Attributes.Spirit, creatureStats.Spirit, creatureStats.Spirit, creatureStats.Spirit, 5, 1000));
-                creature.Attributes.Add(Attributes.Health, new ActorAttributes(Attributes.Health, creatureStats.Health, creatureStats.Health, creatureStats.Health, 5, 1000));
+                // Health comes back out of a fight (CreatureHealth): its rate is sent from the start.
+                creature.Attributes.Add(Attributes.Health, CreatureHealth.NewAttribute(creatureStats.Health));
                 creature.Attributes.Add(Attributes.Chi, new ActorAttributes(Attributes.Chi, 0, 0, 0, 0, 0));
                 creature.Attributes.Add(Attributes.Power, new ActorAttributes(Attributes.Power, 0, 0, 0, 0, 0));
                 creature.Attributes.Add(Attributes.Aware, new ActorAttributes(Attributes.Aware, 0, 0, 0, 0, 0));
@@ -572,7 +573,7 @@ namespace Rasa.Managers
                 creature.Attributes.Add(Attributes.Body, new ActorAttributes(Attributes.Body, 15, 15, 15, 5, 1000));
                 creature.Attributes.Add(Attributes.Mind, new ActorAttributes(Attributes.Mind, 15, 15, 15, 5, 1000));
                 creature.Attributes.Add(Attributes.Spirit, new ActorAttributes(Attributes.Spirit, 15, 15, 15, 5, 1000));
-                creature.Attributes.Add(Attributes.Health, new ActorAttributes(Attributes.Health, 100, 100, 100, 10, 1000));
+                creature.Attributes.Add(Attributes.Health, CreatureHealth.NewAttribute(100));
                 creature.Attributes.Add(Attributes.Chi, new ActorAttributes(Attributes.Chi, 0, 0, 0, 0, 0));
                 creature.Attributes.Add(Attributes.Power, new ActorAttributes(Attributes.Power, 0, 0, 0, 0, 0));
                 creature.Attributes.Add(Attributes.Aware, new ActorAttributes(Attributes.Aware, 0, 0, 0, 0, 0));
@@ -756,7 +757,7 @@ namespace Rasa.Managers
             creature.Attributes.Add(Attributes.Body, new ActorAttributes(Attributes.Body, body, body, body, 5, 1000));
             creature.Attributes.Add(Attributes.Mind, new ActorAttributes(Attributes.Mind, body, body, body, 5, 1000));
             creature.Attributes.Add(Attributes.Spirit, new ActorAttributes(Attributes.Spirit, body, body, body, 5, 1000));
-            creature.Attributes.Add(Attributes.Health, new ActorAttributes(Attributes.Health, health, health, health, 10, 1000));
+            creature.Attributes.Add(Attributes.Health, CreatureHealth.NewAttribute(health));
             creature.Attributes.Add(Attributes.Chi, new ActorAttributes(Attributes.Chi, 0, 0, 0, 0, 0));
             creature.Attributes.Add(Attributes.Power, new ActorAttributes(Attributes.Power, 0, 0, 0, 0, 0));
             creature.Attributes.Add(Attributes.Aware, new ActorAttributes(Attributes.Aware, 0, 0, 0, 0, 0));
@@ -786,6 +787,22 @@ namespace Rasa.Managers
             // The battle cry package of each class and creature row that has one (Battlecries).
             var battlecries = Battlecries.Load(unitOfWork.Creatures.GetBattlecries());
             Logger.WriteLog(LogType.Initialize, $"Loaded {battlecries} creature battle cry packages");
+
+            // An escort's human voice, once rolled, is kept for its creature row - written off
+            // the map's thread, as the map goes on with it at once.
+            var factory = _gameUnitOfWorkFactory;
+            Battlecries.Keep = (creatureId, packageId) => System.Threading.Tasks.Task.Run(() =>
+            {
+                try
+                {
+                    using var keeping = factory.CreateWorld();
+                    keeping.Creatures.SaveCreatureBattlecry(creatureId, (uint)packageId);
+                }
+                catch (Exception e)
+                {
+                    Logger.WriteLog(LogType.Error, $"The battle cry voice {packageId} of creature {creatureId} was not kept: {e.Message}");
+                }
+            });
 
             foreach (var data in creatureList)
             {

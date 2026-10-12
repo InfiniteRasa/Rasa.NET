@@ -23,6 +23,15 @@ namespace Rasa.Managers
     /// Only what the shooter may attack is splashed (AbilityManager.VictimsWithin): hostile
     /// creatures, and their enemies across a wargame (Pvp) - no other player is caught by
     /// another player's rocket.
+    ///
+    /// A creature's launcher splashes the same: DefaultRadius around its target, for
+    /// SplashPercent, with no crit. A creature has no weapon item, only the action and argument
+    /// it attacks with, and the client's weapon classes for those name no radius either. Its
+    /// launchers are the pairs the client plays as a rocket launcher - WEAPON_ROCKETLAUNCHER
+    /// (141: the NeoBot's missile, the AFS Mech's missiles) and WEAPON_GROUNDTARGET (411, the Bane
+    /// Mortar), both RocketLauncherAttack - and the Bane Grenade (WEAPON_ATTACK 229, the Thrax
+    /// Grenadier's), which the client plays as a plain shot. What it splashes is what it may fight
+    /// (CreatureAreaAttacks.FoesAround): players, and creatures of another side.
     /// </summary>
     public static class Splash
     {
@@ -58,6 +67,20 @@ namespace Rasa.Managers
 
             return DefaultRadius;
         }
+
+        /// <summary>The Bane Grenade's argument to WEAPON_ATTACK (Weapon_Creature_Bane_Grenade).</summary>
+        public const uint BaneGrenadeArgId = 229;
+
+        /// <summary>Whether a creature's attack is a launcher's: a rocket, a mortar shell or a Bane grenade.</summary>
+        public static bool Splashes(CreatureAction action)
+        {
+            return action != null
+                && (action.ActionId == ActionId.WeaponRocketlauncher || action.ActionId == ActionId.WeaponGroundtarget
+                    || action.ActionId == ActionId.WeaponAttack && action.ActionArgId == BaneGrenadeArgId);
+        }
+
+        /// <summary>The splash radius of a creature's attack: DefaultRadius for a launcher's, 0 for any other.</summary>
+        public static float RadiusOf(CreatureAction action) => Splashes(action) ? DefaultRadius : 0;
 
         /// <summary>What each splashed creature takes of a shot's damage.</summary>
         public static int DamageOf(int damage)

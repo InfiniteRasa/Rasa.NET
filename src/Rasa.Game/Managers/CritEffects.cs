@@ -23,9 +23,13 @@ namespace Rasa.Managers
     ///  - Electric: CRIT_ELECTRIC 418, whose OnTick(target, arcTargets) draws its arcs from the
     ///    creature to the ids it is given. Up to ElectricArcTargets other hostile creatures within
     ///    ElectricArcRadius metres of it take ElectricArcPercent of the crit's damage as
-    ///    electrical, floated through the effect's AnnounceDamage.
+    ///    electrical, floated through the effect's AnnounceDamage - once the hit that set it off
+    ///    has been played, where the hit announces the effect (Arc).
     ///  - Physical: CRIT_PHYSICAL 131's client class is an empty DamageEffect - no tooltip, no
     ///    icon, no behaviour - so a Physical crit is its extra damage and nothing more.
+    ///
+    /// Each effect goes on quietly and is named in the hit that caused it, where the hit is one
+    /// that can name it (HitEffects), so the client shows it as the hit lands.
     ///
     /// The client has the effects and their tooltips but none of the numbers; every figure
     /// below is chosen here.
@@ -73,9 +77,11 @@ namespace Rasa.Managers
             if (target is Manifestation player && (Pvp.IsSafe(player) || !target.Attributes.TryGetValue(Attributes.Health, out var health) || health.Current <= 0))
                 return;
 
-            // And what a creature shouts at one (Battlecries).
+            // And what a creature shouts at one (Battlecries), and a player says (PlayerVoices).
             if (target is Creature struck)
                 Battlecries.Crit(mapChannel, struck);
+            else if (target is Manifestation critted)
+                PlayerVoices.Critical(critted);
 
             switch (damageType)
             {
@@ -159,12 +165,58 @@ namespace Rasa.Managers
         /// <summary>
         /// Electric: arcs from the creature to the nearest ElectricArcTargets other hostiles
         /// within ElectricArcRadius, each taking ArcDamage(damage) as electrical damage (resisted,
-        /// not a crit, a kill for the player). The effect goes on first so its FX exists, then
-        /// one tick draws the arcs and an AnnounceDamage floats the numbers.
+        /// not a crit, a kill for the player). The effect goes on, then one tick draws the arcs
+        /// from its FX and an AnnounceDamage floats the numbers.
+        ///
+        /// The FX is only there once the effect has been announced. Announced by its attach, the
+        /// arcs go at once. Named in the hit that set it off (HitEffects), it is announced when
+        /// the client plays that hit - up to the hit's strike time after it arrives - so the arcs,
+        /// and their damage, wait that long and <see cref="ArcMarginMs"/> more, as the effect's
+        /// tick; the effect stays on for ElectricEffectMs after them.
         /// </summary>
         public static void Arc(MapChannel mapChannel, Actor target, Actor source, int damage)
         {
-            if (!(source is Manifestation player))
+            if (!(source is Manifestation))
+                return;
+
+            var strikeMs = HitEffects.StrikeMs(target);
+            var arc = NewDebuff(mapChannel, source, CritElectricTypeId, ElectricEffectMs);
+
+            GameEffectManager.Instance.Attach(mapChannel, target, arc);
+
+            // Turned away (immune), or announced by its attach: the arcs go at once, as they did.
+            if (!target.ActiveEffects.ContainsKey(arc.EffectId) || arc.AnnounceOnAttach)
+            {
+                DrawArcs(mapChannel, target, arc, damage);
+                return;
+            }
+
+            var waitMs = strikeMs + ArcMarginMs;
+            var now = Environment.TickCount64;
+
+            arc.TickIntervalMs = waitMs;
+            arc.NextTickTick = now + waitMs;
+            arc.ExpiresTick = now + waitMs + ElectricEffectMs;
+            arc.OnTick = (map, holder, effect) =>
+            {
+                // Once: the arcs are the effect's only tick.
+                effect.TickIntervalMs = 0;
+                effect.OnTick = null;
+                DrawArcs(map, holder, effect, damage);
+            };
+        }
+
+        /// <summary>How long after the hit is played, at most, an Electric crit's arcs wait for the announce they are drawn from.</summary>
+        public const int ArcMarginMs = 250;
+
+        /// <summary>
+        /// The arcs of an Electric crit on <paramref name="target"/>: chosen around it as they go,
+        /// drawn from the effect's FX by its tick, and floated by its AnnounceDamage.
+        /// </summary>
+        private static void DrawArcs(MapChannel mapChannel, Actor target, GameEffect arc, int damage)
+        {
+            if (!(arc.Source is Manifestation player) || mapChannel == null || target == null
+                || player.MapContextId != mapChannel.MapInfo.MapContextId)
                 return;
 
             var arcTo = AbilityManager.VictimsWithin(mapChannel, player, target.Position, ElectricArcRadius)
@@ -172,14 +224,6 @@ namespace Rasa.Managers
                 .OrderBy(c => System.Numerics.Vector3.DistanceSquared(c.Position, target.Position))
                 .Take(ElectricArcTargets)
                 .ToList();
-
-            var arc = NewDebuff(mapChannel, source, CritElectricTypeId, ElectricEffectMs);
-
-            // Announced by its own attach, and not by the hit (HitEffects): the tick below draws
-            // the arcs from the effect's FX, which is only there once it has been announced.
-            arc.AnnounceWithHit = false;
-
-            GameEffectManager.Instance.Attach(mapChannel, target, arc);
 
             if (arcTo.Count == 0)
                 return;

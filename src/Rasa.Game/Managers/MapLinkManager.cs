@@ -170,6 +170,25 @@ namespace Rasa.Managers
                 player.InsideMapLinks.Add(link.Id);
         }
 
+        /// <summary>
+        /// The server has set the player down where they are on their map - a revive at a hospital
+        /// or an instance's entrance: counted as standing in every link that holds the spot, as one
+        /// who has just arrived through it is, so it does not fire until they step out and back
+        /// in. Added to what they are counted in rather than in place of it (the instance's way
+        /// out InstanceEntrances.StandIn put them in); the worker's next pass drops what they are
+        /// no longer in. Their cells must be the ones they stand in (CellManager.UpdateVisibility).
+        /// </summary>
+        public void PlacedOnMap(Client client)
+        {
+            var player = client?.Player;
+
+            if (player?.MapChannel == null)
+                return;
+
+            foreach (var link in LinksAround(player.MapChannel, player.Cells, player.Position, false))
+                player.InsideMapLinks.Add(link.Id);
+        }
+
         public void RemovePlayer(Client client)
         {
             client.Player?.InsideMapLinks.Clear();

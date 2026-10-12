@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
@@ -114,14 +115,18 @@ namespace Rasa.Context
         ///
         /// This is still Sqlite only, as it was: MySql schemas are managed outside the server, and
         /// a server that migrated them on boot would apply a schema change to a live database
-        /// without anyone asking it to.
+        /// without anyone asking it to. A MySql database is checked instead (CheckMySqlSchema).
         /// </summary>
         public void Initialize()
         {
-            if (_databaseConfiguration.Value.GetDatabaseProvider() != DatabaseProvider.Sqlite)
-                return;
-
             var context = GetType().Name;
+
+            if (_databaseConfiguration.Value.GetDatabaseProvider() != DatabaseProvider.Sqlite)
+            {
+                CheckMySqlSchema(context);
+                return;
+            }
+
             var pending = this.Database.GetPendingMigrations().ToList();
 
             if (pending.Count == 0)
@@ -148,6 +153,47 @@ namespace Rasa.Context
             run.Stop();
 
             Console.WriteLine($"{context}: {pending.Count} migration{(pending.Count == 1 ? "" : "s")} applied in {run.ElapsedMilliseconds} ms. Database ready.");
+        }
+
+        /// <summary>
+        /// Names the migrations a MySql database has not had, as an error, and starts anyway: the
+        /// server does not change a MySql schema itself, and whoever runs it may have applied a
+        /// change by hand. Nothing used to look, so a database behind the code ran until a query
+        /// failed - an account.password still varchar(64), for one, locked accounts out on the
+        /// rehash of their password (BR-155).
+        /// </summary>
+        private void CheckMySqlSchema(string context)
+        {
+            List<string> pending;
+
+            try
+            {
+                pending = this.Database.GetPendingMigrations().ToList();
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, $"{context}: could not read which migrations this database has had: {e.Message}");
+                return;
+            }
+
+            if (pending.Count == 0)
+                Console.WriteLine($"{context}: schema is up to date.");
+            else
+                Logger.WriteLog(LogType.Error, PendingMigrationsReport(context, pending));
+        }
+
+        /// <summary>What CheckMySqlSchema says of a database missing these migrations, oldest first.</summary>
+        internal static string PendingMigrationsReport(string context, IReadOnlyList<string> pending)
+        {
+            const int Listed = 10;
+
+            var names = pending.Count <= Listed
+                ? string.Join(", ", pending)
+                : $"{string.Join(", ", pending.Take(Listed))} and {pending.Count - Listed} more, up to {pending[pending.Count - 1]}";
+
+            return $"{context}: this MySql database has not had {pending.Count} migration{(pending.Count == 1 ? "" : "s")}: {names}. " +
+                   "The server does not migrate MySql; apply them (dotnet ef database update, or their SQL scripts) before anyone logs in, " +
+                   "or what they add will fail when it is used.";
         }
     }
 }

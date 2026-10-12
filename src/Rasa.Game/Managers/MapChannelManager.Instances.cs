@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -430,7 +430,7 @@ namespace Rasa.Managers
             client.PendingInstanceChoice = null;
 
             if (_clock() > choice.Deadline || client.State != ClientState.Ingame || !ReferenceEquals(client.Player.MapChannel, choice.Origin)
-                || client.Player.State == CharacterState.Dead || client.Player.LogoutActive
+                || client.Player.State == CharacterState.Dead || client.Player.LogoutPending
                 || Vector3.Distance(client.Player.Position, choice.OriginPosition) > InstanceChoiceReach)
                 return;
 

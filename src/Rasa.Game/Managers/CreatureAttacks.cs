@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Rasa.Managers
@@ -50,16 +51,36 @@ namespace Rasa.Managers
         /// abilities landed as shots: a crouched player took no more of them
         /// (CROUCHED_MELEE_DAMAGE_TAKEN) and was no likelier to be critted
         /// (CROUCHED_MELEE_TO_BE_CRIT_MOD), while cover, a smoke screen and chaff cut them.
+        ///
+        /// Two more are counted as blows though the data does not name them melee: the Shield
+        /// Drone's strike, CR_SHIELD_DRONE_ATTACK (0.5-3 m on every row; the guide gives the drone
+        /// "Offense: None" and has players close in to melee it), and the Warden Bot's shock,
+        /// CR_WARDEN_BOT_SHOCK (0.5-5 m). Both are contact strikes: they no longer need a line of
+        /// sight to land, and cover and a smoke screen do not cut them. Ours, not the client's.
         /// </summary>
         private static readonly HashSet<ActionId> MeleeActions = new HashSet<ActionId>
         {
             ActionId.WeaponMelee,
             ActionId.CrMiasmaMelee, ActionId.CrFilcherMelee, ActionId.CrLoperMelee, ActionId.CrHowlerMeleeAttack,
             ActionId.CrMawMelee, ActionId.CrAmoeboidMelee, ActionId.CrXanxMelee, ActionId.CrFlaregasherMelee,
-            ActionId.CrGranitourMelee, ActionId.CrAttaSoldierMelee, ActionId.CrAttaGrubMelee
+            ActionId.CrGranitourMelee, ActionId.CrAttaSoldierMelee, ActionId.CrAttaGrubMelee,
+            ActionId.CrShieldDroneAttack, ActionId.CrWardenBotShock
         };
 
         public static bool IsMelee(CreatureAction action) => action != null && MeleeActions.Contains(action.ActionId);
+
+        /// <summary>
+        /// ARMOR_PIERCE_PERCENT of the attack's argument: the share of its damage that goes past
+        /// armour, as a weapon's bypass does (MissileManager). The Flaregasher's melee gives 25 at
+        /// every argument; nothing else a creature performs has it. 0 for none.
+        /// </summary>
+        public static int ArmorPierceOf(CreatureAction action)
+        {
+            if (action == null || AbilityManager.Instance == null || !AbilityManager.Instance.TryGetLevel(action.ActionId, action.ActionArgId, out var info))
+                return 0;
+
+            return Math.Clamp(info.Get(AbilityProperty.ArmorPiercePercent), 0, 100);
+        }
 
         /// <summary>The player modules creature actions use whose class is DamageBase: hitdata (rawInfo, onHitData).</summary>
         private static readonly HashSet<string> DamageBaseModules = new HashSet<string>

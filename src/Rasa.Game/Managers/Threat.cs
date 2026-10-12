@@ -120,6 +120,24 @@ namespace Rasa.Managers
         }
 
         /// <summary>
+        /// A heal done for a healer by something that is no actor - a Hortimonculus: the hate of
+        /// every creature near the healed one that hates them goes to that entity, at the
+        /// healer's threat modifier.
+        /// </summary>
+        public static void FromHealing(MapChannel mapChannel, ulong drawnTo, Actor healer, Actor healed, int amount)
+        {
+            if (mapChannel == null || drawnTo == 0 || healed == null || amount <= 0)
+                return;
+
+            var hate = amount * HealThreatMod * ThreatModifierOf(healer) / 100.0;
+
+            foreach (var cell in CellManager.CellsIn(mapChannel, healed.Cells))
+                foreach (var creature in cell.CreatureList.ToList())
+                    if (creature.State != CharacterState.Dead && creature.Hate.Contains(healed.EntityId))
+                        creature.Hate.Add(drawnTo, hate);
+        }
+
+        /// <summary>
         /// MINION_HATE_TO_MASTER_PERCENT (Spotter): of the hate a summon earns, its share goes to
         /// its master instead - when the master is a player on the same map. Returns what is left
         /// for the summon.
@@ -231,9 +249,10 @@ namespace Rasa.Managers
                         && other.Attributes[Attributes.Health].Current > 0;
                 }
 
-                // A Personal Waypoint, which MayFight has let through: it is there, or it is not.
+                // A Personal Waypoint or a Hortimonculus, which MayFight has let through: it is
+                // there and standing, or it is not.
                 case EntityType.Object:
-                    return PersonalWaypoints.MayBeFoughtBy(creature, entityId);
+                    return PersonalWaypoints.MayBeFoughtBy(creature, entityId) || AbilityManager.PlantMayBeFoughtBy(creature, entityId);
 
                 default:
                     return false;

@@ -184,7 +184,8 @@ namespace Rasa.Test.Networking
             var (sender, accepted) = await ConnectAsync();
             using (sender)
             {
-                var handshake = CreateLoginHandshake(1, new byte[] { 1 });
+                // 2, the smallest public key the server takes (1 gives a session key anyone knows).
+                var handshake = CreateLoginHandshake(1, new byte[] { 2 });
                 await sender.SendAsync(handshake);
                 Assert.IsTrue(SpinWait.SpinUntil(
                     () => accepted.Available == handshake.Length,

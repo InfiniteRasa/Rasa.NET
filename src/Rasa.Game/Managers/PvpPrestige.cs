@@ -171,6 +171,10 @@ namespace Rasa.Managers
                 lock (Sync)
                     Generations[(killerPlayer.Id, victimPlayer.Id)] = Now();
 
+            EconomyAudit.Instance.Record(Structures.Char.EconomyLogKind.PvpPrestige, 0,
+                EconomyAudit.MoneyLine(killer, CurencyType.Prestige, generated + stolen, PrestigeOf(killer), victimPlayer.Id),
+                EconomyAudit.MoneyLine(victim, CurencyType.Prestige, -stolen, PrestigeOf(victim), killerPlayer.Id));
+
             Logger.WriteLog(LogType.Debug, $"PvP prestige: {killerPlayer.FamilyName} +{generated + stolen} for {victimPlayer.FamilyName} ({generated} generated, {bonus} of it for their wagered item, {stolen} stolen).");
 
             Say(killer, PlayerMessage.PmPrestigePointsReceivedPvpkill,
@@ -211,6 +215,9 @@ namespace Rasa.Managers
             lock (Sync)
                 Generations[(killerPlayer.Id, victimPlayer.Id)] = Now();
 
+            EconomyAudit.Instance.Record(Structures.Char.EconomyLogKind.PvpPrestige, 0,
+                EconomyAudit.MoneyLine(killer, CurencyType.Prestige, generated, PrestigeOf(killer), victimPlayer.Id));
+
             Say(killer, PlayerMessage.PmPrestigePointsReceivedPvpkill,
                 ("amount", generated.ToString()),
                 ("playerName", victimPlayer.FamilyName ?? ""),
@@ -230,6 +237,9 @@ namespace Rasa.Managers
 
             if (amount <= 0 || member?.Player == null || !TryChange(member, amount))
                 return 0;
+
+            EconomyAudit.Instance.Record(Structures.Char.EconomyLogKind.PvpPrestige, member.Player.ClanId,
+                EconomyAudit.MoneyLine(member, CurencyType.Prestige, amount));
 
             Say(member, PlayerMessage.PmPrestigePointsReceived, ("amount", amount.ToString()));
 

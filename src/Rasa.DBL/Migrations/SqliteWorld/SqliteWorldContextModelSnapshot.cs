@@ -3378,6 +3378,184 @@ namespace Rasa.Migrations.SqliteWorld
                     b.ToTable("weaponclass");
                 });
 
+            modelBuilder.Entity("Rasa.Structures.World.WorldDestructibleEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<uint>("ClassId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("class_id");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("varchar(128)")
+                        .HasColumnName("comment");
+
+                    b.Property<uint>("CreatureCount")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("creature_count");
+
+                    b.Property<uint>("CreatureId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("creature_id");
+
+                    b.Property<uint>("HitPoints")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("hit_points");
+
+                    b.Property<uint>("MapContextId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("map_context_id");
+
+                    b.Property<double>("PosX")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_x");
+
+                    b.Property<double>("PosY")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_y");
+
+                    b.Property<double>("PosZ")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_z");
+
+                    b.Property<double>("Rotation")
+                        .HasColumnType("REAL")
+                        .HasColumnName("rotation");
+
+                    b.Property<uint>("Side")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("side");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("world_destructible");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.WorldUsableEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<uint>("ActionArg")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("action_arg");
+
+                    b.Property<uint>("ClassId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("class_id");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("varchar(128)")
+                        .HasColumnName("comment");
+
+                    b.Property<uint>("DamageMax")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("damage_max");
+
+                    b.Property<uint>("DamageMin")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("damage_min");
+
+                    b.Property<uint>("IntervalMaxSeconds")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("interval_max_seconds");
+
+                    b.Property<uint>("IntervalMinSeconds")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("interval_min_seconds");
+
+                    b.Property<uint>("ItemClassId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("item_class_id");
+
+                    b.Property<uint>("ItemCount")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("item_count");
+
+                    b.Property<uint>("ItemTemplateId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("item_template_id");
+
+                    b.Property<uint>("MapContextId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("map_context_id");
+
+                    b.Property<double>("PosX")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_x");
+
+                    b.Property<double>("PosY")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_y");
+
+                    b.Property<double>("PosZ")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_z");
+
+                    b.Property<double>("Radius")
+                        .HasColumnType("REAL")
+                        .HasColumnName("radius");
+
+                    b.Property<uint>("ResetSeconds")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("reset_seconds");
+
+                    b.Property<double>("Rotation")
+                        .HasColumnType("REAL")
+                        .HasColumnName("rotation");
+
+                    b.Property<uint>("State")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("state");
+
+                    b.Property<uint>("Usable")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("usable");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("world_usable");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.WormholeLockEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Comment")
+                        .HasColumnType("varchar(128)")
+                        .HasColumnName("comment");
+
+                    b.Property<uint>("FromTeleporterId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("from_teleporter_id");
+
+                    b.Property<uint>("Kind")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("kind");
+
+                    b.Property<uint>("ToTeleporterId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("to_teleporter_id");
+
+                    b.Property<uint>("Value")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("value");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("wormhole_lock");
+                });
+
             modelBuilder.Entity("Rasa.Structures.World.CreatureLootBindingEntry", b =>
                 {
                     b.HasOne("Rasa.Structures.World.CreatureEntry", null)

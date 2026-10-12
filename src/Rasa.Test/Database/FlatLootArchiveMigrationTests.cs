@@ -14,7 +14,9 @@ namespace Rasa.Test.Database
     [TestClass]
     public class FlatLootArchiveMigrationTests
     {
-        internal const string IncomingTail = "20261202000000_Place_bootcamp_base_npcs";
+        // The migration before the archive: in this fork the cave-in breach, which shares the
+        // archive's timestamp and sorts ahead of it.
+        internal const string IncomingTail = "20261203000000_Add_bootcamp_cave_in_breach";
         internal const string ArchiveMigration = "20261203000000_Archive_flat_loot_pools";
         private static readonly string[] FlatTables = { "loot_group", "loot_group_item", "creature_loot_group" };
 

@@ -38,6 +38,13 @@ namespace Rasa.Structures
 
         /// <summary>The other side holds its control point (ControlPoints): it spawns nothing until its own side does.</summary>
         public bool Suspended { get; set; }
+
+        /// <summary>
+        /// Its area has no walkable ground on its map's navmesh (SpawnPoolManager.Anchor), so it
+        /// spawns nothing: what it put down stood in the air or under the ground, could go
+        /// nowhere, and still shot. Decided on the first pass and logged once.
+        /// </summary>
+        public bool NoWalkableGround { get; set; }
         // different spawn points
         //public int LocationCount { get; set; }
         //public Position[] LocationList { get; set; }
@@ -79,7 +86,7 @@ namespace Rasa.Structures
         /// </summary>
         public long ClearedAtUtcMs { get; set; }
 
-        // Runtime milliseconds; the persisted RespawnTime is in seconds.
+        // Runtime milliseconds; the persisted respawn time (spawnpool.respown_time) is in tenths of a second.
         public long UpdateTimer { get; set; }
         public long RespawnTime { get; set; }
         

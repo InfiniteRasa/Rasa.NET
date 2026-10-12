@@ -22,31 +22,20 @@ namespace Rasa.Test.Missions
         private static readonly uint[] EscortIds = { 510213, 510214, 510215 };
 
         [TestMethod]
-        public void TheBridgeHasTheCorrectInfantryAndAfsFightingBeforeTheCaveExit()
+        public void TheBridgeHasItsAfsCheckpointAndNoThraxBeforeTheCaveInIsBlown()
         {
             using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true);
             SpawnPoolManager.Instance.SpawnPoolWorker(harness.BootcampMap, 0);
             var actors = Actors(harness);
             Assert.IsFalse(actors.Any(actor => actor.DbId is 520009 or 520010),
                 "The Collector and The Dissector must not occupy the Capture the Flag bridge.");
-            var infantry = actors.Where(actor => actor.NameId == 7674).ToArray();
-            Assert.IsTrue(infantry.Length >= 2, "The bridge needs Thrax Infantry Initiates.");
-            Assert.IsTrue(infantry.All(actor => (uint)actor.EntityClass == 29769));
+            Assert.IsFalse(actors.Any(actor => actor.DbId == 510216),
+                "No Thrax until the player crosses the bridge on Capture the Flag (BootcampCaveInBreachTests).");
             var soldiers = actors.Where(actor => actor.TargetCategory == TargetCategory.Friendly &&
                 actor.Position.X > 280 && actor.Position.X < 345 && actor.Position.Z > 50 && actor.Position.Z < 80).ToArray();
-            Assert.IsTrue(soldiers.Length >= 2, "AFS soldiers must already be fighting on the bridge.");
-            foreach (var actor in infantry.Concat(soldiers))
+            Assert.IsTrue(soldiers.Length >= 2, "The AFS checkpoint stands on the bridge.");
+            foreach (var actor in soldiers)
                 AssertGrounded(harness, actor);
-            var armorBefore = infantry.Concat(soldiers).Sum(actor => actor.Attributes[Attributes.Armor].Current);
-            var healthBefore = infantry.Concat(soldiers).Sum(actor => actor.Attributes[Attributes.Health].Current);
-
-            AdvanceCombat(harness, 24);
-
-            Assert.IsTrue(infantry.Any(actor => actor.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting));
-            Assert.IsTrue(soldiers.Any(actor => actor.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting));
-            Assert.IsTrue(infantry.Concat(soldiers).Sum(actor => actor.Attributes[Attributes.Armor].Current) < armorBefore ||
-                          infantry.Concat(soldiers).Sum(actor => actor.Attributes[Attributes.Health].Current) < healthBefore,
-                "Both factions must exchange real damaging attacks, not just stand next to each other.");
         }
 
         [TestMethod]
@@ -74,7 +63,7 @@ namespace Rasa.Test.Missions
         [TestMethod]
         public void BothSidesOfTheBridgeBattleRespawnWithoutBecomingEscorts()
         {
-            using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true);
+            using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true, worldMigration: BootcampCaveInBreachTests.BridgeThraxStood);
             SpawnPoolManager.Instance.SpawnPoolWorker(harness.BootcampMap, 0);
             var thrax = Actors(harness).First(actor => actor.DbId == 510216);
             var soldier = Actors(harness).First(actor => actor.DbId == 510217);

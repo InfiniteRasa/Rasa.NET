@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 
 namespace Rasa.Managers
 {
@@ -44,12 +45,14 @@ namespace Rasa.Managers
     /// a duel is for one kill unless more were asked for (at most <see cref="MaxKillsLimit"/>) and
     /// lasts <see cref="DefaultMinutes"/> unless a time was asked for (at most
     /// <see cref="MaxMinutes"/>); when its time is up the one with more kills wins and equal is a
-    /// tie; leaving the map or the world forfeits it to the other, who is told PM_WARGAME_PLAYER_LEFT,
-    /// while the one who left is told RemoveFromWargame (PM_WARGAME_YOU_LEFT). Wargame ids start at
+    /// tie; two duelists more than <see cref="MaxApartMetres"/> apart for <see cref="ApartGrace"/>
+    /// end it in a tie, whatever the kills; leaving the map or the world forfeits it to the other,
+    /// who is told PM_WARGAME_PLAYER_LEFT, while the one who left is told RemoveFromWargame
+    /// (PM_WARGAME_YOU_LEFT). Wargame ids start at
     /// <see cref="FirstWargameId"/>, clear of the feuds' own. A duel under way is not saved: a
     /// restart ends every duel and challenge. One that has ended is put on record (PvpRecords):
-    /// the two duelists, their kills, who won and how - kills, time, surrender, or forfeit for
-    /// one who left.
+    /// the two duelists, their kills, who won and how - kills, time, distance, surrender, or
+    /// forfeit for one who left.
     /// </summary>
     public class Duels
     {
@@ -74,6 +77,14 @@ namespace Rasa.Managers
         public const int MaxKillsLimit = 99;
         public const uint FirstWargameId = 1_000_000_000;
 
+        /// <summary>
+        /// Duelists further apart than this, in metres, for <see cref="ApartGrace"/> without a break
+        /// end the duel in a tie (reason "distance"). The client says nothing of a limit; this is
+        /// ours.
+        /// </summary>
+        public const float MaxApartMetres = 200f;
+        public static readonly TimeSpan ApartGrace = TimeSpan.FromSeconds(10);
+
         public sealed class Challenge
         {
             public uint WargameId { get; set; }
@@ -96,6 +107,9 @@ namespace Rasa.Managers
             public int MaxKills { get; set; }
             public int ChallengerKills { get; set; }
             public int TargetKills { get; set; }
+
+            /// <summary>When the two were first seen more than <see cref="MaxApartMetres"/> apart, this time; null while they are within it.</summary>
+            public long? ApartSinceTick { get; set; }
 
             /// <summary>For its record: when it began (UTC), where, and the two duelists as they were then.</summary>
             public DateTime StartedAt { get; set; }
@@ -385,7 +399,7 @@ namespace Rasa.Managers
         /// <summary>
         /// Ends a duel: the winner is told Victory and the other Defeat, or both a tie for no
         /// winner, and both are out of it for everyone around. <paramref name="reason"/> is for
-        /// its record: kills, time, surrender.
+        /// its record: kills, time, distance, surrender.
         /// </summary>
         public void End(Duel duel, Client winner, string reason = null)
         {
@@ -456,11 +470,12 @@ namespace Rasa.Managers
             }, new[] { challenger, target });
         }
 
-        /// <summary>Lapsed challenges and duels whose time is up. From the map channel worker.</summary>
+        /// <summary>Lapsed challenges, duels whose time is up and duelists too far apart for too long. From the map channel worker.</summary>
         public void Worker()
         {
             List<Challenge> lapsed;
             List<Duel> due;
+            List<Duel> apart;
             var now = Now();
 
             lock (_sync)
@@ -468,6 +483,7 @@ namespace Rasa.Managers
                 lapsed = _challenges.Where(c => now >= c.ExpiresTick).ToList();
                 _challenges.RemoveAll(c => now >= c.ExpiresTick);
                 due = _duels.Where(d => now >= d.EndTick).ToList();
+                apart = _duels.Where(d => !due.Contains(d) && TooFarApartFor(d, now)).ToList();
             }
 
             foreach (var challenge in lapsed)
@@ -480,6 +496,32 @@ namespace Rasa.Managers
             foreach (var duel in due)
                 End(duel, duel.ChallengerKills == duel.TargetKills ? null
                     : duel.ChallengerKills > duel.TargetKills ? duel.Challenger : duel.Target, "time");
+
+            foreach (var duel in apart)
+            {
+                Logger.WriteLog(LogType.Debug, $"Duel {duel.WargameId}: the duelists were more than {MaxApartMetres} m apart for {ApartGrace.TotalSeconds} s.");
+                End(duel, null, "distance");
+            }
+        }
+
+        /// <summary>
+        /// Whether the two duelists have been more than <see cref="MaxApartMetres"/> apart for
+        /// <see cref="ApartGrace"/>: notes when they first are, and forgets it when they close
+        /// again. Under the lock.
+        /// </summary>
+        private static bool TooFarApartFor(Duel duel, long now)
+        {
+            var a = duel.Challenger?.Player;
+            var b = duel.Target?.Player;
+
+            if (a == null || b == null || Vector3.DistanceSquared(a.Position, b.Position) <= MaxApartMetres * MaxApartMetres)
+            {
+                duel.ApartSinceTick = null;
+                return false;
+            }
+
+            duel.ApartSinceTick ??= now;
+            return now - duel.ApartSinceTick.Value >= (long)ApartGrace.TotalMilliseconds;
         }
 
         /// <summary>

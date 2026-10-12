@@ -5,7 +5,8 @@ namespace Rasa.Structures
 {
     /// <summary>
     /// A player's current descent, as Managers.FallDamage follows it through their Move packets:
-    /// where it started, the lowest point so far, and the fastest it has gone down.
+    /// where it started, each Move of it with how fast it was coming down, and the fall within it
+    /// that is still under way.
     /// </summary>
     public class FallTracker
     {
@@ -21,8 +22,21 @@ namespace Rasa.Structures
         /// <summary>The fastest descent so far, in metres a second, over at least FallDamage.SpeedWindowMs.</summary>
         public float PeakSpeed { get; set; }
 
-        /// <summary>Recent heights with the Environment.TickCount64 each was reported at, oldest first.</summary>
-        public List<(long Tick, float Y)> Samples { get; } = new();
+        /// <summary>
+        /// The descent's Moves, oldest first: the Environment.TickCount64 each was reported at,
+        /// where it put the player, and the descent speed over the stretch back to it that is at
+        /// least FallDamage.SpeedWindowMs long (-1 before the descent is that long).
+        /// </summary>
+        public List<(long Tick, Vector3 At, float Speed)> Samples { get; } = new();
+
+        /// <summary>The first Move of the fall under way that came down at FallDamage.FallSpeed, or -1 with none under way.</summary>
+        public int FirstFastIndex { get; set; } = -1;
+
+        /// <summary>The last Move of the fall under way that came down at FallDamage.FallSpeed, or -1.</summary>
+        public int LastFastIndex { get; set; } = -1;
+
+        /// <summary>Where the last fall of this descent ended: the next one cannot start before it.</summary>
+        public int ClosedThroughIndex { get; set; }
 
         /// <summary>Environment.TickCount64 of the last accepted Move; 0 before the first.</summary>
         public long LastMoveTick { get; set; }
@@ -39,6 +53,22 @@ namespace Rasa.Structures
             Descending = false;
             PeakSpeed = 0;
             Samples.Clear();
+            FirstFastIndex = -1;
+            LastFastIndex = -1;
+            ClosedThroughIndex = 0;
+        }
+
+        /// <summary>Drops the oldest Moves, keeping the indexes that point into what is left right.</summary>
+        public void DropOldest(int count)
+        {
+            if (count <= 0)
+                return;
+
+            Samples.RemoveRange(0, count);
+
+            FirstFastIndex = FirstFastIndex < 0 ? -1 : System.Math.Max(0, FirstFastIndex - count);
+            LastFastIndex = LastFastIndex < 0 ? -1 : System.Math.Max(0, LastFastIndex - count);
+            ClosedThroughIndex = System.Math.Max(0, ClosedThroughIndex - count);
         }
     }
 }

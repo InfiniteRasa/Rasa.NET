@@ -262,6 +262,17 @@ namespace Rasa.Managers
                 return;
             }
 
+            // Character Unique: the partner holds one that is not on offer from them, or one is on
+            // offer already. Complete asks again, as either side may change since.
+            var partner = session.PartnerOf(client);
+            if (InventoryManager.IsCharacterUnique(item.ItemTemplate) &&
+                (offered.Any(other => EntityManager.Instance.GetItem(other.EntityId)?.ItemTemplate?.ItemTemplateId == item.ItemTemplate.ItemTemplateId) ||
+                 !InventoryManager.Instance.MayReceive(partner.Player, item.ItemTemplate, OfferedIds(session.ItemsOf(partner)))))
+            {
+                Decline(client, PlayerMessage.PmItemCharacterUnique);
+                return;
+            }
+
             // Taken as it stands: the stack size and condition here are what the partner is shown
             // and what Complete holds the offer to.
             offered.Add(new TradeSession.OfferedItem(item));
@@ -375,6 +386,16 @@ namespace Rasa.Managers
                 return;
             }
 
+            // Character Unique: neither side may end up with two of one, counting what each gives away.
+            if (!InventoryManager.Instance.MayReceive(b.Player, Templates(session.InitiatorItems), OfferedIds(session.TargetItems))
+                || !InventoryManager.Instance.MayReceive(a.Player, Templates(session.TargetItems), OfferedIds(session.InitiatorItems)))
+            {
+                Decline(a, PlayerMessage.PmItemCharacterUnique);
+                Decline(b, PlayerMessage.PmItemCharacterUnique);
+                End(session, notifyPartnerOf: null, message: PlayerMessage.PmTradeCancelled);
+                return;
+            }
+
             // Where each incoming item will land. Worked out before anything is written, because
             // a player whose inventory filled up since they confirmed is the one case that has to
             // stop the trade rather than lose an item.
@@ -388,8 +409,10 @@ namespace Rasa.Managers
             }
 
             var net = session.InitiatorCredits - session.TargetCredits;
-            var initiatorCredits = CreditsOnHand(a) - net;
-            var targetCredits = CreditsOnHand(b) + net;
+            var initiatorBefore = CreditsOnHand(a);
+            var targetBefore = CreditsOnHand(b);
+            var initiatorCredits = initiatorBefore - net;
+            var targetCredits = targetBefore + net;
 
             // One transaction for the whole exchange. Several of the repository methods call
             // SaveChanges for themselves, so without it a trade of four items and two balances
@@ -409,6 +432,23 @@ namespace Rasa.Managers
 
                 if (net != 0)
                 {
+                    // Each purse is written over its row, so each row has to hold what the purse
+                    // does. A purse left behind by a write that paid the row alone used to be
+                    // written over it, and the difference was gone (CharacterManager.PutPurseRight).
+                    var initiatorRow = unitOfWork.Characters.Find(a.Player.Id);
+                    var targetRow = unitOfWork.Characters.Find(b.Player.Id);
+                    var initiatorBehind = initiatorRow?.Credit != initiatorBefore;
+                    var targetBehind = targetRow?.Credit != targetBefore;
+
+                    if (initiatorBehind)
+                        CharacterManager.PutPurseRight(a, initiatorRow);
+
+                    if (targetBehind)
+                        CharacterManager.PutPurseRight(b, targetRow);
+
+                    if (initiatorBehind || targetBehind)
+                        throw new GameplayRejectionException("A purse did not hold what its row does.");
+
                     unitOfWork.Characters.UpdateCharacterCredits(a.Player.Id, initiatorCredits);
                     unitOfWork.Characters.UpdateCharacterCredits(b.Player.Id, targetCredits);
                 }
@@ -436,6 +476,8 @@ namespace Rasa.Managers
                 SetCredits(b, targetCredits);
             }
 
+            RecordTrade(a, b, toB, toA, session.InitiatorCredits, session.TargetCredits, initiatorCredits, targetCredits);
+
             Logger.WriteLog(LogType.Security,
                 $"Trade completed: {a.Player.FamilyName} gave {session.InitiatorCredits} credits and "
                 + $"{session.InitiatorItems.Count} item(s), {b.Player.FamilyName} gave {session.TargetCredits} credits and "
@@ -449,6 +491,34 @@ namespace Rasa.Managers
                 participant.CallMethod(SysEntity.CommunicatorId,
                     new DisplayClientMessagePacket(PlayerMessage.PmTradeCompleted, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
             }
+        }
+
+        /// <summary>
+        /// Puts a completed trade on the economy log: each item a row for the giver and one for
+        /// the receiver, and each side's credits the same, with the purses as they now are.
+        /// </summary>
+        private static void RecordTrade(Client a, Client b, List<ItemMove> toB, List<ItemMove> toA,
+            int fromA, int fromB, int balanceA, int balanceB)
+        {
+            var idA = a.Player.Id;
+            var idB = b.Player.Id;
+            var lines = new List<Structures.Char.EconomyLogEntry>();
+
+            foreach (var move in toB.Concat(toA))
+            {
+                var stack = (int)move.Item.StackSize;
+                var giverIsA = move.From == a;
+
+                lines.Add(EconomyAudit.ItemLine(move.From, move.Item, -stack, giverIsA ? idB : idA));
+                lines.Add(EconomyAudit.ItemLine(move.To, move.Item, stack, giverIsA ? idA : idB));
+            }
+
+            lines.Add(EconomyAudit.MoneyLine(a, CurencyType.Credits, -fromA, balanceA, idB));
+            lines.Add(EconomyAudit.MoneyLine(b, CurencyType.Credits, fromA, balanceB, idA));
+            lines.Add(EconomyAudit.MoneyLine(b, CurencyType.Credits, -fromB, balanceB, idA));
+            lines.Add(EconomyAudit.MoneyLine(a, CurencyType.Credits, fromB, balanceA, idB));
+
+            EconomyAudit.Instance.Record(Structures.Char.EconomyLogKind.Trade, 0, lines);
         }
 
         /// <summary>One offered item and where it is going.</summary>
@@ -699,6 +769,12 @@ namespace Rasa.Managers
         /// Says why, and nothing else. Refusing one item out of an offer must not take the trade
         /// window down with it - the players are still trading, they just cannot trade that.
         /// </summary>
+        private static HashSet<ulong> OfferedIds(IEnumerable<TradeSession.OfferedItem> offered) =>
+            offered.Select(item => item.EntityId).ToHashSet();
+
+        private static IEnumerable<ItemTemplate> Templates(IEnumerable<TradeSession.OfferedItem> offered) =>
+            offered.Select(item => EntityManager.Instance.GetItem(item.EntityId)?.ItemTemplate);
+
         private static void Decline(Client client, PlayerMessage message)
         {
             client.CallMethod(SysEntity.CommunicatorId,

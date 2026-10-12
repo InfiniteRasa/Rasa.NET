@@ -1252,9 +1252,12 @@ namespace Rasa.Managers
                 AddMemberEntry(party, member, existing);
 
             // State goes out after every member is in the list, so the arrivals see each other.
+            // A member between maps is a member still (FindMember): looked for as Ingame only,
+            // one loading into the next map kept the merged-away squad's id and heard nothing of
+            // the squad it was now in until a relog.
             foreach (var member in moving)
             {
-                var client = member.IsOnline ? FindIngame(member.UserId) : null;
+                var client = member.IsOnline ? FindMember(member.UserId) : null;
 
                 if (client == null)
                     continue;
@@ -1362,7 +1365,10 @@ namespace Rasa.Managers
 
             if (member.IsOnline)
             {
-                var leaver = FindIngame(member.UserId);
+                // Between maps as well (FindMember): one kicked while loading into the next map
+                // was not found, kept its PartyId and the squad on its screen, and was treated
+                // as squadless by chat, loot and the squad's instance until a relog.
+                var leaver = FindMember(member.UserId);
 
                 if (leaver != null)
                 {
@@ -1495,7 +1501,9 @@ namespace Rasa.Managers
                 return;
 
             var previousLeader = FindIngame(previousLeaderId);
-            var newLeader = leader.IsOnline ? FindIngame(leader.UserId) : null;
+            // The new leader is a member, between maps or not: a request handed to one who was
+            // loading was dropped as if they had left the world.
+            var newLeader = leader.IsOnline ? FindMember(leader.UserId) : null;
 
             foreach (var request in pending)
             {
@@ -1588,7 +1596,7 @@ namespace Rasa.Managers
         {
             foreach (var member in party.Members.Where(m => m.IsOnline))
             {
-                var client = FindIngame(member.UserId);
+                var client = FindMember(member.UserId);
 
                 if (client != null)
                     member.Refresh(client);

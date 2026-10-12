@@ -37,6 +37,15 @@ namespace Rasa.Api
         public WeightedLootEndpoint WeightedLoot { get; } = new WeightedLootEndpoint();
         public UpdateWeightedLootEndpoint UpdateWeightedLoot { get; } = new UpdateWeightedLootEndpoint();
 
+        /// <summary>Who is online, for GET /usersonline: the world loop reads the clients into it once a second.</summary>
+        public OnlineUsers Users { get; } = new OnlineUsers();
+
+        /// <summary>POST /kickuser; Server gives it its way onto the world loop.</summary>
+        public KickUserEndpoint KickUser { get; } = new KickUserEndpoint();
+
+        /// <summary>The log of every request the REST API is sent (api_log); Server gives it its store.</summary>
+        public ApiAudit Audit { get; } = new ApiAudit();
+
         public ApiHost() : this(new ServerStatus())
         {
         }
@@ -61,6 +70,9 @@ namespace Rasa.Api
             Rest.Register(new IngameCreaturesEndpoint(IngameSessions));
             Rest.Register(new IngameCreatureActionsEndpoint(IngameSessions));
             Rest.Register(new IngameCreatureDetailsEndpoint(IngameSessions));
+            Rest.Register(new UsersOnlineEndpoint(Users));
+            Rest.Register(KickUser);
+            Rest.Audit = Audit;
         }
 
         /// <summary>The settings in force from now. A listener that cannot open its port stays off; the world is not held up.</summary>

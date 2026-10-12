@@ -52,6 +52,7 @@ namespace Rasa.Game.Missions.Persistence
                         !_manifestations.ValidateProgressionForClient(client))
                         throw new GameplayRejectionException("Scene reward character ownership/progression changed.");
                     var grant = definition.CreateScenarioGrant(_missions.BeforeRewardItemPublication);
+                    grant.MissionId = reward.MissionId;
                     publication.AddRewardGrant(grant);
                     grant.PlanAndSave(client, character, unit, _manifestations);
                     publication.AddProgressPlan(_missions.PlanProgress(client, grant.CreateItemAcquisitionEvents(), unit));

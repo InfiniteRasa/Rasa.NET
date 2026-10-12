@@ -12,6 +12,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace Rasa.Test.Missions
 {
     using Rasa.Data;
+    using Rasa.Game.Missions.Integration;
     using Rasa.Game.Handlers;
     using Rasa.Memory;
     using Rasa.Managers;
@@ -374,7 +375,7 @@ namespace Rasa.Test.Missions
                 case "objective": request.ObjectiveId = 9; break;
                 case "index-zero": request.ChoiceIdx = 0; break;
                 case "index-four": request.ChoiceIdx = 4; break;
-                case "distance": fixture.Npc.Position = new Vector3(6, 0, 0); break;
+                case "distance": fixture.Npc.Position = new Vector3(MissionInteractionPolicy.MaxReach + 1, 0, 0); break;
                 case "class": fixture.Npc.EntityClass = (EntityClasses)21081; break;
             }
             if (invalid is "assignment" or "generation" or "revision")
@@ -674,8 +675,8 @@ namespace Rasa.Test.Missions
                         break;
                     case "removed": EntityManager.Instance.UnregisterEntity(target); break;
                     case "moved":
-                        if (conversationObject) session.Target.Object.Position += new Vector3(6, 0, 0);
-                        else session.Target.Creature.Position += new Vector3(6, 0, 0);
+                        if (conversationObject) session.Target.Object.Position += new Vector3(MissionInteractionPolicy.MaxReach + 1, 0, 0);
+                        else session.Target.Creature.Position += new Vector3(MissionInteractionPolicy.MaxReach + 1, 0, 0);
                         break;
                     case "session": harness.Client.InvalidateMissionSession(); break;
                 }

@@ -452,11 +452,40 @@ namespace Rasa.Game.Missions
                 history.Outcome is (uint)Data.MissionState.Success or (uint)Data.MissionState.Completed;
         }
 
-        private static void CancelStaleEffect(MissionWorldEffectEntry effect)
+        private static void CancelStaleEffect(MissionWorldEffectEntry effect, string failure = null)
         {
             effect.Status = "Cancelled";
-            effect.Failure = "Source assignment or scene generation is no longer current.";
+            effect.Failure = failure ?? "Source assignment or scene generation is no longer current.";
             effect.Version++;
+        }
+
+        /// <summary>
+        /// The actor role or route a world effect names that the bindings do not have - its own
+        /// actor, the one it attacks, the route it runs - or null when they have all it names.
+        /// </summary>
+        internal static string UnboundName(SceneBindings bindings, MissionWorldEffectEntry effect)
+        {
+            WorldIntent intent;
+
+            try
+            {
+                intent = JsonSerializer.Deserialize<WorldIntent>(effect.Payload);
+            }
+            catch (JsonException)
+            {
+                return null;
+            }
+
+            if (intent?.Role != null && !bindings.Actors.ContainsKey(intent.Role))
+                return $"actor role {intent.Role}";
+
+            if (intent is AttackActorIntent { TargetRole: { } target } && !bindings.Actors.ContainsKey(target))
+                return $"actor role {target}";
+
+            if (intent is RunRouteIntent route && !bindings.Routes.ContainsKey(route.Route))
+                return $"route {route.Route}";
+
+            return null;
         }
 
         internal void SynchronizeDeadline(Repositories.Char.ICharUnitOfWork unit, CharacterMissionEntry assignment,
@@ -594,6 +623,9 @@ namespace Rasa.Game.Missions
                 {
                     obj.CurrentHitPoints -= (uint)damage;
                     PublishObjectDamage(resident.Map, obj);
+
+                    // Down to the damaged state its hit points are at, where its class has them.
+                    DestroyableStates.ShowDamage(resident.Map, obj, destruction.HitPoints, client.Player.EntityId);
                     return true;
                 }
                 return Submit(obj.SceneRunId, new SceneObservation(SceneEventKind.Signal, obj.SceneGeneration,
@@ -993,6 +1025,8 @@ namespace Rasa.Game.Missions
                             ? null : ValidateObjectObservation(resident, observation, unit);
                         if (destroyed != null)
                         {
+                            // The state its clients were last shown, from which its destruction is played.
+                            var shown = destroyed.StateId;
                             publication.AddRuntimeConvergence(() =>
                             {
                                 destroyed.CurrentHitPoints = 0;
@@ -1004,7 +1038,12 @@ namespace Rasa.Game.Missions
                                 if (!MapInstanceScope.Contains(resident.Map, destroyed))
                                     return;
                                 PublishObjectDamage(resident.Map, destroyed);
-                                DynamicObjectManager.Instance.ForceState(destroyed, destroyed.StateId, 0);
+
+                                // Its explosion and then its wreck, where its class has the way
+                                // there from what it was showing (DestroyableStates); ForceState
+                                // otherwise, as before.
+                                DestroyableStates.ShowDestroyed(resident.Map, destroyed, shown, destroyed.StateId,
+                                    resident.Owner?.Player?.EntityId ?? 0);
                             });
                         }
                     }
@@ -1269,13 +1308,21 @@ namespace Rasa.Game.Missions
                 effects = unit.CharacterMissions.Runtime.Effects(runId)
                     .Where(effect => effect.Generation == resident.Run.Generation && effect.Status != "Cancelled")
                     .OrderBy(effect => effect.Version).ToArray();
-                var stale = effects.Where(effect => !HasCurrentEffectSource(unit, scene, effect)).ToArray();
+                // Stale too: an effect naming an actor or route the scene's bindings no longer have.
+                // A migration can take one out of a scene that runs already - Place_bootcamp_base_npcs
+                // took Gearing Up's practice-1 and practice-2 out of the Proving Grounds experience -
+                // and the run's effects still name it. Applied, it is a binding that is not there.
+                var unbound = effects.Select(effect => (Effect: effect, Name: UnboundName(resident.Bindings, effect)))
+                    .Where(entry => entry.Name != null).ToDictionary(entry => entry.Effect, entry => entry.Name);
+                var stale = effects.Where(effect => unbound.ContainsKey(effect) || !HasCurrentEffectSource(unit, scene, effect)).ToArray();
                 if (stale.Length > 0)
                 {
                     unit.ExecuteTransaction(() =>
                     {
                         foreach (var effect in stale)
-                            CancelStaleEffect(effect);
+                            CancelStaleEffect(effect, unbound.TryGetValue(effect, out var name)
+                                ? $"The scene's bindings no longer have {name}."
+                                : null);
                     });
                     foreach (var effect in stale)
                     {

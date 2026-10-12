@@ -12,6 +12,7 @@ namespace Rasa.Test.World
     using Rasa.Data;
     using Rasa.Game;
     using Rasa.Managers;
+    using Rasa.Packets.ClientMethod.Server;
     using Rasa.Packets.MapChannel.Client;
     using Rasa.Packets.MapChannel.Server;
     using Rasa.Packets.Protocol;
@@ -70,6 +71,13 @@ namespace Rasa.Test.World
             Assert.AreEqual(ClientState.Ingame, client.State);
             Assert.IsNull(client.PendingTransfer);
             Assert.AreEqual(1, saved);
+
+            // Their client plays its own arrival when the Teleport's delay is up, and resets its
+            // movement controller there; one sent back for the answer could beat it to it.
+            var answered = WorldTestContext.Drain(client).Select(p => p.Message).OfType<CallMethodMessage>().Select(p => p.Packet).ToList();
+            Assert.IsFalse(answered.OfType<TeleportArrivalPacket>().Any());
+            Assert.AreEqual(1, answered.OfType<UnrequestMovementBlockPacket>().Count());
+
             manager.TeleportAcknowledge(client);
             Assert.AreEqual(1, saved);
         }
@@ -91,12 +99,19 @@ namespace Rasa.Test.World
 
             manager.SelectWaypoint(client, new SelectWaypointPacket { MapInstanceId = world.Map.MapInfo.MapContextId, WaypointId = 20 });
 
-            var sent = WorldTestContext.Drain(client).Select(p => p.Message)
-                .OfType<CallMethodMessage>().Select(p => p.Packet).ToList();
+            var messages = WorldTestContext.Drain(client).Select(p => p.Message).ToList();
+            var sent = messages.OfType<CallMethodMessage>().Select(p => p.Packet).ToList();
             var begin = sent.FindIndex(packet => packet is BeginTeleportPacket);
             var teleport = sent.FindIndex(packet => packet is TeleportPacket);
             Assert.IsTrue(begin >= 0, "BeginTeleport sent");
             Assert.IsLessThan(teleport, begin, "BeginTeleport first");
+
+            // And the body before either: the client finishes the Teleport by where the body is
+            // when the delay is up (DynamicObjectManager.TeleportDelayMs).
+            var moved = messages.FindIndex(message => message is MoveObjectMessage move && move.EntityId == client.Player.EntityId);
+            var beginAt = messages.FindIndex(message => message is CallMethodMessage call && call.Packet is BeginTeleportPacket);
+            Assert.IsTrue(moved >= 0 && moved < beginAt, "the MoveObject before the BeginTeleport");
+            Assert.AreEqual(DynamicObjectManager.TeleportDelayMs, ((TeleportPacket)sent[teleport]).Delay);
         }
 
         [TestMethod]
@@ -311,6 +326,57 @@ namespace Rasa.Test.World
             Assert.IsFalse(WorldTestContext.Drain(client).Any(packet =>
                 packet.Message is CallMethodMessage call && call.Packet is TeleportArrivalPacket));
         }
+
+        // BR-204: the origin's window used to be closed by its own proximity worker once the
+        // player was seen to be gone, and when the destination came first in the map's list that
+        // was after the destination had opened its window: ExitedWaypoint, which names no
+        // waypoint, closed the window the player had just arrived to.
+        [TestMethod]
+        public void ArrivingAtAWaypointListedBeforeTheOriginLeavesItsWindowOpen()
+        {
+            using var world = new WorldTestContext();
+            var client = world.CreateClient();
+            CellManager.Instance.AddToWorld(client);
+            var manager = CreateManager(world);
+            var destination = AddWaypoint(manager, world.Map, 20, new Vector3(200, 5, 0));
+            var origin = AddWaypoint(manager, world.Map, 10, Vector3.Zero);
+            foreach (var waypoint in new[] { destination, origin })
+            {
+                waypoint.RuntimeMapChannel = world.Map;
+                waypoint.DynamicObjectType = DynamicObjectType.Waypoint;
+            }
+            client.Player.GainedWaypoints.Add(new CharacterTeleporterEntry(client.Player.Id, 20, (byte)WaypointType.Waypoint));
+
+            void Proximity()
+            {
+                foreach (var waypoint in world.Map.Teleporters.Values)
+                    manager.DynamicObjectProximityWorker(world.Map, waypoint, 1000);
+            }
+
+            Proximity();
+            Assert.IsTrue(origin.TriggeredByPlayers.Contains(client), "the window at the origin");
+            WorldTestContext.Drain(client);
+
+            manager.SelectWaypoint(client, new SelectWaypointPacket { MapInstanceId = world.Map.MapInfo.MapContextId, WaypointId = 20 });
+
+            // Closed as they go, once.
+            Assert.IsFalse(origin.TriggeredByPlayers.Contains(client));
+            Assert.AreEqual(1, Sent(client).OfType<ExitedWaypointPacket>().Count());
+
+            manager.TeleportAcknowledge(client);
+            WorldTestContext.Drain(client);
+
+            // The destination's worker before the origin's, as the map lists them.
+            Proximity();
+
+            var arrived = Sent(client);
+            Assert.AreEqual(20u, arrived.OfType<EnteredWaypointPacket>().Single().CurrentWaypointId);
+            Assert.IsFalse(arrived.OfType<ExitedWaypointPacket>().Any(), "the window just opened stays open");
+            Assert.IsTrue(destination.TriggeredByPlayers.Contains(client));
+        }
+
+        private static System.Collections.Generic.List<Rasa.Packets.PythonPacket> Sent(Client client) =>
+            WorldTestContext.Drain(client).Select(p => p.Message).OfType<CallMethodMessage>().Select(p => p.Packet).ToList();
 
         internal static DynamicObjectManager CreateManager(WorldTestContext world,
             Action<Client, CharacterUpdate, object> update = null, Func<long> clock = null)

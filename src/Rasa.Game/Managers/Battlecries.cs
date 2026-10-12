@@ -65,6 +65,14 @@ namespace Rasa.Managers
     ///    Patrol as it walks on from one, Resume Patrol as it takes the beat up again after
     ///    something took it off.
     ///
+    /// The six English human voices (8, 9, 16 to 19) are no class's in the client, and are
+    /// given here instead (<see cref="HumanVoice"/>): a creature of a human body class
+    /// (<see cref="HumanClasses"/>) with no package of its own or of its class takes one of
+    /// its sex's three at random - an armed one for as long as it lives, and a mission escort
+    /// for good, kept for its creature row in creature_battlecry so that it is that voice
+    /// whenever and to whomever it comes. An unarmed one that escorts nobody - a vendor, a
+    /// mission giver - stays silent.
+    ///
     /// A creature cries no more often than every <see cref="MinGapMs"/>; the patrol cries are
     /// outside that, the walk between two stops being their gap. Help and Close to Death wait
     /// for the gap and are said when it is over, if the fight is still on: a fight shorter
@@ -122,6 +130,63 @@ namespace Rasa.Managers
         };
 
         private static int[] All => new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 };
+
+        /// <summary>The English male voices: Rugd (8), Cute (16), Int (17).</summary>
+        public static readonly int[] MaleVoices = { 8, 16, 17 };
+
+        /// <summary>The English female voices: Cute (9), Int (18), Rugd (19).</summary>
+        public static readonly int[] FemaleVoices = { 9, 18, 19 };
+
+        /// <summary>
+        /// The human body classes, each with its sex's voices: the base bodies, the NPC, Redshirt
+        /// and vendor swapsets and their bosses, the armed Redshirts, the soldiers and the
+        /// holograms. Children, the Corman and the Z_TEST classes are left out, and so is
+        /// NPC_Human_Military_Surplus, whose name says no sex.
+        /// </summary>
+        public static readonly IReadOnlyDictionary<uint, int[]> HumanClasses = Voiced(
+            female: new uint[]
+            {
+                691,                                                    // HumanBaseFemale
+                3848, 10609, 26009, 26011,                              // NPC_Human_Swapset_Female (_Boss), NPC_Human_MiniSwapset_Female (_Boss)
+                3981, 30136, 26019, 26018,                              // Redshirt_Human_Swapset_Female (_Boss), Redshirt_Human_MiniSwapset_Female (_Boss)
+                20972,                                                  // Vendor_Human_Female
+                21897, 21899, 21901, 21903, 21905, 21907, 21909, 21911, // Redshirt_Human_T2/T3_<weapon>_Female
+                21913, 21915, 21917, 21919,
+                29424, 29432,                                           // Redshirt_Human_Soldier_Light_Female, _Heavy_Female
+                25613, 26484                                            // Holographic_Human_Female_Rocket, NPC_Holographic_Human_Female
+            },
+            male: new uint[]
+            {
+                692,                                                    // HumanBaseMale
+                3846, 10610, 26014, 26013,                              // NPC_Human_Swapset_Male (_Boss), NPC_Human_MiniSwapset_Male (_Boss)
+                3982, 30137, 26016, 26017,                              // Redshirt_Human_Swapset_Male (_Boss), Redshirt_Human_MiniSwapset_Male (_Boss)
+                20975,                                                  // Vendor_Human_Male
+                21898, 21900, 21902, 21904, 21906, 21908, 21910, 21912, // Redshirt_Human_T2/T3_<weapon>_Male
+                21914, 21916, 21918, 21920,
+                29423, 29433, 29765,                                    // Redshirt_Human_Soldier_Light_Male, _Heavy_Male, _Light_Male_Crouch
+                25614, 26485                                            // Holographic_Human_Male_Rifle, NPC_Holographic_Human_Male
+            });
+
+        private static Dictionary<uint, int[]> Voiced(uint[] female, uint[] male)
+        {
+            var voiced = new Dictionary<uint, int[]>();
+
+            foreach (var classId in female)
+                voiced.Add(classId, FemaleVoices);
+
+            foreach (var classId in male)
+                voiced.Add(classId, MaleVoices);
+
+            return voiced;
+        }
+
+        /// <summary>
+        /// Keeps an escort's voice for its creature row in creature_battlecry (CreatureManager
+        /// sets it to write the row off the map's thread). Tests set it.
+        /// </summary>
+        internal static Action<uint, int> Keep = (creatureId, packageId) => { };
+
+        private static readonly object KeptLock = new object();
         private static int[] Fight => new[] { 1, 2, 3, 4, 5, 6, 7, 8 };
 
         /// <summary>A roll under its argument, from 0. Tests set it.</summary>
@@ -168,11 +233,64 @@ namespace Rasa.Managers
                 }
             }
 
-            _byClass = byClass;
-            _byCreature = byCreature;
-            _loaded++;
+            lock (KeptLock)
+            {
+                _byClass = byClass;
+                _byCreature = byCreature;
+                _loaded++;
+            }
 
             return byClass.Count + byCreature.Count;
+        }
+
+        /// <summary>
+        /// The package the creature cries with now: what <see cref="PackageOf"/> gives it, or the
+        /// human voice it has been given (<see cref="HumanVoice"/>); 0 for none. What .battlecry
+        /// and .npcinfo say.
+        /// </summary>
+        public static int VoiceOf(Creature creature) => StateOf(creature)?.PackageId ?? 0;
+
+        /// <summary>
+        /// A human body's voice, when nothing in creature_battlecry gives it one: its creature
+        /// row's kept escort voice if it has one; else, for a mission escort or an armed one, one
+        /// of its sex's voices, rolled once for this creature - and an escort's is kept for its
+        /// row (<see cref="Keep"/>), the first one kept standing for every other. 0 for any other
+        /// creature, and for an unarmed human escorting nobody.
+        /// </summary>
+        private static int HumanVoice(Creature creature, BattlecryState state)
+        {
+            if (!HumanClasses.TryGetValue((uint)creature.EntityClass, out var voices))
+                return 0;
+
+            if (creature.DbId != 0 && _byCreature.TryGetValue(creature.DbId, out var kept))
+                return kept;
+
+            var escort = BehaviorManager.IsMissionEscort(creature);
+
+            if (!escort && creature.Actions.Count == 0)
+                return 0;
+
+            if (state.Voice == 0)
+                state.Voice = voices[Math.Clamp(Roll(voices.Length), 0, voices.Length - 1)];
+
+            return escort && creature.DbId != 0 ? KeepVoice(creature.DbId, state.Voice) : state.Voice;
+        }
+
+        /// <summary>An escort's voice kept for its creature row; the one already kept, if another copy of it got there first.</summary>
+        private static int KeepVoice(uint creatureId, int packageId)
+        {
+            lock (KeptLock)
+            {
+                if (_byCreature.TryGetValue(creatureId, out var kept))
+                    return kept;
+
+                // A new map rather than a change to the one the map threads are reading.
+                _byCreature = new Dictionary<uint, int>(_byCreature) { [creatureId] = packageId };
+            }
+
+            Keep(creatureId, packageId);
+
+            return packageId;
         }
 
         /// <summary>The creature's package: its own row's, or else its class's; 0 for none.</summary>
@@ -364,9 +482,13 @@ namespace Rasa.Managers
             // Loaded again since: what it has seen of the creature stands, its package is asked for anew.
             if (state.Loaded != _loaded)
             {
-                state.PackageId = PackageOf(creature);
+                state.Assigned = PackageOf(creature);
                 state.Loaded = _loaded;
             }
+
+            // A human body with nothing given it is looked at each think: it may have been made
+            // an escort, or its row been given an escort's voice, since the last.
+            state.PackageId = state.Assigned != 0 ? state.Assigned : HumanVoice(creature, state);
 
             return state.PackageId == 0 ? null : state;
         }
@@ -375,8 +497,14 @@ namespace Rasa.Managers
     /// <summary>What Battlecries keeps about one creature between thinks.</summary>
     public sealed class BattlecryState
     {
-        /// <summary>Its package; 0 for a creature that has none, which is then looked at no further.</summary>
+        /// <summary>Its package now; 0 for a creature that has none, which is then looked at no further.</summary>
         internal int PackageId;
+
+        /// <summary>The package creature_battlecry gives it (Battlecries.PackageOf), as of Loaded; 0 for none.</summary>
+        internal int Assigned;
+
+        /// <summary>The human voice rolled for it (Battlecries.HumanVoice); 0 until one is.</summary>
+        internal int Voice;
 
         /// <summary>The Battlecries.Load it was made under.</summary>
         internal int Loaded;

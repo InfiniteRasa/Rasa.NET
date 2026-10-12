@@ -63,7 +63,9 @@ namespace Rasa
             {
                 host.Services.GetService<IInitializer>().Execute();
                 await host.RunAsync();
-                return 0;
+
+                // RasaHost sets it when the server could not start.
+                return Environment.ExitCode;
             }
             catch (Exception e)
             {

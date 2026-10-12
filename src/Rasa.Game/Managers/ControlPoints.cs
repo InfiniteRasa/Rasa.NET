@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -170,6 +170,9 @@ namespace Rasa.Managers
 
             /// <summary>Up to when the clan has been paid for holding the point (<see cref="UtcNow"/>); 0 with no clan.</summary>
             public long PaidAt { get; set; }
+
+            /// <summary>When "claiming" was last announced for the point (<see cref="Now"/>); 0 if it never was. See <see cref="ClaimAnnounceGapMs"/>.</summary>
+            public long ClaimAnnouncedAt { get; set; }
 
             /// <summary>The footlocker row of the point's clan lockbox, or 0 while it has none.</summary>
             public uint LockboxId { get; set; }
@@ -724,8 +727,29 @@ namespace Rasa.Managers
         /// A player has begun the use that captures a point: everyone on the map is told, by the
         /// clan it would be for if it is for one.
         /// </summary>
+        /// <summary>
+        /// The least time between two "claiming" announcements for one point, in ms. Every use
+        /// of a point that was begun announced it to the whole map, and a use can be begun as
+        /// often as the player likes - start, step away to break it, start again - so one player
+        /// could fill everyone's chat with it.
+        /// </summary>
+        public const long ClaimAnnounceGapMs = 10_000;
+
+        /// <summary>Whether a "claiming" of the point may be announced now, and marks it announced if so.</summary>
+        internal static bool MayAnnounceClaim(Point point, long now)
+        {
+            if (point.ClaimAnnouncedAt != 0 && now - point.ClaimAnnouncedAt < ClaimAnnounceGapMs)
+                return false;
+
+            point.ClaimAnnouncedAt = now;
+            return true;
+        }
+
         public void Claiming(MapChannel mapChannel, Point point, Client by = null)
         {
+            if (!MayAnnounceClaim(point, Now()))
+                return;
+
             var clanId = ClanFor(by);
 
             Announce(mapChannel, PlayerMessage.PmControlpointClaiming, point, clanId != 0 ? ClanName(clanId) ?? FactionName(Afs) : FactionName(Afs));
@@ -1372,6 +1396,10 @@ namespace Rasa.Managers
             if (takeOff)
                 TakeOffLiving(mapChannel, idle);
 
+            // A destroyed turret of the side that has lost the point is not left on its mount for
+            // the other side's to be set down in.
+            TakeOffWrecks(mapChannel, idle);
+
             foreach (var pool in PoolsOn(mapChannel, point.PoolsOf(point.Owner)))
             {
                 pool.IsGarrison = true;
@@ -1430,6 +1458,30 @@ namespace Rasa.Managers
             // Nothing of a pool that spawns nothing is alive, whatever its count had drifted to.
             foreach (var pool in pools)
                 pool.AliveCreatures = 0;
+        }
+
+        /// <summary>
+        /// Takes the destroyed emplacements of these pools off the map: an AFS turret's wreck its
+        /// pool was keeping to put back in service (AlternateMesh), and a Bane turret's corpse.
+        /// The two sides' turrets of a point stand on the same spots (ControlPointTurrets), so
+        /// the side that now holds it would be set down in the other's wreckage. One with loot
+        /// on it is left for its killer.
+        /// </summary>
+        internal static void TakeOffWrecks(MapChannel mapChannel, List<SpawnPool> pools)
+        {
+            if (pools.Count == 0 || mapChannel?.MapCellInfo?.Cells == null)
+                return;
+
+            var wrecks = mapChannel.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList)
+                .Where(c => c != null && c.State == CharacterState.Dead && c.SpawnPool != null && pools.Contains(c.SpawnPool)
+                    && Emplacements.Is(c) && c.LootDispenserObjectEntityId == 0)
+                .Distinct().ToList();
+
+            foreach (var wreck in wrecks)
+            {
+                AlternateMesh.Forget(wreck);
+                MapReset.Remove(mapChannel, wreck);
+            }
         }
 
         /// <summary>The point's hospital and waypoint are the AFS's to use, or not.</summary>

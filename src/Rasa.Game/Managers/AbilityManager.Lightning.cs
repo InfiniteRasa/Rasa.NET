@@ -32,12 +32,12 @@ namespace Rasa.Managers
     /// </summary>
     public partial class AbilityManager
     {
-        private const int LightningStormTypeId = 100;       // LIGHTNINGSTORM_EFFECT
+        internal const int LightningStormTypeId = 100;      // LIGHTNINGSTORM_EFFECT
 
         /// <summary>Creatures an arc jumps to: "+Arc to additional Target".</summary>
         public const int LightningArcTargets = 1;
 
-        /// <summary>Metres around the storm's target that its damage reaches. Not in the client.</summary>
+        /// <summary>Metres around the storm's target that its damage reaches, a player's or a creature's (CreatureLightning). Not in the client.</summary>
         public const float LightningStormRadius = 10f;
 
         /// <summary>

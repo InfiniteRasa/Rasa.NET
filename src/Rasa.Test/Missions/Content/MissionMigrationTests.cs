@@ -298,8 +298,11 @@ namespace Rasa.Test.Missions.Content
             StringAssert.Contains(error.Message, "requires a migrated scene script binding");
         }
 
+        // Startup reads a MySql database's migration history, to name what it has not had
+        // (RasaDbContextBase.CheckMySqlSchema), and applies nothing. A connection that cannot be
+        // made is logged, and the server goes on starting.
         [TestMethod]
-        public void MySqlStartupDoesNotApplyMigrationsOrOpenAConnection()
+        public void MySqlStartupReadsTheMigrationHistoryAndAppliesNothing()
         {
             var configured = 0;
             using var context = new MySqlWorldContext(
@@ -311,13 +314,13 @@ namespace Rasa.Test.Missions.Content
                 new MySqlDbContextConfigurationService(new MySqlConnectionStringFactory(), _ =>
                 {
                     configured++;
-                    throw new InvalidOperationException("Startup must not connect to migrate MySQL.");
+                    throw new InvalidOperationException("No MySQL server in a test.");
                 }),
                 new MySqlDbContextPropertyModifier());
 
             context.Initialize();
 
-            Assert.AreEqual(0, configured);
+            Assert.AreEqual(1, configured, "one attempt, to read; nothing after it failed");
         }
 
         [TestMethod]

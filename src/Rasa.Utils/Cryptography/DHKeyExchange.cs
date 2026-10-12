@@ -1,5 +1,27 @@
-﻿namespace Rasa.Cryptography
+﻿using System;
+using System.Numerics;
+using System.Security.Cryptography;
+
+namespace Rasa.Cryptography
 {
+    /// <summary>
+    /// The game connection's Diffie-Hellman exchange, in the client's group: the 512-bit prime
+    /// below and generator 5, which ServerKeyPacket sends and the client uses as given. The
+    /// prime is a safe prime ((p - 1) / 2 is prime too) and 5 generates the whole group.
+    ///
+    /// The server's secret is drawn for every connection, uniformly from 2 to p - 2. It was the
+    /// constant 19234, which made the server's public key the same on every connection, so the
+    /// session key of any recorded handshake could be worked out from the client's half.
+    ///
+    /// The arithmetic is System.Numerics.BigInteger's. BigNum's own ModExp gives the same numbers
+    /// but takes some 66 ms for the old 15-bit exponent and over two seconds for a 256-bit one;
+    /// BigInteger.ModPow takes about a millisecond and a half for a full-size one. BigNum is
+    /// still what the key packets carry.
+    ///
+    /// 512 bits, and nothing authenticates either side: this keeps a recorded stream from being
+    /// read by anyone who has the handshake, and no more. The client's group cannot be changed
+    /// from here.
+    /// </summary>
     public static class DHKeyExchange
     {
         public static readonly byte[] ConstantPrime =
@@ -11,31 +33,68 @@
         };
         public static readonly byte[] ConstantGenerator = { 5 };
 
+        public static readonly BigInteger Prime = new BigInteger(ConstantPrime, isUnsigned: true, isBigEndian: true);
+        public static readonly BigInteger Generator = new BigInteger(ConstantGenerator, isUnsigned: true, isBigEndian: true);
+
+        /// <summary>Where the secrets come from; a test's to replace.</summary>
+        internal static Func<int, byte[]> RandomBytes { get; set; } = RandomNumberGenerator.GetBytes;
+
         // ReSharper disable InconsistentNaming
+        /// <summary>A new secret <paramref name="a"/> and the public key <paramref name="A"/> = 5^a mod p sent to the client.</summary>
         public static void GeneratePrivateAndPublicA(BigNum a, BigNum A)
         // ReSharper restore InconsistentNaming
         {
-            var prime = new BigNum();
-            var generator = new BigNum();
+            var secret = NewSecret();
 
-            prime.ReadBigEndian(ConstantPrime, 0, ConstantPrime.Length);
-            generator.ReadBigEndian(ConstantGenerator, 0, ConstantGenerator.Length);
-
-            //Ok we are lame we just set a, to something low
-            //Bignum_SetUsint32(a, 5 + (GetTickCount()&0xFFFF));
-            a.SetUInt32(19234); //Hardcoded for testing purposes
-
-            //A = G ^ a mod P
-            A.ModExp(generator, a, prime);
+            Store(a, secret);
+            Store(A, BigInteger.ModPow(Generator, secret, Prime));
         }
 
+        /// <summary>The session key: the client's public key <paramref name="b"/> to the server's secret <paramref name="a"/>, mod p.</summary>
         public static void GenerateServerK(BigNum a, BigNum b, BigNum k)
         {
-            var prime = new BigNum();
+            var publicKey = ToBigInteger(b);
 
-            prime.ReadBigEndian(ConstantPrime, 0, ConstantPrime.Length);
+            if (!IsValidPublicKey(publicKey))
+                throw new ArgumentOutOfRangeException(nameof(b), "The client's public key is not between 1 and p - 1.");
 
-            k.ModExp(b, a, prime);
+            Store(k, BigInteger.ModPow(publicKey, ToBigInteger(a), Prime));
+        }
+
+        /// <summary>
+        /// Whether a public key may be used: 1 &lt; key &lt; p - 1. 0, 1 and p - 1 give a session
+        /// key anyone can work out (0, or 1 or p - 1 whatever the secret), and p or more is not a
+        /// member of the group.
+        /// </summary>
+        public static bool IsValidPublicKey(BigNum key) => IsValidPublicKey(ToBigInteger(key));
+
+        private static bool IsValidPublicKey(BigInteger key) => key > BigInteger.One && key < Prime - BigInteger.One;
+
+        /// <summary>
+        /// A secret uniformly from 2 to p - 2: 512 random bits, drawn again while they are not
+        /// below p - 3 (a little over half are), then moved up by 2.
+        /// </summary>
+        internal static BigInteger NewSecret()
+        {
+            var span = Prime - 3;
+
+            while (true)
+            {
+                var candidate = new BigInteger(RandomBytes(ConstantPrime.Length), isUnsigned: true, isBigEndian: true);
+
+                if (candidate < span)
+                    return candidate + 2;
+            }
+        }
+
+        internal static BigInteger ToBigInteger(BigNum value) =>
+            new BigInteger(value.Content, isUnsigned: true, isBigEndian: false);
+
+        private static void Store(BigNum target, BigInteger value)
+        {
+            var bytes = value.ToByteArray(isUnsigned: true, isBigEndian: false);
+
+            target.Read(bytes, 0, bytes.Length);
         }
     }
 }

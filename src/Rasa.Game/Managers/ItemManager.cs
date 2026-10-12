@@ -401,12 +401,27 @@ namespace Rasa.Managers
         /// the item's ItemInfo again so its tooltip says Bound on Character and the next equip
         /// does not ask the Bind on Equip question a second time.
         /// </summary>
-        public void Bind(Client client, Item item)
-        {
-            item.BoundCharacterId = client.Player.Id;
+        public void Bind(Client client, Item item) => Bind(client, item, _gameUnitOfWorkFactory);
 
-            using (var unitOfWork = _gameUnitOfWorkFactory.CreateChar())
-                unitOfWork.Items.UpdateBoundCharacter(item);
+        /// <summary><see cref="Bind(Client, Item)"/>, written through the caller's factory.</summary>
+        internal static void Bind(Client client, Item item, IGameUnitOfWorkFactory factory)
+        {
+            using (var unitOfWork = factory.CreateChar())
+            {
+                var bound = item.BoundCharacterId;
+
+                item.BoundCharacterId = client.Player.Id;
+
+                try
+                {
+                    unitOfWork.Items.UpdateBoundCharacter(item);
+                }
+                catch
+                {
+                    item.BoundCharacterId = bound;
+                    throw;
+                }
+            }
 
             var classInfo = EntityClassManager.Instance.GetClassInfo(item.ItemTemplate.Class);
 

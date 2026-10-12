@@ -18,6 +18,64 @@ namespace Rasa.Migrations.SqliteChar
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.20");
 
+            modelBuilder.Entity("Rasa.Structures.Char.ApiLogEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("address");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("body");
+
+                    b.Property<int>("BodyLength")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("body_length");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasColumnType("varchar(16)")
+                        .HasColumnName("method");
+
+                    b.Property<string>("Path")
+                        .IsRequired()
+                        .HasColumnType("varchar(256)")
+                        .HasColumnName("path");
+
+                    b.Property<string>("Query")
+                        .IsRequired()
+                        .HasColumnType("varchar(512)")
+                        .HasColumnName("query");
+
+                    b.Property<string>("Response")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("response");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex(new[] { "Address" }, "api_log_index_address");
+
+                    b.HasIndex(new[] { "CreatedAt" }, "api_log_index_created_at");
+
+                    b.ToTable("api_log");
+                });
+
             modelBuilder.Entity("Rasa.Structures.Char.AuctionEntry", b =>
                 {
                     b.Property<uint>("ItemId")
@@ -1372,6 +1430,130 @@ namespace Rasa.Migrations.SqliteChar
                     b.ToTable("control_point_state");
                 });
 
+            modelBuilder.Entity("Rasa.Structures.Char.CraftingJobEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<uint>("CharacterId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("character_id");
+
+                    b.Property<uint>("Count")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("count");
+
+                    b.Property<uint>("CraftingPage")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("crafting_page");
+
+                    b.Property<DateTime>("FinishAt")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("finish_at");
+
+                    b.Property<uint>("KraftwerksId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("kraftwerks_id");
+
+                    b.Property<uint>("QualityId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("quality_id");
+
+                    b.Property<uint>("ResultClassId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("result_class_id");
+
+                    b.Property<uint>("ResultTemplateId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("result_template_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex(new[] { "CharacterId" }, "crafting_job_index_character_id");
+
+                    b.HasIndex(new[] { "KraftwerksId" }, "crafting_job_index_kraftwerks_id");
+
+                    b.ToTable("crafting_job");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.Char.EconomyLogEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<uint>("AccountId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("account_id");
+
+                    b.Property<long>("Amount")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("amount");
+
+                    b.Property<long>("Balance")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("balance");
+
+                    b.Property<uint>("CharacterId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("character_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("created_at");
+
+                    b.Property<byte>("Currency")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("currency");
+
+                    b.Property<uint>("ItemId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("item_id");
+
+                    b.Property<uint>("ItemTemplateId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("item_template_id");
+
+                    b.Property<byte>("Kind")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("kind");
+
+                    b.Property<uint>("MapContextId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("map_context_id");
+
+                    b.Property<uint>("OtherCharacterId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("other_character_id");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("quantity");
+
+                    b.Property<uint>("ReferenceId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("reference_id");
+
+                    b.Property<string>("TransferId")
+                        .IsRequired()
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("transfer_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex(new[] { "CharacterId" }, "economy_log_index_character_id");
+
+                    b.HasIndex(new[] { "CreatedAt" }, "economy_log_index_created_at");
+
+                    b.HasIndex(new[] { "ItemId" }, "economy_log_index_item_id");
+
+                    b.HasIndex(new[] { "TransferId" }, "economy_log_index_transfer_id");
+
+                    b.ToTable("economy_log");
+                });
             modelBuilder.Entity("Rasa.Structures.Char.FriendEntry", b =>
                 {
                     b.Property<uint>("AccountId")
@@ -1418,6 +1600,12 @@ namespace Rasa.Migrations.SqliteChar
                         .HasColumnType("varchar(64)")
                         .HasDefaultValue("")
                         .HasColumnName("family_name");
+
+                    b.Property<byte>("HybridUnlocks")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(3)")
+                        .HasDefaultValue((byte)0)
+                        .HasColumnName("hybrid_unlocks");
 
                     b.Property<string>("LastIp")
                         .IsRequired()
