@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 
 using Microsoft.EntityFrameworkCore;
@@ -78,6 +78,47 @@ namespace Rasa.Repositories.World
                     _worldContext.CreatureClassFlagEntries.Add(new CreatureClassFlagEntry { ClassId = entry.Key, FlagId = flag });
 
             _worldContext.SaveChanges();
+            transaction.Commit();
+            _worldContext.ChangeTracker.Clear();
+        }
+
+
+        public void UpdateCreatureEditor(CreatureEntry creature, IReadOnlyList<CreatureAppearanceEntry> appearance)
+        {
+            using var transaction = _worldContext.Database.BeginTransaction();
+            var row = _worldContext.CreateTrackingQuery(_worldContext.CreatureEntries)
+                .FirstOrDefault(e => e.Id == creature.Id);
+            if (row == null)
+                throw new System.InvalidOperationException($"Creature {creature.Id} no longer exists");
+            if (row.ClassId != creature.ClassId)
+                throw new System.InvalidOperationException("Creature entity class changed concurrently");
+
+            row.Comment = creature.Comment;
+            row.Faction = creature.Faction;
+            row.Level = creature.Level;
+            row.MaxHitPoints = creature.MaxHitPoints;
+            row.NameId = creature.NameId;
+            row.RunSpeed = creature.RunSpeed;
+            row.WalkSpeed = creature.WalkSpeed;
+            row.Action1 = creature.Action1;
+            row.Action2 = creature.Action2;
+            row.Action3 = creature.Action3;
+            row.Action4 = creature.Action4;
+            row.Action5 = creature.Action5;
+            row.Action6 = creature.Action6;
+            row.Action7 = creature.Action7;
+            row.Action8 = creature.Action8;
+            row.BodyHue = creature.BodyHue;
+            row.BodyHue2 = creature.BodyHue2;
+            _worldContext.SaveChanges();
+
+            // Appearance has no EF key. Use parameterized SQL rather than tracking keyless rows.
+            _worldContext.Database.ExecuteSqlInterpolated($"DELETE FROM creature_appearance WHERE id = {creature.Id}");
+            foreach (var item in appearance)
+            {
+                _worldContext.Database.ExecuteSqlInterpolated(
+                    $"INSERT INTO creature_appearance (id, slot_id, Class_id, color, hue2) VALUES ({creature.Id}, {item.SlotId}, {item.ClassId}, {item.Color}, {item.Hue2})");
+            }
             transaction.Commit();
             _worldContext.ChangeTracker.Clear();
         }

@@ -63,6 +63,15 @@ namespace Rasa.Test.Networking
             Assert.AreEqual(GameToolsEndpoint.BodyBytes, adapters[3].MaxBodyBytes);
             Assert.IsFalse(new Rasa.Api.Ingame.IngameItemDetailsEndpoint(sessions).Matches("ingame/items/update"));
             Assert.AreEqual("POST", new Rasa.Api.Ingame.IngameItemUpdateEndpoint(sessions).Method);
+            var creatureUpdate = new Rasa.Api.Ingame.IngameCreatureUpdateEndpoint(sessions);
+            Assert.AreEqual("POST", creatureUpdate.Method);
+            Assert.IsTrue(creatureUpdate.Sensitive);
+            Assert.IsFalse(creatureUpdate.RequiresApiKey);
+            Assert.AreEqual(401, creatureUpdate.Handle(new ApiRequest
+            {
+                Method = "POST", Remote = IPAddress.Loopback
+            }).Status);
+
         }
 
 

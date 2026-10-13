@@ -75,6 +75,7 @@ namespace Rasa.Api
             Rest.Register(new IngameCreaturesEndpoint(IngameSessions));
             Rest.Register(new IngameCreatureActionsEndpoint(IngameSessions));
             Rest.Register(new IngameCreatureDetailsEndpoint(IngameSessions));
+            Rest.Register(new IngameCreatureUpdateEndpoint(IngameSessions));
             Rest.Register(new UsersOnlineEndpoint(Users));
             Rest.Register(KickUser);
             Rest.Audit = Audit;

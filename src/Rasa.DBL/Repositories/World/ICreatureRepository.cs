@@ -1,4 +1,4 @@
-﻿using Rasa.Structures.World;
+using Rasa.Structures.World;
 using System.Collections.Generic;
 
 namespace Rasa.Repositories.World
@@ -14,6 +14,10 @@ namespace Rasa.Repositories.World
         /// named is not touched.
         /// </summary>
         void ReplaceClassFlags(IReadOnlyDictionary<uint, IReadOnlyCollection<uint>> flagsByClass) => throw new System.NotSupportedException();
+
+        /// <summary>Atomically replace a creature row and its complete appearance set.</summary>
+        void UpdateCreatureEditor(CreatureEntry creature, IReadOnlyList<CreatureAppearanceEntry> appearance) =>
+            throw new System.NotSupportedException();
         CreatureStatEntry GetCreatureStats(uint creatureId);
         CreatureActionEntry GetCreatureActionById(uint id);
         Dictionary<uint, CreatureActionEntry> GetCreatureActions();

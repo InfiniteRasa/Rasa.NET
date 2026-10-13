@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Rasa.Structures.World
@@ -46,6 +46,13 @@ namespace Rasa.Structures.World
         [Column("walk_speed")]
         [Required]
         public uint WalkSpeed { get; set; }
+
+        // Null keeps the historical server-generated spawn colors.
+        [Column("body_hue")]
+        public uint? BodyHue { get; set; }
+
+        [Column("body_hue2")]
+        public uint? BodyHue2 { get; set; }
 
         [Column("action1")]
         [Required]
