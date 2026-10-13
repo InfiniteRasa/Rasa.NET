@@ -173,6 +173,21 @@ namespace Rasa.Managers
             if (entityId == 0 || HasProtected(entityId, client.Player.Inventory.HomeInventory[(int)packet.DestSlot]))
                 return;
 
+            // Part of a stack, or onto a stack it joins (InventoryManager.Stacks).
+            lock (client.SyncRoot)
+            {
+                try
+                {
+                    if (MoveHomeStack(client, packet.SrcSlot, packet.DestSlot, packet.Quantity))
+                        return;
+                }
+                catch (Exception error) when (GameplayRejectionException.IsExpected(error))
+                {
+                    Logger.WriteLog(LogType.Error, $"Footlocker stack move rejected: {error.Message}");
+                    return;
+                }
+            }
+
             RemoveItemBySlot(client, InventoryType.HomeInventory, packet.SrcSlot);
             // if toSlot is not empty, move current item to SrcSlot (item swap)
             if (client.Player.Inventory.HomeInventory[(int)packet.DestSlot] != 0)
@@ -248,7 +263,7 @@ namespace Rasa.Managers
                         unit.ExecuteTransaction(() =>
                         {
                             plan = InventoryPlan.For(client, unit);
-                            plan.Move((uint)packet.SrcSlot, (uint)packet.DestSlot);
+                            plan.Move((uint)packet.SrcSlot, (uint)packet.DestSlot, (uint)Math.Max(0, packet.Quantity));
                         });
                     plan.Publish(client);
                 }

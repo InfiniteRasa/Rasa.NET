@@ -67,6 +67,9 @@ namespace Rasa.Managers
                 internal MissionItemOwnership Ownership;
                 internal MissionItemOwnership OriginalOwnership;
                 internal Action<Item> BeforeRegister;
+
+                /// <summary>For a stack split off another (Move with a quantity): the item whose crafter, colour, condition, binding and modules the new one carries.</summary>
+                internal Item SplitFrom;
                 internal bool Changed => Count != OriginalCount || Existing != null && Index != OriginalIndex;
             }
 
@@ -262,7 +265,16 @@ namespace Rasa.Managers
                 return MissionProgressEvent.ItemConsumed((uint)stack.Template.Class, quantity);
             }
 
-            internal void Move(uint source, uint destination)
+            /// <summary>
+            /// A pack move (PersonalInventory_MoveItem), of the whole stack or of
+            /// <paramref name="quantity"/> of it - the client's quantity chooser drags part of a
+            /// stack, and it sends the stack's count for a plain drag (inventory.AddItemToPersonalInventory).
+            /// Onto a stack it can join (MayJoin) it goes into that stack, as much as fits, and the
+            /// rest stays where it was. Otherwise the whole stack moves, or swaps with what is
+            /// there; part of a stack goes only to an empty slot, as a new stack carrying what the
+            /// old one carries. 0 is the whole stack.
+            /// </summary>
+            internal void Move(uint source, uint destination, uint quantity = 0)
             {
                 var from = _stacks.SingleOrDefault(stack => stack.Index == source && stack.Count > 0);
                 var to = _stacks.SingleOrDefault(stack => stack.Index == destination && stack.Count > 0);
@@ -270,10 +282,59 @@ namespace Rasa.Managers
                     destination / PersonalCategorySize != (uint)from.Template.InventoryCategory - 1 ||
                     to != null && source / PersonalCategorySize != (uint)to.Template.InventoryCategory - 1)
                     throw new GameplayRejectionException("Items can move only within their personal inventory category.");
-                from.Index = (int)destination;
+
+                var whole = quantity == 0 || quantity >= from.Count;
+                var amount = whole ? from.Count : quantity;
+
+                if (to != null && MayJoin(from, to))
+                {
+                    var joined = Math.Min(amount, to.Maximum - to.Count);
+
+                    if (joined > 0)
+                    {
+                        to.Count += joined;
+                        from.Count -= joined;
+                        return;
+                    }
+                }
+
+                if (whole)
+                {
+                    from.Index = (int)destination;
+                    if (to != null)
+                        to.Index = (int)source;
+                    return;
+                }
+
                 if (to != null)
-                    to.Index = (int)source;
+                    throw new GameplayRejectionException("Part of a stack goes only to an empty slot or onto a stack it can join.");
+
+                from.Count -= amount;
+                _stacks.Add(new Stack
+                {
+                    Index = (int)destination, Template = from.Template, Count = amount, Maximum = from.Maximum,
+                    Ownership = from.Ownership, SplitFrom = from.Existing
+                });
             }
+
+            /// <summary>
+            /// Whether one stack can go into another: the same template, a stack of more than one,
+            /// the same assignment (or none), and two items alike in everything an item keeps of
+            /// its own - crafter, colour, binding, modules - so that nothing is lost or gained by
+            /// the one becoming part of the other.
+            /// </summary>
+            internal static bool MayJoin(Item from, Item to, uint maximum) =>
+                from != null && to != null && maximum > 1 &&
+                from.ItemTemplateId == to.ItemTemplateId &&
+                from.MissionOwnership == to.MissionOwnership &&
+                from.BoundCharacterId == to.BoundCharacterId &&
+                (from.Crafter ?? "") == (to.Crafter ?? "") &&
+                from.Color == to.Color &&
+                from.ModuleIds.SequenceEqual(to.ModuleIds);
+
+            private static bool MayJoin(Stack from, Stack to) =>
+                !ReferenceEquals(from, to) && from.Template.ItemTemplateId == to.Template.ItemTemplateId &&
+                from.Ownership == to.Ownership && MayJoin(from.Existing, to.Existing, to.Maximum);
 
             internal void Grant(uint templateId, uint quantity, MissionItemOwnership owner = null,
                 Action<Item> beforeRegister = null, bool overflowToInbox = false)
@@ -428,7 +489,15 @@ namespace Rasa.Managers
                         }
                         else
                         {
-                            item = stack.Staged = ItemManager.StageItem(stack.Template, stack.Count, "");
+                            item = stack.Staged = ItemManager.StageItem(stack.Template, stack.Count, stack.SplitFrom?.Crafter ?? "");
+                            if (stack.SplitFrom is { } original)
+                            {
+                                item.Color = original.Color;
+                                item.CurrentHitPoints = original.CurrentHitPoints;
+                                item.BoundCharacterId = original.BoundCharacterId;
+                                for (var slot = 0; slot < original.ModuleIds.Count; slot++)
+                                    item.SetModule(slot, original.ModuleIds[slot]);
+                            }
                             item.OwnerId = _client.Player.Id;
                             item.OwnerSlotId = (uint)stack.Index;
                             item.MissionOwnership = stack.Ownership;

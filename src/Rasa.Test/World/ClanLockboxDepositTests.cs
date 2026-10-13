@@ -343,7 +343,8 @@ namespace Rasa.Test.World
                 var from = (int)item.OwnerSlotId;
 
                 Assert.AreEqual(item.EntityId, Pack[from]);
-                Inventory.PersonalInventory_MoveItem(Client, new PersonalInventory_MoveItemPacket { SrcSlot = from, DestSlot = from + 1, Quantity = 1 });
+                // A plain drag: the client sends the stack's count (inventorywindow._StartItemDrag).
+                Inventory.PersonalInventory_MoveItem(Client, new PersonalInventory_MoveItemPacket { SrcSlot = from, DestSlot = from + 1, Quantity = (int)item.StackSize });
 
                 Assert.AreEqual(item.EntityId, Pack[from + 1], "a pack move is refused");
                 Assert.AreEqual(0UL, Pack[from]);
