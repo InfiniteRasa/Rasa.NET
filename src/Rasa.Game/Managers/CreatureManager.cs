@@ -89,6 +89,26 @@ namespace Rasa.Managers
             return flags;
         }
 
+        /// <summary>
+        /// Whether the creature carries the flag, on its class or on itself (ExtraFlags): one flag
+        /// of <see cref="CreatureFlagsOf"/>, asked without building the list.
+        /// </summary>
+        public static bool HasFlag(Creature creature, CreatureFlag flag)
+        {
+            if (creature == null)
+                return false;
+
+            if (creature.ExtraFlags != null && creature.ExtraFlags.Contains(flag))
+                return true;
+
+            var classes = EntityClassManager.Instance?.LoadedEntityClasses;
+
+            return classes != null
+                && classes.TryGetValue(creature.EntityClass, out var entityClass)
+                && entityClass?.CreatureFlags != null
+                && entityClass.CreatureFlags.Contains(flag);
+        }
+
         // 1 creature to n client's
         public void CellIntroduceCreatureToClients(MapChannel mapChannel, Creature creature, List<Client> clientList)
         {
@@ -319,17 +339,22 @@ namespace Rasa.Managers
 
                 // todo: Depending on level difference reduce experience
 
+                // Scaled by the creature's XP_MODIFIER flag (CreatureExperience): none at all for
+                // XP_MODIFIER_0_NONE, four times as much for XP_MODIFIER_5_QUADRUPLE.
+                experience = CreatureExperience.Apply(creature, experience);
+
                 // Split evenly with the squad in range of the corpse (KillShares).
                 var sharers = KillShares.SharersFor(client, creature.Position);
 
-                KillShares.AwardExperience(_manifestationManager, sharers, client, experience);
+                if (experience > 0)
+                    KillShares.AwardExperience(_manifestationManager, sharers, client, experience);
 
                 // A finishing move pays the kill over again: "You get full experience for killing
                 // the enemy, and you get full experience again at the end of the Finishing Move.
                 // This means you get double the experience and Adrenaline for the kill" (the
                 // strategy guide). Paid as a second award flagged as the crit kill, so the client
                 // prints the ordinary line and then its "by Crit Killing" line, one for each.
-                if (critKill != CritKill.None)
+                if (critKill != CritKill.None && experience > 0)
                     KillShares.AwardExperience(_manifestationManager, sharers, client, experience, critKill);
 
                 // Adrenaline is earned here and nowhere else: it does not regenerate. See
@@ -339,8 +364,10 @@ namespace Rasa.Managers
                 KillShares.AwardAdrenaline(_manifestationManager, sharers, critKill != CritKill.None);
 
                 // And the kill counts towards the kill streak of each of them: after its
-                // experience, which is paid at the streak they had before it (KillStreaks).
-                KillStreaks.KillCounted(sharers);
+                // experience, which is paid at the streak they had before it (KillStreaks). A kill
+                // worth no experience is no part of a streak, which is all experience.
+                if (experience > 0)
+                    KillStreaks.KillCounted(sharers);
 
                 // One of a control point's Bane garrison is worth prestige as well (ControlPoints).
                 ControlPoints.Instance.CreatureKilled(creature, client);

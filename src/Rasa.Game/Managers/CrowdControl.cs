@@ -236,8 +236,8 @@ namespace Rasa.Managers
             var landed = target.ActiveEffects.ContainsKey(knock.EffectId);
 
             // A knockback is a stun: it may open the Critical Death window. A creature held in it
-            // stays where it stands.
-            var held = CritDeathManager.Instance.TryEnterPreDeath(mapChannel, target, source, damageType);
+            // stays where it stands. One that refused it (IMMUNE_KNOCKBACK) was not stunned.
+            var held = landed && CritDeathManager.Instance.TryEnterPreDeath(mapChannel, target, source, damageType);
 
             if (landed && thrown && !held && travelled > 0.1f)
                 BehaviorManager.Instance.Throw(mapChannel, target, destination, dir);
@@ -262,8 +262,9 @@ namespace Rasa.Managers
             if (!target.Attributes.TryGetValue(Attributes.Health, out var health) || health.Current <= 0)
                 return false;
 
-            // Nothing drags an emplacement off its mount.
-            if (Emplacements.Is(target))
+            // Nothing drags an emplacement off its mount, nor a creature immune to knockbacks
+            // (CreatureImmunities): a pull is one the other way.
+            if (Emplacements.Is(target) || CreatureImmunities.IsImmune(target, DamageType.KnockBack))
                 return false;
 
             var (destination, speed) = PullPath(mapChannel, target.Position, puller.Position, flailMs);
@@ -355,6 +356,11 @@ namespace Rasa.Managers
             };
 
             GameEffectManager.Instance.Attach(mapChannel, target, root);
+
+            // Refused (IMMUNE_ROOT, Cure, running home): it goes on as it was.
+            if (!target.ActiveEffects.ContainsKey(root.EffectId))
+                return false;
+
             BehaviorManager.Instance.StopMoving(target);
 
             return true;

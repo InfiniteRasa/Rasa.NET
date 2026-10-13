@@ -126,6 +126,15 @@ namespace Rasa.Managers
                 return;
             }
 
+            // A creature whose IMMUNE_ flag names what the effect would do to it - knock it back,
+            // stun, root, slow, blind, frighten or confuse it - turns it away (CreatureImmunities).
+            if (CreatureImmunities.RefusesEffect(actor, effect))
+            {
+                CellManager.Instance.CellCallMethod(mapChannel, actor,
+                    new GameEffectAttachFailedPacket(effect.TypeId, GameEffectAttachFailedPacket.FailReason.Immune, effect.SourceId));
+                return;
+            }
+
             // A buff from a player under an enemy's Mind Control P4-P5 goes on nobody but them
             // (Pvp.MayNotAssist).
             if (effect.IsBuff && effect.Source is Manifestation helper && !ReferenceEquals(helper, actor) && Pvp.MayNotAssist(helper))

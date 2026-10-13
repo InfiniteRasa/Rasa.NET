@@ -19,7 +19,8 @@ namespace Rasa.Managers
     /// - it is a creature a mission scene has made invulnerable (CreatureGameplayRules);
     /// - it is a creature running home after a leash (BehaviorManager.IsReturning);
     /// - it is immune to all damage, or to the hit's type (Actor.ImmuneToAllDamage,
-    ///   Actor.DamageImmunities: class data, a script, or .immune);
+    ///   Actor.DamageImmunities: a script, or .immune);
+    /// - it is a creature whose IMMUNE_ flag names the hit's type (CreatureImmunities);
     /// - an effect on it makes it so (GameEffect.ImmuneToAllDamage, GameEffect.ImmuneDamageTypes).
     ///
     /// Asked by every hit on its way in: weapon fire and creature attacks in MissileManager, and
@@ -41,7 +42,7 @@ namespace Rasa.Managers
                 (Game.Missions.World.CreatureGameplayRules.IsInvulnerable(creature) || BehaviorManager.IsReturning(creature)))
                 return true;
 
-            if (target.ImmuneToAllDamage || target.DamageImmunities.Contains(type))
+            if (target.ImmuneToAllDamage || target.DamageImmunities.Contains(type) || CreatureImmunities.IsImmune(target, type))
                 return true;
 
             return target.ActiveEffects.Values.Any(effect => effect.ImmuneToAllDamage || effect.ImmuneDamageTypes.Contains(type));

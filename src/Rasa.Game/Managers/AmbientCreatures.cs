@@ -33,18 +33,7 @@ namespace Rasa.Managers
         /// <summary>Whether the creature is ambient: POWERLEVEL_0_AMBIENT on its class or on itself.</summary>
         public static bool IsAmbient(Creature creature)
         {
-            if (creature == null)
-                return false;
-
-            if (creature.ExtraFlags != null && creature.ExtraFlags.Contains(CreatureFlag.Powerlevel0Ambient))
-                return true;
-
-            var classes = EntityClassManager.Instance?.LoadedEntityClasses;
-
-            return classes != null
-                && classes.TryGetValue(creature.EntityClass, out var entityClass)
-                && entityClass?.CreatureFlags != null
-                && entityClass.CreatureFlags.Contains(CreatureFlag.Powerlevel0Ambient);
+            return CreatureManager.HasFlag(creature, CreatureFlag.Powerlevel0Ambient);
         }
 
         /// <summary>Whether the entity is an ambient creature.</summary>

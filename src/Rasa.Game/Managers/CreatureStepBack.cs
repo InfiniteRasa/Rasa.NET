@@ -50,18 +50,7 @@ namespace Rasa.Managers
         /// <summary>Whether the creature can walk backwards: CAN_WALK_BACKWARDS on its class or on itself.</summary>
         public static bool CanWalkBackwards(Creature creature)
         {
-            if (creature == null)
-                return false;
-
-            if (creature.ExtraFlags != null && creature.ExtraFlags.Contains(CreatureFlag.CanWalkBackwards))
-                return true;
-
-            var classes = EntityClassManager.Instance?.LoadedEntityClasses;
-
-            return classes != null
-                && classes.TryGetValue(creature.EntityClass, out var entityClass)
-                && entityClass?.CreatureFlags != null
-                && entityClass.CreatureFlags.Contains(CreatureFlag.CanWalkBackwards);
+            return CreatureManager.HasFlag(creature, CreatureFlag.CanWalkBackwards);
         }
 
         /// <summary>
