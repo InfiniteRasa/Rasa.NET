@@ -619,7 +619,10 @@ namespace Rasa.Managers
                 return;
 
             if (list.Contains(CharacterState.Crouched))
+            {
                 actor.IsCrouching = true;
+                actor.CrouchedAt = actor.Position;
+            }
             else if (list.Contains(CharacterState.Standing))
                 actor.IsCrouching = false;
 

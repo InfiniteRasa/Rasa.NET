@@ -13,6 +13,9 @@ namespace Rasa.Structures
         public Vector3 Position { get; set; }
         public double Rotation { get; set; }
         public bool IsCrouching { get; set; }
+
+        /// <summary>Where the actor was when it last crouched (ManifestationManager.StandIfMoved).</summary>
+        public Vector3 CrouchedAt { get; set; }
         public EntityClasses EntityClass { get; set; }
         public string Name { get; set; }
         public string FamilyName { get; set; }

@@ -4385,11 +4385,57 @@ namespace Rasa.Managers
 
             player.IsCrouching = state == CharacterState.Crouched;
 
+            if (player.IsCrouching)
+                player.CrouchedAt = player.Position;
+
             // Crouching lifts the bead's ceiling to full and doubles its rate; standing drops it.
             Accuracy.UpdateRates(player, AimRateOf(client), Environment.TickCount64);
 
             if (player.MapChannel != null)
                 client.CellIgnoreSelfCallMethod(client, new SetDesiredCrouchStatePacket(state));
+        }
+
+        /// <summary>
+        /// How far a crouched player may be from where they crouched, across the ground, before a
+        /// Move stands them up (StandIfMoved): room for the body settling and a turn on the spot,
+        /// and less than a step.
+        /// </summary>
+        public const float CrouchedDriftMetres = 0.5f;
+
+        /// <summary>
+        /// A Move that has taken a crouched player away from where they crouched stands them up.
+        ///
+        /// There is no walking crouched: the client stands its own actor up before it moves it
+        /// (playermovementmgr._Move: ToggleCrouched while crouched, which sends
+        /// SetDesiredCrouchState STANDING ahead of the Move), so its posture message comes first.
+        /// Only the posture message ever cleared IsCrouching here, so a client that moved without
+        /// it - a stand-up its state machine refused, a modified client - went on with the
+        /// crouched bonuses everywhere it went: the ranged crit bonus, the bead's full ceiling and
+        /// double rate (Accuracy), the shorter target with fewer sample points (Cover) and the
+        /// melee damage taken (CriticalHits). Now the server stands them as the client would have:
+        /// everyone else is told as by SetDesiredCrouchState, and their own client is put back
+        /// standing (StateCorrection), as when a crouch is refused. A turn on the spot is not a
+        /// move, and nor is a fall or a lift straight down: only the ground covered counts.
+        /// </summary>
+        public void StandIfMoved(Client client)
+        {
+            var player = client?.Player;
+
+            if (player == null || !player.IsCrouching)
+                return;
+
+            var moved = new Vector2(player.Position.X - player.CrouchedAt.X, player.Position.Z - player.CrouchedAt.Z);
+
+            if (!(moved.Length() > CrouchedDriftMetres))
+                return;
+
+            player.IsCrouching = false;
+            Accuracy.UpdateRates(player, AimRateOf(client), Environment.TickCount64);
+
+            client.CallMethod(player.EntityId, new StateCorrectionPacket(new List<CharacterState> { CharacterState.Standing }));
+
+            if (player.MapChannel != null)
+                client.CellIgnoreSelfCallMethod(client, new SetDesiredCrouchStatePacket(CharacterState.Standing));
         }
 
         /// <summary>Whether the player can crouch now: alive, not stunned, not watching a camera script.</summary>

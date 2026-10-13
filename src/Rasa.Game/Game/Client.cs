@@ -762,6 +762,9 @@ namespace Rasa.Game
                 Player.Rotation = movement.ViewDirection.X;
                 Movement = movement;
 
+                // Gone from where they crouched: standing, before anyone sees them move.
+                ManifestationManager.Instance.StandIfMoved(this);
+
                 // On the move or not, for whoever shoots at them (ToHit): a Move that says so
                 // and has taken them somewhere.
                 Player.MoveVelocity = movement.Position != previousPosition ? movement.Velocity : 0;
