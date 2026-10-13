@@ -962,7 +962,9 @@ namespace Rasa.Test.Networking
                     {
                         "addaccount", "healthcheck", "ingame/creature-actions",
                         "ingame/creatures", "ingame/creatures/{id}",
-                        "ingame/items", "ingame/items/categories", "ingame/items/{id}", "ingame/session/exchange",
+                        "ingame/items", "ingame/items/categories", "ingame/items/update", "ingame/items/{id}",
+                        "ingame/lootpools", "ingame/monsterflags", "ingame/session/exchange",
+                        "ingame/updatelootpools", "ingame/updatemonsterflags",
                         "lootpools", "monsterflags", "serverstatus", "updatelootpools", "updatemonsterflags"
                     },
                     host.Rest.Endpoints.ToArray());

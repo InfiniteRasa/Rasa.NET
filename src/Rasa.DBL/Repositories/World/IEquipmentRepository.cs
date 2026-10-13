@@ -10,6 +10,12 @@ namespace Rasa.Repositories.World
     public interface IEquipmentRepository
     {
         uint GetItemClass(uint itemTemplateId);
+        /// <summary>Update existing item rows in the caller's World transaction.</summary>
+        void UpdateItemEditor(
+            ItemTemplateEntry template, ItemClassEntry itemClass,
+            ItemTemplateArmorEntry armor, ItemTemplateWeaponEntry weapon,
+            WeaponClassEntry weaponClass, ItemTemplateRequirementSkillEntry skill);
+
         List<ArmorClassEntry> GetArmorClasses();
         List<WeaponClassEntry> GetWeaponClasses();
 

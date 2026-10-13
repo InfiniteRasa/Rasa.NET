@@ -18,6 +18,10 @@ namespace Rasa.Api.Ingame
 
         protected virtual string RequiredCommand => null;
 
+        public sealed override bool MayReadLargeBody(ApiRequest request) =>
+            _sessions.TryAuthenticate(request, out var client) &&
+            (string.IsNullOrEmpty(RequiredCommand) || ChatCommandsManager.Instance.CanUseCommand(client, RequiredCommand));
+
         public sealed override ApiResponse Handle(ApiRequest request)
         {
             if (!_sessions.TryAuthenticate(request, out var client))

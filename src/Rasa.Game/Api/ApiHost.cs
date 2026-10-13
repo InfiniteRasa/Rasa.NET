@@ -54,10 +54,15 @@ namespace Rasa.Api
             Rest.Register(new IngameItemCategoriesEndpoint(IngameSessions));
             Rest.Register(new IngameItemsEndpoint(IngameSessions));
             Rest.Register(new IngameItemDetailsEndpoint(IngameSessions));
+            Rest.Register(new IngameItemUpdateEndpoint(IngameSessions));
             Rest.Register(MonsterFlags);
             Rest.Register(UpdateMonsterFlags);
             Rest.Register(WeightedLoot);
             Rest.Register(UpdateWeightedLoot);
+            Rest.Register(new IngameMonsterFlagsEndpoint(IngameSessions, MonsterFlags));
+            Rest.Register(new IngameUpdateMonsterFlagsEndpoint(IngameSessions, UpdateMonsterFlags));
+            Rest.Register(new IngameWeightedLootEndpoint(IngameSessions, WeightedLoot));
+            Rest.Register(new IngameUpdateWeightedLootEndpoint(IngameSessions, UpdateWeightedLoot));
             Rest.Register(new IngameCreaturesEndpoint(IngameSessions));
             Rest.Register(new IngameCreatureActionsEndpoint(IngameSessions));
             Rest.Register(new IngameCreatureDetailsEndpoint(IngameSessions));
