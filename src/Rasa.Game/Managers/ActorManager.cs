@@ -345,8 +345,9 @@ namespace Rasa.Managers
             // battleground left behind used to go on landing after it ended - a damage-over-time
             // effect ticking on, a turret on its old aim, a shot in flight - and could kill, with
             // Rez Trauma and equipment wear as any death. It lands as Immune, as a hit PvP Safety
-            // stops.
-            if (Pvp.IsPvp(source, target) && !Pvp.AreEnemies(Pvp.Controller(source), (Manifestation)target))
+            // stops. The same for a hit on another player's creature (Pvp.SparesSummon).
+            if (Pvp.IsPvp(source, target) && !Pvp.AreEnemies(Pvp.Controller(source), (Manifestation)target)
+                || Pvp.SparesSummon(source, target))
             {
                 outcome = new DamageOutcome { Immune = true };
                 return 0;

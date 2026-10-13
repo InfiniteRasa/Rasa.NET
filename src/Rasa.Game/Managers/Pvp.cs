@@ -175,6 +175,19 @@ namespace Rasa.Managers
         public static bool IsPvp(Actor source, Actor target) =>
             target is Manifestation victim && Controller(source) is Manifestation attacker && !ReferenceEquals(attacker, victim);
 
+        /// <summary>
+        /// Whether this is a hit from a player, or a creature of theirs, on another player's
+        /// creature - a turret, a minion, a pet, a creature turned by Traitor - whose owner is not
+        /// their enemy (AreEnemies): none of it lands. The same rule as for a hit on that player
+        /// (IsPvp); it used to be held to only when the target was the player, so a duel, feud or
+        /// battleground that had ended, or no wargame at all, left each other's creatures fair
+        /// game for a stray blast, a damage over time or a creature's own fight.
+        /// </summary>
+        public static bool SparesSummon(Actor source, Actor target) =>
+            target is Creature summon && Controller(summon) is Manifestation owner &&
+            Controller(source) is Manifestation attacker && !ReferenceEquals(attacker, owner) &&
+            !AreEnemies(attacker, owner);
+
         /// <summary>Whether a player has PvP Safety on.</summary>
         public static bool IsSafe(Actor actor)
         {

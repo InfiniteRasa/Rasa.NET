@@ -143,8 +143,10 @@ namespace Rasa.Managers
                 return;
             }
 
-            // A player under an enemy's Traitor may not hurt the creatures of the caster's side (Pvp.Restrained).
-            if (Pvp.Restrained(missile.Source, creature))
+            // Another player's creature, its owner no enemy of the shooter's (Pvp.SparesSummon); and
+            // a player under an enemy's Traitor may not hurt the creatures of the caster's side
+            // (Pvp.Restrained).
+            if (Pvp.SparesSummon(missile.Source, creature) || Pvp.Restrained(missile.Source, creature))
             {
                 Immune(missile, creature);
                 return;
