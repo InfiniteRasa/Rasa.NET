@@ -119,7 +119,9 @@ namespace Rasa.Managers
         private static (int Removed, int Pools) Reset(MapChannel mapChannel)
         {
             var mapContextId = mapChannel.MapInfo.MapContextId;
-            var creatures = mapChannel.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList).ToList();
+            // With the Maws lying under the ground, which are in no cell (MawLurk).
+            var creatures = mapChannel.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList)
+                .Concat(MawLurk.BuriedOn(mapChannel)).ToList();
             var going = CreaturesToRemove(mapContextId, creatures);
 
             foreach (var creature in going)

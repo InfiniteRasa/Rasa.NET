@@ -489,7 +489,12 @@ namespace Rasa.Managers
                         BehaviorManager.Instance.SetActionFollow(
                             creature,
                             spawnPool.FollowTargetEntityId);
-                    CellManager.Instance.AddToWorld(mapChannel, creature);
+
+                    // A Maw lies under the ground until something comes near (MawLurk).
+                    if (arrival == null && MawLurk.Lurks(creature))
+                        MawLurk.Bury(mapChannel, creature);
+                    else
+                        CellManager.Instance.AddToWorld(mapChannel, creature);
 
                     if (arrival != null)
                         BehaviorManager.Instance.WalkIn(creature, SpawnPoint(mapChannel, spawnPool, creatureList.Count));

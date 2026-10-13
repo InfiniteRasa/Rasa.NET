@@ -283,18 +283,36 @@ namespace Rasa.Managers
         /// </CheckForAttackableEntityInRange>
         private bool CheckForAttackableEntityInRange(MapChannel mapChannel, Creature creature, float range)
         {
+            var found = FindAttackableInRange(mapChannel, creature, range);
+
+            if (found != 0)
+            {
+                SetActionFighting(creature, found);
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// The nearest thing within range this creature would pick a fight with, 0 for none: the
+        /// aggro scan's choice, without the fight. A Maw lying under the ground looks with it for
+        /// what to come up at (MawLurk).
+        /// </summary>
+        internal static ulong FindAttackableInRange(MapChannel mapChannel, Creature creature, float range)
+        {
             var foundEntity_distance = range + 100.0f; // value that is guaranteed to be higher than the found creature
             var foundEntity_entityId = 0ul;
 
             // Blinded (Tactical Evasion's mag flash): it notices nobody at all.
             if (Detection.IsBlind(creature))
-                return false;
+                return 0;
 
             // Only HOSTILE and FRIENDLY go looking for a fight, and only with each other
             // (TargetCategories.Seeks): a NEUTRAL creature waits to be attacked, and an object or
             // decoration takes no part.
             if (creature.TargetCategory != TargetCategory.Hostile && creature.TargetCategory != TargetCategory.Friendly)
-                return false;
+                return 0;
 
             // Only the cells the range can reach. This used to walk the whole 5x5 matrix - 128 m
             // across - for an aggro range that is 18 m unless something raised it, on every think
@@ -327,13 +345,7 @@ namespace Rasa.Managers
                     }
             }
 
-            if (foundEntity_entityId != 0)
-            {
-                SetActionFighting(creature, foundEntity_entityId);
-                return true;
-            }
-
-            return false;
+            return foundEntity_entityId;
         }
 
         /// <CreatureThink>
@@ -406,10 +418,12 @@ namespace Rasa.Managers
             // Mid-charge (a Kael's rushing blow, a Fithik's lunge), winding up to blow itself up (a Fithik), to drop an
             // egg (a Stalker) or any ability (CreatureWindups), in a cocoon (an Atta grub), a
             // cloud (a Miasma, CreatureMiasma), or climbing out of its egg cluster (a Fithik,
-            // FithikEggClusters), it does nothing else until that is done.
+            // FithikEggClusters), or coming up out of the ground or going down into it (a Maw,
+            // MawLurk), it does nothing else until that is done.
             if (knockedBack || Stuns.IsStunned(creature) || KaelRushingBlow.IsCharging(creature) || CreatureBombs.IsSelfDestructing(creature)
                 || CreatureSupport.IsCasting(creature) || CreatureHabits.IsBusy(creature) || CreatureSummons.IsBusy(creature)
-                || CreatureWindups.IsWindingUp(creature) || CreatureMiasma.IsDissipated(creature) || FithikEggClusters.IsHatching(creature))
+                || CreatureWindups.IsWindingUp(creature) || CreatureMiasma.IsDissipated(creature) || FithikEggClusters.IsHatching(creature)
+                || MawLurk.IsBusy(creature))
             {
                 // Busy in a fight is still the fight. LastAgression is how long the fighting
                 // think has gone without attending to its target, and AggressionTime (5 s) of
@@ -524,6 +538,10 @@ namespace Rasa.Managers
                     }
 
                 var wander = creature.Controller.ActionWander;
+
+                // A Maw with nothing left to fight goes back under the ground (MawLurk).
+                if (wander.State == WanderIdle && MawLurk.Sink(mapChannel, creature))
+                    return;
 
                 if (wander.State == WanderIdle)
                 {

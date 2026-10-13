@@ -459,6 +459,9 @@ namespace Rasa.Managers
                     // Fithik egg clusters someone has walked onto hatch, and grow back.
                     Guard("FithikEggClusters.Worker", mapChannel, () => FithikEggClusters.Worker(mapChannel));
 
+                    // Maws come up at whoever comes near, and the ones gone back down are taken off.
+                    Guard("MawLurk.Worker", mapChannel, () => MawLurk.Worker(mapChannel));
+
                     // Bane tunnel doors open as a player comes up to one, and close behind them.
                     Guard("TunnelDoors.Worker", mapChannel, () => TunnelDoors.Worker(mapChannel));
 
@@ -1599,6 +1602,7 @@ namespace Rasa.Managers
 
             foreach (var creature in map.MapCellInfo.Cells.Values
                          .SelectMany(cell => cell.CreatureList)
+                         .Concat(MawLurk.BuriedOn(map))
                          .Distinct()
                          .ToArray())
                 CellManager.Instance.RemoveCreatureFromWorld(map, creature);
