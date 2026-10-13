@@ -1377,7 +1377,7 @@ namespace Rasa.Managers
                 new AddInboxItemPacket(item.EntityId));
         }
 
-        public void TransferCreditToLockbox(Client client, int amount)
+        public void TransferCreditToLockbox(Client client, long amount)
         {
             // The client sends a withdrawal as the negated amount, and its marshaller puts
             // -128..-1 in one byte, which PythonReader.ReadInt used to take unsigned: a withdrawal
@@ -1395,20 +1395,22 @@ namespace Rasa.Managers
             long purse = client.Player.Credits[CurencyType.Credits];
             long lockbox = client.Player.LockboxCredits;
 
-            var purseAfter = purse - amount;
-            var lockboxAfter = lockbox + amount;
-
-            if (purseAfter < 0)
+            // The amount is the client's long (TransferCreditToLockboxPacket): more than either
+            // side holds is refused before any sum, so none of them can overflow.
+            if (amount > purse)
             {
                 CommunicatorManager.Instance.SystemMessage(client, "Not enof credit's in inventory\nP.S. Go earn some credits :)");
                 return;
             }
 
-            if (lockboxAfter < 0)
+            if (amount < -lockbox)
             {
                 CommunicatorManager.Instance.SystemMessage(client, "Not enof credit's in Lockbox\nP.S. Dont be greedy :)");
                 return;
             }
+
+            var purseAfter = purse - amount;
+            var lockboxAfter = lockbox + amount;
 
             if (purseAfter > int.MaxValue || lockboxAfter > int.MaxValue)
             {
