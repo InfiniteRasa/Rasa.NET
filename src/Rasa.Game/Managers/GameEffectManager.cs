@@ -135,6 +135,15 @@ namespace Rasa.Managers
                 return;
             }
 
+            // One with a RESIST_ flag for it may turn it away: half the time, "Resisted"
+            // (CreatureResistances), as a player's armour module does.
+            if (CreatureResistances.ResistsEffect(actor, effect))
+            {
+                CellManager.Instance.CellCallMethod(mapChannel, actor,
+                    new GameEffectAttachFailedPacket(effect.TypeId, GameEffectAttachFailedPacket.FailReason.Resist, effect.SourceId));
+                return;
+            }
+
             // A buff from a player under an enemy's Mind Control P4-P5 goes on nobody but them
             // (Pvp.MayNotAssist).
             if (effect.IsBuff && effect.Source is Manifestation helper && !ReferenceEquals(helper, actor) && Pvp.MayNotAssist(helper))
@@ -1250,9 +1259,11 @@ namespace Rasa.Managers
         /// <summary>
         /// Damage a victim takes, after the resistance the effects on them add up to (Rage,
         /// Resistance, Sacrifice, Base Wave) and, for damage of a known type, a player's own
-        /// resistance to that type (armour and Hazmat Armor, Manifestation.ResistanceData);
-        /// resisted is what came off. A creature's attack carries the type of the weapon it plays
-        /// (Managers.CreatureAttacks), so a player's own resistances meet it as well.
+        /// resistance to that type (armour and Hazmat Armor, Manifestation.ResistanceData), or a
+        /// creature's RESIST_ and VULNERABLE_ flags for it (CreatureResistances: +50, -50);
+        /// resisted is what came off, negative when a vulnerability added to the hit. A creature's
+        /// attack carries the type of the weapon it plays (Managers.CreatureAttacks), so a
+        /// player's own resistances meet it as well.
         /// </summary>
         public static int ApplyResist(Actor target, int amount, out int resisted, DamageType damageType = 0)
         {
@@ -1267,6 +1278,8 @@ namespace Rasa.Managers
                 foreach (var own in player.ResistanceData)
                     if (own.ResistanceType == damageType)
                         resist += own.ResistanceAmmount;
+
+            resist += CreatureResistances.ResistOf(target, damageType);
 
             if (resist == 0)
                 return amount;

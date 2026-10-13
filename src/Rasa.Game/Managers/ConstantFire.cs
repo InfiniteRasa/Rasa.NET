@@ -401,7 +401,7 @@ namespace Rasa.Managers
             {
                 EntityId = target.EntityId,
                 DamageType = session.DamageType,
-                Resisted = (uint)resisted,
+                Resisted = (uint)Math.Max(0, resisted),   // none for a hit a vulnerability made bigger
                 FinalAmt = outcome.Delivered,
                 Absorbed = (uint)outcome.Absorbed,
                 WasImune = outcome.Immune ? 1 : 0,
