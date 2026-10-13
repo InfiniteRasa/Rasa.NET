@@ -148,7 +148,7 @@ namespace Rasa.Managers
                 return Summons.Any(s => s.Creature == creature);
         }
 
-        /// <summary>Whether the creature is in its cocoon, or hatching out of one: it does nothing else.</summary>
+        /// <summary>Whether the creature is in its cocoon, hatching out of one, or being born (a summon): it does nothing else.</summary>
         public static bool IsBusy(Creature creature)
         {
             // A loop, not Any(): this is asked of every creature on every think, and Any with a
@@ -535,6 +535,15 @@ namespace Rasa.Managers
             });
 
             PlayBirth(mapChannel, born, classId);
+
+            // Nothing else until it is born, as an Atta out of its cocoon (IsBusy). The client
+            // plays the birth as the creature's current action for its recovery (4 s for a
+            // Howler), and holds every action sent for it meanwhile behind it (actor.py
+            // Recv_PerformWindup and Recv_PerformRecovery put a call for another action back on
+            // the queue until the current one ends): a pet that attacked at once hurt the player
+            // before their client showed it attacking.
+            lock (SummonsLock)
+                Hatching[born] = Environment.TickCount64 + Math.Max(1000, birth.RecoveryMs);
         }
 
         /// <summary>
