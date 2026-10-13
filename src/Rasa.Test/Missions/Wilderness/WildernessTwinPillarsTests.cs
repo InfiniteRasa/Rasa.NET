@@ -480,6 +480,13 @@ namespace Rasa.Test.Missions.Wilderness
             var capacity = harness.Client.Player.Attributes[Attributes.Armor].CurrentMax;
             Assert.IsTrue(capacity > baseline, "Equipping the actual reward must increase server armor capacity.");
             AssertEquippedPersistence(harness, itemId, slot);
+
+            // Mission 574's reward is earned by killing (EarnArmorReward), and a kill is a fight:
+            // armour does not regenerate in combat. The fight is over once its time has run out.
+            harness.Client.Player.CombatExpiresAt = Environment.TickCount64;
+            ManifestationManager.Instance.CombatWorker(harness.Map);
+            Assert.IsFalse(harness.Client.Player.InCombat);
+
             for (var tick = 0; tick < 100 && harness.Client.Player.Attributes[Attributes.Armor].Current < 10; tick++)
                 ActorManager.Instance.Regenerate(harness.Map);
             var armorBeforeHit = harness.Client.Player.Attributes[Attributes.Armor].Current;

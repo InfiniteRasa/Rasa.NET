@@ -56,25 +56,8 @@ namespace Rasa.Managers
         private static bool IsOnMap(MapChannel mapChannel, Actor actor)
             => MapInstanceScope.Contains(mapChannel, actor);
 
-        /// <summary>
-        /// Marks an actor as being in a fight, if it is a player. Creatures have their own notion
-        /// of it in BehaviorManager and are not touched here.
-        ///
-        /// Looked up through the actor's own map rather than Server.Clients: damage is a hot path
-        /// and one map's client list is a great deal shorter than every client on the server.
-        /// </summary>
-        private static void EnterCombat(Actor actor)
-        {
-            if (!(actor is Manifestation player) || player.MapChannel == null)
-                return;
-
-            foreach (var client in player.MapChannel.ClientList)
-                if (client.Player == player)
-                {
-                    ManifestationManager.Instance.EnterCombat(client);
-                    return;
-                }
-        }
+        /// <summary>Marks an actor as being in a fight, if it is a player (ManifestationManager.EnterCombatOf).</summary>
+        private static void EnterCombat(Actor actor) => ManifestationManager.EnterCombatOf(actor);
 
         /// <summary>
         /// Applies the victim's resistance (from the effects on them; see

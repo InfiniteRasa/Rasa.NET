@@ -376,6 +376,18 @@ namespace Rasa.Managers
             if (!isPeriodic && target is Creature attackedCreature)
                 CreatureManager.RecordOwnerAttack(mapChannel, source, attackedCreature);
 
+            // A hit from someone is a fight at both ends, as a missile's is (MissileManager): the
+            // player struck, and the player who struck, are in combat, or stay in it. Every kind of
+            // damage comes through here - a bomb, a miasma, lightning, a damage-over-time tick,
+            // constant fire - and only the attacker used to be marked, by the ability's own code.
+            // Damage with no source - lava, a tesla coil, a placed blast - is the world's, not a
+            // fight, and marks nobody. A shield taking all of it does not stop it being a fight.
+            if (source != null)
+            {
+                ManifestationManager.EnterCombatOf(target);
+                ManifestationManager.EnterCombatOf(source);
+            }
+
             // A shield takes its share first; a hit it takes all of goes no further.
             amount = GameEffectManager.Instance.ApplyAbsorb(mapChannel, target, amount, out var absorbed);
             outcome = new DamageOutcome { Delivered = amount, Absorbed = absorbed };

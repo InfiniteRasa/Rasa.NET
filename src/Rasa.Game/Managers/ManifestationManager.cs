@@ -1344,6 +1344,25 @@ namespace Rasa.Managers
             client.CallMethod(client.Player.EntityId, new AttributeInfoPacket(client.Player));
         }
 
+        /// <summary>
+        /// EnterCombat for an actor that is a player in the world on a map, through that map's
+        /// clients; nothing for a creature, which has its own notion of a fight (BehaviorManager).
+        /// Damage is a hot path, and one map's client list is a great deal shorter than every
+        /// client on the server.
+        /// </summary>
+        public static void EnterCombatOf(Actor actor)
+        {
+            if (!(actor is Manifestation player) || player.MapChannel == null)
+                return;
+
+            foreach (var client in player.MapChannel.ClientList)
+                if (client.Player == player)
+                {
+                    Instance.EnterCombat(client);
+                    return;
+                }
+        }
+
         /// <summary>Takes the player out of combat and restores their regeneration.</summary>
         public void ExitCombat(Client client)
         {
@@ -1401,14 +1420,16 @@ namespace Rasa.Managers
             if (player == null)
                 return;
 
-            player.Attributes[Attributes.Health].RefreshPeriod = player.InCombat
-                ? CombatRegen.InCombatRegenPeriodSeconds
-                : CombatRegen.RegenPeriodSeconds;
+            if (player.Attributes.TryGetValue(Attributes.Health, out var health))
+                health.RefreshPeriod = player.InCombat
+                    ? CombatRegen.InCombatRegenPeriodSeconds
+                    : CombatRegen.RegenPeriodSeconds;
 
-            var armor = player.Attributes[Attributes.Armor];
-
-            armor.RefreshAmount = player.InCombat && !CombatRegen.ArmorRegeneratesInCombat ? 0 : player.ArmorRegenRate;
-            armor.RefreshPeriod = CombatRegen.RegenPeriodSeconds;
+            if (player.Attributes.TryGetValue(Attributes.Armor, out var armor))
+            {
+                armor.RefreshAmount = player.InCombat && !CombatRegen.ArmorRegeneratesInCombat ? 0 : player.ArmorRegenRate;
+                armor.RefreshPeriod = CombatRegen.RegenPeriodSeconds;
+            }
 
             if (player.Attributes.TryGetValue(Attributes.Power, out var power))
                 power.RefreshPeriod = CombatRegen.RegenPeriodSeconds;
