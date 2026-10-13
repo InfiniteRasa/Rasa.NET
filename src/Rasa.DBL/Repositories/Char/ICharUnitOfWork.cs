@@ -62,8 +62,14 @@
             throw new System.NotSupportedException("This character unit of work has no PvP record store.");
         GmCommandLog.IGmCommandLogRepository GmCommandLogs =>
             throw new System.NotSupportedException("This character unit of work has no game master audit log.");
+        ApiLog.IApiLogRepository ApiLogs =>
+            throw new System.NotSupportedException("This character unit of work has no REST API log.");
         ChatLog.IChatLogRepository ChatLogs =>
             throw new System.NotSupportedException("This character unit of work has no chat log.");
+        EconomyLog.IEconomyLogRepository EconomyLogs =>
+            throw new System.NotSupportedException("This character unit of work has no economy log.");
+        CraftingJob.ICraftingJobRepository CraftingJobs =>
+            throw new System.NotSupportedException("This character unit of work has no crafting job store.");
         CharacterBossKill.ICharacterBossKillRepository CharacterBossKills =>
             throw new System.NotSupportedException("This character unit of work has no boss kill store.");
         CharacterGreetingRead.ICharacterGreetingReadRepository CharacterGreetingReads =>

@@ -32,6 +32,9 @@ namespace Rasa.Repositories.Char.GameAccount
         void UpdateAccountLevel(uint id, byte level);
         void UpdateMutedUntil(uint id, long mutedUntil);
 
+        /// <summary>Adds hybrid unlock bits (GameAccountEntry.HybridUnlocks); returns the ones the account did not have.</summary>
+        byte AddHybridUnlocks(uint id, byte unlocks);
+
         void UpdateCanSkipBootcamp(uint id, bool canSkipBootcamp);
         bool TryUpdateCanSkipBootcamp(uint id, bool expectedValue, bool canSkipBootcamp);
     }

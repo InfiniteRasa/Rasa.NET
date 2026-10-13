@@ -2,12 +2,23 @@ using System;
 using System.Buffers;
 using System.IO;
 using System.IO.Compression;
-using Org.BouncyCastle.Utilities.Zlib;
 
 namespace Rasa.Memory
 {
     using Packets.Protocol;
 
+    /// <summary>
+    /// A client packet's compressed payload: raw DEFLATE, which must come out at exactly the
+    /// length the packet declares, end in its final block, and have nothing after that block.
+    ///
+    /// DeflateStream checks none of the last two. Given a stream cut off before its final block
+    /// it returns what it has and no error - with a large payload that can be every byte of the
+    /// declared length - and given bytes after the final block it drops them unread. Both are
+    /// read off the source it is given (<see cref="CompletionSource"/>): once it has decoded the
+    /// final block it never reads from its source again, so a stream that asks past the end of
+    /// its input never reached it; and with the input's last byte held back until the rest is
+    /// taken, a stream that ends without asking for it had bytes after its end.
+    /// </summary>
     internal static class ProtocolInflater
     {
         internal static MemoryStream Decompress(byte[] input, int expectedLength)
@@ -22,7 +33,8 @@ namespace Rasa.Memory
             var buffer = ArrayPool<byte>.Shared.Rent(8192);
             try
             {
-                using (var source = new MemoryStream(input, false))
+                var source = new CompletionSource(input);
+
                 using (var deflate = new DeflateStream(source, CompressionMode.Decompress))
                 {
                     int count;
@@ -35,10 +47,15 @@ namespace Rasa.Memory
                     }
                 }
 
+                if (source.ReadPastEnd)
+                    throw new EndOfStreamException("DEFLATE payload did not reach its final block.");
+
                 if (output.Length != expectedLength)
                     throw new EndOfStreamException("Incomplete decompressed protocol payload.");
 
-                ValidateCompletion(input, expectedLength, buffer);
+                if (source.Consumed != input.Length)
+                    throw new InvalidDataException("Compressed payload contains trailing bytes.");
+
                 output.Position = 0;
                 return output;
             }
@@ -53,70 +70,63 @@ namespace Rasa.Memory
             }
         }
 
-        private static void ValidateCompletion(byte[] input, int expectedLength, byte[] buffer)
+        /// <summary>
+        /// The compressed bytes as DeflateStream reads them: all but the last first, the last on
+        /// its own, so how many it took says whether the stream ended before the input did; and
+        /// whether it asked for more once there was none.
+        /// </summary>
+        private sealed class CompletionSource : Stream
         {
-            var inflater = new ZStream();
-            var initialized = false;
-            try
+            private readonly byte[] _input;
+            private int _position;
+
+            internal CompletionSource(byte[] input) => _input = input;
+
+            /// <summary>How many of the input's bytes have been read.</summary>
+            internal int Consumed => _position;
+
+            /// <summary>Whether a read was asked for after the last byte had been taken.</summary>
+            internal bool ReadPastEnd { get; private set; }
+
+            public override int Read(byte[] buffer, int offset, int count) => Read(buffer.AsSpan(offset, count));
+
+            public override int Read(Span<byte> destination)
             {
-                if (inflater.inflateInit(true) != JZlib.Z_OK)
-                    throw new InvalidOperationException("Unable to initialize the protocol inflater.");
-
-                initialized = true;
-
-                var lookahead = new byte[input.Length + 1];
-                input.CopyTo(lookahead, 0);
-                inflater.next_in = lookahead;
-                inflater.avail_in = lookahead.Length;
-
-                while (true)
+                if (_position >= _input.Length)
                 {
-                    var previousInput = inflater.total_in;
-                    inflater.next_out = buffer;
-                    inflater.next_out_index = 0;
-                    inflater.avail_out = buffer.Length;
-                    var result = inflater.inflate(JZlib.Z_NO_FLUSH);
-                    var count = buffer.Length - inflater.avail_out;
-
-                    if (inflater.total_out > expectedLength)
-                        throw new InvalidDataException("Decompressed payload exceeds its declared length.");
-
-                    if (result == JZlib.Z_STREAM_END)
-                    {
-                        if (inflater.total_in > input.Length)
-                            throw new EndOfStreamException("DEFLATE payload consumed synthetic lookahead.");
-
-                        if (inflater.total_in != input.Length)
-                            throw new InvalidDataException("Compressed payload contains trailing bytes.");
-
-                        if (inflater.total_out != expectedLength)
-                            throw new EndOfStreamException("Incomplete decompressed protocol payload.");
-
-                        return;
-                    }
-
-                    if (result == JZlib.Z_DATA_ERROR || result == JZlib.Z_NEED_DICT)
-                        throw new InvalidDataException($"Invalid DEFLATE payload: {inflater.msg}");
-
-                    if (result != JZlib.Z_OK && result != JZlib.Z_BUF_ERROR)
-                        throw new InvalidOperationException($"Protocol inflater failed with status {result}.");
-
-                    if (count == 0 && inflater.total_in == previousInput)
-                    {
-                        if (inflater.avail_in == 0)
-                            throw new EndOfStreamException("DEFLATE payload did not reach its final block.");
-
-                        throw new InvalidDataException("DEFLATE payload cannot be decoded.");
-                    }
+                    ReadPastEnd = true;
+                    return 0;
                 }
-            }
-            finally
-            {
-                if (initialized)
-                    inflater.inflateEnd();
 
-                inflater.free();
+                // Up to the byte before the last; then the last by itself.
+                var last = _input.Length - 1;
+                var available = _position < last ? last - _position : 1;
+                var count = Math.Min(destination.Length, available);
+
+                _input.AsSpan(_position, count).CopyTo(destination);
+                _position += count;
+
+                return count;
             }
+
+            public override bool CanRead => true;
+            public override bool CanSeek => false;
+            public override bool CanWrite => false;
+            public override long Length => _input.Length;
+
+            public override long Position
+            {
+                get => _position;
+                set => throw new NotSupportedException();
+            }
+
+            public override void Flush()
+            {
+            }
+
+            public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+            public override void SetLength(long value) => throw new NotSupportedException();
+            public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
         }
     }
 }

@@ -5,8 +5,12 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace Rasa.Test.Gameplay
 {
     using Rasa.Config;
+    using Rasa.Data;
+    using Rasa.Game;
     using Rasa.Managers;
     using Rasa.Navigation;
+    using Rasa.Packets.Communicator.Server;
+    using Rasa.Test.Missions;
     using Rasa.Test.World;
 
     [TestClass]
@@ -60,7 +64,10 @@ namespace Rasa.Test.Gameplay
             var finding = WeaponChecks.Judge(player, target, 80, null);
             Assert.IsNotNull(finding);
             Assert.AreEqual(WeaponChecks.Check.Range, finding.Value.Check);
-            Assert.IsTrue(finding.Value.Refuse, "refused by default");
+            Assert.IsFalse(finding.Value.Refuse, "logged by default (BR-163)");
+
+            WeaponChecks.Config = new WeaponChecksConfig { Range = "refuse" };
+            Assert.IsTrue(WeaponChecks.Judge(player, target, 80, null).Value.Refuse);
 
             // A pistol's 20 m is a pistol's.
             target.Position = new Vector3(0, 0, -50);
@@ -86,6 +93,40 @@ namespace Rasa.Test.Gameplay
 
             WeaponChecks.Config = new WeaponChecksConfig { Facing = "off" };
             Assert.IsNull(WeaponChecks.Judge(player, target, 80, null));
+        }
+
+        [TestMethod]
+        public void ALoggedRangeFindingDoesNotHideARefusingOne()
+        {
+            using var world = new WorldTestContext();
+            var player = world.CreateClient().Player;
+            var target = world.CreateClient().Player;
+            player.Rotation = 0;
+
+            // 200 m behind: past an 80 m weapon's reach, and behind.
+            target.Position = new Vector3(0, 0, 200);
+
+            var logged = WeaponChecks.Judge(player, target, 80, null);
+            Assert.AreEqual(WeaponChecks.Check.Range, logged.Value.Check, "both log: the first");
+            Assert.IsFalse(logged.Value.Refuse);
+            StringAssert.Contains(logged.Value.What, "degrees from where they face (log)", "the line names the other");
+
+            WeaponChecks.Config = new WeaponChecksConfig { Facing = "refuse" };
+            var refused = WeaponChecks.Judge(player, target, 80, null);
+            Assert.AreEqual(WeaponChecks.Check.Facing, refused.Value.Check, "range on log no longer stands in for facing (BR-225)");
+            Assert.IsTrue(refused.Value.Refuse);
+            StringAssert.Contains(refused.Value.What, "with a weapon of range 80 (log)");
+
+            // Both refuse: range, which has a message for the player.
+            WeaponChecks.Config = new WeaponChecksConfig { Facing = "refuse", Range = "refuse" };
+            Assert.AreEqual(WeaponChecks.Check.Range, WeaponChecks.Judge(player, target, 80, null).Value.Check);
+
+            // Wholly behind a wall as well, with sight refusing alone.
+            var wall = CoverMesh.Build(new float[] { -10, 0, 10, -10, 10, 10, 10, 10, 10, 10, 0, 10 }, new[] { 0, 1, 2, 0, 2, 3 });
+            WeaponChecks.Config = new WeaponChecksConfig { Sight = "refuse" };
+            var hidden = WeaponChecks.Judge(player, target, 80, wall);
+            Assert.AreEqual(WeaponChecks.Check.Sight, hidden.Value.Check);
+            Assert.IsTrue(hidden.Value.Refuse);
         }
 
         [TestMethod]
@@ -115,13 +156,34 @@ namespace Rasa.Test.Gameplay
         }
 
         [TestMethod]
-        public void AShotOutOfReachIsNotFiredAndCostsNothing()
+        public void AShotOutOfReachIsFiredAndLoggedByDefault()
         {
             using var context = new WeaponAmmoContext();
             var manager = new ManifestationManager(context);
             var target = context.World.CreateClient(0, -200).Player;
             context.Client.Player.Rotation = 0;
             context.Client.Player.Target = target.EntityId;
+            OutOfRangeMessages(context.Client);
+
+            // The context's weapon has a range of 80: 165 m is its reach. Past it the shot goes,
+            // for the floor of the range falloff, and a line is written.
+            Assert.IsTrue(manager.PlayerTryFireWeapon(context.Client));
+            Assert.AreEqual(6u, context.Weapon.CurrentAmmo);
+            Assert.AreNotEqual(0, context.Client.Player.WeaponCheckLogTick, "logged");
+            Assert.AreEqual(0, OutOfRangeMessages(context.Client), "nothing to tell: it went");
+        }
+
+        [TestMethod]
+        public void AShotOutOfReachIsNotFiredAndCostsNothing()
+        {
+            WeaponChecks.Config = new WeaponChecksConfig { Range = "refuse" };
+
+            using var context = new WeaponAmmoContext();
+            var manager = new ManifestationManager(context);
+            var target = context.World.CreateClient(0, -200).Player;
+            context.Client.Player.Rotation = 0;
+            context.Client.Player.Target = target.EntityId;
+            OutOfRangeMessages(context.Client);
 
             // The context's weapon has a range of 80: 165 m is its reach.
             Assert.IsFalse(manager.PlayerTryFireWeapon(context.Client));
@@ -129,6 +191,7 @@ namespace Rasa.Test.Gameplay
             Assert.AreEqual(0, context.World.Map.QueuedMissiles.Count);
             Assert.AreEqual(0, context.Client.Player.WeaponCheckHits, "one line written, nothing since");
             Assert.AreNotEqual(0, context.Client.Player.WeaponCheckLogTick);
+            Assert.AreEqual(1, OutOfRangeMessages(context.Client), "the player is told why");
 
             target.Position = new Vector3(0, 0, -100);
             Assert.IsTrue(manager.PlayerTryFireWeapon(context.Client));
@@ -160,6 +223,23 @@ namespace Rasa.Test.Gameplay
         }
 
         [TestMethod]
+        public void ALongShotBehindIsNotFiredWhenFacingRefuses()
+        {
+            WeaponChecks.Config = new WeaponChecksConfig { Facing = "refuse" };
+
+            using var context = new WeaponAmmoContext();
+            var manager = new ManifestationManager(context);
+            var target = context.World.CreateClient(0, 200).Player;
+            context.Client.Player.Rotation = 0;
+            context.Client.Player.Target = target.EntityId;
+            OutOfRangeMessages(context.Client);
+
+            Assert.IsFalse(manager.PlayerTryFireWeapon(context.Client), "past reach on log, and behind on refuse");
+            Assert.AreEqual(7u, context.Weapon.CurrentAmmo);
+            Assert.AreEqual(0, OutOfRangeMessages(context.Client), "facing has no message");
+        }
+
+        [TestMethod]
         public void ABlindShotHasNothingToCheck()
         {
             using var context = new WeaponAmmoContext();
@@ -169,6 +249,28 @@ namespace Rasa.Test.Gameplay
 
             Assert.IsTrue(manager.PlayerTryFireWeapon(context.Client));
             Assert.AreEqual(0, context.Client.Player.WeaponCheckLogTick);
+        }
+
+        [TestMethod]
+        public void TheOutOfRangeMessageIsForARefusedRangeShotAndRateLimited()
+        {
+            using var world = new WorldTestContext();
+            var client = world.CreateClient();
+            OutOfRangeMessages(client);
+
+            var refused = new WeaponChecks.Finding(WeaponChecks.Check.Range, "far", true);
+
+            WeaponChecks.Tell(client, refused, 1000);
+            WeaponChecks.Tell(client, refused, 1000 + WeaponChecks.ToldQuietMs - 1);
+            Assert.AreEqual(1, OutOfRangeMessages(client), "a held trigger is told once");
+
+            WeaponChecks.Tell(client, refused, 1000 + WeaponChecks.ToldQuietMs);
+            Assert.AreEqual(1, OutOfRangeMessages(client), "and again once the quiet time is up");
+
+            WeaponChecks.Tell(client, new WeaponChecks.Finding(WeaponChecks.Check.Range, "far", false), 100_000);
+            WeaponChecks.Tell(client, new WeaponChecks.Finding(WeaponChecks.Check.Facing, "behind", true), 200_000);
+            WeaponChecks.Tell(client, new WeaponChecks.Finding(WeaponChecks.Check.Sight, "behind cover", true), 300_000);
+            Assert.AreEqual(0, OutOfRangeMessages(client), "a shot that went, and the other checks, say nothing");
         }
 
         [TestMethod]
@@ -187,5 +289,9 @@ namespace Rasa.Test.Gameplay
             Assert.AreEqual(1000 + WeaponChecks.QuietMs, client.Player.WeaponCheckLogTick);
             Assert.AreEqual(0, client.Player.WeaponCheckHits);
         }
+
+        /// <summary>How many "target out of range" messages went to the client since last asked.</summary>
+        private static int OutOfRangeMessages(Client client) => MissionTestContext.Drain(client)
+            .OfType<DisplayClientMessagePacket>().Count(message => message.MsgId == PlayerMessage.PmTargetOutOfRange);
     }
 }

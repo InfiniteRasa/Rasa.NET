@@ -48,6 +48,8 @@ namespace Rasa.Test.World
 
         private Func<int, int> _roll;
         private Func<long> _now;
+        private Action<uint, int> _keep;
+        private readonly List<(uint CreatureId, int PackageId)> _kept = new List<(uint, int)>();
         private long _clock;
         private int _rolled;
 
@@ -56,6 +58,9 @@ namespace Rasa.Test.World
         {
             _roll = Battlecries.Roll;
             _now = Battlecries.Now;
+            _keep = Battlecries.Keep;
+            _kept.Clear();
+            Battlecries.Keep = (creatureId, packageId) => _kept.Add((creatureId, packageId));
             _clock = 1_000_000;
             _rolled = 0;
             Battlecries.Roll = _ => _rolled;
@@ -67,6 +72,7 @@ namespace Rasa.Test.World
         {
             Battlecries.Roll = _roll;
             Battlecries.Now = _now;
+            Battlecries.Keep = _keep;
             Battlecries.Load(null);
         }
 
@@ -166,6 +172,198 @@ namespace Rasa.Test.World
             Think(world, 1);
 
             Assert.IsEmpty(Cries(watcher));
+        }
+
+        #endregion
+
+        #region Human voices
+
+        [TestMethod]
+        public void AnArmedHumanTakesOneOfItsSexsVoicesAtRandomAndKeepsItForItsLife()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 14);
+            var soldier = Armed(Spawn(world, x: 10));
+            var other = Armed(Spawn(world, x: 11));
+            var woman = Armed(Spawn(world, x: 12));
+            woman.EntityClass = (EntityClasses)3981;       // Redshirt_Human_Swapset_Female
+
+            _rolled = 0;
+            Assert.AreEqual(Battlecries.MaleVoices[0], Battlecries.VoiceOf(soldier));
+            _rolled = 2;
+            Assert.AreEqual(Battlecries.MaleVoices[2], Battlecries.VoiceOf(other), "each spawn its own");
+            _rolled = 1;
+            Assert.AreEqual(Battlecries.FemaleVoices[1], Battlecries.VoiceOf(woman));
+
+            // Rolled once: it stays the voice, a reload too, and nothing is kept for the row.
+            _rolled = 2;
+            Assert.AreEqual(Battlecries.MaleVoices[0], Battlecries.VoiceOf(soldier));
+            Battlecries.Load(null);
+            Assert.AreEqual(Battlecries.MaleVoices[0], Battlecries.VoiceOf(soldier));
+            Assert.AreEqual(0, Battlecries.PackageOf(soldier), "not given in creature_battlecry");
+            Assert.IsEmpty(_kept);
+
+            // And it is the voice its fight is cried in.
+            Think(world, 1);
+            Fight(soldier, watcher);
+            Think(world, 1);
+
+            var aggro = Cries(watcher).Single(cry => cry.EntityId == soldier.EntityId).Packet;
+            Assert.AreEqual((Battlecries.MaleVoices[0], (int)BattlecryType.Aggro), (aggro.PackageId, aggro.TypeId));
+        }
+
+        [TestMethod]
+        public void AnUnarmedHumanEscortingNobodyAndAnyoneNotHumanAreSilent()
+        {
+            using var world = new WorldTestContext();
+            var vendor = Spawn(world, x: 10);
+            var corman = Armed(Spawn(world, x: 11));
+            var child = Armed(Spawn(world, x: 12));
+            var thrax = Armed(Spawn(world, x: 13));
+
+            corman.EntityClass = (EntityClasses)4380;      // Redshirt_Corman_Male
+            child.EntityClass = (EntityClasses)28698;      // Redshirt_Human_Male_Child
+            thrax.EntityClass = (EntityClasses)3762;       // Bane_Thrax_Soldier_Pistol: no row loaded
+
+            foreach (var silent in new[] { vendor, corman, child, thrax })
+                Assert.AreEqual(0, Battlecries.VoiceOf(silent));
+
+            // Armed later - a vendor turned soldier - it is looked at again and voiced.
+            Armed(vendor);
+            Assert.AreNotEqual(0, Battlecries.VoiceOf(vendor));
+        }
+
+        [TestMethod]
+        public void AnEscortsVoiceIsKeptForItsRowAndEveryCopyOfItCriesInIt()
+        {
+            using var world = new WorldTestContext();
+            var escort = Escorting(Spawn(world, x: 10), 501);
+            var copy = Escorting(Spawn(world, x: 11), 501);
+            var stranger = Escorting(Spawn(world, x: 12), 502);
+
+            // Unarmed: an escort cries anyway.
+            _rolled = 1;
+            Assert.AreEqual(Battlecries.MaleVoices[1], Battlecries.VoiceOf(escort));
+            CollectionAssert.AreEqual(new[] { (501u, Battlecries.MaleVoices[1]) }, _kept);
+            Assert.AreEqual(Battlecries.MaleVoices[1], Battlecries.PackageOf(escort), "the row has it now");
+
+            // Another copy of the row, for another player, rolls nothing: it has the row's.
+            _rolled = 2;
+            Assert.AreEqual(Battlecries.MaleVoices[1], Battlecries.VoiceOf(copy));
+            Assert.AreEqual(Battlecries.MaleVoices[2], Battlecries.VoiceOf(stranger), "another row its own");
+            Assert.HasCount(2, _kept);
+
+            // Asked again, nothing more is kept; and a copy that is not escorting has the row's too.
+            Battlecries.VoiceOf(escort);
+            Assert.HasCount(2, _kept);
+            var bystander = Spawn(world, x: 13);
+            bystander.DbId = 501;
+            Assert.AreEqual(Battlecries.MaleVoices[1], Battlecries.VoiceOf(bystander));
+
+            // Once written it comes back with the rows (creature_battlecry, scope creature).
+            Battlecries.Load(new[] { Row(CreatureBattlecryEntry.ScopeCreature, 501, Battlecries.MaleVoices[1]) });
+            _rolled = 0;
+            var respawned = Escorting(Spawn(world, x: 14), 501);
+            Assert.AreEqual(Battlecries.MaleVoices[1], Battlecries.VoiceOf(respawned));
+            Assert.HasCount(2, _kept);
+        }
+
+        [TestMethod]
+        public void ASoldierMadeAnEscortKeepsTheVoiceItHadAndItIsKeptForItsRow()
+        {
+            using var world = new WorldTestContext();
+            var soldier = Armed(Spawn(world, x: 10));
+            soldier.DbId = 601;
+
+            _rolled = 2;
+            Assert.AreEqual(Battlecries.MaleVoices[2], Battlecries.VoiceOf(soldier));
+            Assert.IsEmpty(_kept);
+
+            _rolled = 0;
+            Escorting(soldier, 601);
+            Assert.AreEqual(Battlecries.MaleVoices[2], Battlecries.VoiceOf(soldier));
+            CollectionAssert.AreEqual(new[] { (601u, Battlecries.MaleVoices[2]) }, _kept);
+        }
+
+        [TestMethod]
+        public void AnEscortWithNoRowHasItsVoiceForItsLifeAndOneGivenInTheTableComesFirst()
+        {
+            using var world = new WorldTestContext();
+            var unlisted = Escorting(Spawn(world, x: 10), 0);
+            var given = Escorting(Armed(Spawn(world, x: 11)), 701);
+
+            _rolled = 1;
+            Assert.AreEqual(Battlecries.MaleVoices[1], Battlecries.VoiceOf(unlisted));
+            Assert.IsEmpty(_kept, "no row to keep it for");
+
+            Battlecries.Load(new[] { Row(CreatureBattlecryEntry.ScopeClass, FixtureClass, ThraxSoldier) });
+            Assert.AreEqual(ThraxSoldier, Battlecries.VoiceOf(given), "its class's");
+            Assert.AreEqual(ThraxSoldier, Battlecries.VoiceOf(unlisted), "its class's");
+            Assert.IsEmpty(_kept);
+        }
+
+        [TestMethod]
+        public void TheHumanClassesAreTheWorldsAdultHumanBodiesOfTheSexTheirVoicesAre()
+        {
+            CollectionAssert.AreEqual(new[] { 8, 16, 17 }, Battlecries.MaleVoices);
+            CollectionAssert.AreEqual(new[] { 9, 18, 19 }, Battlecries.FemaleVoices);
+            Assert.HasCount(53, Battlecries.HumanClasses);
+
+            var directory = Path.Combine(AppContext.BaseDirectory, "TestDatabases", Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(directory);
+
+            try
+            {
+                var database = Path.Combine(directory, "world");
+
+                using (var context = PersistenceIntegrationTests.CreateContext(typeof(SqliteWorldContext), database))
+                    MigratedDatabaseTemplates.Migrate(context, () => context.Database.Migrate());
+
+                using var world = (WorldContext)PersistenceIntegrationTests.CreateContext(typeof(SqliteWorldContext), database);
+                var names = world.EntityClassEntries.AsNoTracking().ToDictionary(entry => entry.Id, entry => entry.ClassName);
+
+                foreach (var (classId, voices) in Battlecries.HumanClasses)
+                {
+                    var name = names[classId];
+                    var female = name.Contains("Female");
+
+                    StringAssert.Contains(name, "Human");
+                    Assert.IsTrue(female || name.Contains("Male"), name);
+                    Assert.IsFalse(name.Contains("Child") || name.StartsWith("Z_"), name);
+                    Assert.AreSame(female ? Battlecries.FemaleVoices : Battlecries.MaleVoices, voices, name);
+                }
+
+                // Every adult human body with a sex in its name is listed.
+                var missing = names.Where(entry => entry.Value.Contains("Human") && System.Text.RegularExpressions.Regex.IsMatch(entry.Value, "(Male|Female)(_|$)")
+                        && !entry.Value.Contains("Child") && !entry.Value.StartsWith("Z_")
+                        && !Battlecries.HumanClasses.ContainsKey(entry.Key))
+                    .Select(entry => entry.Value).ToList();
+                Assert.IsEmpty(missing, string.Join(", ", missing));
+
+                // A kept voice is a row of the creature's own, written over if it is kept again.
+                var repository = new Rasa.Repositories.World.CreatureRepository(world);
+                repository.SaveCreatureBattlecry(9001, 17);
+                repository.SaveCreatureBattlecry(9001, 16);
+                var kept = repository.GetBattlecries().Single(row => row.TargetId == 9001);
+                Assert.AreEqual((CreatureBattlecryEntry.ScopeCreature, 16u), (kept.Scope, kept.PackageId));
+            }
+            finally
+            {
+                try { Directory.Delete(directory, true); } catch (IOException) { }
+            }
+        }
+
+        private static Creature Armed(Creature creature)
+        {
+            creature.Actions.Add(new CreatureAction { ActionId = ActionId.WeaponAttack, ActionArgId = 1, RangeMin = 0, RangeMax = 30, MinDamage = 1, MaxDamage = 1, Cooldown = 1000 });
+            return creature;
+        }
+
+        private static Creature Escorting(Creature creature, uint dbId)
+        {
+            creature.DbId = dbId;
+            creature.SpawnPool = new SpawnPool { SpawnSlot = new List<SpawnPoolSlot>(), FollowOwnerCharacterId = 42 };
+            return creature;
         }
 
         #endregion

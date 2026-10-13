@@ -25,8 +25,13 @@ namespace Rasa.Managers
     /// Two rows are not counted, Staging Point (107) and Viands Village (415) on Palisades: the
     /// client has a map marker for each and no waypoint name for either, and they show names
     /// borrowed from elsewhere in its table (ClientWaypointIds). The server does not hold the
-    /// client's names, so they are left out by id (<see cref="Zone.NotCounted"/>). Every other
-    /// waypoint row is under the id the client names it by.
+    /// client's names, so they are left out by id (<see cref="Zone.NotCounted"/>). A third,
+    /// Outpost Aurora (86) on Thunderhead, is a row nobody can reach: its z is a hundred
+    /// thousand times off (MarkedTeleporters), and put right it would be a second pad, gained
+    /// on top of the local teleporter that stands there, where the client's map marks no
+    /// waypoint. The post's waypoint is its control point's, 327. Asked for, the Cartographer
+    /// could not be had (BR-170). Every other waypoint row is under the id the client names it
+    /// by.
     ///
     /// Divide and Marshes each have two titles for the same thing in the client, a Pathfinder
     /// (447, 491) and a Wanderer (462, "Gained all Divide waypoints.", and 493), and their
@@ -47,7 +52,7 @@ namespace Rasa.Managers
             public string Name { get; }
             public uint MapContextId { get; }
 
-            /// <summary>Waypoint rows on the map that the title does not ask for: the client has no name of their own for them.</summary>
+            /// <summary>Waypoint rows on the map that the title does not ask for: the client has no name of their own for them, or nobody can reach them.</summary>
             public IReadOnlyList<uint> NotCounted { get; }
 
             internal Zone(uint titleId, string name, uint mapContextId, params uint[] notCounted)
@@ -71,7 +76,7 @@ namespace Rasa.Managers
             new Zone(493, "Marshes", 1454),                 // Marshes Wanderer
             new Zone(517, "Descent", 2047),                 // Descent Pathfinder
             new Zone(426, "Ashen Desert", 1734),            // Desert Pathfinder
-            new Zone(769, "Thunderhead", 1911),             // Thunderhead Cartographer
+            new Zone(769, "Thunderhead", 1911, 86),         // Thunderhead Cartographer
             new Zone(448, "Abyss", 2028),                   // Abyss Pathfinder
             new Zone(414, "Crucible", 1993)                 // Crucible Pathfinder
         };

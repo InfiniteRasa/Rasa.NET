@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Rasa.Data;
+using Rasa.Game.Missions.Integration;
 using Rasa.Managers;
 using Rasa.Memory;
 using Rasa.Packets.Game.Server;
@@ -226,9 +227,9 @@ namespace Rasa.Test.Missions
         }
 
         [TestMethod]
-        [DataRow(5f, true)]
-        [DataRow(5.001f, false)]
-        public void CorpseOpeningUsesTheFiveMetreOriginBoundary(float verticalDistance, bool allowed)
+        [DataRow(MissionInteractionPolicy.MaxReach, true)]
+        [DataRow(MissionInteractionPolicy.MaxReach + 0.001f, false)]
+        public void CorpseOpeningUsesTheConversationReachOriginBoundary(float verticalDistance, bool allowed)
         {
             using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true);
             FindMissingSoldiers(harness);

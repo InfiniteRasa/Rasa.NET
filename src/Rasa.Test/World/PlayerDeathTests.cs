@@ -251,6 +251,53 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void AHospitalInsideAMapLinkDoesNotSendTheRevivedThroughIt()
+        {
+            using var world = new WorldTestContext();
+            var link = new MapLink
+            {
+                Id = 917,
+                MapContextId = MapId,
+                Position = new Vector3(100, 0, 0),     // Alia Das's test hospital, as link 17 stood on 103
+                Radius = 8,
+                DestMapContextId = 99917,               // not loaded: going through it is recorded against the map
+                Enabled = true,
+                Comment = "test -> arena"
+            };
+            CellManager.Instance.AddToWorld(world.Map, link);
+            MapErrorManager.Instance.Clear();
+
+            try
+            {
+                // Dead 400 m off, in other cells than the hospital's.
+                var client = Player(world, 100, 400);
+                Hospitals.Gain(client, Hospitals.OnMap(MapId).Single(h => h.TeleporterId == 103));
+                AtZero(world, client);
+
+                PlayerDeath.ReviveMe(client, null);
+
+                Assert.AreEqual(100f, client.Player.Position.X, 0.01f);
+                Assert.AreEqual(0f, client.Player.Position.Z, 0.01f, "at Alia Das");
+                Assert.IsTrue(client.Player.InsideMapLinks.Contains(link.Id), "standing in it, as one who arrived through it");
+                Assert.AreEqual(client.Player.Cells[2, 2], CellManager.Instance.CreateCellMatrix(world.Map,
+                    CellManager.Instance.GetCellSeed(client.Player.Position) & 0xFFFF, CellManager.Instance.GetCellSeed(client.Player.Position) >> 16)[2, 2], "in the cells where they got up");
+
+                MapLinkManager.Instance.Worker(world.Map);
+                Assert.IsFalse(MapErrorManager.Instance.Errors(MapId).Any(e => e.Contains("map_link 917")), "not sent through it");
+
+                // One who walks into it is.
+                Player(world, 100, 2);
+                MapLinkManager.Instance.Worker(world.Map);
+                Assert.IsTrue(MapErrorManager.Instance.Errors(MapId).Any(e => e.Contains("map_link 917")));
+            }
+            finally
+            {
+                CellManager.Instance.RemoveFromWorld(world.Map, link);
+                MapErrorManager.Instance.Clear();
+            }
+        }
+
+        [TestMethod]
         public void FromLevelFiveComingBackCostsRezTraumaNoHealingAndItStacks()
         {
             using var world = new WorldTestContext();

@@ -34,6 +34,8 @@ namespace Rasa.Repositories.UnitOfWork
         public IControlPointRepository ControlPoints => _parent.ControlPoints;
         public IItemModuleRepository ItemModules => _parent.ItemModules;
         public IAmbientNpcRepository AmbientNpcs => _parent.AmbientNpcs;
+        public IWorldDestructibleRepository WorldDestructibles => _parent.WorldDestructibles;
+        public IWorldUsableRepository WorldUsables => _parent.WorldUsables;
         public ISpawnPoolArrivalRepository SpawnPoolArrivals => _parent.SpawnPoolArrivals;
         public IRecipeRepository Recipes => _parent.Recipes;
 

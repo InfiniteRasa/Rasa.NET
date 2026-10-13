@@ -8,6 +8,9 @@ namespace Rasa.Repositories.World
     public interface ITeleporterRepository
     {
         List<TeleporterEntry> GetTeleporters();
+
+        /// <summary>The conditions on travelling through the wormhole network (wormhole_lock).</summary>
+        List<WormholeLockEntry> GetWormholeLocks();
     }
     public class TeleporterRepository : ITeleporterRepository
     {
@@ -24,6 +27,11 @@ namespace Rasa.Repositories.World
             var teleporterEntries = query.ToList();
 
             return teleporterEntries;
+        }
+
+        public List<WormholeLockEntry> GetWormholeLocks()
+        {
+            return _worldContext.CreateNoTrackingQuery(_worldContext.WormholeLockEntries).ToList();
         }
     }
 }

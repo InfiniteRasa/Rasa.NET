@@ -221,7 +221,15 @@ namespace Rasa.Managers
 
                 foreach (var minion in entry.Value)
                 {
-                    if (minion.MapContextId != mapChannel.MapInfo.MapContextId)
+                    // Each channel looks after the minions standing in it, and only those. A
+                    // private, shared or squad instance is another channel of the same map, so
+                    // the context id alone would let a populated copy sweep up another copy's
+                    // bot: its master is "not on this channel", the dismissal removes it from
+                    // a world it never stood in, and it is left standing on its own copy,
+                    // orphaned - answering no commands and outliving its owner (BR-199). A
+                    // minion already taken out of the world has no channel; it goes by the map
+                    // it was last on, as before.
+                    if (!StandsOn(minion, mapChannel))
                         continue;
 
                     // Master logged out, died out of the world, or walked into another map.
@@ -244,6 +252,15 @@ namespace Rasa.Managers
             foreach (var minion in expired)
                 Dismiss(mapChannel, minion);
         }
+
+        /// <summary>
+        /// Whether <paramref name="mapChannel"/> is the channel this minion is in: the one it was
+        /// added to the world on, or, once out of the world, any channel of its map.
+        /// </summary>
+        internal static bool StandsOn(Creature minion, MapChannel mapChannel) =>
+            minion.RuntimeMapChannel != null
+                ? minion.RuntimeMapChannel == mapChannel
+                : minion.MapContextId == mapChannel.MapInfo.MapContextId;
 
         // ------------------------------------------------------------------ commands
 

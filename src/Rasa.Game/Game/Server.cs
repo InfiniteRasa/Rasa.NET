@@ -98,6 +98,9 @@ namespace Rasa.Game
             // And the chat log: every line of chat a player sends.
             ChatAudit.Instance.Load(new ChatAudit.ServerStore(gameUnitOfWorkFactory));
 
+            // And the economy log: items, credits and prestige that change hands.
+            EconomyAudit.Instance.Load(new EconomyAudit.ServerStore(gameUnitOfWorkFactory));
+
             Configuration.OnLoad += ConfigLoaded;
             Configuration.OnReLoad += ConfigReLoaded;
             Configuration.Load();
@@ -124,6 +127,7 @@ namespace Rasa.Game
             CommandProcessor.RegisterCommand("mute", Audited(ProcessMuteCommand));
             CommandProcessor.RegisterCommand("unmute", Audited(ProcessUnmuteCommand));
             CommandProcessor.RegisterCommand("motd", Audited(ProcessMotdCommand));
+            CommandProcessor.RegisterCommand("mailitem", Audited(ProcessMailItemCommand));
         }
 
         /// <summary>A console command's handler, with what was typed put on the audit log (GmAudit) before it runs.</summary>
@@ -197,6 +201,7 @@ namespace Rasa.Game
 
             ServerFlagManager.Instance.LoadConfiguredFlags(Config.GameDataConfig?.ServerFlags);
             CharacterManager.LoadEnabledRaces(Config.GameDataConfig?.EnabledRaces);
+            HybridUnlocks.Load(Config.GameDataConfig?.AlwaysUnlockHybrids);
 
             if (!KnowledgeBaseManager.Instance.Load(Config.GameDataConfig?.KnowledgeBaseFile, out var kbProblem))
                 Logger.WriteLog(LogType.Initialize, $"Knowledge base: {kbProblem}. SearchKB will answer with nothing.");
@@ -229,6 +234,30 @@ namespace Rasa.Game
         /// </summary>
         private void RunOnLoop(string name, Action work) =>
             Timer.Add($"{name}:{Interlocked.Increment(ref _loopWorkSequence)}", 1, false, work);
+
+        /// <summary>
+        /// Runs work on the main loop's next pass and waits for what it gives, for a thread that
+        /// needs the answer - the REST API's. The default of T when the loop has not done it
+        /// within <paramref name="waitMs"/>; it may still be done after.
+        /// </summary>
+        private T RunOnLoopAndWait<T>(string name, Func<T> work, int waitMs) where T : class
+        {
+            var done = new System.Threading.Tasks.TaskCompletionSource<T>(System.Threading.Tasks.TaskCreationOptions.RunContinuationsAsynchronously);
+
+            RunOnLoop(name, () =>
+            {
+                try
+                {
+                    done.TrySetResult(work());
+                }
+                catch (Exception e)
+                {
+                    done.TrySetException(e);
+                }
+            });
+
+            return done.Task.Wait(waitMs) ? done.Task.Result : null;
+        }
         #endregion
 
         public void Disconnect(Client client)
@@ -240,11 +269,18 @@ namespace Rasa.Game
         /// <summary>CurrentPlayers, as the status listeners' sample asks for it.</summary>
         private Func<int> _playersHoldingASlot;
 
+        /// <summary>The accounts online, as GET /usersonline's sample asks for them.</summary>
+        private Func<IEnumerable<Api.OnlineUser>> _onlineUsers;
+
         public void MainLoop(long delta)
         {
             // For the status listeners (Api.ServerStatus), whose threads read only what is left
             // for them here: the loop is alive, and once a second how many players hold a slot.
             Api.ApiHost.Instance.Status.Beat(_playersHoldingASlot ??= () => CurrentPlayers, Config?.ServerInfoConfig?.MaxPlayers ?? 0, ListenerSocket != null);
+
+            // And, once a second, who is online and as which character (GET /usersonline): read
+            // here, where the clients' characters are, so the API's thread never touches one.
+            Api.ApiHost.Instance.Users.Sample(_onlineUsers ??= () => Api.OnlineUsers.Read(Clients));
 
             // The host is stopping (Ctrl+C, a service stop, docker stop): everyone saved and out,
             // on this thread, which owns the world (EvacuateForHost waits for it).
@@ -433,20 +469,13 @@ namespace Rasa.Game
 
         private void CreateListenerSocket()
         {
-            try
-            {
-                ListenerSocket = new LengthedSocket(SizeType.Dword, false);
-                ListenerSocket.OnError += OnError;
-                ListenerSocket.OnAccept += OnAccept;
-                ListenerSocket.Bind(new IPEndPoint(IPAddress.Any, Config.GameConfig.Port));
-                ListenerSocket.Listen(Config.GameConfig.Backlog);
-            }
-            catch (Exception e)
-            {
-                Logger.WriteLog(LogType.Error, "Unable to create or start listening on the client socket! Exception:");
-                Logger.WriteLog(LogType.Error, e);
-                throw;
-            }
+            // A port in use, or one this account may not bind, is reported by ServerStartupLifecycle
+            // with the step it failed at.
+            ListenerSocket = new LengthedSocket(SizeType.Dword, false);
+            ListenerSocket.OnError += OnError;
+            ListenerSocket.OnAccept += OnAccept;
+            ListenerSocket.Bind(new IPEndPoint(IPAddress.Any, Config.GameConfig.Port));
+            ListenerSocket.Listen(Config.GameConfig.Backlog);
         }
 
         private void RegisterLoginAndQueue()
@@ -487,6 +516,11 @@ namespace Rasa.Game
             api.UpdateMonsterFlags.Store = monsterFlags;
             api.WeightedLoot.Store = weightedLoot;
             api.UpdateWeightedLoot.Store = weightedLoot;
+
+            // POST /kickuser kicks on the world loop and waits for it; every request the API is
+            // sent goes on its log, in the character database.
+            api.KickUser.Kick = order => RunOnLoopAndWait("kickuser", () => Api.KickUserEndpoint.Perform(order), Api.KickUserEndpoint.WaitMs);
+            api.Audit.Load(new Api.ApiAudit.ServerStore(GameUnitOfWorkFactory));
             api.Status.Started();
             _apiApplied = true;
             api.Apply(Config.ApiConfig);
@@ -565,7 +599,12 @@ namespace Rasa.Game
             RegionManager.Instance.RegionInit();
             EmitterManager.Instance.EmitterInit();
             SecretPassages.DoorwayInit();
+            TunnelDoors.Init();
             AmbientNpcs.Init(GameUnitOfWorkFactory);
+
+            // After the spawn pools and the creatures: a spawner's creature is the one its map's pools use.
+            PlacedDestructibles.Init(GameUnitOfWorkFactory);
+            PlacedUsables.Init(GameUnitOfWorkFactory);
             MapMarkerManager.Instance.MapMarkerInit();
             SpawnPoolManager.Instance.ValidatePools();
             RecipeManager.Instance.RecipeInit();
@@ -954,6 +993,20 @@ namespace Rasa.Game
             }
 
             RunOnLoop("unmute", () => Logger.WriteLog(LogType.Command, Moderation.Unmute(parts[1], null).Text));
+        }
+
+        /// <summary>mailitem &lt;familyName&gt; &lt;itemTemplateId&gt; [quantity]: new items into a player's inbox, online or not.</summary>
+        private void ProcessMailItemCommand(string[] parts)
+        {
+            uint quantity = 0;
+
+            if (parts.Length < 3 || !uint.TryParse(parts[2], out var itemTemplateId) || (parts.Length > 3 && !uint.TryParse(parts[3], out quantity)))
+            {
+                Logger.WriteLog(LogType.Command, "Usage: mailitem <familyName> <itemTemplateId> [quantity]");
+                return;
+            }
+
+            RunOnLoop("mailitem", () => Logger.WriteLog(LogType.Command, InventoryManager.Instance.MailItems(parts[1], itemTemplateId, quantity, null).Text));
         }
 
         /// <summary>motd: the message of the day in force.</summary>

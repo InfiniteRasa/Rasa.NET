@@ -17,7 +17,7 @@ namespace Rasa.Packets.Game.Server
 
         /// <param name="enabledRaces">
         /// The races the character creation window lets the player pick: the rest show locked, with
-        /// "Unlock this hybrid by completing certain missions in game." (CharacterManager.EnabledRaces).
+        /// "Unlock this hybrid by completing certain missions in game." (HybridUnlocks.OfferedTo).
         /// </param>
         public BeginCharacterSelectionPacket(string familyName, bool hasCharacters, uint accountId, IEnumerable<Race> enabledRaces, bool canSkipBootcamp = true)
         {

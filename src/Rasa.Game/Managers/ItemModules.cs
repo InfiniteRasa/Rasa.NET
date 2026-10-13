@@ -63,6 +63,30 @@ namespace Rasa.Managers
             return _modules.TryGetValue(moduleId, out module);
         }
 
+        /// <summary>Whether the item template is a module (module_item), and the class set the module goes into - 0 when it is not, or its module names none.</summary>
+        public static bool IsModuleItem(uint templateId, out uint classSetId)
+        {
+            classSetId = 0;
+
+            if (!_items.TryGetValue(templateId, out var item))
+                return false;
+
+            if (_modules.TryGetValue(item.ModuleId, out var module))
+                classSetId = module.ClassSetId;
+
+            return true;
+        }
+
+        /// <summary>An item class in the class set (modifiable_class), or 0 when none is.</summary>
+        public static uint MemberOf(uint classSetId)
+        {
+            foreach (var (classId, set) in _classSets)
+                if (set == classSetId)
+                    return classId;
+
+            return 0;
+        }
+
         /// <summary>Loads the tables from the world database.</summary>
         public static void Init(IGameUnitOfWorkFactory factory)
         {

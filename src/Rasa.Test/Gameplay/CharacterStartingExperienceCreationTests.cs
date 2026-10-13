@@ -81,6 +81,43 @@ namespace Rasa.Test.Gameplay
         }
 
         [TestMethod]
+        public void AHybridIsMadeOnlyForAnAccountThatHasUnlockedItWhenTheSettingIsOff()
+        {
+            using var context = new CharacterCreationContext();
+            context.SeedAccount(31);
+            var characters = new CharacterManager(context);
+
+            try
+            {
+                HybridUnlocks.Load(false);
+                characters.RequestCreateCharacterInSlot(context.CreateClient(31),
+                    CreatePacket(slot: 1, familyName: "Fixture", characterName: "Splice", race: Race.Thrax));
+
+                using (var verify = context.Open())
+                    Assert.IsNull(new GameAccountRepository(verify).Get(31).GetCharacterBySlot(1), "locked");
+
+                using (var unlock = context.Open())
+                    Assert.AreEqual(HybridUnlocks.Bit(Race.Thrax), new GameAccountRepository(unlock).AddHybridUnlocks(31, HybridUnlocks.Bit(Race.Thrax)));
+
+                characters.RequestCreateCharacterInSlot(context.CreateClient(31),
+                    CreatePacket(slot: 1, familyName: "Fixture", characterName: "Splice", race: Race.Thrax));
+
+                HybridUnlocks.Load(true);
+                characters.RequestCreateCharacterInSlot(context.CreateClient(31),
+                    CreatePacket(slot: 2, familyName: "Fixture", characterName: "Coral", race: Race.Brann));
+
+                using var made = context.Open();
+                var account = new GameAccountRepository(made).Get(31);
+                Assert.AreEqual((byte)Race.Thrax, account.GetCharacterBySlot(1)?.Race, "unlocked");
+                Assert.AreEqual((byte)Race.Brann, account.GetCharacterBySlot(2)?.Race, "every race offered");
+            }
+            finally
+            {
+                HybridUnlocks.Load(null);
+            }
+        }
+
+        [TestMethod]
         public void CreatingCharacterAddsOnlyOneStartingExperienceRow()
         {
             using var context = new CharacterCreationContext();
@@ -128,6 +165,86 @@ namespace Rasa.Test.Gameplay
             Assert.AreEqual((uint)InventoryOffset.CategoryConsumable, ammunition.SlotId);
             Assert.AreEqual(1000U, items.GetItem(ammunition.ItemId).StackSize);
             Assert.IsNotNull(new CharacterLockboxRepository(verify).Get(181));
+        }
+
+        [TestMethod]
+        public void CreatingCharacterShowsTheStarterPistolInItsHand()
+        {
+            using var context = new CharacterCreationContext();
+            context.SeedAccount(191);
+
+            new CharacterManager(context).RequestCreateCharacterInSlot(
+                context.CreateClient(191),
+                CreatePacket(slot: 1, familyName: "Fixture", characterName: "Holster"));
+
+            using var verify = context.Open();
+            var character = new GameAccountRepository(verify).Get(191).GetCharacterBySlot(1);
+            var weapon = new CharacterAppearanceRepository(verify).GetByCharacterId(character.Id)
+                .Single(entry => entry.Slot == (uint)EquipmentData.Weapon);
+
+            // The pistol's class, in the colour the pistol itself was made in.
+            Assert.AreEqual(27120U, weapon.Class);
+            Assert.AreEqual(2139062144U, weapon.Color);
+            Assert.AreEqual(2139062144U, verify.ItemEntries.Single(entry => entry.ItemTemplateId == 17131).Color);
+        }
+
+        [TestMethod]
+        public void LoadingACharacterShowsTheWeaponInItsHandAndNothingWhenItHoldsNone()
+        {
+            using var context = new CharacterCreationContext();
+            context.SeedAccount(192);
+            var client = context.CreateClient(192);
+            var pistolClass = EntityClassManager.Instance.LoadedEntityClasses[(EntityClasses)27120];
+            var equipable = pistolClass.EquipableClassInfo;
+            pistolClass.EquipableClassInfo = new EquipableClassInfo(EquipmentData.Weapon);
+
+            try
+            {
+                new CharacterManager(context).RequestCreateCharacterInSlot(
+                    client, CreatePacket(slot: 1, familyName: "Fixture", characterName: "Bare"));
+
+                // A character made before the pistol had its entry.
+                using (var change = context.Open())
+                {
+                    change.CharacterAppearanceEntries.RemoveRange(
+                        change.CharacterAppearanceEntries.Where(entry => entry.Slot == (uint)EquipmentData.Weapon));
+                    change.SaveChanges();
+                }
+
+                context.LoadInventory(client);
+                var inventories = new InventoryManager(context);
+                var saves = 0;
+                context.AfterSave = _ => saves++;
+
+                inventories.SyncHeldWeaponAppearance(client);
+
+                var shown = client.Player.AppearanceData[EquipmentData.Weapon];
+                Assert.AreEqual(27120U, shown.Class);
+                Assert.AreEqual(2139062144U, shown.Color.Hue);
+                Assert.AreEqual(1, saves);
+
+                using (var verify = context.Open())
+                    Assert.AreEqual(27120U, new CharacterAppearanceRepository(verify).GetByCharacterId(client.Player.Id)
+                        .Single(entry => entry.Slot == (uint)EquipmentData.Weapon).Class);
+
+                // Agreeing already, nothing is written.
+                inventories.SyncHeldWeaponAppearance(client);
+                Assert.AreEqual(1, saves);
+
+                // Nothing in hand: nothing shown.
+                client.Player.Inventory.EquippedInventory[13] = 0;
+                inventories.SyncHeldWeaponAppearance(client);
+                Assert.AreEqual(0U, client.Player.AppearanceData[EquipmentData.Weapon].Class);
+
+                using var cleared = context.Open();
+                Assert.AreEqual(0U, new CharacterAppearanceRepository(cleared).GetByCharacterId(client.Player.Id)
+                    .Single(entry => entry.Slot == (uint)EquipmentData.Weapon).Class);
+            }
+            finally
+            {
+                context.AfterSave = null;
+                pistolClass.EquipableClassInfo = equipable;
+            }
         }
 
         [TestMethod]
@@ -878,7 +995,8 @@ namespace Rasa.Test.Gameplay
         private static RequestCreateCharacterInSlotPacket CreatePacket(
             byte slot,
             string familyName,
-            string characterName) =>
+            string characterName,
+            Race race = Race.Human) =>
             new()
             {
                 SlotNum = slot,
@@ -886,7 +1004,7 @@ namespace Rasa.Test.Gameplay
                 CharacterName = characterName,
                 Gender = 0,
                 Scale = 1,
-                RaceId = Race.Human
+                RaceId = race
             };
 
         private static RequestCloneCharacterToSlotPacket CreateClonePacket(

@@ -253,6 +253,150 @@ namespace Rasa.Test.World
         }
 
         /// <summary>A character with a footlocker, or with a clan lockbox they lead, and the two requests of each.</summary>
+        #region What the client is told (BR-186)
+
+        [TestMethod]
+        [DataRow(3, 7, DisplayName = "low to high")]
+        [DataRow(7, 3, DisplayName = "high to low")]
+        public void APackSwapLeavesBothItemsInTheClientsPack(int from, int to)
+        {
+            using var fixture = new Fixture(false);
+            var rifle = fixture.InPack(Rifle, InventoryCategory.Equipment, from);
+            var pistol = fixture.InPack(Pistol, InventoryCategory.Equipment, to);
+            var client = new ClientInventory();
+            client.Put(InventoryType.Personal, rifle.EntityId, from);
+            client.Put(InventoryType.Personal, pistol.EntityId, to);
+            fixture.Sent();
+
+            fixture.Inventory.PersonalInventory_MoveItem(fixture.Client, new PersonalInventory_MoveItemPacket { SrcSlot = from, DestSlot = to, Quantity = 1 });
+
+            Assert.AreEqual(rifle.EntityId, fixture.Pack[to]);
+            Assert.AreEqual(pistol.EntityId, fixture.Pack[from]);
+
+            var sent = fixture.Sent();
+            client.Replay(sent);
+
+            Assert.AreEqual(rifle.EntityId, client.At(InventoryType.Personal, to), "the client still has the rifle");
+            Assert.AreEqual(pistol.EntityId, client.At(InventoryType.Personal, from));
+            Assert.AreEqual(2, client.Count(InventoryType.Personal));
+            ClientInventory.AssertRemovalsFirst(sent);
+        }
+
+        [TestMethod]
+        [DataRow(false, DisplayName = "footlocker")]
+        [DataRow(true, DisplayName = "clan lockbox")]
+        public void AStorageSwapEachWayLeavesEachItemInOneContainerOnTheClient(bool clan)
+        {
+            using var fixture = new Fixture(clan);
+            var storage = clan ? InventoryType.ClanInventory : InventoryType.HomeInventory;
+            var rifle = fixture.InPack(Rifle, InventoryCategory.Equipment, 3);
+            var pistol = fixture.InStorage(Pistol, InventoryCategory.Equipment, 7);
+            var client = new ClientInventory();
+            client.Put(InventoryType.Personal, rifle.EntityId, 3);
+            client.Put(storage, pistol.EntityId, 7);
+            fixture.Sent();
+
+            // In: the rifle to the slot the pistol is in, the pistol out to the pack.
+            fixture.DropOnStorage(packSlot: 3, storageSlot: 7);
+            var sent = fixture.Sent();
+            client.Replay(sent);
+
+            Assert.AreEqual(rifle.EntityId, client.At(storage, 7));
+            Assert.AreEqual(pistol.EntityId, client.At(InventoryType.Personal, 3));
+            Assert.AreEqual((1, 1), (client.Count(storage), client.Count(InventoryType.Personal)), "nothing left behind");
+            Assert.IsNull(client.Where(storage, pistol.EntityId), "the pistol is out of storage");
+            Assert.IsNull(client.Where(InventoryType.Personal, rifle.EntityId), "the rifle is out of the pack");
+
+            // Out: the rifle back to the pack, the pistol into storage.
+            fixture.TakeOut(storageSlot: 7, packSlot: 3);
+            client.Replay(fixture.Sent());
+
+            Assert.AreEqual(rifle.EntityId, client.At(InventoryType.Personal, 3));
+            Assert.AreEqual(pistol.EntityId, client.At(storage, 7));
+            Assert.AreEqual((1, 1), (client.Count(storage), client.Count(InventoryType.Personal)));
+            Assert.IsNull(client.Where(storage, rifle.EntityId));
+            Assert.IsNull(client.Where(InventoryType.Personal, pistol.EntityId));
+        }
+
+        /// <summary>
+        /// The client's inventory as client/inventory.py keeps it: per container, an entity by
+        /// slot and a slot by entity. Recv_InventoryAddItem takes an entity out of where that
+        /// container has it and puts it in the slot (_AddItem); Recv_InventoryRemoveItem deletes
+        /// the slot the container has the entity in, whatever that slot now holds
+        /// (_RemoveEntityFromMappings).
+        /// </summary>
+        private sealed class ClientInventory
+        {
+            private readonly Dictionary<InventoryType, (Dictionary<int, ulong> BySlot, Dictionary<ulong, int> ByEntity)> _containers = new();
+
+            private (Dictionary<int, ulong> BySlot, Dictionary<ulong, int> ByEntity) Of(InventoryType type)
+            {
+                if (!_containers.TryGetValue(type, out var container))
+                    _containers[type] = container = (new Dictionary<int, ulong>(), new Dictionary<ulong, int>());
+
+                return container;
+            }
+
+            internal void Put(InventoryType type, ulong entityId, int slot)
+            {
+                var (bySlot, byEntity) = Of(type);
+
+                if (byEntity.ContainsKey(entityId))
+                    Take(type, entityId);
+
+                bySlot[slot] = entityId;
+                byEntity[entityId] = slot;
+            }
+
+            internal void Take(InventoryType type, ulong entityId)
+            {
+                var (bySlot, byEntity) = Of(type);
+
+                if (!byEntity.TryGetValue(entityId, out var slot))
+                    return;
+
+                byEntity.Remove(entityId);
+                bySlot.Remove(slot);
+            }
+
+            internal void Replay(IEnumerable<Rasa.Packets.PythonPacket> packets)
+            {
+                foreach (var packet in packets)
+                    switch (packet)
+                    {
+                        case InventoryAddItemPacket add:
+                            Put(add.Type, add.EntityId, (int)add.SlotId);
+                            break;
+                        case InventoryRemoveItemPacket remove:
+                            Take(remove.InventoryType, remove.EntityId);
+                            break;
+                    }
+            }
+
+            internal ulong At(InventoryType type, int slot) => Of(type).BySlot.TryGetValue(slot, out var entityId) ? entityId : 0;
+
+            internal int? Where(InventoryType type, ulong entityId) => Of(type).ByEntity.TryGetValue(entityId, out var slot) ? slot : null;
+
+            /// <summary>The items in the container, counted both ways: a stale entry makes the two disagree.</summary>
+            internal int Count(InventoryType type)
+            {
+                var (bySlot, byEntity) = Of(type);
+
+                Assert.AreEqual(bySlot.Count, byEntity.Count, $"{type}'s two maps disagree");
+                return bySlot.Count;
+            }
+
+            internal static void AssertRemovalsFirst(List<Rasa.Packets.PythonPacket> packets)
+            {
+                var lastRemoval = packets.FindLastIndex(packet => packet is InventoryRemoveItemPacket);
+                var firstAdd = packets.FindIndex(packet => packet is InventoryAddItemPacket);
+
+                Assert.IsTrue(lastRemoval < 0 || firstAdd < 0 || lastRemoval < firstAdd, "every removal before any addition");
+            }
+        }
+
+        #endregion
+
         private sealed class Fixture : IDisposable
         {
             private readonly bool _clan;

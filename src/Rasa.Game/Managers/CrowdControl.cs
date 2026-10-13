@@ -42,6 +42,26 @@ namespace Rasa.Managers
         /// <summary>gameconstants.KNOCKBACK_DEFAULT_DISTANCE: a knockback with no distance of its own.</summary>
         public const float DefaultKnockbackDistance = 10f;
 
+        /// <summary>
+        /// gameconstants.KNOCKBACK_DEFAULT_HEADING: the heading of a knockback with none of its own,
+        /// which goes straight away from what threw it. A KNOCKBACK_HEADING is read against it:
+        /// heading - 180 degrees off straight away (TurnOf).
+        /// </summary>
+        public const float DefaultKnockbackHeading = 180f;
+
+        /// <summary>
+        /// How far a knockback turns from straight away, from its action's KNOCKBACK_HEADING:
+        /// heading - DefaultKnockbackHeading, and none for an action without one. The Boargar's 105
+        /// is 75 degrees off. Nothing in the client turns a knockback by a heading, so which way
+        /// the turn goes (CrowdControl.Turned) is ours.
+        /// </summary>
+        public static float TurnOf(ActionLevelInfo info)
+        {
+            return info != null && info.Has(AbilityProperty.KnockbackHeading)
+                ? info.Get(AbilityProperty.KnockbackHeading) - DefaultKnockbackHeading
+                : 0f;
+        }
+
         /// <summary>gameconstants.KNOCKBACK_GETUP_TIME_MSEC: the time on the ground after landing.</summary>
         public const int GetupMs = 2000;
 
@@ -75,6 +95,21 @@ namespace Rasa.Managers
             var length = dir.Length();
 
             return length < 0.1f ? new Vector3(0f, 0f, 1f) : dir / length;
+        }
+
+        /// <summary>
+        /// A ground-plane direction turned by turnDegrees about the vertical: x' = x cos - z sin,
+        /// z' = x sin + z cos. 0 leaves it as it is.
+        /// </summary>
+        public static Vector3 Turned(Vector3 dir, float turnDegrees)
+        {
+            if (turnDegrees == 0f)
+                return dir;
+
+            var radians = turnDegrees * MathF.PI / 180f;
+            var (sin, cos) = MathF.SinCos(radians);
+
+            return new Vector3(dir.X * cos - dir.Z * sin, 0f, dir.X * sin + dir.Z * cos);
         }
 
         /// <summary>
@@ -149,13 +184,23 @@ namespace Rasa.Managers
         /// </summary>
         public static bool Knockback(MapChannel mapChannel, Creature target, Actor source, float distance, int typeId, DamageType damageType, int extraStunMs = 0)
         {
-            if (target == null || source == null || distance <= 0f || target.State == CharacterState.Dead || target.State == CharacterState.Dying)
+            return source != null && Knockback(mapChannel, target, source, source.Position, source.EntityId, distance, typeId, damageType, extraStunMs);
+        }
+
+        /// <summary>
+        /// A knockback from a point rather than an actor - an object's blast (ObjectAbilities) -
+        /// with the entity that threw it named as its source. source is the actor behind it, if
+        /// there is one; none for a blast that is nobody's.
+        /// </summary>
+        public static bool Knockback(MapChannel mapChannel, Creature target, Actor source, Vector3 from, ulong sourceId, float distance, int typeId, DamageType damageType, int extraStunMs = 0)
+        {
+            if (target == null || distance <= 0f || target.State == CharacterState.Dead || target.State == CharacterState.Dying)
                 return false;
 
             if (!target.Attributes.TryGetValue(Attributes.Health, out var health) || health.Current <= 0)
                 return false;
 
-            var dir = AwayFrom(source.Position, target.Position);
+            var dir = AwayFrom(from, target.Position);
             var destination = KnockbackDestination(mapChannel, target.Position, dir, distance);
 
             // An emplacement is knocked down where it stands, not off its mount. Nor is anything
@@ -175,7 +220,7 @@ namespace Rasa.Managers
                 TypeId = typeId,
                 EffectId = GameEffectManager.Instance.NextEffectId(mapChannel),
                 EffectLevel = 1,
-                SourceId = source.EntityId,
+                SourceId = sourceId,
                 Source = source,
                 SourceLevel = (source as Manifestation)?.Level ?? 1,
                 IsBuff = false,

@@ -98,7 +98,11 @@ namespace Rasa.Managers
             new FieldClass("catwalk28", 29362, Kind.Faction, new Vector3(-28.09f, -0.38f, -0.35f), new Vector3(0.36f, 4.85f, 0.36f), "PvP outpost catwalk, 28 m"),
             new FieldClass("catwalk8", 29363, Kind.Faction, new Vector3(-12f, -0.38f, -0.35f), new Vector3(0.36f, 4.85f, 0.36f), "PvP outpost catwalk, 8 m"),
             new FieldClass("clan", 29342, Kind.Clan, new Vector3(-6.48f, 1.12f, -0.17f), new Vector3(6.48f, 9.36f, 0.17f), "TEST_ClanForceField, on the PvP outpost gate mesh"),
-            new FieldClass("ownable", 10000083, Kind.Ownable, new Vector3(-6.48f, 1.12f, -0.17f), new Vector3(6.48f, 9.36f, 0.17f), "human outpost fence gate, hued")
+            new FieldClass("ownable", 10000083, Kind.Ownable, new Vector3(-6.48f, 1.12f, -0.17f), new Vector3(6.48f, 9.36f, 0.17f), "human outpost fence gate, hued"),
+
+            // Two the client marks for deletion, each on another's mesh: humbase's (21637) and banemajor's (22127).
+            new FieldClass("humbaseold", 9473, Kind.Faction, new Vector3(-9.17f, 4.1f, -0.17f), new Vector3(9.17f, 12.34f, 0.17f), "UsableForceFieldDELETEV01, on the human base gate's mesh"),
+            new FieldClass("banemajorold", 9747, Kind.Faction, new Vector3(-16.48f, 0.21f, -0.29f), new Vector3(16.48f, 20.38f, 0.31f), "UsableForceFieldDELETEDELETEDUPE, on the Bane major entrance's mesh")
         };
 
         /// <summary>The ownable field's hue for each side, 0-255 red, green, blue, alpha: ours.</summary>

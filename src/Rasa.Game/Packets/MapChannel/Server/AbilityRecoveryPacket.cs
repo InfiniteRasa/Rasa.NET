@@ -110,7 +110,7 @@ namespace Rasa.Packets.MapChannel.Server
                 {
                     case HitDataKind.RawInfo:
                         // hitdata[i] is the rawInfo itself (CrabMineDeathAbility.DoAbility).
-                        DamageInfoWriter.WriteRawInfo(pw, hit.DamageType, hit.Amount, hit.Resisted, hit.IsCritical, hit.DeathBlow, absorbed: hit.Absorbed, wasImmune: hit.WasImmune);
+                        DamageInfoWriter.WriteRawInfo(pw, hit.DamageType, hit.Amount, hit.Resisted, hit.IsCritical, hit.DeathBlow, absorbed: hit.Absorbed, wasImmune: hit.WasImmune, targetEffectIds: hit.TargetEffectIds);
                         break;
                     case HitDataKind.Heal:
                         pw.WriteInt(hit.Amount);
@@ -119,7 +119,7 @@ namespace Rasa.Packets.MapChannel.Server
                         // (clientInfo, extraClientInfo) - MiasmaCoalesceAbility.DoAbility: the
                         // hit, and its extra damage of another type or None.
                         pw.WriteTuple(2);
-                        DamageInfoWriter.WriteRawInfo(pw, hit.DamageType, hit.Amount, hit.Resisted, hit.IsCritical, hit.DeathBlow, absorbed: hit.Absorbed, wasImmune: hit.WasImmune);
+                        DamageInfoWriter.WriteRawInfo(pw, hit.DamageType, hit.Amount, hit.Resisted, hit.IsCritical, hit.DeathBlow, absorbed: hit.Absorbed, wasImmune: hit.WasImmune, targetEffectIds: hit.TargetEffectIds);
                         if (hit.Extra != null)
                             DamageInfoWriter.WriteRawInfo(pw, hit.Extra.DamageType, hit.Extra.Amount, hit.Extra.Resisted, hit.Extra.IsCritical, hit.Extra.DeathBlow, absorbed: hit.Extra.Absorbed, wasImmune: hit.Extra.WasImmune);
                         else
@@ -138,7 +138,7 @@ namespace Rasa.Packets.MapChannel.Server
                         break;
                     case HitDataKind.Damage:
                         pw.WriteTuple(2);
-                        DamageInfoWriter.WriteRawInfo(pw, hit.DamageType, hit.Amount, hit.Resisted, hit.IsCritical, hit.DeathBlow, absorbed: hit.Absorbed, wasImmune: hit.WasImmune);
+                        DamageInfoWriter.WriteRawInfo(pw, hit.DamageType, hit.Amount, hit.Resisted, hit.IsCritical, hit.DeathBlow, absorbed: hit.Absorbed, wasImmune: hit.WasImmune, targetEffectIds: hit.TargetEffectIds);
                         if (ArcData)
                         {
                             // onHitData = (arcData,): [(entityId, rawInfo), ...], which
@@ -190,5 +190,12 @@ namespace Rasa.Packets.MapChannel.Server
 
         /// <summary>For lightning (ArcData): the further damage this hit sets off - arcs, extra damage - as the client's arcData.</summary>
         public List<TickEntry> Arcs { get; } = new List<TickEntry>();
+
+        /// <summary>
+        /// The types of the effects the hit put on its target quietly, for the client to announce
+        /// as it plays the hit (Managers.HitEffects): in the rawInfo of a Damage, RawInfo or
+        /// DamagePair entry, which the client's DoAbility hands to AnnounceDamage.
+        /// </summary>
+        public List<uint> TargetEffectIds { get; } = new List<uint>();
     }
 }

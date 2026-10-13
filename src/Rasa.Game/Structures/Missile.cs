@@ -69,6 +69,9 @@
         public bool? Missed { get; set; }
         /// <summary>A player's shot the server is holding for its flight (ShotFlight): it does not land if the shooter has left the map by then.</summary>
         public bool HeldForFlight { get; set; }
+
+        /// <summary>A player's weapon shot: the weapon class's velocity, which their client flies it at (Managers.ShotFlight). Null for a swing or a creature's attack.</summary>
+        public int? FlightVelocity { get; set; }
         public long TriggerTime { get; set; }       // amount of milliseconds left before the missile is triggered, is decreased on every tick
         public MissileArgs Args = new MissileArgs();
     }

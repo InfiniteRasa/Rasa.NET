@@ -25,7 +25,8 @@ namespace Rasa.Managers
     /// - whenever the rate or period changes the clients are sent the armour with the rate the
     ///   effects make (GameEffectManager.WithRegen), so their bars move as the server's does;
     ///   in between nothing is sent.
-    /// The dead, and a creature in its Critical Death window, do not regenerate.
+    /// The dead, and a creature in its Critical Death window, do not regenerate. Health comes
+    /// back too, out of a fight, on the same second (CreatureHealth).
     ///
     /// RegenPercent is ours: nothing in the client gives creature armour a rate.
     /// </summary>
@@ -76,7 +77,7 @@ namespace Rasa.Managers
             return true;
         }
 
-        /// <summary>One second of armour regeneration for every creature on the map.</summary>
+        /// <summary>One second of regeneration for every creature on the map: its armour here, its health through CreatureHealth.</summary>
         public static void Regenerate(MapChannel mapChannel)
         {
             // Over a reused copy of the cell table, and each cell's creatures by index: this used
@@ -94,12 +95,22 @@ namespace Rasa.Managers
                 for (var i = 0; i < cell.CreatureList.Count; i++)
                 {
                     var creature = cell.CreatureList[i];
-                    if (!Regenerates(creature) || !creature.Attributes.TryGetValue(Attributes.Armor, out var armor))
+                    if (!Regenerates(creature))
+                        continue;
+
+                    creature.RegenSeconds++;
+
+                    // Health comes back out of a fight (CreatureHealth), on the same second.
+                    if (creature.Attributes.TryGetValue(Attributes.Health, out var health))
+                    {
+                        CreatureHealth.SyncRate(mapChannel, creature, health);
+                        CreatureHealth.Tick(creature, health);
+                    }
+
+                    if (!creature.Attributes.TryGetValue(Attributes.Armor, out var armor))
                         continue;
 
                     SyncRate(mapChannel, creature, armor);
-
-                    creature.RegenSeconds++;
                     Tick(creature, armor, creature.RegenSeconds);
                 }
             }

@@ -20,6 +20,8 @@
         TeamTeleporter      = 16,   // the pad at a team's teleporter in a battleground's staging area (Battlegrounds)
         PersonalWaypoint    = 17,   // a Personal Waypoint a player has put down (PersonalWaypoints)
         Scenery             = 18,   // a piece of a map the server puts there: a mesh, no use and no target (SecretPassages)
-        AmbientNpc          = 19    // one of the client's ambient figures: a model playing its own animations, no use and no target (AmbientNpcs)
+        AmbientNpc          = 19,   // one of the client's ambient figures: a model playing its own animations, no use and no target (AmbientNpcs)
+        Destructible        = 20,   // a destructible world object the server put down, shot down by players and back again (PlacedDestructibles)
+        PlacedUsable        = 21    // a usable world object the server put down: a switch, a door, a dispenser, an explosion (PlacedUsables)
     }
 }

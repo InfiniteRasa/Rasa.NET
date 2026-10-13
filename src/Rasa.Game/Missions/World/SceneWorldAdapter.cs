@@ -96,7 +96,11 @@ namespace Rasa.Game.Missions.World
                     SceneRouteController.Position(transfer.Position), (float)transfer.Orientation);
                 return WorldEffectResult.Applied();
             }
-            var definition = world.Bindings.Actors[intent.Role];
+            // An intent for an actor the bindings do not have fails rather than throws: a scene
+            // whose content dropped it is not to take the player's login down with it
+            // (SceneApplication cancels such effects as it reconciles).
+            if (intent.Role == null || !world.Bindings.Actors.TryGetValue(intent.Role, out var definition))
+                return WorldEffectResult.Failed($"Actor role {intent.Role} is not in the scene's bindings.");
             if (intent is RestoreActorPoseIntent pose)
             {
                 if (!world.Map.IsPrivateInstance || world.Map.OwnerCharacterId != run.OwnerCharacterId ||
@@ -184,7 +188,18 @@ namespace Rasa.Game.Missions.World
                     return WorldEffectResult.Failed("Object-state transition requires a world object and supported native state.");
                 var state = (UseObjectState)transition.State;
                 if (actor.Object.MissionDestruction is { } destruction && transition.State == destruction.DestroyedState)
+                {
                     actor.Object.CurrentHitPoints = 0;
+
+                    // Destroyed by the scene, not by damage: its explosion and wreck as damage
+                    // would have shown them (DestroyableStates).
+                    if (actor.Object.StateId != state)
+                    {
+                        DestroyableStates.ShowDestroyed(world.Map, actor.Object, actor.Object.StateId, state,
+                            world.Owner?.Player?.EntityId ?? 0);
+                        return WorldEffectResult.Applied();
+                    }
+                }
                 if (actor.Object.StateId != state)
                 {
                     actor.Object.StateId = state;
@@ -201,10 +216,12 @@ namespace Rasa.Game.Missions.World
                 // A route that resumes after combat leads through fights. An actor held out of
                 // combat until its scene says so (ManualCombat: a captive behind her forcefield)
                 // is in it from the moment she is set on such a route, until her lease resets.
+                if (!world.Bindings.Routes.TryGetValue(route.Route, out var path))
+                    return WorldEffectResult.Failed($"Route {route.Route} is not in the scene's bindings.");
                 if (route.ResumeAfterCombat &&
                     !_leases.AuthorizeCombat(world.Map, actor.Handle, actor.Creature, route.OperationKey))
                     return WorldEffectResult.Failed("A route through combat requires this actor's current public lease.");
-                var started = _routes.Start(world.Map, actor.Handle, actor.Creature, route, world.Bindings.Routes[route.Route]);
+                var started = _routes.Start(world.Map, actor.Handle, actor.Creature, route, path);
                 if (route.ResumeAfterCombat && started.State == WorldEffectState.Failed)
                     _leases.RevokeCombat(world.Map, actor.Handle, route.OperationKey);
                 return started;
@@ -227,9 +244,11 @@ namespace Rasa.Game.Missions.World
                 }
                 else
                 {
+                    if (!world.Bindings.Actors.TryGetValue(attack.TargetRole, out var targetDefinition))
+                        return WorldEffectResult.Failed($"Actor role {attack.TargetRole} is not in the scene's bindings.");
                     if (!world.Actors.TryGetValue(attack.TargetRole, out var targetActor) ||
                         !IsCurrent(world, targetActor))
-                        TryBindExisting(world, world.Bindings.Actors[attack.TargetRole], out targetActor);
+                        TryBindExisting(world, targetDefinition, out targetActor);
                     target = targetActor?.Creature;
                 }
                 if (actor.Creature == null || !CreatureManager.IsLivingOnMap(world.Map, actor.Creature) ||

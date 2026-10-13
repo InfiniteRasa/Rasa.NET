@@ -126,11 +126,11 @@ namespace Rasa.Managers
         internal const long ShotTolerance = 250;
 
         /// <summary>
-        /// The least a shot is charged, in ms. The auto-fire list is walked once every 100 ms
-        /// (MapChannelManager's "AutoFire" timer), which is the fastest the server fires a weapon
+        /// The least a shot is charged, in ms. The auto-fire list is walked once a tick of the
+        /// main loop (Server.MainLoopTime, 100 ms), which is the fastest the server fires a weapon
         /// by itself; a weapon whose refire reads 0 is held to that rather than to nothing.
         /// </summary>
-        private const long MinRefire = 100;
+        private const long MinRefire = Server.MainLoopTime;
 
         private enum FireResult
         {
@@ -557,9 +557,14 @@ namespace Rasa.Managers
                     Vector3.Distance(player.Position, targetPosition.Value) > level.MaxRange + MeleeRangeSlack)
                     return;
 
-                // A Personal Waypoint (PersonalWaypoints) is struck from as near.
+                // A Personal Waypoint (PersonalWaypoints) is struck from as near, and so is a
+                // Hortimonculus (AbilityManager).
                 if (target == null && PersonalWaypoints.TryGetPosition(targetId, out var waypoint)
                     && Vector3.Distance(player.Position, waypoint) > level.MaxRange + MeleeRangeSlack)
+                    return;
+
+                if (target == null && AbilityManager.TryGetPlantPosition(targetId, out var plantSpot)
+                    && Vector3.Distance(player.Position, plantSpot) > level.MaxRange + MeleeRangeSlack)
                     return;
             }
 
@@ -1044,7 +1049,10 @@ namespace Rasa.Managers
                 WeaponChecks.Report(client, aim, now);
 
                 if (aim.Refuse)
+                {
+                    WeaponChecks.Tell(client, aim, now);
                     return FireResult.NotFired;
+                }
             }
 
             // The rounds come out of the clip in memory. The row is not written for a shot: it
@@ -1109,10 +1117,17 @@ namespace Rasa.Managers
             var fullBead = Accuracy.IsFullBead(client.Player, now);
 
             // How well it was aimed decides how hard it hits: a tenth with no bead, all of it at
-            // a crouched full bead, 82% at the most a standing bead reaches (Accuracy). A
-            // polymorphed player's creature weapon is not beaded.
+            // a crouched full bead, 82% at the most a standing bead reaches (Accuracy). A cone
+            // weapon has no bead and hits as a full one from its stance would. A polymorphed
+            // player's creature weapon is not beaded.
             if (weapon != client.Player.MorphWeapon)
-                damage = Math.Max(1, (int)Math.Round(damage * Accuracy.DamageFactor(client.Player, now)));
+            {
+                var factor = ConeWeapons.IsCone(weapon.ItemTemplate.WeaponInfo, weaponClassInfo)
+                    ? Accuracy.ConeDamageFactor(client.Player)
+                    : Accuracy.DamageFactor(client.Player, now);
+
+                damage = Math.Max(1, (int)Math.Round(damage * factor));
+            }
 
             Accuracy.Recoil(client.Player, weapon.ItemTemplate.WeaponInfo.RecoilAmount, aimRate, now);
 
@@ -1307,6 +1322,9 @@ namespace Rasa.Managers
                 return;
 
             client.Player.CombatExpiresAt = Environment.TickCount64 + CombatRegen.CombatTimeoutMs;
+
+            // A logout waiting on its countdown starts it again: it has to run out of a fight.
+            MapChannelManager.FoughtDuringLogout(client, Environment.TickCount64);
 
             if (client.Player.InCombat)
                 return;
@@ -1549,7 +1567,11 @@ namespace Rasa.Managers
             // count, and the item being in the named inventory - are all established above, so
             // once it is reached it consumes.
             InventoryManager.Instance.ReduceStackCount(client, InventoryType.Personal, item, redeemed);
-            GainCredits(client, (int)redeemed);
+            var paid = GainCredits(client, (int)redeemed);
+
+            EconomyAudit.Instance.Record(Structures.Char.EconomyLogKind.TransferCredit, item.Id,
+                EconomyAudit.ItemLine(client, item, -(int)redeemed),
+                paid ? EconomyAudit.MoneyLine(client, CurencyType.Credits, redeemed) : null);
 
             Logger.WriteLog(LogType.Security,
                 $"Transfer credit used: {client.Player.FamilyName} redeemed {redeemed} slip(s) from item {item.Id} for {redeemed} credits"
@@ -2140,6 +2162,13 @@ namespace Rasa.Managers
             RegionManager.Instance.PlayerEnteredMap(client);
             MapMarkerManager.Instance.PlayerEnteredMap(client);
 
+            // The states of the usables the map's own file places, which the client leaves
+            // without one: its fire pits unlit, its machines still, its screens dark (MapUsables).
+            MapUsables.PlayerEnteredMap(client);
+
+            // And the hit points of those that can be shot down, which makes them targets (WorldDestructibles).
+            WorldDestructibles.PlayerEnteredMap(client);
+
             client.CallMethod(player.EntityId, new AdvancementStatsPacket(
                 player.Level,
                 player.Experience,
@@ -2237,33 +2266,67 @@ namespace Rasa.Managers
 
                 timer.Delay -= delta;
 
-                if (timer.Delay <= 0)
+                if (timer.Delay > 0)
+                    continue;
+
+                // This list is walked at the top of the map channel worker, before any map
+                // is touched. A shot that throws used to abandon the whole tick - every
+                // map's queued actions, missiles, creature behaviour and visibility - and
+                // the delay below never being reached meant the same client threw again on
+                // the very next tick, so one player could hold the world still. The timer
+                // that could not be fired is dropped instead, and costs only itself.
+                try
                 {
-                    // This list is walked at the top of the map channel worker, before any map
-                    // is touched. A shot that throws used to abandon the whole tick - every
-                    // map's queued actions, missiles, creature behaviour and visibility - and
-                    // the delay below never being reached meant the same client threw again on
-                    // the very next tick, so one player could hold the world still. The timer
-                    // that could not be fired is dropped instead, and costs only itself.
-                    try
+                    switch (TryFireWeapon(timer.Client))
                     {
-                        // A constant fire that cannot go on - out of ammo, jammed, too hot -
-                        // comes off, so the client stops charging and can reload; a shot merely
-                        // early leaves it running.
-                        if (TryFireWeapon(timer.Client) == FireResult.NotFired)
+                        case FireResult.Fired:
+                            // The next shot is a refire after this one came due, not after the
+                            // tick that found it due. The list is walked once a tick, so a shot
+                            // is found up to a tick late, and setting the delay to a whole
+                            // refire charged that lateness to every shot: a 350 ms pistol fired
+                            // every 400, a 933 ms blade every 1,000. What is carried over is at
+                            // most a tick's worth, so that after a stall the fire goes on at the
+                            // weapon's pace rather than making up the shots the stall swallowed
+                            // in a burst.
+                            timer.Delay = timer.RefireTime - Math.Min(-timer.Delay, Server.MainLoopTime);
+                            break;
+
+                        case FireResult.TooSoon:
+                            // The shot clock has a little to run - a RequestWeaponAttack of the
+                            // client's own was charged since the last shot here. Ask again when
+                            // it is up, not a whole refire from now.
+                            timer.Delay = Math.Max(1, ShotWait(timer.Client.Player, Environment.TickCount64));
+                            break;
+
+                        case FireResult.NotFired:
+                            // A constant fire that cannot go on - out of ammo, jammed, too hot -
+                            // comes off, so the client stops charging and can reload; a shot
+                            // merely early leaves it running.
                             ConstantFire.Stop(timer.Client);
+
+                            // A refusal for a draw or a reload under way is asked again when it
+                            // is over. Waiting a whole refire instead cost a one round launcher
+                            // a refire on top of every reload. The list is walked before the
+                            // map's queue, and the queue has this tick's time still to add, so
+                            // the reload that has the remaining time left ends with a queue pass
+                            // before the walk that finds this delay up - the tick after it, as
+                            // StartAutoFire arranges with its +1, which here would be a tick
+                            // late. A walk that finds it a few ms short (uneven ticks) meets
+                            // IsReloading and waits those few ms. Any other refusal - stunned,
+                            // out of reach, jammed, dry with nothing to load - waits a refire as
+                            // before, so what a refusal says is not said every tick.
+                            var busy = WeaponBusyFor(timer.Client.Player);
+
+                            timer.Delay = busy < 0 ? timer.RefireTime : busy;
+                            break;
                     }
-                    catch (Exception e)
-                    {
-                        AutoFire.RemoveAt(i);
-                        ConstantFire.Stop(timer.Client);
+                }
+                catch (Exception e)
+                {
+                    AutoFire.RemoveAt(i);
+                    ConstantFire.Stop(timer.Client);
 
-                        Logger.WriteLog(LogType.Error, $"Auto-fire for entity {timer.Client.Player?.EntityId} threw and was stopped: {e}");
-
-                        continue;
-                    }
-
-                    timer.Delay = timer.RefireTime;
+                    Logger.WriteLog(LogType.Error, $"Auto-fire for entity {timer.Client.Player?.EntityId} threw and was stopped: {e}");
                 }
             }
         }
@@ -2942,6 +3005,43 @@ namespace Rasa.Managers
         }
 
         /// <summary>
+        /// Takes <paramref name="amount"/> of a currency out of the player's purse: credits as
+        /// <see cref="LossCredits"/> does, prestige the same way - refused, having moved nothing,
+        /// if they have too little - and both kept and shown (UpdateCredits).
+        /// </summary>
+        public bool LossCurrency(Client client, CurencyType currency, int amount)
+        {
+            if (currency == CurencyType.Credits)
+                return LossCredits(client, amount);
+
+            if (amount < 0)
+            {
+                Logger.WriteLog(LogType.Error, $"LossCurrency({currency}, {amount}) for {client.Player?.FamilyName}: charges are positive amounts. Nothing moved.");
+                return false;
+            }
+
+            if (amount == 0)
+                return true;
+
+            if (!client.Player.Credits.TryGetValue(currency, out var held) || held < amount)
+                return false;
+
+            return _characterManager.UpdateCharacter(client, CharacterUpdate.Prestige, -amount);
+        }
+
+        /// <summary>
+        /// Gives back <paramref name="amount"/> of a currency taken for something that did not
+        /// happen: credits as <see cref="GainCredits"/> does, prestige kept and shown.
+        /// </summary>
+        public bool RefundCurrency(Client client, CurencyType currency, int amount)
+        {
+            if (currency == CurencyType.Credits)
+                return GainCredits(client, amount);
+
+            return amount > 0 && _characterManager.UpdateCharacter(client, CharacterUpdate.Prestige, amount);
+        }
+
+        /// <summary>
         /// .setlevel: puts a player at <paramref name="level"/> (1 to 50). Returns what happened,
         /// for the GM.
         ///
@@ -3403,6 +3503,16 @@ namespace Rasa.Managers
             RemoveAutoFire(client);
             ConstantFire.Stop(client, release: false);
 
+            // A logout asked for on this map is off with it, whichever way they leave; a logout
+            // itself has what it needs by now (CharacterLogout).
+            if (client?.Player != null)
+                client.Player.LogoutActive = false;
+
+            // A Rushing Blow charge ends with the map: left on the old map's list it outlived
+            // the map change, and once that map emptied nothing ended it, so every Move from
+            // the new map was set aside (AbilityManager.IsCharging) until the player relogged.
+            AbilityManager.PlayerLeaving(client?.Player);
+
             // Leaving the map or the world: an open duel challenge is off, a duel is forfeit, and
             // a squad wargame goes on without them.
             Duels.Instance.PlayerLeft(client);
@@ -3701,7 +3811,10 @@ namespace Rasa.Managers
 
             if (client.Player.Attributes[Attributes.Health].Current <= 0 || client.Player.State == CharacterState.Dead)
             {
-                Unhelpful(client, PlayerMessage.PmAboutToRespawn);
+                // "You cannot do that while dead." PmAboutToRespawn was sent here, whose text
+                // takes a %(reason)s nothing supplied, so the client printed "Invalid
+                // substitutions" in place of the message.
+                Unhelpful(client, PlayerMessage.PmCannotDoThatWhileDead);
                 return;
             }
 

@@ -55,6 +55,8 @@ namespace Rasa.Test.Gameplay
         [DataRow(ActionId.CrGranitourMelee)]
         [DataRow(ActionId.CrAttaSoldierMelee)]
         [DataRow(ActionId.CrAttaGrubMelee)]
+        [DataRow(ActionId.CrShieldDroneAttack)]
+        [DataRow(ActionId.CrWardenBotShock)]
         public void CreatureMeleeAbilitiesAreBlows(ActionId actionId)
         {
             Assert.IsTrue(CreatureAttacks.IsMelee(new CreatureAction { ActionId = actionId }));

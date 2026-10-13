@@ -47,10 +47,13 @@ namespace Rasa.Test.World
                 using var world = (WorldContext)PersistenceIntegrationTests.CreateContext(typeof(SqliteWorldContext), database);
                 var classes = world.EntityClassEntries.AsNoTracking().ToDictionary(entry => entry.Id, entry => entry.ClassName);
                 var spawnpools = new SpawnpoolRepository(world);
+                var migrator = world.GetService<IMigrator>();
+
+                // As this migration left it: Add_bootcamp_cave_in_breach, after it, arms the checkpoint.
+                migrator.Migrate(Migration);
 
                 AssertPlaced(world, classes, spawnpools);
 
-                var migrator = world.GetService<IMigrator>();
                 migrator.Migrate(Before);
 
                 // Down: none of it, and the others where they were.

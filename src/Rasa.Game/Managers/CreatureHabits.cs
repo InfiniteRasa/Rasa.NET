@@ -26,9 +26,12 @@ namespace Rasa.Managers
     ///    fight below DevourInFightPercent of its health eats one it is standing by. It regains
     ///    HEAL_AMOUNT scaled to its level, the corpse is gone, and it stands eating for the
     ///    recovery (5.3 s). A corpse with unlooted loot is left alone (ours: the loot is the
-    ///    player's). What it regains is shown through XANX_FORTIFY (302), the client's effect for
-    ///    it: put on quietly for the meal, then told Heal with the amount (GameEffectHealPacket),
-    ///    which floats it over the Xanx and logs it.
+    ///    player's). The meal is XANX_FORTIFY (302), the client's effect that "increases a Xanx's
+    ///    maximum health": put on quietly for the argument's DURATION (300 s), it raises the
+    ///    Xanx's maximum by part of the heal amount - at most FortifyPercent of its maximum
+    ///    without the raise - and the rest heals it, up to the raised maximum. It is then told
+    ///    Heal with what it regained (GameEffectHealPacket), which floats it over the Xanx and
+    ///    logs it. The size of the raise is ours; nothing in the client gives it one.
     ///  - Predator scan (PredatorScanAbility, CR_PREDATOR_SCAN 425): the Predator is "used to scan
     ///    locations from the air, gathering enemy intel ... equipped with forward-scanning
     ///    search". An idle Predator scans its CONE_RADIUS (45 degrees either side) ahead to the
@@ -44,9 +47,18 @@ namespace Rasa.Managers
         public const ActionId PredatorScan = (ActionId)425;
 
         /// <summary>
-        /// XANX_FORTIFY: the Xanx's heal, shown. No icon, tooltip or FX; its one method, Heal,
+        /// The most a meal raises a Xanx's maximum health by, as a share of its maximum without
+        /// the raise. Ours: nothing in the client sizes XANX_FORTIFY. The heal amount itself is
+        /// no measure - HEAL_AMOUNT 1000 at DAMAGE_SCALE_TYPE 2 doubles every 8 levels, 12,337 at
+        /// level 30 - which suits a heal, capped at the maximum, and not a raise of it.
+        /// </summary>
+        public const int FortifyPercent = 25;
+
+        /// <summary>
+        /// XANX_FORTIFY: the meal on the Xanx. No icon, tooltip or FX; its one method, Heal,
         /// announces healing on its holder. Its docstring says it raises a Xanx's maximum health,
-        /// which nothing in the client does and nothing says by how much, so this leaves it alone.
+        /// and nothing says by how much: here, by the meal's heal amount up to FortifyPercent
+        /// (Fortify).
         /// </summary>
         public const int XanxFortifyTypeId = 302;
 
@@ -319,16 +331,7 @@ namespace Rasa.Managers
             var info = LevelOf(habit);
 
             if (info != null)
-            {
-                var min = info.Get(AbilityProperty.HealAmountMin);
-                var max = Math.Max(min, info.Get(AbilityProperty.HealAmountMax, min));
-                var amount = AbilityManager.Scale((int)xanx.Level, (min + max) / 2, info.Get(AbilityProperty.DamageScaleType));
-
-                var healed = ActorManager.Instance.Heal(xanx, amount, xanx.EntityId);
-
-                if (healed > 0)
-                    ShowHeal(mapChannel, xanx, info, healed);
-            }
+                Fortify(mapChannel, xanx, info);
 
             // Eaten: nothing left to loot, harvest, revive or eat again, and gone on the next pass.
             LootDispenserManager.Instance.RemoveForCreature(mapChannel, corpse);
@@ -339,13 +342,51 @@ namespace Rasa.Managers
             Show(mapChannel, xanx, habit, corpse, new[] { corpse });
         }
 
-        /// <summary>
-        /// What a Xanx regained, over its head and in the combat log: XANX_FORTIFY on it for the
-        /// meal - put on quietly, as it has nothing to show, and replacing one from an earlier meal
-        /// - then Heal on it. The UpdateHealth that ActorManager.Heal sent already moved its bar.
-        /// </summary>
-        private static void ShowHeal(MapChannel mapChannel, Creature xanx, ActionLevelInfo info, int healed)
+        /// <summary>The heal amount of a meal: HEAL_AMOUNT_MIN..MAX's middle, scaled to the Xanx's level.</summary>
+        public static int MealAmount(Creature xanx, ActionLevelInfo info)
         {
+            var min = info.Get(AbilityProperty.HealAmountMin);
+            var max = Math.Max(min, info.Get(AbilityProperty.HealAmountMax, min));
+
+            return AbilityManager.Scale((int)xanx.Level, (min + max) / 2, info.Get(AbilityProperty.DamageScaleType));
+        }
+
+        /// <summary>
+        /// The most a meal of this many points raises a Xanx's maximum by: the points, up to
+        /// FortifyPercent of the maximum it has without a meal's raise.
+        /// </summary>
+        public static int FortifyRaise(int mealAmount, int maxWithoutMeal) =>
+            Math.Max(0, Math.Min(mealAmount, maxWithoutMeal * FortifyPercent / 100));
+
+        /// <summary>
+        /// The meal: XANX_FORTIFY on the Xanx for the argument's DURATION - put on quietly, as it
+        /// has nothing to show, and replacing one from an earlier meal, whose raise comes off - with
+        /// FortifyRaise on its maximum health and its health with it (GameEffectManager's
+        /// ApplyMaxHealth, which moves the bar), and the rest of MealAmount as a heal, up to the
+        /// raised maximum. Then Heal on it, for what it regained, over its head and in the combat
+        /// log. Nothing while its healing is blocked (Disease).
+        ///
+        /// The whole heal amount went onto the maximum before: it doubles every 8 levels, so a
+        /// level 30 Xanx came out of a meal with 12,337 more health than it had, for five minutes.
+        /// </summary>
+        internal static void Fortify(MapChannel mapChannel, Creature xanx, ActionLevelInfo info)
+        {
+            var amount = MealAmount(xanx, info);
+
+            if (amount <= 0 || GameEffectManager.HealingBlocked(xanx))
+                return;
+
+            var health = xanx.Attributes[Attributes.Health];
+            var before = health.Current;
+
+            // The maximum without the raise of an earlier meal, which this one replaces.
+            var earlier = xanx.ActiveEffects.Values.Where(e => e.TypeId == XanxFortifyTypeId).Sum(e => e.MaxHealthApplied);
+            var raise = FortifyRaise(amount, health.CurrentMax - earlier);
+
+            var durationMs = info.Get(AbilityProperty.Duration) > 0
+                ? info.Get(AbilityProperty.Duration) * 1000L
+                : Math.Max(1000, info.WindupMs + info.RecoveryMs);
+
             var fortify = new GameEffect
             {
                 TypeId = XanxFortifyTypeId,
@@ -355,16 +396,23 @@ namespace Rasa.Managers
                 SourceId = xanx.EntityId,
                 Source = xanx,
                 SourceLevel = (int)xanx.Level,
-                ExpiresTick = Environment.TickCount64 + Math.Max(1000, info.WindupMs + info.RecoveryMs),
+                ExpiresTick = Environment.TickCount64 + durationMs,
+                MaxHealthPoints = raise,
                 AnnounceOnAttach = false,
                 AnnounceToNewcomers = false
             };
 
             GameEffectManager.Instance.Attach(mapChannel, xanx, fortify);
 
+            // The rest of the meal heals, up to the maximum it now has.
+            if (amount > fortify.MaxHealthApplied)
+                ActorManager.Instance.Heal(xanx, amount - Math.Max(0, fortify.MaxHealthApplied), xanx.EntityId);
+
+            var regained = health.Current - before;
+
             // Attach turns away only debuffs, but a method call to an effect the client lacks is logged as an error there.
-            if (xanx.ActiveEffects.ContainsKey(fortify.EffectId))
-                CellManager.Instance.CellCallMethod(mapChannel, xanx, new GameEffectHealPacket(fortify.EffectId, healed));
+            if (xanx.ActiveEffects.ContainsKey(fortify.EffectId) && regained > 0)
+                CellManager.Instance.CellCallMethod(mapChannel, xanx, new GameEffectHealPacket(fortify.EffectId, regained));
         }
 
         /// <summary>The Predator's scan: every player in its cone ahead, cloaked ones revealed, and a fight with the first.</summary>

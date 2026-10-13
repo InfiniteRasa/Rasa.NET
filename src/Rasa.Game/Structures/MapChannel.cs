@@ -50,6 +50,9 @@ namespace Rasa.Structures
         //public int TimerDynObjUpdate { get; set; }
         public long MapChannelElapsed { get; set; }
 
+        /// <summary>When each once-a-second worker last ran on this map, by the manager's clock (MapChannelManager.SinceLastRun).</summary>
+        internal Dictionary<string, long> WorkerRanAt { get; } = new Dictionary<string, long>();
+
         /// <summary>The tick at which this channel's sky started running: when the channel was made (Managers.SkyClock).</summary>
         internal long SkyStartedTick { get; set; } = System.Environment.TickCount64;
         /// <summary>Milliseconds since this map's creatures last ran BehaviorManager.CreatureThink.</summary>

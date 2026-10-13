@@ -92,6 +92,14 @@ namespace Rasa.Memory
             };
         }
 
+        /// <summary>
+        /// 0x10..0x1C carry 0..12 in the type byte; 0x1D, 0x1E and 0x1F escape to a one, two or
+        /// four byte value, each signed. The client's marshaller picks the narrowest form the
+        /// value fits as a signed number, so -128..-1 arrive as 0x1D and one byte: the original
+        /// server read that byte as sint8 (pym_unpackInt), and reading it unsigned turned a
+        /// lockbox withdrawal of up to 128 credits into a deposit of 128..255 - the bug the
+        /// 500-credit transfer floor was covering for.
+        /// </summary>
         public int ReadInt()
         {
             var type = Reader.ReadByte();
@@ -103,7 +111,7 @@ namespace Rasa.Memory
 
             return type switch
             {
-                0x1D => Reader.ReadByte(),
+                0x1D => Reader.ReadSByte(),
                 0x1E => Reader.ReadInt16(),
                 0x1F => Reader.ReadInt32(),
                 _ => throw new InvalidDataException($"Unsupported integer type: {type:X2}"),

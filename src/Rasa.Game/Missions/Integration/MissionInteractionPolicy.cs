@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Numerics;
 
@@ -12,8 +12,25 @@ namespace Rasa.Game.Missions.Integration
 
     internal sealed class MissionInteractionPolicy
     {
-        // Native body.InRadiusOf uses 5. The server has origins, not native body bounds or LOS.
+        /// <summary>
+        /// MAX_CONVERSATION_RANGE: the client's own gate on a talk (actor.py IsInConversationRange,
+        /// converse.py CheckAction), measured by the native body.InRadiusOf from the surface of
+        /// the player's body to the surface of the NPC's.
+        /// </summary>
         internal const float MaxConversationRange = 5;
+
+        /// <summary>
+        /// What the server allows over that. It has the two origins, not the bodies: a human's is
+        /// half a metre across and a large NPC's a couple of metres, so a player the client passed
+        /// at 5 between the surfaces can stand 7 or 8 between the origins - and the position the
+        /// server has for them is a tick behind the one the client measured. Held to the bare 5
+        /// from origin to origin, a vendor or a trainer clicked from where the client allowed it
+        /// did nothing, and nothing said why. A request from further than this is not a client's.
+        /// </summary>
+        internal const float ReachAllowance = 5;
+
+        /// <summary>How far apart, origin to origin, a talk is accepted from.</summary>
+        internal const float MaxReach = MaxConversationRange + ReachAllowance;
         private readonly MissionApplication _missions;
 
         internal MissionInteractionPolicy(MissionApplication missions) => _missions = missions;
@@ -24,7 +41,7 @@ namespace Rasa.Game.Missions.Integration
             var map = player?.MapChannel;
             return client?.State == ClientState.Ingame && client.PendingTransfer == null &&
                 client.AccountEntry != null && player?.Id > 0 && map != null &&
-                !player.Disconected && !player.RemoveFromMap && !player.LogoutActive &&
+                !player.Disconected && !player.RemoveFromMap && !player.LogoutPending &&
                 player.State is not (CharacterState.Dead or CharacterState.Dying) &&
                 player.MapContextId == map.MapInfo.MapContextId &&
                 ReferenceEquals(player.RuntimeMapChannel, map) &&
@@ -41,15 +58,24 @@ namespace Rasa.Game.Missions.Integration
             var x = (double)player.X - target.X;
             var y = (double)player.Y - target.Y;
             var z = (double)player.Z - target.Z;
-            return x * x + y * y + z * z <= MaxConversationRange * MaxConversationRange;
+            return x * x + y * y + z * z <= MaxReach * MaxReach;
         }
 
         private static bool Finite(Vector3 position) =>
             float.IsFinite(position.X) && float.IsFinite(position.Y) && float.IsFinite(position.Z);
 
-        internal static bool TryResolveTarget(Client client, ulong entityId, out MissionConversationTarget target)
+        internal static bool TryResolveTarget(Client client, ulong entityId, out MissionConversationTarget target) =>
+            TryResolveTarget(client, entityId, out target, out _);
+
+        /// <param name="outOfReach">
+        /// True when the entity is a conversation target of this player's in every respect but
+        /// distance: the one refusal the player can do something about, and so the one worth a
+        /// message (NpcManager.OpenConversation).
+        /// </param>
+        internal static bool TryResolveTarget(Client client, ulong entityId, out MissionConversationTarget target, out bool outOfReach)
         {
             target = null;
+            outOfReach = false;
             if (!IsActivePlayer(client))
                 return false;
             var player = client.Player;
@@ -60,23 +86,34 @@ namespace Rasa.Game.Missions.Integration
                 npc.State is not (CharacterState.Dead or CharacterState.Dying) &&
                 (npc.MasterEntityId == 0 || npc.MasterEntityId == player.EntityId) &&
                 (npc.SpawnPool?.ScenarioOwnerCharacterId is null or 0 ||
-                    npc.SpawnPool.ScenarioOwnerCharacterId == player.Id) &&
-                InRange(player.Position, npc.Position))
-                target = new MissionConversationTarget(npc);
+                    npc.SpawnPool.ScenarioOwnerCharacterId == player.Id))
+            {
+                if (InRange(player.Position, npc.Position))
+                    target = new MissionConversationTarget(npc);
+                else
+                    outOfReach = true;
+            }
             else if (EntityManager.Instance.GetEntityType(entityId) == EntityType.Object &&
                 EntityManager.Instance.TryGetObject(entityId, out var obj) && obj.EntityId == entityId &&
                 ReferenceEquals(obj.RuntimeMapChannel, map) && obj.MapContextId == map.MapInfo.MapContextId &&
                 obj.IsInWorld && obj.IsEnabled && obj.MissionConversation != null &&
                 EntityClassManager.Instance.GetClassInfo(obj.EntityClassId)?.Augmentations?.Contains(AugmentationType.NPC) == true &&
-                (obj.SceneOwnerCharacterId == 0 || obj.SceneOwnerCharacterId == player.Id) &&
-                InRange(player.Position, obj.Position))
-                target = new MissionConversationTarget(obj);
+                (obj.SceneOwnerCharacterId == 0 || obj.SceneOwnerCharacterId == player.Id))
+            {
+                if (InRange(player.Position, obj.Position))
+                    target = new MissionConversationTarget(obj);
+                else
+                    outOfReach = true;
+            }
             return target != null;
         }
 
-        internal bool TryResolveOpeningTarget(Client client, ulong entityId, out MissionConversationTarget target)
+        internal bool TryResolveOpeningTarget(Client client, ulong entityId, out MissionConversationTarget target) =>
+            TryResolveOpeningTarget(client, entityId, out target, out _);
+
+        internal bool TryResolveOpeningTarget(Client client, ulong entityId, out MissionConversationTarget target, out bool outOfReach)
         {
-            if (!TryResolveTarget(client, entityId, out target))
+            if (!TryResolveTarget(client, entityId, out target, out outOfReach))
                 return false;
             if (target.Creature is { SpawnPool: { } pool } creature && !client.Player.MapChannel.IsPrivateInstance)
                 target = new MissionConversationTarget(creature,

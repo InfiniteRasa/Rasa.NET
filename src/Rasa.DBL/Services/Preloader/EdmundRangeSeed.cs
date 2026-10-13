@@ -51,6 +51,13 @@ namespace Rasa.Services.Preloader
         public const uint RedReturnLinkId = 9005;
         public const uint BlueReturnLinkId = 9006;
 
+        /// <summary>The second set of team teleporters, on the staging area's upper floor (Add_edmund_range_upper_floor).</summary>
+        public const uint RedUpperLinkId = 9007;
+        public const uint BlueUpperLinkId = 9008;
+
+        /// <summary>Where the winning team is put when a match ends (Add_edmund_range_upper_floor).</summary>
+        public const uint WinnersLinkId = 9009;
+
         /// <summary>A map link's kind: the Red team's teleporter in a battleground's staging area.</summary>
         public const byte KindTeamRed = 2;
 
@@ -59,6 +66,9 @@ namespace Rasa.Services.Preloader
 
         /// <summary>A map link's kind: the way from a team's base back to the staging area, off the team.</summary>
         public const byte KindTeamLeave = 4;
+
+        /// <summary>A map link's kind: where the winning team of a match is put when it ends - its arrival. Never walked into.</summary>
+        public const byte KindTeamWinners = 5;
 
         /// <summary>New creature id, the row it is a copy of, its comment, its name id.</summary>
         public static readonly (uint Id, uint CopyOf, string Comment, uint NameId)[] Creatures =
@@ -143,6 +153,39 @@ namespace Rasa.Services.Preloader
             new object[] { RedReturnLinkId, MapContextId, 274.0, 414.6, 39.75, 1.5, MapContextId, -38.0, 359.8, -395.0, 3.1416, KindTeamLeave, (byte)1, "edmundrange2 red base -> staging" },
             new object[] { BlueReturnLinkId, MapContextId, -394.47, 414.6, 40.59, 1.5, MapContextId, -86.0, 359.8, -395.0, 3.1416, KindTeamLeave, (byte)1, "edmundrange2 blue base -> staging" }
         };
+
+        /// <summary>
+        /// The staging area's upper floor, 16 m over its ground floor (376): a gallery round the
+        /// four walls with two shops' counters, weapon and armour cases, and tables, which no
+        /// stair or ramp reaches from below - the navmesh has no way up. The range put the team
+        /// that won a match there. Its north-east and north-west corners have the red and the
+        /// blue arrows again, at that floor's height, as the ground floor's do by its teleporters:
+        /// the second set of teleporters, and the way off the floor for whoever stands on it.
+        /// Both lead where the first set does.
+        ///
+        /// The third row says where the winners arrive: in front of the north counters, facing
+        /// them. It is never walked into - disabled, of no size - and is a link so that a game
+        /// master can move the arrival as the others are moved (.link 9009 arrival).
+        /// Set by hand from the map's static objects and the navmesh; wants a walk-through.
+        /// </summary>
+        public static readonly object[][] UpperFloorMapLinks =
+        {
+            new object[] { RedUpperLinkId, MapContextId, -33.0, 376.0, -338.0, 3.0, MapContextId, 282.05, 420.5, 34.28, 1.5708, KindTeamRed, (byte)1, "edmundrange2 staging upper floor -> red team" },
+            new object[] { BlueUpperLinkId, MapContextId, -91.0, 376.0, -338.0, 3.0, MapContextId, -401.96, 420.5, 45.68, -1.5708, KindTeamBlue, (byte)1, "edmundrange2 staging upper floor -> blue team" },
+            new object[] { WinnersLinkId, MapContextId, -62.0, 376.2, -345.0, 0.0, MapContextId, -62.0, 376.2, -345.0, 3.1416, KindTeamWinners, (byte)0, "edmundrange2 the winners' arrival on the staging upper floor" }
+        };
+
+        /// <summary>The inserts of Add_edmund_range_upper_floor.</summary>
+        public static IEnumerable<string> UpperFloorInsertStatements
+        {
+            get { yield return Insert(MapLinkEntry.TableName, MapLinkColumns, UpperFloorMapLinks); }
+        }
+
+        /// <summary>The deletes that take them out again.</summary>
+        public static IEnumerable<string> UpperFloorDeleteStatements
+        {
+            get { yield return $"delete from {MapLinkEntry.TableName} where id between {RedUpperLinkId} and {WinnersLinkId};"; }
+        }
 
         private const string ActionColumns = "action1, action2, action3, action4, action5, action6, action7, action8";
 

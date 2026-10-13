@@ -331,6 +331,10 @@ namespace Rasa.Managers
                 if (AlternateMesh.ReviveWrecks(mapChannel, spawnPool))
                     continue;
 
+                // A pool of an area with no walkable ground in it spawns nothing (Anchor).
+                if (!HasWalkableGround(mapChannel, spawnPool))
+                    continue;
+
                 // create list of creatures to spawn
                 var creatureList = CreateListOfCreatures(spawnPool);
 
@@ -605,6 +609,86 @@ namespace Rasa.Managers
         }
 
         /// <summary>
+        /// How far from a pool's point, sideways, walkable ground is looked for when the point
+        /// itself is off the navmesh: a camp authored on a rock the mesh did not take, beside
+        /// ground it did. Further than this is somewhere else.
+        /// </summary>
+        public const float AnchorReach = 64f;
+
+        /// <summary>
+        /// How far above or below the edge of a pool's area walkable ground is looked for: a
+        /// pool whose area overlaps a slope or a ledge anchors there. The point itself is looked
+        /// under and over for 200 m (NavMeshManager.NearestInColumn), for a height that is only a
+        /// guess; the edge for less, so that a floor far below a cliff top is not taken for it.
+        /// </summary>
+        public const float AnchorEdgeHeight = 32f;
+
+        private const int AnchorEdgeSamples = 8;
+
+        /// <summary>
+        /// Walkable ground for a pool whose point is off the navmesh: the nearest within
+        /// <see cref="AnchorReach"/> sideways or 200 m up or down from the point, or within
+        /// <see cref="AnchorEdgeHeight"/> of the edge of its area - whichever is nearest the
+        /// point. Null when there is none, or no navmesh.
+        /// </summary>
+        internal static Vector3? Anchor(MapChannel mapChannel, SpawnPool pool)
+        {
+            if (mapChannel?.NavMesh == null)
+                return null;
+
+            var pos = pool.Position;
+            var best = NavMeshManager.NearestWalkable(mapChannel, pos, Math.Max(AnchorReach, pool.Radius))
+                       ?? NavMeshManager.NearestInColumn(mapChannel, pos);
+            var bestDistance = best.HasValue ? Vector3.Distance(pos, best.Value) : float.MaxValue;
+
+            if (pool.Radius > 0)
+                for (var step = 0; step < AnchorEdgeSamples; step++)
+                {
+                    var angle = step * 2.0 * Math.PI / AnchorEdgeSamples;
+                    var probe = new Vector3(pos.X + (float)(Math.Cos(angle) * pool.Radius), pos.Y, pos.Z + (float)(Math.Sin(angle) * pool.Radius));
+                    var candidate = NavMeshManager.NearestInColumn(mapChannel, probe, AnchorEdgeHeight);
+
+                    if (!candidate.HasValue)
+                        continue;
+
+                    var distance = Vector3.Distance(pos, candidate.Value);
+
+                    if (distance < bestDistance)
+                    {
+                        best = candidate;
+                        bestDistance = distance;
+                    }
+                }
+
+            return best;
+        }
+
+        /// <summary>
+        /// Whether an automatic pool with an area has walkable ground to put its creatures on.
+        /// One that has none is marked (SpawnPool.NoWalkableGround) and logged, once: what it
+        /// put down went to the raw point plus a throw of the area, in the air or under the
+        /// ground - eleven such pools on a fresh database - and stood there, unable to path and
+        /// still shooting at whoever passed. A map without a navmesh has nothing to say.
+        /// </summary>
+        internal static bool HasWalkableGround(MapChannel mapChannel, SpawnPool pool)
+        {
+            if (pool.NoWalkableGround)
+                return false;
+
+            if (pool.Radius <= 0 || mapChannel?.NavMesh == null
+                || NavMeshManager.RandomPointAround(mapChannel, pool.Position, pool.Radius).HasValue
+                || Anchor(mapChannel, pool).HasValue)
+                return true;
+
+            pool.NoWalkableGround = true;
+
+            Logger.WriteLog(LogType.Error,
+                $"SpawnPool {pool.DbId} on map {mapChannel.MapInfo.MapContextId} at {pool.Position} (radius {pool.Radius}) has no walkable ground within {AnchorReach} m of its point or {AnchorEdgeHeight} m of its edge; it spawns nothing. Move it onto the navmesh.");
+
+            return false;
+        }
+
+        /// <summary>
         /// Where one of the pool's creatures stands. A pool with a radius is an area - a camp,
         /// a nest - and its creatures are spread across it: a walkable point anywhere inside the
         /// radius when the map has a navmesh, otherwise a point in the disc snapped to whatever
@@ -645,9 +729,7 @@ namespace Rasa.Managers
             {
                 var walkable = NavMeshManager.RandomPointAround(mapChannel, pos, pool.Radius);
 
-                if (!walkable.HasValue
-                    && (NavMeshManager.NearestWalkable(mapChannel, pos, Math.Max(32f, pool.Radius))
-                        ?? NavMeshManager.NearestInColumn(mapChannel, pos)) is Vector3 anchor)
+                if (!walkable.HasValue && Anchor(mapChannel, pool) is Vector3 anchor)
                     walkable = NavMeshManager.RandomPointAround(mapChannel, anchor, pool.Radius) ?? anchor;
 
                 if (walkable.HasValue)

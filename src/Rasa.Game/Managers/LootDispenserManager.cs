@@ -900,6 +900,13 @@ namespace Rasa.Managers
                         return;
                     }
 
+                    // Character Unique: one of it already held stays on the corpse.
+                    if (!InventoryManager.Instance.MayReceive(client.Player, lootItem.Item?.ItemTemplate))
+                    {
+                        InventoryManager.TellCharacterUnique(client);
+                        return;
+                    }
+
                     Claim(client, loot, new[] { lootItem }, packet.DestSlot, false);
                 }
             }
@@ -946,6 +953,14 @@ namespace Rasa.Managers
                         .Where(item => item.MayTake(client.Player.EntityId))
                         .Where(item => !packet.AutoLootOnly || WithinThreshold(item, threshold))
                         .ToArray();
+
+                    // Character Unique: one of a template held, or a second of one, stays on the
+                    // corpse. Walking past it says nothing; it is sent every frame in reach.
+                    selected = InventoryManager.Instance.Receivable(client.Player, selected, item => item.Item?.ItemTemplate, out var refused).ToArray();
+
+                    if (refused && !packet.AutoLootOnly)
+                        InventoryManager.TellCharacterUnique(client);
+
                     Claim(client, loot, selected, null, true);
                 }
             }
@@ -1045,13 +1060,21 @@ namespace Rasa.Managers
                 {
                     var character = unitOfWork.Characters.Find(client.Player.Id);
                     if (character == null ||
-                        character.AccountId != client.AccountEntry.Id ||
-                        character.Credit != currentCredits)
+                        character.AccountId != client.AccountEntry.Id)
                         throw new GameplayRejectionException(
-                            "Durable character ownership or credits changed.");
+                            "Durable character ownership changed.");
+                    if (character.Credit != currentCredits)
+                    {
+                        CharacterManager.PutPurseRight(client, character);
+                        throw new GameplayRejectionException(
+                            "Durable character credits changed.");
+                    }
                     if (prestigeGranted && character.Prestige != currentPrestige)
+                    {
+                        CharacterManager.PutPurseRight(client, character);
                         throw new GameplayRejectionException(
                             "Durable character prestige changed.");
+                    }
 
                     var source = loot.AttachedObject?.MissionLootSource;
                     CharacterMissionObjectiveEntry rewardObjective = null;
@@ -1104,8 +1127,11 @@ namespace Rasa.Managers
                     {
                         var row = unitOfWork.Characters.Find(other.Recipient.Player.Id);
                         if (row == null || row.Credit != other.Before)
+                        {
+                            CharacterManager.PutPurseRight(other.Recipient, row);
                             throw new GameplayRejectionException(
                                 "A squad member's durable credits changed.");
+                        }
                         unitOfWork.Characters.UpdateCharacterCredits(other.Recipient.Player.Id, other.After);
                     }
 
@@ -1140,6 +1166,19 @@ namespace Rasa.Managers
                 foreach (var other in others)
                     other.Recipient.Player.Credits[CurencyType.Credits] = other.After;
             }
+
+            // The looter's share and prestige; each squad member's share, the looter on its other side.
+            var looted = new List<EconomyLogEntry>
+            {
+                creditsGranted ? EconomyAudit.MoneyLine(client, CurencyType.Credits, ownShare, creditsAfter) : null,
+                prestigeGranted ? EconomyAudit.MoneyLine(client, CurencyType.Prestige, prestigeAfter - currentPrestige, prestigeAfter) : null
+            };
+
+            if (includeCredits)
+                looted.AddRange(others.Select(other =>
+                    EconomyAudit.MoneyLine(other.Recipient, CurencyType.Credits, other.Share, other.After, client.Player.Id)));
+
+            EconomyAudit.Instance.Record(EconomyLogKind.Loot, (uint)loot.EntityClassId, looted);
 
             if (!loot.HasLoot)
             {

@@ -30,6 +30,24 @@ namespace Rasa.Repositories.World
             return _worldContext.CreateNoTrackingQuery(_worldContext.CreatureBattlecryEntries).ToList();
         }
 
+        public void SaveCreatureBattlecry(uint creatureId, uint packageId)
+        {
+            var row = _worldContext.CreateTrackingQuery(_worldContext.CreatureBattlecryEntries)
+                .FirstOrDefault(e => e.Scope == CreatureBattlecryEntry.ScopeCreature && e.TargetId == creatureId);
+
+            if (row == null)
+                _worldContext.CreatureBattlecryEntries.Add(new CreatureBattlecryEntry
+                {
+                    Scope = CreatureBattlecryEntry.ScopeCreature,
+                    TargetId = creatureId,
+                    PackageId = packageId
+                });
+            else
+                row.PackageId = packageId;
+
+            _worldContext.SaveChanges();
+        }
+
         /// <summary>
         /// Every creature class's flags, in one read. Keyed by class rather than by creature, so
         /// this is loaded once with the entity classes rather than per spawn.

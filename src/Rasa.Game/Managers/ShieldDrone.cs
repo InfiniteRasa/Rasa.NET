@@ -38,8 +38,11 @@ namespace Rasa.Managers
     /// without being all. The protected share is 50%, chosen so that shooting into the bubble is
     /// bad rather than pointless; nothing states it.
     ///
-    /// A drone is recognised by its heal rather than by its entity class, so any other creature
-    /// seeded with CR_SHIELD_DRONE_HEAL behaves as one.
+    /// A drone is recognised by its entity class - Bane_Shield_Drone (7233) and the boss,
+    /// Bane_Shield_Drone_Boss (24084, Cavalon) - or by carrying CR_SHIELD_DRONE_HEAL, so any other
+    /// creature seeded with the heal behaves as one. Only two of the drone rows carry the heal;
+    /// the zone drones and Cavalon have the strike alone, and a drone without the heal heals on
+    /// the heal row's own schedule (HealIntervalMs) all the same.
     /// </summary>
     public static class ShieldDrone
     {
@@ -49,11 +52,20 @@ namespace Rasa.Managers
         /// <summary>SHIELD_DRONE_SHIELD: on the Bane under it.</summary>
         public const int ShieldTypeId = 230;
 
-        /// <summary>CR_SHIELD_DRONE_HEAL, which is also how a drone is told from anything else.</summary>
+        /// <summary>CR_SHIELD_DRONE_HEAL: the heal, which also makes whatever carries it a drone.</summary>
         public const ActionId HealAction = (ActionId)245;
 
         /// <summary>CR_SHIELD_DRONE_ATTACK: the contact strike, three metres and no chasing.</summary>
         public const ActionId AttackAction = (ActionId)396;
+
+        /// <summary>Bane_Shield_Drone and Bane_Shield_Drone_Boss.</summary>
+        public static readonly HashSet<EntityClasses> Classes = new HashSet<EntityClasses> { (EntityClasses)7233, (EntityClasses)24084 };
+
+        /// <summary>
+        /// How often a drone without a heal row heals: the cooldown of the one the world has
+        /// ("Bane Shield Drone heal aura", 5000 ms).
+        /// </summary>
+        public const int HealIntervalMs = 5000;
 
         /// <summary>RADIUS_AROUND_SOURCE on the heal, and the guide's "area of effect" for both halves.</summary>
         public const float Radius = 60f;
@@ -67,9 +79,10 @@ namespace Rasa.Managers
         /// <summary>How often the shield is re-cast over whoever is now inside it.</summary>
         private const int RefreshMs = 1000;
 
-        /// <summary>Whether this creature is a Shield Drone: it is if it carries the drone's heal.</summary>
+        /// <summary>Whether this creature is a Shield Drone: one of the drone classes, or anything carrying the drone's heal.</summary>
         public static bool Is(Creature creature) =>
-            creature?.Actions != null && creature.Actions.Any(a => a.ActionId == HealAction);
+            creature != null && (Classes.Contains(creature.EntityClass)
+                                 || creature.Actions != null && creature.Actions.Any(a => a.ActionId == HealAction));
 
         /// <summary>
         /// Whether this creature holds its ground. A drone's job is to stand over a piece of
@@ -226,6 +239,9 @@ namespace Rasa.Managers
         /// </summary>
         private static readonly ConditionalWeakTable<Creature, List<Creature>> LastCovered = new ConditionalWeakTable<Creature, List<Creature>>();
 
+        /// <summary>When a drone without a heal row heals next (Environment.TickCount64), held weakly as LastCovered is.</summary>
+        private static readonly ConditionalWeakTable<Creature, StrongBox<long>> NextHeal = new ConditionalWeakTable<Creature, StrongBox<long>>();
+
         /// <summary>
         /// Takes the shield off anyone this drone was covering who has walked out of it. Only
         /// those it covered last time are looked at - it used to search every creature on the map
@@ -254,19 +270,29 @@ namespace Rasa.Managers
         /// <summary>
         /// "Protects and heals Bane within its area of effect", on the schedule the client's own
         /// action data gives: HEAL_AMOUNT 500 every five seconds, which is the creature_action
-        /// row's cooldown.
+        /// row's cooldown. A drone without the row keeps the same schedule on its own clock.
         /// </summary>
         private static void Heal(MapChannel mapChannel, Creature drone, List<Creature> covered)
         {
-            var heal = drone.Actions.FirstOrDefault(a => a.ActionId == HealAction);
+            var heal = drone.Actions?.FirstOrDefault(a => a.ActionId == HealAction);
 
-            if (heal == null)
-                return;
+            if (heal != null)
+            {
+                if (heal.CooldownTimer > 0)
+                    return;
 
-            if (heal.CooldownTimer > 0)
-                return;
+                heal.CooldownTimer = BehaviorManager.NextCooldown(drone, heal);
+            }
+            else
+            {
+                var now = Environment.TickCount64;
+                var next = NextHeal.GetValue(drone, _ => new StrongBox<long>(0));
 
-            heal.CooldownTimer = BehaviorManager.NextCooldown(drone, heal);
+                if (now < next.Value)
+                    return;
+
+                next.Value = now + HealIntervalMs;
+            }
 
             var amount = HealAmount(drone);
 

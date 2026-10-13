@@ -47,6 +47,16 @@ namespace Rasa.Structures.Char
         [Required]
         public byte SelectedSlot { get; set; }
 
+        /// <summary>
+        /// The hybrid races this account has unlocked by completing their missions, a bit each:
+        /// 1 Forean, 2 Brann, 4 Thrax (1 &lt;&lt; (race id - 2)). Kept whether or not the server
+        /// offers every race to everyone (GameDataConfig.AlwaysUnlockHybrids), so turning that off
+        /// later still leaves each account what it earned.
+        /// </summary>
+        [Column("hybrid_unlocks")]
+        [Required]
+        public byte HybridUnlocks { get; set; }
+
         [Column("can_skip_bootcamp", TypeName = "bit")]
         [Required]
         public bool CanSkipBootcamp { get; set; }

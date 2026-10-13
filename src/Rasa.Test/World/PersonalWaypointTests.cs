@@ -166,6 +166,36 @@ namespace Rasa.Test.World
             Assert.AreEqual(ClientState.Ingame, owner.State);
         }
 
+        // BR-204: the Personal Waypoint's window, left open on its list, was closed by its worker
+        // after the waypoint at the far end had opened its own.
+        [TestMethod]
+        public void LeavingFromItClosesItsWindowAndNotTheOneAtTheFarEnd()
+        {
+            using var f = new Fixture();
+            var owner = f.Player(30, 30);
+            f.Gain(owner, 20);
+
+            f.Deploy(owner, OneWay);
+            PersonalWaypoints.Worker(f.World.Map, Start + 500);
+            Assert.IsTrue(PersonalWaypoints.IsNearUsable(owner, f.World.Map));
+            Drain(owner);
+
+            f.Manager.SelectWaypoint(owner, new SelectWaypointPacket { MapInstanceId = 1, WaypointId = 20 });
+            Assert.AreEqual(1, Packets(owner).OfType<ExitedWaypointPacket>().Count(), "closed as they go");
+
+            f.Manager.TeleportAcknowledge(owner);
+            Drain(owner);
+
+            // The waypoint's worker, then the Personal Waypoints'.
+            f.Far.DynamicObjectType = DynamicObjectType.Waypoint;
+            f.Manager.DynamicObjectProximityWorker(f.World.Map, f.Far, 1000);
+            PersonalWaypoints.Worker(f.World.Map, Start + 1000);
+
+            var arrived = Packets(owner);
+            Assert.AreEqual(20u, arrived.OfType<EnteredWaypointPacket>().Single().CurrentWaypointId);
+            Assert.IsFalse(arrived.OfType<ExitedWaypointPacket>().Any(), "the far end's window stays open");
+        }
+
         [TestMethod]
         public void ItIsNoWayOntoADropshipOrFromFurtherThanItsReach()
         {
@@ -629,6 +659,27 @@ namespace Rasa.Test.World
                 Assert.IsNull(PersonalWaypoints.TakeDamage(stranger.Player, obj.EntityId, 120));
                 Assert.IsNull(PersonalWaypoints.TakeDamage(enemy.Player, f.Near.EntityId, 120));
                 Assert.AreEqual(PersonalWaypoints.MaxHealth - 420, PersonalWaypoints.HealthOf(obj));
+            });
+        }
+
+        [TestMethod]
+        public void AConstantFireWeaponReachesItAsFarAsAMissile()
+        {
+            using var f = new Fixture();
+            var owner = f.Fighter(RedClan, 30, 30);
+            var enemy = f.Fighter(BlueClan, 40, 30);
+
+            f.WithFeud(() =>
+            {
+                var obj = f.Deploy(owner, Squad);
+
+                f.Move(enemy, new Vector3(400, 0, 30));
+                ConstantFireTargetTests.Fire(f.World, enemy, obj.EntityId, ActionId.WeaponMachinegun, () =>
+                    Assert.AreEqual(PersonalWaypoints.MaxHealth, PersonalWaypoints.HealthOf(obj), "370 m away"));
+
+                f.Move(enemy, new Vector3(40, 0, 30));
+                ConstantFireTargetTests.Fire(f.World, enemy, obj.EntityId, ActionId.WeaponMachinegun, () =>
+                    Assert.IsTrue(PersonalWaypoints.HealthOf(obj) < PersonalWaypoints.MaxHealth, "10 m away"));
             });
         }
 

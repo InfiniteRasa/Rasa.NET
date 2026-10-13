@@ -38,6 +38,9 @@ namespace Rasa.Managers
         private const uint StartingPistolTemplateId = 17131;
         private const uint StartingAmmoTemplateId = 28;
         private const uint StartingAmmoQuantity = 1000;
+
+        /// <summary>The colour the starting items and the recruit armour are made in.</summary>
+        private const uint StartingItemColor = 2139062144;
         internal static readonly IReadOnlyList<uint> StartingLogos = new[] { AbilityLogos.Power };
         internal Game.Missions.Integration.IStartingExperiencePolicy StartingExperience { get; }
 
@@ -77,7 +80,8 @@ namespace Rasa.Managers
         /// The races a character can be created or cloned as - GameDataConfig.EnabledRaces, which was
         /// read by nothing: BeginCharacterSelection offered all four whatever it said. Human is
         /// always among them (the client has nothing to lock it behind); unknown ids are dropped. No
-        /// setting at all means all four, as before.
+        /// setting at all means all four, as before. Which of them an account is offered is
+        /// HybridUnlocks.OfferedTo.
         /// </summary>
         public static IReadOnlyList<Race> EnabledRaces { get; private set; } = AllRaces;
 
@@ -118,7 +122,7 @@ namespace Rasa.Managers
             if (client.State != ClientState.LoggedIn)
                 return;
 
-            client.CallMethod(SysEntity.ClientMethodId, new BeginCharacterSelectionPacket(client.AccountEntry.FamilyName, client.AccountEntry.Characters.Any(), client.AccountEntry.Id, EnabledRaces, StartingExperience.CanSkip(client.AccountEntry)));
+            client.CallMethod(SysEntity.ClientMethodId, new BeginCharacterSelectionPacket(client.AccountEntry.FamilyName, client.AccountEntry.Characters.Any(), client.AccountEntry.Id, HybridUnlocks.OfferedTo(client.AccountEntry), StartingExperience.CanSkip(client.AccountEntry)));
 
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
             var charactersBySlot = unitOfWork.Characters.GetByAccountId(client.AccountEntry.Id);
@@ -201,11 +205,11 @@ namespace Rasa.Managers
 
             var result = packet.Validate();
 
-            // The window only offers the enabled races, so another one is a client that was not
-            // shown this list.
-            if (result == CreateCharacterResult.Success && !IsRaceEnabled(packet.RaceId))
+            // The window only offers the races this account may pick (HybridUnlocks), so another
+            // one is a client that was not shown this list.
+            if (result == CreateCharacterResult.Success && !HybridUnlocks.IsOfferedTo(client.AccountEntry, packet.RaceId))
             {
-                Logger.WriteLog(LogType.Security, $"Account {client.AccountEntry.Id} asked for a {packet.RaceId} character, a race this server does not offer.");
+                Logger.WriteLog(LogType.Security, $"Account {client.AccountEntry.Id} asked for a {packet.RaceId} character, a race this server does not offer it.");
                 result = CreateCharacterResult.CharacterCreationInvalidRace;
             }
 
@@ -429,11 +433,11 @@ namespace Rasa.Managers
 
             var result = packet.Validate();
 
-            // The window only offers the enabled races, so another one is a client that was not
-            // shown this list.
-            if (result == CreateCharacterResult.Success && !IsRaceEnabled(packet.RaceId))
+            // The window only offers the races this account may pick (HybridUnlocks), so another
+            // one is a client that was not shown this list.
+            if (result == CreateCharacterResult.Success && !HybridUnlocks.IsOfferedTo(client.AccountEntry, packet.RaceId))
             {
-                Logger.WriteLog(LogType.Security, $"Account {client.AccountEntry.Id} asked for a {packet.RaceId} character, a race this server does not offer.");
+                Logger.WriteLog(LogType.Security, $"Account {client.AccountEntry.Id} asked for a {packet.RaceId} character, a race this server does not offer it.");
                 result = CreateCharacterResult.CharacterCreationInvalidRace;
             }
 
@@ -803,7 +807,15 @@ namespace Rasa.Managers
                 return null;
             }
 
-            var appearances = CreateCharacterAppearanceEntries(packet.AppearanceData);
+            var appearances = CreateCharacterAppearanceEntries(packet.AppearanceData).ToList();
+
+            // The starting pistol goes in the active drawer slot (CreateStartingLoadout), so it is
+            // the weapon in hand, and what a character shows in its hand is its Weapon appearance
+            // entry. Without one the client had nothing to draw: a new recruit fired with empty
+            // hands until the pistol was taken out of the drawer and put back.
+            if (appearances.All(entry => entry.Slot != (uint)EquipmentData.Weapon) && StartingWeaponAppearance() is { } weapon)
+                appearances.Add(weapon);
+
             if (!unitOfWork.CharacterAppearances.Add(characterEntry, appearances))
             {
                 SendCharacterCreateFailed(client, CreateCharacterResult.TechnicalDifficulty);
@@ -860,7 +872,7 @@ namespace Rasa.Managers
                     entityClass.ItemClassInfo.StackSize < quantity)
                     throw new GameplayRejectionException($"Starting item template {templateId} is unavailable or cannot hold {quantity} items.");
 
-                var item = new Item(templateId, quantity, entityClass.ItemClassInfo.MaxHitPoints, 2139062144);
+                var item = new Item(templateId, quantity, entityClass.ItemClassInfo.MaxHitPoints, StartingItemColor);
                 var itemId = unitOfWork.Items.CreateItem(item);
                 unitOfWork.CharacterInventories.AddInvItem(
                     accountId, characterId, (uint)inventoryType, slot, itemId);
@@ -892,6 +904,12 @@ namespace Rasa.Managers
                 return false;
             }
         }
+
+        /// <summary>The starting pistol as a Weapon appearance entry; null if its template is not loaded (CreateStartingLoadout then refuses the character).</summary>
+        private static CharacterAppearanceEntry StartingWeaponAppearance() =>
+            ItemManager.Instance.ItemTemplateItemClass.TryGetValue(StartingPistolTemplateId, out var classId)
+                ? new CharacterAppearanceEntry((uint)EquipmentData.Weapon, (uint)classId, StartingItemColor)
+                : null;
 
         private IEnumerable<CharacterAppearanceEntry> CreateCharacterAppearanceEntries(
             IDictionary<EquipmentData, AppearanceData> appearanceData)
@@ -956,6 +974,7 @@ namespace Rasa.Managers
                 }
 
                 int listings;
+                Action clanDeparture = null;
 
                 using (var unitOfWork = _gameUnitOfWorkFactory.CreateChar())
                 {
@@ -976,10 +995,21 @@ namespace Rasa.Managers
                         // And the cooldowns it logged out with.
                         unitOfWork.CharacterActionReuses.DeleteForCharacter(charactersBySlot.Id);
 
-                        // TODO delete ClanMember entry
+                        // And whatever the crafting stations were making or holding for it.
+                        unitOfWork.CraftingJobs.DeleteByCharacter(charactersBySlot.Id);
+
+                        // Their clan membership: clan_member's foreign key to the character is
+                        // Restrict, so with the row standing the delete below failed. The clan
+                        // side of it (caches, the members online) waits for the commit.
+                        clanDeparture = ClanManager.Instance.RemoveDeletedCharacter(unitOfWork,
+                            charactersBySlot, client.AccountEntry.FamilyName);
+
                         unitOfWork.Characters.Delete(charactersBySlot.Id);
                     });
                 }
+
+                clanDeparture?.Invoke();
+                KraftwerksManager.Instance.ForgetCharacter(charactersBySlot.Id);
 
                 if (listings > 0)
                     Logger.WriteLog(LogType.Debug,
@@ -1155,7 +1185,6 @@ namespace Rasa.Managers
             var newCharacter = new Manifestation(character, appearanceData)
             {
                 ClanId = clan?.Id ?? 0,
-                ClanName = clan?.Name,
                 PlayerFlags = new Dictionary<uint, uint>(unitOfWork.CharacterFlags.Get(character.Id)),
                 GainedWaypoints = unitOfWork.CharacterTeleporters.Get(character.Id)
                     .Where(waypoint => !StartingExperience.IsExitWaypoint(waypoint.WaypointId)).ToList(),
@@ -1426,9 +1455,16 @@ namespace Rasa.Managers
                         ? character?.Credit
                         : character?.Prestige;
 
-                    if (character == null || durable != current)
+                    if (character == null)
                         throw new GameplayRejectionException(
                             $"Durable {type} balance changed before update.");
+
+                    if (durable != current)
+                    {
+                        PutPurseRight(client, character);
+                        throw new GameplayRejectionException(
+                            $"Durable {type} balance changed before update.");
+                    }
 
                     if (type == CurencyType.Credits)
                         unitOfWork.Characters.UpdateCharacterCredits(client.Player.Id, next);
@@ -1450,6 +1486,56 @@ namespace Rasa.Managers
             client.CallMethod(client.Player.EntityId,
                 new UpdateCreditsPacket(type, next, next - current));
             return true;
+        }
+
+        /// <summary>
+        /// A purse that a credit write has found holding something other than the character's
+        /// row: put back to the row, the client shown the difference and the player told to try
+        /// again. Called where the write finds it, before the write is refused; true when the
+        /// purse was out of step.
+        ///
+        /// The row is what the server keeps and the purse is the session's copy of it: every write
+        /// pays the row first and the purse after, and most check the one against the other. A
+        /// write that paid the row alone - an auction sale to a seller on a loading screen did -
+        /// left the purse behind until the next login, and every write that checks was refused
+        /// without a word in the meantime: vendor, repair, loot (a squad mate's purse refused the
+        /// whole squad's), mission rewards, buyouts. The writes that did not check - a lockbox
+        /// transfer, a clan deposit, a credit trade - wrote the old purse over the row, and the
+        /// difference was gone for good; they check now as well.
+        /// </summary>
+        internal static bool PutPurseRight(Client client, CharacterEntry row)
+        {
+            var player = client?.Player;
+
+            if (player == null || row == null || row.Id != player.Id)
+                return false;
+
+            var putRight = false;
+
+            foreach (var (type, durable) in new[] { (CurencyType.Credits, row.Credit), (CurencyType.Prestige, row.Prestige) })
+            {
+                player.Credits.TryGetValue(type, out var held);
+                player.Credits[type] = durable;
+
+                if (held == durable)
+                    continue;
+
+                putRight = true;
+
+                Logger.WriteLog(LogType.Error,
+                    $"Character {player.Id} had {held} {type} where its row has {durable}; put back to the row.");
+
+                // A client on a loading screen has no manifestation to show it on: the arrival
+                // sends the whole purse (ManifestationManager.AssignPlayer).
+                if (client.IsInWorld)
+                    client.CallMethod(player.EntityId, new UpdateCreditsPacket(type, durable, durable - held));
+            }
+
+            if (putRight && client.IsInWorld)
+                CommunicatorManager.Instance.SystemMessage(client,
+                    "Your credits were out of date and have been corrected. Please try again.");
+
+            return putRight;
         }
     }
 }

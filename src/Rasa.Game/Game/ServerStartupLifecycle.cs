@@ -15,6 +15,7 @@ namespace Rasa.Game
         private readonly Action _loadRemainingData;
         private readonly Action _publishReady;
         private readonly Action _cleanup;
+        private readonly Action<string, Exception> _reportFailure;
 
         internal ServerStartupLifecycle(
             Func<bool> validateMissionReadiness,
@@ -27,7 +28,8 @@ namespace Rasa.Game
             Action registerTimers,
             Action loadRemainingData,
             Action publishReady,
-            Action cleanup)
+            Action cleanup,
+            Action<string, Exception> reportFailure = null)
         {
             _validateMissionReadiness = validateMissionReadiness ??
                                         throw new ArgumentNullException(nameof(validateMissionReadiness));
@@ -43,35 +45,69 @@ namespace Rasa.Game
             _loadRemainingData = loadRemainingData ?? throw new ArgumentNullException(nameof(loadRemainingData));
             _publishReady = publishReady ?? throw new ArgumentNullException(nameof(publishReady));
             _cleanup = cleanup ?? throw new ArgumentNullException(nameof(cleanup));
+            _reportFailure = reportFailure ?? LogFailure;
         }
 
         internal bool Start()
         {
-            if (!_validateMissionReadiness())
-                return false;
-            if (!_validateLootReadiness())
-                return false;
+            // What it was doing when it failed, for the report: a missing database table, a port
+            // in use and a bad navmesh path all used to end in "Unable to start server!" and
+            // nothing else, and an exception out of the mission check - the first read of the
+            // world database - was not caught here at all.
+            var step = "loading the entity classes and checking the missions";
 
-            // The world first, then the doors: everything loaded before anything can connect,
-            // the loop started once there are ports to serve, and the auth server told last,
-            // since that is what puts this world on the server list.
             try
             {
+                if (!_validateMissionReadiness())
+                    return false;
+                step = "checking the ordinary loot tables";
+                if (!_validateLootReadiness())
+                    return false;
+
+                // The world first, then the doors: everything loaded before anything can connect,
+                // the loop started once there are ports to serve, and the auth server told last,
+                // since that is what puts this world on the server list.
+                step = "loading the world";
                 _loadRemainingData();
+                step = "opening the client port";
                 _createListener();
+                step = "setting up the login queue";
                 _registerLoginAndQueue();
+                step = "starting the timers";
                 _registerTimers();
+                step = "accepting clients";
                 _beginAccept();
+                step = "starting the world loop";
                 _startLoop();
+                step = "setting up the link to the auth server";
                 _setupCommunicator();
+                step = "announcing the server ready";
                 _publishReady();
                 return true;
             }
-            catch
+            catch (Exception e)
             {
-                _cleanup();
+                _reportFailure(step, e);
+
+                // Whatever was opened is closed; a cleanup that fails as well is reported too,
+                // and does not take the place of the failure that started it.
+                try
+                {
+                    _cleanup();
+                }
+                catch (Exception cleanupFailure)
+                {
+                    _reportFailure("cleaning up after the failed start", cleanupFailure);
+                }
+
                 return false;
             }
+        }
+
+        private static void LogFailure(string step, Exception e)
+        {
+            Logger.WriteLog(LogType.Error, $"Startup failed while {step}:");
+            Logger.WriteLog(LogType.Error, e);
         }
     }
 }

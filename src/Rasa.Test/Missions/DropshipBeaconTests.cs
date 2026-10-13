@@ -58,6 +58,7 @@ namespace Rasa.Test.Missions
             var window = harness.Drain().OfType<EnteredWaypointPacket>().Single();
             Assert.AreEqual(WaypointType.Dropship, window.WaypointTypeId);
             Assert.AreEqual(DropshipBeacons.WindowNameId, window.CurrentWaypointId);
+            Assert.AreEqual(harness.BootcampMap.MapInfo.MapContextId, window.CurrentMapId, "the map's row, which the window marks current");
             Assert.IsTrue(DropshipBeacons.IsNearUsable(harness.Client, harness.BootcampMap));
 
             // Once: standing there does not open it again.

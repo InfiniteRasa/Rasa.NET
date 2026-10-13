@@ -174,14 +174,48 @@ namespace Rasa.Test.Missions.Wilderness
             DamageObject(harness, fuel, 60);
 
             var destroyed = harness.Drain().Where(packet =>
-                packet is UpdateHitPointsPacket || packet is DamageInfoPacket || packet is ForceStatePacket).ToArray();
-            Assert.AreEqual(3, destroyed.Length);
+                packet is UpdateHitPointsPacket || packet is DamageInfoPacket || packet is ForceStatePacket || packet is UsePacket).ToArray();
+            Assert.AreEqual(5, destroyed.Length);
             Assert.AreEqual(0, ((UpdateHitPointsPacket)destroyed[0]).CurrentHitPoints, "The update comes before DamageInfo stores the same figure.");
             var info = (DamageInfoPacket)destroyed[1];
             Assert.IsFalse(info.CanBeDamaged);
             Assert.AreEqual(100U, info.TotalHitPoints);
             Assert.AreEqual(0U, info.CurrentHitPoints);
-            Assert.IsInstanceOfType(destroyed[2], typeof(ForceStatePacket));
+            CollectionAssert.AreEqual(
+                new[] { UseObjectState.IdesState50pHealth, UseObjectState.IdesState25pHealth, UseObjectState.StateDestroyed },
+                destroyed.Skip(2).Cast<UsePacket>().Select(use => use.CurState).ToArray(),
+                "From intact, down a health state at a time: only 25% to destroyed has the explosion.");
+        }
+
+        // A Bane barrel is an InertDestroyable: its client goes down through its health states and has
+        // its explosion only on the way from 25% to destroyed (DestroyableStates).
+        [TestMethod]
+        public void AFuelContainerShowsItsDamageAStateAtATimeAndBlowsUpFromTheLast()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            Accept(harness, 172, 665);
+            var fuel = harness.Map.DynamicObjects.Single(obj => obj.SceneMissionId == 665 && obj.SceneActorRole == "fuel-1");
+            harness.MoveTo(fuel.Position + new Vector3(0, 0, 1));
+            harness.Drain();
+
+            DamageObject(harness, fuel, 49);
+            Assert.IsEmpty(harness.Drain().OfType<UsePacket>().ToArray(), "51 of 100: intact");
+            Assert.AreEqual(UseObjectState.IdesStateIntact, fuel.StateId);
+
+            DamageObject(harness, fuel, 1);
+            Assert.AreEqual(UseObjectState.IdesState50pHealth, harness.Drain().OfType<UsePacket>().Single().CurState, "half");
+            Assert.AreEqual(UseObjectState.IdesState50pHealth, fuel.StateId);
+
+            DamageObject(harness, fuel, 30);
+            Assert.AreEqual(UseObjectState.IdesState25pHealth, harness.Drain().OfType<UsePacket>().Single().CurState, "20 of 100");
+            Assert.AreEqual(UseObjectState.IdesState25pHealth, fuel.StateId);
+
+            DamageObject(harness, fuel, 20);
+            var sent = harness.Drain();
+            var use = sent.OfType<UsePacket>().Single();
+            Assert.AreEqual((harness.Client.Player.EntityId, UseObjectState.StateDestroyed), (use.PlayerEntityId, use.CurState));
+            Assert.IsEmpty(sent.OfType<ForceStatePacket>().ToArray(), "Use, so the transition's explosion plays");
+            Assert.AreEqual(UseObjectState.StateDestroyed, fuel.StateId);
         }
 
         // A chaingun is not fired as a missile (ConstantFire): its pulses have to reach an object too.

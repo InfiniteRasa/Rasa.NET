@@ -22,6 +22,66 @@ namespace Rasa.Migrations.MySqlChar
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
+            modelBuilder.Entity("Rasa.Structures.Char.ApiLogEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("address");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("body");
+
+                    b.Property<int>("BodyLength")
+                        .HasColumnType("int")
+                        .HasColumnName("body_length");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasColumnType("varchar(16)")
+                        .HasColumnName("method");
+
+                    b.Property<string>("Path")
+                        .IsRequired()
+                        .HasColumnType("varchar(256)")
+                        .HasColumnName("path");
+
+                    b.Property<string>("Query")
+                        .IsRequired()
+                        .HasColumnType("varchar(512)")
+                        .HasColumnName("query");
+
+                    b.Property<string>("Response")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("response");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex(new[] { "Address" }, "api_log_index_address");
+
+                    b.HasIndex(new[] { "CreatedAt" }, "api_log_index_created_at");
+
+                    b.ToTable("api_log");
+                });
+
             modelBuilder.Entity("Rasa.Structures.Char.AuctionEntry", b =>
                 {
                     b.Property<uint>("ItemId")
@@ -1394,6 +1454,134 @@ namespace Rasa.Migrations.MySqlChar
                     b.ToTable("control_point_state");
                 });
 
+            modelBuilder.Entity("Rasa.Structures.Char.CraftingJobEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
+                    b.Property<uint>("CharacterId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("character_id");
+
+                    b.Property<uint>("Count")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("count");
+
+                    b.Property<uint>("CraftingPage")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("crafting_page");
+
+                    b.Property<DateTime>("FinishAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("finish_at");
+
+                    b.Property<uint>("KraftwerksId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("kraftwerks_id");
+
+                    b.Property<uint>("QualityId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("quality_id");
+
+                    b.Property<uint>("ResultClassId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("result_class_id");
+
+                    b.Property<uint>("ResultTemplateId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("result_template_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex(new[] { "CharacterId" }, "crafting_job_index_character_id");
+
+                    b.HasIndex(new[] { "KraftwerksId" }, "crafting_job_index_kraftwerks_id");
+
+                    b.ToTable("crafting_job");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.Char.EconomyLogEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
+                    b.Property<uint>("AccountId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("account_id");
+
+                    b.Property<long>("Amount")
+                        .HasColumnType("bigint")
+                        .HasColumnName("amount");
+
+                    b.Property<long>("Balance")
+                        .HasColumnType("bigint")
+                        .HasColumnName("balance");
+
+                    b.Property<uint>("CharacterId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("character_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<byte>("Currency")
+                        .HasColumnType("tinyint unsigned")
+                        .HasColumnName("currency");
+
+                    b.Property<uint>("ItemId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("item_id");
+
+                    b.Property<uint>("ItemTemplateId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("item_template_id");
+
+                    b.Property<byte>("Kind")
+                        .HasColumnType("tinyint unsigned")
+                        .HasColumnName("kind");
+
+                    b.Property<uint>("MapContextId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("map_context_id");
+
+                    b.Property<uint>("OtherCharacterId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("other_character_id");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int")
+                        .HasColumnName("quantity");
+
+                    b.Property<uint>("ReferenceId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("reference_id");
+
+                    b.Property<string>("TransferId")
+                        .IsRequired()
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("transfer_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex(new[] { "CharacterId" }, "economy_log_index_character_id");
+
+                    b.HasIndex(new[] { "CreatedAt" }, "economy_log_index_created_at");
+
+                    b.HasIndex(new[] { "ItemId" }, "economy_log_index_item_id");
+
+                    b.HasIndex(new[] { "TransferId" }, "economy_log_index_transfer_id");
+
+                    b.ToTable("economy_log");
+                });
             modelBuilder.Entity("Rasa.Structures.Char.FriendEntry", b =>
                 {
                     b.Property<uint>("AccountId")
@@ -1440,6 +1628,12 @@ namespace Rasa.Migrations.MySqlChar
                         .HasColumnType("varchar(64)")
                         .HasDefaultValue("")
                         .HasColumnName("family_name");
+
+                    b.Property<byte>("HybridUnlocks")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(3) unsigned")
+                        .HasDefaultValue((byte)0)
+                        .HasColumnName("hybrid_unlocks");
 
                     b.Property<string>("LastIp")
                         .IsRequired()

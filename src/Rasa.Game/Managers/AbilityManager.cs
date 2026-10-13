@@ -893,13 +893,12 @@ namespace Rasa.Managers
                 return;
             }
 
-            // Paid on landing, not on asking. A sustained ability pays as it runs, through its
-            // effect's drain, not here.
-            if (!IsSustained(info))
-                TakeCosts(client, player, info);
-
             // The items it takes, and the one it was used from, in one write; never a mission's.
             // An emote's flag or a title goes in the same write; a rocket or a pet is kept (Toys).
+            // This is the last thing that can still refuse the ability, so it comes before the
+            // costs: power or chi used to be taken first, and an ability refused here for want
+            // of an item - used up or moved while the windup ran - had been paid for all the
+            // same, with nothing to give it back.
             var toyCommit = new ToyCommit();
 
             try
@@ -913,6 +912,11 @@ namespace Rasa.Managers
                 Fail(client, action.ActionId, action.ActionArgId, PlayerMessage.PmMissingReqItem);
                 return;
             }
+
+            // Paid on landing, not on asking, and once nothing can refuse it. A sustained ability
+            // pays as it runs, through its effect's drain, not here.
+            if (!IsSustained(info))
+                TakeCosts(client, player, info);
 
             StartCooldown(client, player, info);
 
@@ -1374,6 +1378,10 @@ namespace Rasa.Managers
                         client,
                         MissionProgressEvent.AbilityHit((uint)action.ActionId, counted.DbId));
 
+                // What the hit puts on its target is announced by the hit, as the client plays it
+                // where the bolt lands (HitEffects): attached quietly and named in its entry.
+                var strikeMs = ShotFlight.Ms(System.Numerics.Vector3.Distance(player.Position, target.Position), info.Get(AbilityProperty.VfxVelocity));
+
                 // An enemy player still standing: what the hit does to a creature, with the player's
                 // own stun, knockback and pull (PlayerCrowdControl), for PVP_EFFECT_DURATION_MODIFIER
                 // of the time (Pvp).
@@ -1381,6 +1389,8 @@ namespace Rasa.Managers
                 {
                     if (taken > 0 && enemy.Attributes[Attributes.Health].Current > 0 && !Pvp.IsSafe(enemy))
                     {
+                        using var announced = HitEffects.On(enemy, player, hit.TargetEffectIds, strikeMs);
+
                         if (crit && !outcome.Immune)
                             CritEffects.OnCritical(mapChannel, enemy, player, damageType, amount);
 
@@ -1407,6 +1417,8 @@ namespace Rasa.Managers
 
                 if (creature.State != CharacterState.Dead && creature.State != CharacterState.Dying && creature.Attributes[Attributes.Health].Current > 0)
                 {
+                    using var announced = HitEffects.On(creature, player, hit.TargetEffectIds, strikeMs);
+
                     if (crit && !outcome.Immune)
                         CritEffects.OnCritical(mapChannel, creature, player, damageType, amount);
 

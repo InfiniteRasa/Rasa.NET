@@ -30,6 +30,9 @@ namespace Rasa.Repositories.World
         /// <summary>The battle cry package each class and creature row has been given (creature_battlecry). One with no row is silent.</summary>
         List<CreatureBattlecryEntry> GetBattlecries() => new List<CreatureBattlecryEntry>();
 
+        /// <summary>Gives a creature row its own battle cry package, or changes the one it has (creature_battlecry, scope creature).</summary>
+        void SaveCreatureBattlecry(uint creatureId, uint packageId) => throw new System.NotSupportedException();
+
         /// <summary>Gives a creature row a greeting, or changes the one it has.</summary>
         void SaveNpcGreeting(uint creatureId, uint greetingId) => throw new System.NotSupportedException();
 

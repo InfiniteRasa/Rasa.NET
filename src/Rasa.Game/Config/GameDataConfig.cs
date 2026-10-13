@@ -5,6 +5,13 @@
         public int[] EnabledRaces { get; set; }
 
         /// <summary>
+        /// Whether every race in EnabledRaces is offered to every account (true, and no setting).
+        /// False offers a human and the hybrids an account has unlocked by their missions
+        /// (HybridUnlocks).
+        /// </summary>
+        public bool? AlwaysUnlockHybrids { get; set; }
+
+        /// <summary>
         /// Server flags that are on from startup, by name or by number. The client's own
         /// spelling works: "MINION_COMMANDS" as well as "MinionCommands".
         /// </summary>

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 
@@ -82,6 +82,39 @@ namespace Rasa.Test.World
             }
             finally
             {
+                f.Remove();
+            }
+        }
+
+        [TestMethod]
+        public void ClaimingIsAnnouncedOncePerPointInTenSeconds()
+        {
+            using var world = new WorldTestContext();
+            var f = new Fixture(world);
+            var now = 5_000_000L;
+            var clock = ControlPoints.Instance.Now;
+
+            ControlPoints.Instance.Now = () => now;
+
+            try
+            {
+                // Start, break off, start again: every start used to tell the whole map.
+                f.Request();
+                Assert.AreEqual(1, Drain(f.Onlooker).OfType<DisplayClientMessagePacket>().Count(m => m.MsgId == PlayerMessage.PmControlpointClaiming));
+
+                f.Finish(interrupted: true);
+                now += 3_000;
+                f.Request();
+                Assert.AreEqual(0, Drain(f.Onlooker).OfType<DisplayClientMessagePacket>().Count(m => m.MsgId == PlayerMessage.PmControlpointClaiming), "within the gap: not again");
+
+                f.Finish(interrupted: true);
+                now += ControlPoints.ClaimAnnounceGapMs;
+                f.Request();
+                Assert.AreEqual(1, Drain(f.Onlooker).OfType<DisplayClientMessagePacket>().Count(m => m.MsgId == PlayerMessage.PmControlpointClaiming), "past the gap: announced");
+            }
+            finally
+            {
+                ControlPoints.Instance.Now = clock;
                 f.Remove();
             }
         }

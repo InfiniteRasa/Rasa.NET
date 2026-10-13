@@ -153,12 +153,27 @@ namespace Rasa.Managers
 
             die ??= Throw;
 
+            // What each winner has been given here of a Character Unique template: a second of
+            // one is no more theirs to take than one they already hold.
+            var won = new HashSet<(ulong Winner, uint Template)>();
+
             foreach (var lootItem in loot.LootItems)
             {
                 if (lootItem.Taken || lootItem.ReservedFor != 0 || !IsRolled(party, lootItem.Item))
                     continue;
 
-                var rollers = eligible.Select(c => (c.AccountEntry.Id, Needs(c.Player, lootItem.Item))).ToList();
+                // Character Unique: a member who holds one, or has won one off this corpse, does
+                // not roll. With nobody left it is not rolled, and stays for whoever may take it.
+                var template = lootItem.Item?.ItemTemplate;
+                var rolling = InventoryManager.IsCharacterUnique(template)
+                    ? eligible.Where(c => !won.Contains((c.Player.EntityId, template.ItemTemplateId))
+                                          && InventoryManager.Instance.MayReceive(c.Player, template)).ToList()
+                    : eligible;
+
+                if (rolling.Count == 0)
+                    continue;
+
+                var rollers = rolling.Select(c => (c.AccountEntry.Id, Needs(c.Player, lootItem.Item))).ToList();
                 var result = Roll(rollers, die);
                 var winner = eligible.Find(c => c.AccountEntry.Id == result.WinnerUserId);
 
@@ -168,6 +183,9 @@ namespace Rasa.Managers
                 lootItem.ReservedFor = winner.Player.EntityId;
                 lootItem.ActorId = winner.Player.EntityId;
                 lootItem.PartyId = 0;
+
+                if (InventoryManager.IsCharacterUnique(template))
+                    won.Add((winner.Player.EntityId, template.ItemTemplateId));
 
                 if (loot.Looters.Add(winner.Player.EntityId) && !added.Contains(winner))
                     added.Add(winner);

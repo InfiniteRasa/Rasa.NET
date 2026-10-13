@@ -18,6 +18,8 @@ namespace Rasa.Managers
     using Misc;
     using Structures;
     using Structures.Char;
+    using Repositories;
+    using Repositories.Char;
     using Repositories.UnitOfWork;
 
     public class ClanManager
@@ -165,9 +167,9 @@ namespace Rasa.Managers
                 // roster for every member online, and send them the clan's own data again besides.
                 SendMemberData(MemberDataFor(client, member, true), client.Player.Id);
 
-                // The lockbox window draws whatever it was last told and asks for nothing, so
-                // its tab count and history have to be pushed on the way in.
-                InventoryManager.Instance.SendClanLockboxState(client);
+                // The lockbox window's tab count, balance and history are sent when a lockbox is
+                // opened (InventoryManager.SendClanLockboxState): the client handles them on the
+                // lockbox's entity, which it has only when one is in view.
             }
         }
 
@@ -446,6 +448,9 @@ namespace Rasa.Managers
 
             // Cache the newly created clan
             RegisterClan(clan);
+
+            EconomyAudit.Instance.Record(EconomyLogKind.ClanCreation, clan.Id,
+                EconomyAudit.MoneyLine(client, CurencyType.Credits, -_requiredCreditsForClanCreation));
         }
 
         internal void KickPlayerFromClan(Client client, KickPlayerFromClanPacket packet)
@@ -589,7 +594,7 @@ namespace Rasa.Managers
             // Answered, either way: the invitation is spent whether they take it or not.
             if (!_invites.Remove(client.Player.Id, out var invite))
             {
-                RefuseClanAction(client, PlayerMessage.PmClanNotInvited);
+                RefuseClanAction(client, PlayerMessage.PmClanNotInvited, ClanNameArgs(packet.ClanId));
                 return;
             }
 
@@ -601,7 +606,7 @@ namespace Rasa.Managers
             {
                 Logger.WriteLog(LogType.Security,
                     $"{client.Player.FamilyName} (character {client.Player.Id}) was invited to clan {invite.ClanId} and answered for clan {packet.ClanId}; ignored.");
-                RefuseClanAction(client, PlayerMessage.PmClanNotInvited);
+                RefuseClanAction(client, PlayerMessage.PmClanNotInvited, ClanNameArgs(packet.ClanId));
                 return;
             }
 
@@ -624,7 +629,7 @@ namespace Rasa.Managers
                 // connection.
                 if (validation.Clans.GetClanByCharacterId(client.Player.Id) != null)
                 {
-                    RefuseClanAction(client, PlayerMessage.PmClanAcceptAlreadyInAClan);
+                    RefuseClanAction(client, PlayerMessage.PmClanAcceptAlreadyInAClan, new Dictionary<string, string> { { "clanName", clan.Name } });
                     return;
                 }
 
@@ -640,9 +645,16 @@ namespace Rasa.Managers
                 {
                     var character = validation.Characters.Get(client.Player.Id);
 
-                    if (character != null && PvPCooldownRemainingSeconds(character) > 0)
+                    var remaining = character == null ? 0 : PvPCooldownRemainingSeconds(character);
+
+                    if (remaining > 0)
                     {
-                        client.CallMethod(SysEntity.ClientClanManagerId, new DisplayClanMessagePacket((int)PlayerMessage.PmClanAcceptInPvpTimeout, new Dictionary<string, string>()));
+                        // "You cannot accept an invitation to %(clanName)s. You cannot join a
+                        // PvP-enabled Clan for another %(days)s days, %(hours)s hours ..."
+                        var args = CooldownArgs(remaining);
+                        args["clanName"] = clan.Name;
+
+                        RefuseClanAction(client, PlayerMessage.PmClanAcceptInPvpTimeout, args);
                         return;
                     }
                 }
@@ -974,6 +986,118 @@ namespace Rasa.Managers
             //TODO: Clear clan lockbox db inventory?
         }
 
+        /// <summary>
+        /// A character is being deleted (CharacterManager.RequestDeleteCharacterInSlot), inside
+        /// its transaction: their clan membership goes with them. clan_member's foreign key to the
+        /// character is Restrict, so a member's row left standing failed the whole delete.
+        ///
+        /// The row work is done here, on <paramref name="unitOfWork"/>, so it commits or rolls
+        /// back with the character. What is returned is the rest - caches, feuds, the members
+        /// online - for the caller to run once the transaction has committed, and not before:
+        /// nothing in memory should say the character has gone while the row might yet stay.
+        /// Null when the character was in no clan.
+        ///
+        /// A leader's departure is the one LeaveClan refuses them: the leadership passes to the
+        /// highest ranked member left (the longest serving of them, by character id, when ranks
+        /// tie), as if MakePlayerClanLeader had been used. A leader who was the clan's only member
+        /// takes the clan with them, as DisbandClan would - its feuds lost, its control points the
+        /// AFS's, its rows deleted. The PvP-clan cooldown is not stamped: there is no character
+        /// left to serve it.
+        /// </summary>
+        internal Action RemoveDeletedCharacter(ICharUnitOfWork unitOfWork, CharacterEntry character, string familyName)
+        {
+            if (unitOfWork == null)
+                throw new ArgumentNullException(nameof(unitOfWork));
+
+            if (character == null)
+                throw new ArgumentNullException(nameof(character));
+
+            // The database, not the cache: RemovePlayer drops a member from the cache as they
+            // log out, and a character is deleted from the selection screen.
+            var member = unitOfWork.ClanMembers.GetClanMemberByCharacterId(character.Id);
+
+            if (member == null)
+                return null;
+
+            var clanId = member.ClanId;
+            var clan = GetClan(clanId);
+            var others = unitOfWork.ClanMembers.GetAllClanMembersByClanId(clanId)
+                .Where(m => m.CharacterId != character.Id)
+                .ToList();
+
+            if (member.Rank == ClanRank.Leader && others.Count == 0)
+            {
+                unitOfWork.ClanMembers.DeleteClanMembers(clanId);
+                unitOfWork.Clans.DeleteClan(clanId);
+
+                return () =>
+                {
+                    // Feuds and control points first, while the clan is still known to the caches
+                    // they read - the order DisbandClan keeps.
+                    ClanFeuds.Instance.ClanDisbanded(clanId);
+                    ControlPoints.Instance.ClanDisbanded(clanId);
+
+                    if (clan != null)
+                        UnregisterClan(clan);
+
+                    UnregisterClanMembers(clanId);
+
+                    Logger.WriteLog(LogType.Debug,
+                        $"Clan {clanId} \"{clan?.Name}\" was disbanded: its leader and only member, character {character.Id} ({character.Name} {familyName}), was deleted.");
+                };
+            }
+
+            ClanMemberEntry successor = null;
+
+            if (member.Rank == ClanRank.Leader)
+            {
+                successor = others.OrderByDescending(m => m.Rank).ThenBy(m => m.CharacterId).First();
+                unitOfWork.ClanMembers.UpdateRankByCharacterId(ClanRank.Leader, successor.CharacterId);
+            }
+
+            if (!unitOfWork.ClanMembers.DeleteClanMember(member))
+                throw new EntityNotFoundException(ClanMemberEntry.TableName, "character_id", character.Id);
+
+            return () =>
+            {
+                // What they have wagered stays at stake in the clan's feuds. They are not in the
+                // world to be told.
+                ClanFeuds.Instance.MemberRemoved(character.Id, clanId);
+
+                if (ClanMembers.TryGetValue(clanId, out var cached) && cached.IsValueCreated)
+                    cached.Value?.RemoveAll(m => m.CharacterId == character.Id);
+
+                // PlayerLeftClan takes the member out of each client's roster by itself.
+                CallMethodForOnlineMembers(clanId, (uint)SysEntity.ClientClanManagerId,
+                    new PlayerLeftClanPacket(character.Id, character.Name, familyName, clanId, false));
+
+                if (successor == null)
+                    return;
+
+                successor.Rank = ClanRank.Leader;
+                RegisterClanMember(clanId, successor);
+
+                var newLeader = GetMemberData(successor.CharacterId);
+
+                if (newLeader == null)
+                    return;
+
+                SendMemberData(newLeader);
+
+                var messageArgs = new Dictionary<string, string>
+                {
+                    { "leadername", $"{newLeader.CharacterName} {newLeader.FamilyName}" },
+                    { "clanname", clan?.Name ?? "" },
+                };
+
+                CallMethodForOnlineMembers(clanId, (uint)SysEntity.ClientClanManagerId,
+                    new DisplayClanMessagePacket((int)PlayerMessage.PmClanNewLeader, messageArgs));
+
+                Logger.WriteLog(LogType.Debug,
+                    $"Clan {clanId} \"{clan?.Name}\": leader {character.Id} ({character.Name} {familyName}) was deleted; {successor.CharacterId} ({newLeader.CharacterName} {newLeader.FamilyName}) leads it now.");
+            };
+        }
+
         internal void RemovePlayer(Client client)
         {
             // An invitation they never answered goes with them, so it cannot be answered by
@@ -1019,11 +1143,14 @@ namespace Rasa.Managers
             if (!TryResolveRankChange(client, client.Player.ClanId, packet.CharacterId, out var actor, out var member))
                 return;
 
-            // Only the leader promotes, and only into the rank below their own. Leadership moves
-            // through MakePlayerClanLeader, which hands it over; promoting into it would mint a
-            // second leader. This read the target's row and never the caller's, so a rank 0
-            // member could promote themselves 0 - 1 - 2 - 3 and own the clan.
-            if (actor.Rank != ClanRank.Leader || member.Rank >= ClanRank.Leader - 1)
+            // As the clan window offers it (ClanRank.MayPromote): the leader and the rank below
+            // them promote, a member at least two ranks under them, into a rank below their own
+            // and never into Leader, which MakePlayerClanLeader hands over - promoting into it
+            // would mint a second leader. The leader alone used to be allowed, so an officer who
+            // was offered Promote on a recruit was refused by the server for lack of permission.
+            // Before that this read the target's row and never the caller's, so a rank 0 member
+            // could promote themselves 0 - 1 - 2 - 3 and own the clan.
+            if (!ClanRank.MayPromote(actor.Rank, member.Rank))
             {
                 RefuseClanAction(client, PlayerMessage.PmClanInsufficientPermissions);
                 return;
@@ -1037,9 +1164,12 @@ namespace Rasa.Managers
             if (!TryResolveRankChange(client, client.Player.ClanId, packet.CharacterId, out var actor, out var member))
                 return;
 
-            // Same the other way: any member could demote the leader, and a clan with nobody at
-            // Leader can never be renamed, disbanded, or have its leadership handed on again.
-            if (actor.Rank != ClanRank.Leader || member.Rank <= ClanRank.Member)
+            // Same the other way (ClanRank.MayDemote): the leader and the rank below them demote
+            // a member under them, never below Member. Once any member could demote the leader,
+            // and a clan with nobody at Leader can never be renamed, disbanded, or have its
+            // leadership handed on again; then the leader alone could, and an officer offered
+            // Demote on a rank 1 member was refused.
+            if (!ClanRank.MayDemote(actor.Rank, member.Rank))
             {
                 RefuseClanAction(client, PlayerMessage.PmClanInsufficientPermissions);
                 return;
@@ -1109,7 +1239,7 @@ namespace Rasa.Managers
 
             if (target == null)
             {
-                RefuseClanAction(client, PlayerMessage.PmClanPlayerNotInClan);
+                RefuseClanAction(client, PlayerMessage.PmClanPlayerNotInClan, ClanNameArgs(client.Player.ClanId));
                 return false;
             }
 
@@ -1150,13 +1280,41 @@ namespace Rasa.Managers
         }
 
         /// <summary>Tells the client the clan window why nothing happened.</summary>
-        private static void RefuseClanAction(Client client, PlayerMessage reason)
+        /// <param name="args">
+        /// The text's substitutions, for a reason whose text takes any: the client formats the
+        /// text with them (clientlanguagemanager), and one sent without a value its text names
+        /// prints "Invalid substitutions ..." in place of the reason. Six refusals went out that
+        /// way: the two "not invited" and "not in clan", which name the clan, and the two PvP
+        /// cooldowns, which give the time left.
+        /// </param>
+        private static void RefuseClanAction(Client client, PlayerMessage reason, Dictionary<string, string> args = null)
         {
             Logger.WriteLog(LogType.Security,
                 $"{client.Player.FamilyName} (character {client.Player.Id}, clan {client.Player.ClanId}) was refused a clan action: {reason}.");
 
             client.CallMethod(SysEntity.ClientClanManagerId,
-                new DisplayClanMessagePacket((int)reason, new Dictionary<string, string>()));
+                new DisplayClanMessagePacket((int)reason, args ?? new Dictionary<string, string>()));
+        }
+
+        /// <summary>The "clanname" substitution PmClanNotInvited and PmClanPlayerNotInClan take; the name is empty for a clan that is gone.</summary>
+        private Dictionary<string, string> ClanNameArgs(uint clanId) =>
+            new Dictionary<string, string> { { "clanname", ClanNameOf(clanId) ?? "" } };
+
+        /// <summary>
+        /// The "days", "hours", "mins" and "secs" substitutions the two PvP-clan cooldown texts take,
+        /// for this many seconds left.
+        /// </summary>
+        private static Dictionary<string, string> CooldownArgs(uint remainingSeconds)
+        {
+            var remaining = TimeSpan.FromSeconds(remainingSeconds);
+
+            return new Dictionary<string, string>
+            {
+                { "days", remaining.Days.ToString() },
+                { "hours", remaining.Hours.ToString() },
+                { "mins", remaining.Minutes.ToString() },
+                { "secs", remaining.Seconds.ToString() },
+            };
         }
 
         /// <summary>
@@ -1298,10 +1456,15 @@ namespace Rasa.Managers
             {
                 CharacterEntry character = unitOfWork.Characters.Get(characterId);
 
-                // Verify the creator is not on PvP timeout: PmClanCannotCreateUserInPvpTimeout
-                if (character != null && PvPCooldownRemainingSeconds(character) > 0)
+                // Verify the creator is not on PvP timeout: "You cannot create a PvP enabled
+                // clan for another %(days)s days, %(hours)s hours, %(mins)s minutes, and
+                // %(secs)s seconds."
+                var remaining = character == null ? 0 : PvPCooldownRemainingSeconds(character);
+
+                if (remaining > 0)
                 {
-                    client.CallMethod(SysEntity.ClientClanManagerId, new DisplayClanMessagePacket((int)PlayerMessage.PmClanCannotCreateUserInPvpTimeout, new Dictionary<string, string>()));
+                    client.CallMethod(SysEntity.ClientClanManagerId,
+                        new DisplayClanMessagePacket((int)PlayerMessage.PmClanCannotCreateUserInPvpTimeout, CooldownArgs(remaining)));
                     return false;
                 }
             }

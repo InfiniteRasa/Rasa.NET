@@ -225,12 +225,17 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.AreEqual(7906U, (uint)first.EntityClassId);
             Assert.AreEqual(UseObjectState.IdesStateIntact, first.StateId);
 
+            harness.Drain();
             Hit(harness, first, 99);
             Assert.AreEqual(1U, first.CurrentHitPoints);
+            CollectionAssert.AreEqual(new[] { UseObjectState.IdesState50pHealth, UseObjectState.IdesState25pHealth },
+                harness.Drain().OfType<UsePacket>().Select(use => use.CurState).ToArray(), "1 of 100: down to 25%, a state at a time");
             Assert.AreEqual(0U, harness.Client.Player.Missions[432].Objectives[1].Counters[0],
                 "A damaged but surviving harvester must not count as destroyed.");
             Hit(harness, first, 1);
             Assert.AreEqual(0U, first.CurrentHitPoints);
+            Assert.AreEqual(UseObjectState.StateDestroyed, harness.Drain().OfType<UsePacket>().Single().CurState,
+                "25% to destroyed: vfx_arch_bane_gen_obj_gasharvester_explode.pkg, then the wreck");
             Assert.AreEqual(1U, harness.Client.Player.Missions[432].Objectives[1].Counters[0]);
             Assert.AreEqual(UseObjectState.StateDestroyed, first.StateId);
             Assert.IsFalse(first.IsEnabled);

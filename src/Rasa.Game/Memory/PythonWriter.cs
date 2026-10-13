@@ -58,10 +58,10 @@ namespace Rasa.Memory
         /// whatever that happens to mean.
         ///
         /// Negatives now take the four byte form. The narrow escapes are left to positive values
-        /// on purpose: this reader takes 0x1D as an unsigned byte and 0x1E as a signed short, and
-        /// nothing in the client tells us which of those the game's own unmarshaller does. The
-        /// four byte form is the one both readings agree on, and three bytes is not worth a guess
-        /// about an encoding we cannot check.
+        /// on purpose: the client's marshaller puts -128..-1 in the one byte form (see
+        /// PythonReader.ReadInt), so its unmarshaller very likely reads that byte signed too, but
+        /// the four byte form is right whichever way it reads, and three bytes is not worth the
+        /// assumption.
         /// </summary>
         public void WriteInt(int value)
         {

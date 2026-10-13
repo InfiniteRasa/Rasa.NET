@@ -135,7 +135,7 @@ namespace Rasa.Test.Missions
         [TestMethod]
         public void AWeaponHitOnAnImmuneCreatureShowsImmuneAsItLands()
         {
-            using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true);
+            using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true, worldMigration: BootcampCaveInBreachTests.BridgeThraxStood);
             SpawnPoolManager.Instance.SpawnPoolWorker(harness.BootcampMap, 0);
             var thrax = harness.BootcampMap.MapCellInfo.Cells.Values
                 .SelectMany(cell => cell.CreatureList).First(creature => creature.DbId == 510216);

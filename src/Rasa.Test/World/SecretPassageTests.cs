@@ -15,6 +15,7 @@ namespace Rasa.Test.World
     using Rasa.Models;
     using Rasa.Navigation;
     using Rasa.Packets;
+    using Rasa.Packets.ClientMethod.Server;
     using Rasa.Packets.Game.Server;
     using Rasa.Packets.MapChannel.Client;
     using Rasa.Packets.MapChannel.Server;
@@ -50,13 +51,13 @@ namespace Rasa.Test.World
         }
 
         /// <summary>The object manager the Alia Caverns passages travel by, saving nothing but counting what it would.</summary>
-        private static DynamicObjectManager Travel(WorldTestContext world, Action saved = null)
+        private static DynamicObjectManager Travel(WorldTestContext world, Action saved = null, Func<long> clock = null)
         {
             var manager = WaypointTravelTests.CreateManager(world, (_, update, _) =>
             {
                 if (update == CharacterUpdate.Position)
                     saved?.Invoke();
-            });
+            }, clock);
 
             SecretPassages.Travel = manager;
 
@@ -205,7 +206,8 @@ namespace Rasa.Test.World
             world.Map.NavMesh = WildernessNavMesh();
 
             var saved = 0;
-            var manager = Travel(world, () => saved++);
+            var now = 1000L;
+            var manager = Travel(world, () => saved++, () => now);
             var client = world.CreateClient();
             var player = client.Player;
 
@@ -220,8 +222,27 @@ namespace Rasa.Test.World
             Assert.AreEqual(new Vector3(835f, 286.2f, 736f), player.Position);
             Assert.AreEqual(ClientState.Ingame, client.State);
 
-            // Up to the niche: taken, as a waypoint takes them.
+            // Up to the niche: the teleport-out effect, where they stand, held there while it plays.
             Assert.IsTrue(client.HandleMovement(new Movement(new Vector3(835f, 286.2f, 737.5f), Vector2.Zero)));
+            Assert.AreEqual(new Vector3(835f, 286.2f, 737.5f), player.Position);
+            Assert.AreEqual(ClientState.Ingame, client.State);
+            Assert.IsNotNull(client.PendingTransfer);
+
+            var held = Methods(client);
+            Assert.IsTrue(held.Any(packet => packet is RequestMovementBlockPacket), "not held where they stand");
+            Assert.IsTrue(held.Any(packet => packet is PreTeleportPacket), "no teleport effect where they stood");
+            Assert.IsFalse(held.Any(packet => packet is TeleportPacket || packet is BeginTeleportPacket), "moved before the effect has played");
+
+            // A step while it plays is not taken, and nor is the passage again.
+            Assert.IsFalse(client.HandleMovement(new Movement(new Vector3(835f, 286.2f, 737f), Vector2.Zero)));
+            manager.PassagesWorker(world.Map);
+            now += DynamicObjectManager.PassageHoldMs - 1;
+            manager.PassagesWorker(world.Map);
+            Assert.AreEqual(new Vector3(835f, 286.2f, 737.5f), player.Position, "moved before the effect has played");
+
+            // Then taken, as a waypoint takes them.
+            now++;
+            manager.PassagesWorker(world.Map);
             Assert.AreEqual(SecretPassages.AliaCavernsDoor.Destination, player.Position);
             Assert.AreEqual(MathF.PI, (float)player.Rotation, 1e-4f);
             Assert.AreEqual(ClientState.Teleporting, client.State);
@@ -229,13 +250,12 @@ namespace Rasa.Test.World
             Assert.AreEqual(CenterCell(SecretPassages.AliaCavernsDoor.Destination), player.Cells[2, 2], "the player still sees the cave's cells");
 
             var sent = Methods(client);
-            var pre = sent.FindIndex(packet => packet is PreTeleportPacket);
             var begin = sent.FindIndex(packet => packet is BeginTeleportPacket);
             var teleport = sent.FindIndex(packet => packet is TeleportPacket);
 
-            Assert.IsTrue(pre >= 0, "no teleport effect where they stood");
-            Assert.IsTrue(begin > pre && teleport > begin, "PreTeleport, BeginTeleport, Teleport: the order the client answers");
+            Assert.IsTrue(begin >= 0 && teleport > begin, "BeginTeleport, Teleport: the order the client answers");
             Assert.AreEqual(SecretPassages.AliaCavernsDoor.Destination, ((TeleportPacket)sent[teleport]).Position);
+            Assert.IsFalse(sent.Any(packet => packet is PreTeleportPacket), "the effect played twice");
             Assert.IsFalse(sent.Any(packet => packet is TeleportArrivalPacket), "arrived before the client answered");
 
             // Held until the client answers: a step sent meanwhile is not taken.
@@ -248,7 +268,8 @@ namespace Rasa.Test.World
             Assert.AreEqual(ClientState.Ingame, client.State);
             Assert.IsNull(client.PendingTransfer);
             Assert.AreEqual(1, saved);
-            Assert.IsTrue(Methods(client).Any(packet => packet is TeleportArrivalPacket), "no teleport effect where they arrived");
+            Assert.IsFalse(Methods(client).Any(packet => packet is TeleportArrivalPacket),
+                "their own client plays the arrival when the Teleport's delay is up; one sent back can beat it and stop it resetting");
 
             // To the logos and back down the corridor, as ordinary steps.
             player.MoveBudget = 60;
@@ -257,13 +278,16 @@ namespace Rasa.Test.World
             Assert.IsTrue(client.HandleMovement(new Movement(new Vector3(832f, 160.1f, 923.5f), Vector2.Zero)));
             Assert.AreEqual(new Vector3(832f, 160.1f, 923.5f), player.Position);
 
-            // Up to the shrine's own alcove: back to the cave.
+            // Up to the shrine's own alcove: back to the cave, once its effect has played.
             Assert.IsTrue(client.HandleMovement(new Movement(new Vector3(832f, 160.1f, 921.5f), Vector2.Zero)));
+            Assert.IsTrue(Methods(client).Any(packet => packet is PreTeleportPacket));
+            now += DynamicObjectManager.PassageHoldMs;
+            manager.PassagesWorker(world.Map);
             Assert.AreEqual(SecretPassages.EnhanceShrineExit.Destination, player.Position);
             Assert.AreEqual(0f, (float)player.Rotation, 1e-4f);
             Assert.AreEqual(ClientState.Teleporting, client.State);
             Assert.AreEqual(CenterCell(SecretPassages.EnhanceShrineExit.Destination), player.Cells[2, 2], "the player still sees the shrine's cells");
-            Assert.IsTrue(Methods(client).Any(packet => packet is PreTeleportPacket));
+            Assert.IsTrue(Methods(client).Any(packet => packet is TeleportPacket));
 
             manager.TeleportAcknowledge(client);
 
@@ -296,6 +320,124 @@ namespace Rasa.Test.World
             Assert.AreEqual(ClientState.Ingame, client.State);
             Assert.IsNull(client.PendingTransfer);
             Assert.AreEqual(0, WorldTestContext.Drain(client).Count);
+        }
+
+        [TestMethod]
+        public void TheTeleportOutIsSeenWhereTheyStoodAndTheArrivalWhereTheyArrive()
+        {
+            using var world = new WorldTestContext();
+
+            var now = 1000L;
+            var manager = Travel(world, clock: () => now);
+            var client = world.CreateClient();
+            var player = client.Player;
+            var atTheCave = world.CreateClient();
+            var atTheShrine = world.CreateClient();
+
+            player.PlaceAt(new Vector3(835f, 286.2f, 736f));
+            atTheCave.Player.PlaceAt(new Vector3(835f, 286.2f, 730f));
+            atTheShrine.Player.PlaceAt(new Vector3(832f, 160.1f, 935f));
+
+            foreach (var each in new[] { client, atTheCave, atTheShrine })
+                CellManager.Instance.AddToWorld(each);
+            foreach (var each in new[] { client, atTheCave, atTheShrine })
+                WorldTestContext.Drain(each);
+
+            Assert.IsTrue(manager.TakePassage(client, SecretPassages.AliaCavernsDoor.Destination, SecretPassages.AliaCavernsDoor.Rotation));
+
+            Assert.IsTrue(Methods(atTheCave).Any(packet => packet is PreTeleportPacket), "the cave does not see them go");
+            Assert.IsFalse(Methods(atTheShrine).Any(packet => packet is PreTeleportPacket), "the shrine sees them go");
+
+            now += DynamicObjectManager.PassageHoldMs;
+            manager.PassagesWorker(world.Map);
+            WorldTestContext.Drain(atTheShrine);
+            manager.TeleportAcknowledge(client);
+
+            Assert.IsTrue(Methods(atTheShrine).Any(packet => packet is TeleportArrivalPacket), "the shrine does not see them arrive");
+            Assert.IsFalse(Methods(client).Any(packet => packet is TeleportArrivalPacket));
+            Assert.AreEqual(ClientState.Ingame, client.State);
+        }
+
+        [TestMethod]
+        public void APlayerWhoDiesInTheEffectIsLetGoWhereTheyStand()
+        {
+            using var world = new WorldTestContext();
+
+            var now = 1000L;
+            var manager = Travel(world, clock: () => now);
+            var client = world.CreateClient();
+            var player = client.Player;
+            var watching = world.CreateClient();
+
+            player.PlaceAt(new Vector3(835f, 286.2f, 736f));
+            watching.Player.PlaceAt(new Vector3(835f, 286.2f, 730f));
+            CellManager.Instance.AddToWorld(client);
+            CellManager.Instance.AddToWorld(watching);
+
+            Assert.IsTrue(manager.TakePassage(client, SecretPassages.AliaCavernsDoor.Destination, SecretPassages.AliaCavernsDoor.Rotation));
+            Assert.IsFalse(manager.TakePassage(client, SecretPassages.AliaCavernsDoor.Destination, SecretPassages.AliaCavernsDoor.Rotation), "taken twice");
+            WorldTestContext.Drain(client);
+            WorldTestContext.Drain(watching);
+
+            player.State = CharacterState.Dead;
+            now += DynamicObjectManager.PassageHoldMs;
+            manager.PassagesWorker(world.Map);
+
+            Assert.AreEqual(new Vector3(835f, 286.2f, 736f), player.Position);
+            Assert.IsNull(client.PendingTransfer);
+            Assert.AreEqual(ClientState.Ingame, client.State);
+
+            var sent = Methods(client);
+            Assert.IsTrue(sent.Any(packet => packet is TeleportFailedPacket), "the effect is not stopped");
+            Assert.IsTrue(sent.Any(packet => packet is UnrequestMovementBlockPacket), "still held");
+            Assert.IsFalse(sent.Any(packet => packet is TeleportPacket));
+            Assert.IsTrue(Methods(watching).Any(packet => packet is TeleportFailedPacket), "the effect is not stopped for those who saw it start");
+        }
+
+        // The client finishes a Teleport by where the body is when the Teleport's delay is up
+        // (actor.py _TelportMovementCompleted: the camera put behind the body, the area round it
+        // loaded, the arrival played), and only the MoveObject moves the body. Sent after the
+        // Teleport with 5 ms, the teleport finished where the player had stood: their view stayed
+        // in the cave, the alcove went as their cells changed, and the shrine came with their
+        // next step.
+        [TestMethod]
+        public void TheBodyIsMovedBeforeTheTeleportAndTheTeleportWaitsForIt()
+        {
+            using var world = new WorldTestContext();
+
+            world.Map.NavMesh = WildernessNavMesh();
+
+            var now = 1000L;
+            var manager = Travel(world, () => { }, () => now);
+            var client = world.CreateClient();
+            var player = client.Player;
+
+            CellManager.Instance.AddToWorld(client);
+            player.PlaceAt(new Vector3(835f, 286.2f, 736f));
+            player.MoveBudget = 60;
+            WorldTestContext.Drain(client);
+
+            Assert.IsTrue(client.HandleMovement(new Movement(new Vector3(835f, 286.2f, 737.5f), Vector2.Zero)));
+            Assert.IsNotNull(client.PendingTransfer);
+            WorldTestContext.Drain(client);
+
+            now += DynamicObjectManager.PassageHoldMs;
+            manager.PassagesWorker(world.Map);
+            Assert.AreEqual(ClientState.Teleporting, client.State);
+
+            var sent = WorldTestContext.Drain(client).Select(packet => packet.Message).ToList();
+            var moved = sent.FindIndex(message => message is MoveObjectMessage move && move.EntityId == player.EntityId);
+            var teleport = sent.FindIndex(message => message is CallMethodMessage call && call.Packet is TeleportPacket);
+            var begin = sent.FindIndex(message => message is CallMethodMessage call && call.Packet is BeginTeleportPacket);
+
+            Assert.IsTrue(moved >= 0, "the body is moved");
+            Assert.IsTrue(teleport >= 0 && begin >= 0, "the teleport is sent");
+            Assert.IsTrue(moved < begin && begin < teleport, "the body first, then BeginTeleport, then the Teleport");
+            Assert.AreEqual(SecretPassages.AliaCavernsDoor.Destination, ((MoveObjectMessage)sent[moved]).Movement.Position);
+
+            var packet = (TeleportPacket)((CallMethodMessage)sent[teleport]).Packet;
+            Assert.AreEqual(DynamicObjectManager.TeleportDelayMs, packet.Delay, "the client is given time to move the body first");
+            Assert.IsTrue(packet.Delay >= 200, "a few frames on a slow client");
         }
 
         private static void AssertNear(Vector3 expected, Vector3 actual, float tolerance, string what)
@@ -434,7 +576,8 @@ namespace Rasa.Test.World
 
             // A class the world data marks targetable would still be sent as not: scenery is never a target.
             world.AddClass(SecretPassages.ElohAlcove);
-            Travel(world);
+            var now = 1000L;
+            var manager = Travel(world, clock: () => now);
 
             DynamicObject plain = null;
 
@@ -488,6 +631,8 @@ namespace Rasa.Test.World
                 // Up to the alcove: the shrine's is there on arrival, turned about, and the cave's is gone.
                 player.MoveBudget = 60;
                 Assert.IsTrue(client.HandleMovement(new Movement(new Vector3(835f, 286.2f, 737f), Vector2.Zero)));
+                now += DynamicObjectManager.PassageHoldMs;
+                manager.PassagesWorker(world.Map);
                 Assert.AreEqual(SecretPassages.AliaCavernsDoor.Destination, player.Position);
 
                 seen = Methods(client);

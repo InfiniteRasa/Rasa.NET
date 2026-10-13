@@ -107,15 +107,50 @@ namespace Rasa.Repositories.Auth.Account
             return entry;
         }
 
+        /// <summary>
+        /// Writes the account's new hash, and makes sure it is the one stored. Throws a
+        /// DbUpdateException, with the old hash left in place, when it could not be.
+        ///
+        /// A MySql account.password still varchar(64) (from before 20261001000000_Widen_password_hash)
+        /// cannot hold a hash in the current format (87 characters). In strict mode the UPDATE
+        /// fails, and the entry used to stay Modified on this context: the next SaveChanges,
+        /// UpdateLoginData's on the same login, sent it again and failed with it. Out of strict
+        /// mode the server cut the hash to 64 characters without an error, and from then on no
+        /// password matched it: the account could log in once more and never again.
+        /// </summary>
         private string Rehash(uint id, string password, string salt)
         {
             var hashed = PasswordHasher.Create(password ?? string.Empty, salt, _passwordHashSettings);
             var writable = _dbContext.GetWritableEnsuring(_dbContext.AuthAccountEntries, id);
+            var tracked = _dbContext.Entry(writable);
+            var previous = writable.Password;
 
             writable.Password = hashed;
+
+            try
+            {
+                _dbContext.SaveChanges();
+            }
+            catch (DbUpdateException)
+            {
+                // Back as it was read, so the next SaveChanges does not send it again.
+                writable.Password = previous;
+                tracked.State = EntityState.Unchanged;
+                throw;
+            }
+
+            var stored = _dbContext.AuthAccountEntries.AsNoTracking().Where(e => e.Id == id).Select(e => e.Password).FirstOrDefault();
+
+            if (stored == hashed)
+                return hashed;
+
+            // Not what was written: cut down by a column too narrow for it. The old hash fits
+            // where it came from, and still verifies.
+            writable.Password = previous;
             _dbContext.SaveChanges();
 
-            return hashed;
+            throw new DbUpdateException($"account.password kept {stored?.Length ?? 0} of the new hash's {hashed.Length} characters; " +
+                                        "the column is narrower than varchar(255) (migration 20261001000000_Widen_password_hash), so the old hash stays");
         }
 
         public void UpdateLoginData(uint id, IPAddress remoteAddress)

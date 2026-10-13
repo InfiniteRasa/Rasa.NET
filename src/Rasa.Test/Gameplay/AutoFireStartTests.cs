@@ -1,4 +1,4 @@
-extern alias RasaGame;
+﻿extern alias RasaGame;
 
 using System;
 using System.Linq;
@@ -32,9 +32,10 @@ namespace Rasa.Test.Gameplay
         [TestInitialize]
         public void Initialize()
         {
-            // As shipped: a shot at a target out of the weapon's reach is refused.
+            // A shot at a target out of the weapon's reach is refused: logged only as shipped
+            // (BR-163), but a server can choose to refuse it, and the fire must carry on.
             _previous = WeaponChecks.Config;
-            WeaponChecks.Config = new WeaponChecksConfig();
+            WeaponChecks.Config = new WeaponChecksConfig { Range = "refuse" };
         }
 
         [TestCleanup]
@@ -354,6 +355,69 @@ namespace Rasa.Test.Gameplay
 
             Tick(manager, context, 20);
             Assert.AreEqual(7u, context.Weapon.CurrentAmmo);
+        }
+
+        [TestMethod]
+        public void TheTickThatFindsAShotDueIsNotChargedToTheNextShot()
+        {
+            using var context = new WeaponAmmoContext();
+            var manager = new ManifestationManager(context);
+
+            // A refire that is not a whole number of ticks.
+            context.Weapon.ItemTemplate.WeaponInfo.Refire = 350;
+
+            Press(manager, context);
+            Assert.AreEqual(1, Shots(context));
+
+            Tick(manager, context, 3);
+            Assert.AreEqual(1, Shots(context), "300 ms: not yet");
+
+            Tick(manager, context);
+            Assert.AreEqual(2, Shots(context), "the second at 400 ms, the first tick past 350");
+
+            Tick(manager, context, 2);
+            Assert.AreEqual(2, Shots(context), "600 ms: not yet");
+
+            // 350 after the second came due, not 400 after the tick that fired it.
+            Tick(manager, context);
+            Assert.AreEqual(3, Shots(context), "the third at 700 ms, not 800");
+
+            Tick(manager, context, 3);
+            Assert.AreEqual(3, Shots(context), "1,000 ms: not yet");
+
+            Tick(manager, context);
+            Assert.AreEqual(4, Shots(context), "the fourth at 1,100 ms: the weapon's 350, not the grid's 400");
+        }
+
+        [TestMethod]
+        public void AReloadInTheMiddleOfAHeldFireIsFollowedByAShotAsSoonAsItIsOver()
+        {
+            using var context = new WeaponAmmoContext(clip: 1);
+            var manager = new ManifestationManager(context);
+            context.AddAmmo(30);
+
+            Press(manager, context);
+            Assert.AreEqual(1, Shots(context));
+            Assert.AreEqual(0u, context.Weapon.CurrentAmmo);
+
+            // The refire comes up on an empty clip: a reload is asked for in place of the shot.
+            Tick(manager, context, 8);
+
+            var reload = context.World.Map.PerformRecovery.Single(action => action.ActionId == ActionId.WeaponReload);
+
+            Assert.AreEqual(1, Shots(context));
+            Assert.AreEqual(1500, reload.WaitTime);
+
+            // The reload ends with the queue pass of its 15th tick, the one that asked for it
+            // included; the walk of that tick found the clip still empty.
+            Tick(manager, context, 14);
+            Assert.AreEqual(20u, context.Weapon.CurrentAmmo, "reloaded");
+            Assert.AreEqual(1, Shots(context));
+
+            // The walk after it fires - not a whole refire after the reload was asked for.
+            Tick(manager, context);
+            Assert.AreEqual(2, Shots(context), "fired the tick after the reload ended");
+            Assert.AreEqual(19u, context.Weapon.CurrentAmmo);
         }
 
         private const long TickMs = 100;

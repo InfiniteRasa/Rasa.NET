@@ -132,6 +132,57 @@ namespace Rasa.Test.Missions
             Assert.AreEqual("Running", effects.Single(effect => effect.OperationKey == "mcallister-departure").Status);
         }
 
+        // A character whose Proving Grounds experience ran before Place_bootcamp_base_npcs took
+        // Gearing Up's practice dummies out of it: its run still had their effects, and applying
+        // one looked up a binding that was gone. The login threw and the player was disconnected.
+        [TestMethod]
+        public void AnEffectNamingAnActorTheSceneNoLongerHasIsCancelledAndTheLoginGoesOn()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true);
+            harness.SeedMission(harness.Client.Player.Id, 1992, (uint)MissionState.Active, false);
+            harness.Manager.Scenes.StageExperience(harness.Client.Player.Id, harness.BootcampMap);
+
+            string runId;
+            using (var unit = harness.Context.CreateChar())
+            {
+                var scene = unit.CharacterMissions.Runtime.Scenes(harness.Client.Player.Id, 0).Single();
+                runId = scene.RunId;
+                unit.ExecuteTransaction(() =>
+                {
+                    unit.CharacterMissions.Runtime.Add(new Rasa.Structures.Char.MissionWorldEffectEntry
+                    {
+                        RunId = scene.RunId,
+                        Generation = scene.Generation,
+                        OperationKey = "ensure-practice-1",
+                        Payload = System.Text.Json.JsonSerializer.Serialize<Rasa.Missions.Scenes.WorldIntent>(
+                            new Rasa.Missions.Scenes.EnsureActorIntent("ensure-practice-1", "practice-1")),
+                        Status = "Applied"
+                    });
+                    unit.CharacterMissions.Runtime.Add(new Rasa.Structures.Char.MissionWorldEffectEntry
+                    {
+                        RunId = scene.RunId,
+                        Generation = scene.Generation,
+                        OperationKey = "practice-1-route",
+                        Payload = System.Text.Json.JsonSerializer.Serialize<Rasa.Missions.Scenes.WorldIntent>(
+                            new Rasa.Missions.Scenes.RunRouteIntent("practice-1-route", "mcallister", "no-such-route")),
+                        Status = "Pending"
+                    });
+                });
+            }
+
+            harness.Manager.Scenes.Rebuild(harness.Client.Player.Id, harness.BootcampMap);
+
+            using var verify = harness.Context.CreateChar();
+            var effects = verify.CharacterMissions.Runtime.Effects(runId);
+            var gone = effects.Single(effect => effect.OperationKey == "ensure-practice-1");
+            Assert.AreEqual("Cancelled", gone.Status);
+            StringAssert.Contains(gone.Failure, "actor role practice-1");
+            var route = effects.Single(effect => effect.OperationKey == "practice-1-route");
+            Assert.AreEqual("Cancelled", route.Status);
+            StringAssert.Contains(route.Failure, "route no-such-route");
+            Assert.AreNotEqual("Cancelled", effects.Single(effect => effect.OperationKey == "ensure-mcallister").Status, "the rest of the scene stands");
+        }
+
         [TestMethod]
         [DataRow("missing-pool")]
         [DataRow("missing-creature")]

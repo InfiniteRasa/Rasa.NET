@@ -237,9 +237,8 @@ namespace Rasa.Managers
         /// <summary>A finished job for the player at the station: something to take, made when it is taken.</summary>
         private void Produce(Client client, DynamicObject station, ItemTemplate result, uint count, uint page, uint qualityId)
         {
-            JobsForWriting(client, station).Add(new CraftingJob
+            var job = new CraftingJob
             {
-                ResultItemId = _nextJobId++,
                 ResultClassId = (uint)result.Class,
                 ResultItemTemplateId = result.ItemTemplateId,
                 Count = count,
@@ -247,7 +246,10 @@ namespace Rasa.Managers
                 QualityId = qualityId,
                 FinishTick = Environment.TickCount64,
                 FinishReported = true
-            });
+            };
+
+            Persist(client, station, job);
+            JobsForWriting(client, station).Add(job);
         }
 
         private void Succeed(Client client, DynamicObject station)

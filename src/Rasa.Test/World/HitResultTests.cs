@@ -177,8 +177,7 @@ namespace Rasa.Test.World
             Assert.IsTrue(sent.Where(packet => packet.EffectTypeId != 131).All(packet => packet.Announced), "each as it was");
             Assert.IsFalse(sent.Single(packet => packet.EffectTypeId == 131).Announced);
 
-            // A player struck is never left to a second packet, and a hit with no list names nothing.
-            Assert.IsNull(HitEffects.On(other.Player, shooter.Player, named));
+            // A hit with no list names nothing, and one by nobody is no hit.
             Assert.IsNull(HitEffects.On(creature, shooter.Player, null));
             Assert.IsNull(HitEffects.On(creature, null, named));
         }
@@ -258,24 +257,177 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
-        public void AnElectricCritsArcAnnouncesItselfAndAHitThatIsNoCritNamesNothing()
+        public void AnElectricCritsArcIsNamedInItsHitAndDrawnOnceTheHitHasPlayed()
+        {
+            using var world = new WorldTestContext();
+            var shooter = Watch(world, 0);
+            var creature = Spawn(world, new Vector3(0, 0, -5));
+            var bystander = Spawn(world, new Vector3(3, 0, -5));
+
+            Shoot(world, shooter, creature, DamageType.Electrical, critChance: 100);
+
+            var sent = Sent(shooter);
+            Assert.IsFalse(sent.OfType<GameEffectAttachedPacket>().Single(packet => packet.EffectTypeId == CritEffects.CritElectricTypeId).Announced);
+            CollectionAssert.AreEqual(new[] { (uint)CritEffects.CritElectricTypeId },
+                sent.OfType<WeaponAttackRecovery>().Single().Missile.Args.HitData.Single().TargetEffectIds);
+
+            // Its FX is not there until the hit is played: nothing is drawn, nobody else is hurt.
+            Assert.IsEmpty(sent.OfType<GameEffectTickPacket>().ToArray());
+            Assert.IsEmpty(sent.OfType<GameEffectAnnounceDamagePacket>().ToArray());
+            Assert.AreEqual(10000, bystander.Attributes[Attributes.Health].Current);
+
+            var arc = creature.ActiveEffects.Values.Single(effect => effect.TypeId == CritEffects.CritElectricTypeId);
+            Assert.AreEqual(CritEffects.ArcMarginMs, arc.TickIntervalMs, "a shot the server did not time is played as it arrives");
+            Assert.IsTrue(arc.ExpiresTick > arc.NextTickTick, "and it stays on past its arcs");
+
+            // Its tick: the arcs, then their numbers - once.
+            arc.NextTickTick = Environment.TickCount64;
+            GameEffectManager.Instance.DoWork(world.Map, 100);
+
+            sent = Sent(shooter);
+            Assert.AreEqual(bystander.EntityId, sent.OfType<GameEffectTickPacket>().Single().Entries.Single().EntityId);
+            Assert.AreEqual(bystander.EntityId, sent.OfType<GameEffectAnnounceDamagePacket>().Single().Hits.Single().EntityId);
+            Assert.IsLessThan(10000, bystander.Attributes[Attributes.Health].Current);
+
+            GameEffectManager.Instance.DoWork(world.Map, 100);
+            Assert.IsEmpty(Sent(shooter).OfType<GameEffectTickPacket>().ToArray());
+
+            // A hit with a flight waits for it; with no hit open, the arcs go at once, as they did.
+            var timed = new List<uint>();
+
+            using (HitEffects.On(bystander, shooter.Player, timed, 400))
+                CritEffects.Arc(world.Map, bystander, shooter.Player, 100);
+
+            Assert.AreEqual(400 + CritEffects.ArcMarginMs, bystander.ActiveEffects.Values.Single(effect => effect.TypeId == CritEffects.CritElectricTypeId).TickIntervalMs);
+            CollectionAssert.AreEqual(new[] { (uint)CritEffects.CritElectricTypeId }, timed);
+            Sent(shooter);
+
+            CritEffects.Arc(world.Map, creature, shooter.Player, 100);
+
+            sent = Sent(shooter);
+            Assert.IsTrue(sent.OfType<GameEffectAttachedPacket>().Single().Announced);
+            Assert.AreEqual(bystander.EntityId, sent.OfType<GameEffectTickPacket>().Single().Entries.Single().EntityId);
+        }
+
+        [TestMethod]
+        public void AShotsFlightIsHowLongItsArcWaits()
+        {
+            using var world = new WorldTestContext();
+            var shooter = Watch(world, 0);
+            var creature = Spawn(world, new Vector3(0, 0, -7));
+
+            // 7 m at 70 m/s.
+            Shoot(world, shooter, creature, DamageType.Electrical, critChance: 100, flightVelocity: 70);
+
+            Assert.AreEqual(100 + CritEffects.ArcMarginMs,
+                creature.ActiveEffects.Values.Single(effect => effect.TypeId == CritEffects.CritElectricTypeId).TickIntervalMs);
+        }
+
+        [TestMethod]
+        public void AHitThatIsNoCritNamesNothing()
         {
             using var world = new WorldTestContext();
             var shooter = Watch(world, 0);
             var creature = Spawn(world, new Vector3(0, 0, -5));
 
-            // The arc's tick draws from the effect's FX straight away: it cannot wait for the hit.
-            Shoot(world, shooter, creature, DamageType.Electrical, critChance: 100);
-
-            var sent = Sent(shooter);
-            Assert.IsTrue(sent.OfType<GameEffectAttachedPacket>().Single(packet => packet.EffectTypeId == CritEffects.CritElectricTypeId).Announced);
-            Assert.IsEmpty(sent.OfType<WeaponAttackRecovery>().Single().Missile.Args.HitData.Single().TargetEffectIds);
-
             Shoot(world, shooter, creature, DamageType.Fire, critChance: 0);
 
-            sent = Sent(shooter);
+            var sent = Sent(shooter);
             Assert.IsEmpty(sent.OfType<GameEffectAttachedPacket>().ToArray());
             Assert.IsEmpty(sent.OfType<WeaponAttackRecovery>().Single().Missile.Args.HitData.Single().TargetEffectIds);
+        }
+
+        [TestMethod]
+        public void OnAPlayerStruckTheHitNamesItsDebuffsButNotWhatHoldsThem()
+        {
+            using var world = new WorldTestContext();
+            var shooter = Watch(world, 0);
+            var struck = Watch(world, 1);
+            var named = new List<uint>();
+
+            using (HitEffects.On(struck.Player, shooter.Player, named))
+            {
+                CritEffects.Burn(world.Map, struck.Player, shooter.Player, 100);
+                CrowdControl.Slow(world.Map, struck.Player, shooter.Player, CrowdControl.CritVirulentTypeId, CrowdControl.VirulentCrippleSlowPercent, CrowdControl.VirulentCrippleMs, "snareMod");
+                Assert.IsTrue(PlayerCrowdControl.Stun(world.Map, struck.Player, shooter.Player, 1000));
+                PlayerCrowdControl.Root(world.Map, struck.Player, shooter.Player, CrowdControl.NetGunRootTypeId, 1000);
+            }
+
+            CollectionAssert.AreEqual(new[] { CritFire, 10000018u }, named, "the burn and the cripple wait for the hit");
+
+            var sent = Attaches(struck);
+            Assert.IsFalse(sent.Single(packet => packet.EffectTypeId == CritEffects.CritFireTypeId).Announced);
+            Assert.IsFalse(sent.Single(packet => packet.EffectTypeId == CrowdControl.CritVirulentTypeId).Announced);
+            Assert.IsTrue(sent.Single(packet => packet.EffectTypeId == Stuns.StunTypeId).Announced, "a stun stops their client at once");
+            Assert.IsTrue(sent.Single(packet => packet.EffectTypeId == CrowdControl.NetGunRootTypeId).Announced, "and so does a root");
+        }
+
+        [TestMethod]
+        public void AnAbilitysCritIsAnnouncedByItsHit()
+        {
+            using var world = new WorldTestContext();
+            var shooter = Watch(world, 0);
+            var creature = Spawn(world, new Vector3(0, 0, -5));
+            var info = new ActionLevelInfo { ActionId = ActionId.AaRecruitLightning, Level = 1, MaxRange = 20 };
+            info.Properties[AbilityProperty.DamageAmountMin] = 100;
+            info.Properties[AbilityProperty.DamageAmountMax] = 100;
+            info.Properties[AbilityProperty.DamageType] = (int)DamageType.Fire;
+            var action = new ActionInfo { ActionId = ActionId.AaRecruitLightning, Module = "abilities.damagebase" };
+            action.Levels[1] = info;
+
+            AlwaysCrit(world, shooter);
+            BootcampRuntimeTestHarness.InvokeResolveDirectDamage(Abilities(), world.Map, shooter, action, info,
+                new ActionData(shooter.Player, ActionId.AaRecruitLightning, 1, 0) { TargetId = creature.EntityId });
+
+            var sent = Sent(shooter);
+            Assert.IsFalse(sent.OfType<GameEffectAttachedPacket>().Single(packet => packet.EffectTypeId == CritEffects.CritFireTypeId).Announced);
+
+            var recovery = sent.OfType<AbilityRecoveryPacket>().Single();
+            var hit = recovery.Hits.Single();
+            Assert.IsTrue(hit.IsCritical);
+            CollectionAssert.AreEqual(new[] { CritFire }, hit.TargetEffectIds);
+
+            // hitdata[0] = (rawInfo, onHitData), as DamageBase.DoAbility takes it.
+            var raw = (List<object>)((List<object>)((List<object>)Decode(recovery)[5])[0])[0];
+            CollectionAssert.AreEqual(new object[] { 2L }, (List<object>)raw[10]);
+        }
+
+        [TestMethod]
+        public void ABlastsCritIsAnnouncedByTheBlast()
+        {
+            using var world = new WorldTestContext();
+            var shooter = Watch(world, 0);
+            var creature = Spawn(world, new Vector3(0, 0, -5));
+            var bomb = new GameEffect
+            {
+                TypeId = 207,
+                EffectId = GameEffectManager.Instance.NextEffectId(world.Map),
+                EffectLevel = 1,
+                SourceId = shooter.Player.EntityId,
+                Source = shooter.Player,
+                SourceLevel = 1,
+                TickDamageMin = 100,
+                TickDamageMax = 100,
+                TickDamageType = DamageType.EMP,
+                TickRadius = 10,
+                ExpiresTick = Environment.TickCount64 + 5000
+            };
+
+            AlwaysCrit(world, shooter);
+            typeof(AbilityManager).GetMethod("Detonate", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic,
+                    null, new[] { typeof(MapChannel), typeof(Actor), typeof(GameEffect) }, null)!
+                .Invoke(Abilities(), new object[] { world.Map, creature, bomb });
+
+            var sent = Sent(shooter);
+            Assert.IsFalse(sent.OfType<GameEffectAttachedPacket>().Single(packet => packet.EffectTypeId == CritEffects.CritEmpTypeId).Announced);
+
+            var blast = sent.OfType<GameEffectAnnounceDamagePacket>().Single();
+            Assert.AreEqual("DoExplosion", blast.MethodName);
+            CollectionAssert.AreEqual(new[] { CritEmp }, blast.Hits.Single().TargetEffectIds);
+
+            // (effectId, method, (damageData,)): damageData[0] = (targetId, rawInfo).
+            var raw = (List<object>)((List<object>)((List<object>)((List<object>)Decode(blast)[2])[0])[0])[1];
+            CollectionAssert.AreEqual(new object[] { 417L }, (List<object>)raw[10]);
         }
 
         [TestMethod]
@@ -358,8 +510,8 @@ namespace Rasa.Test.World
 
         #region Fixtures
 
-        /// <summary>A shot from the player at the creature that lands now.</summary>
-        private static Missile Shoot(WorldTestContext world, Client shooter, Creature target, DamageType damageType, double critChance, int rootMs = 0)
+        /// <summary>A shot from the player at the creature that lands now; with a velocity, one their client flies.</summary>
+        private static Missile Shoot(WorldTestContext world, Client shooter, Creature target, DamageType damageType, double critChance, int rootMs = 0, int? flightVelocity = null)
         {
             var missile = new Missile
             {
@@ -371,7 +523,8 @@ namespace Rasa.Test.World
                 ActionId = ActionId.WeaponAttack,
                 ActionArgId = 1,
                 CritChance = critChance,
-                RootMs = rootMs
+                RootMs = rootMs,
+                FlightVelocity = flightVelocity
             };
 
             Sent(shooter);
@@ -393,6 +546,29 @@ namespace Rasa.Test.World
                 AnnounceWithHit = withHit,
                 ExpiresTick = Environment.TickCount64 + 5000
             };
+
+        /// <summary>Every attack of the player's a crit: a Crit Wave of 200%.</summary>
+        private static void AlwaysCrit(WorldTestContext world, Client client)
+        {
+            var wave = new GameEffect
+            {
+                TypeId = 202,
+                EffectId = GameEffectManager.Instance.NextEffectId(world.Map),
+                SourceId = client.Player.EntityId,
+                Source = client.Player,
+                IsBuff = true,
+                CritChancePercent = 200,
+                ExpiresTick = Environment.TickCount64 + 60000
+            };
+
+            client.Player.ActiveEffects[wave.EffectId] = wave;
+        }
+
+        private static AbilityManager Abilities() =>
+            (AbilityManager)typeof(AbilityManager)
+                .GetConstructor(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic, null,
+                    new[] { typeof(Rasa.Repositories.UnitOfWork.IGameUnitOfWorkFactory), typeof(MissionApplication) }, null)!
+                .Invoke(new object[] { null, null });
 
         private static List<GameEffectAttachedPacket> Attaches(Client client) => Sent(client).OfType<GameEffectAttachedPacket>().ToList();
 

@@ -32,8 +32,20 @@ namespace Rasa.Managers
         /// </summary>
         public const float SnapTolerance = 3.0f;
 
-        /// <summary>Compass directions probed per ring when looking for a way out for a stuck player.</summary>
+        /// <summary>The fewest directions probed on a ring when looking out from a point that is off the mesh.</summary>
         public const int RingSamples = 8;
+
+        /// <summary>
+        /// The most ring between two probes, in metres. A probe sees SearchExtents either side of
+        /// itself - 4 m, so 8 m across - and eight probes on a 32 m ring are 25 m apart: ground
+        /// between them was never seen, and a pool beside a 30 m stretch of ground found none
+        /// (SpawnPoolManager.Anchor). Rings further out get the probes their length needs.
+        /// </summary>
+        public const float RingSpacing = 6f;
+
+        /// <summary>How many probes a ring of this radius gets, so that no two are further apart than RingSpacing.</summary>
+        public static int RingSamplesFor(float radius) =>
+            Math.Max(RingSamples, (int)Math.Ceiling(2.0 * Math.PI * radius / RingSpacing));
 
         public static NavMeshManager Instance
         {
@@ -222,9 +234,11 @@ namespace Rasa.Managers
 
             for (var radius = 8f; radius <= maxRadius; radius *= 2f)
             {
-                for (var step = 0; step < RingSamples; step++)
+                var samples = RingSamplesFor(radius);
+
+                for (var step = 0; step < samples; step++)
                 {
-                    var angle = step * 2.0 * Math.PI / RingSamples;
+                    var angle = step * 2.0 * Math.PI / samples;
                     var probe = new Vector3(
                         position.X + (float)(Math.Cos(angle) * radius),
                         position.Y,

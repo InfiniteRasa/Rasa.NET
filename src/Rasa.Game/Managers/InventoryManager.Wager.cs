@@ -724,9 +724,15 @@ namespace Rasa.Managers
                             ownerEntry?.Name ?? "", ownerEntry == null ? "" : unitOfWork.GameAccounts.Find(ownerEntry.AccountId)?.FamilyName ?? "",
                             template.ItemTemplateId, Math.Max(1u, itemData.StackSize)));
 
+                        // On each lockbox's entity, the only place the client handles it (ToClanLockboxes).
                         if (stored != null)
-                            foreach (var member in winnersOnline)
-                                member.CallMethod(SysEntity.ClientClanManagerId, Packets.Clan.Server.ClanLockboxLogsPacket.Update(new List<ClanLockboxLogEntry> { stored }));
+                        {
+                            var logged = Packets.Clan.Server.ClanLockboxLogsPacket.Update(new List<ClanLockboxLogEntry> { stored });
+
+                            foreach (var lockbox in ClanLockboxes())
+                                foreach (var member in winnersOnline)
+                                    member.CallMethod(lockbox.EntityId, logged);
+                        }
 
                         touchedLockbox = true;
                         result.ToLockbox++;
@@ -735,6 +741,23 @@ namespace Rasa.Managers
                     {
                         var moved = false;
                         uint inboxSlot = 0;
+
+                        // Character Unique: not to a recipient who holds one, logged in or not;
+                        // it stays with its owner, as one that does not fit does.
+                        if (recipientEntry != null && IsCharacterUnique(template))
+                        {
+                            var online = clients.FirstOrDefault(c => c.Player.Id == recipient)?.Player;
+                            var holds = online != null
+                                ? HoldsTemplate(online, template.ItemTemplateId)
+                                : HoldsTemplateStored(unitOfWork, recipientEntry.AccountId, recipient, template.ItemTemplateId);
+
+                            if (holds)
+                            {
+                                Logger.WriteLog(LogType.Debug, $"Wager: item {row.ItemId} is Character Unique and character {recipient} holds one; left with its owner.");
+                                result.Kept++;
+                                continue;
+                            }
+                        }
 
                         if (recipientEntry != null)
                             unitOfWork.ExecuteTransaction(() =>
@@ -777,6 +800,16 @@ namespace Rasa.Managers
 
                         result.Mailed++;
                     }
+
+                    // Off the loser; to the recipient when it was mailed, and to the clan - no
+                    // character - when it went to the lockbox (which has its own log as well).
+                    var stack = (int)Math.Max(1u, itemData.StackSize);
+                    var mailedTo = wager.Result == (byte)PvpWagerResult.PickUpBox ? recipient : 0;
+                    EconomyAudit.Instance.Record(EconomyLogKind.Wager, winnerClanId,
+                        EconomyAudit.ItemLine(row.CharacterId, ownerClient?.AccountEntry?.Id ?? 0, row.ItemId, template.ItemTemplateId,
+                            -stack, mailedTo, owner?.MapContextId ?? 0),
+                        mailedTo == 0 ? null : EconomyAudit.ItemLine(recipient, recipientEntry.AccountId, row.ItemId, template.ItemTemplateId,
+                            stack, row.CharacterId));
 
                     if (ownerClient != null && ownerClient.State == ClientState.Ingame)
                         CommunicatorManager.Instance.SystemMessage(ownerClient, members.Contains(row.CharacterId)

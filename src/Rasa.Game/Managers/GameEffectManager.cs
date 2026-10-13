@@ -116,7 +116,10 @@ namespace Rasa.Managers
             // So does a creature running home after a leash (BehaviorManager.Leash): a slow would
             // keep it from getting there, a DoT would hurt what it is immune to.
             // Not the world's own (GameEffect.Environmental): no immunity to debuffs is one to lava.
-            if (!effect.IsBuff && !effect.Environmental && (DebuffsBlocked(actor) || actor is Creature returning && BehaviorManager.IsReturning(returning)))
+            // Nor a death's penalties (PlayerDeath.IsDeathPenalty), which Cure does not take off
+            // either: no Protect is a way out of them.
+            if (!effect.IsBuff && !effect.Environmental && !PlayerDeath.IsDeathPenalty(effect.TypeId)
+                && (DebuffsBlocked(actor) || actor is Creature returning && BehaviorManager.IsReturning(returning)))
             {
                 CellManager.Instance.CellCallMethod(mapChannel, actor,
                     new GameEffectAttachFailedPacket(effect.TypeId, GameEffectAttachFailedPacket.FailReason.Immune, effect.SourceId));
@@ -172,6 +175,8 @@ namespace Rasa.Managers
                 foreach (var existing in actor.ActiveEffects.Values.Where(e => e.TypeId == effect.TypeId && !e.IsSkillPassive).ToList())
                     DettachEffect(mapChannel, actor, existing);
 
+            effect.FirstTickDelayed = effect.TickIntervalMs > 0 && effect.NextTickTick > Environment.TickCount64;
+
             AddToList(actor, effect);
             mapChannel.ActorsWithEffects.Add(actor);
             if (effect.TickDamageMax > 0 && actor is Creature attackedCreature)
@@ -185,7 +190,7 @@ namespace Rasa.Managers
                 ManifestationManager.Instance.RefreshStats(actor as Manifestation);
             else
             {
-                if (effect.MaxHealthPercent != 0)
+                if (effect.MaxHealthPercent != 0 || effect.MaxHealthPoints != 0)
                     ApplyMaxHealth(mapChannel, actor, effect);
 
                 if (!(actor is Manifestation) && effect.AttributeId.HasValue && effect.AttributePercent != 0)
@@ -194,7 +199,7 @@ namespace Rasa.Managers
 
             effect.AttachArgs = attachArgs.ToList();
 
-            // A weapon hit being resolved on this creature announces what it puts on it: the
+            // A hit being resolved on this creature or player announces what it puts on it: the
             // effect goes on quietly and the hit names it (HitEffects).
             HitEffects.Claim(actor, effect);
 
@@ -563,6 +568,22 @@ namespace Rasa.Managers
                     continue;
                 }
 
+                // A dead player keeps what their death kept, for as long as it lasts.
+                if (actor.State == CharacterState.Dead && actor is Manifestation fallen &&
+                    actor.MapContextId == mapChannel.MapInfo.MapContextId)
+                {
+                    HoldInDeath(mapChannel, fallen);
+                    continue;
+                }
+
+                // A Howler's or a Predator's death bomb goes off from its body (CreatureBombs).
+                if (actor.State == CharacterState.Dead && actor is Creature corpse &&
+                    actor.MapContextId == mapChannel.MapInfo.MapContextId && corpse.ActiveEffects.Values.Any(CreatureBombs.IsDeathBomb))
+                {
+                    HoldDeathBomb(mapChannel, corpse);
+                    continue;
+                }
+
                 // Dead, or not on this map any more: nothing to tick and nobody to tell.
                 if (actor.State == CharacterState.Dead || actor.MapContextId != mapChannel.MapInfo.MapContextId)
                 {
@@ -588,6 +609,18 @@ namespace Rasa.Managers
 
                     if (effect.IsExpired)
                     {
+                        // Its last tick falls on its expiry, and expiry was tested first: every
+                        // damage and heal over time delivered one tick fewer than its duration
+                        // and interval give. It ticks once more before it goes. A tick that kills
+                        // the holder takes the effect with it, as any lethal tick does.
+                        if (TicksAtExpiry(effect))
+                        {
+                            Tick(mapChannel, actor, effect);
+
+                            if (!actor.ActiveEffects.ContainsKey(effect.EffectId))
+                                continue;
+                        }
+
                         DettachEffect(mapChannel, actor, effect);
                         effect.OnExpired?.Invoke(mapChannel, actor, effect);
                         continue;
@@ -596,6 +629,91 @@ namespace Rasa.Managers
                     if (effect.TickDue)
                         Tick(mapChannel, actor, effect);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Whether an effect that has run out still has the tick that falls on its expiry to
+        /// deliver: a damage or heal over time - not an aura, a drain or one ticked by its own
+        /// OnTick, for which a last pass at the moment it ends means nothing or the wrong thing -
+        /// whose first tick was an interval in (<see cref="GameEffect.FirstTickDelayed"/>), so its
+        /// ticks run N, 2N, ... up to and including D, and whose next tick is due no later than
+        /// its expiry. One that ticked at once already had its D / N ticks, at 0 to D - N.
+        /// <see cref="ExpiryTickToleranceMs"/> covers the clock being read twice when the
+        /// effect was made, once for the expiry and once for the first tick.
+        /// </summary>
+        internal static bool TicksAtExpiry(GameEffect effect)
+        {
+            if (!effect.FirstTickDelayed || effect.TickIntervalMs <= 0 || effect.IsPaused)
+                return false;
+
+            if (effect.OnTick != null || effect.AuraRadius > 0 || effect.AdrenalineDrainPercentPerSecond > 0)
+                return false;
+
+            if (effect.TickDamageMax <= 0 && effect.TickHealMax <= 0 && effect.TickAdrenaline <= 0)
+                return false;
+
+            return effect.NextTickTick <= effect.ExpiresTick + Math.Min(ExpiryTickToleranceMs, effect.TickIntervalMs / 2);
+        }
+
+        /// <summary>How far after the expiry its last tick may fall and still be its own: see <see cref="TicksAtExpiry"/>.</summary>
+        public const int ExpiryTickToleranceMs = 100;
+
+        /// <summary>
+        /// A dead player on the worker's pass. Their death took off everything but what it keeps
+        /// (PlayerDeath.KeptInDeath): Rez Trauma, the skill passives, an aura's effect and a
+        /// Hominis Machina's morph while its Self Revive is unspent. That stays, and runs out when
+        /// its time is up, with the client told; nothing ticks on the dead. Anything else on them
+        /// was put there after the death, and is taken off, with the client told.
+        ///
+        /// Every effect on anything dead used to be cleared here, on the pass after the death and
+        /// without a word to the client: Rez Trauma never stacked past one death's worth, a Self
+        /// Revive was refused for want of the morph while the client still showed it, and the
+        /// skill passives were gone server-side until something synced them again.
+        /// </summary>
+        private void HoldInDeath(MapChannel mapChannel, Manifestation fallen)
+        {
+            var keepMorph = AbilityManager.CanSelfRevive(fallen);
+
+            foreach (var effect in fallen.ActiveEffects.Values.ToList())
+            {
+                // Taken off by an earlier one on this pass (a child with its parent).
+                if (!fallen.ActiveEffects.ContainsKey(effect.EffectId))
+                    continue;
+
+                if (!PlayerDeath.KeptInDeath(effect, keepMorph))
+                {
+                    DettachEffect(mapChannel, fallen, effect);
+                    continue;
+                }
+
+                if (effect.IsExpired)
+                {
+                    DettachEffect(mapChannel, fallen, effect);
+                    effect.OnExpired?.Invoke(mapChannel, fallen, effect);
+                }
+            }
+        }
+
+        /// <summary>
+        /// A dead creature carrying its death bomb (CreatureBombs.OnDeath). The bomb stays, ticking
+        /// nothing, until CreatureBombs sets it off and takes it away; its expiry is the backstop.
+        /// Anything else on the body was put there after the death, and is taken off.
+        ///
+        /// The pass used to clear every effect on anything dead, the bomb with them, and the
+        /// explosion then found no bomb to go off: the Predator's, 3 s after the death, never went
+        /// off, and the Howler's, due at once, only when the bombs ran before this pass.
+        /// </summary>
+        private void HoldDeathBomb(MapChannel mapChannel, Creature corpse)
+        {
+            foreach (var effect in corpse.ActiveEffects.Values.ToList())
+            {
+                // Taken off by an earlier one on this pass (a child with its parent).
+                if (!corpse.ActiveEffects.ContainsKey(effect.EffectId))
+                    continue;
+
+                if (!CreatureBombs.IsDeathBomb(effect) || effect.IsExpired)
+                    DettachEffect(mapChannel, corpse, effect);
             }
         }
 
@@ -720,6 +838,15 @@ namespace Rasa.Managers
             var source = effect.Source;
 
             if (source == null || source.MapContextId != mapChannel.MapInfo.MapContextId)
+            {
+                DettachEffect(mapChannel, actor, effect);
+                return;
+            }
+
+            // A player's on a player who is no longer their enemy - the duel, feud or battleground
+            // it was put on in has ended (Pvp.AreEnemies): it would land on nobody it may hurt, and
+            // comes off. It used to tick on, and could kill.
+            if (effect.TickRadius <= 0 && Pvp.IsPvp(source, actor) && !Pvp.AreEnemies(Pvp.Controller(source), (Manifestation)actor))
             {
                 DettachEffect(mapChannel, actor, effect);
                 return;
@@ -1224,8 +1351,8 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// MaxHealthPercent, applied: the maximum moves by that share of what it was, and so
-        /// does the current health, so a full bar stays full and a lowered maximum does not
+        /// MaxHealthPercent, applied: the maximum moves by that share of what it was, and by
+        /// MaxHealthPoints more, and so does the current health, so a full bar stays full and a lowered maximum does not
         /// leave health above it. The points moved are kept on the effect and are exactly what
         /// <see cref="RevertMaxHealth"/> puts back.
         /// </summary>
@@ -1234,7 +1361,7 @@ namespace Rasa.Managers
             if (!actor.Attributes.TryGetValue(Attributes.Health, out var health) || health.CurrentMax <= 0)
                 return;
 
-            var delta = (int)Math.Round(health.CurrentMax * effect.MaxHealthPercent / 100.0);
+            var delta = (int)Math.Round(health.CurrentMax * effect.MaxHealthPercent / 100.0) + effect.MaxHealthPoints;
 
             // A maximum has to stay a maximum: at least one point.
             delta = Math.Max(delta, 1 - health.CurrentMax);

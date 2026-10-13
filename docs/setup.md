@@ -218,6 +218,37 @@ A weapon's Steal and Debuff Resist modules fire on a hit by chance, and the clie
 
 The chance is per hit, so a weapon that hits more often fires them more often. A change to the file applies at once, without a restart; a missing section uses the defaults. How long a resist debuff lasts is not a setting: it is `arg2`, in seconds, of the module's row in the world database's `module_effect` table (10 as migrated), and is read at startup. What each module does is in the [GM command reference](gm-commands.md).
 
+### Races and hybrids
+Which races a player can pick in the character creation window is set in the `GameDataConfig` section of `Rasa.Game`'s appsettings.json:
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `EnabledRaces` | `[ 1, 2, 3, 4 ]` | The races the server offers at all, by id: `1` Human, `2` Forean Hybrid, `3` Brann Hybrid, `4` Thrax Hybrid. Human is always offered, listed or not; an id that is not a race is dropped, with a line in the log. A missing setting offers all four; an empty list `[]` offers Human only. |
+| `AlwaysUnlockHybrids` | `true` | `true` (or a missing setting): every race in `EnabledRaces` is offered to every account. `false`: an account is offered Human and the hybrids it has unlocked by completing their missions, and still only those in `EnabledRaces`. |
+
+```json
+{
+  "GameDataConfig": {
+    "EnabledRaces": [ 1, 2, 3, 4 ],
+    "AlwaysUnlockHybrids": false
+  }
+}
+```
+
+A race that is not offered shows in the window locked, with the client's own "Unlock this hybrid by completing certain missions in game." The server refuses it too, so a modified client cannot create or clone a character of that race.
+
+With `AlwaysUnlockHybrids` set to `false`, a hybrid is unlocked for the whole account, all of its characters, when one of its characters completes the mission whose finishing text grants it:
+
+| Hybrid | Mission | Where |
+|---|---|---|
+| Forean | 1861 Traitor on the Run | Elder Q'uoa, Thoria Das (Concordia Divide) |
+| Brann | 1851 Remedy | Connant, Baylor Base (Torden Mires) |
+| Thrax | 1899 Genome Sweet Genome | Zupa Eugin, Viddea Quarter, Staal (Ligo Crucible) |
+
+The player is told "Hybrid Access Granted" as the mission's reward is handed over. The unlock is kept in the `hybrid_unlocks` column of the character database's `account` table (`1` Forean, `2` Brann, `4` Thrax, added together) and is recorded whatever the setting, so turning `AlwaysUnlockHybrids` off later still leaves each account what it has earned. None of the three missions is in the server's mission content yet, so with the setting off nobody can unlock a hybrid until they are added.
+
+A change to either setting applies at once, without a restart: a player sees it the next time they reach the character selection screen. A character already made keeps its race whatever the settings say.
+
 ### REST API
 `Rasa.Game` can report its status, create accounts, and let the [game tools](../gametools/README.md) read and change creature flags and loot pools, over HTTP on a port of its own. It is configured in the `ApiConfig.Rest` section of its appsettings.json:
 
@@ -249,6 +280,8 @@ The `/ingame` endpoints take no key, and are the ones the startup log calls `end
 | `POST /ingame/session/exchange`, `GET /ingame/items`, `GET /ingame/items/categories`, `GET /ingame/items/{id}` | The in-game API; see [REST and in-game APIs](#rest-and-in-game-apis) above. Each is off until it is turned on. |
 | `GET /monsterflags`, `POST /updatemonsterflags` | The flags of the creature classes, read and changed; see Game tools below. Off until turned on. |
 | `GET /lootpools`, `POST /updatelootpools` | Canonical weighted ordinary-loot profiles, read and edited; see Game tools below. Off until turned on. |
+| `GET /usersonline` | Every account online, with the character it is playing; see Who is online below. Off until turned on. |
+| `POST /kickuser` | Disconnects an account that is online; see Kicking a player below. Off until turned on. |
 
 - `game_server_status` is `healthy` while the server has finished loading, is listening for players, has not been shut down, and its world loop ticked within `ApiConfig.LoopStallSeconds` (default `15`).
 - `app_server_status` is `healthy` while the link to the Auth server is up and logged in.
@@ -256,7 +289,7 @@ The `/ingame` endpoints take no key, and are the ones the startup log calls `end
 
 A request is refused with `403` from an address not on `AllowedIps`, `404` for a path that names no endpoint or one that is off, `405` for the wrong method, and `401` for a missing or wrong key or, at an `/ingame` endpoint, a code or token that is missing, wrong or no longer good.
 
-Each entry under `Endpoints` (`healthcheck`, `serverstatus`, `addaccount`, the `/ingame` ones, and `monsterflags`, `updatemonsterflags`, `lootpools`, `updatelootpools`) has:
+Each entry under `Endpoints` (`healthcheck`, `serverstatus`, `addaccount`, the `/ingame` ones, `monsterflags`, `updatemonsterflags`, `lootpools`, `updatelootpools`, `usersonline` and `kickuser`) has:
 
 | Setting | Default | Meaning |
 |---|---|---|
@@ -303,6 +336,73 @@ Because it changes something, this endpoint is stricter than the other two:
     }
   }
 }
+```
+
+#### Who is online
+`GET /usersonline` lists every account logged in to this game server, at the character screen or playing, by account id, with the character it is playing:
+
+```json
+{"count":2,"users":[
+  {"accountId":1,"characterId":12,"name":"Ellie","familyName":"Hart","classId":2,"className":"Soldier","level":15,"state":"ingame"},
+  {"accountId":3,"characterId":null,"name":null,"familyName":null,"classId":null,"className":null,"level":null,"state":"characterselection"}
+]}
+```
+
+- `name` is the character's own name and `familyName` the family name of the account's characters. `classId` is the class's number and `className` its name (`Recruit`, `Soldier`, `Specialist`, `Commando`, and so on).
+- `state` is `loggedin` or `characterselection` for an account that has not picked a character, whose character fields are all `null`, and `loading`, `ingame` or `teleporting` for one that has.
+- The list is read once a second from the world, so it can be a second old. `count` can be below `/serverstatus`'s `currentconnections`: that also counts players the queue is sending to the world port, who have not logged in here yet.
+
+It names accounts and characters, so it is off until its own entry turns it on, and `Rest.Public` never makes it public, as for `addaccount`. Give it a key of its own:
+
+```json
+"usersonline": { "Enabled": true, "ApiKey": "<key for the player list>" }
+```
+
+```bash
+curl -H "X-API-Key: <key for the player list>" http://127.0.0.1:8104/usersonline
+```
+
+#### Kicking a player
+`POST /kickuser` disconnects an account that is online, as the console's `kick` does: every connection of it, in the world or at the character screen, after telling the player "You have been disconnected by a game master: <reason>". The body is JSON, sent as `application/json`:
+
+```json
+{ "accountId": 12, "reason": "griefing", "admin": "Atomsk" }
+{ "familyName": "Hart", "reason": "griefing", "admin": "Atomsk" }
+```
+
+- `accountId` (a number, or a number in a string) or `familyName`, one of them and not both. A family name is matched as the in-game `.kick` matches it, case aside.
+- `reason` is what the player is told; it may be left out, and may be 256 characters.
+- `admin` is who is doing it, as you name them; it is required, and may be 64 characters. It goes in the server log's line for the kick, with the address the request came from, and in the API log.
+
+Every answer of its own is `200`:
+
+| Answer | Meaning |
+|---|---|
+| `{"kicked":true,"accountId":12,"familyName":"Hart"}` | Kicked. |
+| `{"kicked":false,"error":"not online"}` | Nobody of that account is online. |
+| `{"kicked":false,"error":"..."}` | The request will not do (no target, both, no admin, not JSON, not sent as `application/json`), or the game server is not ready or did not get to it within 10 seconds. |
+
+An address that is not allowed, a missing key and the rest are refused as for any endpoint. The API may kick any account, game masters too, as the console may. It changes something, so it is off until its own entry turns it on and is never public by `Rest.Public`; give it a key of its own:
+
+```json
+"kickuser": { "Enabled": true, "ApiKey": "<key for kicking>" }
+```
+
+```bash
+curl -X POST -H "X-API-Key: <key for kicking>" -H "Content-Type: application/json" \
+     -d '{"familyName":"Hart","reason":"griefing","admin":"Atomsk"}' http://127.0.0.1:8104/kickuser
+```
+
+#### The API log
+Every request the REST API is sent is written to the character database's `api_log` table once it has been answered, refused ones too: `created_at` (UTC), the `address` it came from, `method`, `path`, `query`, the answer's `status`, the `body` of a `POST`, `body_length`, and the start of the answer (`response`, up to 2000 characters).
+
+- Secrets are not kept: in a body or an answer, the value of any field whose name has `password`, `secret`, `token` or `apikey` in it, or ends in `code`, is written as `***` - the password of `/addaccount`, the code and token of the `/ingame` exchange. A key sent in a header is never written.
+- A body is kept up to 16000 characters; `body_length` is how long it was.
+- A connection that sends nothing, or never finishes a TLS handshake, asked for nothing and is not on it. Nor is the status port, which is not the REST API.
+- It is always on, and nothing is ever taken out of it.
+
+```sql
+select created_at, address, method, path, status, body from api_log order by id desc limit 50;
 ```
 
 #### Game tools
@@ -421,7 +521,7 @@ The Auth server logs what is in force at startup and whenever it changes (`Passw
 
 - `GameConfig` owns the public game endpoint, listener backlog, the 60-second transfer acknowledgement timeout, the 6-metre corpse-looting distance, and the optional GM performance-metrics interval. The metrics interval is `0` by default, which disables those packets.
 - `QueueConfig`, `CommunicatorConfig`, `ServerInfoConfig`, and `SocketAsyncConfig` own their existing queue, auth-communicator, server-list, and socket settings.
-- `GameDataConfig` owns enabled races, startup server flags, the knowledge-base JSON path, and `NavMeshPath`. The default navigation directory is `navmesh`.
+- `GameDataConfig` owns the races offered at character creation (`EnabledRaces` and `AlwaysUnlockHybrids`, see [Races and hybrids](#races-and-hybrids)), startup server flags, the knowledge-base JSON path, and `NavMeshPath`. The default navigation directory is `navmesh`.
 
 Action and action-level behavior is loaded from the world data tables. Missions
 load enabled definitions and typed scene bindings installed in the World
@@ -450,7 +550,7 @@ absolute database base path avoids choosing different files when launching from
 different working directories. No preexisting World file or publication script
 is required.
 
-To access a MySql server with EF Core, set `Provider` to `MySql`. You need to provide host, port, database, user, password and timeout in the config file. Keep in mind that we fall back to the values in databasesettings.json, if your enviroment file does not overwrite a value. For MySql, you have to apply any pending migrations yourself. See "Applying migrations" for a quick start.
+To access a MySql server with EF Core, set `Provider` to `MySql`. You need to provide host, port, database, user, password and timeout in the config file. Keep in mind that we fall back to the values in databasesettings.json, if your enviroment file does not overwrite a value. For MySql, you have to apply any pending migrations yourself. See "Applying migrations" for a quick start. At startup each server checks its MySql databases and logs an error naming the migrations one has not had; it starts anyway, and what those migrations add fails when it is used.
 
 If you want to add additional migrations as part of a feature, see "Creating migrations".
 

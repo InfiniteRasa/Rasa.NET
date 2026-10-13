@@ -93,6 +93,7 @@ namespace Rasa.Managers
         {
             internal Item Item { get; init; }
             internal uint SellerId { get; init; }
+            internal uint SellerAccountId { get; init; }
             internal uint InboxSlot { get; init; }
         }
 
@@ -183,6 +184,13 @@ namespace Rasa.Managers
                 return;
             }
 
+            // Character Unique: not for a buyer who holds one, listed ones included.
+            if (!InventoryManager.Instance.MayReceive(client.Player, item.ItemTemplate))
+            {
+                BuyoutFailed(client, packet.ItemId, PlayerMessage.PmItemCharacterUnique);
+                return;
+            }
+
             BuyoutResult result;
             lock (AuctionSyncRoot)
                 result = ConsumeBuyoutLocked(client, packet, item);
@@ -204,7 +212,7 @@ namespace Rasa.Managers
             item.OwnerId = client.Player.Id;
             item.OwnerSlotId = result.InboxSlot;
             client.Player.Inventory.InboxItems.Add(item.EntityId);
-            var seller = OnlineSeller(result.Auction.SellerId);
+            var seller = result.Seller;
             seller?.Player.Inventory.AuctionItems.Remove(item.EntityId);
 
             PublishBuyoutPacket(
@@ -215,7 +223,9 @@ namespace Rasa.Managers
                     result.BuyerCredits,
                     result.BuyerCredits - buyerBefore),
                 $"auction item {item.Id} buyer credits");
-            if (result.Seller != null)
+            // A seller on a loading screen has no manifestation on their client to tell: the
+            // arrival sends the whole purse (ManifestationManager.AssignPlayer, AllCredits).
+            if (result.Seller?.IsInWorld == true)
                 MissionApplication.TryPublish(
                     () => result.Seller.CallMethod(
                         result.Seller.Player.EntityId,
@@ -257,6 +267,17 @@ namespace Rasa.Managers
                 $"auction item {item.Id} buyout result");
             result.ProgressPlan.Publish(client);
 
+            // The item left its seller when it was listed (AuctionListed): the buyer has it from
+            // the auction house, and the seller the price.
+            var sellerId = result.Auction.SellerId;
+            var buyerId = client.Player.Id;
+            var price = (long)result.Auction.Price;
+            EconomyAudit.Instance.Record(EconomyLogKind.AuctionSold, item.Id,
+                EconomyAudit.ItemLine(client, item, (int)item.StackSize, sellerId),
+                EconomyAudit.MoneyLine(client, CurencyType.Credits, -price, result.BuyerCredits, sellerId),
+                EconomyAudit.MoneyLine(sellerId, seller?.AccountEntry?.Id ?? 0, CurencyType.Credits, price, result.SellerCredits,
+                    buyerId, seller?.Player?.MapContextId ?? 0));
+
             // The buyer is the one asking, so they are logged in and it is in their inbox now.
             Unlist(item, true);
         }
@@ -295,11 +316,19 @@ namespace Rasa.Managers
                     var buyer = unitOfWork.Characters.Find(client.Player.Id);
                     var durableItem =
                         unitOfWork.CharacterInventories.FindByItemId(item.Id);
+                    if (buyer != null &&
+                        buyer.AccountId == client.AccountEntry.Id &&
+                        (!client.Player.Credits.TryGetValue(
+                             CurencyType.Credits, out var runtimeBuyerCredits) ||
+                         buyer.Credit != runtimeBuyerCredits))
+                    {
+                        CharacterManager.PutPurseRight(client, buyer);
+                        throw new BuyoutRejection(
+                            PlayerMessage.PmAuctionPendingTransaction);
+                    }
+
                     if (buyer == null ||
                         buyer.AccountId != client.AccountEntry.Id ||
-                        !client.Player.Credits.TryGetValue(
-                            CurencyType.Credits, out var runtimeBuyerCredits) ||
-                        buyer.Credit != runtimeBuyerCredits ||
                         durableItem == null ||
                         durableItem.CharacterId != auction.SellerId ||
                         durableItem.InventoryType !=
@@ -318,13 +347,16 @@ namespace Rasa.Managers
                         throw new BuyoutRejection(
                             PlayerMessage.PmAuctionPendingTransaction);
 
-                    seller = OnlineSeller(auction.SellerId);
+                    seller = LoadedSeller(auction.SellerId);
                     if (seller != null &&
                         (!seller.Player.Credits.TryGetValue(
                              CurencyType.Credits, out var runtimeSellerCredits) ||
                          runtimeSellerCredits != durableSeller.Credit))
+                    {
+                        CharacterManager.PutPurseRight(seller, durableSeller);
                         throw new BuyoutRejection(
                             PlayerMessage.PmAuctionPendingTransaction);
+                    }
 
                     buyerAfter = checked(buyer.Credit - (int)auction.Price);
                     sellerAfter = checked(
@@ -474,6 +506,9 @@ namespace Rasa.Managers
                     InventoryType.Personal, result.Item.EntityId, result.Slot));
             client.CallMethod(SysEntity.ClientAuctionHouseManagerId,
                 new CancelAuctionSuccessPacket(packet.ItemEntityId));
+
+            EconomyAudit.Instance.Record(EconomyLogKind.AuctionCancelled, result.Item.Id,
+                EconomyAudit.ItemLine(client, result.Item, (int)result.Item.StackSize));
 
             Unlist(result.Item, true);
         }
@@ -662,6 +697,10 @@ namespace Rasa.Managers
 
             client.CallMethod(SysEntity.ClientInventoryManagerId, new AddAuctionItemPacket(item.EntityId));
             client.CallMethod(SysEntity.ClientAuctionHouseManagerId, new AuctionCreationSuccessPacket(item.EntityId));
+
+            EconomyAudit.Instance.Record(EconomyLogKind.AuctionListed, item.Id,
+                EconomyAudit.ItemLine(client, item, -(int)item.StackSize),
+                EconomyAudit.MoneyLine(client, CurencyType.Credits, -(long)deposit));
         }
 
         /// <summary>
@@ -675,7 +714,7 @@ namespace Rasa.Managers
             if (!AuctioneerInReach(client, packet.EntityId))
                 return;
 
-            if (!AuctionCategory.Names.TryGetValue(packet.CategoryId, out var category))
+            if (!AuctionCategory.Codes.ContainsKey(packet.CategoryId))
             {
                 QueryFailed(client, PlayerMessage.PmAuctionNoResultsFound);
                 Logger.WriteLog(LogType.Error, $"Auction search for category {packet.CategoryId}, which is not a category the client offers.");
@@ -701,10 +740,10 @@ namespace Rasa.Managers
 
                 var level = LevelRequirementOf(item);
 
-                if (level < packet.MinLevel || level > packet.MaxLevel)
+                if (!AuctionItemCategories.InLevelRange(level, packet.MinLevel, packet.MaxLevel))
                     continue;
 
-                if (!MatchesCategory(item, category))
+                if (!AuctionItemCategories.InCategory(item.ItemTemplate, packet.CategoryId))
                     continue;
 
                 matches.Add((auction, item, level));
@@ -770,7 +809,7 @@ namespace Rasa.Managers
 
             if (reply.AuctionItemList.Count < matches.Count)
                 Logger.WriteLog(LogType.Debug,
-                    $"Auction search by {client.Player.FamilyName} matched {matches.Count} auctions in {category}; the {reply.AuctionItemList.Count} cheapest fit the reply.");
+                    $"Auction search by {client.Player.FamilyName} matched {matches.Count} auctions in {AuctionCategory.Names[packet.CategoryId]}; the {reply.AuctionItemList.Count} cheapest fit the reply.");
 
             client.CallMethod(SysEntity.ClientAuctionHouseManagerId, reply);
         }
@@ -888,10 +927,14 @@ namespace Rasa.Managers
                         result.Item.OwnerId = result.SellerId;
                         result.Item.OwnerSlotId = result.InboxSlot;
                         InventoryManager.Instance.PublishInboxDelivery(
-                            OnlineSeller(result.SellerId), result.Item);
+                            SellerInWorld(result.SellerId), result.Item);
                         RemoveFromSellersAuctionList(
                             result.SellerId, result.Item.EntityId, null);
                         Unlist(result.Item, InSomeonesInbox(result.Item.EntityId));
+
+                        EconomyAudit.Instance.Record(EconomyLogKind.AuctionExpired, result.Item.Id,
+                            EconomyAudit.ItemLine(result.SellerId, result.SellerAccountId, result.Item,
+                                (int)result.Item.StackSize, 0, SellerInWorld(result.SellerId)?.Player?.MapContextId ?? 0));
                     }
 
                     consecutiveFailures = 0;
@@ -989,6 +1032,7 @@ namespace Rasa.Managers
                     {
                         Item = item,
                         SellerId = auction.SellerId,
+                        SellerAccountId = accountId.Value,
                         InboxSlot = inboxSlot
                     };
                 });
@@ -1008,7 +1052,7 @@ namespace Rasa.Managers
         /// </summary>
         private static void RemoveFromSellersAuctionList(uint sellerId, ulong entityId, uint? soldFor)
         {
-            var seller = OnlineSeller(sellerId);
+            var seller = LoadedSeller(sellerId);
 
             if (seller == null)
                 return;
@@ -1020,8 +1064,33 @@ namespace Rasa.Managers
                 : new AuctionExpiredPacket(entityId));
         }
 
-        private static Client OnlineSeller(uint sellerId) =>
-            Server.Clients.Find(c => c?.Player != null && c.Player.Id == sellerId && c.State == ClientState.Ingame);
+        /// <summary>
+        /// The seller's connection while their character is loaded on this server, or null: in the
+        /// world, between maps on a dropship or map link (Teleporting), or on the loading screen of
+        /// a login or a map change (Loading). The character and its purse are held from the moment
+        /// it is chosen, and every credit write after that checks the purse against the row.
+        ///
+        /// It used to be Ingame only. A sale while the seller was on a loading screen paid their
+        /// row and not the purse their session went by, and until they logged in again every write
+        /// that checks the two was refused without a word - vendor, repair, loot, mission rewards,
+        /// buyouts of their own and of their listings - while a lockbox transfer, a credit trade
+        /// or a clan deposit wrote the old purse over the row and the sale was gone for good.
+        /// Between maps the sold item also stayed on the list the arrival shows as Your Auctions.
+        ///
+        /// On the character screen a character has no session: the next choice loads the purse
+        /// from the row. A connection that has closed is the one before, not the one to pay.
+        /// </summary>
+        private static Client LoadedSeller(uint sellerId) =>
+            Server.Clients.Find(c => c?.Player != null && c.Player.Id == sellerId &&
+                (c.State == ClientState.Ingame || c.State == ClientState.Teleporting || c.State == ClientState.Loading));
+
+        /// <summary>
+        /// The seller's connection when the inventory it holds is the one the arrival shows, or
+        /// null. On a loading screen it is about to be loaded afresh from the rows
+        /// (InventoryManager.InitForClient), so nothing is put into it there.
+        /// </summary>
+        private static Client SellerInWorld(uint sellerId) =>
+            LoadedSeller(sellerId) is { IsInWorld: true } seller ? seller : null;
 
         /// <summary>
         /// The Item behind each listing, by database item id: one object per listing, owned here
@@ -1094,7 +1163,7 @@ namespace Rasa.Managers
                 return listed;
 
             // A seller who is logged in holds it among their auction items.
-            var seller = OnlineSeller(auction.SellerId);
+            var seller = LoadedSeller(auction.SellerId);
 
             if (seller != null)
                 foreach (var entityId in seller.Player.Inventory.AuctionItems)
@@ -1136,7 +1205,7 @@ namespace Rasa.Managers
         /// </summary>
         private static uint? AccountOf(uint sellerId, ICharUnitOfWork unitOfWork)
         {
-            var seller = OnlineSeller(sellerId);
+            var seller = LoadedSeller(sellerId);
 
             if (seller != null)
                 return seller.AccountEntry.Id;
@@ -1153,38 +1222,6 @@ namespace Rasa.Managers
             return item.ItemTemplate.ItemInfo.Requirements.TryGetValue(RequirementsType.ReqXpLevel, out var level)
                 ? level
                 : 0;
-        }
-
-        /// <summary>
-        /// Whether an item belongs to one of the browse tab's categories. The category name is a
-        /// path through the item class naming scheme, so "Weapon_Pistol" wants a class whose
-        /// name starts with Weapon and carries Pistol as one of its underscore-separated words -
-        /// Weapon_Avatar_Pistol_Physical_CMN_01_to_04 and not Weapon_Avatar_Rifle_Physical.
-        /// </summary>
-        public static bool MatchesCategory(Item item, string category)
-        {
-            if (string.IsNullOrEmpty(category) || item?.ItemTemplate == null)
-                return false;
-
-            if (!EntityClassManager.Instance.LoadedEntityClasses.TryGetValue(item.ItemTemplate.Class, out var entityClass))
-                return false;
-
-            var className = entityClass?.ClassName;
-
-            if (string.IsNullOrEmpty(className))
-                return false;
-
-            var parts = category.Split('_');
-            var words = className.Split('_');
-
-            if (words.Length == 0 || !words[0].Equals(parts[0], StringComparison.OrdinalIgnoreCase))
-                return false;
-
-            for (var i = 1; i < parts.Length; i++)
-                if (!words.Any(word => word.Equals(parts[i], StringComparison.OrdinalIgnoreCase)))
-                    return false;
-
-            return true;
         }
 
         private static void BuyoutFailed(Client client, ulong itemEntityId, PlayerMessage message)

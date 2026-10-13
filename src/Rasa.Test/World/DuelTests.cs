@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -248,6 +249,102 @@ namespace Rasa.Test.World
 
                 Assert.AreEqual(0, Duels.Instance.Running.Count);
                 Assert.AreEqual(GameOpcode.WargameTied, Drain(red).OfType<WargameResultPacket>().Single().Opcode);
+                Assert.AreEqual(GameOpcode.WargameTied, Drain(blue).OfType<WargameResultPacket>().Single().Opcode);
+            }
+            finally
+            {
+                Duels.Instance.Now = () => Environment.TickCount64;
+            }
+        }
+
+        [TestMethod]
+        public void DuelistsTooFarApartForTenSecondsTieWhateverTheKills()
+        {
+            using var world = new WorldTestContext();
+            var (red, blue) = Duelists(world);
+            var now = 5_000_000L;
+            var store = new MemoryPvpStore();
+            var records = new PvpRecords();
+            var previous = Duels.Instance.Records;
+
+            records.Load(store);
+            Duels.Instance.Records = records;
+            Duels.Instance.Now = () => now;
+
+            try
+            {
+                StartDuel(red, blue, maxKills: 3);
+                Assert.IsTrue(Duels.Instance.Kill(red, blue));
+                Drain(red);
+                Drain(blue);
+
+                // 200 m is not too far.
+                blue.Player.Position = red.Player.Position + new Vector3(Duels.MaxApartMetres, 0, 0);
+                Duels.Instance.Worker();
+                now += 60_000;
+                Duels.Instance.Worker();
+                Assert.AreEqual(1, Duels.Instance.Running.Count);
+
+                blue.Player.Position = red.Player.Position + new Vector3(150, 0, 150);
+                Duels.Instance.Worker();
+                now += 9_999;
+                Duels.Instance.Worker();
+                Assert.AreEqual(1, Duels.Instance.Running.Count, "not yet ten seconds");
+
+                now += 1;
+                Duels.Instance.Worker();
+
+                Assert.AreEqual(0, Duels.Instance.Running.Count);
+                Assert.AreEqual(GameOpcode.WargameTied, Drain(red).OfType<WargameResultPacket>().Single().Opcode, "a tie, though Red was a kill up");
+                Assert.AreEqual(GameOpcode.WargameTied, Drain(blue).OfType<WargameResultPacket>().Single().Opcode);
+                Assert.IsFalse(Pvp.AreEnemies(red.Player, blue.Player));
+
+                var match = store.Matches.Single();
+                Assert.AreEqual("distance", match.Reason);
+                Assert.AreEqual((byte)PvpMatchOutcome.Tied, match.Outcome);
+                Assert.AreEqual((byte)0, match.WinnerSide);
+                Assert.AreEqual((1, 0), (match.Side1Kills, match.Side2Kills));
+            }
+            finally
+            {
+                Duels.Instance.Records = previous;
+                Duels.Instance.Now = () => Environment.TickCount64;
+            }
+        }
+
+        [TestMethod]
+        public void ComingBackWithinRangeStartsTheTenSecondsAgain()
+        {
+            using var world = new WorldTestContext();
+            var (red, blue) = Duelists(world);
+            var now = 5_000_000L;
+            Duels.Instance.Now = () => now;
+
+            try
+            {
+                StartDuel(red, blue);
+                var far = red.Player.Position + new Vector3(0, 0, 250);
+                var near = red.Player.Position + new Vector3(0, 0, 50);
+
+                blue.Player.Position = far;
+                Duels.Instance.Worker();
+                now += 9_000;
+                Duels.Instance.Worker();
+
+                blue.Player.Position = near;
+                now += 500;
+                Duels.Instance.Worker();
+
+                blue.Player.Position = far;
+                now += 500;
+                Duels.Instance.Worker();
+                now += 9_000;
+                Duels.Instance.Worker();
+                Assert.AreEqual(1, Duels.Instance.Running.Count, "nine seconds since they parted again");
+
+                now += 1_000;
+                Duels.Instance.Worker();
+                Assert.AreEqual(0, Duels.Instance.Running.Count);
                 Assert.AreEqual(GameOpcode.WargameTied, Drain(blue).OfType<WargameResultPacket>().Single().Opcode);
             }
             finally

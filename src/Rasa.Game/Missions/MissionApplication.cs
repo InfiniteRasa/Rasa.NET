@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Data.Common;
@@ -1208,6 +1208,15 @@ namespace Rasa.Managers
                     return Reject($"Rejected mission {missionId} turn-in: no approved reward definition is loaded.");
                 if (rating.HasValue)
                     return Reject($"Rejected mission {missionId} turn-in: ratings are not supported.");
+                // Character Unique: a chosen reward of a template held is refused, so another can
+                // be chosen. A fixed one is left out of the grant (MissionRewardGrant.PlanAndSave).
+                if (selectionIndex is int chosen && chosen >= 0 && chosen < rewardDefinition.SelectableItems.Count &&
+                    !InventoryManager.Instance.MayReceive(client.Player,
+                        ItemManager.Instance.GetItemTemplateById(rewardDefinition.SelectableItems[chosen].ItemTemplateId)))
+                {
+                    InventoryManager.TellCharacterUnique(client);
+                    return Reject($"Rejected mission {missionId} turn-in: the chosen reward is Character Unique and already held.");
+                }
                 if (conversation?.Target.Creature is { } npc &&
                     (npc.Npc == null || npc.DbId != definition.MissionReciver))
                     return Reject($"Rejected mission {missionId} turn-in: NPC {npc.DbId} is not its authoritative receiver.");
@@ -1224,6 +1233,7 @@ namespace Rasa.Managers
                 var progressPlan = MissionProgressPublicationPlan.Empty;
                 var rejectedConversation = false;
                 DateTime rewardedAt = default;
+                Race? hybridUnlocked = null;
                 try
                 {
                     try
@@ -1258,6 +1268,7 @@ namespace Rasa.Managers
                             grant = rewardDefinition.CreateGrant(
                                 selectionIndex,
                                 _beforeRewardItemPublication);
+                            grant.MissionId = missionId;
                             grant.PlanAndSave(client, character, unitOfWork, _manifestationManager);
                             var progressEvents = grant.CreateItemAcquisitionEvents();
                             if (publishCompleted)
@@ -1289,6 +1300,7 @@ namespace Rasa.Managers
                                 OwnerId = mission.AssignmentId, Generation = mission.Generation,
                                 OperationKey = "mission-reward", Kind = "Grant", CreatedAtUtc = rewardedAt
                             });
+                            hybridUnlocked = HybridUnlocks.Record(unitOfWork, client.AccountEntry, missionId);
                             _deadlineService.SynchronizeMission(
                                 unitOfWork,
                                 client.Player.Id,
@@ -1389,6 +1401,8 @@ namespace Rasa.Managers
                             client.Player.EntityId,
                             new MissionRewardedPacket(missionId)),
                         $"mission {missionId} rewarded");
+                    TryPublish(() => HybridUnlocks.Granted(client, hybridUnlocked),
+                        $"mission {missionId} hybrid unlock");
                     _protocol.PublishAudio(client, missionId, Rasa.Missions.Content.MissionAudioEvent.Completed);
                     RefreshNpcConversationStatuses(client);
                     return true;
@@ -3403,12 +3417,17 @@ namespace Rasa.Managers
             };
 
         internal bool TryOpenNpcConversation(Client client, ulong entityId,
-            out Creature creature, out MissionConversationState state)
+            out Creature creature, out MissionConversationState state) =>
+            TryOpenNpcConversation(client, entityId, out creature, out state, out _);
+
+        /// <param name="outOfReach">True when the NPC is this player's to talk to in every respect but distance (MissionInteractionPolicy.TryResolveTarget).</param>
+        internal bool TryOpenNpcConversation(Client client, ulong entityId,
+            out Creature creature, out MissionConversationState state, out bool outOfReach)
         {
             creature = null;
             state = null;
             client.MissionConversation = null;
-            if (!Interactions.TryResolveOpeningTarget(client, entityId, out var target) ||
+            if (!Interactions.TryResolveOpeningTarget(client, entityId, out var target, out outOfReach) ||
                 target.Creature == null)
                 return false;
             try

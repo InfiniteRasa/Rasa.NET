@@ -48,6 +48,8 @@ namespace Rasa.Repositories.World
             ControlPoints = new ControlPointRepository(dbContext);
             ItemModules = new ItemModuleRepository(dbContext);
             AmbientNpcs = new AmbientNpcRepository(dbContext);
+            WorldDestructibles = new WorldDestructibleRepository(dbContext);
+            WorldUsables = new WorldUsableRepository(dbContext);
             SpawnPoolArrivals = spawnPoolArrivalRepository;
             Recipes = recipeRepository;
             NpcMissions = npcMissionRepository;
@@ -75,6 +77,8 @@ namespace Rasa.Repositories.World
         public IControlPointRepository ControlPoints { get; }
         public IItemModuleRepository ItemModules { get; }
         public IAmbientNpcRepository AmbientNpcs { get; }
+        public IWorldDestructibleRepository WorldDestructibles { get; }
+        public IWorldUsableRepository WorldUsables { get; }
         public ISpawnPoolArrivalRepository SpawnPoolArrivals { get; }
         public IRecipeRepository Recipes { get; }
         public INpcMissionRepository NpcMissions { get; }

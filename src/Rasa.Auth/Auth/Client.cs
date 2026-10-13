@@ -2,6 +2,7 @@
 using System.IO;
 using System.Net.Sockets;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Rasa.Auth
 {
@@ -50,6 +51,16 @@ namespace Rasa.Auth
 
         /// <summary>Packets read off the socket but not yet handled by the main loop.</summary>
         private int _queuedPackets;
+
+        /// <summary>
+        /// The login being verified off the main loop (LoginAttempt), until Update applies it.
+        /// While it runs nothing else this connection sent is handled: everything after Login
+        /// needs the account it sets.
+        /// </summary>
+        private Task<LoginAttempt> _login;
+
+        /// <summary>A login waiting for another from the same address to be verified first (LoginThrottle.TryBegin).</summary>
+        private LoginPacket _waitingLogin;
 
         /// <summary>How long a new connection has to send its login.</summary>
         private const int LoginTimeoutMs = 30000;
@@ -129,9 +140,29 @@ namespace Rasa.Auth
 
             IBasePacket packet;
 
+            // A login still being verified, or waiting its turn, holds back the rest of what the
+            // connection sent; a finished one is applied first, on this thread, and a waiting one
+            // tried again.
+            if (_login != null && _login.IsCompleted)
+                FinishLogin();
+
+            if (State == ClientState.Disconnected)
+                return;
+
+            if (_login == null && _waitingLogin != null)
+            {
+                var waiting = _waitingLogin;
+
+                _waitingLogin = null;
+                MsgLogin(waiting);
+
+                if (State == ClientState.Disconnected)
+                    return;
+            }
+
             // This is the auth server's main loop thread, and nothing above it catches: an
             // exception out of a handler used to end the process. Now it ends the connection.
-            while ((packet = _packetQueue.PopIncoming()) != null)
+            while (_login == null && _waitingLogin == null && (packet = _packetQueue.PopIncoming()) != null)
             {
                 // Re-checked each time round, not just before the loop: a handler can close the
                 // connection, and the packets queued behind it were handled anyway. A client
@@ -243,7 +274,7 @@ namespace Rasa.Auth
             switch (opcode)
             {
                 case ClientOpcode.Login:
-                    return State == ClientState.Connected;
+                    return State == ClientState.Connected && _login == null && _waitingLogin == null;
 
                 case ClientOpcode.ServerListExt:
                 case ClientOpcode.AboutToPlay:
@@ -343,7 +374,7 @@ namespace Rasa.Auth
 
                 // Bounded, for the same reason the game client bounds its undrained input: this
                 // runs at line speed on a socket thread while the main loop drains one packet
-                // per handler per tick, and MsgLogin's handler is a synchronous database call.
+                // per handler per tick, and a login holds the rest back until its password is verified.
                 // A client that pipelines logins would otherwise queue them faster than they can
                 // ever be answered. Nothing legitimate gets near this - the auth conversation is
                 // a handful of packets - so the limit doubles as the flood check.
@@ -379,6 +410,12 @@ namespace Rasa.Auth
         }
 
         #region Handlers
+        /// <summary>
+        /// A login: refused at once from an address with too many wrong passwords lately; held
+        /// while another login from the same address is being verified (LoginThrottle); otherwise
+        /// verified off the main loop (LoginAttempt), and answered by FinishLogin when that is
+        /// done. The hash used to run here, on the main loop under the Clients lock.
+        /// </summary>
         private void MsgLogin(LoginPacket packet)
         {
             // Too many wrong passwords from here lately: refused as a wrong password, without
@@ -390,50 +427,72 @@ namespace Rasa.Auth
                 return;
             }
 
-            using var unitOfWork = _authUnitOfWorkFactory.Create();
+            if (!Server.Logins.TryBegin(Socket.RemoteAddress))
+            {
+                _waitingLogin = packet;
+                return;
+            }
+
+            _login = LoginAttempt.Start(_authUnitOfWorkFactory, Server.Logins, packet.UserName, packet.Password, Socket.RemoteAddress);
+        }
+
+        /// <summary>The verified login's outcome, on the main loop: the answer and the state. The throttle has counted it already.</summary>
+        private void FinishLogin()
+        {
+            LoginAttempt attempt;
 
             try
             {
-                AccountEntry = unitOfWork.AuthAccountRepository.GetByUserName(packet.UserName, packet.Password);
+                attempt = _login.Result;
             }
-            catch (EntityNotFoundException)
+            catch (Exception e)
             {
-                Server.RecordLoginFailure(Socket.RemoteAddress);
-                SendPacket(new LoginFailPacket(FailReason.UserNameOrPassword));
-                Close();
-                Logger.WriteLog(LogType.Security, $"User ({packet.UserName}) tried to log in with an invalid username!");
+                attempt = null;
+                Logger.WriteLog(LogType.Error, $"Error logging in from {Socket.RemoteAddress}: {e}");
+            }
+
+            _login = null;
+
+            if (State == ClientState.Disconnected)
                 return;
-            }
-            catch (PasswordCheckFailedException e)
+
+            switch (attempt?.Outcome ?? LoginOutcome.Error)
             {
-                Server.RecordLoginFailure(Socket.RemoteAddress);
-                SendPacket(new LoginFailPacket(FailReason.UserNameOrPassword));
-                Close();
-                Logger.WriteLog(LogType.Security, e.Message);
-                return;
+                case LoginOutcome.Ok:
+                    AccountEntry = attempt.Account;
+
+                    State = ClientState.LoggedIn;
+
+                    SendPacket(new LoginOkPacket
+                    {
+                        SessionId1 = SessionId1,
+                        SessionId2 = SessionId2
+                    });
+
+                    Logger.WriteLog(LogType.Network, "*** Client logged in from {0}", Socket.RemoteAddress);
+                    break;
+
+                case LoginOutcome.UnknownUser:
+                case LoginOutcome.WrongPassword:
+                    SendPacket(new LoginFailPacket(FailReason.UserNameOrPassword));
+                    Close();
+                    Logger.WriteLog(LogType.Security, attempt.Message);
+                    break;
+
+                case LoginOutcome.Locked:
+                    SendPacket(new BlockedAccountPacket());
+                    Close();
+                    Logger.WriteLog(LogType.Security, attempt.Message);
+                    break;
+
+                default:
+                    // What an exception out of the handler used to do: the connection goes.
+                    if (attempt != null)
+                        Logger.WriteLog(LogType.Error, attempt.Message);
+
+                    Close();
+                    break;
             }
-            catch (AccountLockedException e)
-            {
-                SendPacket(new BlockedAccountPacket());
-                Close();
-                Logger.WriteLog(LogType.Security, e.Message);
-                return;
-            }
-
-            Server.RecordLoginSuccess(Socket.RemoteAddress);
-
-            unitOfWork.AuthAccountRepository.UpdateLoginData(AccountEntry.Id, Socket.RemoteAddress);
-            unitOfWork.Complete();
-
-            State = ClientState.LoggedIn;
-
-            SendPacket(new LoginOkPacket
-            {
-                SessionId1 = SessionId1,
-                SessionId2 = SessionId2
-            });
-
-            Logger.WriteLog(LogType.Network, "*** Client logged in from {0}", Socket.RemoteAddress);
         }
 
 #pragma warning disable IDE0060 // Remove unused parameter

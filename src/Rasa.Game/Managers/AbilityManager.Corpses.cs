@@ -159,7 +159,6 @@ namespace Rasa.Managers
 
             var blast = new GameEffectAnnounceDamagePacket(burning.EffectId, "DoExplosion");
             var critChance = CriticalHits.AttackerChance(player, false);
-            var crits = new List<(Actor Victim, int Amount)>();
 
             foreach (var victim in VictimsWithin(mapChannel, player, corpse.Position, burning.Radius))
             {
@@ -168,7 +167,7 @@ namespace Rasa.Managers
                 var amount = GameEffectManager.ApplyResist(victim, rolled, out var resisted, burning.DamageType);
                 var taken = ActorManager.Instance.Damage(mapChannel, victim, amount, player, out var outcome, burning.DamageType);
 
-                blast.Hits.Add(new TickEntry
+                var entry = new TickEntry
                 {
                     EntityId = victim.EntityId,
                     Amount = outcome.Delivered,
@@ -178,17 +177,18 @@ namespace Rasa.Managers
                     DamageType = burning.DamageType,
                     IsCritical = crit,
                     DeathBlow = taken > 0 && victim.Attributes[Attributes.Health].Current <= 0
-                });
+                };
 
-                if (crit && !outcome.Immune)
-                    crits.Add((victim, amount));
+                blast.Hits.Add(entry);
+
+                // A crit's side effect is announced by the blast (HitEffects), so it goes on
+                // before the blast goes out.
+                if (crit && !outcome.Immune && victim.State != CharacterState.Dead && victim.State != CharacterState.Dying && victim.Attributes[Attributes.Health].Current > 0)
+                    using (HitEffects.On(victim, player, entry.TargetEffectIds))
+                        CritEffects.OnCritical(mapChannel, victim, player, burning.DamageType, amount);
             }
 
             CellManager.Instance.CellCallMethod(mapChannel, corpse, blast);
-
-            foreach (var (victim, amount) in crits)
-                if (victim.State != CharacterState.Dead && victim.State != CharacterState.Dying && victim.Attributes[Attributes.Health].Current > 0)
-                    CritEffects.OnCritical(mapChannel, victim, player, burning.DamageType, amount);
 
             // The clients have taken a creature's body away with the blast (a player's they leave,
             // BombEffect.DoExplosion); the server gives it up too, on the deletion path that tidies

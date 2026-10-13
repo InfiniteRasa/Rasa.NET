@@ -20,6 +20,11 @@ namespace Rasa.Packets.Login.Client
 
             B.ReadBigEndian(br.ReadBytesExactly(bLen), 0, bLen);
             br.EnsureFullyConsumed("Game key payload");
+
+            // 0, 1, p - 1 and anything from p up make a session key that does not depend on the
+            // server's secret, or none in the group (DHKeyExchange.IsValidPublicKey).
+            if (!DHKeyExchange.IsValidPublicKey(B))
+                throw new InvalidDataException("Game key is not a public key between 1 and p - 1.");
         }
 
         public void Write(BinaryWriter bw)

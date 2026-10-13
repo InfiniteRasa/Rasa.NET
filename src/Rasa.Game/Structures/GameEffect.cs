@@ -53,6 +53,14 @@ namespace Rasa.Structures
         public long NextTickTick { get; set; }
 
         /// <summary>
+        /// Whether its first tick was an interval in when it was attached ("every N seconds for
+        /// D": the ticks fall at N, 2N, ... D), rather than at once (0, N, ... D - N). Set by
+        /// Attach; decides whether the tick that falls on expiry is one of its own
+        /// (GameEffectManager.TicksAtExpiry).
+        /// </summary>
+        public bool FirstTickDelayed { get; set; }
+
+        /// <summary>
         /// Whether the client is given the time left (the tooltip's 'duration', which is what puts
         /// a timer on the icon and in the tooltip). False for an effect whose end the server keeps
         /// pushing out while a condition holds - the Shield Drone's shield lasts as long as the
@@ -81,10 +89,11 @@ namespace Rasa.Structures
         public bool AnnounceOnAttach { get; set; } = true;
 
         /// <summary>
-        /// Whether a weapon hit that puts this effect on a creature may announce it in place of
-        /// the attach (Managers.HitEffects): attached quietly, named in the hit's
+        /// Whether a hit that puts this effect on a creature or a player may announce it in place
+        /// of the attach (Managers.HitEffects): attached quietly, named in the hit's
         /// targetEffectIds, and seen when the hit is. No for an effect something is about to be
-        /// done with that needs its visuals there already - a tick that draws from its FX.
+        /// done with at once that needs its visuals there already - a tick that draws from its
+        /// FX and cannot wait for the hit.
         /// </summary>
         public bool AnnounceWithHit { get; set; } = true;
 
@@ -338,6 +347,12 @@ namespace Rasa.Structures
 
         /// <summary>Percent change to the holder's maximum health while on; negative lowers it.</summary>
         public int MaxHealthPercent { get; set; }
+
+        /// <summary>
+        /// Points added to the holder's maximum health while on, on top of MaxHealthPercent: a
+        /// creature's (XANX_FORTIFY); a player's maximum is worked out from their stats instead.
+        /// </summary>
+        public int MaxHealthPoints { get; set; }
 
         /// <summary>The points of maximum health actually added (or taken) when it was attached, so exactly that is put back.</summary>
         public int MaxHealthApplied { get; set; }

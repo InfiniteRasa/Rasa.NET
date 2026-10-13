@@ -6,6 +6,7 @@ using System.Numerics;
 namespace Rasa.Managers
 {
     using Data;
+    using Game;
     using Packets.MapChannel.Server;
     using Structures;
 
@@ -46,8 +47,19 @@ namespace Rasa.Managers
     /// A tick is resisted by its own damage type and does not crit, as napalm's. It reaches
     /// what the shooter's fire reaches: creatures they may attack and enemy players across a
     /// wargame (AbilityManager.VictimsWithin), looked for in the cells around the shooter. The
-    /// pools of a shooter who leaves the map go with them. PROPELLANT_PUMP_EFFECT 10000046 has
-    /// no FX, no class of its own beyond a name and nothing said of it anywhere, and is not done.
+    /// pools of a shooter who leaves the map go with them. A client that comes into view of a
+    /// pool after it formed is sent it with its proxy (<see cref="ShowTo"/>).
+    ///
+    /// PROPELLANT_PUMP_EFFECT 10000046 is not sent. All the client has of it is
+    /// PropellantPumpEffect, a BaseGameEffect with nothing overridden: no icon, tooltip or
+    /// name in gameeffectdata, no specialFX or detachSFX row at any level, no FX package in
+    /// specialfx.glm, and nothing in the client's Python that looks an effect of its type up.
+    /// Attached, it would show a player nothing. "Pump" is the client's word for a skill's
+    /// level, and the bonuses of a weapon skill were hidden effects of just this kind on the
+    /// player (SKILL_LIMITED_COOL_RATE_MODIFIER_EFFECT and its like,
+    /// ManifestationManager.SyncSkillPassives), so the likeliest reading is the Propellant Guns
+    /// skill's own hidden effect on the shooter - numbered one before the pool it left. What
+    /// it carried was the server's.
     /// </summary>
     public static class PropellantPools
     {
@@ -204,16 +216,31 @@ namespace Rasa.Managers
                 Until = now + DurationMs
             };
 
-            CellManager.Instance.CellCallMethod(mapChannel, proxy, new GameEffectAttachedPacket
+            CellManager.Instance.CellCallMethod(mapChannel, proxy, Attached(created));
+
+            // Listed only now: the proxy went to everyone in view as it was added, and none of
+            // them is to be sent the pool twice (ShowTo).
+            lock (PoolsLock)
+                Pools.Add(created);
+        }
+
+        /// <summary>
+        /// The pool's effect going onto its proxy. Announced, whoever it is for: the client
+        /// starts an effect's FX as it announces it (BaseGameEffect.DoAnnounceAttachVisuals),
+        /// so a pool that was not announced would be there and not drawn.
+        /// </summary>
+        private static GameEffectAttachedPacket Attached(Pool pool)
+        {
+            return new GameEffectAttachedPacket
             {
                 EffectTypeId = PoolTypeId,
-                EffectId = created.EffectId,
+                EffectId = pool.EffectId,
                 // The pool's FX: specialFX is keyed (typeId, level), the level a damage type.
-                EffectLevel = (uint)damageType,
-                SourceId = shooter.EntityId,
+                EffectLevel = (uint)pool.DamageType,
+                SourceId = pool.Shooter.EntityId,
                 Announced = true,
                 Duration = null,
-                DamageType = (int)damageType,
+                DamageType = (int)pool.DamageType,
                 AttrId = 1,
                 IsActive = true,
                 IsBuff = false,
@@ -221,10 +248,30 @@ namespace Rasa.Managers
                 IsNegativeEffect = true,
                 Extras = new Dictionary<string, object>(),
                 Args = new List<object>()
-            });
+            };
+        }
+
+        /// <summary>
+        /// A client has just been sent this object (DynamicObjectManager.CreateDynamicObjectOnClient):
+        /// if it is the proxy of a pool still burning, the pool goes with it. That is anyone who
+        /// comes into view of a pool after it formed - walking up to it, arriving on the map, or
+        /// coming back after it left their view, when their client threw the proxy and its effect
+        /// away. Without this they were sent an invisible object and nothing on it: no pool to
+        /// see, and ticks of an effect their client had never heard of. A pool that has been put
+        /// out is not shown: its proxy is only waiting to be taken away.
+        /// </summary>
+        internal static void ShowTo(Client client, DynamicObject proxy)
+        {
+            if (client == null || proxy == null || proxy.EntityClassId != AbilityManager.LocationProxyClass)
+                return;
+
+            Pool pool;
 
             lock (PoolsLock)
-                Pools.Add(created);
+                pool = Pools.FirstOrDefault(burning => burning.Proxy == proxy && burning.RemoveAt == 0);
+
+            if (pool != null)
+                client.CallMethod(proxy.EntityId, Attached(pool));
         }
 
         /// <summary>The trigger is let go: "extended periods" are of one hold, and the next starts its count again.</summary>

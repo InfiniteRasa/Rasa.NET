@@ -1,4 +1,4 @@
-extern alias RasaGame;
+﻿extern alias RasaGame;
 
 using System;
 using System.Collections.Generic;
@@ -130,6 +130,154 @@ namespace Rasa.Test.World
             LandArrival(destination, manager);
             Assert.AreEqual(ClientState.Ingame, client.State);
         }
+
+        // BR-166: a buff carried across a map change goes on again where the player's own client
+        // is told of it - once they are in the world, not while they are still Teleporting.
+        [TestMethod]
+        public void ABuffCarriedByDropshipIsShownToItsOwnClientWhenTheShipSetsThemDown()
+        {
+            using var world = new WorldTestContext();
+            world.AddClass(EntityClasses.UsableCrSpawnerHumDropshipV01);
+            var client = world.CreateClient();
+            CellManager.Instance.AddToWorld(client);
+            var destination = CreateDestination();
+            var maps = CreateMaps(world, destination);
+            var manager = CreateDropshipManager(maps);
+            using var managers = new ManagerInstances(maps, manager);
+            var buff = CarriedBuff(world.Map, client.Player);
+            StartDropshipTransfer(world, destination, client, manager);
+
+            Depart(world.Map, manager, client);
+            Assert.AreEqual(1, client.Player.CarriedEffects.Count, "kept aside for the ride");
+
+            RouteMapLoaded(client);
+            WorldTestContext.Drain(client);
+            Assert.AreEqual(ClientState.Teleporting, client.State);
+            Assert.AreEqual(1, client.Player.CarriedEffects.Count, "not yet: their own client would not be told");
+
+            LandArrival(destination, manager);
+
+            Assert.AreEqual(ClientState.Ingame, client.State);
+            Assert.IsEmpty(client.Player.CarriedEffects);
+            Assert.IsTrue(client.Player.ActiveEffects.ContainsKey(buff.EffectId), "on again, under the new map's id");
+            Assert.IsTrue(AttachesTo(client).Any(packet => packet.EffectTypeId == BuffTypeId && packet.Announced),
+                "and their own client has it, announced");
+        }
+
+        [TestMethod]
+        public void ABuffCarriedThroughAMapLinkIsShownToItsOwnClient()
+        {
+            using var world = new WorldTestContext();
+            var client = world.CreateClient();
+            var destination = CreateDestination();
+            CellManager.Instance.AddToWorld(client);
+            var maps = CreateMaps(world, destination);
+            var buff = CarriedBuff(world.Map, client.Player);
+
+            Assert.IsTrue(maps.ChangeMap(client, destination.MapInfo.MapContextId, new Vector3(400, 5, 0), 0));
+            Assert.AreEqual(1, client.Player.CarriedEffects.Count);
+            WorldTestContext.Drain(client);
+
+            try
+            {
+                maps.MapLoaded(client);
+
+                Assert.AreEqual(ClientState.Ingame, client.State);
+                Assert.IsTrue(client.Player.ActiveEffects.ContainsKey(buff.EffectId));
+                Assert.IsTrue(AttachesTo(client).Any(packet => packet.EffectTypeId == BuffTypeId && packet.Announced),
+                    "their own client was left out while they were still Teleporting");
+            }
+            finally
+            {
+                CellManager.Instance.RemoveFromWorld(client);
+                destination.ClientList.Clear();
+            }
+        }
+
+        [TestMethod]
+        public void BuffsStillAsideWhenThePlayerLeavesAgainGoWithThem()
+        {
+            using var world = new WorldTestContext();
+            var player = world.CreateClient().Player;
+            var first = CarriedBuff(world.Map, player);
+
+            EffectCarry.Stash(player);
+            GameEffectManager.Instance.ClearEffects(world.Map, player);
+
+            // Off again before the ride set them down: what was aside stays aside, with what is on now.
+            var second = CarriedBuff(world.Map, player, typeId: BuffTypeId + 1);
+            EffectCarry.Stash(player);
+
+            CollectionAssert.AreEquivalent(new[] { first, second }, player.CarriedEffects.Select(c => c.Effect).ToArray());
+
+            // The dead keep nothing.
+            player.State = CharacterState.Dead;
+            EffectCarry.Stash(player);
+            Assert.IsEmpty(player.CarriedEffects);
+        }
+
+        [TestMethod]
+        public void AnArmedSelfDestructStaysOnTheMapItWasArmedOn()
+        {
+            using var world = new WorldTestContext();
+            var player = world.CreateClient(x: 120, z: -40).Player;
+
+            // As ArmSelfDestruct makes it: a buff with a duration, no callbacks, its own damage
+            // tick, and the place its holder is sent back to when it goes off.
+            var bomb = new GameEffect
+            {
+                TypeId = 10000032,
+                EffectId = GameEffectManager.Instance.NextEffectId(world.Map),
+                EffectLevel = 1,
+                SourceId = player.EntityId,
+                Source = player,
+                IsBuff = true,
+                AllowDetach = true,
+                TickDamageMin = 100,
+                TickDamageMax = 200,
+                TickRadius = 10,
+                ReturnTo = player.Position,
+                ExpiresTick = Environment.TickCount64 + 30_000
+            };
+
+            GameEffectManager.Instance.Attach(world.Map, player, bomb);
+
+            // Carried, it went off on the next map and put the player at this map's coordinates.
+            Assert.IsFalse(EffectCarry.Carries(player, bomb));
+
+            EffectCarry.Stash(player);
+            Assert.IsEmpty(player.CarriedEffects);
+
+            // The same effect with nowhere to return to is an ordinary buff of theirs.
+            bomb.ReturnTo = null;
+            Assert.IsTrue(EffectCarry.Carries(player, bomb));
+        }
+
+        /// <summary>RAGE: a buff of a minute, which a map change carries.</summary>
+        private const int BuffTypeId = 74;
+
+        private static GameEffect CarriedBuff(MapChannel map, Manifestation player, int typeId = BuffTypeId)
+        {
+            var buff = new GameEffect
+            {
+                TypeId = typeId,
+                EffectId = GameEffectManager.Instance.NextEffectId(map),
+                EffectLevel = 1,
+                SourceId = player.EntityId,
+                Source = player,
+                IsBuff = true,
+                ExpiresTick = Environment.TickCount64 + 60_000
+            };
+
+            GameEffectManager.Instance.Attach(map, player, buff);
+            Assert.IsTrue(EffectCarry.Carries(player, buff));
+
+            return buff;
+        }
+
+        private static List<GameEffectAttachedPacket> AttachesTo(Rasa.Game.Client client) =>
+            WorldTestContext.Drain(client).Select(packet => packet.Message).OfType<CallMethodMessage>()
+                .Select(message => message.Packet).OfType<GameEffectAttachedPacket>().ToList();
 
         [TestMethod]
         public void ASquadMateWhoArrivesByDropshipIsAnnouncedToTheSquadThere()
@@ -263,6 +411,107 @@ namespace Rasa.Test.World
             Assert.AreEqual(0, WorldTestContext.Drain(observer).Count);
         }
 
+        // BR-203: the ship that set the player down lingers five seconds after they are free to
+        // go. It is not a flight: a destination picked from the pad in that time is taken.
+        [TestMethod]
+        public void ADestinationPickedWhileTheArrivalShipLiftsOffIsTaken()
+        {
+            using var world = new WorldTestContext();
+            world.AddClass(EntityClasses.UsableCrSpawnerHumDropshipV01);
+            var client = world.CreateClient();
+            CellManager.Instance.AddToWorld(client);
+            var destination = CreateDestination();
+            var maps = CreateMaps(world, destination);
+            var manager = CreateDropshipManager(maps);
+            using var managers = new ManagerInstances(maps, manager);
+            StartDropshipTransfer(world, destination, client, manager);
+            client.Player.GainedWaypoints.Add(
+                new CharacterTeleporterEntry(client.Player.Id, 10, (byte)WaypointType.Dropship));
+            Depart(world.Map, manager, client);
+            RouteMapLoaded(client);
+
+            var arrival = SetDown(destination, manager, client);
+            Assert.IsTrue(manager.Dropships.ContainsKey(arrival.EntityId), "still lifting off");
+            Assert.IsTrue(manager.CanBeginDropshipTravel(client, world.Map, Vector3.Zero, 0));
+            WorldTestContext.Drain(client);
+
+            manager.SelectWaypoint(client, new SelectWaypointPacket { MapInstanceId = 1, WaypointId = 10 });
+
+            Assert.IsNotNull(client.PendingTransfer);
+            Assert.IsTrue(client.PendingTransfer.IsDropship);
+            Assert.AreEqual(world.Map.MapInfo.MapContextId, client.LoadingMap);
+            var departure = manager.Dropships[client.PendingTransfer.DropshipId];
+            Assert.AreEqual(DropshipRole.Departure, departure.Role);
+            Assert.AreNotSame(arrival, departure);
+        }
+
+        [TestMethod]
+        public void ADepartingShipStillCountsAsAnActiveFlight()
+        {
+            using var world = new WorldTestContext();
+            world.AddClass(EntityClasses.UsableCrSpawnerHumDropshipV01);
+            var client = world.CreateClient();
+            CellManager.Instance.AddToWorld(client);
+            var destination = CreateDestination();
+            var maps = CreateMaps(world, destination);
+            var manager = CreateDropshipManager(maps);
+            using var managers = new ManagerInstances(maps, manager);
+            StartDropshipTransfer(world, destination, client, manager);
+            Depart(world.Map, manager, client);
+            RouteMapLoaded(client);
+            SetDown(destination, manager, client);
+
+            var departure = new Dropship(
+                TargetCategory.Friendly,
+                DropshipType.Teleporter,
+                client,
+                DropshipRole.Departure);
+            CellManager.Instance.AddToWorld(destination, departure);
+            manager.Dropships.Add(departure.EntityId, departure);
+
+            Assert.IsNull(client.PendingTransfer);
+            Assert.IsFalse(manager.CanBeginDropshipTravel(client, world.Map, Vector3.Zero, 0));
+        }
+
+        // BR-165: the ship setting a player down brings their client and their neighbours' in
+        // line with the cells, which passed them over while they were Teleporting.
+        [TestMethod]
+        public void WhoCameNearWhileTheShipHeldThePlayerIsSeenBothWaysWhenItSetsThemDown()
+        {
+            using var world = new WorldTestContext();
+            var destination = CreateDestination();
+            var maps = CreateMaps(world, destination);
+            var manager = CreateDropshipManager(maps);
+            using var managers = new ManagerInstances(maps, manager);
+            var walker = PlayerDeathTests.Player(world, 600, 0);
+            var client = world.CreateClient();
+            client.State = ClientState.Teleporting;
+            client.Player.MapContextId = world.Map.MapInfo.MapContextId;
+            client.LoadingMap = world.Map.MapInfo.MapContextId;
+            CellManager.Instance.AddToWorld(client);
+            var arrival = new Dropship(TargetCategory.Friendly, DropshipType.Teleporter, client, DropshipRole.Arrival);
+            CellManager.Instance.AddToWorld(world.Map, arrival);
+            manager.Dropships.Add(arrival.EntityId, arrival);
+
+            walker.Player.Position = new Vector3(4, 0, 0);
+            CellManager.Instance.UpdateVisibility(walker);
+            WorldTestContext.Drain(client);
+            WorldTestContext.Drain(walker);
+            Assert.IsNotNull(client.PlacedView);
+
+            for (var step = 0; step < 6 && client.State != ClientState.Ingame; step++)
+                manager.DropshipsWorker(world.Map, Math.Max(0, arrival.PhaseTimeleft));
+
+            Assert.AreEqual(ClientState.Ingame, client.State);
+            Assert.IsNull(client.PlacedView);
+            Assert.IsTrue(Made(client).Contains(walker.Player.EntityId));
+            Assert.IsTrue(Made(walker).Contains(client.Player.EntityId));
+        }
+
+        private static List<ulong> Made(Rasa.Game.Client client) =>
+            WorldTestContext.Drain(client).Select(p => p.Message).OfType<CallMethodMessage>()
+                .Select(m => m.Packet).OfType<Rasa.Packets.Game.Server.CreatePhysicalEntityPacket>().Select(p => p.EntityId).ToList();
+
         [TestMethod]
         public void AMapTickDoesNotAdvanceAnotherMapsDropship()
         {
@@ -340,6 +589,18 @@ namespace Rasa.Test.World
             var arrival = manager.Dropships.Values.Single();
             for (var step = 0; step < 6; step++)
                 manager.DropshipsWorker(destination, Math.Max(0, arrival.PhaseTimeleft));
+        }
+
+        // Runs the arrival ship until it frees the player (phase 4), leaving it to lift off.
+        private static Dropship SetDown(MapChannel destination, DynamicObjectManager manager,
+            Rasa.Game.Client client)
+        {
+            var arrival = manager.Dropships.Values.Single();
+            Assert.AreEqual(DropshipRole.Arrival, arrival.Role);
+            for (var step = 0; step < 6 && client.State != ClientState.Ingame; step++)
+                manager.DropshipsWorker(destination, Math.Max(0, arrival.PhaseTimeleft));
+            Assert.AreEqual(ClientState.Ingame, client.State);
+            return arrival;
         }
 
         private static void RouteMapLoaded(Rasa.Game.Client client)

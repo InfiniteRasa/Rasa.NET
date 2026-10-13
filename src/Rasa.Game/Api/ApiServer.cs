@@ -57,6 +57,10 @@ namespace Rasa.Api
     /// mistake. The certificate's files are looked at again every <see cref="TlsRecheckMs"/>
     /// and on every config reload; a renewed one is taken up, and one that will not load
     /// leaves the one in use in use. Without TLS a key crosses the network as it is.
+    ///
+    /// Every request that is answered is put on the API's log (<see cref="Audit"/>, api_log)
+    /// once its answer has been sent: refused or not, with what was asked, from where, and
+    /// the answer's status.
     /// </summary>
     public sealed class ApiServer : TcpService
     {
@@ -99,6 +103,9 @@ namespace Rasa.Api
         public ApiTls Tls => _tls;
 
         protected override string Label => "REST API";
+
+        /// <summary>Where every request is logged once it is answered (api_log); null logs none.</summary>
+        public ApiAudit Audit { get; set; }
 
         /// <summary>The endpoints' names, in order.</summary>
         public IReadOnlyList<string> Endpoints
@@ -613,8 +620,16 @@ namespace Rasa.Api
             if (request?.LetThrough == true)
                 time.Restart(ExchangeTimeoutMs);
 
-            await stream.WriteAsync(bytes, 0, bytes.Length, limit).ConfigureAwait(false);
-            await stream.FlushAsync(limit).ConfigureAwait(false);
+            try
+            {
+                await stream.WriteAsync(bytes, 0, bytes.Length, limit).ConfigureAwait(false);
+                await stream.FlushAsync(limit).ConfigureAwait(false);
+            }
+            finally
+            {
+                // On the log, answered or not: a client that went before its answer did still ask.
+                Audit?.Record(request, remote, response);
+            }
 
             var whole = unsent <= 0 || await Discard(stream, unsent, limit).ConfigureAwait(false);
 

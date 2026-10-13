@@ -130,6 +130,19 @@ namespace Rasa.Repositories.Char.GameAccount
             _charContext.SaveChanges();
         }
 
+        public byte AddHybridUnlocks(uint id, byte unlocks)
+        {
+            var entry = _charContext.GetWritableEnsuring(_charContext.GameAccountEntries, id);
+            var added = (byte)(unlocks & ~entry.HybridUnlocks);
+
+            if (added == 0)
+                return 0;
+
+            entry.HybridUnlocks |= added;
+            _charContext.SaveChanges();
+            return added;
+        }
+
         public void UpdateCanSkipBootcamp(uint id, bool canSkipBootcamp)
         {
             var entry = _charContext.GetWritableEnsuring(_charContext.GameAccountEntries, id);

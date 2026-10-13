@@ -191,6 +191,55 @@ namespace Rasa.Test.Gameplay
         }
 
         [TestMethod]
+        public void AListingAndItsCancellationAreOnTheEconomyLog()
+        {
+            using var context = MissionTestContext.WithCompletableMission(429);
+            var seller = context.Client;
+            var item = InPack(context, slot: 7);
+            var auctions = Auctions(context);
+            var singleton = typeof(InventoryManager).GetField("_instance", BindingFlags.Static | BindingFlags.NonPublic);
+            var before = singleton.GetValue(null);
+            var store = new EconomyAuditTests.MemoryStore();
+            var previousStore = EconomyAudit.Instance.Store;
+
+            singleton.SetValue(null, new InventoryManager(context));
+            EconomyAudit.Instance.Load(store);
+
+            try
+            {
+                Credits(context, 1000);
+                context.Drain();
+
+                auctions.RequestCreateAuction(seller, new RequestCreateAuctionPacket
+                {
+                    EntityId = Auctioneer, ItemEntityId = item.EntityId, Price = 400, Duration = 2
+                });
+                auctions.RequestCancelAuction(seller, new RequestCancelAuctionPacket
+                {
+                    EntityId = Auctioneer, ItemEntityId = item.EntityId
+                });
+
+                var deposit = AuctionHouseManager.CalculateDeposit(item, 400, 2);
+                var id = seller.Player.Id;
+
+                Assert.HasCount(2, store.Events);
+                Assert.IsTrue(store.Events[0].All(row => row.Kind == (byte)Rasa.Structures.Char.EconomyLogKind.AuctionListed && row.ReferenceId == item.Id));
+                CollectionAssert.AreEquivalent(new[]
+                {
+                    $"{id} item {item.Id} -{item.StackSize} from 0",
+                    $"{id} credits -{deposit} ={1000 - deposit} from 0"
+                }, store.Events[0].Select(EconomyAuditTests.Describe).ToList(), "to the auction house, and the deposit");
+                Assert.AreEqual((byte)Rasa.Structures.Char.EconomyLogKind.AuctionCancelled, store.Events[1].Single().Kind);
+                Assert.AreEqual($"{id} item {item.Id} {item.StackSize} from 0", EconomyAuditTests.Describe(store.Events[1].Single()), "back, the deposit kept");
+            }
+            finally
+            {
+                singleton.SetValue(null, before);
+                EconomyAudit.Instance.Load(previousStore);
+            }
+        }
+
+        [TestMethod]
         [DataRow(false, DisplayName = "Receive and a right-click: int id")]
         [DataRow(true, DisplayName = "Receive All: long id")]
         public void AnInboxItemTakenWithNoSlotGoesToTheFirstFreeSlotOfItsCategory(bool itemAsLong)

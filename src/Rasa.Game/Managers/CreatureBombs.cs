@@ -64,7 +64,7 @@ namespace Rasa.Managers
     ///    no Reanimation, Cadaver Immolation or Hortimonculus, no second Necromite. The client's
     ///    BombEffect takes the body away when it goes off (removeTarget), and the server gives it
     ///    up for despawn then, as Cadaver Immolation's. As there, the effect is sent to the
-    ///    clients directly: the effect worker clears everything off a dead actor. A body
+    ///    clients directly: the effect worker clears everything but a death bomb off a dead actor. A body
     ///    destroyed by a finishing move, a scripted object or one the client has taken away (a
     ///    Howler's) is not a body to use. The Necromite is not spent on a corpse.
     ///
@@ -127,6 +127,12 @@ namespace Rasa.Managers
         }
 
         public static bool IsDeathAction(CreatureAction action) => action != null && (KindOf(action.ActionId) == Kind.DeathBlast || KindOf(action.ActionId) == Kind.DeathBomb);
+
+        /// <summary>
+        /// The bomb a Howler or a Predator puts on its own body as it dies (OnDeath). It goes off
+        /// from the corpse, so the effect worker leaves it there until it does.
+        /// </summary>
+        public static bool IsDeathBomb(GameEffect effect) => effect != null && (effect.TypeId == HowlerDeathTypeId || effect.TypeId == PredatorDeathTypeId);
 
         public static bool IsSelfDestruct(CreatureAction action) => action != null && action.ActionId == FithikSelfDestruct;
 

@@ -965,7 +965,7 @@ namespace Rasa.Test.Networking
                         "ingame/items", "ingame/items/categories", "ingame/items/update", "ingame/items/{id}",
                         "ingame/lootpools", "ingame/monsterflags", "ingame/session/exchange",
                         "ingame/updatelootpools", "ingame/updatemonsterflags",
-                        "lootpools", "monsterflags", "serverstatus", "updatelootpools", "updatemonsterflags"
+                        "kickuser", "lootpools", "monsterflags", "serverstatus", "updatelootpools", "updatemonsterflags", "usersonline"
                     },
                     host.Rest.Endpoints.ToArray());
 

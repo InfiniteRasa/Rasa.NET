@@ -42,6 +42,12 @@ namespace Rasa.Managers
     /// from walking: only crouching lifts the ceiling past 99, so whether a standing player could
     /// have reached 80 or only 64 never decides whether a shot was at full bead.
     ///
+    /// A cone weapon - a shotgun or a propellant gun (ConeWeapons) - has no bead to build. The
+    /// client's cone targeting clears the target as it starts (targeting.py: ClearDirectTarget),
+    /// so its ceiling is 0, and the cone reticle's bead lines never move. Its shot does what a
+    /// full bead from the same stance does instead (<see cref="ConeDamageFactor"/>): 82% standing,
+    /// all of it crouched. Held to the bead, it did a tenth of its damage every time.
+    ///
     /// The aim rate and recoil come from the weapon template, which is also what the client is
     /// sent in WeaponInfo, so both ends run the same bead. The aim rates are the guide's
     /// comparative bead times by weapon family (Retune_weapon_bead); recoil is still the shipped
@@ -91,6 +97,18 @@ namespace Rasa.Managers
                 return NoBeadDamage;
 
             return NoBeadDamage + (1 - NoBeadDamage) * Math.Min(1.0, bead / CrouchedMax);
+        }
+
+        /// <summary>
+        /// What share of its damage a cone weapon's shot does: what a full bead from the stance
+        /// would - the stance's ceiling, 80 standing and 100 crouched, on the same line as
+        /// <see cref="DamageFactor"/> - as there is no bead to wait for.
+        /// </summary>
+        public static double ConeDamageFactor(Manifestation player)
+        {
+            var ceiling = player.IsCrouching ? CrouchedMax : StandingMax;
+
+            return NoBeadDamage + (1 - NoBeadDamage) * Math.Min(1.0, ceiling / CrouchedMax);
         }
 
         /// <summary>
