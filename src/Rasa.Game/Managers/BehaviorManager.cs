@@ -1149,6 +1149,13 @@ namespace Rasa.Managers
                     return;
                 }
 
+                // Its target inside the minimum range of every attack it has: one that can walk
+                // backwards backs off, facing it, until it can strike again (CreatureStepBack).
+                // One that cannot stands, as below.
+                if (!sightBlocked && CreatureStepBack.Wants(creature, (float)Math.Sqrt(targetDistSqr))
+                    && StepBack(mapChannel, creature, targetPosition, delta))
+                    return;
+
                 // Near enough, don't move - and say so, after the step that brought it here. Near
                 // enough is three metres, or inside the creature's reach when that is shorter
                 // (NearEnoughFor).
@@ -2635,6 +2642,39 @@ namespace Rasa.Managers
             return reach <= 0 ? ChaseStandoffDistance : Math.Min(ChaseStandoffDistance, Math.Max(reach / 2, reach - ChaseReachMargin));
         }
 
+        /// <summary>
+        /// One think's step back from a target inside the creature's minimum range
+        /// (CreatureStepBack): at its walking speed, straight away from the target, facing it.
+        /// False when the way back is not clear, and it has not moved.
+        /// </summary>
+        private bool StepBack(MapChannel mapChannel, Creature creature, Vector3 targetPosition, long delta)
+        {
+            var destination = CreatureStepBack.Destination(creature, targetPosition);
+
+            if (destination == null)
+                return false;
+
+            var to = NavMeshManager.SnapToGround(mapChannel, destination.Value);
+
+            if (!CreatureStepBack.IsClear(mapChannel, creature.Position, to))
+                return false;
+
+            // Whatever chase it was on is not this: the next one is built for where the target is then.
+            creature.Controller.Path.Clear();
+            creature.Controller.PathIndex = 0;
+
+            var before = creature.Position;
+
+            UpdateEntityMovement(to.X - creature.Position.X, to.Y - creature.Position.Y, to.Z - creature.Position.Z,
+                creature, mapChannel, creature.WalkSpeed, true, delta, backwards: true);
+
+            // Ground gained from a target it could not hit is the fight going on (Stalled).
+            if (creature.Position != before)
+                MadeProgress(creature);
+
+            return true;
+        }
+
         /// <summary>The fight is over for this creature: it forgets everyone it hated and wanders again.</summary>
         public void GiveUp(Creature creature)
         {
@@ -3030,8 +3070,9 @@ namespace Rasa.Managers
         /// <param name="faceAlong">A carry that faces the way it goes (a Vortex pull) rather than back the way it came.</param>
         /// <param name="publish">Whether the step is sent to the clients: not for a rush, which they are making themselves.</param>
         /// <param name="grounded">Whether the step ends on the navmesh, as every walk's does but a beat's between two authored points (Patrols).</param>
+        /// <param name="backwards">A walk backwards (CreatureStepBack): facing back the way it came, and the clients told it moves backwards.</param>
         float UpdateEntityMovement(double difX, double difY, double difZ, Creature creature, MapChannel mapChannel, float speed, bool isMoved, long elapsedMs, bool knockback = false, bool faceAlong = false,
-            bool synchronizeVisibility = false, bool publish = true, bool grounded = true)
+            bool synchronizeVisibility = false, bool publish = true, bool grounded = true, bool backwards = false)
         {
             if (!knockback)
             {
@@ -3048,7 +3089,7 @@ namespace Rasa.Managers
             difX *= length;
             difY *= length;
             difZ *= length;
-            var vX = knockback && !faceAlong ? (float)Math.Atan2(difX, difZ) : (float)Math.Atan2(-difX, -difZ);
+            var vX = (knockback && !faceAlong) || backwards ? (float)Math.Atan2(difX, difZ) : (float)Math.Atan2(-difX, -difZ);
             creature.LastYaw = vX;
 
             var velocity = isMoved ? speed : 0.0f;
@@ -3087,8 +3128,10 @@ namespace Rasa.Managers
             if (!publish)
                 return step;
 
-            // send movement update
-            var movement = new Movement(new Vector3(creature.Position.X, creature.Position.Y, creature.Position.Z), velocity, 0x08, new Vector2(vX, 0f));
+            // send movement update; one walking backwards says so in the direction bits, which
+            // pick the class's backward walk (CreatureStepBack.BackwardDirection)
+            var flags = backwards && velocity > 0 ? (byte)(Movement.FastTurn | CreatureStepBack.BackwardDirection) : (byte)0x08;
+            var movement = new Movement(new Vector3(creature.Position.X, creature.Position.Y, creature.Position.Z), velocity, flags, new Vector2(vX, 0f));
 
             PublishMovement(creature, movement);
 
