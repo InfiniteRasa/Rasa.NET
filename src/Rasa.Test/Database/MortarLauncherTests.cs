@@ -13,8 +13,8 @@ namespace Rasa.Test.Database
     [TestClass]
     public class MortarLauncherTests
     {
-        private const string Migration = "20261217000000_Wilderness_mortar_launchers";
-        private const string Previous = "20261216000000_Bind_control_point_turret_loot";
+        private const string Migration = "20261218000000_Wilderness_mortar_launchers";
+        private const string Previous = "20261217000000_Fithik_bites";
 
         [TestMethod]
         public void EveryCreatureThatFiresAMortarHasTheLauncherInItsWeaponSlotOnce()
@@ -57,6 +57,57 @@ namespace Rasa.Test.Database
             migrator.Migrate(Previous);
             Assert.AreEqual(0, Slot(database, first).Length);
             CollectionAssert.AreEqual(new long[] { 3782 }, Slot(database, second), "not the launcher: left");
+        }
+
+        // A World that ran it as 20261217000000_Wilderness_mortar_launchers, the timestamp
+        // Fithik_bites has: it runs again under its own, adds nothing, and the old row goes.
+        [TestMethod]
+        public void AWorldThatRanItUnderTheOldIdEndsWithOneLauncherAndOnlyTheNewHistoryRow()
+        {
+            using var database = new OrdinaryLootTestDatabase();
+            var migrator = database.Context.GetService<IMigrator>();
+            var first = WildernessMortarLaunchers.Mortars[0];
+
+            migrator.Migrate(Previous);
+            database.Context.Database.ExecuteSqlRaw(WildernessMortarLaunchers.Up);
+            database.Context.Database.ExecuteSqlRaw(
+                $"INSERT INTO __EFMigrationsHistory (MigrationId, ProductVersion) VALUES ('{WildernessMortarLaunchers.OldId}', '9.0.20')");
+
+            CollectionAssert.Contains(database.Context.Database.GetPendingMigrations().ToList(), Migration);
+
+            migrator.Migrate();
+
+            CollectionAssert.AreEqual(new long[] { WildernessMortarLaunchers.Launcher }, Slot(database, first), "one launcher, not two");
+            var history = database.Context.Database.GetAppliedMigrations().ToList();
+            CollectionAssert.Contains(history, Migration);
+            CollectionAssert.DoesNotContain(history, WildernessMortarLaunchers.OldId);
+        }
+
+        // Six pairs older than this shared a timestamp before it, and are run on every World
+        // already, several with table changes that are not guarded, so they keep their ids. A
+        // new pair is a mistake: EF runs both, ordered by the rest of the id, whatever was meant.
+        [TestMethod]
+        public void NoNewMigrationSharesATimestamp()
+        {
+            var known = new[] { "20260927000000", "20260930000000", "20261012000000", "20261104000000", "20261111000000", "20261203000000" };
+
+            using var database = new OrdinaryLootTestDatabase();
+            var shared = database.Context.Database.GetMigrations()
+                .GroupBy(id => id.Substring(0, 14)).Where(stamp => stamp.Count() > 1).Select(stamp => stamp.Key).ToList();
+
+            CollectionAssert.AreEquivalent(known, shared, string.Join(", ", shared));
+        }
+
+        [TestMethod]
+        public void TheMigrationForgetsTheOldIdOnMySql()
+        {
+            using var context = PersistenceIntegrationTests.CreateContext(typeof(Rasa.Context.World.MySqlWorldContext), "unused");
+            var migrator = context.GetService<IMigrator>();
+            var up = migrator.GenerateScript(Previous, Migration);
+
+            StringAssert.Contains(up, WildernessMortarLaunchers.Up);
+            StringAssert.Contains(up, "DELETE FROM __EFMigrationsHistory WHERE MigrationId = '20261217000000_Wilderness_mortar_launchers';");
+            StringAssert.Contains(up, $"'{Migration}'");
         }
 
         private static long[] Slot(OrdinaryLootTestDatabase database, uint id) =>

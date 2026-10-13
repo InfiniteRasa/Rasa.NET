@@ -34,5 +34,12 @@ namespace Rasa.Services.Preloader
         public static readonly string Down =
             "DELETE FROM creature_appearance " +
             $"WHERE id IN ({Ids}) AND slot_id = {WeaponSlot} AND Class_id = {Launcher};";
+
+        /// <summary>The id the migration first had, 20261217000000, which Fithik_bites shares.</summary>
+        public const string OldId = "20261217000000_Wilderness_mortar_launchers";
+
+        /// <summary>The history row a World that ran it under OldId still has.</summary>
+        public static readonly string ForgetOldId =
+            $"DELETE FROM __EFMigrationsHistory WHERE MigrationId = '{OldId}';";
     }
 }
