@@ -531,6 +531,9 @@ namespace Rasa.Managers
             {
                 PlayerCrowdControl.CreatureActionHit(mapChannel, striker, struck, missile.ActionId, missile.ActionArgId);
                 CreatureEffectAttacks.OnHit(mapChannel, striker, struck, missile);
+
+                // A Maw's bite may leave them in its vines (MawVines).
+                MawVines.OnHit(mapChannel, striker, struck, missile.ActionId);
             }
 
             // An enemy player's weapon does to a player what it does to a creature, for
