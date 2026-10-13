@@ -159,7 +159,30 @@ namespace Rasa.Api.Ingame
                     catch (Exception error)
                     {
                         Logger.WriteLog(LogType.Error, $"Creature editor save {input.Id} failed: {error}");
-                        return ApiResponse.Error(500, "creature database save failed; check server log");
+                        if (error is InvalidOperationException &&
+                            error.Message.Contains("database verification failed", StringComparison.Ordinal))
+                            return ApiResponse.Error(500, error.Message);
+                        return ApiResponse.Error(500, "creature database save failed; check server log (including whether the creature color migration was applied)");
+                    }
+
+                    // Return a fresh DB read, not an echo of the user's payload.
+                    // Repository verification already checks the persisted values *before*
+                    // committing the transaction; this read also keeps the wire contract
+                    // honest and supplies an authoritative new concurrency snapshot.
+                    IngameCreatureDetails persistedDetails;
+                    try
+                    {
+                        using var verified = Server.GameUnitOfWorkFactory.CreateWorld();
+                        var persistedRow = verified.Creatures.Get().FirstOrDefault(row => row.Id == input.Id);
+                        if (persistedRow == null)
+                            throw new InvalidOperationException($"Creature {input.Id} disappeared after save");
+                        persistedDetails = ToDetails(persistedRow, entityClass,
+                            verified.Creatures.GetCreatureAppearances(input.Id));
+                    }
+                    catch (Exception error)
+                    {
+                        Logger.WriteLog(LogType.Error, $"Creature editor post-save read {input.Id} failed: {error}");
+                        return ApiResponse.Error(500, "creature was written but could not be verified by reloading; check server log");
                     }
 
                     CreatureManager.Instance.PublishCreatureEditor(updated, rows, actions);
@@ -167,8 +190,8 @@ namespace Rasa.Api.Ingame
                     return ApiResponse.Ok(ApiJson.Serialize(new
                     {
                         result = "updated",
-                        creature = ToDetails(updated, entityClass, rows),
-                        note = "Saved; future spawns use these settings. Existing actors are not reset."
+                        creature = persistedDetails,
+                        note = "Committed and reloaded from World DB; future spawns use these settings. Existing actors are not reset."
                     }));
                 }
             }
