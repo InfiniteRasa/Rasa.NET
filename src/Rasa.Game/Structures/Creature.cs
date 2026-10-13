@@ -219,6 +219,13 @@ namespace Rasa.Structures
         /// </summary>
         public int HarvestAttemptsLeft { get; set; }
         internal Manifestation CombatParticipant { get; set; }
+
+        /// <summary>
+        /// The last player whose damage - their own, or a creature's of theirs - landed on this
+        /// creature (CreatureManager.RecordCombatDamage). A kill whose last blow is nobody's -
+        /// a friendly NPC's, a control point turret's - is theirs, if they are still in the fight.
+        /// </summary>
+        internal Manifestation LastPlayerHit { get; set; }
         internal Game.Missions.World.ActorGameplayBinding GameplayBinding { get; set; }
 
         /// <summary>

@@ -254,6 +254,11 @@ namespace Rasa.Managers
             // try to damage it every second until it expired.
             GameEffectManager.Instance.ClearEffects(mapChannel, creature);
 
+            // Who last hit it, if they are still in the fight - on its hate table, which a leash
+            // or a fight given up clears - before the grudges go.
+            var lastHitter = creature.LastPlayerHit is { } hitter && creature.Hate.Contains(hitter.EntityId) ? hitter : null;
+            creature.LastPlayerHit = null;
+
             // Nor does a grudge.
             creature.Hate.Clear();
 
@@ -294,6 +299,13 @@ namespace Rasa.Managers
                 Game.Missions.World.CreatureGameplayRules.IsDefender(defender) && policy.TrackParticipation &&
                 defender.TargetCategory != creature.TargetCategory && IsLivingOnMap(mapChannel, defender))
                 client = FindCombatPlayer(mapChannel, participant);
+
+            // Anything else on the player's side - a friendly NPC, a control point turret - lands
+            // the last blow for nobody: the kill is the last player's to hit it, if they are still
+            // in the fight and on the map. Nothing credited it before, not even the player who
+            // did most of the work.
+            if (client == null && killedBy is Creature ally && ally.TargetCategory != creature.TargetCategory && lastHitter != null)
+                client = FindCombatPlayer(mapChannel, lastHitter);
             creature.CombatParticipant = null;
             canReward &= client != null &&
                 (!mapChannel.IsPrivateInstance || mapChannel.OwnerCharacterId == client.Player.Id);
@@ -474,6 +486,9 @@ namespace Rasa.Managers
 
         internal static void RecordCombatDamage(MapChannel map, Creature target, Actor source, int damage)
         {
+            if (damage > 0 && Pvp.Controller(source) is Manifestation hitter)
+                target.LastPlayerHit = hitter;
+
             if (damage <= 0 || !Game.Missions.World.CreatureGameplayRules.TracksParticipation(target) || !IsHostileTarget(map, source, target))
                 return;
             var client = source is Manifestation player
