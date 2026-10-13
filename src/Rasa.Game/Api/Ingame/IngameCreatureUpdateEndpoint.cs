@@ -25,6 +25,106 @@ namespace Rasa.Api.Ingame
         protected override string RequiredCommand => ".giveitem";
         public override int MaxBodyBytes => 256 * 1024;
 
+        // Keep concurrency tokens scoped to fields the editor actually owns. Display
+        // metadata (className, meshId, slot, flags, augmentations, etc.) may be absent
+        // from the Rust round-trip or change independently without changing a template.
+        private static readonly string[] SnapshotFields =
+        {
+            "id", "classId", "comment", "faction", "level", "maxHitPoints", "nameId",
+            "runSpeed", "walkSpeed", "actions", "randomBodyHue", "bodyHue", "bodyHue2", "appearance"
+        };
+
+        internal static bool TryReadExpectedSnapshot(JsonElement json, out IngameCreatureDetails snapshot, out string error)
+        {
+            snapshot = null;
+            error = "expected creature snapshot must be an object";
+            if (json.ValueKind != JsonValueKind.Object)
+                return false;
+
+            foreach (var field in SnapshotFields)
+            {
+                if (!json.TryGetProperty(field, out _))
+                {
+                    error = $"expected.{field} is required; reload this creature before saving";
+                    return false;
+                }
+            }
+
+            if (json.GetProperty("actions").ValueKind != JsonValueKind.Array ||
+                json.GetProperty("appearance").ValueKind != JsonValueKind.Array ||
+                json.GetProperty("randomBodyHue").ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+            {
+                error = "expected actions/appearance must be arrays and randomBodyHue must be boolean";
+                return false;
+            }
+
+            foreach (var entry in json.GetProperty("appearance").EnumerateArray())
+            {
+                if (entry.ValueKind != JsonValueKind.Object ||
+                    !entry.TryGetProperty("slotId", out _) ||
+                    !entry.TryGetProperty("classId", out _) ||
+                    !entry.TryGetProperty("color", out _) ||
+                    !entry.TryGetProperty("hue2", out _))
+                {
+                    error = "expected appearance entries require slotId, classId, color and hue2";
+                    return false;
+                }
+            }
+
+            try
+            {
+                snapshot = json.Deserialize<IngameCreatureDetails>(JsonOptions);
+            }
+            catch (JsonException)
+            {
+                error = "expected creature snapshot has invalid field types; reload before saving";
+                return false;
+            }
+
+            if (snapshot == null || snapshot.Comment == null || snapshot.Actions?.Count != 8 ||
+                snapshot.Appearance == null || snapshot.Appearance.Any(entry => entry == null))
+            {
+                error = "expected creature snapshot has invalid actions or appearance; reload before saving";
+                return false;
+            }
+
+            error = null;
+            return true;
+        }
+
+        /// <summary>Names only truly edited fields that differ from the last GET.</summary>
+        internal static List<string> ChangedEditableFields(IngameCreatureDetails expected, IngameCreatureDetails current)
+        {
+            var changed = new List<string>();
+            if (expected.Id != current.Id || expected.ClassId != current.ClassId)
+                changed.Add("creature identity");
+            if (expected.Comment != current.Comment) changed.Add("comment");
+            if (expected.Faction != current.Faction) changed.Add("faction");
+            if (expected.Level != current.Level) changed.Add("level");
+            if (expected.MaxHitPoints != current.MaxHitPoints) changed.Add("maxHitPoints");
+            if (expected.NameId != current.NameId) changed.Add("nameId");
+            if (expected.RunSpeed != current.RunSpeed) changed.Add("runSpeed");
+            if (expected.WalkSpeed != current.WalkSpeed) changed.Add("walkSpeed");
+            if (!expected.Actions.SequenceEqual(current.Actions)) changed.Add("actions");
+            if (expected.RandomBodyHue != current.RandomBodyHue ||
+                expected.BodyHue != current.BodyHue || expected.BodyHue2 != current.BodyHue2)
+                changed.Add("body hues");
+
+            // Appearance order and descriptive labels are not meaningful, but an
+            // added/removed slot or a change in its class/colors is meaningful.
+            if (expected.Appearance.Count != current.Appearance.Count ||
+                expected.Appearance.Select(a => a.SlotId).Distinct().Count() != expected.Appearance.Count)
+                changed.Add("appearance slots");
+            foreach (var entry in expected.Appearance)
+            {
+                var existing = current.Appearance.FirstOrDefault(a => a.SlotId == entry.SlotId);
+                if (existing == null || existing.ClassId != entry.ClassId ||
+                    existing.Color != entry.Color || existing.Hue2 != entry.Hue2)
+                    changed.Add($"appearance slot {entry.SlotId}");
+            }
+            return changed;
+        }
+
         protected override ApiResponse HandleAuthenticated(ApiRequest request, Client client)
         {
             if (!request.Headers.TryGetValue("Content-Type", out var contentType) ||
@@ -89,6 +189,12 @@ namespace Rasa.Api.Ingame
                         return ApiResponse.Error(400, $"duplicate appearance slot {appearance.SlotId}");
                 }
 
+                // The client round-trips the editable values, not every display-only
+                // field on GET (for example appearance.meshId). Comparing raw JSON
+                // would reject an untouched creature whenever those fields differ.
+                if (!TryReadExpectedSnapshot(expected, out var expectedDetails, out var expectedError))
+                    return ApiResponse.Error(400, expectedError);
+
                 lock (Editing)
                 {
                     using var uow = Server.GameUnitOfWorkFactory.CreateWorld();
@@ -97,9 +203,10 @@ namespace Rasa.Api.Ingame
                         return ApiResponse.Error(404, $"unknown creature id {input.Id}");
                     TryEntityClass(originalRow.ClassId, out var entityClass);
                     var original = ToDetails(originalRow, entityClass, uow.Creatures.GetCreatureAppearances(input.Id));
-                    using var current = JsonDocument.Parse(ApiJson.Serialize(original));
-                    if (!JsonElement.DeepEquals(expected, current.RootElement))
-                        return ApiResponse.Error(409, "creature changed since it was loaded; reload before saving");
+                    var changedFields = ChangedEditableFields(expectedDetails, original);
+                    if (changedFields.Count != 0)
+                        return ApiResponse.Error(409,
+                            $"creature changed since it was loaded ({string.Join(", ", changedFields)}); reload before saving");
                     if (input.ClassId != original.ClassId)
                         return ApiResponse.Error(400, "entity class identity is read-only");
 
