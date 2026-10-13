@@ -504,10 +504,16 @@ namespace Rasa.Test.Missions
                 itemClass.ItemClassInfo = new ItemClassInfo(new ItemClassEntry { StackSize = 1 });
                 fixture.Grant(30, 50);
                 var before = context.ReadRewardTotals();
+                var credits = loot.Credits;
 
                 fixture.Take(loot);
 
-                Assert.AreEqual(before, context.ReadRewardTotals());
+                // No item fits: they stay, and Loot All pays the corpse's credits all the same.
+                var taken = context.ReadRewardTotals();
+                Assert.AreEqual(before.ItemCount, taken.ItemCount);
+                Assert.AreEqual(before.Experience, taken.Experience);
+                Assert.AreEqual(before.Credits + credits, taken.Credits);
+                Assert.AreEqual(0, loot.Credits);
                 Assert.AreEqual(0U, fixture.Counter);
                 Assert.IsTrue(loot.LootItems.All(item => !item.Taken));
                 var inventory = new InventoryManager(context, context.Manager);

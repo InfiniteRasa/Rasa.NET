@@ -961,7 +961,7 @@ namespace Rasa.Managers
                     if (refused && !packet.AutoLootOnly)
                         InventoryManager.TellCharacterUnique(client);
 
-                    Claim(client, loot, selected, null, true);
+                    Claim(client, loot, selected, null, true, quiet: packet.AutoLootOnly);
                 }
             }
         }
@@ -999,51 +999,83 @@ namespace Rasa.Managers
             client.Player.AutoLootThreshold = threshold;
         }
 
+        /// <summary>
+        /// The player takes these items off the corpse, and with Loot All (lootAll) its credits.
+        ///
+        /// What does not fit the backpack stays on the corpse, item by item, and the player is
+        /// told their inventory is full; what fits is taken. Taking used to be all or nothing: one
+        /// item with no room refused the whole claim, credits included, with an error in the log
+        /// and nothing said to the player. Corpse loot does not go to the inbox, as a mission
+        /// reward does: it is there to take once room is made. Nothing is said when the claim is
+        /// the client's auto-loot (quiet), which it sends again and again while the player stands
+        /// in reach.
+        ///
+        /// The credits go when the corpse's last item does, split among everyone sharing the kill
+        /// (CreditRecipients); a corpse that is one player's pays them on Loot All too, whether its
+        /// items fit or not. They, and the prestige a rare item is worth, are worked out from what
+        /// was taken, in the same write (Settle).
+        /// </summary>
         private void Claim(
             Client client,
             LootDispenser loot,
-            IReadOnlyList<LootItem> items,
+            IReadOnlyList<LootItem> asked,
             uint? destSlot,
-            bool includeCredits)
+            bool lootAll,
+            bool quiet = false)
         {
-            // The credits go when the corpse's last item does, split among everyone sharing the
-            // kill (CreditRecipients); a corpse that is one player's pays them on Loot All too.
-            var emptiesItems = loot.LootItems.All(item => item.Taken || items.Contains(item));
-            includeCredits = loot.Credits > 0 &&
-                ((includeCredits && loot.CreditSharers.Count == 0) || emptiesItems);
-
-            var recipients = includeCredits ? CreditRecipients(client, loot) : new List<Client> { client };
-            var shares = includeCredits ? SplitCredits(loot.Credits, recipients.Count) : new List<int> { 0 };
             var currentCredits = client.Player.Credits.GetValueOrDefault(CurencyType.Credits);
-            var ownShare = shares[0];
-            var creditsGranted = includeCredits && ownShare != 0;
-            var others = new List<(Client Recipient, int Share, int Before, int After)>();
-            int creditsAfter;
-            try
-            {
-                creditsAfter = checked(currentCredits + ownShare);
-
-                for (var i = 1; i < recipients.Count; i++)
-                {
-                    if (shares[i] <= 0)
-                        continue;
-
-                    var before = recipients[i].Player.Credits.GetValueOrDefault(CurencyType.Credits);
-                    others.Add((recipients[i], shares[i], before, checked(before + shares[i])));
-                }
-            }
-            catch (OverflowException)
-            {
-                return;
-            }
-
-            // A rare item off a creature's corpse is worth prestige to whoever takes it
-            // (ItemLootPrestige), kept in the same write as the item: both or neither.
-            var prestigeAwards = ItemLootPrestige.Awards(loot, items);
             var currentPrestige = client.Player.Credits.GetValueOrDefault(CurencyType.Prestige);
-            var prestigeAfter = (int)Math.Min(
-                currentPrestige + prestigeAwards.Sum(award => (long)award.Amount), int.MaxValue);
-            var prestigeGranted = prestigeAfter > currentPrestige;
+
+            IReadOnlyList<LootItem> items = asked;
+            var includeCredits = false;
+            var ownShare = 0;
+            var creditsGranted = false;
+            var creditsAfter = currentCredits;
+            var others = new List<(Client Recipient, int Share, int Before, int After)>();
+            var prestigeAwards = ItemLootPrestige.Awards(loot, Array.Empty<LootItem>());
+            var prestigeAfter = currentPrestige;
+            var prestigeGranted = false;
+
+            // What the take pays, once it is known which of the items it takes.
+            void Settle(IReadOnlyList<LootItem> taken)
+            {
+                items = taken;
+
+                var emptiesItems = loot.LootItems.All(item => item.Taken || taken.Contains(item));
+                includeCredits = loot.Credits > 0 &&
+                    ((lootAll && loot.CreditSharers.Count == 0) || emptiesItems);
+
+                var recipients = includeCredits ? CreditRecipients(client, loot) : new List<Client> { client };
+                var shares = includeCredits ? SplitCredits(loot.Credits, recipients.Count) : new List<int> { 0 };
+                ownShare = shares[0];
+                creditsGranted = includeCredits && ownShare != 0;
+                others.Clear();
+
+                try
+                {
+                    creditsAfter = checked(currentCredits + ownShare);
+
+                    for (var i = 1; i < recipients.Count; i++)
+                    {
+                        if (shares[i] <= 0)
+                            continue;
+
+                        var before = recipients[i].Player.Credits.GetValueOrDefault(CurencyType.Credits);
+                        others.Add((recipients[i], shares[i], before, checked(before + shares[i])));
+                    }
+                }
+                catch (OverflowException error)
+                {
+                    throw new GameplayRejectionException("A corpse's credit share exceeds the supported range.", error);
+                }
+
+                // A rare item off a creature's corpse is worth prestige to whoever takes it
+                // (ItemLootPrestige), kept in the same write as the item: both or neither.
+                prestigeAwards = ItemLootPrestige.Awards(loot, taken);
+                prestigeAfter = (int)Math.Min(
+                    currentPrestige + prestigeAwards.Sum(award => (long)award.Amount), int.MaxValue);
+                prestigeGranted = prestigeAfter > currentPrestige;
+            }
 
             var grant = new InventoryManager.LootGrant(_beforeItemPublication);
             var missionManager = _missionManager ?? MissionApplication.Instance;
@@ -1069,6 +1101,12 @@ namespace Rasa.Managers
                         throw new GameplayRejectionException(
                             "Durable character credits changed.");
                     }
+
+                    // What fits the backpack is taken; the rest stays on the corpse.
+                    Settle(grant.PlanAndSave(client, asked, unitOfWork, destSlot));
+                    if (items.Count == 0 && !creditsGranted && others.Count == 0)
+                        throw new NothingFitsException();
+
                     if (prestigeGranted && character.Prestige != currentPrestige)
                     {
                         CharacterManager.PutPurseRight(client, character);
@@ -1095,7 +1133,6 @@ namespace Rasa.Managers
 
                     MissionLootPlanner.ValidateClaim(client, loot, items, missionManager, unitOfWork,
                         () => TryGetLoot(client, loot.EntityId, out var admittedLoot) && ReferenceEquals(admittedLoot, loot));
-                    grant.PlanAndSave(client, items, unitOfWork, destSlot);
                     var events = items.GroupBy(item => item.ItemClassId)
                         .Select(group => MissionProgressEvent.ItemAcquired(
                             group.Key,
@@ -1141,6 +1178,13 @@ namespace Rasa.Managers
                             "Corpse state changed during the claim.");
                 });
             }
+            catch (NothingFitsException)
+            {
+                // Nothing of it fits and there is nothing else to pay: nothing was written.
+                if (!quiet)
+                    TellInventoryFull(client);
+                return;
+            }
             catch (Exception error) when (
                 error is GameplayRejectionException ||
                 error is DbUpdateException ||
@@ -1152,6 +1196,9 @@ namespace Rasa.Managers
             }
 
             grant.Publish(client);
+
+            if (items.Count < asked.Count && !quiet)
+                TellInventoryFull(client);
 
             if (prestigeGranted)
                 client.Player.Credits[CurencyType.Prestige] = prestigeAfter;
@@ -1285,6 +1332,19 @@ namespace Rasa.Managers
                     $"corpse {loot.EntityId} squad credits notice");
 
             progressPlan.Publish(client);
+        }
+
+        /// <summary>A claim's item that did not fit the backpack, and stays on the corpse: PM_INVENTORY_FULL.</summary>
+        private static void TellInventoryFull(Client client) =>
+            client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(
+                PlayerMessage.PmInventoryFull, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+
+        /// <summary>A claim none of whose items fit, with nothing else to pay: rolled back, and not an error.</summary>
+        private sealed class NothingFitsException : Exception
+        {
+            public NothingFitsException() : base("Nothing of the claim fits the backpack.")
+            {
+            }
         }
 
         private bool TryGetLoot(Client client, ulong entityId, out LootDispenser loot)

@@ -355,18 +355,29 @@ namespace Rasa.Managers
                     throw new GameplayRejectionException("Loot item durable state is stale.");
             }
 
-            internal void AcceptLoot(LootItem loot, uint? preferredSlot, Action<Item> beforePublication)
+            /// <summary>
+            /// A corpse's item into the backpack: merged into stacks of its template, the rest in a
+            /// free slot of its category. False, with nothing planned, when it does not all fit:
+            /// it stays on the corpse, whole, and the items after it are still tried.
+            /// </summary>
+            internal bool AcceptLoot(LootItem loot, uint? preferredSlot, Action<Item> beforePublication)
             {
                 ValidateLoot(loot, _unit.CharacterInventories.GetItems(_client.AccountEntry.Id));
                 if (_loot.Any(entry => entry.EntityId == loot.EntityId || entry.Item.Id == loot.Item.Id))
                     throw new GameplayRejectionException("The same loot item cannot be planned twice.");
-                _loot.Add(loot);
                 var template = RequireTemplate(loot.ItemTemplateId);
                 var start = ((int)template.InventoryCategory - 1) * PersonalCategorySize;
                 var maximum = EntityClassManager.Instance.LoadedEntityClasses[template.Class].ItemClassInfo.StackSize;
+                var merges = _stacks.Where(stack => stack.Template.ItemTemplateId == loot.ItemTemplateId &&
+                    stack.Ownership == null && stack.Count > 0).ToList();
+                var room = merges.Aggregate(0L, (total, stack) => total + Math.Max(0L, (long)stack.Maximum - stack.Count));
+                var available = Enumerable.Range(start, PersonalCategorySize)
+                    .Where(index => !_stacks.Any(stack => stack.Index == index && stack.Count > 0)).ToArray();
+                if (room < loot.ItemQuantity && available.Length == 0)
+                    return false;
+                _loot.Add(loot);
                 var remaining = loot.ItemQuantity;
-                foreach (var stack in _stacks.Where(stack => stack.Template.ItemTemplateId == loot.ItemTemplateId &&
-                    stack.Ownership == null && stack.Count > 0))
+                foreach (var stack in merges)
                 {
                     var added = Math.Min(remaining, stack.Maximum - stack.Count);
                     stack.Count += added;
@@ -375,15 +386,12 @@ namespace Rasa.Managers
                         break;
                 }
                 if (remaining == 0)
-                    return;
-                var available = Enumerable.Range(start, PersonalCategorySize)
-                    .Where(index => !_stacks.Any(stack => stack.Index == index && stack.Count > 0)).ToArray();
-                if (available.Length == 0)
-                    throw new GameplayRejectionException("The complete loot batch does not fit its inventory category.");
+                    return true;
                 var destination = preferredSlot.HasValue && available.Contains((int)preferredSlot.Value)
                     ? (int)preferredSlot.Value : available[0];
                 _stacks.Add(new Stack { Index = destination, Incoming = loot, Template = template,
                     Count = remaining, Maximum = maximum, BeforeRegister = beforePublication });
+                return true;
             }
 
             public void Prepare()

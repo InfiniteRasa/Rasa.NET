@@ -396,13 +396,19 @@ namespace Rasa.Test.Missions.Wilderness
             Grant(harness, 747, 50);
             var loot = Kill(harness, 3, 580019);
             var before = harness.Context.ReadRewardTotals();
+            var credits = loot.Credits;
 
             Take(harness, loot);
 
-            Assert.AreEqual(before, harness.Context.ReadRewardTotals());
+            // The blood stays; whatever else dropped and has room is taken, and Loot All pays the
+            // corpse's credits all the same.
+            var taken = harness.Context.ReadRewardTotals();
+            var blood = loot.LootItems.Single(item => item.ItemTemplateId == 2524);
+            Assert.IsFalse(blood.Taken);
+            Assert.AreEqual(before.ItemCount + loot.LootItems.Where(item => item.Taken).Sum(item => (long)item.ItemQuantity), taken.ItemCount);
+            Assert.AreEqual(before.Credits + credits, taken.Credits);
             Assert.AreEqual(0U, HeldQuantity(harness, 2524));
             Assert.AreEqual(0U, harness.Client.Player.Missions[776].Objectives[2].ItemCounters[11150]);
-            Assert.IsTrue(loot.LootItems.All(item => !item.Taken));
             var filler = harness.Client.Player.Inventory.PersonalInventory.Where(id => id != 0)
                 .Select(EntityManager.Instance.GetItem).First(item => item.ItemTemplate.ItemTemplateId == 747);
             InventoryManager.Instance.PersonalInventory_DestroyItem(harness.Client,
