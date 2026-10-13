@@ -983,7 +983,11 @@ namespace Rasa.Managers
             UnregisterClan(clan);
             UnregisterClanMembers(clan.Id);
 
-            //TODO: Clear clan lockbox db inventory?
+            // The lockbox is kept: its clan_inventory rows, under the id of a clan that no longer
+            // exists, and the items rows they name, so what was in it can be given back by hand.
+            // Nothing reads them - the lockboxes are loaded for the clans there are
+            // (InitCurrentClanInventories) - and a clan id is never handed out again (AUTOINCREMENT
+            // on SQLite, a persisted auto_increment on MySQL 8), so no new clan opens onto them.
         }
 
         /// <summary>
@@ -1001,8 +1005,8 @@ namespace Rasa.Managers
         /// highest ranked member left (the longest serving of them, by character id, when ranks
         /// tie), as if MakePlayerClanLeader had been used. A leader who was the clan's only member
         /// takes the clan with them, as DisbandClan would - its feuds lost, its control points the
-        /// AFS's, its rows deleted. The PvP-clan cooldown is not stamped: there is no character
-        /// left to serve it.
+        /// AFS's, its clan and member rows deleted and its lockbox kept. The PvP-clan cooldown is
+        /// not stamped: there is no character left to serve it.
         /// </summary>
         internal Action RemoveDeletedCharacter(ICharUnitOfWork unitOfWork, CharacterEntry character, string familyName)
         {
@@ -1027,6 +1031,7 @@ namespace Rasa.Managers
 
             if (member.Rank == ClanRank.Leader && others.Count == 0)
             {
+                // Its lockbox is kept, as DisbandClan keeps it.
                 unitOfWork.ClanMembers.DeleteClanMembers(clanId);
                 unitOfWork.Clans.DeleteClan(clanId);
 
