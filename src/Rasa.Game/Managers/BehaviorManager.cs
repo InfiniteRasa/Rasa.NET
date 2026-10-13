@@ -1145,12 +1145,18 @@ namespace Rasa.Managers
                     return;
                 }
 
-                if (targetDistSqr <= 3.0f * 3.0f && !sightBlocked)
+                // Near enough, don't move - and say so, after the step that brought it here. Near
+                // enough is three metres, or inside the creature's reach when that is shorter
+                // (NearEnoughFor).
+                var nearEnough = NearEnoughFor(creature);
+
+                if (targetDistSqr <= nearEnough * nearEnough && !sightBlocked)
                 {
-                    // near enough, dont move - and say so, after the step that brought it here
                     StopIfMoving(creature);
                     return;
                 }
+
+                var standoff = ChaseStandoffFor(creature);
 
                 // After checking for melee and ranged attacks without success, chase.
                 //
@@ -1178,7 +1184,7 @@ namespace Rasa.Managers
                     {
                         // if too near, move out of enemy by running to random point somewhere x units around the creature
                         var angle = (Random.Shared.Next() / 32767.0f) * 6.28318f; // random angle
-                        var distance = 2.5f; // keep 2.5 meter distance
+                        var distance = standoff; // keep this distance (ChaseStandoffFor)
                         pathTarget.X = targetPosition.X + (float)Math.Cos(angle) * distance;
                         pathTarget.Y = targetPosition.Y;
                         pathTarget.Z = targetPosition.Z + (float)Math.Sin(angle) * distance;
@@ -1194,7 +1200,7 @@ namespace Rasa.Managers
                         vecV2A[0] /= vecV2ALen;
                         vecV2A[1] /= vecV2ALen;
                         // use vector to calculate nearest melee point from our current position
-                        var distance = 2.5f; // keep 2.5 meter distance
+                        var distance = standoff; // keep this distance (ChaseStandoffFor)
                         pathTarget.X = targetPosition.X + vecV2A[0] * distance;
                         pathTarget.Y = targetPosition.Y;
                         pathTarget.Z = targetPosition.Z + vecV2A[1] * distance;
@@ -2559,6 +2565,66 @@ namespace Rasa.Managers
 
         /// <summary>How far a frightened creature runs from whoever frightened it before it looks again.</summary>
         public const float FleeDistance = 20f;
+
+        /// <summary>How close a chase stops when the creature can reach that far: three metres, as it always was.</summary>
+        public const float NearEnoughDistance = 3.0f;
+
+        /// <summary>Where on the line to its target a chase aims for when the creature can reach that far.</summary>
+        public const float ChaseStandoffDistance = 2.5f;
+
+        /// <summary>
+        /// How much inside its reach a creature with a short one stops (<see cref="NearEnoughFor"/>)
+        /// and aims (<see cref="ChaseStandoffFor"/>): the target moves, the steps land where the
+        /// think's time puts them, and an attack is refused at exactly its range.
+        /// </summary>
+        public const float ReachMargin = 0.25f;
+        public const float ChaseReachMargin = 0.75f;
+
+        /// <summary>
+        /// The furthest any of the creature's attacks reaches: the attacks the fighting think
+        /// chooses between, not a heal, a habit or a Shield Drone's heal, nor anything with no
+        /// range. 0 for a creature with none.
+        /// </summary>
+        internal static float ReachOf(Creature creature)
+        {
+            var reach = 0.0;
+
+            foreach (var action in creature.Actions)
+            {
+                if (action.RangeMax <= 0 || CreatureSupport.Is(action) || CreatureHabits.Is(action) || action.ActionId == ShieldDrone.HealAction)
+                    continue;
+
+                reach = Math.Max(reach, action.RangeMax);
+            }
+
+            return (float)reach;
+        }
+
+        /// <summary>
+        /// How close a chase has to come before the creature stands: <see cref="NearEnoughDistance"/>,
+        /// or <see cref="ReachMargin"/> inside its longest reach when that is shorter. Three
+        /// metres for everything left a creature whose only attack reaches two - the Filcher's
+        /// CR_FILCHER_MELEE, the Amoeboid's slime, the Atta Grub's bite - standing a metre short of
+        /// its target for the whole fight, in it and never striking.
+        /// </summary>
+        internal static float NearEnoughFor(Creature creature)
+        {
+            var reach = ReachOf(creature);
+
+            return reach <= 0 ? NearEnoughDistance : Math.Min(NearEnoughDistance, Math.Max(ReachMargin, reach - ReachMargin));
+        }
+
+        /// <summary>
+        /// The point a chase aims for, this far short of the target: <see cref="ChaseStandoffDistance"/>,
+        /// or <see cref="ChaseReachMargin"/> inside the creature's longest reach when that is shorter,
+        /// and never nearer than half of it.
+        /// </summary>
+        internal static float ChaseStandoffFor(Creature creature)
+        {
+            var reach = ReachOf(creature);
+
+            return reach <= 0 ? ChaseStandoffDistance : Math.Min(ChaseStandoffDistance, Math.Max(reach / 2, reach - ChaseReachMargin));
+        }
 
         /// <summary>The fight is over for this creature: it forgets everyone it hated and wanders again.</summary>
         public void GiveUp(Creature creature)
