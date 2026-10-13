@@ -39,6 +39,7 @@ namespace Rasa.Test.World
             (24085, 451),   // Bane_Thrax_Machina_Boss: CR_THRAX_FORCE_BLAST
             (24085, 458),   // Bane_Thrax_Machina_Boss: CR_THRAX_TECTONIC_STRIKE
             (21882, 488),   // Bane_Thrax_Grenadier_Boss: CR_THRAX_NECROMITE
+            (10612, 488),   // NPC_Bane_Thrax_Grenadier_Boss: CR_THRAX_NECROMITE (Family_abilities)
         };
 
         /// <summary>
