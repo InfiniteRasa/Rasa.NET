@@ -222,7 +222,10 @@ namespace Rasa.Managers
 
             var policy = Game.Missions.World.CreatureGameplayRules.Policy(creature);
             var participant = creature.CombatParticipant;
-            var canReward = creature.TargetCategory != TargetCategory.Friendly &&
+            // An ambient creature is nobody's kill (AmbientCreatures): no experience, adrenaline,
+            // streak, loot, harvest or mission credit.
+            var ambient = AmbientCreatures.IsAmbient(creature);
+            var canReward = creature.TargetCategory != TargetCategory.Friendly && !ambient &&
                 Game.Missions.World.CreatureGameplayRules.RewardsKills(creature);
 
             // kill creature
@@ -363,7 +366,7 @@ namespace Rasa.Managers
                 }
             }
 
-            var progressClient = client;
+            var progressClient = ambient ? null : client;
             var missions = _missionManager ?? MissionApplication.Instance;
             if (creature.SpawnPool?.SceneRunId != null)
             {
@@ -582,6 +585,9 @@ namespace Rasa.Managers
                 creature.Attributes.Add(Attributes.Regen, new ActorAttributes(Attributes.Regen, 0, 0, 0, 0, 0));
             }
 
+            // Ambient wildlife (AmbientCreatures): NEUTRAL, one hit of health, no armour.
+            AmbientCreatures.Apply(creature);
+
             BehaviorManager.StartWandering(creature, true);
 
             if (spawnPool != null)
@@ -720,6 +726,7 @@ namespace Rasa.Managers
             creature.Name = entityClass.ClassName;
             creature.TintAtSpawn();
             EnsureScenarioAttributes(creature);
+            AmbientCreatures.Apply(creature);
             SetLocation(creature, position, rotation, spawnPool?.MapContextId ?? creature.MapContextId);
             creature.Controller.CurrentAction = BehaviorManager.BehaviorActionWander;
             creature.Controller.ActionWander.State = BehaviorManager.WanderIdle;

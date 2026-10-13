@@ -2500,6 +2500,11 @@ namespace Rasa.Managers
 
         private static bool MayFightTarget(Creature creature, ulong entityId)
         {
+            // An ambient creature fights nobody, and nothing - no creature on either side, no
+            // player's summon, nothing Mind Control has turned - fights it (AmbientCreatures).
+            if (AmbientCreatures.IsAmbient(creature) || AmbientCreatures.IsAmbient(entityId))
+                return false;
+
             var pump = AbilityManager.MindControlPumpOf(creature);
 
             if (pump == AbilityManager.MindControlFrighten)

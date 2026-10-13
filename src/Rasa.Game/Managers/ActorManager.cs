@@ -327,6 +327,11 @@ namespace Rasa.Managers
             if (target == null || amount <= 0 || target.State == CharacterState.Dead || target.State == CharacterState.Dying)
                 return 0;
 
+            // No creature's hit lands on an ambient creature, a blast or a splash included, and an
+            // ambient creature's lands on nothing (AmbientCreatures). A player's is all it takes.
+            if (AmbientCreatures.Spares(source, target))
+                return 0;
+
             if (source is Creature companion &&
                 (companion.SpawnPool?.FollowOwnerCharacterId > 0 || Game.Missions.World.CreatureGameplayRules.IsDefender(companion)) &&
                 target is Creature enemy && !CreatureManager.IsHostileTarget(mapChannel, companion, enemy))
