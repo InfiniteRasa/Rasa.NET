@@ -1217,7 +1217,8 @@ namespace Rasa.Test.Gameplay
                     auctions: new AuctionRepository(context),
                     clans: new ClanRepository(context),
                     clanInventories: null,
-                    clanMembers: null,
+                    // Deleting a character takes it out of its clan (ClanManager.RemoveDeletedCharacter).
+                    clanMembers: new Rasa.Repositories.Char.ClanMember.ClanMemberRepository(context),
                     clanLockboxLogs: null,
                     friends: null,
                     ignoreds: null,

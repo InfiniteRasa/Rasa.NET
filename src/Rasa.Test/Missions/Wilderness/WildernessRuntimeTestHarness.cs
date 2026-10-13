@@ -212,6 +212,31 @@ namespace Rasa.Test.Missions.Wilderness
 
         internal IReadOnlyList<PythonPacket> Drain() => MissionTestContext.Drain(Client);
 
+        /// <summary>A consumable no Wilderness reward or turn-in involves, to fill an inbox with.</summary>
+        internal const uint InboxFillerTemplateId = 44921;
+
+        /// <summary>
+        /// Every inbox slot taken, as rows (an inbox filled while the player was away): a reward
+        /// that does not fit the backpack has nowhere else to go, and is refused whole. Since
+        /// 71d0ef6a a mission reward that does not fit the backpack goes to the inbox
+        /// (InventoryManager.Inbox), so a full backpack alone no longer refuses a turn-in.
+        /// </summary>
+        internal void FillInbox()
+        {
+            var template = ItemManager.Instance.GetItemTemplateById(InboxFillerTemplateId);
+            using var unit = CreateChar();
+
+            for (uint slot = 0; slot < Inventory.MaxInboxItems; slot++)
+            {
+                var item = ItemManager.StageItem(template, 1, "");
+                item.OwnerId = Client.Player.Id;
+                item.OwnerSlotId = slot;
+                item.Id = unit.Items.CreateItem(item);
+                unit.CharacterInventories.AddInvItem(Client.AccountEntry.Id, Client.Player.Id,
+                    (uint)InventoryType.InboxInventory, slot, item.Id);
+            }
+        }
+
         internal AbilityManager LoadAbilities()
         {
             var abilities = CreateService<AbilityManager>();

@@ -173,6 +173,7 @@ namespace Rasa.Test.Missions.Wilderness
             var npcs = new NpcManager(harness, harness.Manager);
             CompleteObjective(harness, npcs, 210, 2010, 1);
             FillCategory(harness, 3869, 49);
+            harness.FillInbox();
             var caufield = harness.Npc(210);
             Open(harness, npcs, caufield.EntityId);
             var request = new CompleteNPCMissionPacket { EntityId = caufield.EntityId, MissionId = 2010 };

@@ -592,6 +592,17 @@ namespace Rasa.Test.Missions
                     .Select(spawn => spawn.CreatureId))
                 .Where(id => id != 0).Distinct().ToArray();
             var actions = world.Set<CreatureActionEntry>().AsNoTracking().ToDictionary(action => action.Id);
+
+            // The Bane tunnel doors are put on every channel of a map as it opens (TunnelDoors.Place),
+            // the Bootcamp's included, and logged as an error when their class is not loaded, as a
+            // server loads every class. Loaded here, a channel opened in a test logs nothing.
+            var door = world.Set<EntityClassEntry>().AsNoTracking().SingleOrDefault(row => row.Id == (uint)TunnelDoors.DoorClass);
+            if (door != null)
+                EntityClassManager.Instance.LoadedEntityClasses[TunnelDoors.DoorClass] =
+                    new EntityClass(door.Id, door.ClassName, door.MeshId, door.ClassCollisionRole,
+                        door.AugList.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(value => (AugmentationType)uint.Parse(value)).ToList(),
+                        door.TargetFlag != 0);
+
             foreach (var entry in world.Set<CreatureEntry>().AsNoTracking().Where(entry => ids.Contains(entry.Id)))
             {
                 var classEntry = world.Set<EntityClassEntry>().AsNoTracking().Single(row => row.Id == entry.ClassId);

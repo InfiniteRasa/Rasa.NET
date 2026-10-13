@@ -491,6 +491,7 @@ namespace Rasa.Test.Missions.Wilderness
             Accept(harness, npcs, 198, 421);
             CompleteObjective(harness, npcs, 194, 421, 3);
             FillCategory(harness, 3869, 50);
+            harness.FillInbox();
             var receiver = harness.Npc(194);
             Open(harness, npcs, receiver.EntityId);
             var credits = harness.Client.Player.Credits[CurencyType.Credits];

@@ -295,6 +295,7 @@ namespace Rasa.Test.Missions.Wilderness
             for (var count = 0; count < 10; count++)
                 LootOne(harness, 580052, 1, 2533);
             var fillers = FillConsumableBag(harness);
+            harness.FillInbox();
             harness.MoveTo(soji.Position);
             var before = harness.Context.ReadRewardTotals();
             Assert.IsFalse(harness.Manager.CompleteOfferedMission(harness.Client, soji.EntityId, 758, null));
