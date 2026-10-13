@@ -106,6 +106,11 @@ namespace Rasa.Managers
         /// picked. These are the client's own figures: it reads them from auctionhouse.durationdata
         /// and shows the result in the Deposit field before the player presses Create, so the
         /// server has to charge the same or the window lies. 12h costs 0.5%, three days 2.5%.
+        ///
+        /// It is a listing fee and is never given back: not on a sale, a cancellation or an expiry.
+        /// The client says nothing either way - no message, no field after the listing is made -
+        /// so this is the server's rule. The listing's economy log entry has it leaving the seller,
+        /// and the auction row keeps it (AuctionEntry.Deposit) as what the listing cost.
         /// </summary>
         private static readonly uint[] DepositTenthsOfPercent = { 5, 10, 20, 25 };
 
@@ -168,7 +173,8 @@ namespace Rasa.Managers
         /// Buys an auction outright. The item goes to the buyer's inbox, not their pack: the
         /// client has a Pick Up Items tab for exactly this, and it is the only delivery that
         /// works when the pack is full. The seller is paid into their character row, so the
-        /// money reaches them whether or not they are logged in.
+        /// money reaches them whether or not they are logged in. They are paid the price; the
+        /// deposit is kept (DepositTenthsOfPercent).
         /// </summary>
         public void RequestAuctionBuyout(Client client, RequestAuctionBuyoutPacket packet)
         {
@@ -476,7 +482,7 @@ namespace Rasa.Managers
             client.CallMethod(SysEntity.ClientAuctionHouseManagerId, new AuctionStatusSuccessPacket(rows));
         }
 
-        /// <summary>Takes a listing down and puts the item back in the seller's pack. The deposit is not refunded.</summary>
+        /// <summary>Takes a listing down and puts the item back in the seller's pack. The deposit is kept (DepositTenthsOfPercent).</summary>
         public void RequestCancelAuction(Client client, RequestCancelAuctionPacket packet)
         {
             // At an auction house: the auctioneer the window was opened from has to be in reach.
@@ -955,7 +961,8 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// Moves one expired auction's item back to its seller's inbox and deletes the row. An
+        /// Moves one expired auction's item back to its seller's inbox and deletes the row, the
+        /// deposit kept (DepositTenthsOfPercent). An
         /// inbox that is full leaves the auction standing rather than destroying the item - it
         /// is simply retried on the next sweep, once the seller has made room.
         ///

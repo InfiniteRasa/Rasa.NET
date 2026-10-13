@@ -160,6 +160,62 @@ namespace Rasa.Test.Gameplay
 
         #endregion
 
+        #region The deposit
+
+        // The deposit is a listing fee, never given back (AuctionHouseManager.DepositTenthsOfPercent).
+        // A cancellation is AuctionHouseRequestTests.AListingAndItsCancellationAreOnTheEconomyLog.
+        private const uint Deposit = 7;
+
+        [TestMethod]
+        public void ASalePaysTheSellerThePriceAndNotTheDeposit()
+        {
+            using var sale = new Sale(ClientState.Ingame, deposit: Deposit);
+            var store = new EconomyAuditTests.MemoryStore();
+            var previous = EconomyAudit.Instance.Store;
+            EconomyAudit.Instance.Load(store);
+
+            try
+            {
+                sale.Buy();
+
+                Assert.AreEqual((int)Price, sale.Row(SellerId), "the price, not the price and the deposit");
+                Assert.AreEqual((int)Price, sale.Seller.Player.Credits[CurencyType.Credits]);
+                Assert.AreEqual((long)Price, store.Events.Single().Where(row => row.CharacterId == SellerId).Sum(row => row.Amount));
+            }
+            finally
+            {
+                EconomyAudit.Instance.Load(previous);
+            }
+        }
+
+        [TestMethod]
+        public void AnAuctionThatRunsOutGivesTheItemBackAndNotTheDeposit()
+        {
+            using var sale = new Sale(ClientState.Ingame, deposit: Deposit);
+            var store = new EconomyAuditTests.MemoryStore();
+            var previous = EconomyAudit.Instance.Store;
+            EconomyAudit.Instance.Load(store);
+
+            try
+            {
+                sale.Expire();
+
+                Assert.AreEqual(0, sale.Row(SellerId), "nothing back");
+                Assert.AreEqual(0, sale.Seller.Player.Credits[CurencyType.Credits]);
+
+                var rows = store.Events.Single();
+                Assert.IsTrue(rows.All(row => row.Kind == (byte)Rasa.Structures.Char.EconomyLogKind.AuctionExpired && row.ReferenceId == sale.Item.Id));
+                CollectionAssert.AreEqual(new[] { $"{SellerId} item {sale.Item.Id} 1 from 0" },
+                    rows.Select(EconomyAuditTests.Describe).ToList(), "the item back, the deposit kept");
+            }
+            finally
+            {
+                EconomyAudit.Instance.Load(previous);
+            }
+        }
+
+        #endregion
+
         #region Fixture
 
         private static List<PythonPacket> Sent(Client client) => WorldTestContext.Drain(client)
@@ -179,7 +235,7 @@ namespace Rasa.Test.Gameplay
             internal Client LeftBehind { get; }
             internal Item Item { get; }
 
-            internal Sale(ClientState sellerState, bool leftBehind = false)
+            internal Sale(ClientState sellerState, bool leftBehind = false, uint deposit = 0)
             {
                 Context.Client.Player.Credits[CurencyType.Credits] = 100;
                 using (var database = Context.Open())
@@ -189,7 +245,7 @@ namespace Rasa.Test.Gameplay
                 }
 
                 Item = Context.AddUnownedLoot(1);
-                Context.AddAuction(Item, SellerId, Price);
+                Context.AddAuction(Item, SellerId, Price, deposit);
 
                 if (leftBehind)
                     LeftBehind = SellerClient(ClientState.Disconnected);

@@ -151,7 +151,7 @@ namespace Rasa.Test.Gameplay
             context.SaveChanges();
         }
 
-        internal void AddAuction(Item item, uint sellerId, uint price)
+        internal void AddAuction(Item item, uint sellerId, uint price, uint deposit = 0)
         {
             using var context = Open();
             var sellerAccount = new GameAccountEntry
@@ -176,7 +176,7 @@ namespace Rasa.Test.Gameplay
                 0,
                 item.Id));
             context.AuctionEntries.Add(new AuctionEntry(
-                item.Id, sellerId, "Seller", price, 0, 12));
+                item.Id, sellerId, "Seller", price, deposit, 12));
             context.SaveChanges();
             item.OwnerId = sellerId;
             item.OwnerSlotId = 0;

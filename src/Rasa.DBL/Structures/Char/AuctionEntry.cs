@@ -54,7 +54,11 @@ namespace Rasa.Structures.Char
         [Required]
         public uint Price { get; set; }
 
-        /// <summary>What the seller paid to list it. Not refunded when the auction is cancelled.</summary>
+        /// <summary>
+        /// What the seller paid to list it: a listing fee, kept by the auction house whether the
+        /// item sells, is cancelled or runs out. It leaves the seller on the economy log as the
+        /// listing is made (AuctionListed); this is what the listing cost, kept with it.
+        /// </summary>
         [Column("deposit")]
         [Required]
         public uint Deposit { get; set; }

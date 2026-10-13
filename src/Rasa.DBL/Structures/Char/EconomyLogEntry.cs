@@ -11,16 +11,16 @@ namespace Rasa.Structures.Char
         /// <summary>A completed trade between two players: items and credits each way.</summary>
         Trade = 1,
 
-        /// <summary>An item put up at the auction house, and the deposit paid for it.</summary>
+        /// <summary>An item put up at the auction house, and the deposit paid for it, which is never given back.</summary>
         AuctionListed = 2,
 
-        /// <summary>An auction bought out: the item and the price to the buyer, the price to the seller.</summary>
+        /// <summary>An auction bought out: the item and the price to the buyer, the price to the seller. The deposit is not returned.</summary>
         AuctionSold = 3,
 
         /// <summary>A listing taken back down by its seller: the item back in their pack. The deposit is not returned.</summary>
         AuctionCancelled = 4,
 
-        /// <summary>A listing that ran out: the item back in its seller's inbox.</summary>
+        /// <summary>A listing that ran out: the item back in its seller's inbox. The deposit is not returned.</summary>
         AuctionExpired = 5,
 
         /// <summary>A clan feud won: each item wagered on the losing side, off its owner and to the winners - the lockbox (no character) or the member it was mailed to.</summary>
