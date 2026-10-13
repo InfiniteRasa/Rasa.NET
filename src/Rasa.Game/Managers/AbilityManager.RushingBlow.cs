@@ -173,7 +173,11 @@ namespace Rasa.Managers
                 SendRush(charge, end, run / (windupMs / 1000f));
         }
 
-        /// <summary>Where the charge ends as the target stands now: ChargeStop, on walkable ground where the map has a navmesh.</summary>
+        /// <summary>
+        /// Where the charge ends as the target stands now: ChargeStop, on walkable ground where
+        /// the map has a navmesh, and short of a force field that stops players - a target behind
+        /// a Bane field is not reached through it (CrowdControl.BeforeFields).
+        /// </summary>
         private static Vector3 ChargeEnd(Charge charge)
         {
             var stop = ChargeStop(charge.From, charge.Target.Position);
@@ -181,7 +185,7 @@ namespace Rasa.Managers
             if (Vector3.DistanceSquared(stop, charge.From) > 0.01f)
                 stop = NavMeshManager.NearestWalkable(charge.MapChannel, stop, ChargeWalkableRadius) ?? stop;
 
-            return stop;
+            return CrowdControl.BeforeFields(charge.MapChannel, charge.Player, charge.From, stop);
         }
 
         /// <summary>

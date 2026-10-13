@@ -125,6 +125,10 @@ namespace Rasa.Managers
             // Straight away from the source, or turned off it by the attack's KNOCKBACK_HEADING (CrowdControl.TurnOf).
             var dir = CrowdControl.Turned(CrowdControl.AwayFrom(from, player.Position), turnDegrees);
             var destination = CrowdControl.KnockbackDestination(mapChannel, player.Position, dir, distance);
+
+            // Not through a field that stops players: a Strider's 20 m throw ends at a Bane one.
+            destination = CrowdControl.BeforeFields(mapChannel, player, player.Position, destination);
+
             var travelled = Vector3.Distance(player.Position, destination);
             var downMs = KnockdownMs(travelled, extraStunMs);
             var client = ClientOf(mapChannel, player);
@@ -227,6 +231,9 @@ namespace Rasa.Managers
                 return false;
 
             var (destination, _) = CrowdControl.PullPath(mapChannel, player.Position, puller.Position, flailMs);
+
+            // Nor dragged through one.
+            destination = CrowdControl.BeforeFields(mapChannel, player, player.Position, destination);
 
             if (Vector3.Distance(player.Position, destination) <= 0.1f)
                 return false;

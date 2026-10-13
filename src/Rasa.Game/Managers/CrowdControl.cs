@@ -154,6 +154,22 @@ namespace Rasa.Managers
         /// </summary>
         public static Vector3 BeforeFields(MapChannel mapChannel, Creature creature, Vector3 from, Vector3 to)
         {
+            return Before(mapChannel, from, to, (at, next) => ForceFields.Stops(mapChannel, creature, at, next));
+        }
+
+        /// <summary>
+        /// The same for a player carried in a straight line - a knockback, a Vortex pull, a
+        /// Rushing Blow's charge: stopped before a field that stops players (a Bane one,
+        /// ForceFields.StopsPlayer). The clients fly the player to wherever the server says, so a
+        /// carry that ended past the field put them through it.
+        /// </summary>
+        public static Vector3 BeforeFields(MapChannel mapChannel, Manifestation player, Vector3 from, Vector3 to)
+        {
+            return player == null ? to : Before(mapChannel, from, to, (at, next) => ForceFields.StopsPlayer(mapChannel, at, next));
+        }
+
+        private static Vector3 Before(MapChannel mapChannel, Vector3 from, Vector3 to, Func<Vector3, Vector3, bool> stops)
+        {
             var line = to - from;
             var length = line.Length();
 
@@ -167,7 +183,7 @@ namespace Rasa.Managers
             {
                 var next = d >= length ? to : from + dir * d;
 
-                if (ForceFields.Stops(mapChannel, creature, at, next))
+                if (stops(at, next))
                     return at;
 
                 if (d >= length)

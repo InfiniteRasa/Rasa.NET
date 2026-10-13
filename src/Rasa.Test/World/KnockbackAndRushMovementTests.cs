@@ -203,6 +203,96 @@ namespace Rasa.Test.World
             }
         }
 
+        [TestMethod]
+        public void APlayersCarryStopsBeforeABaneForceFieldAndNotAnAfsOne()
+        {
+            using var world = new WorldTestContext();
+            var player = world.CreateClient(x: 10).Player;
+            var from = new Vector3(10, 0, -5);
+            var to = new Vector3(10, 0, 5);
+
+            Assert.AreEqual(to, CrowdControl.BeforeFields(world.Map, player, from, to), "no field");
+
+            var field = ForceFields.Place(world.Map, ForceFields.ClassOf("humgate"), ForceFields.Side.B, new Vector3(10, 0, 0), 0f, 100);
+
+            try
+            {
+                var stopped = CrowdControl.BeforeFields(world.Map, player, from, to);
+
+                Assert.IsTrue(stopped.Z < 0f && stopped.Z >= -5f, $"Stopped at {stopped}.");
+                Assert.IsFalse(ForceFields.StopsPlayer(world.Map, from, stopped));
+
+                // An AFS field lets players through, and so does a Bane one that is down.
+                ForceFields.SetSide(field, ForceFields.Side.A);
+                Assert.AreEqual(to, CrowdControl.BeforeFields(world.Map, player, from, to));
+
+                ForceFields.SetSide(field, ForceFields.Side.B);
+                field.Health = 0;
+                Assert.AreEqual(to, CrowdControl.BeforeFields(world.Map, player, from, to));
+            }
+            finally
+            {
+                ForceFields.Remove(field);
+            }
+        }
+
+        [TestMethod]
+        public void AKnockbackDoesNotThrowAPlayerThroughABaneForceField()
+        {
+            using var world = new WorldTestContext();
+            var victim = Watch(world, x: 10);
+            var watcher = Watch(world, x: 30);
+            var attacker = Spawn(world, "Strider", 10);
+            var field = ForceFields.Place(world.Map, ForceFields.ClassOf("humgate"), ForceFields.Side.B, new Vector3(10, 0, 0), 0f, 100);
+
+            try
+            {
+                attacker.Position = new Vector3(10, 0, -10);
+                victim.Player.PlaceAt(new Vector3(10, 0, -4));
+                Drain(victim, watcher);
+
+                Assert.IsTrue(PlayerCrowdControl.Knockback(world.Map, victim.Player, attacker, 20f));
+
+                Assert.IsTrue(victim.Player.Position.Z > -4f && victim.Player.Position.Z < 0f, $"Thrown to {victim.Player.Position}.");
+
+                foreach (var client in new[] { victim, watcher })
+                {
+                    var move = MovesOf(client, victim.Player.EntityId).Single();
+
+                    Assert.AreEqual(MovementType.Knockback, move.Type);
+                    Assert.AreEqual(victim.Player.Position.Z, move.Position.Z, 0.01f, "told where it stops");
+                }
+            }
+            finally
+            {
+                ForceFields.Remove(field);
+            }
+        }
+
+        [TestMethod]
+        public void AVortexDoesNotDragAPlayerThroughABaneForceField()
+        {
+            using var world = new WorldTestContext();
+            var victim = Watch(world, x: 10);
+            var puller = Spawn(world, "Puller", 10);
+            var field = ForceFields.Place(world.Map, ForceFields.ClassOf("humgate"), ForceFields.Side.B, new Vector3(10, 0, 0), 0f, 100);
+
+            try
+            {
+                puller.Position = new Vector3(10, 0, 12);
+                victim.Player.PlaceAt(new Vector3(10, 0, -6));
+                Drain(victim);
+
+                Assert.IsTrue(PlayerCrowdControl.Pull(world.Map, victim.Player, puller, 1000));
+
+                Assert.IsTrue(victim.Player.Position.Z > -6f && victim.Player.Position.Z < 0f, $"Dragged to {victim.Player.Position}.");
+            }
+            finally
+            {
+                ForceFields.Remove(field);
+            }
+        }
+
         #endregion
 
         #region A creature's rush
