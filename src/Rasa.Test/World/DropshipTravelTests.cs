@@ -195,6 +195,89 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void AClanMemberArrivingByDropshipIsGivenTheirOwnEntityWithTheirClan()
+        {
+            using var world = new WorldTestContext();
+            world.AddClass(EntityClasses.UsableCrSpawnerHumDropshipV01);
+            var client = world.CreateClient();
+            client.Player.ClanId = 77;
+            CellManager.Instance.AddToWorld(client);
+            var destination = CreateDestination();
+            var maps = CreateMaps(world, destination);
+            var manager = CreateDropshipManager(maps);
+            using var managers = new ManagerInstances(maps, manager);
+            StartDropshipTransfer(world, destination, client, manager);
+            Depart(world.Map, manager, client);
+            WorldTestContext.Drain(client);
+
+            RouteMapLoaded(client);
+
+            Assert.AreEqual(77u, OwnClanId(client), "the entity the client makes again carries the clan");
+        }
+
+        [TestMethod]
+        public void AClanMemberThroughAMapLinkIsGivenTheirOwnEntityWithTheirClan()
+        {
+            using var world = new WorldTestContext();
+            var client = world.CreateClient();
+            client.Player.ClanId = 77;
+            var destination = CreateDestination();
+            CellManager.Instance.AddToWorld(client);
+            var maps = CreateMaps(world, destination);
+
+            // The map link tells the clan's feuds of the arrival, which asks the clan for the
+            // member's rank: a member of it, in the cache, as a server has them.
+            var members = ClanManager.Instance.ClanMembers;
+            ClanManager.Instance.ClanMembers = new System.Collections.Concurrent.ConcurrentDictionary<uint, Lazy<List<ClanMemberEntry>>>(
+                new[]
+                {
+                    new KeyValuePair<uint, Lazy<List<ClanMemberEntry>>>(77, new Lazy<List<ClanMemberEntry>>(() =>
+                        new List<ClanMemberEntry> { new() { ClanId = 77, CharacterId = client.Player.Id, Rank = 0, Note = "" } }))
+                });
+
+            Assert.IsTrue(maps.ChangeMap(client, destination.MapInfo.MapContextId, new Vector3(400, 5, 0), 0));
+            WorldTestContext.Drain(client);
+
+            try
+            {
+                maps.MapLoaded(client);
+
+                Assert.AreEqual(77u, OwnClanId(client));
+            }
+            finally
+            {
+                ClanManager.Instance.ClanMembers = members;
+                CellManager.Instance.RemoveFromWorld(client);
+                destination.ClientList.Clear();
+            }
+        }
+
+        [TestMethod]
+        public void TheClanGoesOnlyToThePlayersOwnEntityAndOnlyWithOne()
+        {
+            using var world = new WorldTestContext();
+            var member = world.CreateClient();
+            var other = world.CreateClient(5, 0);
+            member.Player.ClanId = 77;
+
+            var own = ManifestationManager.Instance.CreatePlayerEntityData(member, member);
+            Assert.AreEqual(77u, own.OfType<ClanIdPacket>().Single().ClanId);
+            Assert.IsFalse(ManifestationManager.Instance.CreatePlayerEntityData(member, other).OfType<ClanIdPacket>().Any(),
+                "another's client has no data for the clan");
+            Assert.IsFalse(ManifestationManager.Instance.CreatePlayerEntityData(other, other).OfType<ClanIdPacket>().Any(),
+                "no clan, nothing: every manifestation starts in none");
+        }
+
+        /// <summary>The clan id in the creation of the player's own entity on their own client, or null.</summary>
+        private static uint? OwnClanId(Rasa.Game.Client client) =>
+            WorldTestContext.Drain(client)
+                .Select(packet => packet.Message).OfType<CallMethodMessage>()
+                .Select(message => message.Packet).OfType<Rasa.Packets.Game.Server.CreatePhysicalEntityPacket>()
+                .Where(create => create.EntityId == client.Player.EntityId)
+                .SelectMany(create => create.EntityData).OfType<ClanIdPacket>()
+                .Select(packet => (uint?)packet.ClanId).SingleOrDefault();
+
+        [TestMethod]
         public void BuffsStillAsideWhenThePlayerLeavesAgainGoWithThem()
         {
             using var world = new WorldTestContext();
