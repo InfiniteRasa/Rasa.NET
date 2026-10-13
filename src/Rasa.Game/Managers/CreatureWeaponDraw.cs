@@ -52,6 +52,9 @@ namespace Rasa.Managers
                 CellManager.Instance.CellCallMethod(mapChannel, creature, new WeaponReadyPacket(true));
 
             CellManager.Instance.CellCallMethod(mapChannel, creature, new RequestVisualCombatModePacket(true));
+
+            // A Hunter's weapon is its shield: up for the fight (HunterShield).
+            HunterShield.Raise(mapChannel, creature);
         }
 
         /// <summary>The creature puts it away, if it has it out and is alive to.</summary>
@@ -69,11 +72,13 @@ namespace Rasa.Managers
 
                 creature.InCombatMode = false;
                 CellManager.Instance.CellCallMethod(mapChannel, creature, new RequestVisualCombatModePacket(false));
+                HunterShield.Lower(mapChannel, creature);
                 return;
             }
 
             creature.WeaponDrawn = false;
             creature.InCombatMode = false;
+            HunterShield.Lower(mapChannel, creature);
 
             CellManager.Instance.CellCallMethod(mapChannel, creature, new WeaponReadyPacket(false));
             CellManager.Instance.CellCallMethod(mapChannel, creature, new RequestVisualCombatModePacket(false));

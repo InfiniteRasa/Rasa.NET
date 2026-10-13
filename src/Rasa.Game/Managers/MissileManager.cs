@@ -240,6 +240,10 @@ namespace Rasa.Managers
             // projected shields, oftentimes resulting in death to the attackers".
             if (armorDecrease + healthDecrease > 0)
                 ShieldDrone.Reflect(mapChannel, creature, missile.Source, armorDecrease + healthDecrease, missile.DamageType);
+
+            // A Hunter's shield sends a third of it back at an attacker in front of it (HunterShield).
+            if (armorDecrease + healthDecrease > 0)
+                HunterShield.Reflect(mapChannel, creature, missile.Source, armorDecrease + healthDecrease, missile.DamageType);
         }
 
         private readonly Random _random = new Random();
