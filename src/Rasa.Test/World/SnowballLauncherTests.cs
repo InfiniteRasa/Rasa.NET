@@ -121,7 +121,9 @@ namespace Rasa.Test.World
                 Server.Clients.Add(thrower);
             try
             {
-                ToolActionManager.Instance.PerformRecovery(world.Map, action);
+                // As the map's worker hands it on, not straight to the tool manager: the
+                // dispatch is where the snowball used to be lost.
+                ActorActionManager.Instance.PerformRecovery(world.Map, action);
             }
             finally
             {

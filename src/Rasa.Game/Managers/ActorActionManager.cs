@@ -183,11 +183,10 @@ namespace Rasa.Managers
                             break;
                     }
                     break;
-                case ActionId.ToolHealingDisc:
-                case ActionId.ToolFieldRepair:
-                case ActionId.ToolArmorAugmentation:
-                case ActionId.ToolHarvest:
-                case ActionId.ToolCipher:
+                // Every tool action (ToolActionManager.ToolActions). A list of its own here left
+                // out the Snowball Launcher's TOOL_NERFWEAPON (527), whose recovery then went to
+                // AbilityManager, where no skill grants it: "cannot perform that action now".
+                case var tool when ToolActionManager.ToolActions.Contains(tool):
                     ToolActionManager.Instance.PerformRecovery(mapChannel, action);
                     break;
                 case ActionId.WeaponAttack:
