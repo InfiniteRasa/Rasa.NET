@@ -31,6 +31,13 @@ namespace Rasa.Services.Preloader
             $"WHERE c.id IN ({Ids}) " +
             $"AND NOT EXISTS (SELECT 1 FROM creature_appearance a WHERE a.id = c.id AND a.slot_id = {WeaponSlot});";
 
+        /// <summary>The id the migration first had, 20261218000000, which Wilderness_mortar_launchers shares.</summary>
+        public const string OldId = "20261218000000_Hunter_shields";
+
+        /// <summary>The history row a World that ran it under OldId still has.</summary>
+        public static readonly string ForgetOldId =
+            $"DELETE FROM __EFMigrationsHistory WHERE MigrationId = '{OldId}';";
+
         public static readonly string Down =
             "DELETE FROM creature_appearance " +
             $"WHERE id IN ({Ids}) AND slot_id = {WeaponSlot} AND Class_id = {Shield};";
