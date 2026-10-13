@@ -127,6 +127,22 @@ namespace Rasa.Managers
             public string InviterName;
         }
 
+        /// <summary>
+        /// Tells whoever sent an invitation how it was answered: "%(playername)s accepted your
+        /// clan invitation." or "... declined ...". The invitee's name is given as the
+        /// invitation gives the inviter's, first and family. An inviter who is not in the world
+        /// is told nothing; the clan list shows a new member when they are next in.
+        /// </summary>
+        private static void TellInviter(PendingClanInvite invite, Client invitee, bool accepted)
+        {
+            var inviter = Server.Clients.Find(c => c?.Player != null && c.Player.Id == invite.InviterCharacterId
+                && c.State == ClientState.Ingame);
+
+            inviter?.CallMethod(SysEntity.ClientClanManagerId, new DisplayClanMessagePacket(
+                (int)(accepted ? PlayerMessage.PmClanInvitationAccepted : PlayerMessage.PmClanInvitationRefused),
+                new Dictionary<string, string> { { "playername", $"{invitee.Player.Name} {invitee.Player.FamilyName}" } }));
+        }
+
         #endregion
 
         internal void ClansInit()
@@ -598,8 +614,12 @@ namespace Rasa.Managers
                 return;
             }
 
-            // We don't do anything right now when the invitation is declined
-            if (!packet.Accepted) return;
+            // Declined: the invitation is spent, and its sender is told.
+            if (!packet.Accepted)
+            {
+                TellInviter(invite, client, false);
+                return;
+            }
 
             // The clan they were invited to, not the one the packet names.
             if (invite.ClanId != packet.ClanId)
@@ -692,6 +712,10 @@ namespace Rasa.Managers
 
             // Into the clan's feuds, if it is in any.
             ClanFeuds.Instance.MemberJoined(client);
+
+            // The members are told "%(playername)s has joined the clan" (PlayerJoinedClan); the
+            // one who asked them is told their invitation was taken up.
+            TellInviter(invite, client, true);
         }
 
         internal void CleanupClan(Client client)
@@ -1439,6 +1463,14 @@ namespace Rasa.Managers
             };
 
             inviteeClient.CallMethod(SysEntity.ClientClanManagerId, new InviteToClanPacket(InviteToClanPacket.NameKey, inviteData));
+
+            // "You have invited %(playername)s to join %(clanname)s"
+            client.CallMethod(SysEntity.ClientClanManagerId, new DisplayClanMessagePacket((int)PlayerMessage.PmClanPlayerInvited,
+                new Dictionary<string, string>
+                {
+                    { "playername", $"{inviteeClient.Player.Name} {inviteeClient.Player.FamilyName}" },
+                    { "clanname", clan.Name }
+                }));
         }
 
         private bool CanCreateClan(Client client, CreateClanPacket packet, uint characterId)
