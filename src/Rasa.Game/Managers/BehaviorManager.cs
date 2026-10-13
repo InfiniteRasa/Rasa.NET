@@ -390,6 +390,10 @@ namespace Rasa.Managers
             // over, a wound, a halt on its beat (Battlecries).
             Battlecries.Observe(mapChannel, creature);
 
+            // An Atta Soldier brought below a third of its health rages, and calms down if it
+            // is healed back above it (AttaSoldierRage).
+            AttaSoldierRage.Observe(mapChannel, creature);
+
             // Knocked back, or stunned: it goes where the knockback carries it and nothing else,
             // but it can still cross into another cell doing so.
             var knockedBack = StepKnockback(mapChannel, creature, delta);
