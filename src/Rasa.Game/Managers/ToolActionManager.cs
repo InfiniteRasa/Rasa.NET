@@ -265,7 +265,8 @@ namespace Rasa.Managers
             mapChannel.PerformRecovery.Add(
                 new ActionData(client.Player, packet.ActionId, packet.ActionArgId, targetId, windup)
                 {
-                    Args = (uint)Math.Max(amount, 0)
+                    Args = (uint)Math.Max(amount, 0),
+                    StunInterrupts = true
                 });
         }
 
@@ -741,6 +742,11 @@ namespace Rasa.Managers
 
             if (client.Player.State == CharacterState.Dead)
                 return PlayerMessage.PmActionFailedActorDead;
+
+            // Stunned or knocked down: the client blocks its actions and tools and says this
+            // (Actor.PerformAction, AreActionsBlocked), as the server does for an ability.
+            if (Stuns.IsStunned(client.Player))
+                return PlayerMessage.PmCannotPerformActionNow;
 
             // basetoolaction.py: "if not actor.IsWeaponReady(): PM_CANNOT_PERFORM_ACTION_NOW"
             if (!client.Player.WeaponReady)

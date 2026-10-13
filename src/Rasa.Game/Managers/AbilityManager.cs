@@ -71,6 +71,16 @@ namespace Rasa.Managers
         /// resolved here; a damage ability of another class has some other shape and its own
         /// mechanics, and waits.
         /// </summary>
+        /// <summary>
+        /// The abilities whose client action is noInterrupt (instantkill.py, gmstealth.py,
+        /// invulnerability.py, qaknowledge.py): the client ignores an interrupt of them, so a stun
+        /// does not call them off (ActorActionManager.CallOffForStun). All four are GM tools.
+        /// </summary>
+        internal static readonly HashSet<string> NoStunInterrupt = new HashSet<string>
+        {
+            "abilities.instantkill", "abilities.gmstealth", "abilities.invulnerability", "abilities.qaknowledge"
+        };
+
         private static readonly HashSet<string> DirectDamageModules = new HashSet<string>
         {
             "abilities.lightning", "abilities.knockback", "abilities.rushingblow", "abilities.shrapnel",
@@ -620,7 +630,8 @@ namespace Rasa.Managers
             {
                 TargetObject = practiceTarget,
                 TargetLocation = location,
-                ItemId = item?.EntityId ?? 0
+                ItemId = item?.EntityId ?? 0,
+                StunInterrupts = !NoStunInterrupt.Contains(action.Module)
             });
         }
 

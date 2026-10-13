@@ -224,6 +224,48 @@ namespace Rasa.Test.Missions
             Assert.AreEqual(3U, verify.CharacterMissionItems.GetOwner(protectedIngredient.Id).Quantity);
         }
 
+        [TestMethod]
+        public void AStunDuringTheMedpacksWindupCallsItOffAndConsumesNothing()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            using (var unit = harness.Context.CreateChar())
+            using (var grant = new InventoryManager.InventoryGrant())
+            {
+                unit.ExecuteTransaction(() => grant.PlanAndSave(harness.Client,
+                    new[] { new InventoryManager.InventoryItemGrant(44917, 2) }, unit));
+                grant.Publish(harness.Client);
+            }
+            var player = harness.Client.Player;
+            var item = player.Inventory.PersonalInventory.Where(id => id != 0)
+                .Select(EntityManager.Instance.GetItem).Single(candidate => candidate.ItemTemplateId == 44917);
+            var manager = CreateMedpackManager(harness);
+            player.Attributes[Attributes.Health] = new ActorAttributes(Attributes.Health, 1000, 1000, 100, 0, 0);
+            manager.RequestPerformAbility(harness.Client, ReadMedpackRequest(item.EntityId));
+            var pending = harness.BootcampMap.PerformRecovery.Single(action => action.ActionId == (ActionId)419);
+            Assert.IsTrue(pending.StunInterrupts, "an ability's windup is one a stun calls off");
+            harness.Drain();
+
+            Assert.IsTrue(PlayerCrowdControl.Stun(harness.BootcampMap, player, null, 3000));
+
+            Assert.IsTrue(pending.CalledOff);
+            Assert.IsTrue(pending.IsInrerrupted);
+            var sent = harness.Drain();
+            Assert.IsTrue(sent.OfType<ActionInterruptPacket>().Any(packet => packet.ActionId == (ActionId)419 && packet.SourceId == player.EntityId),
+                "the player's own client is told, and cancels the windup");
+            Assert.IsTrue(sent.OfType<UserActionFailedPacket>().Any(packet => packet.ActionId == (ActionId)419 && packet.MsgId == null),
+                "and the request is closed, with no message");
+
+            // The worker drops it unperformed; a second stun says nothing more.
+            PlayerCrowdControl.Stun(harness.BootcampMap, player, null, 3000);
+            Assert.IsFalse(harness.Drain().OfType<ActionInterruptPacket>().Any());
+            ActorActionManager.Instance.DoWork(harness.BootcampMap, 100_000);
+            Assert.IsFalse(harness.BootcampMap.PerformRecovery.Contains(pending));
+            Assert.AreEqual(2u, item.StackSize, "nothing used up");
+            Assert.AreEqual(100, player.Attributes[Attributes.Health].Current, "nothing healed");
+            Assert.IsFalse(player.ActiveEffects.Values.Any(effect => effect.TypeId == 280));
+            Assert.IsFalse(harness.Drain().OfType<AbilityRecoveryPacket>().Any());
+        }
+
         private static RequestPerformAbilityPacket ReadMedpackRequest(ulong itemId)
         {
             using var stream = new MemoryStream();

@@ -3,6 +3,7 @@
 namespace Rasa.Managers
 {
     using Data;
+    using Game;
     using Packets.MapChannel.Server;
     using Timer;
     using Structures;
@@ -101,6 +102,10 @@ namespace Rasa.Managers
                         // loses nothing, and a recovery that fails now costs only itself.
                         mapChannel.PerformRecovery.Remove(action);
 
+                        // A stun called it off, and the clients have been told (CallOffForStun).
+                        if (action.CalledOff)
+                            continue;
+
                         try
                         {
                             PerformRecovery(mapChannel, action);
@@ -112,6 +117,45 @@ namespace Rasa.Managers
                         }
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// A stun has landed on the player (GameEffectManager.Attach): an ability or a tool they
+        /// are winding up is called off, as a creature's is (CreatureWindups.Interrupt). Their
+        /// client does not do it itself: its StunEffect blocks a new windup, not the one under
+        /// way, which would otherwise run to its end and land with the player stunned.
+        ///
+        /// Everyone who sees the player, their own client too, is sent ActionInterrupt, which
+        /// cancels the action and floats "Interrupted" over them; the player's request is closed
+        /// with a silent UserActionFailed, as an interrupt they asked for is. Nothing has been
+        /// paid: an ability's costs and cooldown are taken when it lands, and a tool's shot was
+        /// spent on the request, as a weapon's is. A Rushing Blow's charge stops where it has got
+        /// to (ChargeWorker). The action is marked rather than taken off the queue, which may be
+        /// being walked as the stun lands; the worker drops it unperformed on its next pass.
+        ///
+        /// Knockbacks and holds are stuns on the server, so they call a windup off too. Not
+        /// called off: the four GM abilities the client marks noInterrupt (NoStunInterrupt).
+        /// </summary>
+        internal static void CallOffForStun(MapChannel mapChannel, Manifestation player)
+        {
+            if (mapChannel == null || player == null)
+                return;
+
+            Client client = null;
+
+            foreach (var action in mapChannel.PerformRecovery)
+            {
+                if (action.Actor != player || !action.StunInterrupts || action.IsInrerrupted || action.Completed || action.CalledOff)
+                    continue;
+
+                action.IsInrerrupted = true;
+                action.CalledOff = true;
+
+                CellManager.Instance.CellCallMethod(mapChannel, player, new ActionInterruptPacket(player.EntityId, action.ActionId, action.ActionArgId));
+
+                client ??= mapChannel.ClientList.Find(c => c?.Player == player);
+                ActorManager.ResolveInterruptedRequest(client, action.ActionId, action.ActionArgId);
             }
         }
 

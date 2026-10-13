@@ -223,6 +223,11 @@ namespace Rasa.Managers
             else
                 CellManager.Instance.CellCallMethod(mapChannel, actor, attached);
 
+            // A stun calls off the ability or tool a player is winding up, after the stun itself
+            // has gone out.
+            if (effect.IsStun && actor is Manifestation stunned)
+                ActorActionManager.CallOffForStun(mapChannel, stunned);
+
             if (effect.MovementModifierPercent != 0)
                 UpdateMovementMod(mapChannel, actor);
 
