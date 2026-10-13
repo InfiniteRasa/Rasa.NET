@@ -350,6 +350,13 @@ namespace Rasa.Managers
                 return;
             }
 
+            // A Rez Trauma Kit with no Rez Trauma to take off (RezTraumaKitAction.CheckAction).
+            if (RezTraumaKitRefusal(player, action) is { } kitRefusal)
+            {
+                Fail(client, actionId, level, kitRefusal);
+                return;
+            }
+
             // An emote or title the player already has, a rocket still in the air (Toys).
             var toyRefusal = ToyRefusal(mapChannel, player, action, info);
 
@@ -745,6 +752,7 @@ namespace Rasa.Managers
             return action.Module == "abilities.sprint" || action.Module == PolymorphModule || action.Module == SelfResModule || action.Module == CrabMinesModule || action.Module == RealityRipperModule || action.Module == TrapModule || action.Module == TurretModule
                 || action.Module == HortimonculusModule || action.Module == ReanimationModule || action.Module == ReanimationWaveModule
                 || action.Module == SpotterModule || action.Module == BotConstructionModule || action.Module == CreateCloneModule
+                || action.Module == RezTraumaKitModule
                 || MorphSupportModules.Contains(action.Module)
                 || IsDirectDamage(action, info) || TimedEffectModules.Contains(action.Module)
                 || IsToy(action, info) || PersonalWaypoints.Is(action);
@@ -978,6 +986,12 @@ namespace Rasa.Managers
                 return;
             }
 
+            if (actionInfo.Module == RezTraumaKitModule)
+            {
+                UseRezTraumaKit(mapChannel, player, action);
+                return;
+            }
+
             if (actionInfo.Module == SelfResModule)
             {
                 // SelfResAction.DoAbility announces the revive on the performer's own client.
@@ -1147,6 +1161,10 @@ namespace Rasa.Managers
 
             if (!Grants(player, action.ActionId, action.ActionArgId, item))
                 return PlayerMessage.PmCannotPerformActionNow;
+
+            // A Rez Trauma that ran out during the windup leaves the kit unspent.
+            if (_actions.TryGetValue(action.ActionId, out var landing) && RezTraumaKitRefusal(player, landing) is { } kitRefusal)
+                return kitRefusal;
 
             // A sustained ability pays through its drain rather than up front, so all it needs
             // is something left in the tank - the same test the request makes.
