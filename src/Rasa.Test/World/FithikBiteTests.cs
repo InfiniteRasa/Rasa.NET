@@ -124,6 +124,26 @@ namespace Rasa.Test.World
         }
 
         /// <summary>
+        /// A region Fithik twenty metres from its target opens with its lunge (KaelRushingBlow): it
+        /// winds up, leaps, and its target is first hurt with the Fithik beside it. The lunge used
+        /// to land from where the Fithik stood.
+        /// </summary>
+        [TestMethod]
+        public void ARegionFithikLungesInFromTwentyMetresAndHitsBesideItsTarget()
+        {
+            var trace = new List<(float Distance, int Health)>();
+            var used = Fight(withBite: true, start: 20f, seconds: 4, trace);
+
+            Assert.AreEqual(ActionId.CrFithikLunge, used.First().ActionId, Describe(used));
+
+            var firstHurt = trace.FindIndex(step => step.Health < 100000);
+
+            Assert.IsGreaterThanOrEqualTo(0, firstHurt, "never hurt: " + string.Join(" ", trace.Select(t => $"{t.Distance:0.0}/{t.Health}")) + " used " + Describe(used));
+            Assert.IsLessThanOrEqualTo(3f, trace[firstHurt].Distance, $"hurt from {trace[firstHurt].Distance:0.0} m");
+            Assert.IsGreaterThanOrEqualTo(3, firstHurt, "not before the windup is through");
+        }
+
+        /// <summary>
         /// The bosses' bite: from eight metres it comes in, and bites within three. At the 10 m
         /// row 44 had, it stood where it was and bit from eight.
         /// </summary>
@@ -186,7 +206,9 @@ namespace Rasa.Test.World
             }
         }
 
-        private static List<CreatureAction> Fight(bool withBite, float start, int seconds)
+        private static List<CreatureAction> Fight(bool withBite, float start, int seconds) => Fight(withBite, start, seconds, null);
+
+        private static List<CreatureAction> Fight(bool withBite, float start, int seconds, List<(float Distance, int Health)> trace)
         {
             using var world = new WorldTestContext();
             var enemy = Watch(world, x: start);
@@ -206,17 +228,34 @@ namespace Rasa.Test.World
 
             var used = new List<CreatureAction>();
 
-            for (var think = 0; think < seconds * 1000 / Tick; think++)
+            // The lunge is a leap (KaelRushingBlow), timed on its own clock: a quarter second a think.
+            var clock = 1_000_000L;
+            KaelRushingBlow.Now = () => clock;
+
+            try
             {
-                var timers = fithik.Actions.Select(action => action.CooldownTimer).ToList();
-                BehaviorManager.Instance.MapChannelThink(world.Map, Tick);
+                for (var think = 0; think < seconds * 1000 / Tick; think++)
+                {
+                    var timers = fithik.Actions.Select(action => action.CooldownTimer).ToList();
+                    BehaviorManager.Instance.MapChannelThink(world.Map, Tick);
 
-                // A windup is held on the real clock (CreatureWindups.IsWindingUp); these thinks are a quarter
-                // second each, so its end is brought on with them.
-                fithik.Controller.WindupUntil -= Tick;
+                    // A windup is held on the real clock (CreatureWindups.IsWindingUp); these thinks are a quarter
+                    // second each, so its end is brought on with them.
+                    fithik.Controller.WindupUntil -= Tick;
+                    clock += Tick;
+                    KaelRushingBlow.Worker(world.Map);
+                    MissileManager.Instance.DoWork(world.Map, Tick);
 
-                // Used this think: its cooldown started again.
-                used.AddRange(fithik.Actions.Where((action, slot) => action.CooldownTimer > timers[slot]));
+                    // Used this think: its cooldown started again.
+                    used.AddRange(fithik.Actions.Where((action, slot) => action.CooldownTimer > timers[slot]));
+
+                    trace?.Add((Vector3.Distance(fithik.Position, enemy.Player.Position), enemy.Player.Attributes[Attributes.Health].Current));
+                }
+            }
+            finally
+            {
+                KaelRushingBlow.Now = () => Environment.TickCount64;
+                world.Map.QueuedMissiles.Clear();
             }
 
             return used;
@@ -267,6 +306,7 @@ namespace Rasa.Test.World
             var client = world.CreateClient(x: x);
             var seed = CellManager.Instance.GetCellSeed(client.Player.Position);
             client.Player.Attributes[Attributes.Health] = new ActorAttributes(Attributes.Health, 100000, 100000, 100000, 0, 0);
+            client.Player.Attributes[Attributes.Armor] = new ActorAttributes(Attributes.Armor, 0, 0, 0, 0, 0);
             client.Player.Cells = CellsAt(world, client.Player.Position);
             CellManager.Instance.GetCell(world.Map, seed & 0xFFFF, seed >> 16).ClientList.Add(client);
             return client;

@@ -399,7 +399,7 @@ namespace Rasa.Managers
             if (creature.PoseShown && (knockedBack || Stuns.IsStunned(creature) || !NpcPoses.AtRest(creature)))
                 NpcPoses.Drop(mapChannel, creature);
 
-            // Mid-charge (Kael rushing blow), winding up to blow itself up (a Fithik), to drop an
+            // Mid-charge (a Kael's rushing blow, a Fithik's lunge), winding up to blow itself up (a Fithik), to drop an
             // egg (a Stalker) or any ability (CreatureWindups), in a cocoon (an Atta grub), a
             // cloud (a Miasma, CreatureMiasma), or climbing out of its egg cluster (a Fithik,
             // FithikEggClusters), it does nothing else until that is done.
@@ -1077,8 +1077,8 @@ namespace Rasa.Managers
                     }
 
                     // A rushing blow - a Kael's, an AFS soldier's - is a charge: its windup carries
-                    // the creature to its target, and the blow lands when it gets there
-                    // (KaelRushingBlow).
+                    // the creature to its target, and the blow lands when it gets there. A Fithik's
+                    // lunge is one too, a leap at the end of its windup (KaelRushingBlow).
                     if (KaelRushingBlow.Is(action))
                     {
                         creature.Controller.Path.Clear();
