@@ -876,7 +876,11 @@ namespace Rasa.Managers
 
         /// <summary>
         /// The same three rules the create window filters the item list by, so the server agrees
-        /// with what the player was offered.
+        /// with what the player was offered, and the server's own fourth: the item is in one of the
+        /// browse categories (AuctionItemCategories). One that is in none - mission items,
+        /// creature shields, hair and faces - could be listed, and the deposit taken, for a
+        /// listing no search finds: the client's sell window offers none of them, so it took a
+        /// forged request or an item a GM made.
         ///
         /// Note ItemInfo.Tradable is misnamed: ItemManager fills it from the template's
         /// NotTradableFlag, and ItemInfoPacket writes it into the client's notTradable field, so
@@ -893,7 +897,10 @@ namespace Rasa.Managers
             if (!item.ItemTemplate.HasSellableFlag)
                 return false;
 
-            return item.ItemTemplate.ItemInfo == null || !item.ItemTemplate.ItemInfo.Tradable;
+            if (item.ItemTemplate.ItemInfo != null && item.ItemTemplate.ItemInfo.Tradable)
+                return false;
+
+            return AuctionItemCategories.CodeOf(item.ItemTemplate) != 0;
         }
 
         /// <summary>
