@@ -307,7 +307,7 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
-        public void TheClanGoesOnlyToThePlayersOwnEntityAndOnlyWithOne()
+        public void TheClanGoesWithThePlayersEntityOnlyWhenTheyHaveOne()
         {
             using var world = new WorldTestContext();
             var member = world.CreateClient();
@@ -316,8 +316,8 @@ namespace Rasa.Test.World
 
             var own = ManifestationManager.Instance.CreatePlayerEntityData(member, member);
             Assert.AreEqual(77u, own.OfType<ClanIdPacket>().Single().ClanId);
-            Assert.IsFalse(ManifestationManager.Instance.CreatePlayerEntityData(member, other).OfType<ClanIdPacket>().Any(),
-                "another's client has no data for the clan");
+            Assert.AreEqual(77u, ManifestationManager.Instance.CreatePlayerEntityData(member, other).OfType<ClanIdPacket>().Single().ClanId,
+                "to another's client too, for the tag over the name (ClanTagTests)");
             Assert.IsFalse(ManifestationManager.Instance.CreatePlayerEntityData(other, other).OfType<ClanIdPacket>().Any(),
                 "no clan, nothing: every manifestation starts in none");
         }

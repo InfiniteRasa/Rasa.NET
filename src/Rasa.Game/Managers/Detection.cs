@@ -106,6 +106,7 @@ namespace Rasa.Managers
 
             foreach (var viewer in Onlookers(mapChannel, player))
             {
+                ClanManager.Instance.ShowClanTo(viewer, player);
                 viewer.CallMethod(SysEntity.ClientMethodId,
                     new CreatePhysicalEntityPacket(player.EntityId, player.EntityClass, ManifestationManager.Instance.CreatePlayerEntityData(client, viewer)));
                 GameEffectManager.ShowEffectsTo(viewer, player);

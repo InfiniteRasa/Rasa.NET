@@ -2397,6 +2397,7 @@ namespace Rasa.Managers
                 if (Detection.IsHiddenFrom(player, tempClient))
                     continue;
 
+                ClanManager.Instance.ShowClanTo(tempClient, player);
                 tempClient.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(player.EntityId, player.EntityClass, CreatePlayerEntityData(client, tempClient)));
 
                 // A squad mate's: whose it is goes with it, every time it is made (PartyManager).
@@ -2439,6 +2440,7 @@ namespace Rasa.Managers
                 if (Detection.IsHiddenFrom(tempClient.Player, client))
                     continue;
 
+                ClanManager.Instance.ShowClanTo(client, tempClient.Player);
                 client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(tempClient.Player.EntityId, tempClient.Player.EntityClass, CreatePlayerEntityData(tempClient, client)));
                 PartyManager.ManifestationMade(client, tempClient);
 
@@ -2521,15 +2523,16 @@ namespace Rasa.Managers
             if (player.CurrentTitle != 0)
                 entityData.Add(new TitleChangedPacket(player.CurrentTitle));
 
-            // Their clan, to their own client. Every manifestation starts in none
-            // (manifestation.py Recv_ClanId), and a map change - a dropship's or a map link's -
-            // makes the player's own entity again: it was sent once, at login
+            // Their clan, to their own client and everyone who meets them. Every manifestation
+            // starts in none (manifestation.py Recv_ClanId), and a map change - a dropship's or a
+            // map link's - makes the player's own entity again: it was sent once, at login
             // (ClanManager.InitializePlayerClanData), and was gone after the first. With it went
             // the clan name over their head, the clan lockbox window's clan, and which clan
             // control points and force fields their client takes for their own. The clan's own
             // data (clan.py g_clans) is the client's, not the entity's, and outlives the change.
-            // Not to anyone else: their client has no data for the clan to show.
-            if (forSelf && player.ClanId != 0)
+            // Another client is sent the clan's data beside it (ClanManager.ShowClanTo), for the
+            // tag over the name.
+            if (player.ClanId != 0)
                 entityData.Add(new ClanIdPacket(player.ClanId));
 
             // The clan feuds and duel they are in, to their own client and everyone who meets them:

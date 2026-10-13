@@ -353,6 +353,9 @@ namespace Rasa.Managers
             // window and beside members' names. SetClanData is what refreshes it without a relog.
             SetClanDataForOnlineMembers(clanId);
 
+            // And the tag over the members' heads, to the others who have them.
+            ShowClanDataAround(clanId);
+
             CallMethodForOnlineMembers(clanId, (ulong)SysEntity.ClientClanManagerId,
                 new DisplayClanMessagePacket((int)PlayerMessage.PmClanClannameChanged,
                     new Dictionary<string, string> { { "oldname", oldName }, { "newname", newName } }));
@@ -481,6 +484,7 @@ namespace Rasa.Managers
 
             // Cache the newly created clan
             RegisterClan(clan);
+            ShowClanAround(client);
 
             EconomyAudit.Instance.Record(EconomyLogKind.ClanCreation, clan.Id,
                 EconomyAudit.MoneyLine(client, CurencyType.Credits, -_requiredCreditsForClanCreation));
@@ -723,6 +727,7 @@ namespace Rasa.Managers
             SetClanMemberData(client, clanData);
 
             client.Player.ClanId = clanData.Id;
+            ShowClanAround(client);
 
             //update clan inventory from db
             InventoryManager.Instance.SetupLocalClanInventory(client);
@@ -735,7 +740,11 @@ namespace Rasa.Managers
             TellInviter(invite, client, true);
         }
 
-        internal void CleanupClan(Client client)
+        /// <param name="leftClan">
+        /// Out of the clan - a kick, a leave or a disband - rather than out of the world, when
+        /// there is no one left to tell.
+        /// </param>
+        internal void CleanupClan(Client client, bool leftClan = true)
         {
             // Rebuilt rather than zeroed slot by slot. A member on the loading screen of their login
             // has no clan lockbox list yet - InitClanInventory builds it at MapLoaded - and a kick or
@@ -746,6 +755,9 @@ namespace Rasa.Managers
             var oldClanId = client.Player.ClanId;
 
             client.Player.ClanId = 0;
+
+            if (leftClan)
+                ShowClanAround(client);
 
             // Out of the clan's feuds: a kick, a leave or a disband all come through here.
             ClanFeuds.Instance.MemberLeft(client, oldClanId);
@@ -1174,7 +1186,7 @@ namespace Rasa.Managers
             if (client.State == ClientState.Loading)
                 return;
 
-            CleanupClan(client);
+            CleanupClan(client, leftClan: false);
             if (ClanMembers.TryGetValue(clanId, out var cachedMembers) && cachedMembers.IsValueCreated)
                 cachedMembers.Value?.RemoveAll(member => member.CharacterId == client.Player.Id);
 
@@ -1435,6 +1447,89 @@ namespace Rasa.Managers
             Manifestation player = client.Player;            
             client.CallMethod(SysEntity.ClientClanManagerId, new SetClanDataPacket(SetClanDataPacket.NameKey, clanData));
             client.CallMethod(player.EntityId, new ClanIdPacket(clanData.Id));
+        }
+
+        /// <summary>
+        /// The clan a player is in, to another client that is about to be given them: the tag over
+        /// a name is the clan's name, which the client looks up by the ClanId on the manifestation
+        /// in the clans it has been sent (client/clan.py GetClanByClanId) and shows as "clan name
+        /// not available" when it has none. Its own clan was the only one it was ever sent. Sent
+        /// with every introduction: the client keeps what it is given for as long as it runs, but
+        /// takes a clan out again when its own player leaves it, so what it holds is not tracked
+        /// here. The clan's manifestations redraw the tag when it arrives
+        /// (manifestation.py HandleUpdateClanData), so the order does not matter.
+        /// </summary>
+        internal void ShowClanTo(Client viewer, Manifestation player)
+        {
+            if (viewer == null || player == null || player.ClanId == 0)
+                return;
+
+            var clan = Clans.GetValueOrDefault(player.ClanId)?.Value;
+
+            if (clan != null)
+                viewer.CallMethod(SysEntity.ClientClanManagerId, new SetClanDataPacket(SetClanDataPacket.NameKey, new ClanData(clan)));
+        }
+
+        /// <summary>
+        /// A member's clan has changed - joined, made, left, kicked from or disbanded: the new
+        /// ClanId to everyone who has them, with the clan's name for a tag. Only their own client
+        /// was told; everyone else kept the old tag until they met the player again.
+        /// </summary>
+        private void ShowClanAround(Client member)
+        {
+            var player = member?.Player;
+
+            if (player == null)
+                return;
+
+            var packet = new ClanIdPacket(player.ClanId);
+
+            foreach (var viewer in Onlookers(member))
+            {
+                ShowClanTo(viewer, player);
+                viewer.CallMethod(player.EntityId, packet);
+            }
+        }
+
+        /// <summary>A clan's name has changed: to everyone outside it who has one of its members online in view.</summary>
+        private void ShowClanDataAround(uint clanId)
+        {
+            var clan = Clans.GetValueOrDefault(clanId)?.Value;
+
+            if (clan == null)
+                return;
+
+            var told = new HashSet<Client>();
+
+            foreach (var member in GetClanMembers(clanId))
+            {
+                var memberClient = Server.Clients.Find(c => c.Player.Id == member.CharacterId);
+
+                if (memberClient == null)
+                    continue;
+
+                // The members have had it with the clan window's (SetClanDataForOnlineMembers).
+                foreach (var viewer in Onlookers(memberClient))
+                    if (viewer.Player?.ClanId != clanId && told.Add(viewer))
+                        viewer.CallMethod(SysEntity.ClientClanManagerId, new SetClanDataPacket(SetClanDataPacket.NameKey, new ClanData(clan)));
+            }
+        }
+
+        /// <summary>The clients that have this player: the ones in their cells, and the team mates who hold them from afar (FarAllies).</summary>
+        private static HashSet<Client> Onlookers(Client member)
+        {
+            var player = member.Player;
+            var onlookers = new HashSet<Client>();
+            var mapChannel = player.MapChannel;
+
+            if (mapChannel != null && player.Cells != null)
+                onlookers.UnionWith(CellManager.Instance.GetClientsInCells(mapChannel, player.Cells, member));
+
+            foreach (var watcher in player.FarWatchers)
+                if (watcher != member && watcher.State == ClientState.Ingame)
+                    onlookers.Add(watcher);
+
+            return onlookers;
         }
 
         private void AddMemberToClan(ClanMemberData clanMember)
