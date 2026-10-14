@@ -387,6 +387,29 @@ namespace Rasa.Test.World
                 update ?? ((_, _, _) => { }), client => client.State = ClientState.Disconnected);
         }
 
+        // A waypoint on the map they are on: those around see the fade, then the flash where the
+        // traveller stood, before the body moves to the far waypoint.
+        [TestMethod]
+        public void ThoseAroundSeeTheDepartureEffectWhereTheTravellerStood()
+        {
+            using var world = new WorldTestContext();
+            var client = world.CreateClient();
+            var watcher = world.CreateClient(5, 0);
+            CellManager.Instance.AddToWorld(client);
+            CellManager.Instance.AddToWorld(watcher);
+            WorldTestContext.Drain(watcher);
+            var manager = CreateManager(world, (_, _, _) => { });
+            AddWaypoint(manager, world.Map, 10, Vector3.Zero);
+            AddWaypoint(manager, world.Map, 20, new Vector3(30, 5, 0));
+            client.Player.GainedWaypoints.Add(new CharacterTeleporterEntry(client.Player.Id, 20, (byte)WaypointType.Waypoint));
+
+            manager.SelectWaypoint(client, new SelectWaypointPacket { MapInstanceId = 1, WaypointId = 20 });
+
+            var seen = DropshipTravelTests.Departure(watcher, client.Player.EntityId);
+            CollectionAssert.AreEqual(new[] { "pre", "post", "move" }, seen.Where(kind => kind != "destroy").Take(3).ToArray());
+            Assert.IsFalse(DropshipTravelTests.Departure(client, client.Player.EntityId).Contains("post"), "their own client plays it from the Teleport");
+        }
+
         internal static DynamicObject AddWaypoint(DynamicObjectManager manager, MapChannel map,
             uint id, Vector3 position, bool contested = false, WaypointType type = WaypointType.Waypoint)
         {

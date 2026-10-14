@@ -1946,6 +1946,8 @@ namespace Rasa.Managers
             var destination = transfer.DestinationPosition;
             var rotation = transfer.DestinationRotation;
 
+            ShowDeparture(client);
+
             transfer.DepartAt = 0;
             CloseWaypointWindows(client, transfer.OriginMap);
             client.State = ClientState.Teleporting;
@@ -2289,6 +2291,27 @@ namespace Rasa.Managers
             }
         }
 
+        /// <summary>
+        /// The end of the teleport-out, to everyone who can see the traveller go: PostTeleport
+        /// (actor.py Recv_PostTeleport), the departure effect where they stand, for the
+        /// PreTeleport they were shown (teleportertype DEFAULT: 8551, PreTeleport's 8555 and the
+        /// arrival's 8550 being the other two). Nothing sent it: those around saw the fade and
+        /// then the body jump to the far end, or vanish off the map, with no flash where it had
+        /// been.
+        ///
+        /// Sent from where they are, before they are moved or taken off the map, so it plays
+        /// there and reaches those who see them there. Not to their own client: the Teleport
+        /// plays it there (Recv_Teleport calls Recv_PostTeleport), and a ride to another map
+        /// takes it to a loading screen.
+        /// </summary>
+        private static void ShowDeparture(Client client)
+        {
+            if (client.Player?.MapChannel == null || !CellManager.Instance.IsInWorld(client))
+                return;
+
+            client.CellIgnoreSelfCallMethod(client, new PostTeleportPacket());
+        }
+
         private void DepartDropship(Client client, Dropship dropship)
         {
             lock (client.SyncRoot)
@@ -2297,6 +2320,9 @@ namespace Rasa.Managers
                 if (transfer == null || !transfer.IsDropship || transfer.HasDeparted ||
                     transfer.DropshipId != dropship.EntityId || CheckTransferTimeout(client))
                     return;
+
+                // Gone from where they boarded, for everyone who saw them board.
+                ShowDeparture(client);
 
                 if (ReferenceEquals(transfer.OriginMap, transfer.DestinationMap))
                 {

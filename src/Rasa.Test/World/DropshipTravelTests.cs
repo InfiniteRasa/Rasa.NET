@@ -675,6 +675,85 @@ namespace Rasa.Test.World
             }
         }
 
+        // Those who saw the traveller board see the flash where they were as the ship takes them
+        // (PostTeleport, after the PreTeleport fade), before the body goes off the map. Nothing
+        // sent it: the body vanished with no departure effect.
+        [TestMethod]
+        public void ThoseAroundSeeTheDepartureEffectBeforeTheBodyGoesOffTheMap()
+        {
+            using var world = new WorldTestContext();
+            world.AddClass(EntityClasses.UsableCrSpawnerHumDropshipV01);
+            var client = world.CreateClient();
+            var watcher = world.CreateClient(5, 0);
+            CellManager.Instance.AddToWorld(client);
+            CellManager.Instance.AddToWorld(watcher);
+            var destination = CreateDestination();
+            var maps = CreateMaps(world, destination);
+            var manager = CreateDropshipManager(maps);
+            using var managers = new ManagerInstances(maps, manager);
+            StartDropshipTransfer(world, destination, client, manager);
+            WorldTestContext.Drain(watcher);
+
+            Depart(world.Map, manager, client);
+
+            var seen = Departure(watcher, client.Player.EntityId);
+            Assert.AreEqual(1, seen.Count(kind => kind == "pre"), "the fade as they board");
+            Assert.AreEqual(1, seen.Count(kind => kind == "post"), "the flash as they go");
+            Assert.IsTrue(seen.IndexOf("pre") < seen.IndexOf("post"));
+            Assert.IsTrue(seen.IndexOf("post") < seen.IndexOf("destroy"), "where the body was");
+            Assert.IsFalse(Departure(client, client.Player.EntityId).Contains("post"), "not to the traveller, on their way to a loading screen");
+        }
+
+        [TestMethod]
+        public void ARideOnTheSameMapShowsTheDepartureEffectBeforeTheBodyMoves()
+        {
+            using var world = new WorldTestContext();
+            world.AddClass(EntityClasses.UsableCrSpawnerHumDropshipV01);
+            var client = world.CreateClient();
+            var watcher = world.CreateClient(5, 0);
+            CellManager.Instance.AddToWorld(client);
+            CellManager.Instance.AddToWorld(watcher);
+            var maps = CreateMaps(world, CreateDestination());
+            var manager = CreateDropshipManager(maps);
+            using var managers = new ManagerInstances(maps, manager);
+            WaypointTravelTests.AddWaypoint(manager, world.Map, 10, Vector3.Zero, type: WaypointType.Dropship);
+            WaypointTravelTests.AddWaypoint(manager, world.Map, 20, new Vector3(30, 5, 0), type: WaypointType.Dropship);
+            client.Player.GainedWaypoints.Add(new CharacterTeleporterEntry(client.Player.Id, 20, (byte)WaypointType.Dropship));
+            manager.SelectWaypoint(client, new SelectWaypointPacket { MapInstanceId = 1, WaypointId = 20 });
+            Assert.IsTrue(client.PendingTransfer?.IsDropship == true, "a ride, on the same map");
+            WorldTestContext.Drain(watcher);
+
+            Depart(world.Map, manager, client);
+
+            var seen = Departure(watcher, client.Player.EntityId);
+            Assert.AreEqual(1, seen.Count(kind => kind == "post"));
+            Assert.IsTrue(seen.IndexOf("post") < seen.IndexOf("move"), "where they boarded, before the body moves");
+            Assert.IsFalse(Departure(client, client.Player.EntityId).Contains("post"), "their own client plays it from the Teleport");
+        }
+
+        /// <summary>What a client was sent about the traveller, in order: their fade, the departure, a move of the body, its removal.</summary>
+        internal static List<string> Departure(Rasa.Game.Client client, ulong traveller)
+        {
+            var seen = new List<string>();
+
+            foreach (var message in WorldTestContext.Drain(client).Select(p => p.Message))
+            {
+                if (message is MoveObjectMessage move && move.EntityId == traveller)
+                    seen.Add("move");
+                else if (message is CallMethodMessage call)
+                {
+                    if (call.EntityId == traveller && call.Packet is PreTeleportPacket)
+                        seen.Add("pre");
+                    else if (call.EntityId == traveller && call.Packet is PostTeleportPacket)
+                        seen.Add("post");
+                    else if (call.Packet is DestroyPhysicalEntityPacket destroy && destroy.EntityId == traveller)
+                        seen.Add("destroy");
+                }
+            }
+
+            return seen;
+        }
+
         internal static MapChannel CreateDestination()
         {
             return new MapChannel

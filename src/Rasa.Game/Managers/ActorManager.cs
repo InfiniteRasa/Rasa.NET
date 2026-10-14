@@ -38,7 +38,7 @@ namespace Rasa.Managers
          *  - ActionFailed(self, actionId, actionArgId)                        => implemented, RefuseRequest
          *  - PreTeleport(self, teleportType = None)
          *  - TeleportFailed(self)
-         *  - PostTeleport(self)
+         *  - PostTeleport(self)                                              => implemented, DynamicObjectManager.ShowDeparture
          *  - TeleportArrival(self, delayMs = 0, delayEffectMs = 0, doFade = 0)
          *  - Teleport(self, position, yaw, teleportType = None, delay = 0, doCancel = 1)
          *  - SetTrackingTarget(self, targetId)
