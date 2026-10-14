@@ -364,6 +364,10 @@ namespace Rasa.Test.Missions.Wilderness
 
         private static void CollectMachinaRemains(WildernessRuntimeTestHarness harness)
         {
+            // The action data, as a server has it: the Machina's revive (CR_MACHINA_REVIVE 429)
+            // gets it up with what its level gives, and without its level it never gets up.
+            harness.LoadAbilities();
+
             var drop = harness.Manager.LoadedMissions[574].Items["machina-remains"].Drop;
             var creatureId = drop.CreatureIds.Single();
             Assert.AreEqual(630100U, creatureId);
