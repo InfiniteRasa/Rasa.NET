@@ -1198,6 +1198,15 @@ namespace Rasa.Managers
             var requesterParty = PartyOf(requester);
             var leaderParty = PartyOf(leader);
 
+            // A leader who has the requester ignored is not asked by them, as an invitation from
+            // them is not put to someone ignoring them (Invite). Before anything else: a request
+            // already open stays open.
+            if (leader.Player.IgnoredPlayers.Contains(requester.AccountEntry.Id))
+            {
+                Message(requester, PlayerMessage.PmUserIgnoringYou, "name", displayName);
+                return;
+            }
+
             if (JoiningSize(requesterParty) + (leaderParty?.Members.Count ?? 1) > MaxPartySize)
             {
                 Message(requester, PlayerMessage.PmPartyIsFull);
@@ -1511,7 +1520,9 @@ namespace Rasa.Managers
 
                 var requester = FindIngame(request.RequesterId);
 
-                if (newLeader == null || requester == null)
+                // A request is not handed to a new leader who has the requester ignored; to the
+                // requester it is one that is no longer valid, as for a leader who has gone.
+                if (newLeader == null || requester == null || newLeader.Player.IgnoredPlayers.Contains(request.RequesterId))
                 {
                     _joinRequests.Remove(request.RequesterId);
 
