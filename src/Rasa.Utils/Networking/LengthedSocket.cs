@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -906,15 +907,26 @@ namespace Rasa.Networking
         /// Lays frames from <paramref name="packets"/>, starting at <paramref name="next"/>, end to
         /// end in the args' block and sets the args up to send them. Advances next past every
         /// packet it wrote or skipped, and returns the bytes used.
+        ///
+        /// The frames are written through one stream and writer over the block. Each frame used
+        /// to make a stream and a writer of its own over the rest of the block: two objects for
+        /// every move, shot and hit sent to every client, which was most of what sending
+        /// allocated once the frames themselves stopped allocating.
         /// </summary>
         private int FillBlock(IReadOnlyList<IBasePacket> packets, ref int next, SocketAsyncEventArgs args)
         {
             var data = args.GetUserToken<BufferData>();
             var used = 0;
 
+            data.Offset = 0;
+            data.Length = data.MaxLength;
+
+            using var stream = data.GetStream(0, data.MaxLength, true);
+            using var writer = new BinaryWriter(stream);
+
             while (next < packets.Count)
             {
-                var result = TryWriteFrame(packets[next], data, used, out var frameLength);
+                var result = TryWriteFrame(packets[next], data, writer, used, out var frameLength);
 
                 if (result == FrameResult.NoRoom)
                     break;
@@ -948,7 +960,7 @@ namespace Rasa.Networking
         /// for good. Nothing written for a frame that failed goes anywhere: the block ends where
         /// the last good frame did.
         /// </summary>
-        private FrameResult TryWriteFrame(IBasePacket packet, BufferData data, int at, out int frameLength)
+        private FrameResult TryWriteFrame(IBasePacket packet, BufferData data, BinaryWriter writer, int at, out int frameLength)
         {
             frameLength = 0;
 
@@ -963,12 +975,15 @@ namespace Rasa.Networking
                 data.Offset = at + LengthSize;
                 data.Length = data.MaxLength;
 
-                using (var sw = data.CreateWriter())
-                {
-                    packet.Write(sw);
+                // The writer is over the whole block: the frame starts where it was put, and ends
+                // where the packet left it. A packet that would run past the block throws, as it
+                // did when the stream began at the frame.
+                writer.BaseStream.Position = data.Offset;
 
-                    length = (int) sw.BaseStream.Position;
-                }
+                packet.Write(writer);
+                writer.Flush();
+
+                length = (int) writer.BaseStream.Position - data.Offset;
 
                 OnEncrypt?.Invoke(data, ref length);
 
