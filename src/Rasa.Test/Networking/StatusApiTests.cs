@@ -963,7 +963,7 @@ namespace Rasa.Test.Networking
                         "addaccount", "healthcheck", "ingame/creature-actions",
                         "ingame/creatures", "ingame/creatures/update", "ingame/creatures/{id}",
                         "ingame/items", "ingame/items/categories", "ingame/items/update", "ingame/items/{id}",
-                        "ingame/lootpools", "ingame/monsterflags", "ingame/npc-greetings",
+                        "ingame/lootpools", "ingame/missions", "ingame/missions/{id}", "ingame/monsterflags", "ingame/npc-greetings",
                         "ingame/npc-greetings/update", "ingame/session/exchange",
                         "ingame/updatelootpools", "ingame/updatemonsterflags",
                         "kickuser", "lootpools", "monsterflags", "serverstatus", "updatelootpools", "updatemonsterflags", "usersonline"
