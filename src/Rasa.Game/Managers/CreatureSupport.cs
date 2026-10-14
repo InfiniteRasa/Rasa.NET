@@ -424,11 +424,16 @@ namespace Rasa.Managers
             return true;
         }
 
-        /// <summary>Lands the heals, repairs and revives whose windup is up on this map. Run every map tick.</summary>
-        public static void Worker(MapChannel mapChannel)
+        /// <summary>
+        /// Lands the heals, repairs and revives whose windup is up on this map. Run every map tick.
+        /// <paramref name="now"/> is for tests; 0 is the clock.
+        /// </summary>
+        public static void Worker(MapChannel mapChannel, long now = 0)
         {
             List<Cast> due;
-            var now = Environment.TickCount64;
+
+            if (now == 0)
+                now = Environment.TickCount64;
 
             lock (CastsLock)
             {
