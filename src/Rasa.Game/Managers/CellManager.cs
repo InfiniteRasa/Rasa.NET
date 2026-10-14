@@ -289,6 +289,7 @@ namespace Rasa.Managers
             // Its entries in the per-creature tables keyed by entity id, before the id is freed
             // for the next creature.
             CreatureHabits.Forget(creature);
+            WardenBotTurtle.Forget(creature);
             MawLurk.Forget(creature);
             CreatureBuffs.Forget(creature);
             AlternateMesh.Forget(creature);

@@ -406,6 +406,9 @@ namespace Rasa.Managers
             // is healed back above it (AttaSoldierRage).
             AttaSoldierRage.Observe(mapChannel, creature);
 
+            // A Warden Bot brought below half its health closes up, once a fight (WardenBotTurtle).
+            WardenBotTurtle.Observe(mapChannel, creature);
+
             // Knocked back, or stunned: it goes where the knockback carries it and nothing else,
             // but it can still cross into another cell doing so.
             var knockedBack = StepKnockback(mapChannel, creature, delta);
