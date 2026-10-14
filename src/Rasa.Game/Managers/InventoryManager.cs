@@ -773,7 +773,15 @@ namespace Rasa.Managers
 
             // Part of a stack, or onto a stack it joins (InventoryManager.Stacks). Nothing comes
             // out of the lockbox, so no rank is asked for.
-            if (TransferStack(client, PackStore(client), packet.SrcSlot, ClanStore(client), packet.DestSlot, Quantity(packet.Quantity)) != StackTransfer.Whole)
+            var depositing = EntityManager.Instance.GetItem(entityId);
+            var depositingSize = depositing?.StackSize ?? 0;
+            var stackTransfer = TransferStack(client, PackStore(client), packet.SrcSlot, ClanStore(client), packet.DestSlot, Quantity(packet.Quantity));
+
+            if (stackTransfer == StackTransfer.Done)
+                RecordClanLockboxItem(client, InventoryTransactionType.Deposit, depositing,
+                    MovedOff(client.Player.Inventory.PersonalInventory, packet.SrcSlot, entityId, depositingSize));
+
+            if (stackTransfer != StackTransfer.Whole)
                 return;
 
             // If DestSlot is not empty, move current item to SrcSlot (item swap)
@@ -810,6 +818,10 @@ namespace Rasa.Managers
                 return;
             }
 
+            // What comes out with a swap, for the history: taken before the slot is given over.
+            var swappedOut = wasSwap ? EntityManager.Instance.GetItem(client.Player.Inventory.ClanInventory[(int)packet.DestSlot]) : null;
+            var swappedOutSize = swappedOut?.StackSize ?? 0;
+
             RemoveItemBySlot(client, InventoryType.Personal, packet.SrcSlot);
 
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
@@ -833,6 +845,12 @@ namespace Rasa.Managers
 
             depositedItem.OwnerSlotId = packet.DestSlot;
             RefreshClanLockbox(client.Player.ClanId, entityId, client.Player.Id, packet.DestSlot, ref client.Player.Inventory.ClanInventory, true);
+
+            // In the lockbox's history, as a deposit to a tab is - and what a swap took out of it.
+            RecordClanLockboxItem(client, InventoryTransactionType.Deposit, depositedItem, depositedItem.StackSize);
+
+            if (swappedOut != null)
+                RecordClanLockboxItem(client, InventoryTransactionType.Withdrawal, swappedOut, swappedOutSize);
         }
 
         public void ClanLockbox_DepositItemInTab(Client client, ClanLockbox_DepositItemInTabPacket packet)
@@ -1109,10 +1127,24 @@ namespace Rasa.Managers
                     transfer = true;
                 }
 
-                if (transfer &&
-                    TransferStack(client, ClanStore(client), packet.SrcSlot, PackStore(client), takeSlot, Quantity(packet.Quantity)) != StackTransfer.Whole)
-                    return;
+                if (transfer)
+                {
+                    var takingSize = tempItem.StackSize;
+                    var stackTransfer = TransferStack(client, ClanStore(client), packet.SrcSlot, PackStore(client), takeSlot, Quantity(packet.Quantity));
+
+                    if (stackTransfer == StackTransfer.Done)
+                        RecordClanLockboxItem(client, InventoryTransactionType.Withdrawal, tempItem,
+                            MovedOff(client.Player.Inventory.ClanInventory, packet.SrcSlot, entityId, takingSize));
+
+                    if (stackTransfer != StackTransfer.Whole)
+                        return;
+                }
             }
+
+            // For the history: what comes out, and what a swap puts in, as they stand before the move.
+            var withdrawnSize = tempItem?.StackSize ?? 0;
+            var swappedIn = wasSwap && !packet.ManagePersonalSlot ? EntityManager.Instance.GetItem(client.Player.Inventory.PersonalInventory[(int)destSlot]) : null;
+            var swappedInSize = swappedIn?.StackSize ?? 0;
 
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
 
@@ -1158,6 +1190,40 @@ namespace Rasa.Managers
 
                 RefreshClanLockbox(client.Player.ClanId, entityId, client.Player.Id, 0, ref client.Player.Inventory.ClanInventory, false);
             }
+
+            // In the lockbox's history, as a credit withdrawal is - and what a swap put in.
+            RecordClanLockboxItem(client, InventoryTransactionType.Withdrawal, tempItem, withdrawnSize);
+
+            if (swappedIn != null)
+                RecordClanLockboxItem(client, InventoryTransactionType.Deposit, swappedIn, swappedInSize);
+        }
+
+        /// <summary>
+        /// A line of the lockbox's history for an item the player put in or took out: its
+        /// template, how many, and who. Nothing for none of it.
+        ///
+        /// Only a deposit to a tab, a destruction and the forfeits of a feud used to be written:
+        /// items taken out, and items dropped on a slot (whole, part of a stack, or a swap's two
+        /// halves), left nothing in the history the officers read to see who took what.
+        /// </summary>
+        private void RecordClanLockboxItem(Client client, byte transactionType, Item item, uint quantity)
+        {
+            if (item?.ItemTemplate == null || quantity == 0)
+                return;
+
+            RecordClanLockboxLog(client, ClanLockboxLogEntry.ForItem(client.Player.ClanId, transactionType,
+                client.Player.Id, client.Player.Name, client.Player.FamilyName, item.ItemTemplate.ItemTemplateId, quantity));
+        }
+
+        /// <summary>
+        /// How much of a stack a join or a split took off the slot it was in: what it held before
+        /// less what is there now - nothing, when the whole stack was joined to another.
+        /// </summary>
+        private static uint MovedOff(List<ulong> slots, uint slot, ulong entityId, uint before)
+        {
+            var now = slots[(int)slot] == entityId ? EntityManager.Instance.GetItem(entityId)?.StackSize ?? 0 : 0;
+
+            return before > now ? before - now : 0;
         }
 
         public void ClanLockbox_DestroyItem(Client client, ClanLockbox_DestroyItemPacket packet)
