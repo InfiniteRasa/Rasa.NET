@@ -231,11 +231,11 @@ namespace Rasa.Test.Missions.Wilderness
             {
                 characters.GetService<IMigrator>().Migrate(CharBefore);
 
-                characters.GameAccountEntries.Add(new GameAccountEntry
-                {
-                    Id = 1, Email = "rules@example.invalid", Name = "Rules", FamilyName = "Fixture", SelectedSlot = 1,
-                    CanSkipBootcamp = false, CreatedAt = DateTime.UtcNow, LastLogin = DateTime.UtcNow, LastIp = "127.0.0.1", Level = 0
-                });
+                // The account row is written by hand: the entity has columns this schema does not have
+                // yet (hybrid_unlocks), and the rest are left to their defaults.
+                characters.Database.ExecuteSqlRaw(
+                    "INSERT INTO account (id, email, name, family_name, selected_slot, last_ip) " +
+                    "VALUES (1, 'rules@example.invalid', 'Rules', 'Fixture', 1, '127.0.0.1')");
                 foreach (var id in new uint[] { 1, 2 })
                     characters.CharacterEntries.Add(new CharacterEntry
                     {
