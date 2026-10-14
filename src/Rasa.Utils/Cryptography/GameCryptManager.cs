@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers.Binary;
 using System.Security.Cryptography;
 
 namespace Rasa.Cryptography
@@ -17,6 +18,15 @@ namespace Rasa.Cryptography
             Array.Copy(inputK, cryptData.K, 0x40);
         }
 
+        /// <summary>
+        /// Encrypts a frame in place: padded with 0xCC to whole blocks, each block XORed with the
+        /// one before it (the first with the key's digest) and run through the cipher, the words
+        /// big-endian.
+        ///
+        /// It used to copy the frame into a new array of words and back again, for every frame
+        /// sent to every client: the encryption was close to half the time the main loop spent
+        /// sending, and the array the most of what it allocated doing it. The bytes are the same.
+        /// </summary>
         public static void Encrypt(byte[] data, int offset, ref int length, int maxLength, ClientCryptData cryptData)
         {
             var oldLen = length;
@@ -30,81 +40,64 @@ namespace Rasa.Cryptography
                 throw new ArgumentOutOfRangeException(nameof(length), "The length can't exceed the maximal buffer length!");
 
             // Fill up extra padding bytes
-            for (var i = oldLen; i < length; ++i)
-                data[offset + i] = 0xCC;
+            data.AsSpan(offset + oldLen, length - oldLen).Fill(0xCC);
 
-            var uintData = new uint[length / 4];
-            Buffer.BlockCopy(data, offset, uintData, 0, length);
+            var blocks = data.AsSpan(offset, length);
+            var p = cryptData.Key.P;
+            var s = cryptData.Key.S;
 
-            var x = SwitchEndianInt(BitConverter.ToUInt32(cryptData.MD5, 0));
-            var y = SwitchEndianInt(BitConverter.ToUInt32(cryptData.MD5, 4));
+            var x = BinaryPrimitives.ReadUInt32BigEndian(cryptData.MD5);
+            var y = BinaryPrimitives.ReadUInt32BigEndian(cryptData.MD5.AsSpan(4));
 
-            for (var i = 0; i < (length / 8); ++i)
+            for (var i = 0; i < length; i += 8)
             {
-                var a2 = i * 2;
+                var block = blocks.Slice(i, 8);
+                var first = BinaryPrimitives.ReadUInt32BigEndian(block) ^ x;
+                var second = BinaryPrimitives.ReadUInt32BigEndian(block.Slice(4)) ^ y;
 
-                uintData[a2] = SwitchEndianInt(uintData[a2]);
-                uintData[a2 + 1] = SwitchEndianInt(uintData[a2 + 1]);
-                uintData[a2] ^= x;
-                uintData[a2 + 1] ^= y;
+                Blowfish.EncryptBlock(ref first, ref second, p, s);
 
-                Blowfish.Encrypt(uintData, a2, cryptData.Key);
+                x = first;
+                y = second;
 
-                x = uintData[a2];
-                y = uintData[a2 + 1];
-
-                uintData[a2] = SwitchEndianInt(uintData[a2]);
-                uintData[a2 + 1] = SwitchEndianInt(uintData[a2 + 1]);
+                BinaryPrimitives.WriteUInt32BigEndian(block, first);
+                BinaryPrimitives.WriteUInt32BigEndian(block.Slice(4), second);
             }
-
-            Buffer.BlockCopy(uintData, 0, data, offset, length);
         }
 
+        /// <summary>Decrypts a frame in place: <see cref="Encrypt"/> undone.</summary>
         public static bool Decrypt(byte[] data, int offset, int length, ClientCryptData cryptData)
         {
             if (length % 8 != 0)
                 throw new ArgumentOutOfRangeException(nameof(length), "The lenght must be a multiple of 8!");
 
-            var uintData = new uint[length / 4];
-            Buffer.BlockCopy(data, offset, uintData, 0, length);
+            var blocks = data.AsSpan(offset, length);
+            var p = cryptData.Key.P;
+            var s = cryptData.Key.S;
 
-            var x = SwitchEndianInt(BitConverter.ToUInt32(cryptData.MD5, 0));
-            var y = SwitchEndianInt(BitConverter.ToUInt32(cryptData.MD5, 4));
+            var x = BinaryPrimitives.ReadUInt32BigEndian(cryptData.MD5);
+            var y = BinaryPrimitives.ReadUInt32BigEndian(cryptData.MD5.AsSpan(4));
 
-            for (var i = 0; i < (length / 8); ++i)
+            for (var i = 0; i < length; i += 8)
             {
-                //Switch endian first
-                var a2 = i * 2;
+                var block = blocks.Slice(i, 8);
+                var first = BinaryPrimitives.ReadUInt32BigEndian(block);
+                var second = BinaryPrimitives.ReadUInt32BigEndian(block.Slice(4));
 
-                uintData[a2] = SwitchEndianInt(uintData[a2]);
-                uintData[a2 + 1] = SwitchEndianInt(uintData[a2 + 1]);
+                // The ciphertext, which the next block was XORed with.
+                var nextX = first;
+                var nextY = second;
 
-                //Store new XOR
-                var x2 = uintData[a2];
-                var y2 = uintData[a2 + 1];
+                Blowfish.DecryptBlock(ref first, ref second, p, s);
 
-                Blowfish.Decrypt(uintData, a2, cryptData.Key);
+                BinaryPrimitives.WriteUInt32BigEndian(block, first ^ x);
+                BinaryPrimitives.WriteUInt32BigEndian(block.Slice(4), second ^ y);
 
-                uintData[a2] ^= x;
-                uintData[a2 + 1] ^= y;
-
-                //Update XOR
-                x = x2;
-                y = y2;
-
-                //Switch endian now
-                uintData[a2] = SwitchEndianInt(uintData[a2]);
-                uintData[a2 + 1] = SwitchEndianInt(uintData[a2 + 1]);
+                x = nextX;
+                y = nextY;
             }
 
-            Buffer.BlockCopy(uintData, 0, data, offset, length);
-
             return true;
-        }
-
-        private static uint SwitchEndianInt(uint value)
-        {
-            return ((value & 0x000000FFU) << 24) | ((value & 0x0000FF00U) << 8) | ((value & 0x00FF0000U) >> 8) | ((value & 0xFF000000U) >> 24);
         }
     }
 }
