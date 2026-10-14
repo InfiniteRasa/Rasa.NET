@@ -131,6 +131,60 @@ namespace Rasa.Test.World
             Assert.AreEqual(ClientState.Ingame, client.State);
         }
 
+        // A ride off the map leaves the map as a map link does: it had a copy of its own that
+        // left target, weapon, stance, kill streak and the map's rosters with the player.
+        [TestMethod]
+        public void ADropshipRideLeavesTheMapAsAMapLinkDoes()
+        {
+            using var world = new WorldTestContext();
+            world.AddClass(EntityClasses.UsableCrSpawnerHumDropshipV01);
+            var client = world.CreateClient();
+            CellManager.Instance.AddToWorld(client);
+            var destination = CreateDestination();
+            var maps = CreateMaps(world, destination);
+            var manager = CreateDropshipManager(maps);
+            using var managers = new ManagerInstances(maps, manager);
+            KillStreaks.Reset();
+
+            try
+            {
+                var player = client.Player;
+                KillStreaks.Set(client, 2);
+                Assert.AreEqual(2, KillStreaks.LevelOf(client));
+                StartDropshipTransfer(world, destination, client, manager);
+
+                player.Target = 4242;
+                player.WeaponReady = true;
+                player.InCombatMode = true;
+                player.RequestedCombatMode = true;
+                player.AutoFireCombatMode = true;
+                player.TrackingTargetEntityId = 4242;
+                player.InsideMapLinks.Add(7);
+                player.RegionIds = new List<uint> { 1 };
+                player.RegionsHeld = true;
+
+                Depart(world.Map, manager, client);
+
+                Assert.IsTrue(client.PendingTransfer.HasDeparted);
+                Assert.AreSame(destination, player.MapChannel);
+                Assert.AreEqual(0UL, player.Target, "a target of the map left");
+                Assert.IsFalse(player.WeaponReady);
+                Assert.IsFalse(player.InCombatMode);
+                Assert.IsFalse(player.RequestedCombatMode);
+                Assert.IsFalse(player.AutoFireCombatMode);
+                Assert.AreEqual(0UL, player.TrackingTargetEntityId);
+                Assert.AreEqual(0, KillStreaks.LevelOf(client), "a kill streak is of its map");
+                Assert.IsEmpty(player.InsideMapLinks);
+                Assert.IsNull(player.RegionIds);
+                Assert.IsFalse(player.RegionsHeld);
+                Assert.IsFalse(world.Map.ClientList.Contains(client));
+            }
+            finally
+            {
+                KillStreaks.Reset();
+            }
+        }
+
         // BR-166: a buff carried across a map change goes on again where the player's own client
         // is told of it - once they are in the world, not while they are still Teleporting.
         [TestMethod]

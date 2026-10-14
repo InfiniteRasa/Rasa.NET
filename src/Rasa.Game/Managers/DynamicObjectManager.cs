@@ -2339,23 +2339,10 @@ namespace Rasa.Managers
                     return;
                 }
 
-                // Effects end with the map, as MapChannelManager.RemovePlayer ends them - a
-                // dropship ride never goes through it. A sprint used to ride along: the arrival
-                // introduced the player to everyone without it, their own client included, while
-                // the arrival's ActorInfo gave that client the sprint's speed and its drain picked
-                // up again, under an effect id handed out by the map they had left and with no
-                // buff on any screen to show for it. The timed buffs are kept aside, clocks stopped,
-                // and go on again when the ride lands them (EffectCarry).
-                EffectCarry.Stash(client.Player);
-                GameEffectManager.Instance.ClearEffects(transfer.OriginMap, client.Player);
-                ManifestationManager.Instance.RemovePlayerCharacter(client);
-                ForgetPlayer(transfer.OriginMap, client);
-
-                CommunicatorManager.Instance.LeaveMapChannels(client);
-                LootDispenserManager.Instance.RemoveForOwner(transfer.OriginMap, client);
-                CellManager.Instance.RemoveFromWorld(client);
-                transfer.OriginMap.ClientList.RemoveAll(member => member == client);
-                Maps.DetachMissionScenes(client, transfer.OriginMap);
+                // Off the map as a map link takes them off it: effects (the timed buffs kept aside
+                // for the landing), queued actions, weapon and stance, minions and pet, kill
+                // streak, weapon clips, and every roster of the map's.
+                Maps.LeaveForTransfer(client, transfer.OriginMap, this);
                 transfer.HasDeparted = true;
                 client.Player.MapChannel = transfer.DestinationMap;
                 client.Player.MapContextId = transfer.DestinationMap.MapInfo.MapContextId;

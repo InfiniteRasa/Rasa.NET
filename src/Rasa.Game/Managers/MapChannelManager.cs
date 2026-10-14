@@ -1195,32 +1195,7 @@ namespace Rasa.Managers
                 };
 
                 client.State = ClientState.Teleporting;
-                client.Player.Target = 0;
-                LootDispenserManager.Instance.RemoveForOwner(origin, client);
-                ManifestationManager.Instance.RemovePlayerCharacter(client);
-                ActorActionManager.Instance.RemoveActor(client.Player);
-
-                // The timed buffs go aside, clocks stopped, to go on again on arrival (EffectCarry).
-                EffectCarry.Stash(client.Player);
-                GameEffectManager.Instance.ClearEffects(origin, client.Player);
-
-                // Out of weapon, stance and follow, as RemovePlayer does: the client arrives at peace.
-                client.Player.WeaponReady = false;
-                client.Player.InCombatMode = false;
-                client.Player.RequestedCombatMode = false;
-                client.Player.AutoFireCombatMode = false;
-                client.Player.TrackingTargetEntityId = 0;
-                MinionManager.Instance.DismissAll(client);
-                AbilityManager.DismissPet(client.Player);
-                KillStreaks.End(client);
-                WeaponClips.SaveFor(client);
-                DynamicObjectManager.Instance.ForgetPlayer(origin, client);
-                MapLinkManager.Instance.RemovePlayer(client);
-                RegionManager.Instance.RemovePlayer(client);
-                CommunicatorManager.Instance.LeaveMapChannels(client);
-                CellManager.Instance.RemoveFromWorld(client);
-                origin.ClientList.RemoveAll(member => member == client);
-                DetachMissionScenes(client, origin);
+                LeaveForTransfer(client, origin);
 
                 client.Player.MapChannel = destinationMap;
                 client.Player.MapContextId = destinationMap.MapInfo.MapContextId;
@@ -1237,6 +1212,54 @@ namespace Rasa.Managers
                 client.AwaitingMapLoaded = true;
                 return true;
             }
+        }
+
+        /// <summary>
+        /// Takes a player who is changing maps off the map they leave, by map link (ChangeMap) or
+        /// by dropship (DynamicObjectManager, when the departure ship has flown): the steps of
+        /// <see cref="RemovePlayer"/> that belong to the map rather than to the world. The
+        /// dropship had a copy of its own that had fallen behind - queued actions, weapon and
+        /// stance, minions, the pet, the kill streak, weapon clips and the map link and region
+        /// rosters all stayed with the player as they flew.
+        ///
+        /// - The target is an entity of this map, and is dropped.
+        /// - The character leaves first: a dead one is taken to their hospital (PlayerDeath), and
+        ///   only then are the timed buffs put aside, clocks stopped, to go on again on arrival
+        ///   (EffectCarry); every effect then ends with the map, since nobody on the next one was
+        ///   told of it and a sprint left running would drain adrenaline unseen.
+        /// - Out of weapon, stance and follow: the client arrives at peace.
+        /// - Minions and the pet are dismissed while they can still be told to go, the kill
+        ///   streak ends, and the clips of the weapons fired are saved.
+        /// - Off every waypoint, pad, map link and region roster, the map's chat channels, the
+        ///   cells, the map's client list and its mission scenes.
+        /// </summary>
+        /// <param name="objects">The waypoints and pads to leave; DynamicObjectManager.Instance if not given.</param>
+        internal void LeaveForTransfer(Client client, MapChannel origin, DynamicObjectManager objects = null)
+        {
+            client.Player.Target = 0;
+            LootDispenserManager.Instance.RemoveForOwner(origin, client);
+            ManifestationManager.Instance.RemovePlayerCharacter(client);
+            ActorActionManager.Instance.RemoveActor(client.Player);
+
+            EffectCarry.Stash(client.Player);
+            GameEffectManager.Instance.ClearEffects(origin, client.Player);
+
+            client.Player.WeaponReady = false;
+            client.Player.InCombatMode = false;
+            client.Player.RequestedCombatMode = false;
+            client.Player.AutoFireCombatMode = false;
+            client.Player.TrackingTargetEntityId = 0;
+            MinionManager.Instance.DismissAll(client);
+            AbilityManager.DismissPet(client.Player);
+            KillStreaks.End(client);
+            WeaponClips.SaveFor(client);
+            (objects ?? DynamicObjectManager.Instance).ForgetPlayer(origin, client);
+            MapLinkManager.Instance.RemovePlayer(client);
+            RegionManager.Instance.RemovePlayer(client);
+            CommunicatorManager.Instance.LeaveMapChannels(client);
+            CellManager.Instance.RemoveFromWorld(client);
+            origin.ClientList.RemoveAll(member => member == client);
+            DetachMissionScenes(client, origin);
         }
 
         public void Ping(Client client, double ping)
