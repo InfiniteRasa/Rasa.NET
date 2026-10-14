@@ -37,6 +37,10 @@ namespace Rasa.Repositories.World
         /// <summary>Gives a creature row its own battle cry package, or changes the one it has (creature_battlecry, scope creature).</summary>
         void SaveCreatureBattlecry(uint creatureId, uint packageId) => throw new System.NotSupportedException();
 
+        /// <summary>Atomically change/clear a greeting if it still matches the last loaded values.</summary>
+        bool UpdateNpcGreetingEditor(uint creatureId, uint expectedId, bool expectedImportant,
+            uint greetingId, bool important) => throw new System.NotSupportedException();
+
         /// <summary>Gives a creature row a greeting, or changes the one it has.</summary>
         void SaveNpcGreeting(uint creatureId, uint greetingId) => throw new System.NotSupportedException();
 

@@ -241,6 +241,41 @@ namespace Rasa.Repositories.World
             return _worldContext.CreateNoTrackingQuery(_worldContext.NpcGreetingEntries).ToList();
         }
 
+        public bool UpdateNpcGreetingEditor(uint creatureId, uint expectedId, bool expectedImportant,
+            uint greetingId, bool important)
+        {
+            using var transaction = _worldContext.Database.BeginTransaction();
+            var row = _worldContext.CreateTrackingQuery(_worldContext.NpcGreetingEntries)
+                .FirstOrDefault(e => e.Id == creatureId);
+            if ((row?.GreetingId ?? 0) != expectedId || (row?.Important ?? false) != expectedImportant)
+                return false;
+
+            if (greetingId == 0)
+            {
+                if (row != null) _worldContext.NpcGreetingEntries.Remove(row);
+            }
+            else if (row == null)
+                _worldContext.NpcGreetingEntries.Add(new NpcGreetingEntry
+                {
+                    Id = creatureId, GreetingId = greetingId, Important = important
+                });
+            else
+            {
+                row.GreetingId = greetingId;
+                row.Important = important;
+            }
+            _worldContext.SaveChanges();
+            // Query again without using the tracked row to verify the actual DB state.
+            _worldContext.ChangeTracker.Clear();
+            var persisted = _worldContext.CreateNoTrackingQuery(_worldContext.NpcGreetingEntries)
+                .FirstOrDefault(e => e.Id == creatureId);
+            if ((persisted?.GreetingId ?? 0) != greetingId ||
+                (persisted?.Important ?? false) != (greetingId != 0 && important))
+                throw new System.InvalidOperationException($"NPC greeting {creatureId} did not persist");
+            transaction.Commit();
+            return true;
+        }
+
         public void SaveNpcGreeting(uint creatureId, uint greetingId)
         {
             var row = _worldContext.CreateTrackingQuery(_worldContext.NpcGreetingEntries).FirstOrDefault(e => e.Id == creatureId);
