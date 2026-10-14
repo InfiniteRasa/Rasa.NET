@@ -367,6 +367,13 @@ namespace Rasa.Managers
                 return;
             }
 
+            // Self Revive by someone not dead.
+            if (SelfReviveRefusal(player, action) is { } reviveRefusal)
+            {
+                Fail(client, actionId, level, reviveRefusal);
+                return;
+            }
+
             // An Adrenaline Booster on a full bar (AdrenalShotAction.CheckAction), or one that would add nothing.
             if (AdrenalineBoosterRefusal(player, action, info) is { } boosterRefusal)
             {
@@ -1219,6 +1226,10 @@ namespace Rasa.Managers
             // A Rez Trauma that ran out during the windup leaves the kit unspent.
             if (_actions.TryGetValue(action.ActionId, out var landing) && RezTraumaKitRefusal(player, landing) is { } kitRefusal)
                 return kitRefusal;
+
+            // As does a Self Revive whose Machina someone else got up during it.
+            if (landing != null && SelfReviveRefusal(player, landing) is { } reviveRefusal)
+                return reviveRefusal;
 
             // As does a bar that filled during it, for an Adrenaline Booster.
             if (landing != null && AdrenalineBoosterRefusal(player, landing, info) is { } boosterRefusal)
