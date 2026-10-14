@@ -418,14 +418,18 @@ namespace Rasa.Managers
                 return;
             }
 
-            if (!CanCreateClan(client, packet, client.Player.Id))
+            // Trimmed, as a rename trims it: " Wolves" was a clan of its own beside "Wolves", and
+            // spaces counted toward the length rules.
+            var clanName = packet.ClanName?.Trim();
+
+            if (!CanCreateClan(client, clanName, packet.IsPvP, client.Player.Id))
                 return;
 
             if (!_currencyManager.LossCredits(
                     client, _requiredCreditsForClanCreation))
                 return;
 
-            ClanEntry clan = unitOfWork.Clans.CreateClan(packet.ClanName, packet.IsPvP);
+            ClanEntry clan = unitOfWork.Clans.CreateClan(clanName, packet.IsPvP);
 
             if (clan == null)
             {
@@ -436,8 +440,8 @@ namespace Rasa.Managers
 
                 // Refused by the name's unique index: another server on the database took it
                 // since the check.
-                if (ClanNameExists(packet.ClanName))
-                    TellNameNotAvailable(client, packet.ClanName);
+                if (ClanNameExists(clanName))
+                    TellNameNotAvailable(client, clanName);
 
                 return;
             }
@@ -457,7 +461,7 @@ namespace Rasa.Managers
             }
             catch (Exception e)
             {
-                Logger.WriteLog(LogType.Error, $"CreateClan: could not add character {client.Player.Id} as leader of new clan {clan.Id} ({packet.ClanName}); removing the clan: {e}");
+                Logger.WriteLog(LogType.Error, $"CreateClan: could not add character {client.Player.Id} as leader of new clan {clan.Id} ({clanName}); removing the clan: {e}");
                 unitOfWork.Clans.DeleteClan(clan.Id);
                 if (!_currencyManager.GainCredits(
                         client, _requiredCreditsForClanCreation))
@@ -1486,12 +1490,12 @@ namespace Rasa.Managers
                 }));
         }
 
-        private bool CanCreateClan(Client client, CreateClanPacket packet, uint characterId)
+        private bool CanCreateClan(Client client, string clanName, bool isPvP, uint characterId)
         {
             // Length, uniqueness and the censor are the same rules a rename is held to, so they
             // live in one place - a name that cannot be created must not be reachable by
             // renaming into it either.
-            if (!IsClanNameAcceptable(client, packet.ClanName))
+            if (!IsClanNameAcceptable(client, clanName))
                 return false;
 
             if(client.Player.Credits[CurencyType.Credits] < _requiredCreditsForClanCreation)
@@ -1502,7 +1506,7 @@ namespace Rasa.Managers
 
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
 
-            if (packet.IsPvP)
+            if (isPvP)
             {
                 CharacterEntry character = unitOfWork.Characters.Get(characterId);
 

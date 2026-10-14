@@ -20,6 +20,7 @@ namespace Rasa.Test.World
     using Rasa.Managers;
     using Rasa.Packets.Clan.Server;
     using Rasa.Packets.Communicator.Client;
+    using Rasa.Packets.MapChannel.Client;
     using Rasa.Packets.Protocol;
     using Rasa.Repositories.Char.Clan;
     using Rasa.Repositories.UnitOfWork;
@@ -138,6 +139,71 @@ namespace Rasa.Test.World
             StringAssert.Contains(up, "SET clan.name = CONCAT(clan.name, ' (', clan.id, ')');");
             StringAssert.Contains(up, "CREATE UNIQUE INDEX `clan_index_name` ON `clan` (`name`)");
             StringAssert.Contains(down, "DROP INDEX `clan_index_name`");
+        }
+
+        [TestMethod]
+        public void ACreatedNameIsTrimmedBeforeItsRulesAndItsRow()
+        {
+            using var context = MissionTestContext.WithCompletableMission(429);
+            var founder = context.Client;
+            var latecomer = context.CreateAdditionalClient(2);
+
+            foreach (var client in new[] { founder, latecomer })
+            {
+                client.State = ClientState.Ingame;
+                client.Player.Credits[CurencyType.Credits] = 20000;
+                WorldTestContext.Drain(client);
+            }
+
+            WithClans(context, clans =>
+            {
+                clans.CreateClan(founder, new CreateClanPacket { ClanName = "  Wolves  ", IsPvP = false });
+
+                Assert.AreNotEqual(0U, founder.Player.ClanId, "created");
+                Assert.AreEqual("Wolves", NameOf(context, founder.Player.ClanId), "stored without its spaces");
+
+                // The same name with spaces around it is the same name.
+                clans.CreateClan(latecomer, new CreateClanPacket { ClanName = " wolves ", IsPvP = false });
+
+                var told = Messages(latecomer).Single();
+                Assert.AreEqual((int)PlayerMessage.PmClanNameNotAvailable, told.MsgId);
+                Assert.AreEqual("wolves", told.Args["clanname"]);
+                Assert.AreEqual(0U, latecomer.Player.ClanId);
+                Assert.AreEqual(20000, latecomer.Player.Credits[CurencyType.Credits], "nothing taken");
+
+                // Spaces do not make up the length.
+                clans.CreateClan(latecomer, new CreateClanPacket { ClanName = "  ab  ", IsPvP = false });
+
+                Assert.AreEqual((int)PlayerMessage.PmClanNameRequired, Messages(latecomer).Single().MsgId);
+
+                using var unit = context.CreateChar();
+                Assert.HasCount(1, unit.Clans.GetClans());
+            });
+        }
+
+        /// <summary>A clan manager over the context's database in place of the instance, and an inventory manager over it.</summary>
+        private static void WithClans(MissionTestContext context, Action<ClanManager> body)
+        {
+            var instance = typeof(ClanManager).GetField("_instance", BindingFlags.Static | BindingFlags.NonPublic);
+            var previous = instance.GetValue(null);
+            var inventoryInstance = typeof(InventoryManager).GetField("_instance", BindingFlags.Static | BindingFlags.NonPublic);
+            var previousInventory = inventoryInstance.GetValue(null);
+
+            try
+            {
+                inventoryInstance.SetValue(null, new InventoryManager(context));
+
+                var clans = (ClanManager)typeof(ClanManager).GetConstructor(BindingFlags.Instance | BindingFlags.NonPublic, null,
+                    new[] { typeof(IGameUnitOfWorkFactory) }, null).Invoke(new object[] { context });
+
+                instance.SetValue(null, clans);
+                body(clans);
+            }
+            finally
+            {
+                instance.SetValue(null, previous);
+                inventoryInstance.SetValue(null, previousInventory);
+            }
         }
 
         private static ClanEntry Clan(MissionTestContext context, string name, uint leaderId)
