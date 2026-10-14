@@ -899,6 +899,7 @@ namespace Rasa.Managers
                 MessageParty(party, PlayerMessage.PmPartyMemberLoggedIn, "player", member.MemberName, client);
 
                 SendPartyState(party, client);
+                SendLootRules(party, client, Party.NewSquadLootMethod, Party.NewSquadLootThreshold);
             }
 
             if (party.Find(party.PartyLeaderId)?.IsOnline != true)
@@ -1274,6 +1275,8 @@ namespace Rasa.Managers
                 client.Player.PartyId = party.Id;
                 SendPartyState(party, client);
                 Message(client, PlayerMessage.PmYouJoinedTheParty);
+                // They last heard the rules of the squad they came from.
+                SendLootRules(party, client, source.LootMethod, source.LootThreshold);
             }
 
             AdsChanged(party);
@@ -1318,6 +1321,7 @@ namespace Rasa.Managers
 
             SendPartyState(party, client);
             Message(client, PlayerMessage.PmYouJoinedTheParty);
+            SendLootRules(party, client, Party.NewSquadLootMethod, Party.NewSquadLootThreshold);
 
             AdsChanged(party);
         }
@@ -1360,6 +1364,25 @@ namespace Rasa.Managers
             // Said with the rest of the squad state, which is where the answer would have to go if
             // it were ever true: the client asks to join a voice channel the moment it hears yes.
             client.CallMethod(SysEntity.ClientPartyManagerId, new VoiceChatAvailablePacket(VoiceChatAvailable));
+        }
+
+        /// <summary>
+        /// The squad's loot method and threshold, to a member arriving in it, where they differ
+        /// from the ones the member last heard. The rest of the squad is told each change as the
+        /// leader makes it (ChangePartyLootMethod, ChangePartyLootThreshold); one who joined
+        /// afterwards, or logged back in, was told neither, and looted by rules nobody had
+        /// mentioned. The client keeps nothing of either packet - it posts "Loot method changed to
+        /// %(lootmethod)s." / "Loot threshold changed to %(quality)s." (party.py
+        /// Recv_ChangePartyLootMethod, Recv_ChangePartyLootThreshold) - so a squad still on a new
+        /// squad's rules says nothing rather than a line in chat at every join and login.
+        /// </summary>
+        private static void SendLootRules(Party party, Client client, PartyLootMethod heardMethod, PartyLootThreshold heardThreshold)
+        {
+            if (party.LootMethod != heardMethod)
+                client.CallMethod(SysEntity.ClientPartyManagerId, new ChangePartyLootMethodPacket(party.LootMethod));
+
+            if (party.LootThreshold != heardThreshold)
+                client.CallMethod(SysEntity.ClientPartyManagerId, new ChangePartyLootThresholdPacket(party.LootThreshold));
         }
 
         private void RemoveMember(Party party, PartyMember member, bool kicked)
