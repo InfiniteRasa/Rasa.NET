@@ -3920,13 +3920,16 @@ namespace Rasa.Managers
             GameOpcode.TeleportAcknowledge  // automatic reply to a server-initiated teleport
         };
 
+        /// <summary>A call the client makes by itself, which is not the player doing anything.</summary>
+        public static bool IsAutomatic(GameOpcode opcode) => AutomaticOpcodes.Contains(opcode);
+
         /// <summary>
         /// Called for every inbound client method call. Resets the inactivity timer and clears
         /// AFK (telling everyone in range) the first time the player actually does something.
         /// </summary>
         public void NotifyPlayerActivity(Client client, GameOpcode opcode)
         {
-            if (AutomaticOpcodes.Contains(opcode))
+            if (IsAutomatic(opcode))
                 return;
 
             ResetInactivity(client);

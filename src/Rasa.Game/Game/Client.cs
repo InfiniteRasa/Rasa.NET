@@ -81,9 +81,22 @@ namespace Rasa.Game
             {
                 if (value != ClientState.Ingame)
                     InvalidateMissionSession();
+
+                // A new screen starts a new wait: what was done before it does not count against it.
+                if (value != _state)
+                    LastActionTick = Environment.TickCount64;
+
                 _state = value;
             }
         }
+
+        /// <summary>
+        /// Environment.TickCount64 of the player's last call - anything but the client's own
+        /// keep-alives (ManifestationManager.IsAutomatic) - or of the last change of
+        /// <see cref="State"/>, whichever was later. A connection at login or character
+        /// selection that has done nothing for Server.CharacterSelectionTimeout is closed.
+        /// </summary>
+        internal long LastActionTick { get; set; } = Environment.TickCount64;
         private Manifestation _player = new();
         public Manifestation Player
         {
@@ -666,6 +679,9 @@ namespace Rasa.Game
 
                     // MethodId, not Packet.Opcode: an opcode with no handler leaves Packet null.
                     ManifestationManager.Instance.NotifyPlayerActivity(this, csmPacket.MethodId);
+
+                    if (!ManifestationManager.IsAutomatic(csmPacket.MethodId))
+                        LastActionTick = Environment.TickCount64;
 
                     PacketRouter.RoutePacket(_handler, csmPacket.Packet);
                     break;

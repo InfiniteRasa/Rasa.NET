@@ -675,6 +675,13 @@ namespace Rasa.Game
         private static readonly TimeSpan PreLoginTimeout = TimeSpan.FromSeconds(30);
 
         /// <summary>
+        /// How long a connection may sit logged in, or at character selection, without the player
+        /// doing anything (Client.LastActionTick) before it is closed: as long as a character in
+        /// the world may stand idle before being sent back to it (ManifestationManager.InactiveLogoutMs).
+        /// </summary>
+        internal static readonly TimeSpan CharacterSelectionTimeout = TimeSpan.FromMilliseconds(ManifestationManager.InactiveLogoutMs);
+
+        /// <summary>
         /// World connections from one address that may be short of a login at once. Logged-in
         /// connections are limited by accounts; these were limited by nothing, and each holds a
         /// receive buffer from the pool the whole process shares.
@@ -730,24 +737,46 @@ namespace Rasa.Game
 
         /// <summary>
         /// Closes world connections that have sat in the key exchange, or after it without logging
-        /// in, for longer than PreLoginTimeout. Neither stage had any timeout.
+        /// in, for longer than PreLoginTimeout; and ones logged in, or at character selection,
+        /// where the player has done nothing for CharacterSelectionTimeout. Only the first two
+        /// had a timeout: a connection that went quiet after its login held its place - and a
+        /// slot of ServerInfoConfig.MaxPlayers - for as long as the server ran.
         /// </summary>
         private void ExpirePreLogin()
         {
             var exchanges = LoginManager.ExpireStalled(PreLoginTimeout);
 
-            List<Client> stalled;
-            var cutoff = DateTime.UtcNow - PreLoginTimeout;
+            List<Client> stalled, idle;
 
             lock (Clients)
-                stalled = Clients.Where(c => c.State == ClientState.Connected && c.ConnectedTime < cutoff).ToList();
+            {
+                stalled = NotLoggedIn(Clients, DateTime.UtcNow);
+                idle = IdleBeforeTheWorld(Clients, Environment.TickCount64);
+            }
 
-            foreach (var client in stalled)
+            foreach (var client in stalled.Concat(idle))
                 client.Close(false);
 
             if (exchanges + stalled.Count > 0)
                 Logger.WriteLog(LogType.Network, $"Closed {exchanges + stalled.Count} world connection(s) that did not log in within {PreLoginTimeout.TotalSeconds:F0} s.");
+
+            foreach (var client in idle)
+                Logger.WriteLog(LogType.Network,
+                    $"Closed the connection of account {client.AccountEntry?.Id}, idle {(client.State == ClientState.CharacterSelection ? "at character selection" : "after its login")} for {CharacterSelectionTimeout.TotalMinutes:F0} minutes.");
         }
+
+        /// <summary>Connections past the key exchange that have not logged in within PreLoginTimeout.</summary>
+        internal static List<Client> NotLoggedIn(IEnumerable<Client> clients, DateTime utcNow) =>
+            clients.Where(c => c != null && c.State == ClientState.Connected && c.ConnectedTime < utcNow - PreLoginTimeout).ToList();
+
+        /// <summary>
+        /// Connections logged in or at character selection whose player has done nothing for
+        /// CharacterSelectionTimeout. Loading, in the world and between maps are the world's to
+        /// time out (ManifestationManager.CheckInactivity, the transfers' own deadlines).
+        /// </summary>
+        internal static List<Client> IdleBeforeTheWorld(IEnumerable<Client> clients, long nowTick) =>
+            clients.Where(c => c != null && (c.State == ClientState.LoggedIn || c.State == ClientState.CharacterSelection)
+                               && nowTick - c.LastActionTick >= (long)CharacterSelectionTimeout.TotalMilliseconds).ToList();
 
         public LoginAccountEntry AuthenticateClient(Client client, uint accountId, uint oneTimeKey)
         {
