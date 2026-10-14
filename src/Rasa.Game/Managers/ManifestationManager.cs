@@ -1108,6 +1108,13 @@ namespace Rasa.Managers
             damage = GameEffectManager.ApplyDamageDealt(client.Player, damage, WeaponSkills.DamagePercent(skillId, pump) + backstab);
             var action = new ActionData(client.Player, weaponClassInfo.WeaponAttackActionId, weaponClassInfo.WeaponAttackArgId, client.Player.Target, 0);
             // launch correct missile type depending on weapon type
+            // A blade's attack is a swing (itemtemplate_weapon.attack_type Melee, which only the
+            // 120 blade rows have): it was fired as a shot, so it could miss a moving target, was
+            // cut by cover and smoke, took the ranged crit rules, and hit for the bead - 82% of
+            // itself standing. A swing has none of those, and does the melee bonus on a crouched
+            // target (MissileManager).
+            var melee = weapon.ItemTemplate.WeaponInfo.AttackType == AttackType.Melee;
+
             // Where the bead was when the trigger was pulled, before this shot's recoil opens it.
             var aimRate = weapon.ItemTemplate.WeaponInfo.AimRate;
 
@@ -1119,8 +1126,8 @@ namespace Rasa.Managers
             // How well it was aimed decides how hard it hits: a tenth with no bead, all of it at
             // a crouched full bead, 82% at the most a standing bead reaches (Accuracy). A cone
             // weapon has no bead and hits as a full one from its stance would. A polymorphed
-            // player's creature weapon is not beaded.
-            if (weapon != client.Player.MorphWeapon)
+            // player's creature weapon is not beaded, and nor is a swing.
+            if (weapon != client.Player.MorphWeapon && !melee)
             {
                 var factor = ConeWeapons.IsCone(weapon.ItemTemplate.WeaponInfo, weaponClassInfo)
                     ? Accuracy.ConeDamageFactor(client.Player)
@@ -1129,7 +1136,8 @@ namespace Rasa.Managers
                 damage = Math.Max(1, (int)Math.Round(damage * factor));
             }
 
-            Accuracy.Recoil(client.Player, weapon.ItemTemplate.WeaponInfo.RecoilAmount, aimRate, now);
+            if (!melee)
+                Accuracy.Recoil(client.Player, weapon.ItemTemplate.WeaponInfo.RecoilAmount, aimRate, now);
 
             // Firearms on a rifle adds to the crit chance: "Rifles: +3% Crit Hit (+5% with full
             // bead)" from pump 3, the full-bead figure in place of the other.
@@ -1157,6 +1165,7 @@ namespace Rasa.Managers
 
             MissileManager.Instance.MissileLaunch(client.Player.MapChannel, action, damage, WeaponSkills.ArmorBypassPercent(skillId, pump),
                 WeaponDamageType(client.Player, (DamageType)weaponClassInfo.DamageType), critBonus,
+                melee: melee,
                 stunChance: grenades ? Stuns.GrenadeChance(pump) : 0, stunMs: grenades ? Stuns.GrenadeStunMs : 0,
                 rootMs: skillId == WeaponSkills.NetGuns ? CrowdControl.NetGunRootMs : 0,
                 knockbackChance: knockbackChance,
