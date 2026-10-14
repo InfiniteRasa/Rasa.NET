@@ -17,9 +17,12 @@ namespace Rasa.Migrations.SqliteWorld
 
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(name: "hue2", table: "creature_appearance");
-            migrationBuilder.DropColumn(name: "body_hue2", table: "creature");
-            migrationBuilder.DropColumn(name: "body_hue", table: "creature");
+            // EF Core's SQLite migration generator does not translate DropColumnOperation.
+            // Use native SQLite DDL instead. These new nullable columns have no indexes
+            // or constraints referencing them, so DROP COLUMN preserves existing rows.
+            migrationBuilder.Sql("ALTER TABLE \"creature_appearance\" DROP COLUMN \"hue2\";");
+            migrationBuilder.Sql("ALTER TABLE \"creature\" DROP COLUMN \"body_hue2\";");
+            migrationBuilder.Sql("ALTER TABLE \"creature\" DROP COLUMN \"body_hue\";");
         }
     }
 }

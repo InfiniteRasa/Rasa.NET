@@ -1,4 +1,6 @@
+using System;
 using System.Linq;
+using System.Reflection;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -9,6 +11,34 @@ namespace Rasa.Test.Database
     [TestClass]
     public class CreatureEditorSeedMigrationTests
     {
+        [TestMethod]
+        public void SqliteColumnRollbacksUseSupportedSqlInsteadOfDropColumnOperations()
+        {
+            // SharedMapInstanceTests rolls back the entire World migration chain to
+            // 20261105000000_Add_control_points. EF Core's SQLite generator rejects
+            // DropColumnOperation in Down(), even though native SQLite DROP COLUMN works.
+            Migration[] migrations =
+            {
+                new Rasa.Migrations.SqliteWorld.Add_creature_damage_type(),
+                new Rasa.Migrations.SqliteWorld.Add_spawn_areas(),
+                new Rasa.Migrations.SqliteWorld.Add_npc_greeting_important(),
+                new Rasa.Migrations.SqliteWorld.Creature_editor_colors()
+            };
+            foreach (var migration in migrations)
+            {
+                var builder = new MigrationBuilder("Microsoft.EntityFrameworkCore.Sqlite");
+                var down = migration.GetType().GetMethod("Down", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.IsNotNull(down, $"Missing Down() for {migration.GetType().Name}");
+                down.Invoke(migration, new object[] { builder });
+
+                Assert.IsFalse(builder.Operations.OfType<DropColumnOperation>().Any(),
+                    $"{migration.GetType().Name} emits unsupported SQLite DropColumnOperation");
+                Assert.IsTrue(builder.Operations.OfType<SqlOperation>().Any(operation =>
+                        operation.Sql.Contains("DROP COLUMN", StringComparison.OrdinalIgnoreCase)),
+                    $"{migration.GetType().Name} should remove its column with native SQLite SQL");
+            }
+        }
+
         [DataTestMethod]
         [DataRow(false)]
         [DataRow(true)]
