@@ -183,6 +183,46 @@ namespace Rasa.Packets.Protocol
                 bw.Write(0); // padding
             }
 
+            // The same bytes for every client a broadcast went to (IBroadcastMessage).
+            if (Message is IBroadcastMessage broadcast && broadcast.Recipients > 1)
+            {
+                var encoded = broadcast.Encoded;
+
+                if (encoded == null)
+                    broadcast.Encoded = encoded = EncodeBody();
+
+                bw.Write(encoded);
+            }
+            else
+                WriteBody(bw);
+
+            var currentPosition = bw.BaseStream.Position;
+
+            bw.BaseStream.Position = sizePosition;
+
+            bw.Write((ushort)(currentPosition - sizePosition));
+
+            bw.BaseStream.Position = currentPosition;
+        }
+
+        /// <summary>The frame after its header, on its own.</summary>
+        private byte[] EncodeBody()
+        {
+            using var stream = new MemoryStream();
+
+            using (var writer = new BinaryWriter(stream, Encoding.UTF8, true))
+                WriteBody(writer);
+
+            return stream.ToArray();
+        }
+
+        /// <summary>
+        /// The frame after its header: the packet type, then the message, compressed if it asks to
+        /// be. Nothing in it depends on where in the stream it starts (the XOR checks are of
+        /// lengths), so it can be written once and copied.
+        /// </summary>
+        private void WriteBody(BinaryWriter bw)
+        {
             var packetBeginPosition = (int) bw.BaseStream.Position;
 
             // TODO: find limits and maybe lower this number
@@ -257,14 +297,6 @@ namespace Rasa.Packets.Protocol
                 {
                     bw.Write(packetBuffer, 0, packetSize);
                 }
-
-                var currentPosition = bw.BaseStream.Position;
-
-                bw.BaseStream.Position = sizePosition;
-
-                bw.Write((ushort)(currentPosition - sizePosition));
-
-                bw.BaseStream.Position = currentPosition;
             }
             finally
             {

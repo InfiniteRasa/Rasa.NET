@@ -1,13 +1,14 @@
 ﻿using System;
 using System.Buffers;
 using System.IO;
+using System.Threading;
 
 namespace Rasa.Packets.Protocol
 {
     using Data;
     using Memory;
 
-    public class CallMethodMessage : ISubtypedPacket<CallMethodMessageSubtype>
+    public class CallMethodMessage : ISubtypedPacket<CallMethodMessageSubtype>, IBroadcastMessage
     {
         public ClientMessageOpcode Type { get; set; } = ClientMessageOpcode.CallMethod;
         public byte RawSubtype { get; set; }
@@ -27,6 +28,22 @@ namespace Rasa.Packets.Protocol
         public string MethodName { get; set; }
         public uint UnknownValue { get; set; }
         public PythonPacket Packet { get; }
+
+        private int _recipients;
+        private byte[] _encoded;
+
+        int IBroadcastMessage.Recipients => Volatile.Read(ref _recipients);
+
+        void IBroadcastMessage.AddRecipient() => Interlocked.Increment(ref _recipients);
+
+        byte[] IBroadcastMessage.Encoded
+        {
+            get => Volatile.Read(ref _encoded);
+            set => Volatile.Write(ref _encoded, value);
+        }
+
+        /// <summary>Encoded for the clients it was handed to (IBroadcastMessage): not to be handed to another.</summary>
+        internal bool IsEncoded => Volatile.Read(ref _encoded) != null;
 
         public CallMethodMessage(ulong entityId, PythonPacket packet)
         {

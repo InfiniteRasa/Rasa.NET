@@ -10,6 +10,7 @@ namespace Rasa.Managers
     using Models;
     using Packets;
     using Packets.MapChannel.Server;
+    using Packets.Protocol;
     using Repositories.UnitOfWork;
     using Structures;
 
@@ -635,13 +636,16 @@ namespace Rasa.Managers
             if (mapChannel == null)
                 return;
 
+            // One message for everyone it goes to, encoded once (IBroadcastMessage).
+            var move = new MoveObjectMessage(creature.EntityId, movementData);
+
             foreach (var cell in CellsIn(mapChannel, creature.Cells))
                 foreach (var client in cell.ClientList)
-                    client.MoveObject(creature.EntityId, movementData);
+                    client.MoveObject(move);
 
             // And the clients a mission has given this NPC to from across the map.
             if (creature.Npc != null)
-                MissionContacts.Relay(mapChannel, creature, movementData);
+                MissionContacts.Relay(mapChannel, creature, move);
         }
 
         /// <summary>The clients that have been given an object: those in the cells around where it stands.</summary>

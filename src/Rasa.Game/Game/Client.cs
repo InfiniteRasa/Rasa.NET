@@ -438,17 +438,23 @@ namespace Rasa.Game
 
         public void CallMethod(ulong entityId, PythonPacket packet)
         {
-            SendMessage(new CallMethodMessage(entityId, packet));
+            SendMessage(packet.MessageFor(entityId));
         }
 
         public void CallMethod(SysEntity entityId, PythonPacket packet)
         {
-            SendMessage(new CallMethodMessage((ulong)entityId, packet));
+            SendMessage(packet.MessageFor((ulong)entityId));
         }
 
         internal void MoveObject(ulong entityId, Movement movement)
         {
             SendMessage(new MoveObjectMessage(entityId, movement), false, 1);
+        }
+
+        /// <summary>A move that goes to several clients, on the movement channel.</summary>
+        internal void MoveObject(MoveObjectMessage move)
+        {
+            SendMessage(move, false, 1);
         }
 
         // Cell Domain
@@ -501,6 +507,10 @@ namespace Rasa.Game
 
         public void SendMessage(IClientMessage message, bool compress = false, byte channel = 0, bool delay = true)
         {
+            // Counted, so a message handed to more than one client is encoded once for them all.
+            if (message is IBroadcastMessage broadcast)
+                broadcast.AddRecipient();
+
             var protocolPacket = new ProtocolPacket(message, message.Type, compress, channel);
 
             if (!delay)
