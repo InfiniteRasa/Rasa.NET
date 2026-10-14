@@ -521,7 +521,15 @@ namespace Rasa.Managers
                     return;
                 }
 
-                location = packet.Target.Location;
+                // On the ground it was aimed at, and in range there: a point in the air is where
+                // the ground under it is, which can be out of reach.
+                location = OnTheGround(mapChannel, packet.Target.Location, info);
+
+                if (!LocationInRange(player, location.Value, info))
+                {
+                    Fail(client, actionId, level, PlayerMessage.PmTargetOutOfRange);
+                    return;
+                }
             }
 
             var wantsHostile = IsDirectDamage(action, info) || HostileEffectModules.Contains(action.Module);
@@ -755,6 +763,34 @@ namespace Rasa.Managers
                 return false;
 
             return info.MaxRange > 0 && Vector3.Distance(player.Position, location) <= info.MaxRange + RangeSlack;
+        }
+
+        /// <summary>
+        /// A point a player aimed at, put on the walkable ground of its column: the navmesh point
+        /// nearest to it within the ability's reach above and below and 4 m across
+        /// (NavMeshQuery.NearestInColumn), so of two floors the nearer, and a point in the air or
+        /// inside the terrain comes down or up to the ground there.
+        ///
+        /// The client picks the point on the world under the cursor, and the height was taken as
+        /// sent: range and finite values were checked and nothing else. Fire support's strike and
+        /// the area of an ability aimed at a point were centred on it, and both reach only
+        /// RADIUS_AROUND_TARGET from it, so a point in the air hit nothing and one lifted to a
+        /// ledge or dropped to a floor below hit whoever was there. Reality Ripper, the trap, fire
+        /// support's beacon and the toys snapped to the ground, but only within 3 m
+        /// (NavMeshManager.SnapTolerance), and left anything further as it was.
+        ///
+        /// Unchanged on a map with no navmesh, and where there is no walkable ground in the column
+        /// at all: nothing there to hold it to, and a point on a prop with no mesh near it is not
+        /// refused.
+        /// </summary>
+        internal static Vector3 OnTheGround(MapChannel mapChannel, Vector3 point, ActionLevelInfo info)
+        {
+            var navMesh = mapChannel?.NavMesh;
+
+            if (navMesh == null || !float.IsFinite(point.X) || !float.IsFinite(point.Y) || !float.IsFinite(point.Z))
+                return point;
+
+            return navMesh.NearestInColumn(point, Math.Max(1, info.MaxRange) + RangeSlack) ?? point;
         }
 
         /// <summary>Whether this server knows how to apply the ability; see the class remarks.</summary>
