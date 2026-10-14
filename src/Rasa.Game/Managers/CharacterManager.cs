@@ -21,6 +21,7 @@ namespace Rasa.Managers
     using Packets;
     using Repositories;
     using Repositories.Char;
+    using Repositories.Char.GameAccount;
     using Repositories.Char.CharacterMissionProgress;
     using Repositories.UnitOfWork;
     using Repositories.World;
@@ -474,7 +475,9 @@ namespace Rasa.Managers
             uint characterId;
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
 
-            // TODO to remove this lock, the family name check and update must be redesigned to be thread safe
+            // The family name is checked and then written; this lock keeps two creations on this
+            // server apart, and the name's unique index (Family_name_unique) holds it against
+            // anything else.
             lock (_createLock)
             {
                 if (!TryPersistCharacterCreation(
@@ -568,7 +571,6 @@ namespace Rasa.Managers
                 }
 
                 unitOfWork.GameAccounts.UpdateFamilyName(target.AccountEntry.Id, name);
-                target.Player.FamilyName = name;
             }
             else
             {
@@ -588,7 +590,23 @@ namespace Rasa.Managers
             // row, and the unit of work discards that on dispose unless it is completed. The
             // family name change was lost here, and ReloadGameAccountEntry then read the old
             // name straight back.
-            unitOfWork.Complete();
+            //
+            // The family name's unique index (Family_name_unique) refuses a name another account
+            // took in the moment since CanChangeFamilyName: a character created with it, or a
+            // rename on another server on the same database.
+            try
+            {
+                unitOfWork.Complete();
+            }
+            catch (DbUpdateException ex) when (familyName && GameAccountRepository.RefusedFamilyName(ex))
+            {
+                Logger.WriteLog(LogType.Error, $"Could not rename the family of account {target.AccountEntry.Id} to {name}: {ex.GetBaseException().Message}");
+                NameMessage(requester, PlayerMessage.PmFamilyNameReserved);
+                return false;
+            }
+
+            if (familyName)
+                target.Player.FamilyName = name;
 
             target.ReloadGameAccountEntry();
 
@@ -682,6 +700,13 @@ namespace Rasa.Managers
             return CreateCharacterResult.Success;
         }
 
+        /// <summary>
+        /// A character or family name: a capital and then letters A to Z, no letter three times
+        /// in a row. Any script's letters were taken, so a name could be spelt with Cyrillic or
+        /// Greek letters that look like another player's; and SQLite folds only A to Z when it
+        /// compares without case, so "Élan" and "élan" were two family names there and one on
+        /// MySQL. Names already given out are left as they are.
+        /// </summary>
         public static bool IsValidName(string name, out PlayerMessage error)
         {
             error = PlayerMessage.PmNameFormatInvalid;
@@ -698,12 +723,12 @@ namespace Rasa.Managers
                 return false;
             }
 
-            if (!char.IsUpper(name[0]))
+            if (name[0] is not (>= 'A' and <= 'Z'))
                 return false;
 
             for (var i = 0; i < name.Length; i++)
             {
-                if (!char.IsLetter(name[i]))
+                if (name[i] is not (>= 'A' and <= 'Z' or >= 'a' and <= 'z'))
                     return false;
 
                 // No letter three times in a row.
@@ -900,7 +925,13 @@ namespace Rasa.Managers
             catch (Exception error) when (error is GameplayRejectionException or DbUpdateException or DbException)
             {
                 Logger.WriteLog(LogType.Error, $"Character creation failed: {error}");
-                SendCharacterCreateFailed(client, CreateCharacterResult.TechnicalDifficulty);
+
+                // Refused by the family name's unique index: another account took the name
+                // between the check and the write. Everything was rolled back; the player is
+                // told the name is taken, as the check would have told them.
+                SendCharacterCreateFailed(client, GameAccountRepository.RefusedFamilyName(error)
+                    ? CreateCharacterResult.FamilyNameReserved
+                    : CreateCharacterResult.TechnicalDifficulty);
                 return false;
             }
         }

@@ -427,7 +427,7 @@ namespace Rasa.Test.Gameplay
                 });
             context.CompletePendingDeparture(departedClient);
 
-            context.SeedAccount(612, canSkipBootcamp: true);
+            context.SeedAccount(612, canSkipBootcamp: true, familyName: "Skipper");
             var skippedCharacterId = context.SeedCharacter(612, 1, "Skipped");
             context.SeedStartingExperience(skippedCharacterId, CharacterStartingExperienceState.Pending);
             var skippedClient = context.CreateSelectionClient(612);
