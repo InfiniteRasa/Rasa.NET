@@ -284,12 +284,13 @@ namespace Rasa.Test.World
             /// <summary>A pack item right-clicked with the lockbox open, or dropped on a tab's button.</summary>
             internal void Deposit(int packSlot, int tabId, bool noTabNamed = false)
             {
+                // The whole stack, as a right-click or a plain drag sends it (inventorywindow._GetQuantity).
                 Inventory.ClanLockbox_DepositItemInTab(Client, new ClanLockbox_DepositItemInTabPacket
                 {
                     SrcSlot = packSlot,
                     DestTab = noTabNamed ? 0 : tabId,
                     NoTabNamed = noTabNamed,
-                    Quantity = 1
+                    Quantity = EntityManager.Instance.GetItem(Pack[packSlot])?.StackSize ?? 1
                 });
             }
 

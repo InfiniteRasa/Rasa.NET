@@ -319,13 +319,15 @@ namespace Rasa.Managers
 
             /// <summary>
             /// Whether one stack can go into another: the same template, a stack of more than one,
-            /// the same assignment (or none), and two items alike in everything an item keeps of
-            /// its own - crafter, colour, binding, modules - so that nothing is lost or gained by
-            /// the one becoming part of the other.
+            /// not Character Unique (two of them in one stack would be two held), the same
+            /// assignment (or none), and two items alike in everything an item keeps of its own -
+            /// crafter, colour, binding, modules - so that nothing is lost or gained by the one
+            /// becoming part of the other.
             /// </summary>
             internal static bool MayJoin(Item from, Item to, uint maximum) =>
                 from != null && to != null && maximum > 1 &&
                 from.ItemTemplateId == to.ItemTemplateId &&
+                !(from.ItemTemplate?.HasCharacterUniqueFlag ?? false) &&
                 from.MissionOwnership == to.MissionOwnership &&
                 from.BoundCharacterId == to.BoundCharacterId &&
                 (from.Crafter ?? "") == (to.Crafter ?? "") &&
