@@ -2061,5 +2061,175 @@ namespace Rasa.Test.Gameplay
             Assert.IsTrue(bench.InPack(exceptional) && bench.InPack(armor));
             Assert.AreEqual(4u, bench.Carried(MimeogelClass));
         }
+        /// <summary>A finished fabrication job of Body2Item at the bench's station, as a row: the manager that has loaded it.</summary>
+        private static KraftwerksManager Fabricated(Bench bench, uint count)
+        {
+            using (var unit = bench.Context.CreateChar())
+                unit.CraftingJobs.Add(new Rasa.Structures.Char.CraftingJobEntry
+                {
+                    CharacterId = bench.Client.Player.Id, KraftwerksId = Bench.StationId, ResultClassId = ModuleItemClass, ResultTemplateId = Body2Item,
+                    Count = count, CraftingPage = KraftwerksManager.FabricationPage, QualityId = 1, FinishAt = DateTime.UtcNow.AddMinutes(-1)
+                });
+
+            var restarted = bench.Restarted();
+            bench.After((_, id) => restarted.Use(bench.Client, bench.Object, KraftwerksManager.UseObjectArgId));
+            return restarted;
+        }
+
+        private static IReadOnlyList<PythonPacket> TakeAll(Bench bench, KraftwerksManager station) =>
+            bench.After((_, id) => station.RequestRetrieveAllFinishedItems(bench.Client, new RequestRetrieveAllFinishedItemsPacket { KraftwerksId = id }));
+
+        /// <summary>The character's inbox rows: (slot, template, count, crafter).</summary>
+        private static List<(uint slot, uint template, uint count, string crafter)> Inbox(Bench bench)
+        {
+            using var unit = bench.Context.CreateChar();
+            return unit.CharacterInventories.GetItems(bench.Client.AccountEntry.Id)
+                .Where(row => row.CharacterId == bench.Client.Player.Id && row.InventoryType == (uint)InventoryType.InboxInventory)
+                .Select(row => (row.SlotId, unit.Items.GetItem(row.ItemId)))
+                .Select(entry => (entry.SlotId, entry.Item2.ItemTemplateId, entry.Item2.StackSize, entry.Item2.CrafterName ?? ""))
+                .OrderBy(entry => entry.SlotId).ToList();
+        }
+
+        /// <summary>
+        /// The items of a hand-over and the job row's delete are one transaction: a write that fails
+        /// on either side - the row's delete, or the items after the row has gone - leaves the
+        /// items not given and the row where it was, and the job can be taken again, once.
+        /// </summary>
+        [TestMethod]
+        [DataRow("row")]
+        [DataRow("items")]
+        public void AFabricatedJobsItemsAndItsRowAreWrittenTogetherOrNotAtAll(string failing)
+        {
+            using var bench = new Bench();
+            var station = Fabricated(bench, 3);
+            var durable = bench.DurableSnapshot();
+            var runtime = bench.RuntimeSnapshot();
+            var rowGone = false;
+            var hit = false;
+            bench.Context.BeforeSave = database =>
+            {
+                if (database.ChangeTracker.Entries<Rasa.Structures.Char.CraftingJobEntry>().Any(entry => entry.State == EntityState.Deleted))
+                {
+                    rowGone = true;
+                    if (failing == "row")
+                    {
+                        hit = true;
+                        throw new DbUpdateException("owned crafting job row failure");
+                    }
+                }
+
+                if (failing == "items" && database.ChangeTracker.Entries<Rasa.Structures.Char.ItemEntry>().Any(entry => entry.State == EntityState.Added))
+                {
+                    hit = true;
+                    throw new DbUpdateException("owned crafted item failure");
+                }
+            };
+
+            var sent = TakeAll(bench, station);
+            bench.Context.BeforeSave = null;
+
+            Assert.IsTrue(hit);
+            Assert.IsTrue(rowGone, "the row's delete was reached");
+            Assert.IsNotNull(Refusal(sent));
+            CollectionAssert.AreEqual(durable, bench.DurableSnapshot());
+            Assert.AreEqual(runtime, bench.RuntimeSnapshot());
+            Assert.AreEqual(3u, bench.JobRows().Single().Count, "the row is back as it was");
+            Assert.AreEqual(3u, Jobs(sent).Single().Count);
+            Assert.AreEqual(0u, bench.Carried(ModuleItemClass));
+
+            sent = TakeAll(bench, station);
+            Assert.AreEqual(0, Jobs(sent).Count);
+            Assert.AreEqual(3u, bench.Carried(ModuleItemClass));
+            Assert.AreEqual(0, bench.JobRows().Count);
+            var made = bench.Only(Body2Item);
+            Assert.AreEqual(bench.Client.Player.FamilyName, made.Crafter);
+            Assert.AreEqual(bench.Client.Player.FamilyName, bench.SavedCrafter(made));
+
+            var after = bench.DurableSnapshot();
+            TakeAll(bench, station);
+            CollectionAssert.AreEqual(after, bench.DurableSnapshot(), "taken once");
+        }
+
+        /// <summary>
+        /// What does not fit the backpack goes to the inbox, and what fits neither stays on the
+        /// job: its row is brought down to what is left in the same transaction.
+        /// </summary>
+        [TestMethod]
+        public void AFabricatedJobThatDoesNotAllFitKeepsItsRowForWhatIsLeft()
+        {
+            using var bench = new Bench();
+            var station = Fabricated(bench, 6000);
+            bench.FillCraftingBag();
+            var filler = EntityClassManager.Instance.LoadedEntityClasses[(EntityClasses)ModuleItemClass].ItemTemplates[Body5Item];
+            using (var unit = bench.Context.CreateChar())
+                for (uint slot = 1; slot < Inventory.MaxInboxItems; slot++)
+                {
+                    var item = ItemManager.StageItem(filler, 1, "");
+                    item.OwnerId = bench.Client.Player.Id;
+                    item.OwnerSlotId = slot;
+                    var id = unit.Items.CreateItem(item);
+                    unit.CharacterInventories.AddInvItem(bench.Client.AccountEntry.Id, bench.Client.Player.Id, (uint)InventoryType.InboxInventory, slot, id);
+                }
+
+            // One inbox slot: one stack of 5000, and 1000 left on the job and its row.
+            var sent = TakeAll(bench, station);
+            Assert.AreEqual(1000u, Jobs(sent).Single().Count);
+            Assert.AreEqual(1000u, bench.JobRows().Single().Count);
+            Assert.AreEqual((0u, Body2Item, 5000u, bench.Client.Player.FamilyName), Inbox(bench).First());
+            Assert.HasCount(1, sent.OfType<AddInboxItemPacket>().ToArray());
+            Assert.IsTrue(sent.OfType<DisplayClientMessagePacket>().Any(packet => packet.MsgId == PlayerMessage.PmInventoryFull));
+
+            // Neither has room: nothing changes.
+            var durable = bench.DurableSnapshot();
+            sent = TakeAll(bench, station);
+            Assert.AreEqual(PlayerMessage.PmInventoryFull, sent.OfType<DisplayClientMessagePacket>().Single().MsgId);
+            CollectionAssert.AreEqual(durable, bench.DurableSnapshot());
+            Assert.AreEqual(1000u, bench.JobRows().Single().Count);
+
+            // Room in the backpack: the rest, and the row goes.
+            var blocker = EntityManager.Instance.GetItem(bench.Client.Player.Inventory.PersonalInventory[149]);
+            InventoryManager.Instance.ReduceStackCount(bench.Client, InventoryType.Personal, blocker, blocker.StackSize);
+            sent = TakeAll(bench, station);
+            Assert.AreEqual(0, Jobs(sent).Count);
+            Assert.AreEqual(0, bench.JobRows().Count);
+            Assert.AreEqual(1000u, bench.Only(Body2Item).StackSize);
+            Assert.AreEqual(bench.Client.Player.FamilyName, bench.Only(Body2Item).Crafter);
+        }
+
+        /// <summary>What a player made joins only a stack with their name on it.</summary>
+        [TestMethod]
+        public void FabricatedItemsJoinOnlyAStackOfTheSameMaker()
+        {
+            using var bench = new Bench();
+            var station = Fabricated(bench, 3);
+            var plain = bench.GiveStack(Body2Item, 10);
+            var theirs = bench.GiveStack(Body2Item, 10);
+            bench.SetCrafter(theirs, "Somebody");
+            var mine = bench.GiveStack(Body2Item, 10);
+            bench.SetCrafter(mine, bench.Client.Player.FamilyName);
+
+            var sent = TakeAll(bench, station);
+
+            Assert.AreEqual(0, Jobs(sent).Count);
+            Assert.AreEqual((10u, 10u, 13u), (plain.StackSize, theirs.StackSize, mine.StackSize));
+            Assert.AreEqual(33u, bench.Carried(ModuleItemClass));
+        }
+
+        /// <summary>A job whose row has gone (taken already, or deleted) gives nothing and leaves the station.</summary>
+        [TestMethod]
+        public void AJobWhoseRowHasGoneIsNotHandedOver()
+        {
+            using var bench = new Bench();
+            var station = Fabricated(bench, 3);
+            using (var unit = bench.Context.CreateChar())
+                Assert.IsTrue(unit.CraftingJobs.Delete(unit.CraftingJobs.GetAll().Single().Id));
+            var durable = bench.DurableSnapshot();
+
+            var sent = TakeAll(bench, station);
+
+            Assert.AreEqual(0, Jobs(sent).Count);
+            CollectionAssert.AreEqual(durable, bench.DurableSnapshot());
+            Assert.AreEqual(0u, bench.Carried(ModuleItemClass));
+        }
     }
 }

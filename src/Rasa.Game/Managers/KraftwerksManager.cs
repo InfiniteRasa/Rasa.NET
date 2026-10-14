@@ -376,26 +376,6 @@ namespace Rasa.Managers
             job.ResultItemId = _nextJobId++;
         }
 
-        /// <summary>What is left of a job after a hand-over that did not take all of it.</summary>
-        private void Keep(CraftingJob job)
-        {
-            if (!job.Persisted)
-                return;
-
-            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
-            unitOfWork.CraftingJobs.UpdateCount((uint)job.ResultItemId, job.Count);
-        }
-
-        /// <summary>A job taken whole: its row goes.</summary>
-        private void Forget(CraftingJob job)
-        {
-            if (!job.Persisted)
-                return;
-
-            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
-            unitOfWork.CraftingJobs.Delete((uint)job.ResultItemId);
-        }
-
         /// <summary>A character deleted: their jobs go from memory. The rows went with the character (CharacterManager).</summary>
         internal void ForgetCharacter(uint characterId)
         {
@@ -626,14 +606,16 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// Creates the result of a finished job in the player's inventory, in stacks of the class's
-        /// stack size. What does not fit goes to the player's inbox (the auction house's Pick Up
-        /// Items); only what the inbox cannot take either stays on the job, so the player can make
-        /// room and take it again - jobs are held in memory, so a restart would lose it. Returns
-        /// true when the whole job was handed over.
+        /// Gives the player what of a finished job they have room for, in one transaction with the
+        /// job's row: the items (onto their stacks, then into free slots of their category) and the
+        /// row's delete, or its count brought down to what is left, are written together or not at
+        /// all, so a crash or a failed write can neither lose the product nor hand it out twice.
+        /// What is left stays on the station until the player makes room. Returns true when the
+        /// whole job was handed over.
         ///
-        /// What was fabricated carries its maker's name. Mimeogel and modules do not: they were
-        /// salvaged, taken out or upgraded, not made.
+        /// What was fabricated carries its maker's name, and what does not fit the backpack goes
+        /// to the inbox (the auction house's Pick Up Items). Mimeogel and modules do neither: they
+        /// were salvaged, taken out or upgraded, not made, and wait at the station for room.
         /// </summary>
         private bool HandOver(Client client, DynamicObject station, CraftingJob job)
         {
@@ -644,66 +626,9 @@ namespace Rasa.Managers
                 return false;
             }
 
-            if (job.CraftingPage != FabricationPage)
-                return HandOverModule(client, station, job);
+            var made = job.CraftingPage == FabricationPage;
 
-            var classInfo = EntityClassManager.Instance.GetClassInfo((EntityClasses)job.ResultClassId);
-            var stackSize = Math.Max(1u, classInfo?.ItemClassInfo?.StackSize ?? 1u);
-            var inboxed = 0;
-
-            try
-            {
-                return HandOver(client, job, stackSize, ref inboxed);
-            }
-            finally
-            {
-                InventoryManager.TellSentToInbox(client, inboxed);
-            }
-        }
-
-        private bool HandOver(Client client, CraftingJob job, uint stackSize, ref int inboxed)
-        {
-            while (job.Count > 0)
-            {
-                var amount = Math.Min(job.Count, stackSize);
-                var crafter = job.CraftingPage == FabricationPage ? client.Player.FamilyName : "";
-                var item = ItemManager.Instance.CreateFromTemplateId(job.ResultItemTemplateId, amount, crafter);
-
-                if (item == null)
-                    return false;
-
-                item.Crafter = crafter;
-
-                if (InventoryManager.Instance.GrantItemToInventory(client, item) != null)
-                {
-                    job.Count -= amount;
-                    continue;
-                }
-
-                // Some or none of this stack fitted; the rest goes to the inbox.
-                var placed = amount - item.StackSize;
-
-                if (InventoryManager.Instance.SendToInbox(client, item))
-                {
-                    job.Count -= amount;
-                    inboxed++;
-                    continue;
-                }
-
-                // The inbox is full too: the remainder's row and entity go away and the job keeps
-                // what the player has not got yet.
-                EntityManager.Instance.DestroyPhysicalEntity(client, item.EntityId, EntityType.Item);
-
-                if (item.Id != 0)
-                    using (var unitOfWork = _gameUnitOfWorkFactory.CreateChar())
-                        unitOfWork.Items.DeleteItem(item.Id);
-
-                job.Count -= placed;
-                client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmInventoryFull, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
-                return false;
-            }
-
-            return true;
+            return HandOver(client, station, job, made ? client.Player.FamilyName ?? "" : null, overflowToInbox: made);
         }
 
         private void Collect(Client client, DynamicObject station, Func<CraftingJob, bool> which)
@@ -712,17 +637,12 @@ namespace Rasa.Managers
 
             foreach (var job in jobs.Where(j => j.IsFinished && which(j)).ToList())
             {
-                var before = job.Count;
-
+                // The row went, or was brought down to what is left, with the items (HandOver).
                 if (HandOver(client, station, job))
                 {
                     jobs.Remove(job);
-                    Forget(job);
                     continue;
                 }
-
-                if (job.Count != before)
-                    Keep(job);
 
                 break;
             }

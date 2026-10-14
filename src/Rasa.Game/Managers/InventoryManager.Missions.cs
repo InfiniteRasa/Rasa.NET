@@ -70,6 +70,13 @@ namespace Rasa.Managers
 
                 /// <summary>For a stack split off another (Move with a quantity): the item whose crafter, colour, condition, binding and modules the new one carries.</summary>
                 internal Item SplitFrom;
+
+                /// <summary>For a new stack (Grant with a crafter): the name it is made with.</summary>
+                internal string Crafter;
+
+                /// <summary>The maker's name the stack's item has or will have: "" for none.</summary>
+                internal string MadeBy => (Existing != null ? Existing.Crafter : Incoming != null ? Incoming.Item?.Crafter
+                    : SplitFrom != null ? SplitFrom.Crafter : Crafter) ?? "";
                 internal bool Changed => Count != OriginalCount || Existing != null && Index != OriginalIndex;
             }
 
@@ -81,6 +88,7 @@ namespace Rasa.Managers
                 internal uint Slot;
                 internal Item Staged;
                 internal Action<Item> BeforeRegister;
+                internal string Crafter;
             }
 
             private readonly List<InboxStack> _inbox = new();
@@ -338,8 +346,14 @@ namespace Rasa.Managers
                 !ReferenceEquals(from, to) && from.Template.ItemTemplateId == to.Template.ItemTemplateId &&
                 from.Ownership == to.Ownership && MayJoin(from.Existing, to.Existing, to.Maximum);
 
+            /// <summary>
+            /// New items of a template, all of them or none: onto stacks of it first, then into free
+            /// slots of its category, then (overflowToInbox) the inbox. With a crafter, they are made
+            /// with that name and join only stacks that carry the same one; without, any stack of
+            /// the template.
+            /// </summary>
             internal void Grant(uint templateId, uint quantity, MissionItemOwnership owner = null,
-                Action<Item> beforeRegister = null, bool overflowToInbox = false)
+                Action<Item> beforeRegister = null, bool overflowToInbox = false, string crafter = null)
             {
                 if (quantity == 0)
                     throw new GameplayRejectionException("Invalid inventory item grant quantity.");
@@ -348,7 +362,7 @@ namespace Rasa.Managers
                 var start = ((int)template.InventoryCategory - 1) * PersonalCategorySize;
                 var remaining = quantity;
                 foreach (var stack in _stacks.Where(stack => stack.Template.ItemTemplateId == templateId &&
-                    stack.Ownership == owner && stack.Count > 0))
+                    stack.Ownership == owner && stack.Count > 0 && (crafter == null || stack.MadeBy == crafter)))
                 {
                     var added = Math.Min(remaining, stack.Maximum - stack.Count);
                     stack.Count += added;
@@ -362,7 +376,7 @@ namespace Rasa.Managers
                         continue;
                     var added = Math.Min(remaining, maximum);
                     _stacks.Add(new Stack { Index = index, Template = template, Count = added, Maximum = maximum,
-                        Ownership = owner, BeforeRegister = beforeRegister });
+                        Ownership = owner, BeforeRegister = beforeRegister, Crafter = crafter });
                     remaining -= added;
                 }
 
@@ -374,7 +388,8 @@ namespace Rasa.Managers
                     while (remaining > 0 && _freeInboxSlots.Count > 0)
                     {
                         var added = Math.Min(remaining, maximum);
-                        _inbox.Add(new InboxStack { Template = template, Count = added, Slot = _freeInboxSlots[0], BeforeRegister = beforeRegister });
+                        _inbox.Add(new InboxStack { Template = template, Count = added, Slot = _freeInboxSlots[0],
+                            BeforeRegister = beforeRegister, Crafter = crafter });
                         _freeInboxSlots.RemoveAt(0);
                         remaining -= added;
                     }
@@ -386,7 +401,11 @@ namespace Rasa.Managers
                         : "The complete item grant does not fit its inventory categories.");
             }
 
-            internal uint GrantCapacity(uint templateId)
+            /// <summary>
+            /// How many of a template a Grant with the same crafter could take: room on its stacks
+            /// and in free slots of its category, and with overflowToInbox the free inbox slots.
+            /// </summary>
+            internal uint GrantCapacity(uint templateId, string crafter = null, bool overflowToInbox = false)
             {
                 var template = RequireTemplate(templateId);
                 var maximum = EntityClassManager.Instance.LoadedEntityClasses[template.Class].ItemClassInfo.StackSize;
@@ -395,8 +414,13 @@ namespace Rasa.Managers
                     .Count(index => !_stacks.Any(stack => stack.Index == index && stack.Count > 0));
                 var capacity = (ulong)free * maximum;
                 foreach (var stack in _stacks.Where(stack => stack.Template.ItemTemplateId == templateId &&
-                    stack.Ownership == null && stack.Count > 0))
+                    stack.Ownership == null && stack.Count > 0 && (crafter == null || stack.MadeBy == crafter)))
                     capacity += stack.Maximum - stack.Count;
+                if (overflowToInbox)
+                {
+                    _freeInboxSlots ??= FreeInboxSlots(_unit, _accountId, _characterId);
+                    capacity += (ulong)_freeInboxSlots.Count * maximum;
+                }
                 return (uint)Math.Min(uint.MaxValue, capacity);
             }
 
@@ -491,7 +515,7 @@ namespace Rasa.Managers
                         }
                         else
                         {
-                            item = stack.Staged = ItemManager.StageItem(stack.Template, stack.Count, stack.SplitFrom?.Crafter ?? "");
+                            item = stack.Staged = ItemManager.StageItem(stack.Template, stack.Count, stack.SplitFrom?.Crafter ?? stack.Crafter ?? "");
                             if (stack.SplitFrom is { } original)
                             {
                                 item.Color = original.Color;
@@ -520,7 +544,7 @@ namespace Rasa.Managers
 
                 foreach (var box in _inbox)
                 {
-                    var item = box.Staged = ItemManager.StageItem(box.Template, box.Count, "");
+                    var item = box.Staged = ItemManager.StageItem(box.Template, box.Count, box.Crafter ?? "");
                     item.OwnerId = _characterId;
                     item.OwnerSlotId = box.Slot;
                     item.Id = _unit.Items.CreateItem(item);
@@ -589,8 +613,9 @@ namespace Rasa.Managers
                         inboxItems.TryGetValue(box.Staged.Id, out var saved);
                         if (boxRows.Length != 1 || boxRows[0].CharacterId != _characterId ||
                             boxRows[0].InventoryType != (uint)InventoryType.InboxInventory || boxRows[0].SlotId != box.Slot ||
-                            saved?.ItemTemplateId != box.Template.ItemTemplateId || saved.StackSize != box.Count)
-                            throw new GameplayRejectionException("Final inbox identity, slot or count does not match the transaction plan.");
+                            saved?.ItemTemplateId != box.Template.ItemTemplateId || saved.StackSize != box.Count ||
+                            (saved.CrafterName ?? "") != (box.Crafter ?? ""))
+                            throw new GameplayRejectionException("Final inbox identity, slot, count or crafter does not match the transaction plan.");
                     }
                 }
             }
