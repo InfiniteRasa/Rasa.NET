@@ -20,6 +20,11 @@ namespace Rasa.Structures
         /// <summary>When the no-healing after a revive wears off (Unix milliseconds, UTC); 0 for none.</summary>
         public long NoHealEndsAt { get; set; }
 
+        /// <summary>An Experience Booster's boost: its percent (0 for none), its booster's level, and the time it has left.</summary>
+        public int XpBoostPercent { get; set; }
+        public uint XpBoostLevel { get; set; }
+        public long XpBoostRemainingMs { get; set; }
+
         public static SavedVitals From(CharacterEntry character)
         {
             return new SavedVitals
@@ -29,7 +34,10 @@ namespace Rasa.Structures
                 Power = character.CurrentPower,
                 RezTraumaStacks = (int)System.Math.Min(character.RezTraumaStacks, int.MaxValue),
                 RezTraumaEndsAt = character.RezTraumaEndsAt,
-                NoHealEndsAt = character.NoHealEndsAt
+                NoHealEndsAt = character.NoHealEndsAt,
+                XpBoostPercent = (int)System.Math.Min(character.XpBoostPercent, int.MaxValue),
+                XpBoostLevel = character.XpBoostLevel,
+                XpBoostRemainingMs = character.XpBoostRemainingMs
             };
         }
     }

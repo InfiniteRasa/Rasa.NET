@@ -104,8 +104,14 @@ namespace Rasa.Managers
             "abilities.selfdestruct", "abilities.scatterbombs", "abilities.calledshot", "abilities.feedback",
             "abilities.reflection", "abilities.conversion", "abilities.corpseexplode", "abilities.cure",
             "abilities.cloakwave", "abilities.tacticalevasion", "abilities.traitor", "abilities.hack", "abilities.mindcontrol",
-            "abilities.medpack", RestoreKitModule, AdrenalineBoosterModule
+            "abilities.medpack", RestoreKitModule, AdrenalineBoosterModule, AddEffectModule
         };
+
+        /// <summary>
+        /// CONSUMABLE_ADD_EFFECT: puts its GAME_EFFECT_ID on the performer. The Experience Boosters
+        /// are all there is of it, and the only effect it is resolved for (ExperienceBoost).
+        /// </summary>
+        public const string AddEffectModule = "abilities.addeffect";
 
         /// <summary>
         /// Of those, the ones aimed at a friend (client targetType TARGET_FRIENDLY): another
@@ -815,7 +821,8 @@ namespace Rasa.Managers
                 || action.Module == SpotterModule || action.Module == BotConstructionModule || action.Module == CreateCloneModule
                 || action.Module == RezTraumaKitModule
                 || MorphSupportModules.Contains(action.Module)
-                || IsDirectDamage(action, info) || TimedEffectModules.Contains(action.Module)
+                || IsDirectDamage(action, info)
+                || (TimedEffectModules.Contains(action.Module) && (action.Module != AddEffectModule || info.Get(AbilityProperty.GameEffectId) == ExperienceBoost.TypeId))
                 || IsToy(action, info) || PersonalWaypoints.Is(action);
         }
 

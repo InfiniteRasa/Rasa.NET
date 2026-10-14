@@ -402,6 +402,18 @@ namespace Rasa.Migrations.MySqlChar
                         .HasColumnType("tinyint(1)")
                         .HasColumnName("wager_locked");
 
+                    b.Property<uint>("XpBoostLevel")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("xp_boost_level");
+
+                    b.Property<uint>("XpBoostPercent")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("xp_boost_percent");
+
+                    b.Property<long>("XpBoostRemainingMs")
+                        .HasColumnType("bigint")
+                        .HasColumnName("xp_boost_remaining_ms");
+
                     b.HasKey("Id");
 
                     b.HasIndex(new[] { "AccountId" }, "character_index_account");

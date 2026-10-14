@@ -405,6 +405,9 @@ namespace Rasa.Structures
         /// <summary>Adrenaline given to the holder on each tick; 0 for none.</summary>
         public int TickAdrenaline { get; set; }
 
+        /// <summary>The percent more experience from kills an Experience Booster's effect gives (Managers.ExperienceBoost); 0 for none.</summary>
+        public int ExperienceBoostPercent { get; set; }
+
         #endregion
 
         #region Aura

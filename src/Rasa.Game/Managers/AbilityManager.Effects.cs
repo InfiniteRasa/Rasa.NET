@@ -96,6 +96,16 @@ namespace Rasa.Managers
                     Hit(recovery, player);
                     break;
 
+                // An Experience Booster: AddEffectAbility.DoAbility announces each hit's effect type.
+                case AddEffectModule:
+                    if (ExperienceBoost.Use(mapChannel, player, info) != null)
+                    {
+                        recovery = new AbilityRecoveryPacket(action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.EffectAttach);
+                        Hit(recovery, player, ExperienceBoost.TypeId);
+                    }
+
+                    break;
+
                 case "abilities.rage":
                     AttachRage(mapChannel, player, info);
                     Hit(recovery, player);

@@ -365,6 +365,20 @@ namespace Rasa.Repositories.Char.Character
             _charContext.SaveChanges();
         }
 
+        public void UpdateCharacterXpBoost(uint id, uint percent, uint level, long remainingMs)
+        {
+            var entry = GetWritable(id);
+
+            if (entry == null)
+                return;
+
+            entry.XpBoostPercent = percent;
+            entry.XpBoostLevel = percent == 0 ? 0 : level;
+            entry.XpBoostRemainingMs = percent == 0 ? 0 : System.Math.Max(0, remainingMs);
+
+            _charContext.SaveChanges();
+        }
+
         public void UpdateWagerLocked(uint id, bool locked)
         {
             var entry = GetWritable(id);

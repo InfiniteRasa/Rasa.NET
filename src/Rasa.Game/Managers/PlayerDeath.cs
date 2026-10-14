@@ -210,13 +210,14 @@ namespace Rasa.Managers
 
         /// <summary>
         /// Whether an effect stays on a player through their death: Rez Trauma, the skill
-        /// passives, an aura's effect (its owner's aura takes it off), and a Hominis Machina's
-        /// morph while its Self Revive is unspent - the button is in the morph's drawer
+        /// passives, an Experience Booster's boost (ExperienceBoost), an aura's effect (its
+        /// owner's aura takes it off), and a Hominis Machina's morph while its Self Revive is
+        /// unspent - the button is in the morph's drawer
         /// (<paramref name="keepMorph"/>, AbilityManager.CanSelfRevive). The map's effect worker
         /// holds a dead player to the same (GameEffectManager.DoWork).
         /// </summary>
         internal static bool KeptInDeath(GameEffect effect, bool keepMorph) =>
-            effect.IsSkillPassive || effect.TypeId == RezSicknessTypeId || effect.Parent != null
+            effect.IsSkillPassive || effect.TypeId == RezSicknessTypeId || effect.TypeId == ExperienceBoost.TypeId || effect.Parent != null
             || (keepMorph && effect.TypeId == AbilityManager.PolymorphTypeId);
 
         /// <summary>

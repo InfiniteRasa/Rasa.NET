@@ -390,6 +390,18 @@ namespace Rasa.Migrations.SqliteChar
                         .HasColumnType("INTEGER")
                         .HasColumnName("wager_locked");
 
+                    b.Property<uint>("XpBoostLevel")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("xp_boost_level");
+
+                    b.Property<uint>("XpBoostPercent")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("xp_boost_percent");
+
+                    b.Property<long>("XpBoostRemainingMs")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("xp_boost_remaining_ms");
+
                     b.HasKey("Id");
 
                     b.HasIndex(new[] { "AccountId" }, "character_index_account");

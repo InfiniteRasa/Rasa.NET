@@ -118,12 +118,13 @@ namespace Rasa.Managers
                 return 0;
 
             // Each their part, with what their own item modules add to it: "3% experience from
-            // kills." (ItemModuleBonuses) - and that, times their own kill streak (KillStreaks).
-            // The part returned is the part before either.
+            // kills." (ItemModuleBonuses); that raised by their own Experience Booster, if they
+            // have one on (ExperienceBoost) - another's does nothing for them; and that, times
+            // their own kill streak (KillStreaks). The part returned is the part before any.
             foreach (var sharer in paid)
             {
                 var streak = KillStreaks.MultiplierOf(sharer);
-                var part = ItemModuleBonuses.WithExperience(sharer.Player, share);
+                var part = ExperienceBoost.Boosted(sharer.Player, ItemModuleBonuses.WithExperience(sharer.Player, share));
 
                 manifestations.GainExperience(sharer, (uint)Math.Min(uint.MaxValue, (ulong)part * (ulong)streak),
                     sharer == killer || critKill == CritKill.None ? critKill : CritKill.Team, streak);

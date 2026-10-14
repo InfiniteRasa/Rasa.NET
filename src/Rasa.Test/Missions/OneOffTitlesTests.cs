@@ -261,18 +261,18 @@ namespace Rasa.Test.Missions
             {
                 characters.GetService<IMigrator>().Migrate(CharBefore);
 
-                // The account row is written by hand: the entity has columns this schema does not have
-                // yet (hybrid_unlocks), and the rest are left to their defaults.
+                // The account and character rows are written by hand: the entities have columns this
+                // schema does not have yet (hybrid_unlocks, xp_boost_*), and the rest are left to
+                // their defaults.
                 characters.Database.ExecuteSqlRaw(
                     "INSERT INTO account (id, email, name, family_name, selected_slot, last_ip) " +
                     "VALUES (1, 'oneoffs@example.invalid', 'Oneoffs', 'Fixture', 1, '127.0.0.1')");
                 foreach (var id in new uint[] { 1, 2 })
-                    characters.CharacterEntries.Add(new CharacterEntry
-                    {
-                        Id = id, AccountId = 1, Slot = (byte)id, Name = $"Holder{id}", Race = 1, Class = 1, Scale = 1, Level = 40,
-                        MapContextId = 1220, RunState = 1, LastLogin = DateTime.UtcNow, CreatedAt = DateTime.UtcNow, LastPvPClan = DateTime.UtcNow
-                    });
-                characters.SaveChanges();
+                    characters.Database.ExecuteSqlRaw(
+                        "INSERT INTO character (id, account_id, slot, name, race, class, gender, scale, body, mind, spirit, level, map_context_id, " +
+                        "coord_x, coord_y, coord_z, rotation, run_state, last_login, created_at, last_pvp_clan) " +
+                        "VALUES ({0}, 1, {0}, {1}, 1, 1, 0, 1, 0, 0, 0, 40, 1220, 0, 0, 0, 0, 1, {2}, {2}, {2})",
+                        id, $"Holder{id}", DateTime.UtcNow);
 
                 // Character 1 holds the three missions as they were, and has seen every cave.
                 // Character 2 holds the Divide's, and the Wilderness's with caves yet to see.
