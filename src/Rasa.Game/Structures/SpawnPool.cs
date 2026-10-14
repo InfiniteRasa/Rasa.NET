@@ -62,6 +62,13 @@ namespace Rasa.Structures
         internal List<Creature> QueuedCreatureList { get; set; }
 
         /// <summary>
+        /// What its last full spawn set down, creature row and how many of it, in the order they
+        /// were rolled: what a pool that has lost some of them is topped back up to
+        /// (SpawnPoolManager.TopUp). Null until it has spawned on its map channel.
+        /// </summary>
+        internal List<(uint CreatureId, int Count)> Complement { get; set; }
+
+        /// <summary>
         /// Its emplacements that are wrecks on their mounts (AlternateMesh): dead, kept in the
         /// world, and put back in service when the respawn comes round in place of new ones.
         /// </summary>

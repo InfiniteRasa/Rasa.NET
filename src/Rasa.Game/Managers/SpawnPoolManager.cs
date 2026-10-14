@@ -138,6 +138,8 @@ namespace Rasa.Managers
             spawnPool.AliveCreatures--;
             if ((spawnPool.DropshipQueue + spawnPool.QueuedCreatures + spawnPool.AliveCreatures) == 0)
                 Emptied(spawnPool);
+            else if (spawnPool.UpdateTimer >= spawnPool.RespawnTime)
+                spawnPool.UpdateTimer = 0; // its first loss since it was whole: the top-up's time starts (TopUp)
         }
 
         public void IncreaseDeadCreatureCount(SpawnPool spawnPool)
@@ -298,8 +300,15 @@ namespace Rasa.Managers
                     || spawnPool.AnimType < 0 || spawnPool.AnimType > 2)
                     continue;
 
-                if (spawnPool.AliveCreatures > 0 || spawnPool.QueuedCreatures > 0 || spawnPool.DropshipQueue > 0)
+                if (spawnPool.QueuedCreatures > 0 || spawnPool.DropshipQueue > 0)
+                    continue; // on its way
+
+                // Some of it standing: what it lost comes back on its own (TopUp).
+                if (spawnPool.AliveCreatures > 0)
+                {
+                    TopUp(mapChannel, spawnPool, timePassed);
                     continue;
+                }
 
                 // A Bane garrison comes back together: a pool of it that has been killed waits
                 // until the whole garrison has been down long enough (ControlPoints.HoldsBack).
@@ -341,32 +350,134 @@ namespace Rasa.Managers
                 if (creatureList.Count == 0)
                     continue; // nothing to spawn
 
-                // An arrival point: through a teleporter, or off a dropship on a pad or in a bay.
-                var arrival = BaneArrivals.Pick(spawnPool);
+                spawnPool.Complement = creatureList
+                    .GroupBy(creature => creature.DbId)
+                    .Select(group => (group.Key, group.Count()))
+                    .ToList();
 
-                spawnPool.HasSpawned = true;
+                Dispatch(mapChannel, spawnPool, creatureList);
+            }
+        }
 
-                if (arrival?.Kind == SpawnPoolArrivalEntry.KindTeleporter)
-                    BaneArrivals.BeginTeleport(mapChannel, spawnPool, arrival, creatureList.Count);
-                else if (arrival?.Kind == SpawnPoolArrivalEntry.KindDropship)
-                    EnqueueDropship(mapChannel, spawnPool, creatureList, arrival);
-                else if (spawnPool.AnimType == 0)    // animType==0; spawn without animation
+        /// <summary>
+        /// How often a pool due to be topped up looks again while one of its creatures is fighting.
+        /// Ours: often enough that it fills soon after the fight, seldom enough that a long fight
+        /// does not look at the map's creatures every tick.
+        /// </summary>
+        public const long TopUpRecheckMs = 5000;
+
+        /// <summary>
+        /// A pool with some of its creatures standing and some lost - killed, taken off by a GM,
+        /// hatched into another - has what it lost set down again its respawn time after it first
+        /// lost one (DecreaseAliveCreatureCount starts the time), so one survivor no longer holds
+        /// back the rest until it too is dead. Only what it is short of comes, against what its last
+        /// full spawn set down (Complement), by creature row and no more in all than it is short;
+        /// they come as its full spawn does, through its arrival point or dropship if it has one.
+        ///
+        /// Not while any of the survivors is fighting: what was killed in a fight does not come back
+        /// at the player's back in the same fight; it is looked at again <see cref="TopUpRecheckMs"/>
+        /// later. Its wrecks, if it has any, are put back in service in place of new creatures, as at
+        /// a full respawn (AlternateMesh).
+        ///
+        /// Left out, and coming back only whole as before: a control point's garrison, which comes
+        /// back together (ControlPoints.HoldsBack), and a pool in a squad's instance, where what has
+        /// been killed stays killed until the instance's own respawn (SquadInstanceState).
+        /// </summary>
+        private void TopUp(MapChannel mapChannel, SpawnPool spawnPool, long timePassed)
+        {
+            if (spawnPool.IsGarrison || mapChannel.SquadState != null || spawnPool.Complement == null)
+                return;
+
+            var shortBy = spawnPool.Complement.Sum(entry => entry.Count) - spawnPool.AliveCreatures;
+
+            if (shortBy <= 0)
+                return;
+
+            if (spawnPool.UpdateTimer < spawnPool.RespawnTime)
+                spawnPool.UpdateTimer += Math.Min(Math.Max(0, timePassed), spawnPool.RespawnTime - spawnPool.UpdateTimer);
+
+            if (spawnPool.UpdateTimer < spawnPool.RespawnTime)
+                return;
+
+            var standing = EntityManager.Instance.Creatures.Values
+                .Where(creature => ReferenceEquals(creature.SpawnPool, spawnPool) && CreatureManager.IsLivingOnMap(mapChannel, creature))
+                .ToList();
+
+            if (standing.Any(creature => creature.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting))
+            {
+                spawnPool.UpdateTimer = Math.Max(0, spawnPool.RespawnTime - TopUpRecheckMs);
+                return;
+            }
+
+            if (AlternateMesh.ReviveWrecks(mapChannel, spawnPool))
+                return;
+
+            if (!HasWalkableGround(mapChannel, spawnPool))
+                return;
+
+            var missing = Missing(spawnPool.Complement, standing, shortBy, CreatureManager.Instance.LoadedCreatures);
+
+            if (missing.Count > 0)
+                Dispatch(mapChannel, spawnPool, missing);
+        }
+
+        /// <summary>
+        /// What a pool is short of: each creature row of its complement less those of it standing,
+        /// in the complement's order, no more than <paramref name="shortBy"/> in all. A creature that
+        /// stands for another (a grub's adult) is counted in the pool's living but not by its row,
+        /// so the cap is what keeps the pool to its size.
+        /// </summary>
+        internal static List<Creature> Missing(IReadOnlyList<(uint CreatureId, int Count)> complement, IEnumerable<Creature> standing,
+            int shortBy, IReadOnlyDictionary<uint, Creature> definitions)
+        {
+            var have = standing.GroupBy(creature => creature.DbId).ToDictionary(group => group.Key, group => group.Count());
+            var missing = new List<Creature>();
+
+            foreach (var (creatureId, count) in complement)
+            {
+                if (!definitions.TryGetValue(creatureId, out var definition) || definition == null)
+                    continue;
+
+                for (var i = have.GetValueOrDefault(creatureId); i < count && missing.Count < shortBy; i++)
+                    missing.Add(definition);
+            }
+
+            return missing;
+        }
+
+        /// <summary>Sets a pool's creatures down: through its arrival point, off its dropship, or where it stands.</summary>
+        private void Dispatch(MapChannel mapChannel, SpawnPool spawnPool, List<Creature> creatureList)
+        {
+            // An arrival point: through a teleporter, or off a dropship on a pad or in a bay.
+            var arrival = BaneArrivals.Pick(spawnPool);
+
+            spawnPool.HasSpawned = true;
+
+            if (arrival?.Kind == SpawnPoolArrivalEntry.KindTeleporter)
+            {
+                // The teleporter sends through what was counted here, not a list rolled anew when
+                // it opens (CreateListOfCreatures takes the queued list first).
+                spawnPool.QueuedCreatureList = creatureList;
+                BaneArrivals.BeginTeleport(mapChannel, spawnPool, arrival, creatureList.Count);
+            }
+            else if (arrival?.Kind == SpawnPoolArrivalEntry.KindDropship)
+                EnqueueDropship(mapChannel, spawnPool, creatureList, arrival);
+            else if (spawnPool.AnimType == 0)    // animType==0; spawn without animation
+            {
+                IncreaseQueuedCreatureCount(spawnPool, creatureList.Count);
+
+                try
                 {
-                    IncreaseQueuedCreatureCount(spawnPool, creatureList.Count);
-
-                    try
-                    {
-                        SpawnCreatures(spawnPool, creatureList);
-                    }
-                    finally
-                    {
-                        DecreaseQueuedCreatureCount(spawnPool, creatureList.Count);
-                    }
+                    SpawnCreatures(spawnPool, creatureList);
                 }
-                else
+                finally
                 {
-                    EnqueueDropship(mapChannel, spawnPool, creatureList);
+                    DecreaseQueuedCreatureCount(spawnPool, creatureList.Count);
                 }
+            }
+            else
+            {
+                EnqueueDropship(mapChannel, spawnPool, creatureList);
             }
         }
 
