@@ -1092,25 +1092,46 @@ namespace Rasa.Managers
             CellManager.Instance.CellCallMethod(mapChannel, creature, new AppearanceDataPacket(creature.AppearanceData));
         }
 
-        internal void CreateOrUpdateAppearance(Creature creature, AppearanceData appearanceData)
+        /// <summary>
+        /// .creatureappearance: one slot of a creature's look, a class (0 keeps the one there) and
+        /// a colour. A creature's look is its kind's: the creatures of one creature row share the
+        /// loaded creature's AppearanceData (Creature(Creature)), so every one of them takes it,
+        /// and every one in the world is shown it; the row's creature_appearance is saved for the
+        /// next load. A creature of no row - a summons, a scenario's own - changes for now only.
+        /// </summary>
+        /// <returns>Whether it was saved.</returns>
+        internal bool CreateOrUpdateAppearance(Creature creature, AppearanceData appearanceData)
         {
+            var looks = new List<Dictionary<EquipmentData, AppearanceData>> { creature.AppearanceData };
+
+            if (creature.DbId != 0 && LoadedCreatures.TryGetValue(creature.DbId, out var loaded) &&
+                loaded?.AppearanceData != null && !ReferenceEquals(loaded.AppearanceData, creature.AppearanceData))
+                looks.Add(loaded.AppearanceData);
+
+            foreach (var look in looks)
+            {
+                if (!look.TryGetValue(appearanceData.SlotId, out var slot))
+                    look[appearanceData.SlotId] = slot = new AppearanceData { SlotId = appearanceData.SlotId, Hue2 = appearanceData.Hue2 };
+
+                slot.Color = appearanceData.Color;
+
+                if (appearanceData.Class > 0)
+                    slot.Class = appearanceData.Class;
+            }
+
+            // Everyone who can see one of its kind is shown the new look.
+            foreach (var shown in EntityManager.Instance.Creatures.Values.Where(other =>
+                         ReferenceEquals(other, creature) || creature.DbId != 0 && other.DbId == creature.DbId).ToList())
+                UpdateCreatureAppearance(shown);
+
+            if (creature.DbId == 0)
+                return false;
+
             using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
+            var saved = creature.AppearanceData[appearanceData.SlotId];
 
-            if (!creature.AppearanceData.ContainsKey(appearanceData.SlotId))
-                creature.AppearanceData.Add(appearanceData.SlotId, appearanceData);
-
-            creature.AppearanceData[appearanceData.SlotId].Color = appearanceData.Color;
-
-            if (appearanceData.Class > 0)
-                creature.AppearanceData[appearanceData.SlotId].Class = appearanceData.Class;
-
-            // update creature appearance on client's
-            CellManager.Instance.CellCallMethod(creature, new AppearanceDataPacket(creature.AppearanceData));
-
-            // update creature in database
-            unitOfWork.Creatures.CreateOrUpdateAppearance(creature.DbId, (uint)appearanceData.SlotId, appearanceData.Class, appearanceData.Color.Hue);
-
-            Logger.WriteLog(LogType.Debug, "Creature Look updated");
+            unitOfWork.Creatures.CreateOrUpdateAppearance(creature.DbId, (uint)appearanceData.SlotId, saved.Class, saved.Color.Hue);
+            return true;
         }
     }
 }

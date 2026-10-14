@@ -106,32 +106,20 @@ namespace Rasa.Repositories.World
             return entres;
         }
 
+        /// <summary>
+        /// One slot of a creature's look, in creature_appearance: the row of that creature and slot
+        /// changed, or a new one. The table has no key - CreatureAppearanceEntry is [Keyless] - so
+        /// Entity Framework can neither update nor add a row of it, and every save of this threw.
+        /// Written by hand instead, on the creature and the slot, the same on SQLite and MySQL.
+        /// </summary>
         public void CreateOrUpdateAppearance(uint creatureId, uint slotId, uint classId, uint hue)
         {
-            var query = _worldContext.CreateNoTrackingQuery(_worldContext.CreatureAppearanceEntries);
-            var appearanceEntry = query.FirstOrDefault(e => e.Id == creatureId && e.SlotId == slotId);
+            var updated = _worldContext.Database.ExecuteSqlInterpolated(
+                $"UPDATE creature_appearance SET Class_id = {classId}, color = {hue} WHERE id = {creatureId} AND slot_id = {slotId}");
 
-            if (appearanceEntry != null)
-            {
-                appearanceEntry.ClassId = classId;
-                appearanceEntry.Color = hue;
-
-                _worldContext.CreatureAppearanceEntries.Update(appearanceEntry);
-            }
-            else
-            {
-                var newEntry = new CreatureAppearanceEntry()
-                {
-                    Id = creatureId,
-                    ClassId = classId,
-                    SlotId = slotId,
-                    Color = hue
-                };
-
-                _worldContext.CreatureAppearanceEntries.Add(newEntry);
-            }
-
-            _worldContext.SaveChanges();
+            if (updated == 0)
+                _worldContext.Database.ExecuteSqlInterpolated(
+                    $"INSERT INTO creature_appearance (id, slot_id, Class_id, color) VALUES ({creatureId}, {slotId}, {classId}, {hue})");
         }
 
         public List<CreatureAppearanceEntry> GetCreatureAppearances(uint creatureId)

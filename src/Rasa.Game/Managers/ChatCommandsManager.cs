@@ -3821,23 +3821,39 @@ namespace Rasa.Managers
                 SendCommandUsage(".creatureappearance");
                 return;
             }
-            if (parts.Length == 5)
+            if (parts.Length != 5 || !ulong.TryParse(parts[1], out var entityId) || !uint.TryParse(parts[2], out var slotId) ||
+                !uint.TryParse(parts[3], out var classId) || !uint.TryParse(parts[4], out var color))
             {
-                if (ulong.TryParse(parts[1], out var entityId))
-                    if (uint.TryParse(parts[2], out uint slotId))
-                        if (uint.TryParse(parts[3], out uint classId))
-                            if (uint.TryParse(parts[4], out uint color))
-                            {
-                                // get creature from entityId
-                                var creature = EntityManager.Instance.GetCreature(entityId);
-                                var appearanceData = new AppearanceData(new Structures.Char.CharacterAppearanceEntry(slotId, classId,color));
-                                CreatureManager.Instance.CreateOrUpdateAppearance(creature, appearanceData);
-
-                                Logger.WriteLog(LogType.Debug, "Creature Look updated");
-                            }
+                SendCommandUsage(".creatureappearance");
+                return;
             }
 
-            return;
+            // GetCreature threw KeyNotFoundException for an id that is not a creature.
+            if (!EntityManager.Instance.Creatures.TryGetValue(entityId, out var creature))
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, $"{entityId} is not a creature.");
+                return;
+            }
+
+            if (!Enum.IsDefined(typeof(EquipmentData), slotId))
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, $"{slotId} is not an appearance slot.");
+                return;
+            }
+
+            var appearanceData = new AppearanceData(new Structures.Char.CharacterAppearanceEntry(slotId, classId, color));
+
+            try
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, CreatureManager.Instance.CreateOrUpdateAppearance(creature, appearanceData)
+                    ? $"Slot {slotId} of creature {creature.DbId} set, for every one of it, and saved."
+                    : $"Slot {slotId} of creature {entityId} set. It has no creature row, so it is not saved.");
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, $".creatureappearance {entityId} {slotId}: {e}");
+                CommunicatorManager.Instance.SystemMessage(_client, $"Slot {slotId} set, but it could not be saved: {e.GetBaseException().Message}");
+            }
         }
 
         private void SetCreatureLocation(string[] parts)
