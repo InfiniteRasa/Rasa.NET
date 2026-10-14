@@ -769,9 +769,11 @@ namespace Rasa.Managers
             List<ClanMemberEntry> members = unitOfWork.ClanMembers.GetAllClanMembersByClanId(inviterClan.Id);
             GameAccountEntry inviteeAccount = unitOfWork.GameAccounts.Get(packet.FamilyName);
 
+            // "There is nobody named %(name)s."
             if (inviteeAccount == null)
             {
-                CommunicatorManager.Instance.SystemMessage(client, $"{packet.FamilyName} do not exist");
+                client.CallMethod(SysEntity.ClientClanManagerId, new DisplayClanMessagePacket((int)PlayerMessage.PmNoSuchUser,
+                    CreatePlayerMessageArgs("name", packet.FamilyName)));
                 return;
             }
 
@@ -804,31 +806,45 @@ namespace Rasa.Managers
                     return;
                 }
 
-                if (inviteeCharacter != null)
-                {
-                    // Make sure the invitee is online
-                    var invitee = Server.Clients.Find(c => c.Player.Id == inviteeCharacter.Id);
+                // Only someone in the world (or loading into it) can be asked: "%(name)s is not
+                // online." It was silent; so was a character back at character selection.
+                Client invitee;
 
-                    if (invitee != null)
-                    {
-                        SendInviteToCharacter(client, invitee.Player.EntityId, inviterClan);
-                    }
+                lock (Server.Clients)
+                    invitee = Server.Clients.Find(c => c != null && CountsAsOnline(c) && c.Player.Id == inviteeCharacter.Id);
+
+                if (invitee == null)
+                {
+                    client.CallMethod(SysEntity.ClientClanManagerId, new DisplayClanMessagePacket((int)PlayerMessage.PmUserNotOnline,
+                        CreatePlayerMessageArgs("name", $"{inviteeCharacter.Name} {inviteeAccount.FamilyName}")));
+                    return;
                 }
+
+                SendInviteToCharacter(client, invitee.Player.EntityId, inviterClan);
             }
-        }        
+        }
 
         internal void InviteToClanById(Client client, InviteToClanByIdPacket packet)
         {
-            var invitee = Server.Clients.Find(c => c.Player.EntityId == packet.CharacterEntityId);
-
             if (client == null)
                 throw new ArgumentNullException(nameof(client));
 
             if (packet == null)
                 throw new ArgumentNullException(nameof(packet));
 
+            Client invitee;
+
+            lock (Server.Clients)
+                invitee = Server.Clients.Find(c => c != null && CountsAsOnline(c) && c.Player.EntityId == packet.CharacterEntityId);
+
+            // An entity id that is no player in the world (gone since it was targeted, or never
+            // one): "Target user is not online or does not exist." It was silent.
             if (invitee == null)
+            {
+                client.CallMethod(SysEntity.ClientClanManagerId, new DisplayClanMessagePacket((int)PlayerMessage.PmNoTargetUser,
+                    new Dictionary<string, string>()));
                 return;
+            }
             
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
 

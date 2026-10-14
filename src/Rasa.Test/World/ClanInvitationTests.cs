@@ -137,6 +137,92 @@ namespace Rasa.Test.World
             });
         }
 
+        [TestMethod]
+        public void AnInviteByNameReachesSomeoneInTheWorld()
+        {
+            using var context = MissionTestContext.WithCompletableMission(429);
+            var (inviter, invitee, clan) = Fixture(context);
+
+            WithLiveClans(context, clan, clans =>
+            {
+                clans.InviteToClanByName(inviter, new InviteToClanByNamePacket { FamilyName = $"Family {InviteeId}" });
+
+                Assert.HasCount(1, Sent<InviteToClanPacket>(invitee));
+                Assert.AreEqual((int)PlayerMessage.PmClanPlayerInvited, Messages(inviter).Single().MsgId);
+            });
+        }
+
+        /// <summary>
+        /// Someone not in the world - logged out, or back at character selection - cannot be asked,
+        /// and the inviter is told so: "%(name)s is not online." It was silent.
+        /// </summary>
+        [TestMethod]
+        [DataRow(false)]
+        [DataRow(true)]
+        public void AnInviteByNameToSomeoneNotInTheWorldIsToldTheyAreNotOnline(bool atCharacterSelection)
+        {
+            using var context = MissionTestContext.WithCompletableMission(429);
+            var (inviter, invitee, clan) = Fixture(context);
+
+            if (atCharacterSelection)
+                invitee.State = ClientState.CharacterSelection;
+            else
+                lock (Server.Clients)
+                    Server.Clients.Remove(invitee);
+
+            WithLiveClans(context, clan, clans =>
+            {
+                clans.InviteToClanByName(inviter, new InviteToClanByNamePacket { FamilyName = $"Family {InviteeId}" });
+
+                Assert.IsEmpty(Sent<InviteToClanPacket>(invitee));
+                var told = Messages(inviter).Single();
+                Assert.AreEqual((int)PlayerMessage.PmUserNotOnline, told.MsgId);
+                Assert.AreEqual($"Character {InviteeId} Family {InviteeId}", told.Args["name"]);
+            });
+        }
+
+        /// <summary>"There is nobody named %(name)s."</summary>
+        [TestMethod]
+        public void AnInviteByAFamilyNameNobodyHasIsToldSo()
+        {
+            using var context = MissionTestContext.WithCompletableMission(429);
+            var (inviter, _, clan) = Fixture(context);
+
+            WithLiveClans(context, clan, clans =>
+            {
+                clans.InviteToClanByName(inviter, new InviteToClanByNamePacket { FamilyName = "Nobody" });
+
+                var told = Messages(inviter).Single();
+                Assert.AreEqual((int)PlayerMessage.PmNoSuchUser, told.MsgId);
+                Assert.AreEqual("Nobody", told.Args["name"]);
+            });
+        }
+
+        /// <summary>An entity id that is no player in the world: "Target user is not online or does not exist." It was silent.</summary>
+        [TestMethod]
+        [DataRow(false)]
+        [DataRow(true)]
+        public void AnInviteByAnIdThatIsNoPlayerInTheWorldIsToldSo(bool gone)
+        {
+            using var context = MissionTestContext.WithCompletableMission(429);
+            var (inviter, invitee, clan) = Fixture(context);
+            var entityId = gone ? invitee.Player.EntityId : 0xDEADBEEFUL;
+
+            if (gone)
+                lock (Server.Clients)
+                    Server.Clients.Remove(invitee);
+
+            WithLiveClans(context, clan, clans =>
+            {
+                clans.InviteToClanById(inviter, new InviteToClanByIdPacket { CharacterEntityId = entityId });
+
+                Assert.IsEmpty(Sent<InviteToClanPacket>(invitee));
+                var told = Messages(inviter).Single();
+                Assert.AreEqual((int)PlayerMessage.PmNoTargetUser, told.MsgId);
+                Assert.IsEmpty(told.Args);
+            });
+        }
+
         private (Client Inviter, Client Invitee, ClanEntry Clan) Fixture(MissionTestContext context)
         {
             var inviter = context.Client;
