@@ -1948,6 +1948,7 @@ namespace Rasa.Test.Gameplay
             Assert.IsTrue(Succeeded(sent));
             Assert.AreEqual(1u, modules.StackSize);
             Assert.AreEqual(62u, bench.Carried(MimeogelClass));
+            Assert.IsFalse(bench.InPack(mimeogel), "the fee is taken from the first stack in the pack first: all 37 of it, and 1 of the 63");
             CollectionAssert.AreEqual(new uint[] { 0, Body1, Mind5, 0 }, armor.ModuleIds.ToArray());
             CollectionAssert.AreEqual(new uint[] { 0, Body1, Mind5, 0 }, bench.Saved(armor));
             Assert.AreSame(armor, sent.OfType<ItemInfoPacket>().Single().Item);
@@ -1972,7 +1973,8 @@ namespace Rasa.Test.Gameplay
             sent = bench.After((station, id) => station.RequestIntegrateItem(bench.Client, Integrate(id, weapon, modules, 0)));
             Assert.AreEqual("That module is for another kind of item.", Refusal(sent));
 
-            sent = bench.After((station, id) => station.RequestIntegrateItem(bench.Client, Integrate(id, weapon, mimeogel, 0)));
+            // The Mimeogel left, which is no module.
+            sent = bench.After((station, id) => station.RequestIntegrateItem(bench.Client, Integrate(id, weapon, bench.Only(Mimeogel), 0)));
             Assert.AreEqual("That is not a module.", Refusal(sent));
 
             sent = bench.After((station, id) => station.RequestIntegrateItem(bench.Client, Integrate(id, modules, modules, 0)));
