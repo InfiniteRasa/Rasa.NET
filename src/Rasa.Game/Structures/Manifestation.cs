@@ -149,6 +149,9 @@ namespace Rasa.Structures
         /// <summary>Polymorph: the creature weapon the player fires while morphed; null when they are themselves.</summary>
         public Item MorphWeapon { get; set; }
 
+        /// <summary>The player's bare hands, the HANDTOHAND item their client fights with when nothing is in hand (Managers.Unarmed); made when first needed.</summary>
+        public Managers.UnarmedItem Fists { get; set; }
+
         /// <summary>The creature's combat actions a polymorphed player has in their drawer, and may perform (AbilityManager.Polymorph).</summary>
         public System.Collections.Generic.List<(Data.ActionId ActionId, uint Level)> MorphAbilities { get; set; } = new System.Collections.Generic.List<(Data.ActionId, uint)>();
 

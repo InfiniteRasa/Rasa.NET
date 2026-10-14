@@ -953,15 +953,16 @@ namespace Rasa.Managers
             if (Stuns.IsStunned(client.Player) || Pvp.MayNotAttack(client.Player) || client.Player.State == CharacterState.Dead)
                 return FireResult.NotFired;
 
-            // Polymorphed: the creature's weapon, whatever is in the player's own hands.
-            var weapon = client.Player.MorphWeapon ?? InventoryManager.Instance.CurrentWeapon(client);
+            // Polymorphed: the creature's weapon, whatever is in the player's own hands. Otherwise
+            // the weapon in hand - or their fists, with nothing in hand or a broken weapon, as
+            // their client fights with them then (Unarmed).
+            var weapon = client.Player.MorphWeapon ?? Unarmed.Wielded(client);
 
-            // Nothing in hand fires nothing. Tested before the draw below, because an empty
-            // hand and a stowed weapon look the same from WeaponReady: arming an empty drawer
-            // slot clears both the weapon and WeaponReady, so a player still holding the
-            // trigger reached the draw with no weapon to describe it, and the auto-fire list
-            // is walked at the top of the map channel worker - the dereference took the whole
-            // tick with it, on every map, for as long as the client kept the fire alive.
+            // Nothing to fire with fires nothing. Tested before the draw below: a player still
+            // holding the trigger once reached the draw with no weapon to describe it, and the
+            // auto-fire list is walked at the top of the map channel worker - the dereference
+            // took the whole tick with it, on every map, for as long as the client kept the
+            // fire alive. An empty hand has its fists now (Unarmed).
             if (weapon == null)
                 return FireResult.NotFired;
 
@@ -1071,7 +1072,10 @@ namespace Rasa.Managers
             // that did not happen does not heat anything, and before the missile, so a shot that
             // reaches capacity is still fired - the jam stops the next one, not this one.
             // A polymorphed player's creature weapon does not heat: creatures' weapons never jam.
-            if (weapon != client.Player.MorphWeapon)
+            // Nor do fists, which do not wear either.
+            var ownWeapon = weapon != client.Player.MorphWeapon && !Unarmed.Is(weapon);
+
+            if (ownWeapon)
                 AddWeaponHeat(client, weapon);
 
             // let's calculate damage
@@ -1083,7 +1087,7 @@ namespace Rasa.Managers
             // went with the barrel at or above MIN_HEAT_FOR_DURABILITY_LOSS. The heat is the
             // barrel's with this shot's own added (AddWeaponHeat, above): the shot that takes it
             // over the line is fired hot.
-            if (weapon != client.Player.MorphWeapon)
+            if (ownWeapon)
             {
                 damage = Durability.ScaleDamage(weapon, damage);
                 Durability.WearWeapon(client, weapon, Math.Max(MinRefire, weapon.ItemTemplate.WeaponInfo.Refire), weapon.Heat);
@@ -1147,8 +1151,13 @@ namespace Rasa.Managers
                 ? (fullBead ? CriticalHits.FirearmsRifleFullBeadChance(pump) : CriticalHits.FirearmsRifleChance(pump))
                 : 0;
 
-            // Firearms on a shotgun: "Shotguns: +15% Knockback chance" from pump 3.
-            var knockbackChance = firearms && toolType == ToolType.Shotgun ? WeaponSkills.FirearmsShotgunKnockbackChance(pump) : 0;
+            // Firearms on a shotgun: "Shotguns: +15% Knockback chance" from pump 3. Hand to Hand
+            // on a punch, as on a swing (TryMeleeAttack): "+25% Knockback chance" from pump 3,
+            // and from pump 4 the knockback stuns.
+            var handToHand = skillId == WeaponSkills.HandToHand;
+            var knockbackChance = firearms && toolType == ToolType.Shotgun ? WeaponSkills.FirearmsShotgunKnockbackChance(pump)
+                : handToHand ? Stuns.HandToHandKnockbackChance(pump)
+                : 0;
 
             // Launchers on a grenade launcher: a chance to stun ("Grenades: +25% Stun Chance" from pump 3).
             var grenades = skillId == WeaponSkills.Launchers && weapon.ItemTemplate.WeaponInfo.ToolType == ToolType.GrenadeLauncher;
@@ -1170,6 +1179,7 @@ namespace Rasa.Managers
                 rootMs: skillId == WeaponSkills.NetGuns ? CrowdControl.NetGunRootMs : 0,
                 dot: weapon != client.Player.MorphWeapon ? WeaponDots.Of(skillId, WeaponDamageType(client.Player, (DamageType)weaponClassInfo.DamageType)) : null,
                 knockbackChance: knockbackChance,
+                knockbackStunMs: handToHand ? Stuns.HandToHandMs(pump) : 0,
                 splashRadius: Splash.RadiusOf(weapon.ItemTemplate.WeaponInfo),
                 coneHalfAngle: ConeWeapons.IsCone(weapon.ItemTemplate.WeaponInfo, weaponClassInfo) ? ConeWeapons.HalfAngleOf(weapon.ItemTemplate.WeaponInfo) : 0,
                 optimalRange: weapon.ItemTemplate.WeaponInfo.Range,
@@ -2280,15 +2290,15 @@ namespace Rasa.Managers
                 // we dont want to server keep fireing if client crash 
                 timer.MaxAliveTime -= delta;
 
-                // Nothing in hand ends the fire here rather than in each of the several places
-                // that can empty it - arming an empty drawer slot, moving the weapon out of the
-                // armed slot, dropping or selling it. The trigger is still held, but there is no
-                // longer a weapon to pull it on, and a timer kept for one cannot be fired
-                // without asking what it is.
+                // Nothing to fire with ends the fire here rather than in each of the several
+                // places that can take it away. An empty hand is not that any more - it punches
+                // (Unarmed), and the client stops its fire itself when the weapon changes - but a
+                // player who has gone is, and a timer kept for them cannot be fired without
+                // asking what it is.
                 if (timer.MaxAliveTime <= 0
                     || timer.Client.Player == null
                     || timer.Client.State != ClientState.Ingame
-                    || InventoryManager.Instance.CurrentWeapon(timer.Client) == null)
+                    || Unarmed.Wielded(timer.Client) == null)
                 {
                     AutoFire.RemoveAt(i);
                     ConstantFire.Stop(timer.Client);
@@ -2428,6 +2438,10 @@ namespace Rasa.Managers
             lock (client.SyncRoot)
             {
                 var player = client.Player;
+
+                // Their fists first: the manifestation's EquipmentInfo names them (Unarmed).
+                Unarmed.Show(client);
+
                 var entityData = CreatePlayerEntityData(client, client);
                 client.CallMethod(SysEntity.ClientMethodId,
                     new CreatePhysicalEntityPacket(player.EntityId, player.EntityClass, entityData));
@@ -2500,7 +2514,8 @@ namespace Rasa.Managers
                     ? CharacterFlagProjection.ToNativeIds(player.PlayerFlags)
                     : Array.Empty<uint>()),
                 new IsTrialAccountPacket(player.IsTrialAccount),
-                new EquipmentInfoPacket(client.Player.Inventory.EquippedInventory),
+                // Their own client is told about their fists as well (Unarmed).
+                forSelf ? Unarmed.EquipmentFor(player) : new EquipmentInfoPacket(client.Player.Inventory.EquippedInventory),
                 // "Received because the manifestation was loaded on the server", and only ever
                 // for the player's own. It is what fills the advancement tracker; it offers
                 // nothing, so it goes out whether the list is empty or not.
@@ -3504,16 +3519,19 @@ namespace Rasa.Managers
 
         public void NotifyEquipmentUpdate(Client client)
         {
-            client.CallMethod(client.Player.EntityId, new EquipmentInfoPacket(client.Player.Inventory.EquippedInventory));
+            client.CallMethod(client.Player.EntityId, Unarmed.EquipmentFor(client.Player));
         }
 
         /// <param name="delay">Milliseconds until the timer's first shot; a whole refire when left out.</param>
         /// <returns>false when there is no weapon in hand to fire, and no timer was started.</returns>
         public bool RegisterAutoFire(Client client, long delay = -1)
         {
-            var weapon = InventoryManager.Instance.CurrentWeapon(client);
+            var weapon = client.Player?.MorphWeapon ?? Unarmed.Wielded(client);
 
-            if (weapon?.ItemTemplate?.WeaponInfo == null)
+            // Nor with one that has no weapon class to fire it by - fists whose class is not loaded.
+            if (weapon?.ItemTemplate?.WeaponInfo == null
+                || !EntityClassManager.Instance.LoadedEntityClasses.TryGetValue(weapon.ItemTemplate.Class, out var weaponClass)
+                || weaponClass.WeaponClassInfo == null)
                 return false;
 
             // One timer per client: a second StartAutoFire used to add a second timer and
@@ -4050,7 +4068,8 @@ namespace Rasa.Managers
             if (mapChannel == null)
                 return;
 
-            var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(InventoryManager.Instance.CurrentWeapon(client));
+            // Fists with nothing in hand (Unarmed): the client draws them with their own 8/8.
+            var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(Unarmed.Wielded(client));
 
             if (weaponClassInfo == null)
                 return;
@@ -4209,7 +4228,7 @@ namespace Rasa.Managers
                 return;
 
             var weapon = InventoryManager.Instance.CurrentWeapon(client);
-            var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(weapon);
+            var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(Unarmed.Wielded(client));
 
             // Put away: its clip is written (WeaponClips).
             WeaponClips.Save(weapon);
