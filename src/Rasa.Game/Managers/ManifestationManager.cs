@@ -1168,6 +1168,7 @@ namespace Rasa.Managers
                 melee: melee,
                 stunChance: grenades ? Stuns.GrenadeChance(pump) : 0, stunMs: grenades ? Stuns.GrenadeStunMs : 0,
                 rootMs: skillId == WeaponSkills.NetGuns ? CrowdControl.NetGunRootMs : 0,
+                dot: weapon != client.Player.MorphWeapon ? WeaponDots.Of(skillId, WeaponDamageType(client.Player, (DamageType)weaponClassInfo.DamageType)) : null,
                 knockbackChance: knockbackChance,
                 splashRadius: Splash.RadiusOf(weapon.ItemTemplate.WeaponInfo),
                 coneHalfAngle: ConeWeapons.IsCone(weapon.ItemTemplate.WeaponInfo, weaponClassInfo) ? ConeWeapons.HalfAngleOf(weapon.ItemTemplate.WeaponInfo) : 0,

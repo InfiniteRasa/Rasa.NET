@@ -124,6 +124,51 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void AnInjectionGunsDoseOnAnEnemyDealsAllItsTicksInHalfTheTimeAtHalfDamage()
+        {
+            using var world = new WorldTestContext();
+            var red = Fighter(world, RedClanId);
+            var blue = Fighter(world, BlueClanId, 10);
+            PlaceAll(red, blue);
+
+            WithFeud(world, () =>
+            {
+                MissileManager.Instance.MissileTrigger(world.Map, new Missile
+                {
+                    Source = red.Player,
+                    TargetActor = blue.Player,
+                    TargetEntityId = blue.Player.EntityId,
+                    DamageA = 100,
+                    DamageType = DamageType.Fire,
+                    ActionId = ActionId.WeaponAttack,
+                    ActionArgId = 1,
+                    CritChance = 0,
+                    Dot = WeaponDots.Of(WeaponSkills.InjectionGuns, DamageType.Fire),
+                    DotDamage = 300
+                });
+                var now = Environment.TickCount64;
+
+                Assert.AreEqual(950, Health(blue), "the hit, at PvP damage");
+
+                var dose = blue.Player.ActiveEffects.Values.Single(e => e.TypeId == WeaponDots.InjectionFireTypeId);
+                Assert.AreEqual(3000, dose.ExpiresTick - now, 50, "PVP_EFFECT_DURATION_MODIFIER");
+                Assert.AreEqual(1000, dose.TickIntervalMs, "its three ticks in that time");
+                Assert.AreEqual(3, WeaponDots.TicksLeft(dose));
+
+                for (var tick = 0; tick < 3; tick++)
+                {
+                    var shift = dose.NextTickTick - Environment.TickCount64 + 1;
+                    dose.NextTickTick -= shift;
+                    dose.ExpiresTick -= shift;
+                    GameEffectManager.Instance.DoWork(world.Map, 100);
+                }
+
+                Assert.AreEqual(800, Health(blue), "three ticks of 100, each at PvP damage");
+                Assert.IsFalse(blue.Player.ActiveEffects.ContainsKey(dose.EffectId));
+            });
+        }
+
+        [TestMethod]
         public void PvpSafetyTurnsAnEnemyHitOnItsHolderImmune()
         {
             using var world = new WorldTestContext();
