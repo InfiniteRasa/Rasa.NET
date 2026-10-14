@@ -40,10 +40,6 @@ namespace Rasa.Structures
         public Color Hue { get; set; }
         public Color Hue2 { get; set; }
 
-        // Authored creature-row colors; both null means use the legacy random spawn behavior.
-        public uint? ConfiguredBodyHue { get; set; }
-        public uint? ConfiguredBodyHue2 { get; set; }
-
         /// <summary>
         /// Its tints for this life, chosen as it spawns: none for a FRIENDLY creature - the AFS
         /// soldiers, vendors and townsfolk, whose models have stock colours of their own that a
@@ -51,13 +47,6 @@ namespace Rasa.Structures
         /// </summary>
         internal void TintAtSpawn()
         {
-            if (ConfiguredBodyHue.HasValue && ConfiguredBodyHue2.HasValue)
-            {
-                Hue = new Color(ConfiguredBodyHue.Value);
-                Hue2 = new Color(ConfiguredBodyHue2.Value);
-                return;
-            }
-
             if (TargetCategory == TargetCategory.Friendly)
             {
                 Hue = null;
@@ -264,8 +253,6 @@ namespace Rasa.Structures
             Level = data.Level;
             MaxHitPoints = data.MaxHitPoints;
             NameId = data.NameId;
-            ConfiguredBodyHue = data.BodyHue;
-            ConfiguredBodyHue2 = data.BodyHue2;
             RunSpeed = data.RunSpeed;
             WalkSpeed = data.WalkSpeed;
         }
@@ -284,8 +271,6 @@ namespace Rasa.Structures
             MaxHitPoints = creature.MaxHitPoints;
             NameId = creature.NameId;
             ActorName = creature.ActorName;
-            ConfiguredBodyHue = creature.ConfiguredBodyHue;
-            ConfiguredBodyHue2 = creature.ConfiguredBodyHue2;
             Npc = creature.Npc;
             RunSpeed = creature.RunSpeed;
             WalkSpeed = creature.WalkSpeed;

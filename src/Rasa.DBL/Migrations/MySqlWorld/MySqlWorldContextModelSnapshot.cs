@@ -412,10 +412,6 @@ namespace Rasa.Migrations.MySqlWorld
                         .HasColumnType("int unsigned")
                         .HasColumnName("color");
 
-                    b.Property<uint?>("Hue2")
-                        .HasColumnType("int unsigned")
-                        .HasColumnName("hue2");
-
                     b.Property<uint>("Id")
                         .HasColumnType("int unsigned")
                         .HasColumnName("id");
@@ -522,14 +518,6 @@ namespace Rasa.Migrations.MySqlWorld
                     b.Property<uint>("MaxHitPoints")
                         .HasColumnType("int unsigned")
                         .HasColumnName("max_hp");
-
-                    b.Property<uint?>("BodyHue")
-                        .HasColumnType("int unsigned")
-                        .HasColumnName("body_hue");
-
-                    b.Property<uint?>("BodyHue2")
-                        .HasColumnType("int unsigned")
-                        .HasColumnName("body_hue2");
 
                     b.Property<uint>("NameId")
                         .HasColumnType("int unsigned")

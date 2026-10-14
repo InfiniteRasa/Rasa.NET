@@ -25,8 +25,5 @@ namespace Rasa.Structures.World
         [Required]
         public uint Color { get; set; }
 
-        // Null retains the historical secondary appearance hue.
-        [Column("hue2")]
-        public uint? Hue2 { get; set; }
     }
 }

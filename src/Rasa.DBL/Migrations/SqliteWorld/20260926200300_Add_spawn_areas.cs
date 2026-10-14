@@ -76,8 +76,9 @@ namespace Rasa.Migrations.SqliteWorld
                 migrationBuilder.Sql($"delete from {table} where id between {IdMin} and {IdMax};");
             }
 
-            // Avoid EF Core's unsupported DropColumnOperation on SQLite.
-            migrationBuilder.Sql($"ALTER TABLE \"{SpawnPoolEntry.TableName}\" DROP COLUMN \"radius\";");
+            migrationBuilder.DropColumn(
+                name: "radius",
+                table: SpawnPoolEntry.TableName);
         }
     }
 }

@@ -42,17 +42,6 @@ namespace Rasa.Services.Preloader
             var columnNames = columns.Select(c => c.Name)
                 .Where(name => !string.IsNullOrEmpty(name));
 
-            // These historical seed preloaders run inside the 2023 World data migration.
-            // Entity definitions now include the nullable creature editor hue fields that
-            // were added by a much later migration. The original seed rows are intentionally
-            // still 17 creature columns / 4 appearance columns; deriving today's full column
-            // list would make EF Core throw during an InsertData operation (17 != 19,
-            // or 4 != 5), before the new columns even exist in the database.
-            if (entityType == typeof(global::Rasa.Structures.World.CreatureEntry))
-                columnNames = columnNames.Where(name => name != "body_hue" && name != "body_hue2");
-            else if (entityType == typeof(global::Rasa.Structures.World.CreatureAppearanceEntry))
-                columnNames = columnNames.Where(name => name != "hue2");
-
             return columnNames.ToArray();
         }
 

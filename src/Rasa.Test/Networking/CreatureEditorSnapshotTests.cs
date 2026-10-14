@@ -78,13 +78,10 @@ namespace Rasa.Test.Networking
             using var rust = RustRoundTrip(current);
             Assert.IsTrue(IngameCreatureUpdateEndpoint.TryReadExpectedSnapshot(rust.RootElement, out var expected, out var error), error);
 
-            current.Appearance[0].Hue2 = 456;
+            current.Appearance[0].Color = 456;
             current.MaxHitPoints = 101;
-            current.BodyHue = 0x00808080;
-            current.BodyHue2 = 0x00FFFFFF;
-            current.RandomBodyHue = false;
             var changes = IngameCreatureUpdateEndpoint.ChangedEditableFields(expected, current);
-            CollectionAssert.IsSubsetOf(new[] { "appearance slot 2", "maxHitPoints", "body hues" }, changes);
+            CollectionAssert.IsSubsetOf(new[] { "appearance slot 2", "maxHitPoints" }, changes);
         }
 
         [TestMethod]

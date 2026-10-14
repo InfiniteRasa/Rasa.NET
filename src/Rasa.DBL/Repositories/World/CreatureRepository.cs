@@ -108,8 +108,6 @@ namespace Rasa.Repositories.World
             row.Action6 = creature.Action6;
             row.Action7 = creature.Action7;
             row.Action8 = creature.Action8;
-            row.BodyHue = creature.BodyHue;
-            row.BodyHue2 = creature.BodyHue2;
             _worldContext.SaveChanges();
 
             // Appearance has no EF key. Use parameterized SQL rather than tracking keyless rows.
@@ -117,7 +115,7 @@ namespace Rasa.Repositories.World
             foreach (var item in appearance)
             {
                 _worldContext.Database.ExecuteSqlInterpolated(
-                    $"INSERT INTO creature_appearance (id, slot_id, Class_id, color, hue2) VALUES ({creature.Id}, {item.SlotId}, {item.ClassId}, {item.Color}, {item.Hue2})");
+                    $"INSERT INTO creature_appearance (id, slot_id, Class_id, color) VALUES ({creature.Id}, {item.SlotId}, {item.ClassId}, {item.Color})");
             }
             // Validate the database state while the transaction is still open. The editor
             // must never report success based only on the rows it was asked to write.
@@ -132,8 +130,7 @@ namespace Rasa.Repositories.World
                 persisted.Action1 != creature.Action1 || persisted.Action2 != creature.Action2 ||
                 persisted.Action3 != creature.Action3 || persisted.Action4 != creature.Action4 ||
                 persisted.Action5 != creature.Action5 || persisted.Action6 != creature.Action6 ||
-                persisted.Action7 != creature.Action7 || persisted.Action8 != creature.Action8 ||
-                persisted.BodyHue != creature.BodyHue || persisted.BodyHue2 != creature.BodyHue2)
+                persisted.Action7 != creature.Action7 || persisted.Action8 != creature.Action8)
                 throw new System.InvalidOperationException(
                     $"Creature {creature.Id} database verification failed: creature fields differ");
 
@@ -142,7 +139,7 @@ namespace Rasa.Repositories.World
             if (persistedAppearance.Count != appearance.Count ||
                 appearance.Any(wanted => !persistedAppearance.Any(saved =>
                     saved.SlotId == wanted.SlotId && saved.ClassId == wanted.ClassId &&
-                    saved.Color == wanted.Color && saved.Hue2 == wanted.Hue2)))
+                    saved.Color == wanted.Color)))
                 throw new System.InvalidOperationException(
                     $"Creature {creature.Id} database verification failed: appearance colors or slots differ");
 

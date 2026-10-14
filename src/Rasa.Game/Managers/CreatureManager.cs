@@ -782,7 +782,7 @@ namespace Rasa.Managers
                     SlotId = (EquipmentData)row.SlotId,
                     Class = row.ClassId,
                     Color = new Color(row.Color),
-                    Hue2 = new Color(row.Hue2 ?? 2139062144)
+                    Hue2 = new Color(2139062144)
                 });
 
             var actions = new List<CreatureAction>();
@@ -797,8 +797,6 @@ namespace Rasa.Managers
             creature.NameId = data.NameId;
             creature.RunSpeed = data.RunSpeed;
             creature.WalkSpeed = data.WalkSpeed;
-            creature.ConfiguredBodyHue = data.BodyHue;
-            creature.ConfiguredBodyHue2 = data.BodyHue2;
             creature.AppearanceData = appearance;
             creature.Actions = actions;
         }
@@ -880,7 +878,7 @@ namespace Rasa.Managers
 
                 if (appearanceData != null && appearanceData.Count > 0)
                     foreach (var t in appearanceData)
-                        tempAppearanceData.Add((EquipmentData)t.SlotId, new AppearanceData { SlotId = (EquipmentData)t.SlotId, Class = t.ClassId, Color = new Color(t.Color), Hue2 = new Color(t.Hue2 ?? 2139062144) });
+                        tempAppearanceData.Add((EquipmentData)t.SlotId, new AppearanceData { SlotId = (EquipmentData)t.SlotId, Class = t.ClassId, Color = new Color(t.Color), Hue2 = new Color(2139062144) });
 
                 var creature = new Creature(data)
                 {

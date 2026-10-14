@@ -78,9 +78,9 @@ namespace Rasa.Api.Ingame
                     creature.Action7,
                     creature.Action8
                 },
-                RandomBodyHue = !creature.BodyHue.HasValue && !creature.BodyHue2.HasValue,
-                BodyHue = creature.BodyHue,
-                BodyHue2 = creature.BodyHue2,
+                RandomBodyHue = true,
+                BodyHue = null,
+                BodyHue2 = null,
                 Appearance = new List<IngameCreatureAppearance>()
             };
 
@@ -97,7 +97,7 @@ namespace Rasa.Api.Ingame
                     ClassName = appearanceClass?.ClassName ?? string.Empty,
                     MeshId = appearanceClass?.MeshId,
                     Color = row.Color,
-                    Hue2 = row.Hue2 ?? CurrentAppearanceHue2
+                    Hue2 = CurrentAppearanceHue2
                 });
             }
 

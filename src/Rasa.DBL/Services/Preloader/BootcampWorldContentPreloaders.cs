@@ -127,11 +127,7 @@ namespace Rasa.Services.Preloader
         /// </summary>
         private static readonly Dictionary<System.Type, string[]> ColumnsAddedAfterSeed = new Dictionary<System.Type, string[]>
         {
-            [typeof(SpawnPoolEntry)] = new[] { "radius" }, // 20260926200300_Add_spawn_areas
-            // SeedWorldContent (20260926190153) predates the creature-editor hue migration.
-            // Do not derive these later columns from the current entity definitions.
-            [typeof(CreatureEntry)] = new[] { "body_hue", "body_hue2" },
-            [typeof(CreatureAppearanceEntry)] = new[] { "hue2" }
+            [typeof(SpawnPoolEntry)] = new[] { "radius" } // 20260926200300_Add_spawn_areas
         };
 
         private static string[] GetColumns(System.Type entityType)

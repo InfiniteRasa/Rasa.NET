@@ -47,13 +47,6 @@ namespace Rasa.Structures.World
         [Required]
         public uint WalkSpeed { get; set; }
 
-        // Null keeps the historical server-generated spawn colors.
-        [Column("body_hue")]
-        public uint? BodyHue { get; set; }
-
-        [Column("body_hue2")]
-        public uint? BodyHue2 { get; set; }
-
         [Column("action1")]
         [Required]
         public uint Action1 { get; set; }

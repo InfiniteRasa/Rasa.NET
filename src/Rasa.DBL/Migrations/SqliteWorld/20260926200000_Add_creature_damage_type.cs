@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
 
 using JetBrains.Annotations;
 
@@ -54,8 +54,9 @@ namespace Rasa.Migrations.SqliteWorld
 
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            // Avoid EF Core's unsupported DropColumnOperation on SQLite.
-            migrationBuilder.Sql($"ALTER TABLE \"{CreatureActionEntry.TableName}\" DROP COLUMN \"damage_type\";");
+            migrationBuilder.DropColumn(
+                name: "damage_type",
+                table: CreatureActionEntry.TableName);
         }
     }
 }

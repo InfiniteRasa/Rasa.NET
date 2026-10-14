@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
 
 using JetBrains.Annotations;
 
@@ -38,9 +38,9 @@ namespace Rasa.Migrations.SqliteWorld
 
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            // Native SQLite DDL avoids EF Core's unsupported DropColumnOperation.
-            // The column is not indexed; dropping it retains all NPC greeting rows.
-            migrationBuilder.Sql($"ALTER TABLE \"{NpcGreetingEntry.TableName}\" DROP COLUMN \"important\";");
+            migrationBuilder.DropColumn(
+                name: "important",
+                table: NpcGreetingEntry.TableName);
         }
     }
 }

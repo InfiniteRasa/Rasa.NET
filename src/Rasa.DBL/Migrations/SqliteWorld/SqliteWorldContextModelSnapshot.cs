@@ -392,10 +392,6 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnType("INTEGER")
                         .HasColumnName("color");
 
-                    b.Property<uint?>("Hue2")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("hue2");
-
                     b.Property<uint>("Id")
                         .HasColumnType("INTEGER")
                         .HasColumnName("id");
@@ -500,14 +496,6 @@ namespace Rasa.Migrations.SqliteWorld
                     b.Property<uint>("MaxHitPoints")
                         .HasColumnType("INTEGER")
                         .HasColumnName("max_hp");
-
-                    b.Property<uint?>("BodyHue")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("body_hue");
-
-                    b.Property<uint?>("BodyHue2")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("body_hue2");
 
                     b.Property<uint>("NameId")
                         .HasColumnType("INTEGER")

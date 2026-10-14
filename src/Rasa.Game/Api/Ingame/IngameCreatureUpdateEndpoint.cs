@@ -106,9 +106,6 @@ namespace Rasa.Api.Ingame
             if (expected.RunSpeed != current.RunSpeed) changed.Add("runSpeed");
             if (expected.WalkSpeed != current.WalkSpeed) changed.Add("walkSpeed");
             if (!expected.Actions.SequenceEqual(current.Actions)) changed.Add("actions");
-            if (expected.RandomBodyHue != current.RandomBodyHue ||
-                expected.BodyHue != current.BodyHue || expected.BodyHue2 != current.BodyHue2)
-                changed.Add("body hues");
 
             // Appearance order and descriptive labels are not meaningful, but an
             // added/removed slot or a change in its class/colors is meaningful.
@@ -119,7 +116,7 @@ namespace Rasa.Api.Ingame
             {
                 var existing = current.Appearance.FirstOrDefault(a => a.SlotId == entry.SlotId);
                 if (existing == null || existing.ClassId != entry.ClassId ||
-                    existing.Color != entry.Color || existing.Hue2 != entry.Hue2)
+                    existing.Color != entry.Color)
                     changed.Add($"appearance slot {entry.SlotId}");
             }
             return changed;
@@ -170,13 +167,10 @@ namespace Rasa.Api.Ingame
                     return ApiResponse.Error(400, "exactly 8 action IDs are required (0 means unused)");
                 if (input.Appearance == null)
                     return ApiResponse.Error(400, "appearance must be an array");
-                if (input.RandomBodyHue)
-                {
-                    if (input.BodyHue.HasValue || input.BodyHue2.HasValue)
-                        return ApiResponse.Error(400, "random spawn colors require null bodyHue and bodyHue2");
-                }
-                else if (!input.BodyHue.HasValue || !input.BodyHue2.HasValue)
-                    return ApiResponse.Error(400, "both body hues must be supplied for manual colors");
+                // Body hues and secondary appearance hues are not persisted by the legacy schema.
+                // Reject incompatible old clients instead of silently reporting a successful save.
+                if (!input.RandomBodyHue || input.BodyHue.HasValue || input.BodyHue2.HasValue)
+                    return ApiResponse.Error(400, "Manual body hues cannot be saved without additional database columns; use server spawn coloring");
 
                 if (input.Appearance.Count > 64)
                     return ApiResponse.Error(400, "a creature may have at most 64 appearance entries");
@@ -185,6 +179,8 @@ namespace Rasa.Api.Ingame
                 {
                     if (appearance == null)
                         return ApiResponse.Error(400, "appearance entry cannot be null");
+                    if (appearance.Hue2 != CurrentAppearanceHue2)
+                        return ApiResponse.Error(400, "Secondary appearance hue cannot be saved; only appearance color is stored");
                     if (!slots.Add(appearance.SlotId))
                         return ApiResponse.Error(400, $"duplicate appearance slot {appearance.SlotId}");
                 }
@@ -234,8 +230,7 @@ namespace Rasa.Api.Ingame
                         Id = input.Id,
                         SlotId = a.SlotId,
                         ClassId = a.ClassId,
-                        Color = a.Color,
-                        Hue2 = a.Hue2
+                        Color = a.Color
                     }).ToList();
                     var updated = new CreatureEntry
                     {
@@ -255,9 +250,7 @@ namespace Rasa.Api.Ingame
                         Action5 = input.Actions[4],
                         Action6 = input.Actions[5],
                         Action7 = input.Actions[6],
-                        Action8 = input.Actions[7],
-                        BodyHue = input.RandomBodyHue ? null : input.BodyHue,
-                        BodyHue2 = input.RandomBodyHue ? null : input.BodyHue2
+                        Action8 = input.Actions[7]
                     };
                     try
                     {
@@ -269,7 +262,7 @@ namespace Rasa.Api.Ingame
                         if (error is InvalidOperationException &&
                             error.Message.Contains("database verification failed", StringComparison.Ordinal))
                             return ApiResponse.Error(500, error.Message);
-                        return ApiResponse.Error(500, "creature database save failed; check server log (including whether the creature color migration was applied)");
+                        return ApiResponse.Error(500, "creature database save failed; check server log (including schema compatibility)");
                     }
 
                     // Return a fresh DB read, not an echo of the user's payload.
