@@ -853,6 +853,11 @@ namespace Rasa.Managers
                 }
             });
 
+            // Read into a table of its own, which takes the place of the old one only once every
+            // row is in it: a reload that fails part way (.reloadcreatures) leaves the creatures
+            // that were loaded before as they were, rather than an empty or half-filled table.
+            var loaded = new Dictionary<uint, Creature>();
+
             foreach (var data in creatureList)
             {
                 var appearanceData = unitOfWork.Creatures.GetCreatureAppearances(data.Id);
@@ -985,19 +990,19 @@ namespace Rasa.Managers
                         }
                     }
                 }
-                LoadedCreatures.Add(creature.DbId, creature);
+                loaded.Add(creature.DbId, creature);
             }
 
             var npcPackages = unitOfWork.NpcPackages.Get();
             foreach (var package in npcPackages)
             {
-                if (LoadedCreatures.ContainsKey(package.Id))
+                if (loaded.TryGetValue(package.Id, out var packaged))
                 {
-                    foreach (var aug in EntityClassManager.Instance.LoadedEntityClasses[LoadedCreatures[package.Id].EntityClass].Augmentations)
+                    foreach (var aug in EntityClassManager.Instance.LoadedEntityClasses[packaged.EntityClass].Augmentations)
                     {
                         if (aug == AugmentationType.NPC)
                         {
-                            LoadedCreatures[package.Id].Npc.NpcPackageId = package.PackageId;
+                            packaged.Npc.NpcPackageId = package.PackageId;
                             break;
                         }
                     }
@@ -1010,6 +1015,8 @@ namespace Rasa.Managers
                         $"NPC package {package.PackageId} names creature {package.Id}, which is not in the database.");
                 }
             }
+
+            LoadedCreatures = loaded;
         }
 
         /// <summary>

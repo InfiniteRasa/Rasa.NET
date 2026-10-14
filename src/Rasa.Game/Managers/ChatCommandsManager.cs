@@ -3509,9 +3509,23 @@ namespace Rasa.Managers
 
         private void ReloadCreaturesCommand(string[] obj)
         {
-            CreatureManager.Instance.LoadedCreatures.Clear();
-            CreatureManager.Instance.CreatureInit();
-            CommunicatorManager.Instance.SystemMessage(_client, "Creatures Reloaded.");
+            // CreatureInit puts its new table in place only once it has read every row, so a
+            // reload that fails keeps the creatures already loaded; the GM is told so, rather than
+            // the exception going on up and taking the GM's connection with it.
+            try
+            {
+                CreatureManager.Instance.CreatureInit();
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, $".reloadcreatures failed: {e}");
+                CommunicatorManager.Instance.SystemMessage(_client,
+                    $"Creatures were not reloaded ({e.GetType().Name}: {e.Message}); the {CreatureManager.Instance.LoadedCreatures.Count} creatures loaded before are kept. See the server log.");
+
+                return;
+            }
+
+            CommunicatorManager.Instance.SystemMessage(_client, $"Creatures Reloaded ({CreatureManager.Instance.LoadedCreatures.Count}).");
         }
 
         /// <summary>
