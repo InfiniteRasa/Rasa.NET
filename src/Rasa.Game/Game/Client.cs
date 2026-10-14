@@ -294,11 +294,28 @@ namespace Rasa.Game
             Logger.WriteLog(LogType.Network, "*** Client connected from {0}", Socket.RemoteAddress);
         }
 
+        /// <summary>Reads the client's input, then sends what is queued for it.</summary>
         public void Update(long delta)
         {
-            // Nothing in this method may throw: Update() is driven by the single MainLoop
-            // thread that services every client and every manager. An escaping exception
-            // takes the whole world down, not just this connection.
+            if (ReadInput(delta))
+                SendQueued();
+        }
+
+        /// <summary>
+        /// Handles what the client has sent since the last tick. False when that closed the
+        /// connection, and there is nothing to send it.
+        ///
+        /// The main loop reads every client's input before it sends anyone anything
+        /// (Server.ServiceClients). One pass that read a client and then sent its queue
+        /// sent it before the clients after it in the list had been read: whatever those did to
+        /// it - a move, a shot, a hit, a chat line - waited for the next tick, 100 ms, every
+        /// time, for every pair of players one way round.
+        /// </summary>
+        internal bool ReadInput(long delta)
+        {
+            // Nothing in this method may throw: it is driven by the single MainLoop thread that
+            // services every client and every manager. An escaping exception takes the whole
+            // world down, not just this connection.
             try
             {
                 DrainPendingChunks();
@@ -308,7 +325,7 @@ namespace Rasa.Game
                 {
                     Logger.WriteLog(LogType.Security, $"Client {Socket.RemoteAddress} has {_incomingDataQueue.Length} bytes of unread input (limit {MaxPendingBytes}), disconnecting.");
                     Close();
-                    return;
+                    return false;
                 }
 
                 var closed = false;
@@ -335,7 +352,7 @@ namespace Rasa.Game
                 });
 
                 if (closed)
-                    return;
+                    return false;
             }
             catch (Exception e)
             {
@@ -343,9 +360,15 @@ namespace Rasa.Game
                 // try above never sees.
                 Logger.WriteLog(LogType.Error, $"Error decoding packet stream from {Socket.RemoteAddress}, disconnecting client: {e}");
                 Close();
-                return;
+                return false;
             }
 
+            return true;
+        }
+
+        /// <summary>Everything queued for the client, to its socket. Like ReadInput, it does not throw.</summary>
+        internal void SendQueued()
+        {
             try
             {
                 IBasePacket packet;

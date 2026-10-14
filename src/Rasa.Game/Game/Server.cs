@@ -75,6 +75,9 @@ namespace Rasa.Game
 
         private readonly List<Client> _clientsToRemove = new List<Client>();
 
+        /// <summary>The clients whose input this tick has read, to be sent their queues; the main loop's alone.</summary>
+        private readonly List<Client> _readThisTick = new List<Client>();
+
         /// <summary>
         /// Accounts Auth has reported as banned while this process was connected to it. Auth refuses
         /// a locked account at login, so this only has to cover players who were already past that
@@ -260,6 +263,66 @@ namespace Rasa.Game
         }
         #endregion
 
+        /// <summary>
+        /// Every client's input, and then every client's queue (Client.ReadInput): what a client
+        /// does reaches the others in the tick it was done, whichever of them comes first in the
+        /// list. A client whose transfer has run out is dropped, and neither read nor sent to.
+        /// </summary>
+        internal static void ServiceClients(List<Client> clients, List<Client> readThisTick, long delta)
+        {
+            readThisTick.Clear();
+
+            foreach (var client in clients)
+            {
+                if (client.PendingTransfer != null &&
+                    MapChannelManager.Instance.CheckTransferTimeout(client))
+                    continue;
+
+                // Client.ReadInput and SendQueued guard their own work and disconnect the client
+                // that threw. This is for the rest of it - Close(), the socket, the packet queue -
+                // so a fault in one connection cannot leave every client after it in the list
+                // frozen for the tick.
+                try
+                {
+                    if (client.ReadInput(delta))
+                        readThisTick.Add(client);
+                }
+                catch (Exception e)
+                {
+                    CloseFaulted(client, e);
+                }
+            }
+
+            foreach (var client in readThisTick)
+            {
+                try
+                {
+                    client.SendQueued();
+                }
+                catch (Exception e)
+                {
+                    CloseFaulted(client, e);
+                }
+            }
+
+            readThisTick.Clear();
+        }
+
+        /// <summary>A client whose servicing threw past its own guards: logged and closed, and the tick goes on to the next.</summary>
+        private static void CloseFaulted(Client client, Exception e)
+        {
+            Logger.WriteLog(LogType.Error, $"Error updating client {client.Socket?.RemoteAddress}, disconnecting it: {e}");
+
+            try
+            {
+                client.Close(false);
+            }
+            catch (Exception inner)
+            {
+                Logger.WriteLog(LogType.Error, $"And closing it threw as well: {inner}");
+            }
+        }
+
         public void Disconnect(Client client)
         {
             lock (_clientsToRemove)
@@ -337,34 +400,7 @@ namespace Rasa.Game
                     Logger.WriteLog(LogType.Error, $"Error in the map channel worker: {e}");
                 }
 
-                foreach (var client in Clients)
-                {
-                    if (client.PendingTransfer != null &&
-                        MapChannelManager.Instance.CheckTransferTimeout(client))
-                        continue;
-
-                    // Client.Update guards its own handlers and disconnects the client that
-                    // threw. This is for the rest of it - Close(), the socket, the packet
-                    // queue - so a fault in one connection cannot leave every client after it
-                    // in the list frozen for the tick.
-                    try
-                    {
-                        client.Update(delta);
-                    }
-                    catch (Exception e)
-                    {
-                        Logger.WriteLog(LogType.Error, $"Error updating client {client.Socket?.RemoteAddress}, disconnecting it: {e}");
-
-                        try
-                        {
-                            client.Close(false);
-                        }
-                        catch (Exception inner)
-                        {
-                            Logger.WriteLog(LogType.Error, $"And closing it threw as well: {inner}");
-                        }
-                    }
-                }
+                ServiceClients(Clients, _readThisTick, delta);
 
                 if (_clientsToRemove.Count > 0)
                 {
