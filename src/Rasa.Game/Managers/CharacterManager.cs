@@ -140,12 +140,13 @@ namespace Rasa.Managers
 
             client.State = ClientState.CharacterSelection;
 
-            // get userOptions
-            var optionsList = unitOfWork.UserOptions.Get(client.AccountEntry.Id);
+            // The account's options, as saved. In place of what the connection held, not added
+            // to it: a logout comes back here on the same connection, and each visit used to
+            // append another copy of every option, all of them sent again below.
+            client.UserOptions = unitOfWork.UserOptions.Get(client.AccountEntry.Id)
+                .Select(userOption => new UserOptions((UserOption)userOption.OptionId, userOption.Value))
+                .ToList();
 
-            foreach (var userOption in optionsList)
-                client.UserOptions.Add(new UserOptions((UserOption)userOption.OptionId, userOption.Value));
-            
             client.CallMethod(SysEntity.ClientMethodId, new UserOptionsPacket(client.UserOptions));
         }
 
