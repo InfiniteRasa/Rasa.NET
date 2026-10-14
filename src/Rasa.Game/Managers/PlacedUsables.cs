@@ -108,6 +108,15 @@ namespace Rasa.Managers
         /// <summary>How long after a blast a random explosion's state effect is put back.</summary>
         public const long RearmMs = 3000;
 
+        /// <summary>
+        /// How late a random explosion may be and still go off. Later than this, its map was not
+        /// being worked - the map workers run only while someone is on it - and every explosion on
+        /// it that came due meanwhile would go off in the same tick, so it is given a new place in
+        /// its cycle instead (<see cref="Worker"/>). Ours: a map that is worked is late by a tick
+        /// (Server.MainLoopTime, 100 ms) or by a slow pass, not by seconds.
+        /// </summary>
+        public const long MissedMs = 5000;
+
         /// <summary>OBJ_DAMAGE's args (actiondata).</summary>
         public const uint ExplosionSmall = 1, ExplosionLarge = 2, Lightning = 3, Mine = 4, BombBlast = 5, Geyser = 6, Hornito = 7;
 
@@ -804,6 +813,14 @@ namespace Rasa.Managers
 
                 if (now >= live.NextBlastAt)
                 {
+                    // Missed while the map stood empty: somewhere in its next longest wait, as
+                    // each of the others is, rather than all of them at once as someone arrives.
+                    if (now - live.NextBlastAt > MissedMs)
+                    {
+                        live.NextBlastAt = now + Math.Clamp(Roll(0, placement.IntervalMaxMs), 0, placement.IntervalMaxMs);
+                        continue;
+                    }
+
                     Show(live, UseObjectState.ReState0, 0);
                     Blast(live);
                     live.RearmAt = now + RearmMs;
