@@ -913,7 +913,7 @@ namespace Rasa.Test.Missions
                 clanLockboxLogs: new ClanLockboxLogRepository(context),
                 friends: new FriendRepository(context),
                 ignoreds: new IgnoredRepository(context),
-                items: new ItemRepository(context), petitions: null, userOptions: null);
+                items: new ItemRepository(context), petitions: new Rasa.Repositories.Char.Petition.PetitionRepository(context), userOptions: null);
         }
 
         internal void ResetCharUnitCount() => _charUnitsCreated = 0;

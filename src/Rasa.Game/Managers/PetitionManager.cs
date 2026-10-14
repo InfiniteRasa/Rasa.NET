@@ -338,13 +338,31 @@ namespace Rasa.Managers
             if (!unitOfWork.Petitions.SetPetitionStatus(id, (byte)PetitionStatus.Resolved, Clamp(resolution, MaxSummaryLength)))
                 return false;
 
-            var author = Server.Clients.FirstOrDefault(
-                c => c.State == ClientState.Ingame && c.AccountEntry?.Id == petition.AccountId);
+            // The console runs on its own thread, and the main loop adds to and takes from the
+            // client list every tick: walked without its lock, as every other walk of it takes,
+            // the search could throw "Collection was modified" after the petition was already
+            // marked resolved, so the console reported a failure and the player was never told.
+            Client author;
 
-            if (author != null)
+            lock (Server.Clients)
+                author = Server.Clients.FirstOrDefault(
+                    c => c != null && c.State == ClientState.Ingame && c.AccountEntry?.Id == petition.AccountId);
+
+            if (author == null)
+                return true;
+
+            // Resolved whatever happens to the message: a connection closing under it is not a
+            // reason to report the petition as unresolved.
+            try
+            {
                 CommunicatorManager.Instance.SystemMessage(author,
                     $"Your petition #{id} has been answered"
                     + (string.IsNullOrWhiteSpace(resolution) ? "." : $": {Clamp(resolution, MaxSummaryLength)}"));
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, $"Petition #{id} is resolved, but its author could not be told: {e.Message}");
+            }
 
             return true;
         }
