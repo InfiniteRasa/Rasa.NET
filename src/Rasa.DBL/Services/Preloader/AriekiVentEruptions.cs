@@ -34,6 +34,13 @@ namespace Rasa.Services.Preloader
         public const uint DamageMin = 50, DamageMax = 100;
         public const double Radius = 6;
 
+        /// <summary>The id the migration first had, 20261223000000, which Random_name_quotes shares.</summary>
+        public const string OldId = "20261223000000_Arieki_vent_eruptions";
+
+        /// <summary>The history row a World that ran it under OldId still has.</summary>
+        public static readonly string ForgetOldId =
+            $"DELETE FROM __EFMigrationsHistory WHERE MigrationId = '{OldId}';";
+
         private const bool Geyser = true, Hornito = false;
 
         /// <summary>Row id, map, which, the vent's position, the shortest and longest wait in seconds, the vent's .map entity id and class.</summary>

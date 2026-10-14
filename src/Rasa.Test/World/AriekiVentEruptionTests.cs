@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -23,7 +24,7 @@ namespace Rasa.Test.World
     public class AriekiVentEruptionTests
     {
         private const string Before = "20261222000000_Boss_weapons";
-        private const string Migration = "20261223000000_Arieki_vent_eruptions";
+        private const string Migration = "20261225000000_Arieki_vent_eruptions";
 
         private static readonly Dictionary<uint, int> HornitosByMap = new()
         {
@@ -108,6 +109,31 @@ namespace Rasa.Test.World
                 PlacedUsables.Load(null);
                 PlacedUsables.Reset();
             }
+        }
+
+        // A World that ran it as 20261223000000_Arieki_vent_eruptions, the timestamp
+        // Random_name_quotes has: it runs again under its own, its rows are put in once, and the
+        // old row goes.
+        [TestMethod]
+        public void AWorldThatRanItUnderTheOldIdEndsWithEachRowOnceAndOnlyTheNewHistoryRow()
+        {
+            using var database = new OrdinaryLootTestDatabase();
+            var migrator = database.Context.GetService<IMigrator>();
+
+            migrator.Migrate();
+            database.Context.Database.ExecuteSqlRaw(
+                $"DELETE FROM __EFMigrationsHistory WHERE MigrationId = '{Migration}'; " +
+                $"INSERT INTO __EFMigrationsHistory (MigrationId, ProductVersion) VALUES ('{AriekiVentEruptions.OldId}', '9.0.20');");
+
+            CollectionAssert.Contains(database.Context.Database.GetPendingMigrations().ToList(), Migration);
+
+            migrator.Migrate();
+
+            Assert.AreEqual(308L, database.Context.Database.SqlQueryRaw<long>(
+                $"SELECT COUNT(*) AS Value FROM world_usable WHERE id BETWEEN {AriekiVentEruptions.FirstId} AND {AriekiVentEruptions.LastId}").Single());
+            var history = database.Context.Database.GetAppliedMigrations().ToList();
+            CollectionAssert.Contains(history, Migration);
+            CollectionAssert.DoesNotContain(history, AriekiVentEruptions.OldId);
         }
 
         [TestMethod]

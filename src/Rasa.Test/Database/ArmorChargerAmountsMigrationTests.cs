@@ -12,7 +12,7 @@ namespace Rasa.Test.Database
     [TestClass]
     public class ArmorChargerAmountsMigrationTests
     {
-        private const string Migration = "20261223000000_Armor_charger_amounts";
+        private const string Migration = "20261224000000_Armor_charger_amounts";
         private const string Previous = "20261222000000_Boss_weapons";
 
         /// <summary>Each class's total over its 10 seconds, from its item text.</summary>
@@ -53,6 +53,30 @@ namespace Rasa.Test.Database
             migrator.Migrate(Previous);
             Assert.AreEqual(680, Amount(database, 6, ArmorChargerAmounts.HealAmountMin));
             Assert.AreEqual(1050, Amount(database, 7, ArmorChargerAmounts.HealAmountMin));
+        }
+
+        // A World that ran it as 20261223000000_Armor_charger_amounts, the timestamp
+        // Random_name_quotes has: it runs again under its own, changes nothing, and the old row goes.
+        [TestMethod]
+        public void AWorldThatRanItUnderTheOldIdKeepsItsAmountsAndOnlyTheNewHistoryRow()
+        {
+            using var database = new OrdinaryLootTestDatabase();
+            var migrator = database.Context.GetService<IMigrator>();
+
+            migrator.Migrate();
+            database.Context.Database.ExecuteSqlRaw(
+                $"DELETE FROM __EFMigrationsHistory WHERE MigrationId = '{Migration}'; " +
+                $"INSERT INTO __EFMigrationsHistory (MigrationId, ProductVersion) VALUES ('{ArmorChargerAmounts.OldId}', '9.0.20');");
+
+            CollectionAssert.Contains(database.Context.Database.GetPendingMigrations().ToList(), Migration);
+
+            migrator.Migrate();
+
+            Assert.AreEqual(440, Amount(database, 6, ArmorChargerAmounts.HealAmountMin));
+            Assert.AreEqual(680, Amount(database, 7, ArmorChargerAmounts.HealAmountMax));
+            var history = database.Context.Database.GetAppliedMigrations().ToList();
+            CollectionAssert.Contains(history, Migration);
+            CollectionAssert.DoesNotContain(history, ArmorChargerAmounts.OldId);
         }
 
         private static long Amount(OrdinaryLootTestDatabase database, int level, uint property) =>

@@ -26,6 +26,13 @@ namespace Rasa.Services.Preloader
 
         public static string[] Down => Statements(up: false);
 
+        /// <summary>The id the migration first had, 20261223000000, which Random_name_quotes shares.</summary>
+        public const string OldId = "20261223000000_Armor_charger_amounts";
+
+        /// <summary>The history row a World that ran it under OldId still has.</summary>
+        public static readonly string ForgetOldId =
+            $"DELETE FROM __EFMigrationsHistory WHERE MigrationId = '{OldId}';";
+
         private static string[] Statements(bool up)
         {
             var statements = new string[Corrections.Length];
