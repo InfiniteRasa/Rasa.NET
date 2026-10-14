@@ -257,6 +257,9 @@ namespace Rasa.Managers
             /// <summary>When "claiming" was last told to the match for this point (<see cref="Now"/>); 0 if it never was. See ControlPoints.ClaimAnnounceGapMs.</summary>
             public long ClaimAnnouncedAt { get; set; }
 
+            /// <summary>The team that announcement named.</summary>
+            public uint ClaimAnnouncedFor { get; set; }
+
             public uint Id => Source.Id;
             public string Name => Source.Name;
         }
@@ -1213,14 +1216,18 @@ namespace Rasa.Managers
             if (member == null)
                 return;
 
-            // Not more than once in ControlPoints.ClaimAnnounceGapMs per point: a use can be
-            // begun as often as the player likes, and each one told the whole match.
-            var now = Now();
+            // Not more than once in ControlPoints.ClaimAnnounceGapMs per point and team: a use can
+            // be begun as often as the player likes, and each one told the whole match. The other
+            // team starting on it inside the gap is told, as it was not when the gap was the
+            // point's alone (ControlPoints.MayAnnounceClaim).
+            var at = point.ClaimAnnouncedAt;
+            var by = point.ClaimAnnouncedFor;
 
-            if (point.ClaimAnnouncedAt != 0 && now - point.ClaimAnnouncedAt < ControlPoints.ClaimAnnounceGapMs)
+            if (!ControlPoints.MayAnnounceClaim(ref at, ref by, member.Team, Now()))
                 return;
 
-            point.ClaimAnnouncedAt = now;
+            point.ClaimAnnouncedAt = at;
+            point.ClaimAnnouncedFor = by;
 
             Tell(match, PlayerMessage.PmControlpointClaiming, ("faction", TeamName(member.Team)), ("cpName", point.Name));
         }
