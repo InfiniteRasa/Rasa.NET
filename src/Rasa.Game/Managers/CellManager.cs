@@ -376,16 +376,6 @@ namespace Rasa.Managers
             mapChannel.MapCellInfo.Cells[cellMatrix[2, 2]].DynamicObjectList.Remove(dynObject);
         }
 
-        public void RemoveFromWorld(MapChannel mapChannel, ulong entityId)
-        {
-            if (entityId == 0)
-                return;
-
-            DynamicObjectManager.Instance.CellDiscardDynamicObjectToClients(entityId,
-                mapChannel.ClientList.Where(client => client?.Player?.MapChannel == mapChannel &&
-                    client.State != ClientState.Disconnected).Distinct().ToList());
-        }
-
         public uint GetCellSeed(Vector3 position)
         {
             if (!TryGetCellCoordinates(position, out var cellPosX, out var cellPosZ))

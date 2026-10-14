@@ -3514,22 +3514,90 @@ namespace Rasa.Managers
             CommunicatorManager.Instance.SystemMessage(_client, "Creatures Reloaded.");
         }
 
+        /// <summary>
+        /// .removeobj &lt;entityId&gt;: takes a creature or a plain object off your map, on the server
+        /// and for everyone who can see it (<see cref="RemoveFromMap"/>). It used to send every
+        /// client on the map a destroy for whatever id it was given and remove nothing: the entity
+        /// went on in the cells, its workers and its spawn pool, and came back for anyone who
+        /// next walked into its cells.
+        /// </summary>
         private void RemoveObjectCommand(string[] parts)
         {
-            if (parts.Length == 1)
+            if (parts.Length != 2 || !ulong.TryParse(parts[1], out var entityId) || entityId == 0)
             {
                 SendCommandUsage(".removeobj");
                 return;
             }
-            if (parts.Length == 2)
+
+            CommunicatorManager.Instance.SystemMessage(_client, RemoveFromMap(_client.Player.MapChannel, entityId));
+        }
+
+        /// <summary>
+        /// What .removeobj does with an id, and what it tells the GM.
+        ///
+        ///  - A creature on the map goes as a corpse taken away does (MapReset.Remove): out of the
+        ///    cells and the entity tables, with whatever it was holding. One of a spawn pool that
+        ///    was alive is counted as having died first, so the pool spawns its place again.
+        ///  - An object on the map goes out of the cells and the entity tables
+        ///    (CellManager.RemoveFromWorld) and off the map's object list. Only a plain one: an
+        ///    object of a kind some system keeps - a control point, a teleporter, a waypoint, a
+        ///    crafting station, a dropship, a placed field or emitter and the rest - would be left
+        ///    held by it, and is refused with its kind named.
+        ///  - Anything else - a player, an item, an id nothing has, one on another map - is
+        ///    refused, and nothing is sent.
+        /// </summary>
+        internal static string RemoveFromMap(MapChannel map, ulong entityId)
+        {
+            var entities = EntityManager.Instance;
+
+            if (map == null)
+                return "You are not on a map.";
+
+            if (entities.Creatures.TryGetValue(entityId, out var creature))
             {
-                if (ulong.TryParse(parts[1], out var entityId))
+                if (!MapInstanceScope.Contains(map, creature))
+                    return $"Creature {entityId} is not on your map.";
+
+                // Dead, it was counted out of its pool's living when it died.
+                if (creature.State != CharacterState.Dead && creature.SpawnPool != null)
                 {
-                    CellManager.Instance.RemoveFromWorld(_client.Player.MapChannel, entityId);
-                    CommunicatorManager.Instance.SystemMessage(_client, $"Removed object EntityId = {entityId}");
+                    SpawnPoolManager.Instance.DecreaseAliveCreatureCount(map, creature.SpawnPool);
+                    SpawnPoolManager.Instance.IncreaseDeadCreatureCount(creature.SpawnPool);
                 }
+
+                MapReset.Remove(map, creature);
+                return $"Removed creature {entityId} ({creature.Name}).";
             }
-            return;
+
+            if (entities.TryGetObject(entityId, out var obj))
+            {
+                if (!MapInstanceScope.Contains(map, obj))
+                    return $"Object {entityId} is not on your map.";
+
+                var kind = obj switch
+                {
+                    Dropship => "a dropship",
+                    Logos => "a logos",
+                    _ when (int)obj.DynamicObjectType != 0 => $"a {obj.DynamicObjectType}",
+                    _ when map.ControlPoints.ContainsValue(obj) || map.FootLockers.ContainsValue(obj) ||
+                           map.Teleporters.ContainsValue(obj) || map.Kraftwerks.ContainsValue(obj) => "kept by its map",
+                    _ => null
+                };
+
+                if (kind != null)
+                    return $"Object {entityId} is {kind}, which its own system keeps; .removeobj takes only creatures and plain objects.";
+
+                map.DynamicObjects.Remove(obj);
+                CellManager.Instance.RemoveFromWorld(map, obj);
+                return $"Removed object {entityId}.";
+            }
+
+            return entities.GetEntityType(entityId) switch
+            {
+                EntityType.Character => $"{entityId} is a player; .removeobj takes only creatures and plain objects.",
+                EntityType.Item => $"{entityId} is an item; .removeobj takes only creatures and plain objects.",
+                _ => $"Nothing has entity id {entityId}."
+            };
         }
 
         /// <summary>
