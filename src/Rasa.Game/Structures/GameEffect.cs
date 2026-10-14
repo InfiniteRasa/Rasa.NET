@@ -396,6 +396,12 @@ namespace Rasa.Structures
         public int TickHealMin { get; set; }
         public int TickHealMax { get; set; }
 
+        /// <summary>
+        /// What the tick's healing restores in place of health: Armor or Power, for a charger
+        /// (AbilityManager.AttachRestoreKit). Null for health.
+        /// </summary>
+        public Attributes? TickRestores { get; set; }
+
         /// <summary>Adrenaline given to the holder on each tick; 0 for none.</summary>
         public int TickAdrenaline { get; set; }
 

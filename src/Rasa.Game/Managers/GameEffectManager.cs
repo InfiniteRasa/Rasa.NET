@@ -830,7 +830,11 @@ namespace Rasa.Managers
             if (effect.TickHealMax > 0)
             {
                 var amount = AbilityManager.Scale(effect.SourceLevel, _random.Next(effect.TickHealMin, effect.TickHealMax + 1), effect.TickScaleType);
-                healed = ActorManager.Instance.Heal(actor, amount, effect.SourceId);
+
+                // A charger's: armour or power, which its client class adds to the bar from the tick.
+                healed = effect.TickRestores is { } attribute
+                    ? ActorManager.Restore(actor, attribute, amount)
+                    : ActorManager.Instance.Heal(actor, amount, effect.SourceId);
             }
 
             if (effect.TickAdrenaline > 0)

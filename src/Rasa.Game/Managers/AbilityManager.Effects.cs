@@ -86,6 +86,16 @@ namespace Rasa.Managers
                     Hit(recovery, player);
                     break;
 
+                case RestoreKitModule:
+                    AttachRestoreKit(mapChannel, player, info);
+                    Hit(recovery, player);
+                    break;
+
+                case AdrenalineBoosterModule:
+                    BoostAdrenaline(client, player, info);
+                    Hit(recovery, player);
+                    break;
+
                 case "abilities.rage":
                     AttachRage(mapChannel, player, info);
                     Hit(recovery, player);

@@ -273,6 +273,29 @@ namespace Rasa.Managers
         }
 
         /// <summary>
+        /// Restores armour or power, up to the bar's maximum, as a charger's tick does
+        /// (AbilityManager.AttachRestoreKit); nothing for the dead. Returns what was added. No
+        /// update goes out: the tick carries the amount, and the client's RestoreOverTime adds it
+        /// to the bar itself (DelayedAttributeChange), so an update as well would count it twice.
+        /// </summary>
+        public static int Restore(Actor target, Attributes attribute, int amount)
+        {
+            if (target == null || amount <= 0 || target.State == CharacterState.Dead)
+                return 0;
+
+            if (!target.Attributes.TryGetValue(attribute, out var bar))
+                return 0;
+
+            var applied = Math.Min(amount, bar.CurrentMax - bar.Current);
+
+            if (applied <= 0)
+                return 0;
+
+            bar.Current += applied;
+            return applied;
+        }
+
+        /// <summary>
         /// "Immune" over the target for everyone around (GameEffectAttachFailed, IMMUNE, which the
         /// client turns into COMBAT_IMMUNE_ANNOUNCED): a hit it does not take, for a caller with no
         /// hit record of its own to carry wasImmune.

@@ -104,7 +104,7 @@ namespace Rasa.Managers
             "abilities.selfdestruct", "abilities.scatterbombs", "abilities.calledshot", "abilities.feedback",
             "abilities.reflection", "abilities.conversion", "abilities.corpseexplode", "abilities.cure",
             "abilities.cloakwave", "abilities.tacticalevasion", "abilities.traitor", "abilities.hack", "abilities.mindcontrol",
-            "abilities.medpack"
+            "abilities.medpack", RestoreKitModule, AdrenalineBoosterModule
         };
 
         /// <summary>
@@ -364,6 +364,13 @@ namespace Rasa.Managers
             if (RezTraumaKitRefusal(player, action) is { } kitRefusal)
             {
                 Fail(client, actionId, level, kitRefusal);
+                return;
+            }
+
+            // An Adrenaline Booster on a full bar (AdrenalShotAction.CheckAction), or one that would add nothing.
+            if (AdrenalineBoosterRefusal(player, action, info) is { } boosterRefusal)
+            {
+                Fail(client, actionId, level, boosterRefusal);
                 return;
             }
 
@@ -1212,6 +1219,10 @@ namespace Rasa.Managers
             // A Rez Trauma that ran out during the windup leaves the kit unspent.
             if (_actions.TryGetValue(action.ActionId, out var landing) && RezTraumaKitRefusal(player, landing) is { } kitRefusal)
                 return kitRefusal;
+
+            // As does a bar that filled during it, for an Adrenaline Booster.
+            if (landing != null && AdrenalineBoosterRefusal(player, landing, info) is { } boosterRefusal)
+                return boosterRefusal;
 
             // A sustained ability pays through its drain rather than up front, so all it needs
             // is something left in the tank - the same test the request makes.
