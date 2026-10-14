@@ -74,6 +74,9 @@ namespace Rasa.Managers
         private sealed class BuyoutResult
         {
             internal PlayerMessage? FailureMessage { get; init; }
+
+            /// <summary>Refused because the auction had run out: it is to be sent back now.</summary>
+            internal AuctionEntry RunOut { get; init; }
             internal AuctionEntry Auction { get; init; }
             internal Client Seller { get; init; }
             internal int BuyerCredits { get; init; }
@@ -204,6 +207,11 @@ namespace Rasa.Managers
             if (result.FailureMessage.HasValue)
             {
                 BuyoutFailed(client, packet.ItemId, result.FailureMessage.Value);
+
+                // Run out and not yet swept: back to its seller now, not at the next sweep.
+                if (result.RunOut != null)
+                    ExpireAll(new List<AuctionEntry> { result.RunOut });
+
                 return;
             }
 
@@ -294,6 +302,7 @@ namespace Rasa.Managers
             Item item)
         {
             AuctionEntry auction = null;
+            AuctionEntry runOut = null;
             Client seller = null;
             var buyerAfter = 0;
             var sellerAfter = 0;
@@ -314,6 +323,15 @@ namespace Rasa.Managers
                     if (auction.SellerId == client.Player.Id)
                         throw new BuyoutRejection(
                             PlayerMessage.PmAuctionCannotPurchaseOwnItem);
+
+                    // Past its duration it is the seller's again, whether or not the sweep has
+                    // been round: as one already swept would be, it is not to be found.
+                    if (auction.HasRunOut(DateTime.UtcNow))
+                    {
+                        runOut = auction;
+                        throw new BuyoutRejection(
+                            PlayerMessage.PmAuctionItemNotFound);
+                    }
 
                     if (packet.Price != auction.Price)
                         throw new BuyoutRejection(
@@ -402,7 +420,8 @@ namespace Rasa.Managers
             {
                 return new BuyoutResult
                 {
-                    FailureMessage = rejection.FailureMessage
+                    FailureMessage = rejection.FailureMessage,
+                    RunOut = runOut
                 };
             }
             catch (Exception error) when (
@@ -730,11 +749,20 @@ namespace Rasa.Managers
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
             var now = DateTime.UtcNow;
             var matches = new List<(AuctionEntry Auction, Item Item, int Level)>();
+            var runOut = new List<AuctionEntry>();
 
             foreach (var auction in unitOfWork.Auctions.GetAuctions())
             {
                 if (auction.SellerId == client.Player.Id)
                     continue;               // the browse tab is for other people's auctions
+
+                // Past its duration it is no longer for sale, though the sweep may not have
+                // sent it back yet; it goes back once this search is answered.
+                if (auction.HasRunOut(now))
+                {
+                    runOut.Add(auction);
+                    continue;
+                }
 
                 var item = FindAuctionedItem(auction, unitOfWork);
 
@@ -758,6 +786,7 @@ namespace Rasa.Managers
             if (matches.Count == 0)
             {
                 QueryFailed(client, PlayerMessage.PmAuctionNoResultsFound);
+                ExpireAll(runOut);
                 return;
             }
 
@@ -818,6 +847,7 @@ namespace Rasa.Managers
                     $"Auction search by {client.Player.FamilyName} matched {matches.Count} auctions in {AuctionCategory.Names[packet.CategoryId]}; the {reply.AuctionItemList.Count} cheapest fit the reply.");
 
             client.CallMethod(SysEntity.ClientAuctionHouseManagerId, reply);
+            ExpireAll(runOut);
         }
 
         /// <summary>
@@ -926,7 +956,7 @@ namespace Rasa.Managers
 
             foreach (var auction in auctions)
             {
-                if (auction.RemainingHours(now) > 0)
+                if (!auction.HasRunOut(now))
                     continue;
 
                 try
@@ -986,7 +1016,7 @@ namespace Rasa.Managers
                 {
                     var auction = unitOfWork.Auctions.GetAuctionByItemId(itemId);
                     if (auction == null ||
-                        auction.RemainingHours(DateTime.UtcNow) > 0)
+                        !auction.HasRunOut(DateTime.UtcNow))
                         return;
 
                     var accountId = AccountOf(auction.SellerId, unitOfWork);

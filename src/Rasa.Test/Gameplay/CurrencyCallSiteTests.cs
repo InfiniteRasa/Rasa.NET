@@ -200,8 +200,10 @@ namespace Rasa.Test.Gameplay
         }
 
         [TestMethod]
-        public void AuctionBuyoutWinningExpiryRaceKeepsItemWithBuyerAndPaysSellerOnce()
+        public void AuctionBuyoutOfARunOutAuctionRacingExpiryReturnsItemOnceWithoutCharging()
         {
+            // Run out, the buyout is refused, and sends the auction back itself; the sweep that
+            // starts while it is doing so waits for it, and finds nothing left to do.
             using var context = CreateAuctionRace(out var item, out var seller);
             ExpireAuction(context, item);
             var manager = CreateAuctionManager(context);
@@ -219,19 +221,18 @@ namespace Rasa.Test.Gameplay
             };
 
             var buyout = Task.Run(() => Buyout(manager, context.Client, item));
-            Assert.IsTrue(saveEntered.Wait(5000), "Buyout did not reach its transaction.");
+            Assert.IsTrue(saveEntered.Wait(5000), "The refused buyout did not reach the auction's return.");
             var expiry = Task.Run(() =>
             {
                 expiryStarted.Set();
                 manager.ExpireAuctions();
             });
             Assert.IsTrue(expiryStarted.Wait(5000), "Expiry did not start.");
-            Assert.IsFalse(expiry.Wait(100), "Expiry crossed the in-progress buyout.");
+            Assert.IsFalse(expiry.Wait(100), "Expiry crossed the in-progress return.");
             releaseSave.Set();
             Task.WaitAll(buyout, expiry);
 
-            AssertBoughtExactlyOnce(context, item);
-            Assert.AreEqual(0, seller.Player.Inventory.InboxItems.Count);
+            AssertReturnedWithoutBuyout(context, item, InventoryType.InboxInventory);
             Assert.AreEqual(0, seller.Player.Inventory.PersonalInventory.Count(id => id == item.EntityId));
         }
 
