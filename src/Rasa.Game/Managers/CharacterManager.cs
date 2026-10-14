@@ -508,12 +508,16 @@ namespace Rasa.Managers
         #region Name changes
 
         /// <summary>
-        /// Names the client will accept, from PM_NAME_TOO_SHORT, PM_NAME_TOO_LONG and
-        /// PM_NAME_FORMAT_INVALID: "Your name must start with a capital letter, contain only
-        /// letters, and must not contain letters repeated more than twice in a row", 3 to 20
-        /// characters.
+        /// Names the server takes: from PM_NAME_FORMAT_INVALID, "Your name must start with a
+        /// capital letter, contain only letters, and must not contain letters repeated more than
+        /// twice in a row", and PM_NAME_TOO_LONG, at most 20 characters.
+        ///
+        /// At least 2, where PM_NAME_TOO_SHORT says 3: the random names the character creation
+        /// screen hands out (player_random_name) include An, Ed, Li, My and Xu, which a minimum of
+        /// 3 offered and then refused. The client itself checks only that a name is not empty, so
+        /// a one-letter name is still told "no shorter than 3 characters".
         /// </summary>
-        public const int MinNameLength = 3;
+        public const int MinNameLength = 2;
         public const int MaxNameLength = 20;
 
         /// <summary>/changefirstname: renames the character the player is on.</summary>
