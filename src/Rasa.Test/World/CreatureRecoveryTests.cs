@@ -164,6 +164,32 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void ACreaturePutHomeWhenItsRunTimesOutStandsThereAsFarAsTheServerKnows()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 30);
+            var creature = Spawn(world, x: 0, maxHealth: 1000);
+            creature.Position = new Vector3(20, 0, 0);
+
+            // Its last step was a run.
+            creature.Controller.LastMovement = new Rasa.Models.Movement(creature.Position, 5f, 0x08, new Vector2(0f, 0f));
+            Assert.IsTrue(ToHit.IsMoving(creature));
+
+            BehaviorManager.Instance.Leash(world.Map, creature);
+            creature.Controller.ActionReturning.Elapsed = creature.Controller.ActionReturning.TimeoutMs;
+            WorldTestContext.Drain(watcher);
+
+            BehaviorManager.Instance.MapChannelThink(world.Map, Tick);
+
+            Assert.AreEqual(0f, creature.Position.X, 0.01f, "put home");
+            Assert.AreEqual(0f, creature.Controller.LastMovement.Velocity);
+            Assert.AreEqual(creature.Position, creature.Controller.LastMovement.Position);
+            Assert.IsFalse(ToHit.IsMoving(creature), "a shot at it takes no moving penalty");
+            Assert.IsTrue(WorldTestContext.Drain(watcher).Select(packet => packet.Message).OfType<MoveObjectMessage>()
+                .Any(move => move.EntityId == creature.EntityId && move.Movement.Velocity == 0f), "and the clients are told it stands there");
+        }
+
+        [TestMethod]
         public void AStrikeOrAStepPutsTheStallClockBack()
         {
             using var world = new WorldTestContext();

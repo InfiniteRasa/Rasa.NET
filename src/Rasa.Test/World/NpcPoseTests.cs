@@ -264,6 +264,12 @@ namespace Rasa.Test.World
             // The last thing said of where it is: standing on its post, facing the way it was placed.
             Assert.AreEqual(PostYaw, moves.Last().ViewDirection.X);
             Assert.AreEqual(0f, moves.Last().Velocity);
+
+            // And what the server has as its last movement: standing, so a shot at it takes no
+            // moving penalty.
+            Assert.AreEqual(0f, guard.Controller.LastMovement.Velocity);
+            Assert.AreEqual(PostYaw, guard.Controller.LastMovement.ViewDirection.X);
+            Assert.IsFalse(ToHit.IsMoving(guard));
             Assert.AreEqual(CharacterState.Crouched,
                 packets.OfType<CallMethodMessage>().Select(message => message.Packet).OfType<SetDesiredCrouchStatePacket>().Single().DesiredCrouchState);
         }

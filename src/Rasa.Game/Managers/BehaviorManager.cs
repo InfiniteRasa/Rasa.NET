@@ -2829,9 +2829,12 @@ namespace Rasa.Managers
 
             if (!arrived && controller.ActionReturning.Elapsed >= controller.ActionReturning.TimeoutMs)
             {
-                // Stuck, or off the navmesh with no way round: put it there.
+                // Stuck, or off the navmesh with no way round: put it there, standing. Through
+                // StopMoving, which records the stop: with the run's last step still on record it
+                // went on counting as moving (ToHit.IsMoving), and the next StopIfMoving sent it
+                // another stop.
                 creature.Position = NavMeshManager.SnapToGround(mapChannel, home);
-                CellManager.Instance.CellMoveObject(creature, new Movement(creature.Position, 0f, 0x08, new Vector2(creature.LastYaw, 0f)));
+                StopMoving(creature);
                 arrived = true;
             }
 
