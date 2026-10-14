@@ -148,6 +148,15 @@ namespace Rasa.Test.World
             var founder = context.Client;
             var latecomer = context.CreateAdditionalClient(2);
 
+            // The fee is taken from the row as well as the purse, and the two must agree.
+            using (var database = context.Open())
+            {
+                foreach (var client in new[] { founder, latecomer })
+                    database.CharacterEntries.Single(entry => entry.Id == client.Player.Id).Credit = 20000;
+
+                database.SaveChanges();
+            }
+
             foreach (var client in new[] { founder, latecomer })
             {
                 client.State = ClientState.Ingame;

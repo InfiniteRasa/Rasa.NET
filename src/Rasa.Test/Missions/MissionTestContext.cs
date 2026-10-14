@@ -26,6 +26,7 @@ namespace Rasa.Test.Missions
     using Rasa.Packets.Protocol;
     using Rasa.Repositories.Char;
     using Rasa.Repositories.Char.Auction;
+    using Rasa.Repositories.Char.CensorWord;
     using Rasa.Repositories.Char.Character;
     using Rasa.Repositories.Char.CharacterAppearance;
     using Rasa.Repositories.Char.CharacterAbilityDrawer;
@@ -890,7 +891,7 @@ namespace Rasa.Test.Missions
             };
             context.SavedChanges += (_, _) => AfterSave?.Invoke(context);
             return new CharUnitOfWork(context,
-                gameAccounts: new GameAccountRepository(context), censoredWords: null,
+                gameAccounts: new GameAccountRepository(context), censoredWords: new CensoredWordRepository(context),
                 characters: new CharacterRepository(context),
                 characterAbilityDrawers: new CharacterAbilityDrawerRepository(context),
                 characterAppearances: new CharacterAppearanceRepository(context),
