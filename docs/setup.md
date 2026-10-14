@@ -282,6 +282,7 @@ The `/ingame` endpoints take no key, and are the ones the startup log calls `end
 | `GET /lootpools`, `POST /updatelootpools` | Canonical weighted ordinary-loot profiles, read and edited; see Game tools below. Off until turned on. |
 | `GET /usersonline` | Every account online, with the character it is playing; see Who is online below. Off until turned on. |
 | `POST /kickuser` | Disconnects an account that is online; see Kicking a player below. Off until turned on. |
+| `GET /getopenpetitions`, `GET /getallpetitions`, `POST /respondpetition`, `POST /closepetition` | Players' petitions, read, answered and closed; see Petitions below. Off until turned on. |
 
 - `game_server_status` is `healthy` while the server has finished loading, is listening for players, has not been shut down, and its world loop ticked within `ApiConfig.LoopStallSeconds` (default `15`).
 - `app_server_status` is `healthy` while the link to the Auth server is up and logged in.
@@ -289,7 +290,7 @@ The `/ingame` endpoints take no key, and are the ones the startup log calls `end
 
 A request is refused with `403` from an address not on `AllowedIps`, `404` for a path that names no endpoint or one that is off, `405` for the wrong method, and `401` for a missing or wrong key or, at an `/ingame` endpoint, a code or token that is missing, wrong or no longer good.
 
-Each entry under `Endpoints` (`healthcheck`, `serverstatus`, `addaccount`, the `/ingame` ones, `monsterflags`, `updatemonsterflags`, `lootpools`, `updatelootpools`, `usersonline` and `kickuser`) has:
+Each entry under `Endpoints` (`healthcheck`, `serverstatus`, `addaccount`, the `/ingame` ones, `monsterflags`, `updatemonsterflags`, `lootpools`, `updatelootpools`, `usersonline`, `kickuser`, `getopenpetitions`, `getallpetitions`, `respondpetition` and `closepetition`) has:
 
 | Setting | Default | Meaning |
 |---|---|---|
@@ -391,6 +392,63 @@ An address that is not allowed, a missing key and the rest are refused as for an
 ```bash
 curl -X POST -H "X-API-Key: <key for kicking>" -H "Content-Type: application/json" \
      -d '{"familyName":"Hart","reason":"griefing","admin":"Atomsk"}' http://127.0.0.1:8104/kickuser
+```
+
+#### Petitions
+`GET /getopenpetitions` lists the petitions players have filed (Help, Report Bug, `/petition` and `/bug`) that are still open, and `GET /getallpetitions` every petition whatever its status, newest first:
+
+```json
+{"count":1,"petitions":[
+  {"id":12,"type":"helprequest","status":"open","accountId":3,"accountName":"atomsk","familyName":"Hart",
+   "characterId":40,"characterName":"Ellie","summary":"Stuck","body":"Under the bridge in ...",
+   "mapContextId":1220,"position":{"x":1.5,"y":2,"z":-3.25},"resolution":"","noticePending":false,
+   "createdAt":"2026-10-14T09:30:00Z"}
+]}
+```
+
+- `type` is `helprequest` or `bugreport`; `status` is `open`, `resolved` or `cancelled` (withdrawn by the player).
+- `accountName` is the account's login and `familyName` its family name; `characterName` is the character that filed it. Each is `null` for an account or character no longer there.
+- `mapContextId` and `position` are where the player stood when they filed it. `createdAt` is UTC.
+- `resolution` is a game master's answer, empty until there is one. `noticePending` is `true` while the player has yet to be told of an answer or a close.
+
+`POST /respondpetition` answers a petition, and `POST /closepetition` marks one resolved. The bodies are JSON, sent as `application/json`:
+
+```json
+{ "petitionId": 12, "admin": "Atomsk", "response": "The quest is fixed; log in again and try it." }
+{ "petitionId": 12, "adminId": "Atomsk" }
+```
+
+- `petitionId` is a number, or a number in a string. Only an open petition is answered or closed.
+- `/respondpetition`'s `response` may be 255 characters. It is written as the petition's `resolution`, in place of any answer before it, and the petition stays open. `admin` is who is answering, as you name them, up to 64 characters.
+- `/closepetition`'s `adminId` is who is closing it, a name or a number, up to 64 characters. The petition keeps its answer.
+- The player is told in their chat: "A game master has answered your petition #12: ..." or "Your petition #12 has been resolved: ...". At once when they are in the world; otherwise when they next arrive in it, one line for each petition, as it stands then.
+- The admin goes in the server log's line for it, with the address the request came from, and the request in the API log.
+
+Every answer of its own is `200`:
+
+| Answer | Meaning |
+|---|---|
+| `{"responded":true,"petitionId":12,"status":"open","playerTold":true}` | Answered. `playerTold` is `false` for a player who will be told when they arrive. |
+| `{"closed":true,"petitionId":12,"status":"resolved","playerTold":false}` | Closed. |
+| `{"responded":false,"error":"no such petition"}` | There is no petition of that id. |
+| `{"closed":false,"error":"the petition is resolved, not open"}` | It was closed already, or withdrawn (`cancelled`). |
+| `{"responded":false,"error":"..."}` | The request will not do (no petition id, no admin, no response or one over 255 characters, not JSON, not sent as `application/json`), or the game server is not ready or did not get to it within 10 seconds. |
+
+They name accounts and carry what players wrote, and two of them change something, so all four are off until their own entries turn them on and are never public by `Rest.Public`:
+
+```json
+"getopenpetitions": { "Enabled": true, "ApiKey": "<key for petitions>" },
+"getallpetitions": { "Enabled": true, "ApiKey": "<key for petitions>" },
+"respondpetition": { "Enabled": true, "ApiKey": "<key for petitions>" },
+"closepetition": { "Enabled": true, "ApiKey": "<key for petitions>" }
+```
+
+```bash
+curl -H "X-API-Key: <key for petitions>" http://127.0.0.1:8104/getopenpetitions
+curl -X POST -H "X-API-Key: <key for petitions>" -H "Content-Type: application/json" \
+     -d '{"petitionId":12,"admin":"Atomsk","response":"Fixed; try it again."}' http://127.0.0.1:8104/respondpetition
+curl -X POST -H "X-API-Key: <key for petitions>" -H "Content-Type: application/json" \
+     -d '{"petitionId":12,"adminId":"Atomsk"}' http://127.0.0.1:8104/closepetition
 ```
 
 #### The API log

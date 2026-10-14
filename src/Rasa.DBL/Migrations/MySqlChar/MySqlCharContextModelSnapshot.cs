@@ -2310,6 +2310,12 @@ namespace Rasa.Migrations.MySqlChar
                         .HasColumnType("int(11) unsigned")
                         .HasColumnName("map_context_id");
 
+                    b.Property<bool>("NoticePending")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("notice_pending");
+
                     b.Property<double>("PosX")
                         .HasColumnType("double")
                         .HasColumnName("pos_x");

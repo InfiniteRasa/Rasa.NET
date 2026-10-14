@@ -85,7 +85,7 @@ namespace Rasa.Test.World
 
             Assert.IsTrue(resolve.Wait(TimeSpan.FromSeconds(5)));
             Assert.IsTrue(resolve.Result, "resolved");
-            Assert.AreEqual("Your petition #" + id + " has been answered: Moved you out of the rock.", Told(author).Single());
+            Assert.AreEqual("Your petition #" + id + " has been resolved: Moved you out of the rock.", Told(author).Single());
 
             using var unit = context.CreateChar();
             Assert.AreEqual((byte)PetitionStatus.Resolved, unit.Petitions.GetPetition(id).Status);
@@ -110,7 +110,7 @@ namespace Rasa.Test.World
             WorldTestContext.Drain(author);
 
             Assert.IsTrue(petitions.Resolve(id, ""));
-            Assert.AreEqual("Your petition #" + id + " has been answered.", Told(author).Single());
+            Assert.AreEqual("Your petition #" + id + " has been resolved.", Told(author).Single());
         }
 
         private Client Online(Client client)

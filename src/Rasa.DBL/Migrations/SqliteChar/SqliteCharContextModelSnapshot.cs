@@ -2274,6 +2274,12 @@ namespace Rasa.Migrations.SqliteChar
                         .HasColumnType("int(11)")
                         .HasColumnName("map_context_id");
 
+                    b.Property<bool>("NoticePending")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false)
+                        .HasColumnName("notice_pending");
+
                     b.Property<double>("PosX")
                         .HasColumnType("double")
                         .HasColumnName("pos_x");

@@ -35,5 +35,14 @@ namespace Rasa.Repositories.Char.Petition
         /// Resolution is stored alongside so the reason travels with the state.
         /// </summary>
         bool SetPetitionStatus(uint id, byte status, string resolution);
+
+        /// <summary>Writes a game master's answer, and reports whether the row was there to take it.</summary>
+        bool SetPetitionResolution(uint id, string resolution);
+
+        /// <summary>Whether the player has yet to be told of the petition's answer or close.</summary>
+        bool SetNoticePending(uint id, bool pending);
+
+        /// <summary>The account's petitions it has yet to be told about, oldest first.</summary>
+        List<PetitionEntry> ListNoticesPending(uint accountId);
     }
 }

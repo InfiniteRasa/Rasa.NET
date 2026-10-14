@@ -520,6 +520,13 @@ namespace Rasa.Game
             // POST /kickuser kicks on the world loop and waits for it; every request the API is
             // sent goes on its log, in the character database.
             api.KickUser.Kick = order => RunOnLoopAndWait("kickuser", () => Api.KickUserEndpoint.Perform(order), Api.KickUserEndpoint.WaitMs);
+
+            // The petitions are read from the character database where the request is; an answer
+            // or a close tells the player, so it is done on the world loop.
+            api.OpenPetitions.Read = status => PetitionManager.Instance.ListRecords(status);
+            api.AllPetitions.Read = status => PetitionManager.Instance.ListRecords(status);
+            api.RespondPetition.Perform = order => RunOnLoopAndWait("respondpetition", () => Api.PetitionActionEndpoint.Act(order), Api.PetitionActionEndpoint.WaitMs);
+            api.ClosePetition.Perform = order => RunOnLoopAndWait("closepetition", () => Api.PetitionActionEndpoint.Act(order), Api.PetitionActionEndpoint.WaitMs);
             api.Audit.Load(new Api.ApiAudit.ServerStore(GameUnitOfWorkFactory));
             api.Status.Started();
             _apiApplied = true;

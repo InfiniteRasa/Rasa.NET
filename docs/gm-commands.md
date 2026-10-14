@@ -377,7 +377,7 @@ Typed in the game server's window. There is no account check; the console is the
 | `gm <familyName> [level]` | Shows or sets an account's GM level; see Access levels. |
 | `petition list [open\|resolved\|cancelled\|all] [count]` | Petitions, newest first. The default is open ones. |
 | `petition show <id>` | One petition, including its body. |
-| `petition resolve <id> [what you did]` | Closes a petition and tells the player if they are online. |
+| `petition resolve <id> [what you did]` | Closes a petition, with what you did as its answer (left out, it keeps the answer it has), and tells the player: at once if they are in the world, otherwise when they next arrive. |
 | `flag list \| set <name\|id> \| clear <name\|id>` | The same as `.flag`. |
 | `perf` | Main-loop rate, slowest pass, players and connections since the last metrics window. |
 | `maperrors [clear]` | Everything the world load and spawn path found wrong with the data. `clear` resets the list; errors come back as the data is used again. |

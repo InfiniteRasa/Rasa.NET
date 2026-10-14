@@ -725,6 +725,10 @@ namespace Rasa.Managers
                 MessageOfTheDay.SendOnLogin(client);
                 Moderation.OnEnteredWorld(client);
             }
+
+            // What a game master answered or closed of their petitions while they were away - or
+            // in a dropship, which is why it is every arrival and not only the first.
+            PetitionManager.Instance.DeliverNotices(client);
         }
 
         /// <summary>
