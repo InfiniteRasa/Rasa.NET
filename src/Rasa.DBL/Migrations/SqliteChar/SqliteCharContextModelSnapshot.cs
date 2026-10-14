@@ -468,6 +468,8 @@ namespace Rasa.Migrations.SqliteChar
 
                     b.HasKey("ItemId");
 
+                    b.HasIndex(new[] { "AccountId", "CharacterId" }, "character_inventory_index_account_character");
+
                     b.ToTable("character_inventory");
                 });
 
@@ -1314,6 +1316,8 @@ namespace Rasa.Migrations.SqliteChar
                         .HasColumnName("slot_id");
 
                     b.HasKey("ItemId");
+
+                    b.HasIndex(new[] { "ClanId" }, "clan_inventory_index_clan_id");
 
                     b.ToTable("clan_inventory");
                 });
