@@ -312,7 +312,8 @@ namespace Rasa.Managers
 
             var newName = packet.ClanName?.Trim();
 
-            if (!IsClanNameAcceptable(client, newName))
+            // Its own name in other capitals is not taken.
+            if (!IsClanNameAcceptable(client, newName, clanId))
                 return;
 
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
@@ -324,13 +325,19 @@ namespace Rasa.Managers
             var oldName = clan.Name;
 
             // Renaming to the name it already has is not worth an announcement, but it is not an
-            // error either - the uniqueness check would have refused it as taken, by itself.
+            // error either.
             if (string.Equals(oldName, newName, StringComparison.Ordinal))
                 return;
 
             if (!unitOfWork.Clans.UpdateClanName(clanId, newName))
             {
-                Logger.WriteLog(LogType.Error, $"ChangeClanName: could not rename clan {clanId} to '{newName}'.");
+                // Refused by the name's unique index: another server on the database took it
+                // since the check.
+                if (ClanNameExists(newName, clanId))
+                    TellNameNotAvailable(client, newName);
+                else
+                    Logger.WriteLog(LogType.Error, $"ChangeClanName: could not rename clan {clanId} to '{newName}'.");
+
                 return;
             }
 
@@ -355,9 +362,10 @@ namespace Rasa.Managers
 
         /// <summary>
         /// The name rules shared by creating a clan and renaming one, each answering with the
-        /// client's own message for that refusal.
+        /// client's own message for that refusal. A name is taken whatever its case
+        /// (ClanRepository.GetClanByName) - except by the clan being renamed, <paramref name="ownClanId"/>.
         /// </summary>
-        private bool IsClanNameAcceptable(Client client, string clanName)
+        private bool IsClanNameAcceptable(Client client, string clanName, uint ownClanId = 0)
         {
             if (string.IsNullOrWhiteSpace(clanName) || clanName.Length < _minClanNameLength)
             {
@@ -371,10 +379,9 @@ namespace Rasa.Managers
                 return false;
             }
 
-            if (ClanNameExists(clanName))
+            if (ClanNameExists(clanName, ownClanId))
             {
-                client.CallMethod(SysEntity.ClientClanManagerId, new DisplayClanMessagePacket((int)PlayerMessage.PmClanNameNotAvailable,
-                    new Dictionary<string, string> { { "clanname", clanName } }));
+                TellNameNotAvailable(client, clanName);
                 return false;
             }
 
@@ -426,6 +433,12 @@ namespace Rasa.Managers
                         client, _requiredCreditsForClanCreation))
                     Logger.WriteLog(LogType.Error,
                         $"CreateClan: could not refund creation fee to character {client.Player.Id}.");
+
+                // Refused by the name's unique index: another server on the database took it
+                // since the check.
+                if (ClanNameExists(packet.ClanName))
+                    TellNameNotAvailable(client, packet.ClanName);
+
                 return;
             }
 
@@ -1510,14 +1523,23 @@ namespace Rasa.Managers
             return true;
         }        
 
-        private bool ClanNameExists(string clanName)
+        /// <summary>Whether a clan other than <paramref name="ownClanId"/> has the name, in any case.</summary>
+        private bool ClanNameExists(string clanName, uint ownClanId = 0)
         {
             if (string.IsNullOrEmpty(clanName))
                 throw new ArgumentNullException(nameof(clanName));
 
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+            var clan = unitOfWork.Clans.GetClanByName(clanName);
 
-            return unitOfWork.Clans.GetClanByName(clanName) != null;
+            return clan != null && clan.Id != ownClanId;
+        }
+
+        /// <summary>The client's PM_CLAN_NAME_NOT_AVAILABLE, with the name.</summary>
+        private static void TellNameNotAvailable(Client client, string clanName)
+        {
+            client.CallMethod(SysEntity.ClientClanManagerId, new DisplayClanMessagePacket((int)PlayerMessage.PmClanNameNotAvailable,
+                new Dictionary<string, string> { { "clanname", clanName } }));
         }
 
         /// <summary>
