@@ -21,6 +21,7 @@ namespace Rasa.Test.World
     using Rasa.Structures.World;
     using Rasa.Test.Database;
     using Rasa.Test.Missions;
+    using Rasa.Test.Missions.Wilderness;
 
     /// <summary>
     /// NPC barks (NpcBarks): that an NPC with barks says one within 10 minutes half the time and

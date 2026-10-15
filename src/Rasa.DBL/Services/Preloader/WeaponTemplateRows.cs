@@ -27,8 +27,9 @@ namespace Rasa.Services.Preloader
     ///    condition (374) - the same attack, so the same reach, timing, heat, tool type and
     ///    rounds a shot - with its melee (alt) damage worked out for its own class as
     ///    Retune_weapon_template_stats did: max_damage times its type's ratio.
-    /// Nine have no such template and keep none: TEST_ and DELETEME_ classes, an NPC's
-    /// injection gun and a creature's spear (<see cref="WithoutDonor"/>).
+    /// Ten have no such template and keep none: seven TEST_ classes and a DELETEME_ one, an NPC's
+    /// injection gun, and a creature's spear (<see cref="WithoutDonor"/>). The Loper spear and
+    /// the TEST_ Loper spear share an attack, but neither has a row to copy.
     ///
     /// Tools (the Snowball Launcher, the salvage and tissue tools and the rest) are not weapon
     /// types and are left as they are: they are used through ToolActionManager.

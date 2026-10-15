@@ -26,7 +26,7 @@ namespace Rasa.Test.Database
             $"where ({WeaponTypes}) and not exists (select 1 from itemtemplate_weapon w where w.id = c.itemTemplateId)";
 
         [TestMethod]
-        public void EveryWeaponTemplateButTheNineWithNothingToCopyHasARow()
+        public void EveryWeaponTemplateButTheTenWithNothingToCopyHasARow()
         {
             using var database = new OrdinaryLootTestDatabase();
             var migrator = database.Context.GetService<IMigrator>();
@@ -36,7 +36,13 @@ namespace Rasa.Test.Database
 
             migrator.Migrate(Migration);
             Assert.AreEqual(WeaponTemplateRows.WithoutDonor.Count, Count(database, WithoutRow));
-            Assert.HasCount(9, WeaponTemplateRows.WithoutDonor);
+            CollectionAssert.AreEquivalent(new uint[]
+            {
+                62, 64, 2371, 130397, 130510, 130512, 130514, // TEST_ classes
+                122836,                                       // DELETEME_Weapon_Avatar_Rifle
+                11433,                                        // Weapon_Human_Redshirt_InjectionGun_EMP
+                130502                                        // Weapon_Creature_Loper_Spear
+            }, WeaponTemplateRows.WithoutDonor.ToArray());
         }
 
         [TestMethod]
