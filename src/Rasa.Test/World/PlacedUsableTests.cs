@@ -560,7 +560,7 @@ namespace Rasa.Test.World
                 using (var context = (WorldContext)PersistenceIntegrationTests.CreateContext(typeof(SqliteWorldContext), database))
                 {
                     MigratedDatabaseTemplates.Migrate(context, () => context.Database.Migrate());
-                    Assert.IsTrue(new WorldUsableRepository(context).Get().All(Vent), "only the Arieki vents' eruptions are seeded");
+                    Assert.IsTrue(new WorldUsableRepository(context).Get().All(Seeded), "only the Arieki vents' eruptions and the Wilderness terminals are seeded");
                     Assert.IsFalse(context.Database.HasPendingModelChanges());
                 }
 
@@ -572,7 +572,7 @@ namespace Rasa.Test.World
                     lot.Preload(builder);
                     Run(context, builder);
 
-                    var rows = new WorldUsableRepository(context).Get().Where(row => !Vent(row)).OrderBy(row => row.Id).ToList();
+                    var rows = new WorldUsableRepository(context).Get().Where(row => !Seeded(row)).OrderBy(row => row.Id).ToList();
                     Assert.HasCount(4, rows);
                     Assert.AreEqual((1u, 1220u, 4412u, 10.5, 2.25, 20.75, 0.5, 0u, 1u, 0u, 15u, "Door, it's by the gate"),
                         (rows[0].Id, rows[0].MapContextId, rows[0].ClassId, rows[0].PosX, rows[0].PosY, rows[0].PosZ, rows[0].Rotation,
@@ -585,7 +585,7 @@ namespace Rasa.Test.World
                     builder = new MigrationBuilder(context.Database.ProviderName);
                     lot.Remove(builder);
                     Run(context, builder);
-                    Assert.IsTrue(new WorldUsableRepository(context).Get().All(Vent), "the lot's rows gone, the vents' left");
+                    Assert.IsTrue(new WorldUsableRepository(context).Get().All(Seeded), "the lot's rows gone, the seeded ones left");
                 }
 
                 using (var context = (WorldContext)PersistenceIntegrationTests.CreateContext(typeof(SqliteWorldContext), database))
@@ -619,6 +619,10 @@ namespace Rasa.Test.World
         }
 
         private static bool Vent(WorldUsableEntry row) => row.Id is >= AriekiVentEruptions.FirstId and <= AriekiVentEruptions.LastId;
+
+        /// <summary>A row a migration seeds: an Arieki vent's eruption, or a Wilderness terminal of Wilderness_post_npcs.</summary>
+        private static bool Seeded(WorldUsableEntry row) => Vent(row) ||
+            row.Id >= WildernessPostNpcs.FirstUsable && row.Id < WildernessPostNpcs.FirstUsable + WildernessPostNpcs.Usables.Length;
 
         private static void Run(WorldContext context, MigrationBuilder builder)
         {

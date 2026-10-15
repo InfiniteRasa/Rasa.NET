@@ -282,7 +282,8 @@ namespace Rasa.Test.Missions.Wilderness
             var quillas = harness.Npc(192);
             Assert.AreEqual(114U, quillas.DbId);
             Assert.AreEqual(1646U, quillas.Npc.NpcPackageId);
-            Assert.IsTrue(Vector3.Distance(quillas.Position, new Vector3(783, 303.317277f, 130)) < 0.5f);
+            // Where a GM put him from gameplay video (WildernessPostNpcs).
+            Assert.IsTrue(Vector3.Distance(quillas.Position, new Vector3(774.0859f, 309.0352f, 104.7969f)) < 0.5f);
             harness.MoveTo(quillas.Position);
             Open(harness, npcs, quillas.EntityId);
             Choose(3);

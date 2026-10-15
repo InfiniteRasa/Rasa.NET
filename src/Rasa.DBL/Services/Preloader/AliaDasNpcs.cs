@@ -710,7 +710,7 @@ namespace Rasa.Services.Preloader
         /// slot only in the old is deleted if it is as it was, and a slot only in the new is
         /// filled if empty.
         /// </summary>
-        private static IEnumerable<string> Change(uint creature, Slot[] from, Slot[] to)
+        internal static IEnumerable<string> Change(uint creature, Slot[] from, Slot[] to)
         {
             foreach (var old in from)
             {
@@ -728,11 +728,11 @@ namespace Rasa.Services.Preloader
                     $"FROM creature c WHERE c.id = {creature} AND NOT EXISTS (SELECT 1 FROM creature_appearance a WHERE a.id = {creature} AND a.slot_id = {next.Id});";
         }
 
-        private static string AddPose(uint pool, uint pose) =>
+        internal static string AddPose(uint pool, uint pose) =>
             $"INSERT INTO spawnpool_pose (id, pose) SELECT {pool}, {pose} FROM spawnpool p " +
             $"WHERE p.id = {pool} AND NOT EXISTS (SELECT 1 FROM spawnpool_pose x WHERE x.id = {pool});";
 
-        private static string MovePool(uint pool, uint creature, double fromX, double fromY, double fromZ, double fromRotation,
+        internal static string MovePool(uint pool, uint creature, double fromX, double fromY, double fromZ, double fromRotation,
             double toX, double toY, double toZ, double toRotation) =>
             $"UPDATE spawnpool SET pos_x = {N(toX)}, pos_y = {N(toY)}, pos_z = {N(toZ)}, rotation = {N(toRotation)} " +
             $"WHERE id = {pool} AND creature_1_Id = {creature} AND map_context_id = {Map} " +
@@ -742,7 +742,7 @@ namespace Rasa.Services.Preloader
             $"id = {r.Id} AND creature_1_Id = {r.Creature} AND map_context_id = {Map} " +
             $"AND ABS(pos_x - {N(r.X)}) < 0.01 AND ABS(pos_y - {N(r.Y)}) < 0.01 AND ABS(pos_z - {N(r.Z)}) < 0.01";
 
-        private static string MoveIndicator(Indicator i, double fromX, double fromY, double fromZ, double toX, double toY, double toZ) =>
+        internal static string MoveIndicator(Indicator i, double fromX, double fromY, double fromZ, double toX, double toY, double toZ) =>
             $"UPDATE mission_indicator SET pos_x = {N(toX)}, pos_y = {N(toY)}, pos_z = {N(toZ)} " +
             $"WHERE mission_id = {i.Mission} AND content_revision = {S(Revision)} AND objective_id = {i.Objective} AND indicator_id = {i.IndicatorId} " +
             $"AND ABS(pos_x - {N(fromX)}) < 0.01 AND ABS(pos_y - {N(fromY)}) < 0.01 AND ABS(pos_z - {N(fromZ)}) < 0.01;";
@@ -757,8 +757,8 @@ namespace Rasa.Services.Preloader
             $"UPDATE kraftwerks SET rotation = {N(to)} WHERE id = {CraftingStation} AND map_context_id = {Map} " +
             $"AND ABS(pos_x - {N(CraftingStationX)}) < 0.01 AND ABS(pos_z - {N(CraftingStationZ)}) < 0.01 AND ABS(rotation - {N(from)}) < 0.01;";
 
-        private static string N(double value) => value.ToString("R", CultureInfo.InvariantCulture);
+        internal static string N(double value) => value.ToString("R", CultureInfo.InvariantCulture);
 
-        private static string S(string value) => "'" + value.Replace("'", "''") + "'";
+        internal static string S(string value) => "'" + value.Replace("'", "''") + "'";
     }
 }
