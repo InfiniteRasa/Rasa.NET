@@ -1005,7 +1005,9 @@ namespace Rasa.Test.World
                 var stocked = Rows(context, $"select id, item_template_id from vendor_item where item_template_id in ({Items}) order by id, item_template_id");
                 CollectionAssert.AreEqual(
                     vendors.SelectMany(vendor => PersonalWaypointStock.Items.Select(item => $"{vendor}|{item}")).ToArray(), stocked);
-                CollectionAssert.AreEqual(before, Rows(context, $"select id, item_template_id from vendor_item where item_template_id not in ({Items}) order by rowid"));
+                // The vendors Alia_das_npcs adds later stock their own counters.
+                var later = string.Join(", ", Rasa.Services.Preloader.AliaDasNpcs.Vendors.Select(vendor => vendor.Creature));
+                CollectionAssert.AreEqual(before, Rows(context, $"select id, item_template_id from vendor_item where item_template_id not in ({Items}) and id not in ({later}) order by rowid"));
 
                 // What they cost is the templates' own.
                 CollectionAssert.AreEqual(new[] { "118781|1000", "118782|2500", "118783|5000" },

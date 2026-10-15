@@ -867,7 +867,7 @@ namespace Rasa.Managers
                 Npc isNpc = null;
                 var isVendor = false;
                 var isAuctioneer = false;
-                var isClanManager = data.NameId == 8838 ? true : false;
+                var isClanManager = IsClanMaster(data.NameId);
 
                 foreach (var aug in augmentationsList)
                 {
@@ -1090,6 +1090,14 @@ namespace Rasa.Managers
             //creature->lastattack = GetTickCount();
             //creature->lastresttime = GetTickCount();
         }
+
+        /// <summary>
+        /// Whether an NPC of this name keeps the clan window: the generic "Clan Master" (8838) or
+        /// one of the client's eight Clan Registrars (8993-9000: Ferris, Faris, Orsen,
+        /// Saint-Pierre, Kolchak, Levin, Yonkers, Danvers). Nothing else in the world data marks
+        /// one; the name is what says it.
+        /// </summary>
+        public static bool IsClanMaster(uint nameId) => nameId == 8838 || (nameId >= 8993 && nameId <= 9000);
 
         public void UpdateCreatureAppearance(Creature creature)
         {

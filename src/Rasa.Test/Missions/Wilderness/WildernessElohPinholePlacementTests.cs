@@ -67,7 +67,9 @@ namespace Rasa.Test.Missions.Wilderness
                 Assert.AreEqual(package, npc.Npc.NpcPackageId);
                 AssertGrounded(harness, npc.Position);
             }
-            AssertSpawnPose(harness, 100, harness.Npc(100), (870d, 294.21, 385.5), 0.8);
+            // Rogers at his post in the command tent (Alia_das_npcs).
+            var rogers = Rasa.Services.Preloader.AliaDasNpcs.Moves.Single(move => move.Pool == 100);
+            AssertSpawnPose(harness, 100, harness.Npc(100), (rogers.ToX, rogers.ToY, rogers.ToZ), rogers.ToRotation);
             foreach (var (from, to) in new[]
             {
                 (101U, 216U), (216U, 217U), (217U, 199U), (199U, 101U),
