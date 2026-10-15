@@ -18,6 +18,7 @@ namespace Rasa.Test.World
     using Rasa.Packets.Protocol;
     using Rasa.Services.Preloader;
     using Rasa.Structures;
+    using Rasa.Test.Missions.Wilderness;
     using Rasa.Structures.World;
     using Rasa.Test.Database;
     using Rasa.Test.Missions;
