@@ -78,6 +78,22 @@ namespace Rasa.Api.Ingame
             return result;
         }
 
+        /// <summary>Actual spawnpool positions for the selected mission giver (not an inferred objective marker).</summary>
+        internal sealed record MissionGiverLocation(uint spawnPoolId, uint mapContextId,
+            double x, double y, double z);
+
+        internal static List<MissionGiverLocation> GiverLocations(uint giverId, IEnumerable<SpawnPoolEntry> pools)
+        {
+            if (giverId == 0) return new List<MissionGiverLocation>();
+            return pools.Where(pool =>
+                    pool.Creature1Id == giverId || pool.Creature2Id == giverId ||
+                    pool.Creature3Id == giverId || pool.Creature4Id == giverId ||
+                    pool.Creature5Id == giverId || pool.Creature6Id == giverId)
+                .OrderBy(pool => pool.MapContextId).ThenBy(pool => pool.Id)
+                .Select(pool => new MissionGiverLocation(pool.Id, pool.MapContextId,
+                    pool.PosX, pool.PosY, pool.PosZ)).ToList();
+        }
+
         // A rewarded mission can be archived and absent from the current journal.
         // Use the durable Character DB; do not use player.Missions (the client-facing journal).
         internal static HashSet<uint> CompletedMissionIds(
@@ -228,6 +244,10 @@ namespace Rasa.Api.Ingame
             if (definition == null && legacy == null) return ApiResponse.Error(404, $"unknown mission {id}");
 
             var rev = definition?.ContentRevision;
+            // A newer definition is authoritative. Fall back to the legacy giver
+            // only when no newer mission definition exists.
+            var giverId = definition != null ? definition.GiverId.GetValueOrDefault() : legacy.GiverId;
+            var giverLocations = IngameMissionCatalog.GiverLocations(giverId, world.Spawnpools.Get());
             using var characters = Server.GameUnitOfWorkFactory.CreateChar();
             var characterId = client.Player.Id;
             var assignments = characters.CharacterMissions.Get(characterId);
@@ -269,6 +289,8 @@ namespace Rasa.Api.Ingame
                 id, sections,
                 playerCompleted = completed.Contains(id),
                 playerMissionState = (uint?)assignment?.MissionState,
+                giverId,
+                giverLocations,
                 prerequisites = linkedPrerequisites
             }));
         }

@@ -101,6 +101,31 @@ namespace Rasa.Test.Networking
         }
 
         [TestMethod]
+        public void GiverLocationsAreRealSpawnpoolPositionsAndNeverReceiverLocations()
+        {
+            var pools = new[] {
+                new SpawnPoolEntry { Id = 3, MapContextId = 1220, Creature1Id = 80,
+                    PosX = 14.5, PosY = 120, PosZ = -91.25 },
+                new SpawnPoolEntry { Id = 1, MapContextId = 1721, Creature6Id = 80,
+                    PosX = 3, PosY = 7, PosZ = 9 },
+                new SpawnPoolEntry { Id = 4, MapContextId = 1220, Creature1Id = 81,
+                    PosX = 200 },
+                new SpawnPoolEntry { Id = 2, MapContextId = 1220, Creature2Id = 80,
+                    PosX = 11 },
+            };
+            var locations = IngameMissionCatalog.GiverLocations(80, pools);
+            Assert.AreEqual(3, locations.Count);
+            Assert.AreEqual((uint)2, locations[0].spawnPoolId);
+            Assert.AreEqual((uint)3, locations[1].spawnPoolId);
+            Assert.AreEqual(-91.25, locations[1].z);
+            Assert.AreEqual((uint)1721, locations[2].mapContextId);
+            Assert.AreEqual(0, IngameMissionCatalog.GiverLocations(0, pools).Count);
+            using var json = JsonDocument.Parse(JsonSerializer.Serialize(locations));
+            Assert.AreEqual(14.5, json.RootElement[1].GetProperty("x").GetDouble());
+            Assert.AreEqual((uint)1220, json.RootElement[1].GetProperty("mapContextId").GetUInt32());
+        }
+
+        [TestMethod]
         public void DetailProjectionNeverTraversesNavigationProperties()
         {
             var definition = new MissionContentDefinitionEntry { MissionId = 21, Comment = "An example" };
