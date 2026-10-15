@@ -25,6 +25,8 @@ namespace Rasa.Services.Preloader
     /// - Bosses and named overseers (10), one each on their own ground. Archfiend Grenadier, Old
     ///   Scratch and Atropos Linker shared the Horntail's spot at Lake Tinctuan (520065, which stays):
     ///   they now lead the Lower Eloh Creek camp, the Lower Eloh Creek outpost and the Memory Tree camp.
+    ///   Three_devils sent Archfiend and Old Scratch back beside Horntail, for Herbal Remedy
+    ///   (ThreeDevils).
     ///
     /// Respawn: posts and squads 90 s, camps, nests and packs 120 s, outposts 180 s, overseers 300 s,
     /// bosses 500 s. Nothing within 40 m of a vendor, medic, trainer, mission giver, hospital or
