@@ -3252,6 +3252,64 @@ namespace Rasa.Managers
             return $"{player.FamilyName} lowered from level {from} to {level}" + (notes.Count > 0 ? $" ({string.Join(", ", notes)})." : ".");
         }
 
+        /// <summary>
+        /// What a character's skills are after the Respec Skills token (Respec): the Recruit
+        /// skills they have (CharacterManager.StartingSkills) at rank 1 - which a new character
+        /// starts with, and whose five points every budget includes - and nothing else. Every
+        /// other point comes back to spend again.
+        /// </summary>
+        public static Dictionary<SkillId, SkillsData> SkillsAfterRespec(Manifestation player) =>
+            player.Skills.Values
+                .Where(skill => CharacterManager.StartingSkills.Contains(skill.SkillId))
+                .ToDictionary(skill => skill.SkillId, skill => new SkillsData(skill.SkillId, skill.AbilityId, Math.Min(1, skill.SkillLevel)));
+
+        /// <summary>Whether the Respec Skills token would change anything: a skill beyond the Recruit ones, or one above rank 1.</summary>
+        public static bool HasSkillsToRespec(Manifestation player)
+        {
+            var after = SkillsAfterRespec(player);
+
+            return player.Skills.Values.Any(skill => !after.TryGetValue(skill.SkillId, out var kept) || kept.SkillLevel != skill.SkillLevel);
+        }
+
+        /// <summary>Whether the Respec Attributes token would change anything: a point spent on Body, Mind or Spirit.</summary>
+        public static bool HasAttributesToRespec(Manifestation player) =>
+            player.SpentBody + player.SpentMind + player.SpentSpirit > 0;
+
+        /// <summary>
+        /// A respec token has landed and its write is saved (AbilityManager.Respec): the player as
+        /// they now are, and their client told. Skills: what SkillsAfterRespec leaves, with the
+        /// abilities, blocks and weapon-skill passives that follow from them. Attributes: nothing
+        /// spent on Body, Mind or Spirit, and the stats worked out again from that. Either way the
+        /// points to spend again.
+        /// </summary>
+        public void ApplyRespec(Client client, bool skills, bool attributes)
+        {
+            var player = client?.Player;
+
+            if (player == null)
+                return;
+
+            if (skills)
+            {
+                player.Skills = SkillsAfterRespec(player);
+
+                client.CallMethod(player.EntityId, new SkillsPacket(player.Skills));
+                client.CallMethod(player.EntityId, new AbilitiesPacket(player.Skills));
+                AbilityManager.Instance.RefreshUnimplementedBlocks(client);
+                SyncSkillPassives(client);
+            }
+
+            if (attributes)
+            {
+                player.SpentBody = player.SpentMind = player.SpentSpirit = 0;
+
+                UpdateStatsValues(client, false);
+                client.CallMethod(player.EntityId, new AttributeInfoPacket(player));
+            }
+
+            SendAvailableAllocationPoints(client);
+        }
+
         /// <summary>The skill points a level gives, before any are spent: GetSkillPointsAvailable without the spending or the floor at 0.</summary>
         private static int SkillPointBudget(int level)
         {

@@ -866,14 +866,21 @@ namespace Rasa.Managers
             return characterEntry.Id;
         }
 
+        /// <summary>
+        /// The Recruit skills every character starts with at rank 1. Their five points are part of
+        /// every character's skill budget (ManifestationManager.GetSkillPointsAvailable), which is
+        /// why a skill respec leaves them at rank 1 (ManifestationManager.SkillsAfterRespec).
+        /// </summary>
+        public static readonly SkillId[] StartingSkills =
+        {
+            SkillId.Lightning, SkillId.Sprint, SkillId.Firearms,
+            SkillId.HandToHand, SkillId.MotorAssistArmor
+        };
+
         private void CreateStartingLoadout(ICharUnitOfWork unitOfWork, uint accountId, uint characterId)
         {
             var progression = new ManifestationManager(_gameUnitOfWorkFactory);
-            foreach (var skill in new[]
-                     {
-                         SkillId.Lightning, SkillId.Sprint, SkillId.Firearms,
-                         SkillId.HandToHand, SkillId.MotorAssistArmor
-                     })
+            foreach (var skill in StartingSkills)
                 unitOfWork.CharacterSkills.AddOrUpdate(
                     characterId,
                     (uint)skill,

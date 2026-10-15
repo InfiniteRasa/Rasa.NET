@@ -373,6 +373,13 @@ namespace Rasa.Managers
                 return;
             }
 
+            // A respec token with nothing to give back is kept (Respec).
+            if (RespecRefusal(player, action) is { } respecRefusal)
+            {
+                Fail(client, actionId, level, respecRefusal);
+                return;
+            }
+
             // Self Revive by someone not dead.
             if (SelfReviveRefusal(player, action) is { } reviveRefusal)
             {
@@ -820,6 +827,7 @@ namespace Rasa.Managers
                 || action.Module == HortimonculusModule || action.Module == ReanimationModule || action.Module == ReanimationWaveModule
                 || action.Module == SpotterModule || action.Module == BotConstructionModule || action.Module == CreateCloneModule
                 || action.Module == RezTraumaKitModule
+                || IsRespec(action)
                 || MorphSupportModules.Contains(action.Module)
                 || IsDirectDamage(action, info)
                 || (TimedEffectModules.Contains(action.Module) && (action.Module != AddEffectModule || info.Get(AbilityProperty.GameEffectId) == ExperienceBoost.TypeId))
@@ -982,7 +990,8 @@ namespace Rasa.Managers
             {
                 var source = action.ItemId != 0 ? EntityManager.Instance.GetItem(action.ItemId) : null;
 
-                ConsumeAbilityItems(client, info, KeepsSourceItem(actionInfo, source) ? 0 : action.ItemId, ToyWrite(actionInfo, info, player, toyCommit));
+                ConsumeAbilityItems(client, info, KeepsSourceItem(actionInfo, source) ? 0 : action.ItemId,
+                    ToyWrite(actionInfo, info, player, toyCommit) ?? RespecWrite(actionInfo, player));
             }
             catch (Exception error) when (GameplayRejectionException.IsExpected(error))
             {
@@ -1060,6 +1069,12 @@ namespace Rasa.Managers
             if (actionInfo.Module == RezTraumaKitModule)
             {
                 UseRezTraumaKit(mapChannel, player, action);
+                return;
+            }
+
+            if (IsRespec(actionInfo))
+            {
+                ResolveRespec(mapChannel, client, player, actionInfo, action);
                 return;
             }
 
@@ -1236,6 +1251,10 @@ namespace Rasa.Managers
             // A Rez Trauma that ran out during the windup leaves the kit unspent.
             if (_actions.TryGetValue(action.ActionId, out var landing) && RezTraumaKitRefusal(player, landing) is { } kitRefusal)
                 return kitRefusal;
+
+            // As does a respec token whose points were spent back during it (Respec).
+            if (landing != null && RespecRefusal(player, landing) is { } respecRefusal)
+                return respecRefusal;
 
             // As does a Self Revive whose Machina someone else got up during it.
             if (landing != null && SelfReviveRefusal(player, landing) is { } reviveRefusal)
