@@ -32,6 +32,7 @@ namespace Rasa.Managers
         private readonly Action<Client> _disconnect;
         private readonly MissionApplication _missionManager;
         private readonly CharacterManager _characterManager;
+        private readonly int _localTravelHoldMs;
         private MapChannelManager Maps => _maps ?? MapChannelManager.Instance;
         private CharacterManager Characters => _characterManager ?? CharacterManager.Instance;
 
@@ -98,7 +99,7 @@ namespace Rasa.Managers
                     lock (InstanceLock)
                     {
                         if (_instance == null)
-                            _instance = new DynamicObjectManager(Server.GameUnitOfWorkFactory);
+                            _instance = new DynamicObjectManager(Server.GameUnitOfWorkFactory, localTravelHoldMs: WaypointHoldMs);
                     }
                 }
 
@@ -111,9 +112,11 @@ namespace Rasa.Managers
             Action<Client, CharacterUpdate, object> updateCharacter = null,
             Action<Client> disconnect = null,
             MissionApplication missionManager = null,
-            CharacterManager characterManager = null)
+            CharacterManager characterManager = null,
+            int localTravelHoldMs = 0)
         {
             _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
+            _localTravelHoldMs = Math.Max(0, localTravelHoldMs);
             _maps = maps;
             _clock = clock ?? (() => Environment.TickCount64);
             _updateCharacter = updateCharacter ?? ((client, update, value) =>
@@ -1872,15 +1875,31 @@ namespace Rasa.Managers
         }
 
         /// <summary>
+        /// How long a player who has picked a waypoint on the map they are on stands in its
+        /// teleport-out effect before they are moved: 3 seconds. In footage of the live game the
+        /// player picks the destination, the teleport-out effect plays out over two or three
+        /// seconds while the body fades away, and only then do they appear at the far waypoint;
+        /// it is the same effect (TeleportType.Default) and the same time as a passage's
+        /// (<see cref="PassageHoldMs"/>). Sent the Teleport at once, the client cut the effect
+        /// short: no fade, and the player stood at the far end before it had played.
+        ///
+        /// The game server's own manager holds for this long (<see cref="Instance"/>); one made
+        /// without it moves the player at once.
+        /// </summary>
+        internal const int WaypointHoldMs = 3000;
+
+        /// <summary>
         /// The player is taken to a place on the map they are on, as a waypoint takes them: held
-        /// until the client has acknowledged the teleport (<see cref="TeleportAcknowledge"/>).
-        /// Called with the client's lock held, by SelectWaypoint and ReturnToWormhole.
+        /// in the teleport-out effect for the manager's hold (<see cref="WaypointHoldMs"/>), moved
+        /// (<see cref="PassagesWorker"/>), then held until the client has acknowledged the
+        /// teleport (<see cref="TeleportAcknowledge"/>). Called with the client's lock held, by
+        /// SelectWaypoint (a waypoint, or a wormhole on the same map) and ReturnToWormhole.
         /// </summary>
         private void BeginLocalTravel(Client client, MapChannel map, Vector3 destination, double rotation)
         {
-            var transfer = StartLocalTravel(client, map, destination, rotation, 0, false);
+            var transfer = StartLocalTravel(client, map, destination, rotation, _localTravelHoldMs, false);
 
-            if (transfer != null)
+            if (transfer != null && transfer.DepartAt == 0)
                 DepartLocalTravel(client, transfer);
         }
 
@@ -1914,6 +1933,7 @@ namespace Rasa.Managers
                 Deadline = checked(now + timeout * 1000L + Math.Max(0, holdMs)),
                 IsDropship = false,
                 IsPassage = isPassage,
+                IsHeld = holdMs > 0,
                 DepartAt = holdMs > 0 ? now + holdMs : 0
             };
             client.PendingTransfer = transfer;
@@ -2038,10 +2058,11 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// Moves on the passage teleports whose effect has played (TakePassage). One whose player
-        /// can no longer go - dead, logging out, gone from the map - is called off: the effect
-        /// stopped for everyone who saw it start (actor.py Recv_TeleportFailed) and the player
-        /// let go where they stand.
+        /// Moves on the teleports held for their effect whose effect has played: passages
+        /// (TakePassage) and waypoints (<see cref="WaypointHoldMs"/>). One whose player can no
+        /// longer go - dead, logging out, gone from the map - is called off: the effect stopped
+        /// for everyone who saw it start (actor.py Recv_TeleportFailed) and the player let go
+        /// where they stand.
         /// </summary>
         internal void PassagesWorker(MapChannel map)
         {
@@ -2054,7 +2075,7 @@ namespace Rasa.Managers
             {
                 var held = client?.PendingTransfer;
 
-                if (held == null || !held.IsPassage || held.DepartAt == 0 || now < held.DepartAt)
+                if (held == null || !held.IsHeld || held.DepartAt == 0 || now < held.DepartAt)
                     continue;
 
                 lock (client.SyncRoot)
@@ -2256,9 +2277,9 @@ namespace Rasa.Managers
                 // _TelportMovementCompleted needs: the arrival would play and the rest never
                 // happen.
                 //
-                // Through a passage: everyone already at the far end sees them arrive (actor.py
-                // _PlayTeleportArrivalFX), as at a dropship's pad.
-                if (transfer.IsPassage)
+                // Through a passage, or a waypoint held in its effect: everyone already at the far
+                // end sees them arrive (actor.py _PlayTeleportArrivalFX), as at a dropship's pad.
+                if (transfer.IsHeld)
                     client.CellIgnoreSelfCallMethod(client, new TeleportArrivalPacket());
 
                 client.CallMethod(SysEntity.ClientMethodId, new UnrequestMovementBlockPacket());
