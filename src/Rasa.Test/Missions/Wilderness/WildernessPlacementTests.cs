@@ -83,11 +83,15 @@ namespace Rasa.Test.Missions.Wilderness
         [TestMethod]
         public void AllocatedWorldPopulationUsesItsAuthoredHealthInsteadOfTheGenericFallback()
         {
+            // The escort ranger (630001), Milpas (630010) and Pierre (630070), whose deaths fail the
+            // missions they are escorted in, were raised from their authored 600, 800 and 1000
+            // (Escort_npc_stats).
+            const int Escorted = Rasa.Services.Preloader.EscortNpcStats.Health;
             using var harness = WildernessRuntimeTestHarness.Create();
             foreach (var (spawn, health) in new[]
             {
-                (630001U, 600), (630010U, 800), (630040U, 900), (630043U, 900),
-                (630046U, 600), (630070U, 1000), (630071U, 600), (630076U, 750),
+                (630001U, Escorted), (630010U, Escorted), (630040U, 900), (630043U, 900),
+                (630046U, 600), (630070U, Escorted), (630071U, 600), (630076U, 750),
                 (630100U, 900), (630120U, 1500)
             })
             {
