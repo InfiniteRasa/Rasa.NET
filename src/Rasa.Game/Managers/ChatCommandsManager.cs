@@ -246,6 +246,7 @@ namespace Rasa.Managers
             RegisterCommand(".falldamage", GmLevel.GameMaster, FallDamageCommand, "metres");
             RegisterCommand(".immune", GmLevel.GameMaster, ImmuneCommand, "damageType");
             RegisterCommand(".allowdeath", GmLevel.GameMaster, AllowDeathCommand, "on|off");
+            RegisterCommand(".invisible", GmLevel.GameMaster, InvisibleCommand, "on|off");
             RegisterCommand(".feud", GmLevel.GameMaster, FeudCommand, "action", "arg1", "arg2");
             RegisterCommand(".bark", GmLevel.GameMaster, BarkCommand, "creatureEntityId", "barkId");
             RegisterCommand(".battlecry", GmLevel.GameMaster, BattlecryCommand, "packageId", "typeId");
@@ -3183,6 +3184,49 @@ namespace Rasa.Managers
             CommunicatorManager.Instance.SystemMessage(_client, player.AllowDeath
                 ? "Death is on: you die at zero health like anyone else. .allowdeath off to stop."
                 : "Death is off: at zero health you stand back up. .allowdeath on to die.");
+        }
+
+        /// <summary>
+        /// .invisible on|off: out of sight of every player who is not a GM, or back in it
+        /// (Detection.SetGmInvisible). With no argument, says which. Off at every login.
+        /// </summary>
+        private void InvisibleCommand(string[] parts)
+        {
+            var player = _client.Player;
+            var word = parts.Length > 1 ? parts[1].ToLowerInvariant() : null;
+            bool invisible;
+
+            switch (word)
+            {
+                case null:
+                    CommunicatorManager.Instance.SystemMessage(_client, player.GmInvisible
+                        ? "You are invisible to players. .invisible off to be seen."
+                        : "You are visible. .invisible on to be seen by GMs only.");
+                    return;
+                case "on":
+                case "1":
+                case "true":
+                    invisible = true;
+                    break;
+                case "off":
+                case "0":
+                case "false":
+                    invisible = false;
+                    break;
+                default:
+                    SendCommandUsage(".invisible");
+                    return;
+            }
+
+            if (!Detection.SetGmInvisible(_client, invisible))
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, invisible ? "You are already invisible." : "You are already visible.");
+                return;
+            }
+
+            CommunicatorManager.Instance.SystemMessage(_client, invisible
+                ? "You are invisible: only GMs see you, creatures do not notice you, and to everyone else you are offline. .invisible off to be seen."
+                : "You are visible again: players see you, and your friends and clan see you online.");
         }
 
         private void ImmuneCommand(string[] parts)

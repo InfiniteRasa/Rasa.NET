@@ -159,6 +159,10 @@ namespace Rasa.Managers
             var name = (targetName ?? "").Trim();
             var target = name.Length == 0 ? null : FindByName(name);
 
+            // An invisible GM is not there to be challenged by anyone who is not a GM.
+            if (Detection.IsGmHiddenFrom(target?.Player, client))
+                target = null;
+
             if (target?.Player == null)
             {
                 Say(client, PlayerMessage.PmWargameNoTargetByName, ("target", name));

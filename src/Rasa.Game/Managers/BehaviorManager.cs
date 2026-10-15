@@ -210,8 +210,8 @@ namespace Rasa.Managers
                 if (client.Player.Attributes[Attributes.Health].Current <= 0)
                     continue;
 
-                // Cloaked (Cloak Wave): it cannot be noticed however close it stands. Nor can
-                // someone watching a camera script, who has no controls to answer with.
+                // Cloaked (Cloak Wave), or an invisible GM: it cannot be noticed however close it
+                // stands. Nor can someone watching a camera script, who has no controls to answer with.
                 if (Detection.IsHidden(client.Player) || CameraScripts.IsWatching(client.Player))
                     continue;
 

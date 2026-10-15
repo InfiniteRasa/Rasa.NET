@@ -22,6 +22,12 @@
         /// </summary>
         public ulong CharacterEntityId { get; set; }
 
+        /// <summary>
+        /// Online as an invisible GM: offline in the line a reader who is not a GM is sent
+        /// (ClanManager.ForReader). Not written; the line itself says only online or not.
+        /// </summary>
+        internal bool InvisibleGm { get; set; }
+
         public ClanMemberData()
         {
         }

@@ -414,6 +414,17 @@ namespace Rasa.Structures
         /// </summary>
         public bool AllowDeath { get; set; }
 
+        /// <summary>
+        /// A GM out of sight of every player who is not a GM (.invisible, Detection.SetGmInvisible):
+        /// not drawn on their clients, not noticed by creatures, offline on their friends lists and
+        /// clan rosters, and not found by /who or by name. Off when the character comes into the
+        /// world; a map change keeps it.
+        /// </summary>
+        public bool GmInvisible { get; set; }
+
+        /// <summary>The accounts this GM has whispered while invisible: they can whisper back.</summary>
+        public HashSet<uint> GmInvisibleWhispered { get; } = new HashSet<uint>();
+
         /// <summary>Killed by an enemy player across a wargame: back from a hospital with PvP Safety.</summary>
         public bool DiedInPvp { get; set; }
 

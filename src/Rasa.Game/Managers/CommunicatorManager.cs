@@ -503,6 +503,12 @@ namespace Rasa.Managers
                       c.State == ClientState.Ingame &&
                       string.Equals(c.Player.FamilyName, name, StringComparison.OrdinalIgnoreCase));
 
+            // An invisible GM is not in game to a player who is not a GM - unless the GM has
+            // whispered them since going invisible, and this is their answer.
+            if (target != null && Detection.IsGmHiddenFrom(target.Player, sender)
+                && !target.Player.GmInvisibleWhispered.Contains(sender.AccountEntry.Id))
+                target = null;
+
             if (target == null)
             {
                 sender.CallMethod(SysEntity.CommunicatorId,
@@ -526,6 +532,10 @@ namespace Rasa.Managers
                 Log(sender, ChatLogKind.Whisper, message, ChatLogResult.Ignored, 0, 0, null, target);
                 return;
             }
+
+            // The one an invisible GM whispers can whisper back.
+            if (sender.Player.GmInvisible)
+                sender.Player.GmInvisibleWhispered.Add(target.AccountEntry.Id);
 
             target.CallMethod(SysEntity.CommunicatorId, new WhisperPacket
             {
@@ -557,6 +567,10 @@ namespace Rasa.Managers
             foreach (var candidate in Server.Clients)
             {
                 if (candidate.State != ClientState.Ingame || candidate.Player == null)
+                    continue;
+
+                // An invisible GM, to anyone who is not a GM.
+                if (Detection.IsGmHiddenFrom(candidate.Player, client))
                     continue;
 
                 // No argument lists everyone online; otherwise match either name, since

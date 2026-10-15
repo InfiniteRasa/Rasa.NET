@@ -825,6 +825,10 @@ namespace Rasa.Managers
                 lock (Server.Clients)
                     invitee = Server.Clients.Find(c => c != null && CountsAsOnline(c) && c.Player.Id == inviteeCharacter.Id);
 
+                // An invisible GM is not online, to anyone who is not a GM.
+                if (Detection.IsGmHiddenFrom(invitee?.Player, client))
+                    invitee = null;
+
                 if (invitee == null)
                 {
                     client.CallMethod(SysEntity.ClientClanManagerId, new DisplayClanMessagePacket((int)PlayerMessage.PmUserNotOnline,
@@ -848,6 +852,9 @@ namespace Rasa.Managers
 
             lock (Server.Clients)
                 invitee = Server.Clients.Find(c => c != null && CountsAsOnline(c) && c.Player.EntityId == packet.CharacterEntityId);
+
+            if (Detection.IsGmHiddenFrom(invitee?.Player, client))
+                invitee = null;
 
             // An entity id that is no player in the world (gone since it was targeted, or never
             // one): "Target user is not online or does not exist." It was silent.
@@ -1170,6 +1177,23 @@ namespace Rasa.Managers
                 Logger.WriteLog(LogType.Debug,
                     $"Clan {clanId} \"{clan?.Name}\": leader {character.Id} ({character.Name} {familyName}) was deleted; {successor.CharacterId} ({newLeader.CharacterName} {newLeader.FamilyName}) leads it now.");
             };
+        }
+
+        /// <summary>
+        /// A GM has gone invisible or visible again (Detection.SetGmInvisible): their line, to the
+        /// rest of the clan online - offline or online again to those who are not GMs.
+        /// </summary>
+        internal void GmVisibilityChanged(Client gm)
+        {
+            var player = gm?.Player;
+
+            if (player == null || player.ClanId == 0)
+                return;
+
+            var member = GetClanMember(player.ClanId, player.Id);
+
+            if (member != null)
+                SendMemberData(MemberDataFor(gm, member, true), player.Id);
         }
 
         internal void RemovePlayer(Client client)
@@ -1689,10 +1713,12 @@ namespace Rasa.Managers
         /// A member's line for one reader. Their own line carries their manifestation's entity id and
         /// everyone else's the character id (<see cref="ClanMemberData.Write"/>). A copy per reader
         /// rather than one line changed in place: packets are written when they are sent, which is
-        /// after every reader's has been queued.
+        /// after every reader's has been queued. An invisible GM is offline to a reader who is not a GM.
         /// </summary>
         private static ClanMemberData ForReader(ClanMemberData member, Client reader)
         {
+            var hidden = member.InvisibleGm && reader.Player.Id != member.CharacterId && !Detection.SeesInvisibleGms(reader);
+
             return new ClanMemberData
             {
                 UserId = member.UserId,
@@ -1704,8 +1730,8 @@ namespace Rasa.Managers
                 Level = member.Level,
                 ContextId = member.ContextId,
                 Rank = member.Rank,
-                IsOnline = member.IsOnline,
-                IsAfk = member.IsAfk,
+                IsOnline = member.IsOnline && !hidden,
+                IsAfk = member.IsAfk && !hidden,
                 Note = member.Note
             };
         }
@@ -1724,7 +1750,8 @@ namespace Rasa.Managers
                 ContextId = client.Player.MapContextId,
                 Rank = member.Rank,
                 Note = member.Note,
-                IsOnline = isOnline
+                IsOnline = isOnline,
+                InvisibleGm = isOnline && client.Player.GmInvisible
             };
         }
 
@@ -1753,7 +1780,8 @@ namespace Rasa.Managers
                 ContextId = inWorld?.Player.MapContextId ?? entry.MapContextId,
                 Rank = entry.Rank,
                 Note = entry.Note,
-                IsOnline = inWorld != null
+                IsOnline = inWorld != null,
+                InvisibleGm = inWorld?.Player.GmInvisible == true
             };
         }
 
@@ -2092,7 +2120,7 @@ namespace Rasa.Managers
             {
                 try
                 {
-                    matches = FindWarfareMatches(player.ClanId, packet.NameContains?.Trim() ?? "", packet.MinLevel, packet.MaxLevel);
+                    matches = FindWarfareMatches(client, player.ClanId, packet.NameContains?.Trim() ?? "", packet.MinLevel, packet.MaxLevel);
                 }
                 catch (Exception e)
                 {
@@ -2104,7 +2132,7 @@ namespace Rasa.Managers
             client.CallMethod(SysEntity.ClientWargameManagerId, new ClanWarfareSearchResultsPacket(packet.RequestId, matches));
         }
 
-        private List<ClanWarfareSearchResultsPacket.Match> FindWarfareMatches(uint ownClanId, string nameContains, int minLevel, int maxLevel)
+        private List<ClanWarfareSearchResultsPacket.Match> FindWarfareMatches(Client searcher, uint ownClanId, string nameContains, int minLevel, int maxLevel)
         {
             var candidates = Clans.Values
                 .Select(c => c.Value)
@@ -2131,7 +2159,8 @@ namespace Rasa.Managers
                     ClanName = candidates[g.Key].Name,
                     MemberCount = g.Count(),
                     AverageLevel = (int)Math.Round(g.Average(r => (double)r.Level), MidpointRounding.AwayFromZero),
-                    IsOnline = g.Any(r => online.ContainsKey(r.CharacterId))
+                    // Not for an invisible GM in it, unless a GM is asking.
+                    IsOnline = g.Any(r => online.TryGetValue(r.CharacterId, out var inWorld) && !Detection.IsGmHiddenFrom(inWorld.Player, searcher))
                 })
                 .Where(m => (minLevel <= 0 || m.AverageLevel >= minLevel) && (maxLevel <= 0 || m.AverageLevel <= maxLevel))
                 .OrderByDescending(m => m.IsOnline)

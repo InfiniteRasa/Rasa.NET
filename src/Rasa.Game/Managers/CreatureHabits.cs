@@ -425,7 +425,7 @@ namespace Rasa.Managers
 
             var seen = mapChannel.ClientList
                 .Select(c => c?.Player)
-                .Where(p => p != null && p.State != CharacterState.Dead && p.MapContextId == predator.MapContextId
+                .Where(p => p != null && !p.GmInvisible && p.State != CharacterState.Dead && p.MapContextId == predator.MapContextId
                     && AbilityManager.InCone(predator.Position, facing, p.Position, range, halfAngle)
                     && TargetCategories.MayFightPlayer(predator.TargetCategory, p.CombatCategory))
                 .OrderBy(p => Vector3.DistanceSquared(p.Position, predator.Position))
@@ -434,7 +434,7 @@ namespace Rasa.Managers
             Show(mapChannel, predator, habit, null, seen);
             habit.CooldownTimer = BehaviorManager.NextCooldown(predator, habit);
 
-            foreach (var player in seen.Where(Detection.IsHidden))
+            foreach (var player in seen.Where(Detection.IsCloaked))
                 Detection.Reveal(mapChannel, player);
 
             var first = seen.FirstOrDefault();

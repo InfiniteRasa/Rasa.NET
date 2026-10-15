@@ -205,7 +205,7 @@ namespace Rasa.Managers
 
             foreach (var id in friendIds)
             {
-                var friend = GetFriendById(id);
+                var friend = GetFriendById(id, client);
 
                 if (friend != null)
                 {
@@ -216,7 +216,7 @@ namespace Rasa.Managers
 
             foreach (var id in ignoredIds)
             {
-                var ignored = GetIgnoredById(id);
+                var ignored = GetIgnoredById(id, client);
 
                 if (ignored != null)
                 {
@@ -301,7 +301,7 @@ namespace Rasa.Managers
         /// <returns>false, with the failure already acknowledged to the client, when nothing was added.</returns>
         internal bool AddFriend(Client client, uint accountId)
         {
-            var friend = GetFriendById(accountId);
+            var friend = GetFriendById(accountId, client);
 
             if (friend == null)
             {
@@ -337,7 +337,7 @@ namespace Rasa.Managers
         /// </summary>
         internal bool AddIgnoredPlayer(Client client, uint accountId)
         {
-            var ignored = GetIgnoredById(accountId);
+            var ignored = GetIgnoredById(accountId, client);
 
             if (ignored == null)
             {
@@ -396,7 +396,8 @@ namespace Rasa.Managers
             var friend = new Friend(client);
 
             foreach (var listener in HavingAsFriend(client))
-                listener.CallMethod(SysEntity.ClientSocialManagerId, new FriendLoggedInPacket(friend));
+                if (!Detection.IsGmHiddenFrom(client.Player, listener))
+                    listener.CallMethod(SysEntity.ClientSocialManagerId, new FriendLoggedInPacket(friend));
         }
 
         internal void FriendLoggedOut(Client client)
@@ -404,8 +405,35 @@ namespace Rasa.Managers
             if (client?.AccountEntry == null)
                 return;
 
+            // Not to those an invisible GM already looked offline to: "X has gone offline" for a
+            // friend who never came on is the GM being there after all.
             foreach (var listener in HavingAsFriend(client))
-                listener.CallMethod(SysEntity.ClientSocialManagerId, new FriendLoggedOutPacket(client.AccountEntry.Id));
+                if (!Detection.IsGmHiddenFrom(client.Player, listener))
+                    listener.CallMethod(SysEntity.ClientSocialManagerId, new FriendLoggedOutPacket(client.AccountEntry.Id));
+        }
+
+        /// <summary>
+        /// A GM has gone invisible or visible again (Detection.SetGmInvisible): to the friends who
+        /// are not GMs they log off or come online - Recv_FriendLoggedOut / Recv_FriendLoggedIn,
+        /// the row and the line in chat either would have had. GMs saw them online throughout.
+        /// </summary>
+        internal void GmVisibilityChanged(Client gm)
+        {
+            if (gm?.AccountEntry == null || gm.Player == null || !gm.FriendsToldOnline)
+                return;
+
+            var friend = gm.Player.GmInvisible ? null : new Friend(gm);
+
+            foreach (var listener in HavingAsFriend(gm))
+            {
+                if (Detection.SeesInvisibleGms(listener))
+                    continue;
+
+                if (friend == null)
+                    listener.CallMethod(SysEntity.ClientSocialManagerId, new FriendLoggedOutPacket(gm.AccountEntry.Id));
+                else
+                    listener.CallMethod(SysEntity.ClientSocialManagerId, new FriendLoggedInPacket(friend));
+            }
         }
 
         /// <summary>
@@ -421,7 +449,8 @@ namespace Rasa.Managers
             if (client?.AccountEntry == null || client.Player == null)
                 return 0;
 
-            var listeners = HavingAsFriend(client);
+            // Nothing about an invisible GM to those it is offline to.
+            var listeners = HavingAsFriend(client).Where(listener => !Detection.IsGmHiddenFrom(client.Player, listener)).ToList();
 
             if (listeners.Count == 0)
                 return 0;
@@ -437,13 +466,14 @@ namespace Rasa.Managers
         /// <summary>
         /// The friend-list row for an account, live when they are in game and from the
         /// database otherwise. Null when the account no longer exists; SetSocialContactList
-        /// already skips nulls, so a stale row cannot break login.
+        /// already skips nulls, so a stale row cannot break login. An invisible GM is read from the
+        /// database, offline, for a viewer who is not a GM.
         /// </summary>
-        internal Friend GetFriendById(uint accountId)
+        internal Friend GetFriendById(uint accountId, Client viewer = null)
         {
             var online = FindIngameClient(accountId);
 
-            if (online != null)
+            if (online != null && !Detection.IsGmHiddenFrom(online.Player, viewer))
                 return new Friend(online);
 
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
@@ -453,11 +483,11 @@ namespace Rasa.Managers
         }
 
         /// <summary>Same contract as GetFriendById, for the ignore list.</summary>
-        internal IgnoredPlayer GetIgnoredById(uint accountId)
+        internal IgnoredPlayer GetIgnoredById(uint accountId, Client viewer = null)
         {
             var online = FindIngameClient(accountId);
 
-            if (online != null)
+            if (online != null && !Detection.IsGmHiddenFrom(online.Player, viewer))
                 return new IgnoredPlayer(online);
 
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();

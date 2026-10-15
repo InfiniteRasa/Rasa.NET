@@ -425,8 +425,9 @@ namespace Rasa.Managers
             if (gameEffect.ChangesRegen)
                 SyncRegen(mapChannel, actor);
 
-            // Back in sight, unless something else is still hiding them.
-            if (gameEffect.Hides && actor is Manifestation seen && !Detection.IsHidden(seen))
+            // Back in sight, unless another cloak is still hiding them (an invisible GM is given
+            // back to the GMs only: Detection.Reveal).
+            if (gameEffect.Hides && actor is Manifestation seen && !Detection.IsCloaked(seen))
                 Detection.Reveal(mapChannel, seen);
 
             gameEffect.OnDetached?.Invoke(mapChannel, actor, gameEffect);

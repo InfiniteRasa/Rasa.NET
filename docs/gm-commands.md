@@ -328,6 +328,7 @@ Commands that act on other players. A GM can only use them on accounts **below t
 | `.kick <familyName> [reason]` | GameMaster | Tells the player "You have been disconnected by a game master" (with the reason, if given), then closes every connection of that account a second later. The character leaves as if the connection had dropped, but never stays behind in a fight. Works at character selection too. |
 | `.mute <familyName> <minutes> [reason]` | GameMaster | Silences the account's chat for 1 to 525,600 minutes (one year). Works on accounts that are not online. The player gets the client's own "You are now blocked from sending chat messages for the duration of N minutes", plus the reason if given; you get "User ... is silenced". |
 | `.unmute <familyName>` | GameMaster | Lifts a silence. Answers "User ... is not currently silenced" if there is none. |
+| `.invisible [on\|off]` | GameMaster | Hides you from every player who is not a GM, or shows you again. With no argument, says which you are. Off at every login; a map change keeps it. |
 
 How a silence works:
 
@@ -335,6 +336,15 @@ How a silence works:
 - A silenced player cannot say, shout, emote, or use squad, clan, clan leader, channel or whisper/reply chat. Each attempt is answered with "You have been silenced by a game master."
 - They can still **whisper a GM** (GameMaster level and above), send petitions, and use dot commands.
 - They are reminded when they enter the world, and told "You are no longer silenced" when the time runs out.
+
+How `.invisible` works:
+
+- Players who are not GMs lose your character from their screens, squad mates included, and are not given it when they come into range. GMs of any level, Observer up, go on seeing you.
+- Creatures do not notice you, and any fighting you drop you from their hate lists.
+- To players you are offline: your friends see you log off and back on when you turn it on and off, and nothing in between. Your clan's roster shows you offline. You are not in `/who`, a looking-for-group ad you have up is not in their searches, and you are left out of `GET /usersonline`.
+- Whispers, squad invitations, duel challenges and summons by your name answer as if you were not in the game. A player you whisper while invisible can whisper you back.
+- A cloak and `.invisible` do not undo each other: a cloak that ends while you are invisible shows you to GMs only, and turning visible while cloaked shows you to your squad only.
+- What you do in the open still shows: speaking in local chat, using abilities near players, trading, and being in a squad (your squad window row stays).
 
 ## Client messages and presentation
 
