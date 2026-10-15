@@ -2707,6 +2707,21 @@ namespace Rasa.Migrations.SqliteWorld
                     b.ToTable("module_item");
                 });
 
+            modelBuilder.Entity("Rasa.Structures.World.NpcBarkEntry", b =>
+                {
+                    b.Property<uint>("CreatureId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("creature_id");
+
+                    b.Property<uint>("BarkId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("bark_id");
+
+                    b.HasKey("CreatureId", "BarkId");
+
+                    b.ToTable("npc_bark");
+                });
+
             modelBuilder.Entity("Rasa.Structures.World.NpcGreetingEntry", b =>
                 {
                     b.Property<uint>("Id")

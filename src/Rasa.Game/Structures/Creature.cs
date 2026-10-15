@@ -166,6 +166,9 @@ namespace Rasa.Structures
         /// <summary>What Battlecries keeps about it between thinks; null until its first, and not copied from a template.</summary>
         public Managers.BattlecryState Cries;
 
+        /// <summary>When it next barks (NpcBarks), on NpcBarks.Now's clock; null until it is first seen, and not copied from a template.</summary>
+        public long? NextBarkAt;
+
         /// <summary>The pose it takes at its post (NpcPoses); None for a creature with none.</summary>
         public NpcPose Pose { get; set; }
 

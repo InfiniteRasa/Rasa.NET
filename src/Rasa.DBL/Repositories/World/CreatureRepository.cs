@@ -30,6 +30,11 @@ namespace Rasa.Repositories.World
             return _worldContext.CreateNoTrackingQuery(_worldContext.CreatureBattlecryEntries).ToList();
         }
 
+        public List<NpcBarkEntry> GetNpcBarks()
+        {
+            return _worldContext.CreateNoTrackingQuery(_worldContext.NpcBarkEntries).ToList();
+        }
+
         public void SaveCreatureBattlecry(uint creatureId, uint packageId)
         {
             var row = _worldContext.CreateTrackingQuery(_worldContext.CreatureBattlecryEntries)

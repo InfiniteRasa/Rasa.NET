@@ -837,6 +837,10 @@ namespace Rasa.Managers
             var battlecries = Battlecries.Load(unitOfWork.Creatures.GetBattlecries());
             Logger.WriteLog(LogType.Initialize, $"Loaded {battlecries} creature battle cry packages");
 
+            // The barks of each NPC that has any (NpcBarks).
+            var barks = NpcBarks.Load(unitOfWork.Creatures.GetNpcBarks());
+            Logger.WriteLog(LogType.Initialize, $"Loaded {barks} NPC barks");
+
             // An escort's human voice, once rolled, is kept for its creature row - written off
             // the map's thread, as the map goes on with it at once.
             var factory = _gameUnitOfWorkFactory;

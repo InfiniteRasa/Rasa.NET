@@ -402,6 +402,9 @@ namespace Rasa.Managers
             // over, a wound, a halt on its beat (Battlecries).
             Battlecries.Observe(mapChannel, creature);
 
+            // A line it says now and then, if it has any (NpcBarks).
+            NpcBarks.Observe(mapChannel, creature);
+
             // An Atta Soldier brought below a third of its health rages, and calms down if it
             // is healed back above it (AttaSoldierRage).
             AttaSoldierRage.Observe(mapChannel, creature);

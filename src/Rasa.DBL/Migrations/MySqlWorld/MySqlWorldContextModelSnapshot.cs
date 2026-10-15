@@ -2765,6 +2765,21 @@ namespace Rasa.Migrations.MySqlWorld
                     b.ToTable("module_item");
                 });
 
+            modelBuilder.Entity("Rasa.Structures.World.NpcBarkEntry", b =>
+                {
+                    b.Property<uint>("CreatureId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("creature_id");
+
+                    b.Property<uint>("BarkId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("bark_id");
+
+                    b.HasKey("CreatureId", "BarkId");
+
+                    b.ToTable("npc_bark");
+                });
+
             modelBuilder.Entity("Rasa.Structures.World.NpcGreetingEntry", b =>
                 {
                     b.Property<uint>("Id")

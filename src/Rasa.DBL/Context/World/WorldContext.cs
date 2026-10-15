@@ -109,6 +109,7 @@ namespace Rasa.Context.World
         public DbSet<VendorPriceEntry> VendorPriceEntries { get; set; }
         public DbSet<CreatureActorNameEntry> CreatureActorNameEntries { get; set; }
         public DbSet<NpcGreetingEntry> NpcGreetingEntries { get; set; }
+        public DbSet<NpcBarkEntry> NpcBarkEntries { get; set; }
         public DbSet<WeaponClassEntry> WeaponClassEntries { get; set; }
 
         protected override DatabaseConnectionConfiguration GetDatabaseConnectionConfiguration()
@@ -125,6 +126,7 @@ namespace Rasa.Context.World
             SetupControlPoints(modelBuilder);
             SetupCreatureClassFlag(modelBuilder);
             SetupCreatureBattlecry(modelBuilder);
+            SetupNpcBark(modelBuilder);
             SetupSpawnPoolPatrol(modelBuilder);
             SetupLootGroups(modelBuilder);
             SetupSkillCharacter(modelBuilder);
@@ -256,6 +258,13 @@ namespace Rasa.Context.World
         {
             modelBuilder.Entity<CreatureBattlecryEntry>()
                 .HasKey(e => new { e.Scope, e.TargetId });
+        }
+
+        /// <summary>An NPC may have several barks, so the row is the creature row and the bark.</summary>
+        private static void SetupNpcBark(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<NpcBarkEntry>()
+                .HasKey(e => new { e.CreatureId, e.BarkId });
         }
 
         /// <summary>A pool's patrol is several steps, so the row is the pool and the step.</summary>
