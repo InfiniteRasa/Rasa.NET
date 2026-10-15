@@ -18,9 +18,21 @@ namespace Rasa.Services.Preloader
         public const uint OutpostCommanderRogers = 100;
         public const uint RiverFrontReinforcements = 94;
 
+        /// <summary>
+        /// Plain SQL: Add_npc_barks has no target model (no Designer), and EF builds an InsertData
+        /// only against a model that maps the table.
+        /// </summary>
         public void Preload(MigrationBuilder migrationBuilder)
         {
-            Insert(migrationBuilder, NpcBarkEntry.TableName, new[] { "creature_id", "bark_id" });
+            foreach (var sql in Up())
+                migrationBuilder.Sql(sql);
+        }
+
+        /// <summary>The rows' inserts, one statement each, valid on SQLite and MySQL alike.</summary>
+        public static IEnumerable<string> Up()
+        {
+            foreach (var row in Rows())
+                yield return $"INSERT INTO {NpcBarkEntry.TableName} (creature_id, bark_id) VALUES ({row[0]}, {row[1]});";
         }
 
         /// <summary>The rows, as (creature id, bark id).</summary>
