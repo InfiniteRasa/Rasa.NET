@@ -78,6 +78,15 @@ namespace Rasa.Api.Ingame
             return result;
         }
 
+        // A mission content row may omit its giver even though the original
+        // npc_mission assignment still knows the NPC. Prefer a declared current
+        // giver; otherwise use the matching legacy assignment if one exists.
+        internal static uint MissionGiverId(MissionContentDefinitionEntry definition, NpcMissionEntry legacy)
+        {
+            if (definition?.GiverId is uint id && id != 0) return id;
+            return legacy?.GiverId ?? 0u;
+        }
+
         /// <summary>Actual spawnpool positions for the selected mission giver (not an inferred objective marker).</summary>
         internal sealed record MissionGiverLocation(uint spawnPoolId, uint mapContextId,
             double x, double y, double z);
@@ -244,9 +253,7 @@ namespace Rasa.Api.Ingame
             if (definition == null && legacy == null) return ApiResponse.Error(404, $"unknown mission {id}");
 
             var rev = definition?.ContentRevision;
-            // A newer definition is authoritative. Fall back to the legacy giver
-            // only when no newer mission definition exists.
-            var giverId = definition != null ? definition.GiverId.GetValueOrDefault() : legacy.GiverId;
+            var giverId = IngameMissionCatalog.MissionGiverId(definition, legacy);
             var giverLocations = IngameMissionCatalog.GiverLocations(giverId, world.Spawnpools.Get());
             using var characters = Server.GameUnitOfWorkFactory.CreateChar();
             var characterId = client.Player.Id;

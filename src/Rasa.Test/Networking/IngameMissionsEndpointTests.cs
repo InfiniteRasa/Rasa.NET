@@ -101,6 +101,20 @@ namespace Rasa.Test.Networking
         }
 
         [TestMethod]
+        public void MissionGiverFallsBackToLegacyNpcAssignmentWhenNewDefinitionOmitsIt()
+        {
+            var legacy = new NpcMissionEntry { Id = 444, GiverId = 88 };
+            Assert.AreEqual(88u, IngameMissionCatalog.MissionGiverId(
+                new MissionContentDefinitionEntry { MissionId = 444, GiverId = null }, legacy));
+            Assert.AreEqual(88u, IngameMissionCatalog.MissionGiverId(
+                new MissionContentDefinitionEntry { MissionId = 444, GiverId = 0 }, legacy));
+            Assert.AreEqual(99u, IngameMissionCatalog.MissionGiverId(
+                new MissionContentDefinitionEntry { MissionId = 444, GiverId = 99 }, legacy));
+            Assert.AreEqual(0u, IngameMissionCatalog.MissionGiverId(
+                new MissionContentDefinitionEntry { MissionId = 444, GiverId = null }, null));
+        }
+
+        [TestMethod]
         public void GiverLocationsAreRealSpawnpoolPositionsAndNeverReceiverLocations()
         {
             var pools = new[] {
