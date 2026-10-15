@@ -75,8 +75,6 @@ namespace Rasa.Managers
         /// <summary>How long a net gun hit holds a creature. Not in the server's weapon data.</summary>
         public const int NetGunRootMs = 3000;
 
-        /// <summary>How far a knockback path may stray from the straight line onto the navmesh before it stops there.</summary>
-        private const float PathTolerance = 1.0f;
         private const float PathStep = 0.5f;
 
         public static bool IsRooted(Actor actor)
@@ -114,9 +112,15 @@ namespace Rasa.Managers
 
         /// <summary>
         /// Where a knockback of <paramref name="distance"/> along <paramref name="dir"/> ends: the
-        /// straight line, walked in half-metre steps and stopped at the last one still on the
-        /// navmesh, so a creature is not driven into a wall or off a cliff. With no navmesh, the
-        /// full distance.
+        /// straight line, walked in half-metre steps over the navmesh and stopped at the last step
+        /// the walk reaches, so a creature is not driven into a wall or off a cliff. With no
+        /// navmesh, the full distance.
+        ///
+        /// Over the navmesh: each step is walked from the one before (NavMeshQuery.WalkTo) and
+        /// lands on the floor that walk ends on. It used to land on whatever walkable point lay
+        /// nearest the line, up to 8 m above or below it, and at a cliff edge that was the mesh
+        /// built inside the hill under it - in Lower Eloh Creek, layers of it 8 m under the ground,
+        /// joined to nothing. A player thrown there was inside the hill.
         /// </summary>
         public static Vector3 KnockbackDestination(MapChannel mapChannel, Vector3 from, Vector3 dir, float distance)
         {
@@ -129,15 +133,9 @@ namespace Rasa.Managers
 
             for (var d = PathStep; d <= distance + 0.001f; d += PathStep)
             {
-                var probe = from + dir * d;
-                var ground = navMesh.Nearest(probe);
+                var ground = navMesh.WalkTo(end, from + dir * d);
 
                 if (ground == null)
-                    break;
-
-                var gap = new Vector2(ground.Value.X - probe.X, ground.Value.Z - probe.Z).Length();
-
-                if (gap > PathTolerance)
                     break;
 
                 end = ground.Value;

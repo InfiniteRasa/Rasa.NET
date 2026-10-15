@@ -167,6 +167,9 @@ namespace Rasa.Managers
                 case ActionId.GestureWeapon:
                     GestureManager.Instance.PerformRecovery(mapChannel, action);
                     break;
+                case ActionId.Unstick:
+                    Unstick.Land(mapChannel, action);
+                    break;
                 case ActionId.UseObject:
                     // A claim of a control point that was interrupted has no recovery to show:
                     // those who were shown its windup are told it was interrupted instead

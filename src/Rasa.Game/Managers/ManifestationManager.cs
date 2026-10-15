@@ -3855,58 +3855,10 @@ namespace Rasa.Managers
 
         #endregion
 
-        /// <summary>
-        /// /stuck. Moves a player who has become wedged in the world to the nearest place they
-        /// can stand.
-        ///
-        /// The position in the packet is the client's, and is not used: a client is free to claim
-        /// it is stuck anywhere, and acting on that would turn this into a teleport. The server
-        /// works from the position it holds, and the navmesh decides where they end up, so the
-        /// destination is always somewhere they could have walked to.
-        ///
-        /// A dead player is left alone - they have a respawn for that, and moving a corpse would
-        /// take the body away from anyone about to revive it.
-        /// </summary>
+        /// <summary>/stuck: Unstick, an action with a windup like any other.</summary>
         public void RequestUnstick(Client client, RequestUnstickPacket packet)
         {
-            if (client.Player == null)
-                return;
-
-            if (client.Player.Attributes[Attributes.Health].Current <= 0 || client.Player.State == CharacterState.Dead)
-            {
-                // "You cannot do that while dead." PmAboutToRespawn was sent here, whose text
-                // takes a %(reason)s nothing supplied, so the client printed "Invalid
-                // substitutions" in place of the message.
-                Unhelpful(client, PlayerMessage.PmCannotDoThatWhileDead);
-                return;
-            }
-
-            var from = client.Player.Position;
-            var destination = NavMeshManager.NearestWalkable(client.Player.MapChannel, from);
-
-            if (destination == null)
-            {
-                // No navmesh for this map, or the player is further from walkable ground than the
-                // search reaches. Moving them somewhere arbitrary would be worse than saying so.
-                Unhelpful(client, PlayerMessage.PmCannotPerformActionNow);
-                Logger.WriteLog(LogType.Debug, $"Character {client.Player.Id} used /stuck at {from} on map {client.Player.MapChannel?.MapInfo?.MapContextId}, where nothing walkable was found.");
-                return;
-            }
-
-            client.Player.PlaceAt(destination.Value);
-            client.MoveObject(client.Player.EntityId, new Movement(destination.Value, client.Movement.ViewDirection));
-
-            // The message the live game showed for this command.
-            client.CallMethod(SysEntity.CommunicatorId,
-                new DisplayClientMessagePacket(PlayerMessage.PmStuckBugReportSent, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
-
-            Logger.WriteLog(LogType.Debug, $"Character {client.Player.Id} unstuck from {from} to {destination.Value} ({Vector3.Distance(from, destination.Value):F1} m).");
-        }
-
-        private static void Unhelpful(Client client, PlayerMessage reason)
-        {
-            client.CallMethod(SysEntity.CommunicatorId,
-                new DisplayClientMessagePacket(reason, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+            Unstick.Request(client);
         }
 
         /// <summary>

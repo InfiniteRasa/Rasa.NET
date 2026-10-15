@@ -167,6 +167,27 @@ namespace Rasa.Navigation
             return result;
         }
 
+        /// <summary>
+        /// Whether there is a walkable route from <paramref name="start"/> to <paramref name="end"/>:
+        /// true or false, or null when either is off the mesh or the search ran out of room before
+        /// it could tell.
+        /// </summary>
+        public bool? Connected(Vector3 start, Vector3 end)
+        {
+            var startRef = FindPoly(start, out var startPoint);
+            var endRef = FindPoly(end, out var endPoint);
+
+            if (startRef == 0 || endRef == 0)
+                return null;
+
+            var status = _query.FindPath(startRef, endRef, startPoint, endPoint, _filter, _polys, out var polyCount, MaxPolys);
+
+            if (status.Failed() || polyCount == 0 || status.Has(DtStatus.DT_OUT_OF_NODES))
+                return null;
+
+            return _polys[polyCount - 1] == endRef;
+        }
+
         /// <summary>A random walkable point within <paramref name="radius"/> of <paramref name="centre"/>, or null.</summary>
         public Vector3? RandomPointAround(Vector3 centre, float radius)
         {
@@ -194,6 +215,30 @@ namespace Rasa.Navigation
             var status = _query.Raycast(startRef, startPoint, ToRc(end), _filter, out var t, out _, _polys, out _, MaxPolys);
 
             return status.Succeeded() && t >= float.MaxValue; // t == MAX means nothing was hit
+        }
+
+        /// <summary>
+        /// Where a straight walk from <paramref name="start"/> toward <paramref name="end"/> over the
+        /// mesh arrives: the point over (x, z) of the end on the polygon the walk ends on, at its
+        /// height - not whatever other floor lies nearest the end, above or below. Null when the
+        /// walk is stopped (a wall, a drop) or the start is off the mesh.
+        /// </summary>
+        public Vector3? WalkTo(Vector3 start, Vector3 end)
+        {
+            var startRef = FindPoly(start, out var startPoint);
+
+            if (startRef == 0)
+                return null;
+
+            var target = ToRc(end);
+            var status = _query.Raycast(startRef, startPoint, target, _filter, out var t, out _, _polys, out var count, MaxPolys);
+
+            if (status.Failed() || t < float.MaxValue || count == 0)
+                return null;
+
+            return _query.ClosestPointOnPoly(_polys[count - 1], target, out var point, out _).Succeeded()
+                ? ToVector(point)
+                : (Vector3?)null;
         }
 
         // The netstandard build of DotRecast has no Vector3 conversions.
