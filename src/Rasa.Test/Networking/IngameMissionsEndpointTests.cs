@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Text.Json;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Rasa.Test.Networking
@@ -9,6 +10,7 @@ namespace Rasa.Test.Networking
     using Rasa.Api;
     using Rasa.Api.Ingame;
     using Rasa.Structures.World;
+    using Rasa.Structures.Char;
 
     [TestClass]
     public class IngameMissionsEndpointTests
@@ -54,6 +56,48 @@ namespace Rasa.Test.Networking
             maps = IngameMissionCatalog.FindMissionMaps(definitions, Array.Empty<NpcMissionEntry>(),
                 staleAreas, groups, steps, pools);
             CollectionAssert.AreEqual(new uint[] { 1220, 1721 }, maps[11].ToArray());
+        }
+
+        [TestMethod]
+        public void CompletionIncludesArchivedRewardedMissionsAndNotOnlyTheLiveJournal()
+        {
+            var assignments = new[] {
+                new CharacterMissionEntry(42, 101, 0),  // active
+                new CharacterMissionEntry(42, 102, 1),  // turn-in pending
+                new CharacterMissionEntry(42, 103, 4)   // rewarded, not yet archived
+            };
+            var history = new[] {
+                new CharacterMissionHistoryEntry { CharacterId = 42, MissionId = 104, Rewarded = true, Outcome = 4 },
+                new CharacterMissionHistoryEntry { CharacterId = 42, MissionId = 105, Rewarded = false, Outcome = 2 },
+                new CharacterMissionHistoryEntry { CharacterId = 42, MissionId = 106, Rewarded = false, Outcome = 1 }
+            };
+            var completed = IngameMissionCatalog.CompletedMissionIds(assignments, history);
+            CollectionAssert.AreEquivalent(new uint[] { 103, 104 }, completed.ToArray());
+        }
+
+        [TestMethod]
+        public void LinkedPrerequisitesUseOnlyTheSelectedRevisionAndMissionRequirements()
+        {
+            var prerequisites = new[] {
+                new MissionPrerequisiteEntry { MissionId = 400, ContentRevision = "current", PrerequisiteId = 1,
+                    Kind = MissionPrerequisiteKind.MissionCompleted, RequiredMissionId = 200, Comment = "Finish first" },
+                new MissionPrerequisiteEntry { MissionId = 400, ContentRevision = "old", PrerequisiteId = 2,
+                    Kind = MissionPrerequisiteKind.MissionCompleted, RequiredMissionId = 201 },
+                new MissionPrerequisiteEntry { MissionId = 400, ContentRevision = "current", PrerequisiteId = 3,
+                    Kind = MissionPrerequisiteKind.MissionAccepted, RequiredMissionId = 202 },
+                new MissionPrerequisiteEntry { MissionId = 400, ContentRevision = "current", PrerequisiteId = 4,
+                    Kind = MissionPrerequisiteKind.PlayerLevelAtLeast, RequiredLevel = 10 },
+                new MissionPrerequisiteEntry { MissionId = 401, ContentRevision = "current", PrerequisiteId = 5,
+                    Kind = MissionPrerequisiteKind.MissionCompleted, RequiredMissionId = 203 }
+            };
+            var links = IngameMissionCatalog.LinkedPrerequisites(prerequisites, 400, "current");
+            using var parsed = JsonDocument.Parse(JsonSerializer.Serialize(links));
+            var array = parsed.RootElement;
+            Assert.AreEqual(2, array.GetArrayLength());
+            Assert.AreEqual((uint)200, array[0].GetProperty("missionId").GetUInt32());
+            Assert.AreEqual("MissionCompleted", array[0].GetProperty("kind").GetString());
+            Assert.AreEqual((uint)202, array[1].GetProperty("missionId").GetUInt32());
+            Assert.AreEqual("MissionAccepted", array[1].GetProperty("kind").GetString());
         }
 
         [TestMethod]

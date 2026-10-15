@@ -8,9 +8,10 @@ namespace Rasa.Api.Ingame
 {
     using Game;
     using Repositories.World;
+    using Structures.Char;
     using Structures.World;
 
-    /// <summary>Read-only mission catalog. Never reads or modifies character mission progress.</summary>
+    /// <summary>Read-only mission catalog with the authenticated character's durable completion status.</summary>
     internal static class IngameMissionCatalog
     {
         // A mission has no direct map column: gather *evidence* from content and the NPC's
@@ -77,6 +78,35 @@ namespace Rasa.Api.Ingame
             return result;
         }
 
+        // A rewarded mission can be archived and absent from the current journal.
+        // Use the durable Character DB; do not use player.Missions (the client-facing journal).
+        internal static HashSet<uint> CompletedMissionIds(
+            IEnumerable<CharacterMissionEntry> assignments,
+            IEnumerable<CharacterMissionHistoryEntry> history)
+        {
+            var result = history.Where(h => h.Rewarded || h.Outcome == 4)
+                .Select(h => h.MissionId).ToHashSet();
+            foreach (var entry in assignments)
+                if (entry.MissionState == 4) result.Add(entry.MissionId);
+            return result;
+        }
+
+        internal static List<object> LinkedPrerequisites(
+            IEnumerable<MissionPrerequisiteEntry> entries, uint missionId, string revision)
+        {
+            return entries.Where(p => p.MissionId == missionId && p.ContentRevision == revision &&
+                    p.RequiredMissionId.HasValue && p.RequiredMissionId.Value != 0 &&
+                    p.Kind is MissionPrerequisiteKind.MissionCompleted or MissionPrerequisiteKind.MissionAccepted)
+                .OrderBy(p => p.PrerequisiteId)
+                .Select(p => (object)new {
+                    missionId = p.RequiredMissionId.Value,
+                    kind = p.Kind.ToString(),
+                    requiredMissionState = p.RequiredMissionState,
+                    requirement = p.Requirement.ToString(),
+                    comment = p.Comment
+                }).ToList();
+        }
+
         internal static string FriendlyName(string comment, uint id) =>
             string.IsNullOrWhiteSpace(comment) ? $"Mission {id}" : comment.Trim();
 
@@ -122,6 +152,13 @@ namespace Rasa.Api.Ingame
                     .ThenByDescending(m => m.ContentRevision, StringComparer.Ordinal).First())
                 .ToList();
             var legacy = world.NpcMissions.Get();
+            using var characters = Server.GameUnitOfWorkFactory.CreateChar();
+            var characterId = client.Player.Id;
+            var playerAssignments = characters.CharacterMissions.Get(characterId);
+            var completed = IngameMissionCatalog.CompletedMissionIds(playerAssignments,
+                characters.CharacterMissions.Runtime.History(characterId));
+            var playerStates = playerAssignments.ToDictionary(m => m.MissionId, m => m.MissionState);
+            var prerequisites = content.GetPrerequisites();
             var mapNames = world.MapInfos.Get().ToDictionary(m => m.Id, m => m.MapName ?? "");
             var maps = IngameMissionCatalog.FindMissionMaps(definitions, legacy,
                 content.GetAreas(), content.GetSpawnGroups(), content.GetScenarioSteps(), world.Spawnpools.Get());
@@ -134,7 +171,10 @@ namespace Rasa.Api.Ingame
                 revision = m.ContentRevision,
                 enabled = m.Enabled,
                 level = m.Level,
-                source = "mission_content_definition"
+                source = "mission_content_definition",
+                playerCompleted = completed.Contains(m.MissionId),
+                playerMissionState = playerStates.TryGetValue(m.MissionId, out var state) ? (uint?)state : null,
+                prerequisites = IngameMissionCatalog.LinkedPrerequisites(prerequisites, m.MissionId, m.ContentRevision)
             }).ToDictionary(m => m.id, m => (object)m);
             foreach (var m in legacy)
             {
@@ -143,7 +183,10 @@ namespace Rasa.Api.Ingame
                     {
                         id = m.Id, name = IngameMissionCatalog.FriendlyName(m.Comment, m.Id),
                         nameTextId = 0u, revision = "", enabled = true, level = m.Level,
-                        source = "npc_mission (legacy)"
+                        source = "npc_mission (legacy)",
+                        playerCompleted = completed.Contains(m.Id),
+                        playerMissionState = playerStates.TryGetValue(m.Id, out var state) ? (uint?)state : null,
+                        prerequisites = Array.Empty<object>()
                     });
             }
 
@@ -185,6 +228,14 @@ namespace Rasa.Api.Ingame
             if (definition == null && legacy == null) return ApiResponse.Error(404, $"unknown mission {id}");
 
             var rev = definition?.ContentRevision;
+            using var characters = Server.GameUnitOfWorkFactory.CreateChar();
+            var characterId = client.Player.Id;
+            var assignments = characters.CharacterMissions.Get(characterId);
+            var completed = IngameMissionCatalog.CompletedMissionIds(assignments,
+                characters.CharacterMissions.Runtime.History(characterId));
+            var assignment = assignments.FirstOrDefault(m => m.MissionId == id);
+            var linkedPrerequisites = definition == null ? new List<object>() :
+                IngameMissionCatalog.LinkedPrerequisites(content.GetPrerequisites(), id, rev);
             List<Dictionary<string, object>> Filter<T>(IEnumerable<T> entries, Func<T, uint> missionId, Func<T, string> revision) =>
                 IngameMissionCatalog.Rows(entries.Where(m => missionId(m) == id && (rev == null || revision(m) == rev)));
 
@@ -214,7 +265,12 @@ namespace Rasa.Api.Ingame
                 sections["channelPolicies"] = Filter(migrated.GetChannelPolicies(), m => m.MissionId, m => m.ContentRevision);
                 sections["sceneBindings"] = Filter(migrated.GetSceneBindings(), m => m.MissionId, m => m.ContentRevision);
             }
-            return ApiResponse.Ok(ApiJson.Serialize(new { id, sections }));
+            return ApiResponse.Ok(ApiJson.Serialize(new {
+                id, sections,
+                playerCompleted = completed.Contains(id),
+                playerMissionState = (uint?)assignment?.MissionState,
+                prerequisites = linkedPrerequisites
+            }));
         }
     }
 }
