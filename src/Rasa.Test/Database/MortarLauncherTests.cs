@@ -84,12 +84,16 @@ namespace Rasa.Test.Database
         }
 
         // Six pairs older than this shared a timestamp before it, and are run on every World
-        // already, several with table changes that are not guarded, so they keep their ids. A
-        // new pair is a mistake: EF runs both, ordered by the rest of the id, whatever was meant.
+        // already, several with table changes that are not guarded, so they keep their ids. So do
+        // two later pairs, each of two migrations that touch nothing of the other's, run on Worlds
+        // since: Alia_Das_cellar_link and Weapon_template_rows (20261230000000), Add_npc_barks and
+        // Alia_das_npcs (20261231000000); Add_npc_barks creates a table, so it cannot run twice.
+        // A new pair is a mistake: EF runs both, ordered by the rest of the id, whatever was meant.
         [TestMethod]
         public void NoNewMigrationSharesATimestamp()
         {
-            var known = new[] { "20260927000000", "20260930000000", "20261012000000", "20261104000000", "20261111000000", "20261203000000" };
+            var known = new[] { "20260927000000", "20260930000000", "20261012000000", "20261104000000", "20261111000000", "20261203000000",
+                "20261230000000", "20261231000000" };
 
             using var database = new OrdinaryLootTestDatabase();
             var shared = database.Context.Database.GetMigrations()
