@@ -970,7 +970,8 @@ namespace Rasa.Managers
             }
 
             // The items it takes, and the one it was used from, in one write; never a mission's.
-            // An emote's flag or a title goes in the same write; a rocket or a pet is kept (Toys).
+            // An emote's flag or a title goes in the same write; a rocket, a pet or a piece of
+            // equipment is kept (Toys).
             // This is the last thing that can still refuse the ability, so it comes before the
             // costs: power or chi used to be taken first, and an ability refused here for want
             // of an item - used up or moved while the windup ran - had been paid for all the
@@ -979,7 +980,9 @@ namespace Rasa.Managers
 
             try
             {
-                ConsumeAbilityItems(client, info, KeepsSourceItem(actionInfo) ? 0 : action.ItemId, ToyWrite(actionInfo, info, player, toyCommit));
+                var source = action.ItemId != 0 ? EntityManager.Instance.GetItem(action.ItemId) : null;
+
+                ConsumeAbilityItems(client, info, KeepsSourceItem(actionInfo, source) ? 0 : action.ItemId, ToyWrite(actionInfo, info, player, toyCommit));
             }
             catch (Exception error) when (GameplayRejectionException.IsExpected(error))
             {

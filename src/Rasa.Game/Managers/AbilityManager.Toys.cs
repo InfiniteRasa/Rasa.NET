@@ -190,9 +190,23 @@ namespace Rasa.Managers
                    || DropshipBeacons.Is(action, info);
         }
 
-        /// <summary>A rocket, a pet or a dropship beacon is kept when used; everything else used from an item is used up.</summary>
-        private static bool KeepsSourceItem(ActionInfo action) =>
-            action.Module == FixedVisualModule || action.Module == CompanionModule || action.Module == DropshipBeacons.PortalModule;
+        /// <summary>
+        /// A rocket, a pet or a dropship beacon is kept when used, and so is a piece of equipment
+        /// that performs an ability: the MotorAssist boots' Rage (130392, worn in the shoes slot)
+        /// and the PAU AFS Mech Sprint (130498, a mech ability slot), the only two items with
+        /// both an item_template_action and an equipableclass row. They were used up like a
+        /// medpack - boots that cost 750 credits gone after one Rage. Everything else used from an
+        /// item is used up.
+        /// </summary>
+        private static bool KeepsSourceItem(ActionInfo action, Item item) =>
+            action.Module == FixedVisualModule || action.Module == CompanionModule || action.Module == DropshipBeacons.PortalModule
+            || IsEquipment(item);
+
+        /// <summary>Whether the item's class has an equipment slot (equipableclass).</summary>
+        private static bool IsEquipment(Item item) =>
+            item?.ItemTemplate != null
+            && EntityClassManager.Instance.LoadedEntityClasses.TryGetValue(item.ItemTemplate.Class, out var entityClass)
+            && entityClass.EquipableClassInfo != null;
 
         #endregion
 
