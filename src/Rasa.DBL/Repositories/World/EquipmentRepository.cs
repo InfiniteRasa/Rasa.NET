@@ -14,6 +14,72 @@ namespace Rasa.Repositories.World
             _worldContext = worldContext;
         }
 
+        /// <summary>Tracked updates only; missing records are not silently fabricated.</summary>
+        public void UpdateItemEditor(
+            ItemTemplateEntry template, ItemClassEntry itemClass,
+            ItemTemplateArmorEntry armor, ItemTemplateWeaponEntry weapon,
+            WeaponClassEntry weaponClass, ItemTemplateRequirementSkillEntry skill)
+        {
+            var record = _worldContext.ItemTemplateEntries.Find(template.Id)
+                ?? throw new System.InvalidOperationException($"Item template {template.Id} has no itemtemplate row");
+            record.QualityId = template.QualityId;
+            record.HasSellableFlag = template.HasSellableFlag;
+            record.NotTradableFlag = template.NotTradableFlag;
+            record.HasCharacterUniqueFlag = template.HasCharacterUniqueFlag;
+            record.HasAccountUniqueFlag = template.HasAccountUniqueFlag;
+            record.HasBoEFlag = template.HasBoEFlag;
+            record.BoundToCharacterFlag = template.BoundToCharacterFlag;
+            record.NotPlacableInLockboxFlag = template.NotPlacableInLockboxFlag;
+            record.InventoryCategory = template.InventoryCategory;
+            record.BuyPrice = template.BuyPrice;
+            record.SellPrice = template.SellPrice;
+
+            if (itemClass != null)
+            {
+                var shared = _worldContext.ItemClassEntries.Find(itemClass.Id)
+                    ?? throw new System.InvalidOperationException($"Item class {itemClass.Id} has no itemclass row");
+                shared.InventoryIconStringId = itemClass.InventoryIconStringId;
+                shared.LootValue = itemClass.LootValue;
+                shared.IsConsumableFlag = itemClass.IsConsumableFlag;
+                shared.MaxHitPoints = itemClass.MaxHitPoints;
+                shared.StackSize = itemClass.StackSize;
+            }
+            if (armor != null)
+            {
+                var row = _worldContext.ItemTemplateArmorEntries.Find(armor.Id)
+                    ?? throw new System.InvalidOperationException($"Item template {armor.Id} has no armor row");
+                row.ArmorValue = armor.ArmorValue;
+            }
+            if (weapon != null)
+            {
+                var row = _worldContext.ItemTemplateWeaponEntries.Find(weapon.Id)
+                    ?? throw new System.InvalidOperationException($"Item template {weapon.Id} has no weapon row");
+                row.AmmoPerShot = weapon.AmmoPerShot;
+                row.Range = weapon.Range;
+                row.Windup = weapon.Windup;
+                row.Recovery = weapon.Recovery;
+                row.Refire = weapon.Refire;
+                row.ReloadTime = weapon.ReloadTime;
+            }
+            if (weaponClass != null)
+            {
+                var row = _worldContext.WeaponClassEntries.Find(weaponClass.Id)
+                    ?? throw new System.InvalidOperationException($"Class {weaponClass.Id} has no weaponclass row");
+                row.MinDamage = weaponClass.MinDamage;
+                row.MaxDamage = weaponClass.MaxDamage;
+                row.DamageType = weaponClass.DamageType;
+                row.AmmoClassId = weaponClass.AmmoClassId;
+                row.ClipSize = weaponClass.ClipSize;
+            }
+            if (skill != null)
+            {
+                var row = _worldContext.ItemTemplateRequirementSkillEntries.Find(skill.Id)
+                    ?? throw new System.InvalidOperationException($"Item template {skill.Id} has no skill requirement row");
+                row.SkillId = skill.SkillId;
+                row.SkillLevel = skill.SkillLevel;
+            }
+        }
+
         public List<ArmorClassEntry> GetArmorClasses()
         {
             var query = _worldContext.CreateNoTrackingQuery(_worldContext.ArmorClassEntries);

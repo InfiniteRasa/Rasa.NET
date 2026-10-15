@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Linq;
@@ -764,6 +764,41 @@ namespace Rasa.Managers
             creature.Attributes.Add(Attributes.Armor, new ActorAttributes(Attributes.Armor, 100, 100, 100, 5, 1000));
             creature.Attributes.Add(Attributes.Speed, new ActorAttributes(Attributes.Speed, 1, 1, 1, 0, 0));
             creature.Attributes.Add(Attributes.Regen, new ActorAttributes(Attributes.Regen, 0, 0, 0, 0, 0));
+        }
+
+
+        /// <summary>Publish an edited creature template to future spawns after World DB commit.</summary>
+        public void PublishCreatureEditor(Structures.World.CreatureEntry data,
+            IReadOnlyList<Structures.World.CreatureAppearanceEntry> appearances,
+            IReadOnlyDictionary<uint, Structures.World.CreatureActionEntry> actionDefinitions)
+        {
+            if (!LoadedCreatures.TryGetValue(data.Id, out var creature))
+                return;
+
+            var appearance = new Dictionary<EquipmentData, AppearanceData>();
+            foreach (var row in appearances)
+                appearance.Add((EquipmentData)row.SlotId, new AppearanceData
+                {
+                    SlotId = (EquipmentData)row.SlotId,
+                    Class = row.ClassId,
+                    Color = new Color(row.Color),
+                    Hue2 = new Color(2139062144)
+                });
+
+            var actions = new List<CreatureAction>();
+            foreach (var actionId in new[] { data.Action1, data.Action2, data.Action3, data.Action4,
+                         data.Action5, data.Action6, data.Action7, data.Action8 })
+                if (actionId != 0)
+                    actions.Add(new CreatureAction(actionDefinitions[actionId]));
+
+            creature.TargetCategory = TargetCategories.FromFaction(data.Faction);
+            creature.Level = data.Level;
+            creature.MaxHitPoints = data.MaxHitPoints;
+            creature.NameId = data.NameId;
+            creature.RunSpeed = data.RunSpeed;
+            creature.WalkSpeed = data.WalkSpeed;
+            creature.AppearanceData = appearance;
+            creature.Actions = actions;
         }
 
         public void CreatureInit()

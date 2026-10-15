@@ -30,6 +30,51 @@ namespace Rasa.Test.Networking
     {
         private const string Key = "tools-key";
 
+        [TestMethod]
+        public void JwtGameToolsRoutesReuseTheApiKeyOperationsWithoutAcceptingAnApiKey()
+        {
+            var sessions = new Rasa.Api.Ingame.IngameSessionService();
+            var flagReader = new MonsterFlagsEndpoint();
+            var flagWriter = new UpdateMonsterFlagsEndpoint();
+            var lootReader = new WeightedLootEndpoint();
+            var lootWriter = new UpdateWeightedLootEndpoint();
+            var adapters = new ApiEndpoint[]
+            {
+                new Rasa.Api.Ingame.IngameMonsterFlagsEndpoint(sessions, flagReader),
+                new Rasa.Api.Ingame.IngameUpdateMonsterFlagsEndpoint(sessions, flagWriter),
+                new Rasa.Api.Ingame.IngameWeightedLootEndpoint(sessions, lootReader),
+                new Rasa.Api.Ingame.IngameUpdateWeightedLootEndpoint(sessions, lootWriter),
+            };
+            CollectionAssert.AreEqual(new[]
+            {
+                "ingame/monsterflags", "ingame/updatemonsterflags",
+                "ingame/lootpools", "ingame/updatelootpools"
+            }, adapters.Select(e => e.Name).ToArray());
+            foreach (var endpoint in adapters)
+            {
+                Assert.IsFalse(endpoint.RequiresApiKey);
+                Assert.IsTrue(endpoint.Sensitive);
+                Assert.AreEqual(401, endpoint.Handle(new ApiRequest
+                {
+                    Method = endpoint.Method, Remote = IPAddress.Loopback
+                }).Status, endpoint.Name);
+            }
+            Assert.AreEqual(GameToolsEndpoint.BodyBytes, adapters[1].MaxBodyBytes);
+            Assert.AreEqual(GameToolsEndpoint.BodyBytes, adapters[3].MaxBodyBytes);
+            Assert.IsFalse(new Rasa.Api.Ingame.IngameItemDetailsEndpoint(sessions).Matches("ingame/items/update"));
+            Assert.AreEqual("POST", new Rasa.Api.Ingame.IngameItemUpdateEndpoint(sessions).Method);
+            var creatureUpdate = new Rasa.Api.Ingame.IngameCreatureUpdateEndpoint(sessions);
+            Assert.AreEqual("POST", creatureUpdate.Method);
+            Assert.IsTrue(creatureUpdate.Sensitive);
+            Assert.IsFalse(creatureUpdate.RequiresApiKey);
+            Assert.AreEqual(401, creatureUpdate.Handle(new ApiRequest
+            {
+                Method = "POST", Remote = IPAddress.Loopback
+            }).Status);
+
+        }
+
+
         #region Web pages
 
         [TestMethod]

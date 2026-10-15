@@ -45,6 +45,9 @@ namespace Rasa.Api
         /// </summary>
         public virtual int MaxBodyBytes => ApiServer.MaxBodyBytes;
 
+        /// <summary>Header-only authentication check before reading a large body.</summary>
+        public virtual bool MayReadLargeBody(ApiRequest request) => RequiresApiKey;
+
         public abstract ApiResponse Handle(ApiRequest request);
     }
 

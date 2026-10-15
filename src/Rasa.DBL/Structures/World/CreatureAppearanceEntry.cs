@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -24,5 +24,6 @@ namespace Rasa.Structures.World
         [Column("color")]
         [Required]
         public uint Color { get; set; }
+
     }
 }

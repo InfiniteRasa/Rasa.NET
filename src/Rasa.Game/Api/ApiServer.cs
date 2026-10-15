@@ -710,7 +710,7 @@ namespace Rasa.Api
 
                 // Let through without the API's key, by an endpoint that checks for itself
                 // only once it has the body: such a one takes the usual cap and no more.
-                if (wanted > endpoint.MaxBodyBytes || !endpoint.RequiresApiKey)
+                if (wanted > endpoint.MaxBodyBytes || !endpoint.MayReadLargeBody(request))
                     return (ApiResponse.Error(413, "request body too large"), unsent);
 
                 // Megabytes do not cross every network in the few seconds a connection has.

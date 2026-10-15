@@ -553,6 +553,12 @@ namespace Rasa.Test.Missions
             public uint GetItemClass(uint itemTemplateId) =>
                 _fixture.ItemTemplateClasses[itemTemplateId];
 
+            public void UpdateItemEditor(
+                ItemTemplateEntry template, ItemClassEntry itemClass,
+                ItemTemplateArmorEntry armor, ItemTemplateWeaponEntry weapon,
+                WeaponClassEntry weaponClass, ItemTemplateRequirementSkillEntry skill) =>
+                throw new NotSupportedException("Item editing is not supported by this mission test fixture.");
+
             public List<ArmorClassEntry> GetArmorClasses() => new();
             public List<WeaponClassEntry> GetWeaponClasses() => new();
             public List<ItemClassEntry> GetItemClasses() => new();
