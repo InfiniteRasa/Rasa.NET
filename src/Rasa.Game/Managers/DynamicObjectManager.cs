@@ -547,9 +547,13 @@ namespace Rasa.Managers
 
                     if (teleporter.RespawnTime <= 0)
                     {
+                        // On before it is put in the world: AddToWorld shows it at once to whoever
+                        // is in range, in the state it has then. Set after, the players already
+                        // there - on a map whose worker has only just started, the first one on
+                        // it - were shown it in no state at all, off, and never told otherwise.
+                        teleporter.StateId = UseObjectState.TsState1;
                         CellManager.Instance.AddToWorld(mapChannel, teleporter);
                         teleporter.IsInWorld = true;
-                        teleporter.StateId = UseObjectState.TsState1;
                     }
                 }
 
