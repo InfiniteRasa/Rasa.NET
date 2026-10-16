@@ -549,6 +549,9 @@ namespace Rasa.Managers
                         // Fire Support's beacons: their blasts and napalm pools.
                         Guard("AbilityManager.FireSupportWorker", mapChannel, () => AbilityManager.Instance.FireSupportWorker(mapChannel));
 
+                        // EMP bombs: their blasts, and the spent ones taken away.
+                        Guard("AbilityManager.PlacedBombWorker", mapChannel, () => AbilityManager.Instance.PlacedBombWorker(mapChannel));
+
                         // The pools propellant guns leave: their ticks and their burning out.
                         Guard("PropellantPools.Worker", mapChannel, () => PropellantPools.Worker(mapChannel));
 

@@ -832,6 +832,9 @@ namespace Rasa.Managers
             // A propellant pool's proxy: the pool burning on it.
             PropellantPools.ShowTo(client, dynamicObject);
 
+            // An EMP bomb still waiting to go off: its effect, for the blast to play on.
+            AbilityManager.ShowPlacedBombTo(client, dynamicObject);
+
             // A firework's, a flare's or a smoke grenade's: what is going on it (AbilityManager.Toys).
             AbilityManager.ShowLocationEffectTo(client, dynamicObject);
 
