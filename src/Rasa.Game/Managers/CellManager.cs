@@ -296,6 +296,7 @@ namespace Rasa.Managers
             MawLurk.Forget(creature);
             CreatureBuffs.Forget(creature);
             AlternateMesh.Forget(creature);
+            EntityManager.Instance.UnRegisterVendorItem(creature.EntityId);
 
             // A mission's receiver given to clients beyond its cells goes for them too.
             MissionContacts.Removed(mapChannel, creature);

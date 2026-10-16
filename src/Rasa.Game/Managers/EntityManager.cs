@@ -323,9 +323,17 @@ namespace Rasa.Managers
             VendorItems.Add(vendorEntityId, itemEntityIds);
         }
 
-        public void UnRegisterVendorItem(ulong clientEntityId)
+        /// <summary>
+        /// Forgets the counter a vendor was given (NpcManager.RequestNPCVending), as the vendor is
+        /// taken away (CellManager.RemoveCreatureFromWorld). The table is keyed by the vendor's
+        /// entity id, which is freed for the next creature: kept, a later creature given the same
+        /// id - another vendor, or a Resupply Bot - was shown the old one's counter. The items on
+        /// it stay registered: every client that opened the window was sent them and is not told
+        /// to let go of them, and an id it still holds should not come back as something else.
+        /// </summary>
+        public void UnRegisterVendorItem(ulong vendorEntityId)
         {
-            // ToDO
+            VendorItems.Remove(vendorEntityId);
         }
     }
 }

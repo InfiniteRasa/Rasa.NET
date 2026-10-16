@@ -17,6 +17,8 @@ namespace Rasa.Managers
     /// <summary>
     /// The toys: account reward and holiday items used like abilities.
     ///
+    /// (The Resupply Beacon, ACCOUNTREWARD_RESUPPLY 510, is one too: ResupplyBots.)
+    ///
     ///  - Emote items, ACCOUNTREWARD_EMOTE_ITEM (464, abilities.accountrewardemoteitem). Each level
     ///    is one emote. Its SET_PLAYER_FLAG_ID is the player flag the emote's gesture row needs
     ///    (actiondata playerFlagReqs, (2, argId)). The item is its own requirement, so it is used
@@ -216,11 +218,11 @@ namespace Rasa.Managers
         {
             return IsEmoteItem(action, info) || IsTitleItem(action, info) || IsModelRocket(action, info)
                    || IsLocationEffect(action, info) || IsSnowball(action) || IsPet(action, info)
-                   || DropshipBeacons.Is(action, info);
+                   || DropshipBeacons.Is(action, info) || ResupplyBots.Is(action, info);
         }
 
         /// <summary>
-        /// A rocket, a pet or a dropship beacon is kept when used, and so is a piece of equipment
+        /// A rocket, a pet, a dropship beacon or a resupply beacon is kept when used, and so is a piece of equipment
         /// that performs an ability: the MotorAssist boots' Rage (130392, worn in the shoes slot)
         /// and the PAU AFS Mech Sprint (130498, a mech ability slot), the only two items with
         /// both an item_template_action and an equipableclass row. They were used up like a
@@ -229,6 +231,7 @@ namespace Rasa.Managers
         /// </summary>
         private static bool KeepsSourceItem(ActionInfo action, Item item) =>
             action.Module == FixedVisualModule || action.Module == CompanionModule || action.Module == DropshipBeacons.PortalModule
+            || action.Module == ResupplyBots.ResupplyModule
             || IsEquipment(item);
 
         /// <summary>Whether the item's class has an equipment slot (equipableclass).</summary>
@@ -325,6 +328,8 @@ namespace Rasa.Managers
                 SummonPet(mapChannel, player, info, action, recovery);
             else if (DropshipBeacons.Is(actionInfo, info))
                 DropshipBeacons.Deploy(mapChannel, player, info);
+            else if (ResupplyBots.Is(actionInfo, info) && ResupplyBots.Deploy(mapChannel, player, info) is { } bot)
+                recovery.Hits.Add(new AbilityHit { EntityId = bot.EntityId });
 
             CellManager.Instance.CellCallMethod(mapChannel, player, recovery);
         }

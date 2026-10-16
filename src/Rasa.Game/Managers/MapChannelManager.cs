@@ -564,6 +564,9 @@ namespace Rasa.Managers
                         // Dropship beacons: settled, sent away, and the travel window for the squad in reach.
                         Guard("DropshipBeacons.Worker", mapChannel, () => DropshipBeacons.Worker(mapChannel));
 
+                        // Resupply bots: taken away in their time, or when their owner has gone.
+                        Guard("ResupplyBots.Worker", mapChannel, () => ResupplyBots.Worker(mapChannel));
+
                         // Personal Waypoints: taken away in their time, and the waypoint window for whoever they are for.
                         Guard("PersonalWaypoints.Worker", mapChannel, () => PersonalWaypoints.Worker(mapChannel));
 
