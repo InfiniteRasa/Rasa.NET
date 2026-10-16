@@ -57,6 +57,13 @@ namespace Rasa.Structures
 
         /// <summary>Milliseconds of this fight the creature has stood free to act and neither struck nor gained ground (BehaviorManager.Stalled).</summary>
         public long StalledMs { get; set; }
+
+        /// <summary>
+        /// The last route built to the target does not reach it: the target is where no route
+        /// goes, and the path only takes the creature as near as it gets. A new one is not looked
+        /// for each time this one runs out, only once the path update lock is up (BehaviorManager).
+        /// </summary>
+        public bool RouteIncomplete { get; set; }
     }
 
     /// <summary>

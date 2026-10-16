@@ -1200,10 +1200,18 @@ namespace Rasa.Managers
                 // then held that node forever, standing still while the player moved around it
                 // and shot at it. The path is now rebuilt whenever the target has moved away from
                 // the point it aims at, at most every ChasePathUpdateMs.
+                //
+                // And when it has none - walked to its end, or none to be had - except that a target
+                // no route reaches (on a rock, a roof, ground the mesh has cut off) gets a new search
+                // only when the lock is up too: its route runs out at once, often in the step it is
+                // built, and each think searched again. Such a search is bounded besides
+                // (NavMeshQuery.FindPathBounded): it walked the whole of the creature's region,
+                // tens of thousands of polygons on the large maps, each time.
                 var targetDrift = Vector3.Distance(targetPosition, creature.Controller.ActionFighting.LockedTargetPosition);
+                var lockUp = creature.Controller.TimerPathUpdateLock <= 0;
 
-                if (creature.Controller.Path.Count == 0
-                    || (targetDrift > ChaseRepathDistance && creature.Controller.TimerPathUpdateLock <= 0))
+                if ((creature.Controller.Path.Count == 0 && (!creature.Controller.ActionFighting.RouteIncomplete || lockUp))
+                    || (targetDrift > ChaseRepathDistance && lockUp))
                 {
                     creature.Controller.TimerPathUpdateLock = ChasePathUpdateMs;
 
@@ -1241,7 +1249,7 @@ namespace Rasa.Managers
                         pathTarget.Z = targetPosition.Z + vecV2A[1] * distance;
                     }
 
-                    BuildPath(mapChannel, creature, pathTarget);
+                    creature.Controller.ActionFighting.RouteIncomplete = !BuildPath(mapChannel, creature, pathTarget, bounded: true);
 
                     // where the target was when this path was built
                     creature.Controller.ActionFighting.LockedTargetPosition = targetPosition;
@@ -1972,10 +1980,18 @@ namespace Rasa.Managers
         /// Sets the creature's path to <paramref name="destination"/>: the navmesh corners when the
         /// map has one and both ends are on it. Mission escorts and defenders never use the
         /// straight-line fallback that ordinary creatures retain on maps without a navmesh.
+        ///
+        /// <paramref name="bounded"/>: the destination may be where no route goes - a chase's - and
+        /// is then searched for only so far (NavMeshManager.FindPathBounded). Returns whether the
+        /// path reaches the destination: false when it stops short of it, or there is none; a
+        /// straight line on a map with no navmesh counts as reaching it.
         /// </summary>
-        private static void BuildPath(MapChannel mapChannel, Creature creature, Vector3 destination)
+        private static bool BuildPath(MapChannel mapChannel, Creature creature, Vector3 destination, bool bounded = false)
         {
-            var path = NavMeshManager.FindPath(mapChannel, creature.Position, destination);
+            var complete = false;
+            var path = bounded
+                ? NavMeshManager.FindPathBounded(mapChannel, creature.Position, destination, out complete)
+                : mapChannel?.NavMesh?.FindPath(creature.Position, destination, out complete);
 
             creature.Controller.Path.Clear();
             creature.Controller.PathIndex = 0;
@@ -1984,11 +2000,16 @@ namespace Rasa.Managers
                 creature.Controller.Path.AddRange(path);
             else if (mapChannel.NavMesh == null &&
                      !IsMissionEscort(creature) && !Game.Missions.World.CreatureGameplayRules.IsDefender(creature))
+            {
                 creature.Controller.Path.Add(destination);
+                complete = true;
+            }
             else if (IsMissionEscort(creature) || Game.Missions.World.CreatureGameplayRules.IsDefender(creature))
                 Logger.WriteLog(LogType.Error,
                     $"Actor {creature.EntityId} has no navmesh route from {creature.Position} to {destination} " +
                     $"on map {mapChannel.MapInfo?.MapContextId} (mesh loaded: {mapChannel.NavMesh != null}).");
+
+            return complete;
         }
 
         /// <summary>
@@ -2500,6 +2521,7 @@ namespace Rasa.Managers
             creature.Controller.TimerPathUpdateLock = 0;
             creature.Controller.ActionFighting.TargetEntityId = targetEntityId;
             creature.Controller.ActionFighting.StalledMs = 0;
+            creature.Controller.ActionFighting.RouteIncomplete = false;
             creature.LastAgression = 0;
 
             // Whatever brought it here - the scan, a hit, an assist - the target is on its table.
