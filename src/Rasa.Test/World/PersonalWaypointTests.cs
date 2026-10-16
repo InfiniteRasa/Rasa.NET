@@ -1010,9 +1010,11 @@ namespace Rasa.Test.World
                 var stocked = Rows(context, $"select id, item_template_id from vendor_item where item_template_id in ({Items}) and id not in ({later}) order by id, item_template_id");
                 CollectionAssert.AreEqual(
                     vendors.SelectMany(vendor => PersonalWaypointStock.Items.Select(item => $"{vendor}|{item}")).ToArray(), stocked);
-                // And Cp_prestige_stock later changes the control point Prestige Vendors'.
-                var prestige = CpPrestigeStock.Vendors.Select(vendor => $"{vendor}|").ToArray();
-                var laterOrPrestige = string.Join(", ", new[] { later }.Concat(CpPrestigeStock.Vendors.Select(vendor => vendor.ToString())));
+                // And Cp_prestige_stock later changes the control point Prestige Vendors', and
+                // Alia_das_touchups Supply Sergeant Caruso's (Bradshaw's armour).
+                var restocked = CpPrestigeStock.Vendors.Append(Rasa.Services.Preloader.AliaDasNpcs.Caruso).ToArray();
+                var prestige = restocked.Select(vendor => $"{vendor}|").ToArray();
+                var laterOrPrestige = string.Join(", ", new[] { later }.Concat(restocked.Select(vendor => vendor.ToString())));
                 CollectionAssert.AreEqual(before.Where(row => !prestige.Any(row.StartsWith)).ToList(),
                     Rows(context, $"select id, item_template_id from vendor_item where item_template_id not in ({Items}) and id not in ({laterOrPrestige}) order by rowid"));
 

@@ -30,7 +30,7 @@ namespace Rasa.Test.World
         public void EveryoneStandsWhereTheGmPutThem()
         {
             using var database = new OrdinaryLootTestDatabase();
-            database.Context.GetService<IMigrator>().Migrate();
+            database.Context.GetService<IMigrator>().Migrate(Migration);
 
             foreach (var pool in AliaDasNpcs.Pools)
                 Assert.AreEqual((pool.Creature, R(pool.X), R(pool.Y), R(pool.Z), R(pool.Rotation)), Pool(database, pool.Id), $"pool {pool.Id}");
