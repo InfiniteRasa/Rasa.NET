@@ -828,6 +828,9 @@ namespace Rasa.Managers
             // A propellant pool's proxy: the pool burning on it.
             PropellantPools.ShowTo(client, dynamicObject);
 
+            // A firework's, a flare's or a smoke grenade's: what is going on it (AbilityManager.Toys).
+            AbilityManager.ShowLocationEffectTo(client, dynamicObject);
+
             // Someone is partway through using it. Players are introduced before objects, and the
             // user is standing at it, so this client already has the actor the effect runs to.
             if (dynamicObject.UsedBy != null)
