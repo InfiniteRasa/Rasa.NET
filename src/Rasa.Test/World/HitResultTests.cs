@@ -650,7 +650,7 @@ namespace Rasa.Test.World
         }
 
         /// <summary>What a packet writes, as the client reads it: tuples and lists as lists, whole numbers as longs.</summary>
-        private static List<object> Decode(PythonPacket packet) =>
+        internal static List<object> Decode(PythonPacket packet) =>
             (List<object>)Read(new PythonReader(new BinaryReader(new MemoryStream(MissionTestContext.Encode(packet)))));
 
         private static object Read(PythonReader reader)
