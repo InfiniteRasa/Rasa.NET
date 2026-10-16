@@ -104,6 +104,7 @@ namespace Rasa.Context.World
         public DbSet<SpawnPoolPoseEntry> SpawnPoolPoseEntries { get; set; }
         public DbSet<TeleporterEntry> TeleporterEntries { get; set; }
         public DbSet<WormholeLockEntry> WormholeLockEntries { get; set; }
+        public DbSet<LocalTeleporterLinkEntry> LocalTeleporterLinkEntries { get; set; }
         public DbSet<VendorEntry> VendorEntries { get; set; }
         public DbSet<VendorItemEntry> VendorItemEntries { get; set; }
         public DbSet<VendorPriceEntry> VendorPriceEntries { get; set; }

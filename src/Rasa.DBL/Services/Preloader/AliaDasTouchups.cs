@@ -52,8 +52,9 @@ namespace Rasa.Services.Preloader
     ///  - The CELLAR Arena link has nothing to show it at either end (it is a map link: a circle
     ///    on the floor). A waypoint pad (UsableTwoStateHumWaypointV01, the Battlegrounds' team
     ///    teleporters' pad) stands on each: a teleporter row of type 1, which the server puts in
-    ///    the world in its on state and nothing else. A local teleporter is gained by nobody (no
-    ///    proximity check is made for one), so the pad never opens a window or appears in one.
+    ///    the world in its on state and nothing else. A local teleporter is gained by nobody and
+    ///    opens no window, and these two have no local_teleporter_link row, so the pad takes
+    ///    nobody anywhere.
     ///    Their ids, 990 and 991, are under 1000 as every placed teleporter's is: the travel
     ///    window keeps waypoints and wormholes in one list by id, and a wormhole's is its entity
     ///    id, which begins at 1000.

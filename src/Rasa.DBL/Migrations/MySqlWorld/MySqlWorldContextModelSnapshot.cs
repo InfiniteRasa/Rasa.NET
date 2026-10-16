@@ -1114,6 +1114,21 @@ namespace Rasa.Migrations.MySqlWorld
                     b.ToTable("kraftwerks");
                 });
 
+            modelBuilder.Entity("Rasa.Structures.World.LocalTeleporterLinkEntry", b =>
+                {
+                    b.Property<uint>("FromTeleporterId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("from_teleporter_id");
+
+                    b.Property<uint>("ToTeleporterId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("to_teleporter_id");
+
+                    b.HasKey("FromTeleporterId");
+
+                    b.ToTable("local_teleporter_link");
+                });
+
             modelBuilder.Entity("Rasa.Structures.World.LogosEntry", b =>
                 {
                     b.Property<uint>("Id")
