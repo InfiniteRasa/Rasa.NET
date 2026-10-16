@@ -830,7 +830,7 @@ namespace Rasa.Managers
             return action.Module == "abilities.sprint" || action.Module == PolymorphModule || action.Module == SelfResModule || action.Module == CrabMinesModule || action.Module == RealityRipperModule || action.Module == TrapModule || action.Module == TurretModule
                 || action.Module == HortimonculusModule || action.Module == ReanimationModule || action.Module == ReanimationWaveModule
                 || action.Module == SpotterModule || action.Module == BotConstructionModule || action.Module == CreateCloneModule
-                || action.Module == RezTraumaKitModule || action.Module == PlaceBombModule
+                || action.Module == RezTraumaKitModule || action.Module == PlaceBombModule || action.Module == FlashGrenadeModule
                 || IsRespec(action)
                 || MorphSupportModules.Contains(action.Module)
                 || IsDirectDamage(action, info)
@@ -1047,6 +1047,14 @@ namespace Rasa.Managers
             {
                 PlaceTurret(mapChannel, player, info, action, false);
                 CellManager.Instance.CellCallMethod(mapChannel, player, new AbilityRecoveryPacket(action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.None));
+                return;
+            }
+
+            if (actionInfo.Module == FlashGrenadeModule)
+            {
+                var thrown = new AbilityRecoveryPacket(action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.None);
+                ThrowFlashGrenade(mapChannel, player, info, action, thrown);
+                CellManager.Instance.CellCallMethod(mapChannel, player, thrown);
                 return;
             }
 

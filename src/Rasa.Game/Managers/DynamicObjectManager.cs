@@ -835,6 +835,9 @@ namespace Rasa.Managers
             // An EMP bomb still waiting to go off: its effect, for the blast to play on.
             AbilityManager.ShowPlacedBombTo(client, dynamicObject);
 
+            // A mag flash grenade still waiting to go off: its delay effect, for the flash to play on.
+            AbilityManager.ShowFlashGrenadeTo(client, dynamicObject);
+
             // A firework's, a flare's or a smoke grenade's: what is going on it (AbilityManager.Toys).
             AbilityManager.ShowLocationEffectTo(client, dynamicObject);
 

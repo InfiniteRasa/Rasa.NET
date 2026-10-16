@@ -552,6 +552,9 @@ namespace Rasa.Managers
                         // EMP bombs: their blasts, and the spent ones taken away.
                         Guard("AbilityManager.PlacedBombWorker", mapChannel, () => AbilityManager.Instance.PlacedBombWorker(mapChannel));
 
+                        // Mag flash grenades: their flashes, and the spent ones taken away.
+                        Guard("AbilityManager.FlashGrenadeWorker", mapChannel, () => AbilityManager.Instance.FlashGrenadeWorker(mapChannel));
+
                         // The pools propellant guns leave: their ticks and their burning out.
                         Guard("PropellantPools.Worker", mapChannel, () => PropellantPools.Worker(mapChannel));
 
