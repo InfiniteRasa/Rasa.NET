@@ -19,6 +19,9 @@ namespace Rasa.Repositories.World
         Dictionary<uint, CreatureActionEntry> GetCreatureActions();
         void CreateOrUpdateAppearance(uint dbId, uint slotId, uint classId, uint hue);
         List<CreatureAppearanceEntry> GetCreatureAppearances(uint creatureId);
+
+        /// <summary>Every row of creature_appearance, in one query (CreatureManager.CreatureInit).</summary>
+        List<CreatureAppearanceEntry> GetAllCreatureAppearances() => new List<CreatureAppearanceEntry>();
         List<VendorItemEntry> GetVendorItems();
         List<VendorEntry> GetVendors();
         List<VendorPriceEntry> GetVendorPrices();

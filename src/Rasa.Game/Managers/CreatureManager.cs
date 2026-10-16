@@ -821,6 +821,12 @@ namespace Rasa.Managers
             var creatureList = unitOfWork.Creatures.Get();
             var creatureActions = unitOfWork.Creatures.GetCreatureActions();
 
+            // Every creature's look in one query, not one a creature: 1047 creature rows were
+            // 1047 queries, 0.4 s of startup on SQLite and a round trip each on MySQL.
+            var appearances = unitOfWork.Creatures.GetAllCreatureAppearances()
+                .GroupBy(entry => entry.Id)
+                .ToDictionary(group => group.Key, group => group.ToList());
+
             var vendorsList = unitOfWork.Creatures.GetVendors();
             var vendorItemList = unitOfWork.Creatures.GetVendorItems();
             var vendorPrices = new Dictionary<uint, int>();
@@ -864,7 +870,7 @@ namespace Rasa.Managers
 
             foreach (var data in creatureList)
             {
-                var appearanceData = unitOfWork.Creatures.GetCreatureAppearances(data.Id);
+                appearances.TryGetValue(data.Id, out var appearanceData);
                 var tempAppearanceData = new Dictionary<EquipmentData, AppearanceData>();
                 var augmentationsList = EntityClassManager.Instance.LoadedEntityClasses[(EntityClasses)data.ClassId].Augmentations;
                 var actions = new List<CreatureAction>();

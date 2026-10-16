@@ -135,6 +135,11 @@ namespace Rasa.Repositories.World
             return appearance;
         }
 
+        public List<CreatureAppearanceEntry> GetAllCreatureAppearances()
+        {
+            return _worldContext.CreateNoTrackingQuery(_worldContext.CreatureAppearanceEntries).ToList();
+        }
+
         public List<VendorItemEntry> GetVendorItems()
         {
             var query = _worldContext.CreateNoTrackingQuery(_worldContext.VendorItemEntries);
