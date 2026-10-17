@@ -33,7 +33,11 @@ namespace Rasa.Missions.Scenes
         uint DialogObjectiveId, uint PlayerFlagId = 1,
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] Definitions.MissionDialogueKind Kind =
             Definitions.MissionDialogueKind.Completion);
-    public sealed record SceneWaypoint(ScenePosition Position, double Orientation = 0, uint PauseMilliseconds = 0);
+    public sealed record SceneWaypoint(ScenePosition Position, double Orientation = 0, uint PauseMilliseconds = 0,
+        // Held and fought from: on a route that resumes after combat, an actor here takes on what
+        // it would pick a fight with within this many metres, and goes on once a pause passes
+        // with nothing left (SceneRouteController).
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] float EngageRadius = 0);
     public sealed record SceneSpawnPose(ActorHandle Handle, uint OwnerCharacterId, ScenePosition Position, double Orientation);
     public sealed record SceneRoute(string Key, IReadOnlyList<SceneWaypoint> Points, float Speed = 6.5f, bool ResumeAtDestination = false);
     public sealed record SceneRun(
