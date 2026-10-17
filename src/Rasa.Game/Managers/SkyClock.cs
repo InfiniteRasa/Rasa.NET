@@ -25,8 +25,14 @@ namespace Rasa.Managers
     /// starting hour, and a fresh instance always opens at its own.
     ///
     /// <see cref="Days"/> is each map's day as its map file has it, by the map's name. The
-    /// server needs it only to say a time of day or to be told one (.skytime, .setskytime);
-    /// the seconds it sends need no table.
+    /// server needs it to say a time of day or to be told one (.skytime, .setskytime), and to
+    /// hold one.
+    ///
+    /// A map in <see cref="Held"/> does not run: its sky is kept at one time of day. The client
+    /// has no way to stop its sky (gamemap.py Recv_SetSkyTime only sets its date and time of
+    /// day, and the sky runs on from there), so every one of the map's players is sent that
+    /// time again every <see cref="HoldResendSeconds"/> s (<see cref="Worker"/>), and in between
+    /// their sky runs that far on and no further.
     /// </summary>
     public static class SkyClock
     {
@@ -118,6 +124,57 @@ namespace Rasa.Managers
             ["test_pvpcontrolpoint01"] = new Day(100000, 50000),
         };
 
+        /// <summary>
+        /// The maps whose sky is held at one time of day (a fraction of the day: 0.5 noon), by
+        /// the map's name. The Proving Grounds' map file starts its three-hour day at midnight,
+        /// and each copy of it is new, so without this it opened dark every time and was dark
+        /// for the first 45 minutes of it.
+        /// </summary>
+        public static readonly IReadOnlyDictionary<string, double> Held = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["adv_bootcamp"] = 0.5,
+        };
+
+        /// <summary>How often the players on a map whose sky is held are sent its time again.</summary>
+        public const int HoldResendSeconds = 30;
+
+        /// <summary>
+        /// The time of day a map channel's sky is held at: the channel's own (.setskytime on a
+        /// held map), else the map's in <see cref="Held"/>. False for a sky that runs.
+        /// </summary>
+        public static bool TryGetHeld(MapChannel map, out double timeOfDay)
+        {
+            timeOfDay = 0;
+
+            if (!TryGetDay(map, out _))
+                return false;
+
+            if (map.SkyHeldAt is { } own)
+                timeOfDay = own;
+            else if (!Held.TryGetValue(map.MapInfo.MapName, out timeOfDay))
+                return false;
+
+            return true;
+        }
+
+        /// <summary>
+        /// The seconds a client on this map is sent: how long its sky has been running, or for a
+        /// held sky the second of today (by the time it has been running) that is the time it is
+        /// held at.
+        /// </summary>
+        public static int SkySeconds(MapChannel map)
+        {
+            var running = RunningSeconds(map);
+
+            if (!TryGetHeld(map, out var held) || !TryGetDay(map, out var day))
+                return running;
+
+            var wanted = (long)Math.Round(held * day.Length) % day.Length;
+            var offset = ((wanted - day.Start) % day.Length + day.Length) % day.Length;
+
+            return (int)Math.Min(int.MaxValue, (long)running / day.Length * day.Length + offset);
+        }
+
         /// <summary>How long a map channel's sky has been running, in whole seconds.</summary>
         public static int RunningSeconds(MapChannel map)
         {
@@ -135,7 +192,36 @@ namespace Rasa.Managers
             if (map == null)
                 return;
 
-            client.CallMethod(SysEntity.ClientGameMapId, new SetSkyTimePacket { RunningTime = RunningSeconds(map) });
+            client.CallMethod(SysEntity.ClientGameMapId, new SetSkyTimePacket { RunningTime = SkySeconds(map) });
+        }
+
+        /// <summary>Tells everyone on a map channel the time of its sky.</summary>
+        private static void SendAll(MapChannel map)
+        {
+            foreach (var client in map.ClientList.ToArray())
+                if (client?.Player != null && ReferenceEquals(client.Player.MapChannel, map))
+                    Send(client);
+        }
+
+        /// <summary>
+        /// A held sky, every <see cref="HoldResendSeconds"/> s: its players are sent its time
+        /// again, which puts back what their sky has run on since. A sky that runs is left alone.
+        /// </summary>
+        public static void Worker(MapChannel map)
+        {
+            if (map == null || !TryGetHeld(map, out _))
+                return;
+
+            var now = Now();
+
+            if (map.SkyHoldSentTick != 0 && now - map.SkyHoldSentTick < HoldResendSeconds * 1000L)
+                return;
+
+            map.SkyHoldSentTick = now;
+
+            foreach (var client in map.ClientList.ToArray())
+                if (client?.Player != null && client.State == ClientState.Ingame && ReferenceEquals(client.Player.MapChannel, map))
+                    Send(client);
         }
 
         /// <summary>Puts a map channel's sky at so many seconds of running, and tells everyone on it.</summary>
@@ -143,9 +229,7 @@ namespace Rasa.Managers
         {
             map.SkyStartedTick = Now() - Math.Max(0, seconds) * 1000L;
 
-            foreach (var client in map.ClientList.ToArray())
-                if (client?.Player != null && ReferenceEquals(client.Player.MapChannel, map))
-                    Send(client);
+            SendAll(map);
         }
 
         /// <summary>The map's day, when its map file is one the table has.</summary>
@@ -164,19 +248,29 @@ namespace Rasa.Managers
             if (!TryGetDay(map, out day))
                 return false;
 
-            timeOfDay = (double)(((long)day.Start + RunningSeconds(map)) % day.Length) / day.Length;
+            timeOfDay = (double)(((long)day.Start + SkySeconds(map)) % day.Length) / day.Length;
 
             return true;
         }
 
         /// <summary>
         /// Runs a map channel's sky on to the next time it is at this time of day (a fraction of
-        /// its day), and tells everyone on it. On, never back: a sky does not run backwards.
+        /// its day), and tells everyone on it. On, never back: a sky does not run backwards. A
+        /// held sky is held at the new time instead, on this channel, for as long as it lasts.
         /// </summary>
         public static bool TrySetTimeOfDay(MapChannel map, double timeOfDay)
         {
             if (!TryGetDay(map, out var day) || !double.IsFinite(timeOfDay) || timeOfDay < 0 || timeOfDay >= 1)
                 return false;
+
+            if (TryGetHeld(map, out _))
+            {
+                map.SkyHeldAt = timeOfDay;
+                map.SkyHoldSentTick = Now();
+                SendAll(map);
+
+                return true;
+            }
 
             var running = RunningSeconds(map);
             var now = ((long)day.Start + running) % day.Length;

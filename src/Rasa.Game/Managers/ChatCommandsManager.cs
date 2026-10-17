@@ -5224,6 +5224,13 @@ namespace Rasa.Managers
                 return;
             }
 
+            if (SkyClock.TryGetHeld(map, out var held))
+            {
+                CommunicatorManager.Instance.SystemMessage(client,
+                    $"{ran}. Its sky does not run: it is held at {SkyClock.ClockText(held)} (.setskytime holds it at another time on this copy of the map).");
+                return;
+            }
+
             CommunicatorManager.Instance.SystemMessage(client,
                 $"{ran}. Its day lasts {day.Length / 60} min and its sky starts at {SkyClock.ClockText((double)(day.Start % day.Length) / day.Length)}: it is {SkyClock.ClockText(timeOfDay)} there now.");
         }
@@ -5250,6 +5257,14 @@ namespace Rasa.Managers
             }
 
             SkyClock.TryGetTimeOfDay(map, out var timeOfDay, out _);
+
+            if (SkyClock.TryGetHeld(map, out var held))
+            {
+                CommunicatorManager.Instance.SystemMessage(client,
+                    $"This map's sky is held at {SkyClock.ClockText(held)} for everyone on this copy of it, until the copy closes.");
+                return;
+            }
+
             CommunicatorManager.Instance.SystemMessage(client,
                 $"This map's sky is at {SkyClock.ClockText(timeOfDay)} for everyone on it, and runs on from there ({SkyClock.RunningSeconds(map)} s).");
         }

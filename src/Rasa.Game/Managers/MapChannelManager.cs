@@ -478,6 +478,9 @@ namespace Rasa.Managers
                     // The lootable containers the server put down: openings due to reset closed again.
                     Guard("WorldContainers.Worker", mapChannel, () => WorldContainers.Worker(mapChannel));
 
+                    // A sky held at one time of day (the Proving Grounds' noon): its time sent again.
+                    Guard("SkyClock.Worker", mapChannel, () => SkyClock.Worker(mapChannel));
+
                     // Crab Mines: seeking, running, going off.
                     Guard("AbilityManager.CrabMineWorker", mapChannel, () => AbilityManager.Instance.CrabMineWorker(mapChannel));
 

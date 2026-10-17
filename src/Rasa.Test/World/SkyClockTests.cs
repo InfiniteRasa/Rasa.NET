@@ -1,3 +1,5 @@
+extern alias RasaGame;
+
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -11,6 +13,7 @@ namespace Rasa.Test.World
     using Rasa.Packets.Protocol;
     using Rasa.Structures;
     using Rasa.Test.Missions;
+    using ClientState = RasaGame::Rasa.Data.ClientState;
 
     [TestClass]
     [DoNotParallelize]
@@ -212,9 +215,10 @@ namespace Rasa.Test.World
             var commands = new ChatCommandsManager(null);
             commands.RegisterChatCommands();
 
-            // The harness's map goes by a name of its own; the map it stands for is Bootcamp, whose
-            // day is three hours and whose sky starts at midnight: 2700 s on is 06:00.
-            map.MapInfo.MapName = "adv_bootcamp";
+            // The harness's map goes by a name of its own; this one is the Caves of Donn, whose
+            // day is three hours and whose sky starts at midnight: 2700 s on is 06:00. (Bootcamp's
+            // day is the same, but its sky is held.)
+            map.MapInfo.MapName = "adv_foreas_concordia_wilderness_cavesofdonn02";
             Assert.AreEqual(new SkyClock.Day(10800, 0), SkyClock.Days[map.MapInfo.MapName]);
             map.SkyStartedTick = _now - 2_700_000;
             harness.Drain();
@@ -253,6 +257,153 @@ namespace Rasa.Test.World
             }
 
             Assert.AreEqual(13500, SkyClock.RunningSeconds(map));
+        }
+
+        [TestMethod]
+        public void TheProvingGroundsSkyIsHeldAtNoonFromTheMomentACopyOpens()
+        {
+            using var world = new WorldTestContext();
+            var first = world.CreateClient();
+            var second = world.CreateClient();
+            var elsewhere = world.CreateClient();
+            var bootcamp = Channel(1985, "adv_bootcamp");
+            var wilderness = Channel(1220, Wilderness);
+
+            foreach (var client in new[] { first, second })
+            {
+                world.Map.ClientList.Remove(client);
+                client.Player.MapChannel = bootcamp;
+                bootcamp.ClientList.Add(client);
+            }
+
+            world.Map.ClientList.Remove(elsewhere);
+            elsewhere.Player.MapChannel = wilderness;
+            wilderness.ClientList.Add(elsewhere);
+
+            Assert.AreEqual(0.5, SkyClock.Held["adv_bootcamp"]);
+            Assert.IsTrue(SkyClock.TryGetHeld(bootcamp, out var held));
+            Assert.AreEqual(0.5, held);
+            Assert.IsFalse(SkyClock.TryGetHeld(wilderness, out _), "the Wilderness's sky runs");
+
+            // A copy just opened: its map file's midnight start, sent as noon (5400 s of 10800).
+            bootcamp.SkyStartedTick = _now;
+            wilderness.SkyStartedTick = _now;
+
+            foreach (var client in new[] { first, second, elsewhere })
+            {
+                WorldTestContext.Drain(client);
+                SkyClock.Send(client);
+            }
+
+            Assert.AreEqual(5400, SkyTimes(first).Single().RunningTime);
+            Assert.AreEqual(5400, SkyTimes(second).Single().RunningTime);
+            Assert.AreEqual(0, SkyTimes(elsewhere).Single().RunningTime);
+            Assert.IsTrue(SkyClock.TryGetTimeOfDay(bootcamp, out var timeOfDay, out _));
+            Assert.AreEqual("12:00", SkyClock.ClockText(timeOfDay));
+
+            // It stays noon however long the copy runs; only the day it is on moves on.
+            _now += 2_700_000;
+            SkyClock.TryGetTimeOfDay(bootcamp, out timeOfDay, out _);
+            Assert.AreEqual("12:00", SkyClock.ClockText(timeOfDay));
+            Assert.AreEqual(5400, SkyClock.SkySeconds(bootcamp));
+            Assert.AreEqual(2700, SkyClock.RunningSeconds(bootcamp));
+
+            _now += 10_800_000;
+            Assert.AreEqual(10800 + 5400, SkyClock.SkySeconds(bootcamp), "the next day's noon");
+            SkyClock.TryGetTimeOfDay(bootcamp, out timeOfDay, out _);
+            Assert.AreEqual("12:00", SkyClock.ClockText(timeOfDay));
+
+            // A map whose day starts elsewhere is held at its own noon all the same.
+            var held0730 = Channel(1220, Wilderness);
+            held0730.SkyHeldAt = 0.5;
+            held0730.SkyStartedTick = _now;
+            Assert.AreEqual(2025, SkyClock.SkySeconds(held0730), "07:30 + 2025 s is noon");
+        }
+
+        [TestMethod]
+        public void AHeldSkyIsSentAgainEveryThirtySecondsToThoseInTheWorld()
+        {
+            using var world = new WorldTestContext();
+            var player = world.CreateClient();
+            var loading = world.CreateClient();
+            var elsewhere = world.CreateClient();
+            var bootcamp = Channel(1985, "adv_bootcamp");
+
+            foreach (var client in new[] { player, loading })
+            {
+                world.Map.ClientList.Remove(client);
+                client.Player.MapChannel = bootcamp;
+                bootcamp.ClientList.Add(client);
+            }
+
+            loading.State = ClientState.Loading;
+            bootcamp.SkyStartedTick = _now - 100_000;
+            world.Map.SkyStartedTick = _now - 100_000;
+
+            foreach (var client in new[] { player, loading, elsewhere })
+                WorldTestContext.Drain(client);
+
+            // The first tick sends it; the next thirty seconds' ticks do not.
+            SkyClock.Worker(bootcamp);
+            Assert.AreEqual(5400, SkyTimes(player).Single().RunningTime);
+            Assert.AreEqual(0, SkyTimes(loading).Count, "still loading: sent its time on arriving");
+
+            _now += 29_999;
+            SkyClock.Worker(bootcamp);
+            Assert.AreEqual(0, SkyTimes(player).Count);
+
+            _now += 1;
+            SkyClock.Worker(bootcamp);
+            Assert.AreEqual(5400, SkyTimes(player).Single().RunningTime, "noon again, put back");
+
+            // A sky that runs is never sent again by the worker.
+            _now += 60_000;
+            SkyClock.Worker(world.Map);
+            SkyClock.Worker(world.Map);
+            Assert.AreEqual(0, SkyTimes(elsewhere).Count);
+            SkyClock.Worker(null);
+        }
+
+        [TestMethod]
+        public void SettingATimeOfDayOnAHeldSkyHoldsThatCopyThere()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var client = harness.Client;
+            var map = client.Player.MapChannel;
+            var other = Channel(1985, "adv_bootcamp");
+
+            client.AccountEntry.Level = (byte)GmLevel.Admin;
+
+            var commands = new ChatCommandsManager(null);
+            commands.RegisterChatCommands();
+
+            map.MapInfo.MapName = "adv_bootcamp";
+            map.SkyStartedTick = _now - 2_700_000;
+            other.SkyStartedTick = _now;
+            harness.Drain();
+
+            commands.ProcessCommand(client, ".skytime");
+
+            var said = harness.Drain().OfType<SystemMessagePacket>().Single().TextMessage;
+            StringAssert.Contains(said, "held at 12:00");
+
+            // Held at 18:30 (8325 s of the day) on this copy, today; and kept there.
+            commands.ProcessCommand(client, ".setskytime 18:30");
+
+            var sent = harness.Drain();
+            Assert.AreEqual(8325, sent.OfType<SetSkyTimePacket>().Single().RunningTime);
+            StringAssert.Contains(sent.OfType<SystemMessagePacket>().Single().TextMessage, "held at 18:30");
+            Assert.AreEqual(2700, SkyClock.RunningSeconds(map), "the sky's running time is left as it was");
+
+            _now += 600_000;
+            Assert.AreEqual(8325, SkyClock.SkySeconds(map));
+
+            // Back is allowed on a held sky: it is set, not run on.
+            commands.ProcessCommand(client, ".setskytime 6");
+            Assert.AreEqual(2700, harness.Drain().OfType<SetSkyTimePacket>().Single().RunningTime);
+
+            // Another copy is still at noon.
+            Assert.AreEqual(5400, SkyClock.SkySeconds(other));
         }
 
         [TestMethod]
