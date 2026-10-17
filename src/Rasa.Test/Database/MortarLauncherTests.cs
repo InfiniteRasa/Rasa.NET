@@ -88,12 +88,17 @@ namespace Rasa.Test.Database
         // two later pairs, each of two migrations that touch nothing of the other's, run on Worlds
         // since: Alia_Das_cellar_link and Weapon_template_rows (20261230000000), Add_npc_barks and
         // Alia_das_npcs (20261231000000); Add_npc_barks creates a table, so it cannot run twice.
+        // And five at 20270109000000, run on Worlds since: Bootcamp_cave_in_landmark,
+        // Bootcamp_fort_medic, Bootcamp_front_line, Capture_the_flag_promotion_xp and
+        // Youngblood_fort_squad. Of them only the cave-in's and the squad's touch the same rows -
+        // each wrote the Proving Grounds' scene bindings whole - and the one run second undid the
+        // other; Bootcamp_cave_in_with_fort_squad (20270110000000) writes the two together after.
         // A new pair is a mistake: EF runs both, ordered by the rest of the id, whatever was meant.
         [TestMethod]
         public void NoNewMigrationSharesATimestamp()
         {
             var known = new[] { "20260927000000", "20260930000000", "20261012000000", "20261104000000", "20261111000000", "20261203000000",
-                "20261230000000", "20261231000000" };
+                "20261230000000", "20261231000000", "20270109000000" };
 
             using var database = new OrdinaryLootTestDatabase();
             var shared = database.Context.Database.GetMigrations()
