@@ -120,6 +120,29 @@ namespace Rasa.Test.Missions
         }
 
         [TestMethod]
+        public void AMissionDropLeftOnAGibbletIsStillTheMissionsToPickUp()
+        {
+            using var fixture = new Fixture();
+            var context = fixture.Context;
+            var loot = fixture.Spawn();
+            var corpse = loot.Corpse;
+            var quest = loot.LootItems.Single(item => item.ItemTemplateId == fixture.QuestTemplateId);
+
+            // The corpse goes with the loot on it: the drop stays, bound to the creature it was.
+            Assert.IsNotNull(fixture.Manager.LeaveGibblet(context.Map, corpse));
+            CellManager.Instance.RemoveCreatureFromWorld(context.Map, corpse);
+            Assert.AreEqual(corpse.DbId, loot.SourceCreatureDbId);
+
+            fixture.Take(loot);
+
+            Assert.IsTrue(quest.Taken, "picked up off the gibblet");
+            Assert.AreEqual(1U, context.Client.Player.Missions[901].Objectives[1].ItemCounters[3147]);
+
+            fixture.Manager.GibbletWorker(context.Map, 1);
+            Assert.IsFalse(context.Map.LootDispensers.ContainsKey(loot.EntityId), "emptied, it goes");
+        }
+
+        [TestMethod]
         [DataRow(PartyLootMethod.FreeForAll)]
         [DataRow(PartyLootMethod.Rotation)]
         [DataRow(PartyLootMethod.DiceRoll)]

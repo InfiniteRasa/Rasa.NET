@@ -386,7 +386,12 @@ namespace Rasa.Managers
                 // puts it back in service (AlternateMesh.KeepsWreck).
                 if (LootDispenserManager.Instance.AdvanceCorpseLifetime(mapChannel, creature, delta)
                     && !AlternateMesh.KeepsWreck(creature))
+                {
+                    // Going with loot still on it - its time up, or blown apart: the loot stays
+                    // behind where it lay, on a gibblet (LootDispenserManager.LeaveGibblet).
+                    LootDispenserManager.Instance.LeaveGibblet(mapChannel, creature);
                     needDeletion = true;
+                }
 
                 return; // creature dead
             }

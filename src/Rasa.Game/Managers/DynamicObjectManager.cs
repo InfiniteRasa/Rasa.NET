@@ -536,6 +536,9 @@ namespace Rasa.Managers
             // crafting stations
             KraftwerksManager.Instance.Worker(mapChannel);
 
+            // gibblets: the loot a corpse left, gone once emptied or its time is up
+            LootDispenserManager.Instance.GibbletWorker(mapChannel, delta);
+
             // teleporters
             foreach (var entry in mapChannel.Teleporters)
             {

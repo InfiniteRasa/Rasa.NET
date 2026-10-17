@@ -282,6 +282,108 @@ namespace Rasa.Managers
             return Math.Max(deadTime, creature.Controller?.DeadTime ?? 0) >= EmptyCorpseMs;
         }
 
+        /// <summary>
+        /// The client's lootable proxies (augmentation LOOTABLEPROXY 74, lootableproxy.py): a
+        /// usable that carries a loot dispenser as a corpse does - the same 2.5 m auto-loot reach
+        /// and corpse-loot hover text - and nothing else. Sys_Default_LootProxy is what the
+        /// client names "Gibblet" (loot_corpse_object_v01.geo); LootableProxy_Mech is a pile of
+        /// scrap (vfx_crit_emp_resolve_junk_v01.geo), left for a MECHANICAL creature. No .map
+        /// places either and nothing in the client makes one: they are the server's.
+        /// </summary>
+        public const EntityClasses GibbletClass = (EntityClasses)28656;
+        public const EntityClasses MechGibbletClass = (EntityClasses)28670;
+
+        /// <summary>
+        /// A corpse is leaving the world with loot still on it - its time is up, or a Cadaver
+        /// Immolation or a Necromite has blown it apart (the clients take the body away with the
+        /// blast) - and the loot is left behind on a gibblet where it lay. The dispenser is the
+        /// same one, moved: its owner, looters, rolls and items stay as they were, and each of
+        /// its looters is told what it is attached to now (AttachInfo), which is all the client
+        /// needs to put the loot sparkle and the auto-loot on the gibblet (lootdispenser.py
+        /// _SetAttachedEntityId). Everyone around sees the gibblet; only its looters see loot on
+        /// it, as on the corpse.
+        ///
+        /// Nothing is left by a corpse with nothing on it, one whose loot is gone already (a
+        /// Filcher's, eaten, revived), or one that is not going because of its corpse clock.
+        /// The gibblet lies as long as a corpse with loot does, counted again from now
+        /// (<see cref="GibbletWorker"/>). Returns the gibblet, or null.
+        /// </summary>
+        internal DynamicObject LeaveGibblet(MapChannel mapChannel, Creature corpse)
+        {
+            if (mapChannel == null || corpse == null || corpse.CorpseLootEntityId == 0)
+                return null;
+
+            RetryPendingRetirements();
+
+            lock (mapChannel.LootSyncRoot)
+            {
+                if (!mapChannel.LootDispensers.TryGetValue(corpse.CorpseLootEntityId, out var loot) ||
+                    (loot.Corpse != null && !ReferenceEquals(loot.Corpse, corpse)) || loot.AttachedTo != corpse.EntityId || loot.AttachedObject != null || loot.Gibblet != null ||
+                    !loot.IsLootable || loot.FullyLooted || !loot.HasLoot ||
+                    !IsFinite(corpse.Position) || !CellManager.TryGetCellCoordinates(corpse.Position, out _, out _))
+                    return null;
+
+                var mechanical = CreatureManager.CreatureFlagsOf(corpse).Contains((int)CreatureFlag.Mechanical);
+                var gibblet = new DynamicObject
+                {
+                    EntityClassId = mechanical ? MechGibbletClass : GibbletClass,
+                    DynamicObjectType = DynamicObjectType.Gibblet,
+                    Position = corpse.Position,
+                    Rotation = corpse.Rotation,
+                    MapContextId = corpse.MapContextId,
+                    RuntimeMapChannel = mapChannel,
+                    TargetCategory = TargetCategory.Object,
+                    IsEnabled = true,
+                    Comment = $"gibblet of creature {corpse.DbId}"
+                };
+
+                loot.Corpse = null;
+                loot.AttachedTo = gibblet.EntityId;
+                loot.Gibblet = gibblet;
+                loot.GibbletAge = 0;
+                corpse.CorpseLootEntityId = 0;
+
+                CellManager.Instance.AddToWorld(mapChannel, gibblet);
+                gibblet.IsInWorld = true;
+
+                var shownTo = LootersHere(mapChannel, loot);
+                if (loot.OwnerClient != null && !shownTo.Contains(loot.OwnerClient))
+                    shownTo.Add(loot.OwnerClient);
+
+                foreach (var looter in shownTo)
+                    if (looter.State == ClientState.Ingame)
+                        AttachInfo(looter, loot);
+
+                return gibblet;
+            }
+        }
+
+        /// <summary>
+        /// The gibblets on a map: one that has been emptied goes, and one that has lain as long as
+        /// a corpse with loot may (or with someone's window open on it, as long as that) goes with
+        /// what is left on it, as a corpse's would. Its time is the map's, as a corpse's is.
+        /// </summary>
+        internal void GibbletWorker(MapChannel mapChannel, long delta)
+        {
+            if (mapChannel == null)
+                return;
+
+            RetryPendingRetirements();
+            var notices = new List<RetirementNotice>();
+
+            lock (mapChannel.LootSyncRoot)
+                foreach (var loot in mapChannel.LootDispensers.Values.Where(entry => entry.Gibblet != null).ToArray())
+                {
+                    if (delta > 0)
+                        loot.GibbletAge = loot.GibbletAge > long.MaxValue - delta ? long.MaxValue : loot.GibbletAge + delta;
+
+                    if (!loot.HasLoot || !loot.IsLootable || loot.FullyLooted || loot.GibbletAge >= LifetimeLimit(loot))
+                        notices.AddRange(Retire(mapChannel, loot, true));
+                }
+
+            Publish(notices);
+        }
+
         internal LootDispenser Create(Client killer, Creature creature, ActorGameplayPolicy policy = null)
         {
             var loot = Create(killer, creature, new List<Client> { killer }, 0, policy);
@@ -310,6 +412,7 @@ namespace Rasa.Managers
             loot.Player = owner.Player;
             loot.Map = mapChannel;
             loot.Corpse = creature;
+            loot.SourceCreatureDbId = creature.DbId;
             loot.CharacterId = owner.Player.Id;
             loot.AccountId = owner.AccountEntry?.Id ?? 0;
             loot.UnitOfWorkFactory = _gameUnitOfWorkFactory;
@@ -1371,6 +1474,24 @@ namespace Rasa.Managers
                 !IsFinite(player.Position))
                 return false;
 
+            // A gibblet: what the corpse left its loot on. In the world, on this map, and in the
+            // reach a corpse is looted from.
+            if (loot.Gibblet != null)
+            {
+                var gibblet = loot.Gibblet;
+                var reach = _distance(client);
+                return double.IsFinite(reach) && reach > 0 &&
+                    gibblet.IsInWorld &&
+                    client.PendingTransfer == null &&
+                    loot.AttachedTo == gibblet.EntityId &&
+                    MapInstanceScope.Contains(map, gibblet) &&
+                    EntityManager.Instance.TryGetObject(gibblet.EntityId, out var registeredGibblet) &&
+                    ReferenceEquals(gibblet, registeredGibblet) &&
+                    IsFinite(gibblet.Position) &&
+                    loot.GibbletAge < LifetimeLimit(loot) &&
+                    Vector3.Distance(player.Position, gibblet.Position) <= reach;
+            }
+
             // A scripted prop (a mission reward crate) instead of something killed - no corpse,
             // no kill-ownership semantics, just: is it still the same object, still in the world,
             // still in range.
@@ -1516,6 +1637,17 @@ namespace Rasa.Managers
                 loot.Corpse.CorpseLootEntityId = 0;
             if (loot.AttachedObject?.LootDispenserEntityId == loot.EntityId)
                 loot.AttachedObject.LootDispenserEntityId = 0;
+
+            // A gibblet is there only for its loot: it goes with it.
+            if (loot.Gibblet is { } gibblet)
+            {
+                loot.Gibblet = null;
+                if (gibblet.IsInWorld)
+                {
+                    gibblet.IsInWorld = false;
+                    CellManager.Instance.RemoveFromWorld(map, gibblet);
+                }
+            }
 
             return notices;
         }

@@ -46,6 +46,22 @@ namespace Rasa.Structures
         internal Creature Corpse { get; set; }
 
         /// <summary>
+        /// The creature row the corpse was (creature.id), kept after the corpse is gone: what a
+        /// mission's drop is bound to (MissionLootPlanner). 0 for a dispenser that was never a
+        /// corpse's.
+        /// </summary>
+        internal uint SourceCreatureDbId { get; set; }
+
+        /// <summary>
+        /// The gibblet the loot was left on when its corpse went with loot still on it
+        /// (LootDispenserManager.LeaveGibblet): set instead of <see cref="Corpse"/> from then on.
+        /// </summary>
+        internal DynamicObject Gibblet { get; set; }
+
+        /// <summary>How long, in milliseconds of its map's time, the gibblet has lain.</summary>
+        internal long GibbletAge { get; set; }
+
+        /// <summary>
         /// Set instead of <see cref="Corpse"/> when this dispenser is attached to a scripted
         /// prop (a mission reward crate) rather than something a player killed. Exactly one of
         /// the two is set.
