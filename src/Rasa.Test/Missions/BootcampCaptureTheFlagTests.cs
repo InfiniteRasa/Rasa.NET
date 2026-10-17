@@ -23,12 +23,12 @@ namespace Rasa.Test.Missions
     {
         private const uint CaptureTheFlagMissionId = 1994;
         private const uint CaveInAreaId = 439;
-        private const uint PromotionRewardExperience = 43000;
+        private const uint PromotionRewardExperience = 500;
         private const uint YoungbloodRewardExperience = 5000;
         private static readonly System.TimeSpan YoungbloodDelay = System.TimeSpan.FromSeconds(7);
 
         [TestMethod]
-        public void CaptureTheFlagPromotionKeepsRecruitAndUsesNormalPointFormulas()
+        public void CaptureTheFlagPromotionKeepsRecruitAndPays500Experience()
         {
             using var harness = BootcampRuntimeTestHarness.Create();
             SeedCaptureTheFlagPrerequisites(harness, seedLightning: true);
@@ -43,6 +43,7 @@ namespace Rasa.Test.Missions
             harness.Context.Drain();
             var before = harness.Context.ReadRewardTotals();
             var previousCloneCredits = harness.Client.Player.CloneCredits;
+            var previousLevel = harness.Client.Player.Level;
 
             Assert.IsTrue(harness.Manager.CompleteOfferedObjective(
                 harness.Client,
@@ -58,8 +59,10 @@ namespace Rasa.Test.Missions
                 (1U, MissionObjectiveState.Inactive),
                 (3U, MissionObjectiveState.Inactive));
             Assert.AreEqual((uint)CharacterClass.Recruit, harness.Client.Player.Class);
-            Assert.AreEqual((byte)5, harness.Client.Player.Level);
-            Assert.AreEqual(previousCloneCredits + 1, harness.Client.Player.CloneCredits);
+            // 500 experience: the recruit is promoted in name, not taken up four levels at once.
+            Assert.AreEqual((byte)1, previousLevel);
+            Assert.AreEqual(previousLevel, harness.Client.Player.Level);
+            Assert.AreEqual(previousCloneCredits, harness.Client.Player.CloneCredits);
             using (var unit = harness.Context.CreateChar())
                 Assert.AreEqual(harness.Client.Player.CloneCredits,
                     unit.Characters.Get(harness.Client.Player.Id).CloneCredits);
@@ -71,18 +74,9 @@ namespace Rasa.Test.Missions
 
             var packets = harness.Context.Drain();
             Assert.AreEqual(0, packets.OfType<CharacterClassPacket>().Count());
-            CollectionAssert.AreEqual(
-                new byte[] { 2, 3, 4, 5 },
-                packets.OfType<LevelUpPacket>().Select(packet => packet.Level).ToArray());
-
-            var available = packets.OfType<AvailableAllocationPointsPacket>().Last();
-            var manifestation = new ManifestationManager(harness.Context);
-            Assert.AreEqual(
-                manifestation.GetAvailableAttributePoints(harness.Client.Player),
-                available.AvailableAttributePoints);
-            Assert.AreEqual(
-                manifestation.GetSkillPointsAvailable(harness.Client.Player),
-                available.AvailableSkillPoints);
+            Assert.AreEqual(0, packets.OfType<LevelUpPacket>().Count());
+            Assert.AreEqual(0, packets.OfType<AvailableAllocationPointsPacket>().Count(), "no level, so no new points");
+            Assert.AreEqual(PromotionRewardExperience, packets.OfType<ExperienceChangedPacket>().Single().XPInfo.Gained, "the client is told 500");
         }
 
         [TestMethod]
