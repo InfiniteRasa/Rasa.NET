@@ -671,12 +671,12 @@ namespace Rasa.Test.Missions.Wilderness
 
             Assert.AreEqual(MissionState.Completed, harness.Client.Player.Missions[549].State);
             Assert.AreEqual(49U, HeldQuantity(harness, 747), "Wagner must not consume an unrelated catalyzer.");
-            Assert.AreEqual(1U, HeldQuantity(harness, 44918));
-            Assert.AreEqual(0U, HeldQuantity(harness, 44917));
+            Assert.AreEqual(1U, HeldQuantity(harness, 45125));   // the Class I Fragmentation Grenade chosen
+            Assert.AreEqual(0U, HeldQuantity(harness, 47593));   // not the Res Trauma Kit
             npcs.CompleteNPCMission(harness.Client,
                 new CompleteNPCMissionPacket { EntityId = wagner.EntityId, MissionId = 549, SelectionIdx = 1 });
             Assert.AreEqual(49U, HeldQuantity(harness, 747));
-            Assert.AreEqual(1U, HeldQuantity(harness, 44918));
+            Assert.AreEqual(1U, HeldQuantity(harness, 45125));
         }
 
         [TestMethod]
@@ -728,7 +728,7 @@ namespace Rasa.Test.Missions.Wilderness
                 new CompleteNPCMissionPacket { EntityId = duncan.EntityId, MissionId = 441, SelectionIdx = 1 });
             Assert.AreEqual(MissionState.Completed, harness.Client.Player.Missions[441].State);
             Assert.AreEqual(1U, HeldQuantity(harness, 44917));
-            Assert.AreEqual(0U, HeldQuantity(harness, 44918));
+            Assert.AreEqual(0U, HeldQuantity(harness, 45125));
         }
 
         [TestMethod]
@@ -742,7 +742,7 @@ namespace Rasa.Test.Missions.Wilderness
             var npcs = new NpcManager(harness, harness.Manager);
             CompleteObjective(harness, npcs, duncan, 441);
             var fillerTemplate = ItemManager.Instance.GetItemTemplateById(44917);
-            var selectedTemplate = ItemManager.Instance.GetItemTemplateById(44918);
+            var selectedTemplate = ItemManager.Instance.GetItemTemplateById(45125);   // the Class I Fragmentation Grenade
             Assert.AreEqual(selectedTemplate.InventoryCategory, fillerTemplate.InventoryCategory);
             var stackSize = EntityClassManager.Instance.GetClassInfo(fillerTemplate.Class).ItemClassInfo.StackSize;
             Grant(harness, 44917, checked(50U * stackSize));
@@ -766,7 +766,7 @@ namespace Rasa.Test.Missions.Wilderness
             npcs.CompleteNPCMission(harness.Client,
                 new CompleteNPCMissionPacket { EntityId = duncan.EntityId, MissionId = 441, SelectionIdx = 0 });
             Assert.AreEqual(MissionState.Completed, harness.Client.Player.Missions[441].State);
-            Assert.AreEqual(1U, HeldQuantity(harness, 44918));
+            Assert.AreEqual(1U, HeldQuantity(harness, 45125));
             Assert.AreEqual(49U * stackSize, HeldQuantity(harness, 44917));
         }
 
@@ -798,12 +798,12 @@ namespace Rasa.Test.Missions.Wilderness
                 .Where(row => row.CharacterId == harness.Client.Player.Id && row.InventoryType == (uint)InventoryType.InboxInventory)
                 .Select(row => unit.Items.GetItem(row.ItemId).ItemTemplateId)
                 .ToList();
-            CollectionAssert.AreEqual(new uint[] { 44918 }, inbox, "the selected reward, in the inbox");
+            CollectionAssert.AreEqual(new uint[] { 45125 }, inbox, "the selected reward, in the inbox");
         }
 
         [TestMethod]
-        [DataRow(549U, 181U, 430U, 44917U, 44918U)]
-        [DataRow(441U, 208U, 549U, 44918U, 44917U)]
+        [DataRow(549U, 181U, 430U, 47593U, 45125U)]
+        [DataRow(441U, 208U, 549U, 45125U, 44917U)]
         [DataRow(665U, 172U, 0U, 13744U, 28692U)]
         [DataRow(430U, 181U, 0U, 26940U, 13739U)]
         public void NativeOffersAdvertiseTheSameItemChoicesThatAreGranted(
