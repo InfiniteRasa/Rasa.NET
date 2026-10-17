@@ -554,6 +554,7 @@ namespace Rasa.Test.Missions
             using var harness = BootcampRuntimeTestHarness.Create();
             var client = harness.Client;
             client.MissionAreaService = new MissionAreaService(() => harness.Manager);
+            AddMap(harness, HowlingMawMap);
             AddMap(harness, MiresMap);
             AddMap(harness, 2115);
 
@@ -563,16 +564,22 @@ namespace Rasa.Test.Missions
 
             // By the loading screen, as a pass, a summon and .teleport take a player (ChangeMap),
             // and the client's MapLoaded through the handler.
-            Assert.IsTrue(harness.Maps.ChangeMap(client, MiresMap, new Vector3(100, 5, 100), 0));
+            Assert.IsTrue(harness.Maps.ChangeMap(client, HowlingMawMap, new Vector3(100, 5, 100), 0));
             Assert.AreEqual(ClientState.Teleporting, client.State);
             harness.Drain();
             harness.RouteMapLoaded();
 
             Assert.AreEqual(ClientState.Ingame, client.State);
-            Assert.AreEqual(MiresMap, client.Player.MapContextId);
-            Assert.AreEqual(Mires, harness.Drain().OfType<DispenseRadioMissionPacket>().Single().MissionId);
+            Assert.AreEqual(HowlingMawMap, client.Player.MapContextId);
+            Assert.AreEqual(HowlingMaw, harness.Drain().OfType<DispenseRadioMissionPacket>().Single().MissionId);
             Assert.IsFalse(client.MissionArrivalPending);
-            Assert.IsTrue(harness.Manager.TryAcceptRadioMission(client, Mires));
+
+            // The Mires' is Commander Tumlinson's (TargetsOfOpportunityGivers): no radio offers it.
+            Assert.IsTrue(harness.Maps.ChangeMap(client, MiresMap, new Vector3(100, 5, 100), 0));
+            harness.RouteMapLoaded();
+            Assert.AreEqual(MiresMap, client.Player.MapContextId);
+            Assert.IsFalse(harness.Drain().OfType<DispenseRadioMissionPacket>().Any());
+            Assert.IsTrue(harness.TakeFromGiver(Mires));
             harness.Drain();
 
             Assert.IsTrue(harness.Maps.ChangeMap(client, 2115, new Vector3(100, 5, 100), 0));
@@ -717,12 +724,20 @@ namespace Rasa.Test.Missions
 
         #endregion
 
-        /// <summary>Onto the battlefield, and its mission taken from the radio that offers it there.</summary>
+        /// <summary>
+        /// Onto the battlefield, and its mission taken from its officer if it has one
+        /// (TargetsOfOpportunityGivers), or from the radio that offers it there.
+        /// </summary>
         private static void Take(BootcampRuntimeTestHarness.Harness harness, uint missionId, uint mapContextId)
         {
             Arrive(harness, mapContextId);
-            harness.Manager.OfferArrivalMissions(harness.Client);
-            Assert.IsTrue(harness.Manager.TryAcceptRadioMission(harness.Client, missionId));
+            if (TargetsOfOpportunityGivers.Givers.Any(giver => giver.MissionId == missionId))
+                Assert.IsTrue(harness.TakeFromGiver(missionId));
+            else
+            {
+                harness.Manager.OfferArrivalMissions(harness.Client);
+                Assert.IsTrue(harness.Manager.TryAcceptRadioMission(harness.Client, missionId));
+            }
             harness.Drain();
         }
 
