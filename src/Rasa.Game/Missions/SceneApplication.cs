@@ -925,8 +925,17 @@ namespace Rasa.Game.Missions
             if (bindings.Release != run.Release || !_runtime.Supports(run.ScriptKey, run.StateVersion))
                 throw new GameplayRejectionException(
                     $"Scene run {runId} cannot load release {run.Release}, script {run.ScriptKey}/{run.StateVersion}.");
+            // A private instance is made again on every login, under a new instance id, and the
+            // run goes on in the new one: its row names the map it is in now. The conversation,
+            // offer and lease checks compare the row's map with the player's, and on the old key
+            // refused every actor of the run - a corpse that offered its dialogue and answered
+            // nothing.
+            var mapKey = PublicActorLeaseService.MapKey(map);
             unit.ExecuteTransaction(() =>
             {
+                if (map.IsPrivateInstance && row.MapKey != mapKey)
+                    row.MapKey = mapKey;
+
                 foreach (var timer in unit.CharacterMissions.Runtime.Timers(runId)
                     .Where(timer => timer.ClockPolicy == "ActiveScene" && timer.Disposition == "Paused"))
                 {

@@ -109,6 +109,43 @@ namespace Rasa.Test.Missions
         }
 
         [TestMethod]
+        public void AfterLoggingOutAndInTheCorpseInTheNewCopyStillOpensItsDialogueAndContinueGrantsTheBomb()
+        {
+            // Through character selection, as a player logging back in: the Bootcamp copy is made
+            // again under a new instance id, and the scene that owns the corpse goes on in it.
+            using var harness = BootcampRuntimeTestHarness.CreateFromPendingSelection(useWorldContent: true);
+            FindMissingSoldiers(harness);
+            var before = Corpse(harness);
+            var oldKey = Rasa.Game.Missions.World.PublicActorLeaseService.MapKey(harness.BootcampMap);
+
+            harness.ReconnectFromSelection();
+
+            var map = harness.Client.Player.MapChannel;
+            var newKey = Rasa.Game.Missions.World.PublicActorLeaseService.MapKey(map);
+            Assert.AreNotEqual(oldKey, newKey, "a new copy, under a new instance id");
+            var corpse = Corpse(harness);
+            Assert.AreNotSame(before, corpse);
+            Assert.AreSame(map, corpse.RuntimeMapChannel);
+            using (var unit = harness.Context.CreateChar())
+                Assert.AreEqual(newKey, unit.CharacterMissions.Runtime.Scene(corpse.SceneRunId).MapKey,
+                    "the run's row names the copy it goes on in");
+
+            harness.MovePlayerTo(corpse);
+            harness.Drain();
+            var npcs = new NpcManager(harness.Context, harness.Manager);
+            npcs.RequestNpcConverse(harness.Client, new RequestNPCConversePacket { EntityId = corpse.EntityId });
+
+            var dialogue = harness.Drain().OfType<ConversePacket>().Single();
+            Assert.AreEqual(1995, ((System.Collections.Generic.List<CompleteableObjectives>)
+                dialogue.ConvoDataDict[ConversationType.ObjectiveComplete]).Single().MissionId);
+
+            npcs.CompleteNPCObjective(harness.Client, Continue(corpse));
+
+            Assert.AreEqual(1, harness.ReadOwnedTemplateCounts(11519).GetValueOrDefault(11519U));
+            Assert.AreEqual(MissionObjectiveState.Completed, harness.Client.Player.Missions[1995].Objectives[3].State);
+        }
+
+        [TestMethod]
         public void FailedContinueRollsBackTheBombAndDeadlineAndTheSameDialogCanRetry()
         {
             using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true);
