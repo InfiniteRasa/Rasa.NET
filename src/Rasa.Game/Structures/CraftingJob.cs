@@ -5,10 +5,10 @@ namespace Rasa.Structures
 {
     /// <summary>
     /// One item a Kraftwerks is making for a player: what comes out, when it is done, which
-    /// crafting page asked for it. Mirrors the client's ItemStatus (shared/crafting.py). The
-    /// client does not count timeLeft down itself; it hides the window while any job of the
-    /// player's has time left and shows the Take button when none has, so the server sends a
-    /// fresh status when a job finishes.
+    /// crafting page asked for it. Mirrors the client's ItemStatus (shared/crafting.py), except
+    /// that CraftingStatus reports no time left for it: the client closes its window while any
+    /// job has time left (CraftingStatusPacket). The time is the server's to keep, here, and the
+    /// server sends a fresh status when a job finishes.
     /// </summary>
     public class CraftingJob
     {

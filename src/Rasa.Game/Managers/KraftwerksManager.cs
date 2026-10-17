@@ -31,7 +31,11 @@ namespace Rasa.Managers
     /// stated quantity, standing within reach of a station with no job of theirs still running
     /// there. The ingredients and credits are taken, the schematic is kept, and a job with the
     /// recipe's time goes on the station for that player; the result is created when they take
-    /// it. The window's other four pages - salvage, extraction, integration, upgrade - work on
+    /// it. The window shows the job in its output slot from the start - CraftingStatus reports no
+    /// time left, or the window would close itself - while the time left runs on the on-screen
+    /// countdown, put up on Fabricate and again on every use of the station while the job runs.
+    /// A Take before it is done is told how long is left, and "Crafting success!" says when it
+    /// is. The window's other four pages - salvage, extraction, integration, upgrade - work on
     /// the modules an item carries, and are in KraftwerksManager.Modules.
     ///
     /// A job is a crafting_job row from the moment it is accepted until it is taken: the
@@ -59,6 +63,9 @@ namespace Rasa.Managers
 
         /// <summary>The crafting window's fabrication page (generated.shared.crafting CRAFTACTION_FABRICATION); the page a job reports decides which page the window reopens on.</summary>
         public const uint FabricationPage = 1;
+
+        /// <summary>The on-screen timer a running job's time left is shown on: generated.client.timertype "Countdown".</summary>
+        public const TimerType CountdownTimer = TimerType.Countdown;
 
         /// <summary>Ids for the jobs no row holds - a station with no row, a write that failed - well clear of the row ids.</summary>
         private ulong _nextJobId = 1UL << 40;
@@ -231,8 +238,11 @@ namespace Rasa.Managers
 
         /// <summary>
         /// From DynamicObjectWorker, once a second: puts stations that are not in the world yet
-        /// into it, and tells players whose jobs on this map's stations have just finished, so the
-        /// window shows the Take button without them having to use the station again.
+        /// into it, and tells players whose jobs on this map's stations have just finished, so
+        /// Take hands the item over without them having to use the station again. A fabrication
+        /// that has just finished is also announced with the client's "Crafting success!": the
+        /// window looks the same before and after, the item having been in its output slot all
+        /// along.
         /// </summary>
         internal void Worker(MapChannel mapChannel)
         {
@@ -267,8 +277,15 @@ namespace Rasa.Managers
 
                 var client = mapChannel.ClientList.FirstOrDefault(c => c?.Player != null && c.Player.Id == characterId && c.State == ClientState.Ingame);
 
-                if (client != null)
-                    SendStatus(client, station.Object);
+                if (client == null)
+                    continue;
+
+                var made = entry.Value.Any(job => !job.FinishReported && job.IsFinished && job.CraftingPage == FabricationPage);
+
+                SendStatus(client, station.Object);
+
+                if (made)
+                    client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmCraftingSuccess, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
             }
         }
 
@@ -295,6 +312,7 @@ namespace Rasa.Managers
             station.TriggeredByPlayers.Add(client);
 
             SendStatus(client, station);
+            ShowCountdown(client, station);
         }
 
         /// <summary>PerformRecovery for UseObject arg 5: the use animation is over; leave the station as it was.</summary>
@@ -398,6 +416,26 @@ namespace Rasa.Managers
                 if (job.IsFinished)
                     job.FinishReported = true;
         }
+
+        /// <summary>
+        /// Puts the on-screen countdown up for the player's job at the station that is still being
+        /// made, from the time it has left; nothing when none is. The client takes the timer down
+        /// itself when it reaches 0. It is the timer a timed mission objective would use, but this
+        /// server sends no objective timers.
+        /// </summary>
+        private void ShowCountdown(Client client, DynamicObject station)
+        {
+            var running = JobsFor(client, station).Where(job => !job.IsFinished).ToList();
+
+            if (running.Count == 0)
+                return;
+
+            NotificationManager.Instance.DisplayTimer(client, CountdownTimer, SecondsLeft(running), true);
+        }
+
+        /// <summary>Whole seconds until the last of the jobs is done, rounded up so a job is never shown as done before it is.</summary>
+        private static int SecondsLeft(IEnumerable<CraftingJob> jobs) =>
+            (int)Math.Ceiling(jobs.Max(job => job.TimeLeftSeconds));
 
         /// <summary>
         /// The station a request names, when it is one and the player is close enough to use it.
@@ -596,6 +634,7 @@ namespace Rasa.Managers
 
             SendStatus(client, station);
             client.CallMethod(station.EntityId, CraftingResultPacket.Success(player.EntityId));
+            ShowCountdown(client, station);
         }
 
         private static string NameOfClass(uint classId)
@@ -631,9 +670,15 @@ namespace Rasa.Managers
             return HandOver(client, station, job, made ? client.Player.FamilyName ?? "" : null, overflowToInbox: made);
         }
 
+        /// <summary>
+        /// Take: what of the jobs asked for is done is handed over. The window offers Take for a job
+        /// still being made too (CraftingStatus reports no time left), so one that is not done
+        /// stays, and the player is told how long it has left.
+        /// </summary>
         private void Collect(Client client, DynamicObject station, Func<CraftingJob, bool> which)
         {
             var jobs = JobsForWriting(client, station);
+            var running = jobs.Where(j => !j.IsFinished && which(j)).ToList();
 
             foreach (var job in jobs.Where(j => j.IsFinished && which(j)).ToList())
             {
@@ -651,6 +696,9 @@ namespace Rasa.Managers
                 _jobs.Remove((station.KraftwerksId, client.Player.Id));
 
             SendStatus(client, station);
+
+            if (running.Count > 0)
+                CommunicatorManager.Instance.SystemMessage(client, $"Still being made: ready in {SecondsLeft(running)} s.");
         }
 
         internal void RequestRetrieveFinishedCraftItem(Client client, RequestRetrieveFinishedCraftItemPacket packet)

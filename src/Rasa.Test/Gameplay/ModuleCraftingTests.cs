@@ -893,6 +893,203 @@ namespace Rasa.Test.Gameplay
             Assert.IsTrue(bench.JobRows().Any(r => r.ResultTemplateId == Body1Item && r.KraftwerksId == Bench.StationId));
         }
 
+        /// <summary>A fabrication the station is still making, as a row: the manager that has loaded it.</summary>
+        private static KraftwerksManager Making(Bench bench, TimeSpan left)
+        {
+            using (var unit = bench.Context.CreateChar())
+                unit.CraftingJobs.Add(new Rasa.Structures.Char.CraftingJobEntry
+                {
+                    CharacterId = bench.Client.Player.Id, KraftwerksId = Bench.StationId, ResultClassId = ModuleItemClass, ResultTemplateId = Body1Item,
+                    Count = 1, CraftingPage = KraftwerksManager.FabricationPage, QualityId = 1, FinishAt = DateTime.UtcNow.Add(left)
+                });
+
+            return bench.Restarted();
+        }
+
+        /// <summary>Each job's timeLeft as the client reads it off the wire.</summary>
+        private static List<double> TimeLeftSent(CraftingStatusPacket packet)
+        {
+            using var reader = Wire(packet);
+            var left = new List<double>();
+
+            reader.ReadTuple();
+            reader.ReadULong();
+
+            for (int i = 0, n = reader.ReadList(); i < n; i++)
+            {
+                reader.ReadTuple();
+                reader.ReadULong();
+                reader.ReadUInt();
+                reader.ReadUInt();
+                reader.ReadUInt();
+                left.Add(reader.ReadDouble());
+                reader.ReadUInt();
+                reader.ReadUInt();
+
+                for (int m = 0, modules = reader.ReadList(); m < modules; m++)
+                    reader.ReadUInt();
+            }
+
+            return left;
+        }
+
+        /// <summary>The countdowns put up: (timer type, seconds, running, counting down) of each DisplayTimer.</summary>
+        private static List<(uint type, int seconds, bool running, bool countdown)> Countdowns(IReadOnlyList<PythonPacket> sent)
+        {
+            var timers = new List<(uint, int, bool, bool)>();
+
+            foreach (var packet in sent.OfType<NotificationPacket>().Where(n => n.NotificationId == NotificationId.DisplayTimer))
+            {
+                using var reader = Wire(packet);
+
+                reader.ReadTuple();
+                reader.ReadUInt();
+                reader.ReadTuple();
+                timers.Add((reader.ReadUInt(), reader.ReadInt(), reader.ReadBool(), reader.ReadBool()));
+            }
+
+            return timers;
+        }
+
+        private static Rasa.Memory.PythonReader Wire(PythonPacket packet)
+        {
+            var stream = new MemoryStream();
+            var writer = new Rasa.Memory.PythonWriter(new BinaryWriter(stream));
+
+            packet.Write(writer);
+            stream.Position = 0;
+
+            return new Rasa.Memory.PythonReader(new BinaryReader(stream));
+        }
+
+        /// <summary>
+        /// The 1.16.5 window closes itself while a job it holds has time left, so a job being made
+        /// goes to it with none: the window stays open on it, and its time left is the on-screen
+        /// countdown, put up again on every use of the station while it runs.
+        /// </summary>
+        [TestMethod]
+        public void AJobBeingMadeIsShownWithNoTimeLeftAndItsCountdownIsPutUpOnEveryUse()
+        {
+            using var bench = new Bench();
+            var station = Making(bench, TimeSpan.FromSeconds(30));
+
+            var sent = bench.After((_, id) => station.Use(bench.Client, bench.Object, KraftwerksManager.UseObjectArgId));
+            var status = sent.OfType<CraftingStatusPacket>().Single();
+
+            Assert.IsFalse(status.Jobs.Single().IsFinished, "the station is still making it");
+            CollectionAssert.AreEqual(new[] { 0.0 }, TimeLeftSent(status), "the window would close on any time left");
+
+            var countdown = Countdowns(sent).Single();
+            Assert.AreEqual(((uint)TimerType.Countdown, true, true), (countdown.type, countdown.running, countdown.countdown));
+            Assert.IsTrue(countdown.seconds >= 29 && countdown.seconds <= 30, $"{countdown.seconds} s");
+
+            // Once it is done, a use puts no countdown up.
+            status.Jobs.Single().FinishTick = Environment.TickCount64 - 1;
+            sent = bench.After((_, id) => station.Use(bench.Client, bench.Object, KraftwerksManager.UseObjectArgId));
+            Assert.AreEqual(1, sent.OfType<CraftingStatusPacket>().Single().Jobs.Count);
+            Assert.AreEqual(0, Countdowns(sent).Count);
+        }
+
+        /// <summary>The window offers Take for a job still being made; it stays on the station, and the player is told how long is left.</summary>
+        [TestMethod]
+        public void ATakeBeforeTheJobIsDoneLeavesItAndSaysHowLongIsLeft()
+        {
+            using var bench = new Bench();
+            var station = Making(bench, TimeSpan.FromSeconds(30));
+            bench.After((_, id) => station.Use(bench.Client, bench.Object, KraftwerksManager.UseObjectArgId));
+
+            var sent = bench.After((_, id) => station.RequestRetrieveAllFinishedItems(bench.Client, new RequestRetrieveAllFinishedItemsPacket { KraftwerksId = id }));
+
+            Assert.AreEqual(1, Jobs(sent).Count, "still on the station");
+            Assert.AreEqual(0u, bench.Carried(ModuleItemClass));
+            Assert.AreEqual(1, bench.JobRows().Count);
+
+            var message = sent.OfType<SystemMessagePacket>().Single().TextMessage;
+            StringAssert.Matches(message, new System.Text.RegularExpressions.Regex(@"^Still being made: ready in (29|30) s\.$"));
+
+            // The same for the one job by its id.
+            var job = Jobs(sent).Single();
+            sent = bench.After((_, id) => station.RequestRetrieveFinishedCraftItem(bench.Client, new RequestRetrieveFinishedCraftItemPacket { KraftwerksId = id, ItemId = job.ResultItemId }));
+            Assert.AreEqual(1, sent.OfType<SystemMessagePacket>().Count());
+            Assert.AreEqual(0u, bench.Carried(ModuleItemClass));
+
+            // A finished job is taken without a word.
+            job.FinishTick = Environment.TickCount64 - 1;
+            sent = bench.After((_, id) => station.RequestRetrieveAllFinishedItems(bench.Client, new RequestRetrieveAllFinishedItemsPacket { KraftwerksId = id }));
+            Assert.AreEqual(0, Jobs(sent).Count);
+            Assert.AreEqual(1u, bench.Carried(ModuleItemClass));
+            Assert.AreEqual(0, sent.OfType<SystemMessagePacket>().Count());
+        }
+
+        /// <summary>The window looks the same before and after a fabrication finishes, so the finish is announced, once; the module pages' jobs are done at once and are not.</summary>
+        [TestMethod]
+        public void AFabricationThatFinishesIsAnnouncedOnceAndAModulePagesJobIsNot()
+        {
+            using var bench = new Bench();
+            var job = bench.FinishedJob();
+
+            bench.Client.State = ClientState.Ingame;
+            if (!bench.Map.ClientList.Contains(bench.Client))
+                bench.Map.ClientList.Add(bench.Client);
+
+            bench.Station.Worker(bench.Map);
+            var sent = bench.Drain();
+
+            Assert.AreEqual(1, sent.OfType<CraftingStatusPacket>().Count());
+            Assert.AreEqual(PlayerMessage.PmCraftingSuccess, sent.OfType<DisplayClientMessagePacket>().Single().MsgId);
+
+            bench.Station.Worker(bench.Map);
+            Assert.IsEmpty(bench.Drain().OfType<DisplayClientMessagePacket>().ToList());
+
+            var salvaged = bench.FinishedJob();
+            salvaged.CraftingPage = KraftwerksManager.SalvagePage;
+
+            bench.Station.Worker(bench.Map);
+            sent = bench.Drain();
+            Assert.AreEqual(1, sent.OfType<CraftingStatusPacket>().Count());
+            Assert.IsEmpty(sent.OfType<DisplayClientMessagePacket>().ToList());
+        }
+
+        /// <summary>Fabricate: the job is in the window at once with no time left, and the recipe's time goes up on the countdown.</summary>
+        [TestMethod]
+        public void FabricateShowsTheJobAtOnceAndCountsTheRecipesTimeDown()
+        {
+            using var bench = new Bench();
+            const uint schematicTemplate = Body5Item;
+            var recipes = (Dictionary<uint, Recipe>)typeof(RecipeManager)
+                .GetField("_recipes", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(RecipeManager.Instance);
+            var recipe = new Recipe(new RecipeEntry { Id = schematicTemplate, KraftwerksSeconds = 8, ResultTemplateId = Body2Item, ResultAmount = 1 });
+            recipe.Inputs.Add(new Recipe.Input { ClassId = MimeogelClass, Quantity = 5 });
+            recipes.TryGetValue(schematicTemplate, out var previous);
+            recipes[schematicTemplate] = recipe;
+
+            try
+            {
+                var schematic = bench.GiveStack(schematicTemplate, 1);
+                bench.GiveStack(Mimeogel, 5);
+
+                var sent = bench.After((station, id) => station.RequestCraftItemNew(bench.Client, new RequestCraftItemNewPacket { KraftwerksId = id, RecipeItemId = schematic.EntityId, CraftingPage = KraftwerksManager.FabricationPage }));
+
+                Assert.IsTrue(Succeeded(sent));
+                Assert.AreEqual(0u, bench.Carried(MimeogelClass));
+
+                var status = sent.OfType<CraftingStatusPacket>().Last();
+                Assert.AreEqual(Body2Item, status.Jobs.Single().ResultItemTemplateId);
+                Assert.IsFalse(status.Jobs.Single().IsFinished);
+                CollectionAssert.AreEqual(new[] { 0.0 }, TimeLeftSent(status));
+
+                var countdown = Countdowns(sent).Single();
+                Assert.AreEqual(((uint)TimerType.Countdown, 8, true, true), countdown);
+            }
+            finally
+            {
+                if (previous != null)
+                    recipes[schematicTemplate] = previous;
+                else
+                    recipes.Remove(schematicTemplate);
+            }
+        }
+
         [TestMethod]
         public void TheRowsOfAStationOrACharacterGoWithIt()
         {
