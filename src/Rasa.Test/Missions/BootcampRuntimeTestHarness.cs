@@ -431,13 +431,14 @@ namespace Rasa.Test.Missions
                          TizzikGiCreatureId,
                          PracticeDummyCreatureId,
                          LightningDummyCreatureId,
-                         510213U, 510214U, 510215U, 510227U, 510228U
+                         510213U, 510214U, 510215U, 510227U, 510228U,
+                         510290U, 510291U, 510292U
                      })
             {
                 creatures.LoadedCreatures[creatureId] = new Creature
                 {
                     DbId = creatureId,
-                    TargetCategory = creatureId == 510227 ? TargetCategory.Friendly : TargetCategory.Hostile,
+                    TargetCategory = creatureId is 510227 or (>= 510290 and <= 510292) ? TargetCategory.Friendly : TargetCategory.Hostile,
                     EntityClass = (EntityClasses)4001,
                     Npc = new Npc
                     {
@@ -898,13 +899,14 @@ namespace Rasa.Test.Missions
                              TizzikGiCreatureId,
                              PracticeDummyCreatureId,
                              LightningDummyCreatureId,
-                             510213U, 510214U, 510215U, 510227U, 510228U
+                             510213U, 510214U, 510215U, 510227U, 510228U,
+                             510290U, 510291U, 510292U
                          })
                 {
                     creatures.LoadedCreatures[creatureId] = new Creature
                     {
                         DbId = creatureId,
-                        TargetCategory = creatureId == 510227 ? TargetCategory.Friendly : TargetCategory.Hostile,
+                        TargetCategory = creatureId is 510227 or (>= 510290 and <= 510292) ? TargetCategory.Friendly : TargetCategory.Hostile,
                         EntityClass = (EntityClasses)4001,
                         Npc = new Npc
                         {

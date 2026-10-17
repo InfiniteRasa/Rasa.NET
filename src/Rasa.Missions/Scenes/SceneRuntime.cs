@@ -71,6 +71,9 @@ namespace Rasa.Missions.Scenes
                      definition.Points.Count == 0 || route.StartWaypoint < 0 || route.StartWaypoint >= definition.Points.Count ||
                      bindings.Actors[route.Role].Kind is SceneActorKind.Object or SceneActorKind.PracticeTarget))
                     return Reject($"Scene operation {intent.OperationKey} references an invalid route or actor.");
+                if (intent is QuietSpawnPoolsIntent quiet &&
+                    (quiet.Role == null || quiet.SpawnPools == null || quiet.SpawnPools.Length == 0 || quiet.SpawnPools.Contains(0u)))
+                    return Reject($"Scene operation {intent.OperationKey} quiets no spawn pools, or has no actor holding them.");
                 if (intent is AttackActorIntent attack &&
                     (attack.Role == null || !bindings.Actors.TryGetValue(attack.Role, out var attacker) ||
                      attacker.Kind is not (SceneActorKind.Creature or SceneActorKind.PublicSpawn) ||

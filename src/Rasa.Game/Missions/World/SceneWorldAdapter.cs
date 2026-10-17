@@ -101,6 +101,16 @@ namespace Rasa.Game.Missions.World
             // (SceneApplication cancels such effects as it reconciles).
             if (intent.Role == null || !world.Bindings.Actors.TryGetValue(intent.Role, out var definition))
                 return WorldEffectResult.Failed($"Actor role {intent.Role} is not in the scene's bindings.");
+            if (intent is QuietSpawnPoolsIntent quiet)
+            {
+                if (!world.Map.IsPrivateInstance || world.Map.OwnerCharacterId != run.OwnerCharacterId)
+                    return WorldEffectResult.Failed("Spawn pools are quieted only on their owner's private map.");
+                foreach (var pool in world.Map.SpawnPools.Where(pool => pool.ScenarioKey == null && quiet.SpawnPools.Contains(pool.DbId)))
+                    pool.Quieted = true;
+                return WorldEffectResult.Applied();
+            }
+            if (intent is RestoreActorPoseIntent { } creaturePose && definition.Kind == SceneActorKind.Creature)
+                return RestoreCreaturePose(world, run, definition, creaturePose);
             if (intent is RestoreActorPoseIntent pose)
             {
                 if (!world.Map.IsPrivateInstance || world.Map.OwnerCharacterId != run.OwnerCharacterId ||
@@ -295,6 +305,29 @@ namespace Rasa.Game.Missions.World
                 return WorldEffectResult.Applied();
             }
             return WorldEffectResult.Failed($"Unsupported world intent {intent.GetType().Name}.");
+        }
+
+        /// <summary>
+        /// A creature the scene set walking to a place of its own, put straight there when its
+        /// private map is made again (a route that resumes at its destination): at the route's
+        /// end and facing, and, a defender, at its post (SceneRouteController.TakeUpPost).
+        /// </summary>
+        private WorldEffectResult RestoreCreaturePose(WorldRun world, SceneRun run, SceneActorDefinition definition,
+            RestoreActorPoseIntent pose)
+        {
+            if (!world.Map.IsPrivateInstance || world.Map.OwnerCharacterId != run.OwnerCharacterId)
+                return WorldEffectResult.Failed("Pose recovery is restricted to an owned private-map actor.");
+            if (!world.Actors.TryGetValue(pose.Role, out var actor) || !IsCurrent(world, actor))
+                TryBindExisting(world, definition, out actor);
+            if (actor?.Creature == null || !IsCurrent(world, actor))
+                return WorldEffectResult.Failed($"Actor role {pose.Role} is unavailable.");
+            var position = SceneRouteController.Position(pose.Position);
+            actor.Creature.SpawnPool.Position = position;
+            actor.Creature.SpawnPool.Rotation = pose.Orientation;
+            if (!BehaviorManager.Instance.RestoreScriptedPose(world.Map, actor.Creature, position, pose.Orientation))
+                return WorldEffectResult.Failed("Creature actor pose could not be restored.");
+            SceneRouteController.TakeUpPost(actor.Creature);
+            return WorldEffectResult.Applied();
         }
 
         private void RevokeAttackOperation(WorldRun world, BoundActor actor, string operationKey)

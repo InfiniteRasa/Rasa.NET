@@ -141,6 +141,19 @@ namespace Rasa.Game.Missions.World
                 return;
             _routes.Remove((run.Handle.RunId, run.Handle.Role));
             actor.RunSpeed = run.PreviousSpeed;
+            TakeUpPost(actor);
+        }
+
+        /// <summary>
+        /// A defender (ActorGameplayPolicy.DefenseRadius) where a route set it down takes it as its
+        /// post: no longer walked, it guards it as one spawned there does
+        /// (BehaviorManager.AdvanceBaseDefender), fighting what comes near and going back to it.
+        /// Anything else stands where it arrived, as before.
+        /// </summary>
+        internal static void TakeUpPost(Creature creature)
+        {
+            if (CreatureGameplayRules.IsDefender(creature))
+                BehaviorManager.Instance.SetActionAnchor(creature, creature.Position);
         }
 
         private static bool IsLivingRouteActor(MapChannel map, Creature actor) =>

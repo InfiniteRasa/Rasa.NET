@@ -58,6 +58,7 @@ namespace Rasa.Missions.Scenes
     [JsonDerivedType(typeof(RestoreActorPoseIntent), "restore-pose")]
     [JsonDerivedType(typeof(TransitionObjectStateIntent), "object-state")]
     [JsonDerivedType(typeof(AttackActorIntent), "attack")]
+    [JsonDerivedType(typeof(QuietSpawnPoolsIntent), "quiet-spawn-pools")]
     public abstract record WorldIntent(string OperationKey, string Role);
     public sealed record EnsureActorIntent(string OperationKey, string Role, ScenePosition RestorePosition = null) : WorldIntent(OperationKey, Role);
     public sealed record RemoveActorIntent(string OperationKey, string Role) : WorldIntent(OperationKey, Role);
@@ -75,6 +76,15 @@ namespace Rasa.Missions.Scenes
         : WorldIntent(OperationKey, Role);
     public sealed record TransitionObjectStateIntent(string OperationKey, string Role, uint State,
         uint WindupMilliseconds = 0) : WorldIntent(OperationKey, Role);
+
+    /// <summary>
+    /// The map's own spawn pools named (spawnpool ids) spawn nothing more on the owner's private
+    /// map: a place the player has taken back. It is held by its actor (Role): rebuilt with that
+    /// actor when the map is made again (SceneApplication.DesiredEffects), so a new map never
+    /// spawns them - while the actor stands. What those pools have standing is left to be fought.
+    /// </summary>
+    public sealed record QuietSpawnPoolsIntent(string OperationKey, string Role, uint[] SpawnPools)
+        : WorldIntent(OperationKey, Role);
 
     [JsonPolymorphic(TypeDiscriminatorPropertyName = "$kind")]
     [JsonDerivedType(typeof(GrantRewardIntent), "reward")]

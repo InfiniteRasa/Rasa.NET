@@ -40,6 +40,12 @@ namespace Rasa.Structures
         public bool Suspended { get; set; }
 
         /// <summary>
+        /// A place on a player's private map they have taken back (a mission scene's
+        /// QuietSpawnPoolsIntent): it spawns nothing more there, and does not top up what it lost.
+        /// </summary>
+        public bool Quieted { get; set; }
+
+        /// <summary>
         /// Its area has no walkable ground on its map's navmesh (SpawnPoolManager.Anchor), so it
         /// spawns nothing: what it put down stood in the air or under the ground, could go
         /// nowhere, and still shot. Decided on the first pass and logged once.

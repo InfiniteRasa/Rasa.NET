@@ -815,10 +815,11 @@ namespace Rasa.Test.Missions
                     ["mission_content_definition"] = 5, ["mission_prerequisite"] = 4,
                     // Add_bootcamp_cave_in_breach adds Capture the Flag's bridge crossing: a transition, its
                     // trigger, action, area and scenario, and the Thrax wave's group and six spawns.
+                    // Youngblood_fort_squad adds Youngblood's squad: a group and six spawns.
                     ["mission_objective_definition"] = 21, ["mission_objective_transition"] = 28,
                     ["mission_trigger"] = 28, ["mission_action"] = 81, ["mission_reward_definition"] = 7,
                     ["mission_reward_item"] = 6, ["mission_indicator"] = 12, ["mission_area"] = 8,
-                    ["mission_spawn_group"] = 13, ["mission_spawn"] = 32, ["mission_scenario"] = 21,
+                    ["mission_spawn_group"] = 14, ["mission_spawn"] = 38, ["mission_scenario"] = 21,
                     ["mission_scenario_step"] = 52, ["mission_evidence"] = 17, ["mission_scene_binding"] = 5,
                     ["mission_channel_policy"] = 1, ["mission_repeat_policy"] = 0
                 };

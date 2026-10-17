@@ -294,8 +294,9 @@ namespace Rasa.Managers
 
                 // A scripted pool is not on a timer; nor is a pool set aside for a control point
                 // that no control point has (ControlPoints). A garrison is, while its side holds
-                // the point - and not while the other does, whatever its mode.
-                if (spawnPool.Suspended
+                // the point - and not while the other does, whatever its mode. Nor is one in a
+                // place the player has taken back (Quieted).
+                if (spawnPool.Suspended || spawnPool.Quieted
                     || spawnPool.Mode != ModeAutomatic && !(spawnPool.Mode == ModeControlPoint && spawnPool.IsGarrison)
                     || spawnPool.AnimType < 0 || spawnPool.AnimType > 2)
                     continue;
