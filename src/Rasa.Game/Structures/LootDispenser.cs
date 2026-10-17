@@ -67,6 +67,13 @@ namespace Rasa.Structures
         /// the two is set.
         /// </summary>
         internal DynamicObject AttachedObject { get; set; }
+
+        /// <summary>
+        /// Set instead of both when this is what a player or squad found in a lootable container
+        /// the server put down (WorldContainers): one such dispenser for each player or squad
+        /// that opened it, where a reward crate has one for its owner.
+        /// </summary>
+        internal DynamicObject ContainerObject { get; set; }
         internal uint CharacterId { get; set; }
         internal uint AccountId { get; set; }
         internal Rasa.Repositories.UnitOfWork.IGameUnitOfWorkFactory UnitOfWorkFactory { get; set; }

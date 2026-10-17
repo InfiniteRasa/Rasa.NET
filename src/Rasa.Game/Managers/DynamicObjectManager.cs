@@ -245,6 +245,13 @@ namespace Rasa.Managers
                 return;
             }
 
+            // A lootable container the server put down (WorldContainers): its own rules.
+            if (obj.DynamicObjectType == DynamicObjectType.Container)
+            {
+                WorldContainers.RequestUse(client, obj, packet);
+                return;
+            }
+
             // A destructible world object the server put down (PlacedDestructibles): shot, not used.
             if (obj.DynamicObjectType == DynamicObjectType.Destructible)
             {
@@ -819,6 +826,9 @@ namespace Rasa.Managers
 
             client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(dynamicObject.EntityId, dynamicObject.EntityClassId, entityData));
             PublishRewardLoot(client, dynamicObject);
+
+            // A lootable container: opened or closed to this client, their lock, and what they have left in it (WorldContainers).
+            WorldContainers.Introduce(client, dynamicObject);
 
             // A Hortimonculus plant: its owner and its hit points.
             if (dynamicObject.DynamicObjectType == DynamicObjectType.Hortimonculus)

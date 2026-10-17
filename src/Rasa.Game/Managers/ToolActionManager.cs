@@ -575,11 +575,20 @@ namespace Rasa.Managers
             // Spent before the roll, so that a failure costs the same as a success. Without this
             // the decode chance is decoration: a 55% cipher retried until it lands is a 100%
             // cipher that takes longer, and the tool levels stop meaning anything.
-            obj.Lock.CipherAttemptsLeft--;
+            var usableLock = WorldContainers.LockFor(client, obj);
+            usableLock.CipherAttemptsLeft--;
 
             // The chance is the tool class's min damage - 55 at level 5, 100 at 50.
             if (Next(100) >= (int)action.Args)
                 return PlayerMessage.PmUseObjectUsableLocked;
+
+            // A lootable container's lock is each player's own (WorldContainers): open to this
+            // one and their squad, and locked to everyone else still.
+            if (WorldContainers.LiveOf(obj) is { } container)
+            {
+                WorldContainers.Unlocked(client, container);
+                return null;
+            }
 
             Unlock(obj);
             return null;
@@ -607,12 +616,16 @@ namespace Rasa.Managers
             if (!obj.IsEnabled)
                 return PlayerMessage.PmTargetInvalid;
 
-            var usableLock = obj.Lock;
+            // A lootable container has a lock for each player, and a state for each (WorldContainers).
+            var usableLock = WorldContainers.LockFor(client, obj);
+            var state = WorldContainers.LiveOf(obj) is { } container
+                ? WorldContainers.StateFor(container, client.Player.Id)
+                : obj.StateId;
 
             // "not target.IsCipherable()" - no lock, no cipher level, already open, or sitting in
             // a state its lock does not apply to. All four are the same refusal to the player,
             // which is what the client would have said.
-            if (usableLock == null || !usableLock.IsCipherableIn(obj.StateId))
+            if (usableLock == null || !usableLock.IsCipherableIn(state))
                 return PlayerMessage.PmTargetInvalid;
 
             // Already worked over. Checked before the range and skill rules so that a lock nobody

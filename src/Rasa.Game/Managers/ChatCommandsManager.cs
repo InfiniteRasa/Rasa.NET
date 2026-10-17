@@ -278,6 +278,7 @@ namespace Rasa.Managers
             RegisterCommand(".ambient", GmLevel.GameMaster, AmbientCommand, "class | clear");
             RegisterCommand(".destructible", GmLevel.GameMaster, DestructibleCommand, "action", "arg1", "arg2", "arg3", "arg4", "arg5");
             RegisterCommand(".worldusable", GmLevel.GameMaster, WorldUsableCommand, "action", "arg1", "arg2", "arg3", "arg4", "arg5", "arg6", "arg7", "arg8");
+            RegisterCommand(".worldcontainer", GmLevel.GameMaster, WorldContainerCommand, "action", "arg1", "arg2", "arg3", "arg4", "arg5", "arg6");
             RegisterCommand(".removeobj", GmLevel.GameMaster, RemoveObjectCommand, "entityId");
             RegisterCommand(".moveobj", GmLevel.GameMaster, MoveObjectCommand, "entityId", "x", "y", "z", "rotation");
             RegisterCommand(".rename", GmLevel.GameMaster, RenameCommand, "part", "newName", "familyName");
@@ -1159,6 +1160,251 @@ namespace Rasa.Managers
                 default:
                     Say("usage: .worldusable classes [word] | put <class> [key=value ...] | near | state <state> [row] | blast [row] | clear");
                     Say("       put stands it at your feet, facing your way, not saved, and prints the WorldUsablePreloader Row line for a migration.");
+                    return;
+            }
+        }
+
+        /// <summary>How far .worldcontainer looks for the nearest container when no row id is given.</summary>
+        private const float NearestWorldContainerRange = 30f;
+
+        /// <summary>
+        /// .worldcontainer: the lootable containers the server puts down (WorldContainers).
+        ///   .worldcontainer classes [word]          - the classes that can be placed (treasure dispensers)
+        ///   .worldcontainer put &lt;class&gt; [key=value ...] - at your feet, facing your way; not saved. Keys:
+        ///                                        profile (a loot_profile key), items (template:quantity,...),
+        ///                                        cipher (level), reset (seconds)
+        ///   .worldcontainer near                    - what is placed within 30 m, and who it is opened to
+        ///   .worldcontainer reset [row]             - closes it and fills it again for everyone, now
+        ///   .worldcontainer clear                   - takes away what .worldcontainer put put down
+        /// A put prints the world_container and world_container_item rows for where it stands.
+        /// </summary>
+        private void WorldContainerCommand(string[] parts)
+        {
+            var player = _client.Player;
+            var mapChannel = player.MapChannel;
+            var sub = parts.Length > 1 ? parts[1].ToLowerInvariant() : string.Empty;
+
+            void Say(string text) => CommunicatorManager.Instance.SystemMessage(_client, text);
+
+            string Describe(WorldContainers.Live live)
+            {
+                var placement = live.Placement;
+                var items = placement.Items.Count == 0 ? "no fixed items" : string.Join(", ", placement.Items.Select(item => $"{item.TemplateId} x{item.Quantity}"));
+                int opened;
+
+                lock (live)
+                    opened = live.Openings.Count;
+
+                return $"{(placement.IsPutDown ? "put down" : $"row {placement.Id}")}: {(uint)placement.ClassId} {EntityClassManager.Instance.GetClassInfo(placement.ClassId)?.ClassName}, "
+                    + $"{items}, profile {placement.LootProfileKey ?? "none"}, cipher {placement.CipherLevel}, reset {placement.ResetMs / 1000} s, "
+                    + $"{(WorldContainers.IsOpenedTo(live, player.Id) ? "opened" : "closed")} to you, opened to {opened}, {Vector3.Distance(live.Object.Position, player.Position):0.0} m away";
+            }
+
+            WorldContainers.Live Target(string row)
+            {
+                if (row != null)
+                {
+                    var byRow = uint.TryParse(row, out var rowId) ? WorldContainers.LiveOf(mapChannel, rowId) : null;
+
+                    if (byRow == null)
+                        Say($"No world_container row {row} on this map.");
+
+                    return byRow;
+                }
+
+                var nearest = WorldContainers.On(mapChannel)
+                    .Where(live => Vector3.Distance(live.Object.Position, player.Position) <= NearestWorldContainerRange)
+                    .OrderBy(live => Vector3.DistanceSquared(live.Object.Position, player.Position))
+                    .FirstOrDefault();
+
+                if (nearest == null)
+                    Say($"No container within {NearestWorldContainerRange:0} m.");
+
+                return nearest;
+            }
+
+            List<EntityClass> Placeable(string word) => EntityClassManager.Instance.LoadedEntityClasses.Values
+                .Where(c => c?.ClassName != null && WorldContainers.WhyNot((EntityClasses)c.ClassId) == null)
+                .Where(c => word == null || c.ClassName.Contains(word, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(c => c.ClassName)
+                .ToList();
+
+            switch (sub)
+            {
+                case "classes":
+                    {
+                        var classes = Placeable(parts.Length > 2 && parts[2].Length > 0 ? parts[2] : null);
+
+                        Say($"{classes.Count} container class(es):");
+
+                        foreach (var c in classes.Take(30))
+                            Say($"{c.ClassId} {c.ClassName}");
+
+                        if (classes.Count > 30)
+                            Say($"... and {classes.Count - 30} more; add a word to narrow it: .worldcontainer classes crate");
+
+                        return;
+                    }
+
+                case "put":
+                    {
+                        if (parts.Length < 3)
+                        {
+                            Say("usage: .worldcontainer put <class id or name> [profile=key] [items=template:quantity,...] [cipher=N] [reset=S]");
+                            return;
+                        }
+
+                        EntityClasses classId;
+
+                        if (uint.TryParse(parts[2], out var id))
+                            classId = (EntityClasses)id;
+                        else
+                        {
+                            var named = Placeable(parts[2]);
+                            var exact = named.FirstOrDefault(c => c.ClassName.Equals(parts[2], StringComparison.OrdinalIgnoreCase))
+                                ?? (named.Count == 1 ? named[0] : null);
+
+                            if (exact == null)
+                            {
+                                Say(named.Count == 0
+                                    ? $"No container class is named like '{parts[2]}'. See .worldcontainer classes."
+                                    : $"{named.Count} classes match '{parts[2]}': {string.Join(", ", named.Take(6).Select(c => c.ClassName))}{(named.Count > 6 ? ", ..." : "")}");
+                                return;
+                            }
+
+                            classId = (EntityClasses)exact.ClassId;
+                        }
+
+                        var row = new Structures.World.WorldContainerEntry { ClassId = (uint)classId };
+                        var items = new List<Structures.World.WorldContainerItemEntry>();
+
+                        foreach (var pair in parts.Skip(3).Where(part => part.Length > 0))
+                        {
+                            var kv = pair.Split('=', 2);
+                            var key = kv[0].ToLowerInvariant();
+
+                            if (kv.Length != 2)
+                            {
+                                Say($"'{pair}' is no key=value. Keys: profile, items, cipher, reset.");
+                                return;
+                            }
+
+                            switch (key)
+                            {
+                                case "profile":
+                                    row.LootProfileKey = kv[1];
+                                    break;
+
+                                case "items":
+                                    foreach (var entry in kv[1].Split(',', StringSplitOptions.RemoveEmptyEntries))
+                                    {
+                                        var item = entry.Split(':', 2);
+
+                                        if (!uint.TryParse(item[0], out var templateId) ||
+                                            (item.Length > 1 ? !uint.TryParse(item[1], out var quantity) : (quantity = 1) == 0))
+                                        {
+                                            Say($"'{entry}' is no template:quantity.");
+                                            return;
+                                        }
+
+                                        items.RemoveAll(existing => existing.ItemTemplateId == templateId);
+                                        items.Add(new Structures.World.WorldContainerItemEntry { ItemTemplateId = templateId, Quantity = quantity });
+                                    }
+                                    break;
+
+                                case "cipher":
+                                case "reset":
+                                    if (!uint.TryParse(kv[1], out var number))
+                                    {
+                                        Say($"'{pair}' needs a whole number.");
+                                        return;
+                                    }
+
+                                    if (key == "cipher")
+                                        row.CipherLevel = number;
+                                    else
+                                        row.ResetSeconds = number;
+                                    break;
+
+                                default:
+                                    Say($"'{kv[0]}' is no key. Keys: profile, items, cipher, reset.");
+                                    return;
+                            }
+                        }
+
+                        var position = _client.Movement.Position;
+                        var rotation = _client.Movement.ViewDirection.X;
+
+                        row.PosX = position.X;
+                        row.PosY = position.Y;
+                        row.PosZ = position.Z;
+                        row.Rotation = rotation;
+
+                        var live = WorldContainers.PutDown(mapChannel, row, items, out var why);
+
+                        if (live == null)
+                        {
+                            Say($"Not placed: {why}.");
+                            return;
+                        }
+
+                        Say($"{Describe(live)}. Not saved; .worldcontainer clear takes it away.");
+
+                        var rowId = WorldContainers.All.Where(p => !p.IsPutDown).Select(p => p.Id).DefaultIfEmpty(0U).Max() + 1;
+                        var profile = row.LootProfileKey == null ? "NULL" : $"'{row.LootProfileKey.Replace("'", "''")}'";
+                        var lines = new List<string>
+                        {
+                            FormattableString.Invariant(
+                                $"INSERT INTO world_container (id, map_context_id, class_id, pos_x, pos_y, pos_z, rotation, loot_profile_key, cipher_level, reset_seconds, comment) VALUES ({rowId}, {player.MapContextId}, {(uint)classId}, {position.X:0.####}, {position.Y:0.####}, {position.Z:0.####}, {rotation:0.####}, {profile}, {row.CipherLevel}, {row.ResetSeconds}, '{EntityClassManager.Instance.GetClassInfo(classId)?.ClassName}');")
+                        };
+
+                        lines.AddRange(items.Select(item => FormattableString.Invariant(
+                            $"INSERT INTO world_container_item (container_id, item_template_id, quantity) VALUES ({rowId}, {item.ItemTemplateId}, {item.Quantity});")));
+
+                        foreach (var line in lines)
+                        {
+                            Say(line);
+                            Logger.WriteLog(LogType.Command, $"[.worldcontainer] {player.FamilyName}: {line}");
+                        }
+
+                        return;
+                    }
+
+                case "near":
+                    {
+                        var near = WorldContainers.On(mapChannel)
+                            .Where(live => Vector3.Distance(live.Object.Position, player.Position) <= NearestWorldContainerRange)
+                            .OrderBy(live => Vector3.DistanceSquared(live.Object.Position, player.Position))
+                            .ToList();
+
+                        if (near.Count == 0)
+                            Say($"No container within {NearestWorldContainerRange:0} m; {WorldContainers.On(mapChannel).Count} on this map.");
+
+                        foreach (var live in near.Take(15))
+                            Say(Describe(live));
+
+                        return;
+                    }
+
+                case "reset":
+                    {
+                        var live = Target(parts.Length > 2 ? parts[2] : null);
+
+                        if (live == null)
+                            return;
+
+                        var openings = WorldContainers.CloseAll(live);
+                        Say($"Closed and filled again ({openings} opening(s) reset): {Describe(live)}.");
+                        return;
+                    }
+
+                case "clear":
+                    Say($"Took away {WorldContainers.TakeAwayPutDown(mapChannel)} container(s) put down with .worldcontainer put.");
+                    return;
+
+                default:
+                    Say("usage: .worldcontainer classes [word] | put <class> [profile=key] [items=template:quantity,...] [cipher=N] [reset=S] | near | reset [row] | clear");
+                    Say("       put stands it at your feet, facing your way, not saved, and prints its world_container and world_container_item rows.");
                     return;
             }
         }

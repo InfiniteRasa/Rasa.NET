@@ -66,6 +66,8 @@ namespace Rasa.Context.World
         public DbSet<AmbientNpcEntry> AmbientNpcEntries { get; set; }
         public DbSet<WorldDestructibleEntry> WorldDestructibleEntries { get; set; }
         public DbSet<WorldUsableEntry> WorldUsableEntries { get; set; }
+        public DbSet<WorldContainerEntry> WorldContainerEntries { get; set; }
+        public DbSet<WorldContainerItemEntry> WorldContainerItemEntries { get; set; }
         public DbSet<ControlPointEntry> ControlPointEntries { get; set; }
         public DbSet<ControlPointLinkEntry> ControlPointLinkEntries { get; set; }
         public DbSet<SpawnPoolArrivalEntry> SpawnPoolArrivalEntries { get; set; }
@@ -129,6 +131,7 @@ namespace Rasa.Context.World
             SetupCreatureClassFlag(modelBuilder);
             SetupCreatureBattlecry(modelBuilder);
             SetupNpcBark(modelBuilder);
+            SetupWorldContainerItem(modelBuilder);
             SetupSpawnPoolPatrol(modelBuilder);
             SetupLootGroups(modelBuilder);
             SetupSkillCharacter(modelBuilder);
@@ -263,6 +266,13 @@ namespace Rasa.Context.World
         }
 
         /// <summary>An NPC may have several barks, so the row is the creature row and the bark.</summary>
+        /// <summary>A container may hold several items, so the row is the container and the template.</summary>
+        private static void SetupWorldContainerItem(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<WorldContainerItemEntry>()
+                .HasKey(e => new { e.ContainerId, e.ItemTemplateId });
+        }
+
         private static void SetupNpcBark(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<NpcBarkEntry>()

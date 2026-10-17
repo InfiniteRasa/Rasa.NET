@@ -537,13 +537,23 @@ namespace Rasa.Managers
                 drops = ordinary != null ? ordinary.Roll(_lootRoll) :
                     _lootRoll(0, 2) == 0 ? Array.Empty<(uint, uint)>() : new[] { (28U, 3U) };
             }
-            MaterializeCorpseItems(killer, owner, loot, drops.ToArray(), mapContextId, creatureId, partyId);
+            // The drops are rolled before the credits, as they always were: a test's sequence of
+            // rolls depends on it.
+            var rolled = drops.ToArray();
+            loot.Credits = _lootRoll(1, 10);
+            MaterializeItems(owner, loot, rolled, partyId,
+                () => ValidateCreationSource(killer, loot.Corpse, loot.Map, mapContextId, creatureId));
         }
 
-        private void MaterializeCorpseItems(Client killer, Client owner, LootDispenser loot,
-            IReadOnlyList<(uint TemplateId, uint Quantity)> drops, uint mapContextId, uint creatureId, uint partyId)
+        /// <summary>
+        /// Each drop made an item, saved, and put on the dispenser for its looters; the
+        /// dispenser's quality the best of them. All or none: a drop that cannot be made, or a
+        /// source that is no longer current at the commit (<paramref name="atCommit"/> throws),
+        /// leaves nothing behind.
+        /// </summary>
+        private void MaterializeItems(Client owner, LootDispenser loot,
+            IReadOnlyList<(uint TemplateId, uint Quantity)> drops, uint partyId, Action atCommit)
         {
-            loot.Credits = _lootRoll(1, 10);
             loot.LootQuality = LootQuality.Junk;
             var staged = new List<Item>();
             var committed = false;
@@ -554,8 +564,8 @@ namespace Rasa.Managers
                 using var unit = _gameUnitOfWorkFactory.CreateChar();
                 unit.ExecuteTransaction(() =>
                 {
-                    TransactionValidation.AtCommitBoundary(unit,
-                        () => ValidateCreationSource(killer, loot.Corpse, loot.Map, mapContextId, creatureId));
+                    if (atCommit != null)
+                        TransactionValidation.AtCommitBoundary(unit, atCommit);
                     foreach (var drop in drops)
                     {
                         var template = InventoryManager.InventoryPlan.RequireTemplate(drop.TemplateId);
@@ -648,6 +658,105 @@ namespace Rasa.Managers
                 OverallQuality(looter, loot);
                 CanLootItems(looter, loot);
             }
+        }
+
+        /// <summary>
+        /// What a player found in a lootable container the server put down (WorldContainers): a
+        /// dispenser on the container with these drops, for the looters the opener's squad loot
+        /// method gives it to, as a corpse's is - the opener first, and with the items at or over
+        /// the squad's threshold rolled for among everyone who shares in it (LootRolls). No
+        /// credits. Each looter is shown it. Null, with the reason logged, if it could not be
+        /// made; nothing is left behind then.
+        /// </summary>
+        internal LootDispenser LootContainer(Client opener, DynamicObject container,
+            IReadOnlyList<(uint TemplateId, uint Quantity)> drops,
+            List<Client> looters, uint partyId, Party party, List<Client> eligible)
+        {
+            RetryPendingRetirements();
+            var mapChannel = container?.RuntimeMapChannel;
+
+            if (opener?.Player == null || mapChannel == null || looters == null || looters.Count == 0)
+                return null;
+
+            var owner = looters[0];
+            var loot = new LootDispenser
+            {
+                IsLootable = true,
+                AttachedTo = container.EntityId,
+                ContainerObject = container,
+                Owner = owner.Player.EntityId,
+                OwnerClient = owner,
+                Player = owner.Player,
+                Map = mapChannel,
+                CharacterId = owner.Player.Id,
+                AccountId = owner.AccountEntry?.Id ?? 0,
+                UnitOfWorkFactory = _gameUnitOfWorkFactory
+            };
+
+            foreach (var looter in looters)
+                loot.Looters.Add(looter.Player.EntityId);
+
+            try
+            {
+                MaterializeItems(owner, loot, drops ?? Array.Empty<(uint, uint)>(), partyId,
+                    () =>
+                    {
+                        if (!container.IsInWorld || !ReferenceEquals(container.RuntimeMapChannel, mapChannel))
+                            throw new GameplayRejectionException($"Container {container.EntityId} is no longer in the world.");
+                    });
+
+                // Nothing in it this time: opened, and nothing to loot.
+                loot.IsLootable = loot.HasLoot;
+                loot.FullyLooted = !loot.HasLoot;
+
+                lock (mapChannel.LootSyncRoot)
+                    mapChannel.LootDispensers.Add(loot.EntityId, loot);
+            }
+            catch (Exception error) when (GameplayRejectionException.IsExpected(error))
+            {
+                lock (mapChannel.LootSyncRoot)
+                    Retire(mapChannel, loot, false, failedCreation: true);
+                Logger.WriteLog(LogType.Error, $"The loot of container {container.EntityId} could not be made: {error.Message}");
+                return null;
+            }
+
+            var shownTo = new List<Client>(looters);
+
+            foreach (var winner in LootRolls.Distribute(loot, party, eligible ?? looters))
+                if (!shownTo.Contains(winner))
+                {
+                    shownTo.Add(winner);
+                    loot.Looters.Add(winner.Player.EntityId);
+                }
+
+            foreach (var looter in shownTo)
+                ShowContainerLoot(looter, loot);
+
+            return loot;
+        }
+
+        /// <summary>A container's dispenser shown to one of its looters: made on their client, attached to the container, and what they may take.</summary>
+        internal void ShowContainerLoot(Client looter, LootDispenser loot)
+        {
+            looter.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(loot.EntityId, loot.EntityClassId));
+            AttachInfo(looter, loot);
+            LootInfo(looter, loot);
+            OverallQuality(looter, loot);
+            CanLootItems(looter, loot);
+        }
+
+        /// <summary>A container's dispenser taken away (its reset): off its looters' screens, and whatever nobody took gone.</summary>
+        internal void RemoveContainerLoot(MapChannel mapChannel, LootDispenser loot)
+        {
+            if (mapChannel == null || loot == null)
+                return;
+
+            RetryPendingRetirements();
+            var notices = new List<RetirementNotice>();
+            lock (mapChannel.LootSyncRoot)
+                if (mapChannel.LootDispensers.TryGetValue(loot.EntityId, out var current) && ReferenceEquals(current, loot))
+                    notices.AddRange(Retire(mapChannel, loot, true));
+            Publish(notices);
         }
 
         internal void AttachRewardLoot(Client owner, MapChannel mapChannel, DynamicObject obj)
@@ -1490,6 +1599,20 @@ namespace Rasa.Managers
                     IsFinite(gibblet.Position) &&
                     loot.GibbletAge < LifetimeLimit(loot) &&
                     Vector3.Distance(player.Position, gibblet.Position) <= reach;
+            }
+
+            // A container the server put down (WorldContainers): still the same object, still in
+            // the world on this map, and in reach.
+            if (loot.ContainerObject != null)
+            {
+                var container = loot.ContainerObject;
+                return container.IsInWorld &&
+                    client.PendingTransfer == null &&
+                    ReferenceEquals(container.RuntimeMapChannel, map) &&
+                    EntityManager.Instance.TryGetObject(loot.AttachedTo, out var registeredContainer) &&
+                    ReferenceEquals(container, registeredContainer) &&
+                    IsFinite(container.Position) &&
+                    Vector3.Distance(player.Position, container.Position) <= DynamicObjectManager.MaxUseDistance;
             }
 
             // A scripted prop (a mission reward crate) instead of something killed - no corpse,
