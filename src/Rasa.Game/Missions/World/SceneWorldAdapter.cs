@@ -352,6 +352,7 @@ namespace Rasa.Game.Missions.World
                 {
                     if (existing.Object?.StateId == UseObjectState.IdStateActive)
                         existing.Object.StateId = (UseObjectState)definition.InitialObjectState;
+                    ApplyView(existing.Object, definition);
                     return WorldEffectResult.Applied();
                 }
                 if (existing.Object.MissionLootSource != null || existing.Object.LootDispenserEntityId != 0)
@@ -448,6 +449,7 @@ namespace Rasa.Game.Missions.World
                     obj.MissionUseAction = definition.UseAction;
                     obj.MissionDestruction = definition.Destruction;
                     obj.CurrentHitPoints = definition.Destruction?.HitPoints ?? 0;
+                    obj.ViewRadius = definition.ViewRadius;
                     if (definition.Kind == SceneActorKind.PracticeTarget || definition.Destruction != null)
                         obj.DynamicObjectType = DynamicObjectType.PracticeDummy;
                     if (definition.LootMissionId.HasValue && definition.LootRewardId.HasValue && definition.LootObjectiveId.HasValue)
@@ -462,8 +464,12 @@ namespace Rasa.Game.Missions.World
                     CellManager.Instance.AddToWorld(world.Map, obj);
                     obj.IsInWorld = true;
                 }
-                else if (obj.StateId == UseObjectState.IdStateActive)
-                    obj.StateId = (UseObjectState)definition.InitialObjectState;
+                else
+                {
+                    if (obj.StateId == UseObjectState.IdStateActive)
+                        obj.StateId = (UseObjectState)definition.InitialObjectState;
+                    ApplyView(obj, definition);
+                }
                 world.Actors[definition.Role] = new BoundActor(handle, null, obj);
             }
             return WorldEffectResult.Applied();
@@ -518,13 +524,26 @@ namespace Rasa.Game.Missions.World
             {
                 var obj = world.Map.DynamicObjects.SingleOrDefault(candidate => candidate.ScenarioKey == key);
                 if (obj != null && ObjectShapeMatches(obj, definition))
+                {
                     actor = new BoundActor(handle, null, obj);
+                    ApplyView(obj, definition);
+                }
             }
             if (actor == null)
                 return false;
             world.Actors[definition.Role] = actor;
             BindCreaturePolicy(world, definition, actor);
             return true;
+        }
+
+        /// <summary>
+        /// An object a scene takes up is seen as that scene says (Landmarks): one already standing -
+        /// put down by another scene that shares it, or before its definition had a radius - too.
+        /// </summary>
+        private static void ApplyView(DynamicObject obj, SceneActorDefinition definition)
+        {
+            if (obj != null)
+                obj.ViewRadius = definition.ViewRadius;
         }
 
         private void BindCreaturePolicy(WorldRun world, SceneActorDefinition definition, BoundActor actor)

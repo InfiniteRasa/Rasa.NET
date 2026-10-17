@@ -321,6 +321,9 @@ namespace Rasa.Managers
 
             // And each player's squad and team mates elsewhere on the map.
             FarAllies.Worker(mapChannel, System.Environment.TickCount64);
+
+            // And the objects that are part of the view, to those within sight of them.
+            Landmarks.Worker(mapChannel);
             // mob work
 
             // events etc...
@@ -376,6 +379,9 @@ namespace Rasa.Managers
 
             DynamicObjectManager.Instance.CellDiscardDynamicObjectToClients(dynObject.EntityId, ListOfClients);
 
+            // And off the clients holding it from beyond its cells (Landmarks).
+            Landmarks.Removed(dynObject);
+
             // remove object from cell
             mapChannel.MapCellInfo.Cells[cellMatrix[2, 2]].DynamicObjectList.Remove(dynObject);
         }
@@ -405,6 +411,7 @@ namespace Rasa.Managers
                 client.MissionConversation = null;
             MissionContacts.Forget(client);
             FarAllies.Forget(client);
+            Landmarks.Forget(client);
             client.PlacedView = null;
             var memberships = map.MapCellInfo.Cells.Values.Where(cell => cell.ClientList.Contains(client)).ToArray();
             if (memberships.Length == 0)
@@ -484,8 +491,9 @@ namespace Rasa.Managers
             // walks away from it: it is what the map marker is drawn from (MissionContacts).
             CreatureManager.Instance.CellDiscardCreaturesToClient(client,
                 MissionContacts.Keep(client, removedCells.SelectMany(cell => cell.CreatureList).Distinct().ToList()));
+            // As does an object that is part of the view, while the player can see it (Landmarks).
             DynamicObjectManager.Instance.CellDiscardDynamicObjectsToClient(client,
-                removedCells.SelectMany(cell => cell.DynamicObjectList).Distinct().ToList());
+                Landmarks.Keep(client, removedCells.SelectMany(cell => cell.DynamicObjectList).Distinct().ToList()));
 
             var entering = GetClientsInCells(map, added, client);
             var addedCells = GetCells(map, added).ToList();
@@ -717,6 +725,9 @@ namespace Rasa.Managers
 
             foreach (var client in GetClientsInCells(mapChannel, cellMatrix))
                 client.CallMethod(obj.EntityId, packet);
+
+            // And whoever holds it from beyond its cells (Landmarks).
+            Landmarks.Relay(obj, packet);
         }
 
         /// <summary>

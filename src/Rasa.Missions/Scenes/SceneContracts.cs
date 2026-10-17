@@ -23,7 +23,9 @@ namespace Rasa.Missions.Scenes
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SceneObjectConversation Conversation = null,
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Definitions.ActorGameplayPolicy GameplayPolicy = null,
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SceneObjectAction UseAction = null,
-        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SceneObjectDestruction Destruction = null);
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SceneObjectDestruction Destruction = null,
+        // An object seen from further off than its cells: metres (Managers.Landmarks).
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] float ViewRadius = 0);
     public sealed record SceneObjectAction(uint MissionId, uint ObjectiveId, uint SequenceId, uint ActionArgId = 1);
     public sealed record SceneObjectDestruction(uint MissionId, uint ObjectiveId, uint SequenceId,
         uint HitPoints = 100, uint DestroyedState = 2);

@@ -241,7 +241,7 @@ namespace Rasa.Test.Missions
                 "east, out of the doorwell toward the bridge");
         }
 
-        private static void Cross(BootcampRuntimeTestHarness.Harness harness, Vector3 to)
+        internal static void Cross(BootcampRuntimeTestHarness.Harness harness, Vector3 to)
         {
             var from = harness.Client.Player.Position;
             harness.MovePlayerTo(to);
@@ -249,11 +249,11 @@ namespace Rasa.Test.Missions
             new MissionAreaService(() => harness.Manager).RecordAcceptedMovement(harness.Client, from, to);
         }
 
-        private static Creature[] Creatures(BootcampRuntimeTestHarness.Harness harness) =>
+        internal static Creature[] Creatures(BootcampRuntimeTestHarness.Harness harness) =>
             harness.BootcampMap.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList).Distinct().ToArray();
 
         /// <summary>Thrax Infantry Initiates (510216); the route Thrax further west are other rows.</summary>
-        private static Creature[] Thrax(BootcampRuntimeTestHarness.Harness harness) =>
+        internal static Creature[] Thrax(BootcampRuntimeTestHarness.Harness harness) =>
             Creatures(harness).Where(creature => creature.DbId == BootcampCaveInBreachV9.ThraxTemplate && creature.NameId == ThraxName).ToArray();
 
         [TestMethod]

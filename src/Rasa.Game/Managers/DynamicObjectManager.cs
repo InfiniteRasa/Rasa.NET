@@ -708,6 +708,10 @@ namespace Rasa.Managers
             if (dynamicObject == null)
                 return;
 
+            // One this client holds from beyond its cells is taken off it first: made anew, not
+            // updated (Landmarks).
+            Landmarks.Entering(client, dynamicObject);
+
             if (dynamicObject.EntityClassId == 0)
                 return;
 				

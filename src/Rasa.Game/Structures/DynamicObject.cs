@@ -35,6 +35,12 @@ namespace Rasa.Structures
         public MapChannel RuntimeMapChannel { get; set; }
 
         /// <summary>
+        /// How far off a client is given it, beyond its cells: 0 for as far as its cells reach,
+        /// as every object. Its scene actor's ViewRadius (Managers.Landmarks).
+        /// </summary>
+        public float ViewRadius { get; set; }
+
+        /// <summary>
         /// For a control point or a dropship, whose side it is - FRIENDLY for the AFS, HOSTILE for
         /// the Bane; OBJECT for an ability's usable. Objects are not sent it; the client's usable
         /// classes work out their own.
