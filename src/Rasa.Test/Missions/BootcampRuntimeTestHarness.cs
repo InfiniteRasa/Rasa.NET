@@ -1353,6 +1353,25 @@ namespace Rasa.Test.Missions
                 new RepositoryBackedWorldUnitOfWork(_worldContext);
         }
 
+        /// <summary>
+        /// The pools' draws, the table of which is Proving_grounds_front_squads': a world stopped
+        /// before that migration (worldMigration) has no pool that draws.
+        /// </summary>
+        private sealed class SpawnpoolsOfThisWorld : SpawnpoolRepository, ISpawnpoolRepository
+        {
+            private readonly SqliteWorldContext _context;
+
+            internal SpawnpoolsOfThisWorld(SqliteWorldContext context) : base(context) => _context = context;
+
+            List<Rasa.Structures.World.SpawnPoolDrawEntry> ISpawnpoolRepository.GetDraws() =>
+                _context.Database
+                    .SqlQueryRaw<int>("SELECT COUNT(*) AS Value FROM sqlite_master WHERE type = 'table' AND name = {0}",
+                        Rasa.Structures.World.SpawnPoolDrawEntry.TableName)
+                    .AsEnumerable().Single() > 0
+                    ? GetDraws()
+                    : new List<Rasa.Structures.World.SpawnPoolDrawEntry>();
+        }
+
         private sealed class RepositoryBackedWorldUnitOfWork : IWorldUnitOfWork
         {
             internal RepositoryBackedWorldUnitOfWork(SqliteWorldContext context)
@@ -1375,7 +1394,7 @@ namespace Rasa.Test.Missions
                 OrdinaryLoot = new OrdinaryLootRepository(context);
                 NpcPackages = new NpcPackageRepository(context);
                 RandomNames = null;
-                Spawnpools = new SpawnpoolRepository(context);
+                Spawnpools = new SpawnpoolsOfThisWorld(context);
                 MapEmitters = new MapEmitterRepository(context);
                 ControlPoints = new ControlPointRepository(context);
                 SpawnPoolArrivals = new SpawnPoolArrivalRepository(context);

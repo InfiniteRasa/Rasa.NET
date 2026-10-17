@@ -3033,6 +3033,21 @@ namespace Rasa.Migrations.SqliteWorld
                     b.ToTable("spawnpool_arrival");
                 });
 
+            modelBuilder.Entity("Rasa.Structures.World.SpawnPoolDrawEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<byte>("Count")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("count");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("spawnpool_draw");
+                });
+
             modelBuilder.Entity("Rasa.Structures.World.SpawnPoolEntry", b =>
                 {
                     b.Property<uint>("Id")

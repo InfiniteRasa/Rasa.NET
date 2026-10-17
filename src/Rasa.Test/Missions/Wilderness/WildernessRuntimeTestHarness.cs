@@ -311,7 +311,8 @@ namespace Rasa.Test.Missions.Wilderness
 
         /// <summary>
         /// The same for the pools' poses, the table of which is Add_npc_poses': a World stopped
-        /// before that migration has no pool with a pose. And for their patrols, Add_npc_patrols'.
+        /// before that migration has no pool with a pose. And for their patrols, Add_npc_patrols', and
+        /// their draws, Proving_grounds_front_squads'.
         /// </summary>
         private sealed class SpawnpoolsOfThisWorld : SpawnpoolRepository, ISpawnpoolRepository
         {
@@ -323,6 +324,11 @@ namespace Rasa.Test.Missions.Wilderness
                 HasTable(Rasa.Structures.World.SpawnPoolPoseEntry.TableName)
                     ? GetPoses()
                     : new List<Rasa.Structures.World.SpawnPoolPoseEntry>();
+
+            List<Rasa.Structures.World.SpawnPoolDrawEntry> ISpawnpoolRepository.GetDraws() =>
+                HasTable(Rasa.Structures.World.SpawnPoolDrawEntry.TableName)
+                    ? GetDraws()
+                    : new List<Rasa.Structures.World.SpawnPoolDrawEntry>();
 
             List<Rasa.Structures.World.SpawnPoolPatrolEntry> ISpawnpoolRepository.GetPatrols() =>
                 HasTable(Rasa.Structures.World.SpawnPoolPatrolEntry.TableName)

@@ -13,6 +13,9 @@ namespace Rasa.Repositories.World
         /// <summary>The pools that have a pose (spawnpool_pose).</summary>
         List<SpawnPoolPoseEntry> GetPoses();
 
+        /// <summary>The pools that send a drawn number of creatures (spawnpool_draw).</summary>
+        List<SpawnPoolDrawEntry> GetDraws();
+
         /// <summary>Every step of every pool's patrol (spawnpool_patrol), each pool's in the order they are walked.</summary>
         List<SpawnPoolPatrolEntry> GetPatrols();
     }
@@ -36,6 +39,11 @@ namespace Rasa.Repositories.World
         public List<SpawnPoolPoseEntry> GetPoses()
         {
             return _worldContext.CreateNoTrackingQuery(_worldContext.SpawnPoolPoseEntries).ToList();
+        }
+
+        public List<SpawnPoolDrawEntry> GetDraws()
+        {
+            return _worldContext.CreateNoTrackingQuery(_worldContext.SpawnPoolDrawEntries).ToList();
         }
 
         public List<SpawnPoolPatrolEntry> GetPatrols()

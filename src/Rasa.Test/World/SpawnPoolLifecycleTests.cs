@@ -858,6 +858,8 @@ namespace Rasa.Test.World
             public List<SpawnPoolEntry> Pools { get; } = new();
             public List<SpawnPoolPoseEntry> Poses { get; } = new();
             public List<SpawnPoolPoseEntry> GetPoses() => Poses;
+            public List<SpawnPoolDrawEntry> Draws { get; } = new();
+            public List<SpawnPoolDrawEntry> GetDraws() => Draws;
             public List<SpawnPoolPatrolEntry> Patrols { get; } = new();
             public List<SpawnPoolPatrolEntry> GetPatrols() => Patrols;
             public Action<uint> ReadStats { get; set; }

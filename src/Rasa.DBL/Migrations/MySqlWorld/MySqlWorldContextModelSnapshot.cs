@@ -3101,6 +3101,21 @@ namespace Rasa.Migrations.MySqlWorld
                     b.ToTable("spawnpool_arrival");
                 });
 
+            modelBuilder.Entity("Rasa.Structures.World.SpawnPoolDrawEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("id");
+
+                    b.Property<byte>("Count")
+                        .HasColumnType("tinyint unsigned")
+                        .HasColumnName("count");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("spawnpool_draw");
+                });
+
             modelBuilder.Entity("Rasa.Structures.World.SpawnPoolEntry", b =>
                 {
                     b.Property<uint>("Id")

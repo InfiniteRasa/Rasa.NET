@@ -224,6 +224,21 @@ namespace Rasa.Managers
                     poses++;
             }
 
+            // How many a pool sends at a time, drawn from its slots (spawnpool_draw; DrawCreatures).
+            var draws = 0;
+
+            foreach (var row in unitOfWork.Spawnpools.GetDraws())
+            {
+                if (!LoadedSpawnPools.TryGetValue(row.Id, out var pool))
+                {
+                    Logger.WriteLog(LogType.Error, $"spawnpool_draw {row.Id} names a spawnpool that is not loaded.");
+                    continue;
+                }
+
+                pool.DrawCount = row.Count;
+                draws++;
+            }
+
             // The beat a pool's creature walks (spawnpool_patrol; Patrols).
             var patrols = 0;
 
@@ -250,7 +265,7 @@ namespace Rasa.Managers
             foreach (var mapChannel in MapChannelManager.Instance.MapChannelArray.Values)
                 InitializeMapChannel(mapChannel);
 
-            Logger.WriteLog(LogType.Initialize, $"Loaded {LoadedSpawnPools.Count} SpawnPools, {arrivals} arrival points, {poses} posed, {patrols} patrolling");
+            Logger.WriteLog(LogType.Initialize, $"Loaded {LoadedSpawnPools.Count} SpawnPools, {arrivals} arrival points, {poses} posed, {patrols} patrolling, {draws} drawing");
         }
 
         internal void InitializeMapChannel(MapChannel mapChannel)
@@ -295,9 +310,11 @@ namespace Rasa.Managers
                 // A scripted pool is not on a timer; nor is a pool set aside for a control point
                 // that no control point has (ControlPoints). A garrison is, while its side holds
                 // the point - and not while the other does, whatever its mode. Nor is one in a
-                // place the player has taken back (Quieted).
+                // place the player has taken back (Quieted). A scripted pool a mission scene has
+                // woken on the player's map is (Woken).
                 if (spawnPool.Suspended || spawnPool.Quieted
                     || spawnPool.Mode != ModeAutomatic && !(spawnPool.Mode == ModeControlPoint && spawnPool.IsGarrison)
+                        && !(spawnPool.Mode == ModeScripted && spawnPool.Woken)
                     || spawnPool.AnimType < 0 || spawnPool.AnimType > 2)
                     continue;
 
@@ -664,6 +681,9 @@ namespace Rasa.Managers
             if (spawnPool.SpawnSlot == null)
                 return creatureList;
 
+            if (spawnPool.DrawCount > 0)
+                return DrawCreatures(spawnPool, definitions, random);
+
             foreach (var spawnSlot in spawnPool.SpawnSlot)
             {
                 if (creatureList.Count == 64)
@@ -694,6 +714,56 @@ namespace Rasa.Managers
                 // entity id that nothing ever freed.
                 for (var i = 0; i < spawnCreatureCount && creatureList.Count < 64; i++)
                     creatureList.Add(definition);
+            }
+
+            return creatureList;
+        }
+
+        /// <summary>
+        /// A pool with a draw (spawnpool_draw): that many creatures, each one of its slots drawn at
+        /// random, a slot's chance its max count over all its slots' - an AFS squad of three of
+        /// whom each is an Infantryman with a rifle two times in four, with a pistol or a Field
+        /// Gunner one time in four. A slot with no creature, no max count or no loaded creature
+        /// row is not drawn.
+        /// </summary>
+        internal static List<Creature> DrawCreatures(SpawnPool spawnPool, IReadOnlyDictionary<uint, Creature> definitions, Random random)
+        {
+            var creatureList = new List<Creature>();
+            var slots = new List<(Creature Definition, int Weight)>();
+
+            foreach (var slot in spawnPool.SpawnSlot)
+            {
+                if (slot == null || slot.CreatureId == 0 || slot.CountMax <= 0)
+                    continue;
+
+                if (!definitions.TryGetValue(slot.CreatureId, out var definition) || definition == null)
+                {
+                    Logger.WriteLog(LogType.Error, $"SpawnPool {spawnPool.DbId}: missing creature {slot.CreatureId}");
+                    continue;
+                }
+
+                slots.Add((definition, slot.CountMax));
+            }
+
+            var total = slots.Sum(slot => slot.Weight);
+
+            if (total == 0)
+                return creatureList;
+
+            for (var i = 0; i < spawnPool.DrawCount && creatureList.Count < 64; i++)
+            {
+                var roll = random.Next(total);
+
+                foreach (var (definition, weight) in slots)
+                {
+                    if (roll < weight)
+                    {
+                        creatureList.Add(definition);
+                        break;
+                    }
+
+                    roll -= weight;
+                }
             }
 
             return creatureList;
@@ -1036,6 +1106,7 @@ namespace Rasa.Managers
                 Radius = template.Radius,
                 Pose = template.Pose,
                 Patrol = template.Patrol,
+                DrawCount = template.DrawCount,
                 SpawnSlot = template.SpawnSlot?.Select(slot =>
                     new SpawnPoolSlot(slot.CreatureId, slot.CountMin, slot.CountMax)).ToList() ?? new List<SpawnPoolSlot>(),
                 Mode = template.Mode,

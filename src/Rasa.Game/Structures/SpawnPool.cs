@@ -22,6 +22,12 @@ namespace Rasa.Structures
 
         /// <summary>The beat its creature walks (spawnpool_patrol; Managers.Patrols); null for a pool with none.</summary>
         public IReadOnlyList<PatrolStep> Patrol { get; set; }
+
+        /// <summary>
+        /// How many it sends at a time, each drawn from its slots at random, weighted by the slot's
+        /// max count (spawnpool_draw); 0 for a pool that sends each slot's own count.
+        /// </summary>
+        public int DrawCount { get; set; }
         public List<SpawnPoolSlot> SpawnSlot { get; set; }
 
         /// <summary>Where its creatures arrive (spawnpool_arrival): a pad or bay the Bane dropship lands on, a teleporter. Empty: they appear on its ground.</summary>
@@ -44,6 +50,12 @@ namespace Rasa.Structures
         /// QuietSpawnPoolsIntent): it spawns nothing more there, and does not top up what it lost.
         /// </summary>
         public bool Quieted { get; set; }
+
+        /// <summary>
+        /// A scripted pool (mode 2) a mission scene has set going on the player's private map
+        /// (WakeSpawnPoolsIntent): it spawns on its own timer there, as an automatic one does.
+        /// </summary>
+        public bool Woken { get; set; }
 
         /// <summary>
         /// Its area has no walkable ground on its map's navmesh (SpawnPoolManager.Anchor), so it

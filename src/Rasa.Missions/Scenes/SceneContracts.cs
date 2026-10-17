@@ -65,6 +65,7 @@ namespace Rasa.Missions.Scenes
     [JsonDerivedType(typeof(TransitionObjectStateIntent), "object-state")]
     [JsonDerivedType(typeof(AttackActorIntent), "attack")]
     [JsonDerivedType(typeof(QuietSpawnPoolsIntent), "quiet-spawn-pools")]
+    [JsonDerivedType(typeof(WakeSpawnPoolsIntent), "wake-spawn-pools")]
     public abstract record WorldIntent(string OperationKey, string Role);
     public sealed record EnsureActorIntent(string OperationKey, string Role, ScenePosition RestorePosition = null) : WorldIntent(OperationKey, Role);
     public sealed record RemoveActorIntent(string OperationKey, string Role) : WorldIntent(OperationKey, Role);
@@ -90,6 +91,15 @@ namespace Rasa.Missions.Scenes
     /// spawns them - while the actor stands. What those pools have standing is left to be fought.
     /// </summary>
     public sealed record QuietSpawnPoolsIntent(string OperationKey, string Role, uint[] SpawnPools)
+        : WorldIntent(OperationKey, Role);
+
+    /// <summary>
+    /// The map's own scripted spawn pools named (spawnpool ids, mode 2) spawn on their own timer
+    /// on the owner's private map from now: a place the player's side now fights over. Held by its
+    /// actor (Role), as QuietSpawnPoolsIntent is: rebuilt with that actor when the map is made
+    /// again, so a new map has them going from the start - while the actor stands.
+    /// </summary>
+    public sealed record WakeSpawnPoolsIntent(string OperationKey, string Role, uint[] SpawnPools)
         : WorldIntent(OperationKey, Role);
 
     [JsonPolymorphic(TypeDiscriminatorPropertyName = "$kind")]

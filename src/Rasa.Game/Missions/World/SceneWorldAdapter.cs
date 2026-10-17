@@ -109,6 +109,15 @@ namespace Rasa.Game.Missions.World
                     pool.Quieted = true;
                 return WorldEffectResult.Applied();
             }
+            if (intent is WakeSpawnPoolsIntent wake)
+            {
+                if (!world.Map.IsPrivateInstance || world.Map.OwnerCharacterId != run.OwnerCharacterId)
+                    return WorldEffectResult.Failed("Spawn pools are woken only on their owner's private map.");
+                foreach (var pool in world.Map.SpawnPools.Where(pool => pool.ScenarioKey == null && pool.Mode == SpawnPoolManager.ModeScripted &&
+                             wake.SpawnPools.Contains(pool.DbId)))
+                    pool.Woken = true;
+                return WorldEffectResult.Applied();
+            }
             if (intent is RestoreActorPoseIntent { } creaturePose && definition.Kind == SceneActorKind.Creature)
                 return RestoreCreaturePose(world, run, definition, creaturePose);
             if (intent is RestoreActorPoseIntent pose)
