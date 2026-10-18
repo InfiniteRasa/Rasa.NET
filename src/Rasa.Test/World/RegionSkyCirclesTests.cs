@@ -19,7 +19,7 @@ namespace Rasa.Test.World
     public class RegionSkyCirclesTests
     {
         private const string Migration = "20270116000000_Region_sky_circles";
-        private const string Previous = "20270113000000_Wilderness_reward_consumables";
+        private const string Previous = "20270115000000_Named_npc_barks";
 
         /// <summary>The regions of each map that cover the places, as the .map has them: priority and sky (null: none).</summary>
         private static readonly Dictionary<uint, Dictionary<uint, (int Priority, string Sky)>> Maps = new()
