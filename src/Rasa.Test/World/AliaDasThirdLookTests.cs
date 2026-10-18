@@ -62,7 +62,11 @@ namespace Rasa.Test.World
             harness.Objects.DynamicObjectWorker(harness.Map, 0);
 
             var made = harness.Drain().OfType<CreatePhysicalEntityPacket>().Single(packet => packet.EntityId == pad.EntityId);
-            Assert.AreEqual(UseObjectState.TsState1, made.EntityData.OfType<UsableInfoPacket>().Single().CurState, "on, with its field");
+            // Its own mesh with the blue field: USE_TS_STATE_0. In USE_TS_STATE_1 the client swaps
+            // in arch_hum_teleporter_disabled.geo (DynamicObjectManager.TeleporterRunningState).
+            Assert.AreEqual(UseObjectState.TsState0, made.EntityData.OfType<UsableInfoPacket>().Single().CurState, "on, with its field");
+
+            Assert.AreEqual(UseObjectState.TsState0, pad.StateId, "and so to whoever comes later");
         }
 
         [TestMethod]

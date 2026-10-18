@@ -557,11 +557,9 @@ namespace Rasa.Managers
 
                     if (teleporter.RespawnTime <= 0)
                     {
-                        // On before it is put in the world: AddToWorld shows it at once to whoever
-                        // is in range, in the state it has then. Set after, the players already
-                        // there - on a map whose worker has only just started, the first one on
-                        // it - were shown it in no state at all, off, and never told otherwise.
-                        teleporter.StateId = UseObjectState.TsState1;
+                        // Running before it is put in the world: AddToWorld shows it at once to
+                        // whoever is in range, in the state it has then (TeleporterRunningState).
+                        teleporter.StateId = TeleporterRunningState(teleporter.EntityClassId);
                         CellManager.Instance.AddToWorld(mapChannel, teleporter);
                         teleporter.IsInWorld = true;
                     }
@@ -595,6 +593,18 @@ namespace Rasa.Managers
                 }
             }
         }
+
+        /// <summary>
+        /// The state a placed teleporter is shown running in. A two-state teleporter's field and
+        /// effects are in USE_TS_STATE_1 (56): the waypoint pads, wormholes and the Eloh bridge
+        /// waypoint carry their effect there (usabledata.specialFX (class, 56, USE_STATE_NULL)).
+        /// The human teleporter (UsableTwoStateHumTeleporter, 7895) is the other way about: its
+        /// own mesh, arch_hum_teleporter.geo with its blue field, is USE_TS_STATE_0 (55), and 56
+        /// swaps it for arch_hum_teleporter_disabled.geo (usabledata.alternateMesh (7895, 56,
+        /// USE_STATE_NULL)), the pad dark (MapUsables sends Thunderhead's unused four 56 for that).
+        /// </summary>
+        internal static UseObjectState TeleporterRunningState(EntityClasses classId) =>
+            (uint)classId == MapUsables.HumanTeleporter ? UseObjectState.TsState0 : UseObjectState.TsState1;
 
         internal void DynamicObjectProximityWorker(MapChannel mapChannel, DynamicObject obj, long delta)
         {
