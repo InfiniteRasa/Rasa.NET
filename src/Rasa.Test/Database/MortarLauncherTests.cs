@@ -99,12 +99,18 @@ namespace Rasa.Test.Database
         // writes: the squads are 400301-400306, the officers and bosses 510300-510305,
         // 520015-520073 and 540002. Proving_grounds_front_squads was there first and sorts
         // first, so every World ran them in the same order.
+        // And two pairs made the same day on trees without each other, run on Worlds since: at
+        // 20270114000000 Bootcamp_van_valkenberg (creature 510209's creature_appearance and
+        // npc_greeting rows) and Creature_flags (creature_class_flag), at 20270115000000
+        // Add_mission_reward_item_modules (the module columns of mission_reward_item) and
+        // Named_npc_barks (one npc_bark row). Neither of a pair touches a table of the other's, so
+        // the order EF runs them in changes nothing.
         // A new pair is a mistake: EF runs both, ordered by the rest of the id, whatever was meant.
         [TestMethod]
         public void NoNewMigrationSharesATimestamp()
         {
             var known = new[] { "20260927000000", "20260930000000", "20261012000000", "20261104000000", "20261111000000", "20261203000000",
-                "20261230000000", "20261231000000", "20270109000000", "20270111000000" };
+                "20261230000000", "20261231000000", "20270109000000", "20270111000000", "20270114000000", "20270115000000" };
 
             using var database = new OrdinaryLootTestDatabase();
             var shared = database.Context.Database.GetMigrations()
@@ -127,7 +133,7 @@ namespace Rasa.Test.Database
             var known = new System.Collections.Generic.Dictionary<string, string[]>
             {
                 ["World"] = new[] { "20260927000000", "20260930000000", "20261012000000", "20261104000000", "20261111000000", "20261203000000",
-                    "20261230000000", "20261231000000", "20270109000000", "20270111000000" },
+                    "20261230000000", "20261231000000", "20270109000000", "20270111000000", "20270114000000", "20270115000000" },
                 ["Char"] = new[] { "20261110000000", "20261215000000" },
                 ["Auth"] = new string[0]
             };
