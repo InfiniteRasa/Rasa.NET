@@ -41,6 +41,9 @@ namespace Rasa.Managers
         /// <summary>How close a hostile pool's area may come to a friendly NPC, a hospital or a waypoint.</summary>
         public const float SafeClearance = 15f;
 
+        /// <summary>How many points a pool with a radius draws for a creature before taking the first, clear of the others or not (SpawnPoint).</summary>
+        internal const int SpawnDraws = 12;
+
         /// <summary>
         /// How close a hostile pool's ground may come to a turret: a creature's scan
         /// (Creature.AggroRange). Nearer, the turret and the camp find each other and fight for
@@ -626,7 +629,7 @@ namespace Rasa.Managers
                         CellManager.Instance.AddToWorld(mapChannel, creature);
 
                     if (arrival != null)
-                        BehaviorManager.Instance.WalkIn(creature, SpawnPoint(mapChannel, spawnPool, creatureList.Count));
+                        BehaviorManager.Instance.WalkIn(creature, SpawnPoint(mapChannel, spawnPool, creatureList.Count, creature));
 
                     MissionApplication.Instance.Scenes.ActorAvailable(mapChannel, spawnPool.DbId);
                 }
@@ -912,20 +915,42 @@ namespace Rasa.Managers
         {
             var pos = pool.Position;
 
+            // Where the others of its side already stand round the pool, and where any walking
+            // there is making for: it comes out Spacing.Distance clear of them where it can.
+            var keeps = Spacing.Keeps(creature);
+            var taken = keeps ? Spacing.Taken(mapChannel, creature, pos) : new List<Vector3>();
+
             if (pool.Radius > 0)
             {
-                var walkable = NavMeshManager.RandomPointAround(mapChannel, pos, pool.Radius);
+                Vector3? first = null;
 
-                if (!walkable.HasValue && Anchor(mapChannel, pool) is Vector3 anchor)
-                    walkable = NavMeshManager.RandomPointAround(mapChannel, anchor, pool.Radius) ?? anchor;
+                for (var draw = 0; draw < SpawnDraws; draw++)
+                {
+                    var walkable = NavMeshManager.RandomPointAround(mapChannel, pos, pool.Radius);
 
-                if (walkable.HasValue)
-                    return walkable.Value;
+                    if (!walkable.HasValue && Anchor(mapChannel, pool) is Vector3 anchor)
+                        walkable = NavMeshManager.RandomPointAround(mapChannel, anchor, pool.Radius) ?? anchor;
+
+                    if (!walkable.HasValue)
+                        break;
+
+                    first ??= walkable;
+
+                    if (Spacing.IsClear(walkable.Value, taken))
+                        return walkable.Value;
+                }
+
+                if (first.HasValue)
+                    return first.Value;
 
                 pos += InDisc(pool.Radius);
             }
             else if (count != 1)
             {
+                // A group at one point: the first on it, the rest on rings round it a spacing apart.
+                if (keeps && Spacing.OnRings(mapChannel, pos, taken) is Vector3 spot)
+                    return spot;
+
                 pos.X += Random.Shared.Next() % 5 - 2;
                 pos.Z += Random.Shared.Next() % 5 - 2;
             }

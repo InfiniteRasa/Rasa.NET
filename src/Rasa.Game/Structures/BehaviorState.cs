@@ -64,6 +64,12 @@ namespace Rasa.Structures
         /// for each time this one runs out, only once the path update lock is up (BehaviorManager).
         /// </summary>
         public bool RouteIncomplete { get; set; }
+
+        /// <summary>The place round its target it is stepping off to, out of a crowd of its side (Spacing); null when it is not.</summary>
+        public Vector3? SpreadingTo { get; set; }
+
+        /// <summary>Milliseconds before it looks to step off again, so a crowd settles (Spacing.SettleMs).</summary>
+        public long SettleMs { get; set; }
     }
 
     /// <summary>
@@ -113,6 +119,9 @@ namespace Rasa.Structures
         public long PathUpdateTime { get; set; }
         internal bool CatchUpRunning { get; set; }
         internal Creature OwnerAttackTarget { get; set; }
+
+        /// <summary>A mission escort's place round its owner, from the owner (BehaviorManager.EscortPlace); null until it takes one.</summary>
+        internal Vector3? PlaceOffset { get; set; }
     }
 
     /// <summary>

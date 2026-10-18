@@ -993,6 +993,12 @@ namespace Rasa.Managers
                     return;
                 }
 
+                // One of a crowd of its side that stands here - all come to the same spot, or
+                // came out on top of each other - steps off to its own place round its target,
+                // as far from it as it is now (Spacing). It attacks again once there.
+                if (Spread(mapChannel, creature, targetPosition, delta))
+                    return;
+
                 var needToMove = true;
 
                 // An attack in range that it could not use for want of a clear line: it has to go
@@ -1254,6 +1260,13 @@ namespace Rasa.Managers
                         pathTarget.Z = targetPosition.Z + vecV2A[1] * distance;
                     }
 
+                    // Its own place round the target: one no other of its side stands on or is
+                    // making for, turned round the target until it is clear (Spacing). With a
+                    // route to go round something in the way, the target itself, as before.
+                    if (!sightBlocked && Spacing.Keeps(creature))
+                        pathTarget = Spacing.AroundClear(mapChannel, targetPosition, pathTarget,
+                            Spacing.Taken(mapChannel, creature, targetPosition)) ?? pathTarget;
+
                     creature.Controller.ActionFighting.RouteIncomplete = !BuildPath(mapChannel, creature, pathTarget, bounded: true);
 
                     // where the target was when this path was built
@@ -1270,6 +1283,75 @@ namespace Rasa.Managers
                 if (creature.Position != before)
                     MadeProgress(creature);
             }//---fighting
+        }
+
+        /// <summary>
+        /// A fighting creature that stands with another of its side closer than Spacing.Crowded -
+        /// the one of the two with the greater entity id - walks off to the nearest place round
+        /// its target, at the distance it stands from it, that is Spacing.Distance clear of the
+        /// others of its side and where they are making for (Spacing.AroundClear). True while it
+        /// is walking there: it neither attacks nor chases meanwhile. Once there, or with nowhere
+        /// clear to go, it is left be for Spacing.SettleMs. One that cannot walk, an emplacement
+        /// on its mount, a Shield Drone holding its ground, one on the move, and one that does not
+        /// keep apart (a friendly that is no escort, Spacing.Keeps) are never moved.
+        /// </summary>
+        private bool Spread(MapChannel mapChannel, Creature creature, Vector3 targetPosition, long delta)
+        {
+            var fighting = creature.Controller.ActionFighting;
+
+            if (fighting.SpreadingTo.HasValue)
+            {
+                var speed = creature.WalkSpeed >= 0.01f ? creature.WalkSpeed : creature.RunSpeed;
+
+                if (FollowPath(mapChannel, creature, speed, delta))
+                {
+                    fighting.SpreadingTo = null;
+                    fighting.SettleMs = Spacing.SettleMs;
+                    StopIfMoving(creature);
+                    return false;
+                }
+
+                MadeProgress(creature);
+                return true;
+            }
+
+            if (fighting.SettleMs > 0)
+            {
+                fighting.SettleMs -= delta;
+                return false;
+            }
+
+            if (!Spacing.Keeps(creature) || NeverMoves(creature) || Emplacements.Is(creature) || ShieldDrone.HoldsGround(creature)
+                || creature.Controller.LastMovement is { Velocity: > 0 } || Spacing.CrowdedBy(mapChannel, creature) == null)
+                return false;
+
+            // At the distance it stands from its target, or - right up against it, where there is
+            // no room round it for a spacing - out at the edge of its reach (NearEnoughFor).
+            var taken = Spacing.Taken(mapChannel, creature, targetPosition);
+            var spot = Spacing.AroundClear(mapChannel, targetPosition, creature.Position, taken)
+                ?? Spacing.AroundClear(mapChannel, targetPosition, creature.Position,
+                    Math.Max(Spacing.AcrossGround(creature.Position, targetPosition), NearEnoughFor(creature) - 0.1f), taken);
+
+            fighting.SettleMs = Spacing.SettleMs;
+
+            if (spot == null || Spacing.AcrossGround(spot.Value, creature.Position) < 0.5f)
+                return false;
+
+            creature.Controller.Path.Clear();
+            creature.Controller.PathIndex = 0;
+
+            if (!BuildPath(mapChannel, creature, spot.Value) || creature.Controller.Path.Count == 0)
+            {
+                creature.Controller.Path.Clear();
+                creature.Controller.PathIndex = 0;
+                return false;
+            }
+
+            fighting.SpreadingTo = spot;
+            fighting.SettleMs = 0;
+            FollowPath(mapChannel, creature, creature.WalkSpeed >= 0.01f ? creature.WalkSpeed : creature.RunSpeed, delta);
+            MadeProgress(creature);
+            return true;
         }
 
         #region Wander
@@ -1762,7 +1844,14 @@ namespace Rasa.Managers
             }
             creature.Controller.CurrentAction = BehaviorActionFollow;
             follow.FollowTargetId = owner.Player.EntityId;
-            if (gap <= 4)
+
+            // Within 4 m of its owner it stands - unless another of its side is closer to it than
+            // Spacing.Crowded. Otherwise it makes for its own place round its owner, clear of the
+            // other escorts' places (Spacing), not the owner's spot: all of them walked to the
+            // owner and stopped where the first of them did.
+            var place = EscortPlace(map, creature, destination);
+            if (Spacing.AcrossGround(creature.Position, place) <= EscortPlaceReached ||
+                gap <= 4 && Spacing.CrowdedBy(map, creature) == null)
             {
                 follow.CatchUpRunning = false;
                 StopFollowing(map, creature);
@@ -1778,8 +1867,46 @@ namespace Rasa.Managers
             // Bounded 220% catch-up beats even rank five, without copying GM speed.
             var speed = gap > 20 ? 6.5f * 2.2f :
                 follow.CatchUpRunning ? Math.Clamp(creature.RunSpeed, 6.5f, 6.5f * 2.2f) : creature.WalkSpeed;
-            FollowGrounded(map, creature, destination, speed, delta, 4);
+            FollowGrounded(map, creature, place, speed, delta, EscortPlaceReached / 2);
             return true;
+        }
+
+        /// <summary>How far from its owner a mission escort's place is: inside the 4 m it used to stop at.</summary>
+        internal const float EscortRing = 3.5f;
+
+        /// <summary>Within this of its place, a mission escort stands.</summary>
+        internal const float EscortPlaceReached = 1f;
+
+        /// <summary>
+        /// A mission escort's place round its owner: <see cref="EscortRing"/> from them, kept
+        /// from think to think as an offset from them, so the escorts move with their owner as a
+        /// group. Taken first on the escort's own side of the owner, and turned round the owner
+        /// until it is Spacing.Distance from the places of the owner's other escorts
+        /// (Spacing.AroundClear); taken again when it comes too near another's, or the ground
+        /// there will not take it. On the navmesh when the map has one.
+        /// </summary>
+        internal static Vector3 EscortPlace(MapChannel map, Creature creature, Vector3 owner)
+        {
+            var follow = creature.Controller.ActionFollow;
+            var characterId = creature.SpawnPool?.FollowOwnerCharacterId ?? 0;
+            var others = new List<Vector3>();
+
+            foreach (var other in Spacing.Around(map, owner))
+                if (other != creature && other.SpawnPool?.FollowOwnerCharacterId == characterId && IsMissionEscort(other)
+                    && Spacing.Standing(other) && other.Controller.ActionFollow.PlaceOffset is Vector3 offset)
+                    others.Add(owner + offset);
+
+            if (follow.PlaceOffset is Vector3 kept && Spacing.IsClear(owner + kept, others)
+                && Spacing.Placed(map, owner + kept) is Vector3 standing)
+                return standing;
+
+            var away = new Vector3(creature.Position.X - owner.X, 0, creature.Position.Z - owner.Z);
+            var direction = away.LengthSquared() > 0.01f ? Vector3.Normalize(away) : new Vector3(1, 0, 0);
+            var preferred = owner + direction * EscortRing;
+            var place = Spacing.AroundClear(map, owner, preferred, others) ?? Spacing.Placed(map, preferred) ?? preferred;
+
+            follow.PlaceOffset = place - owner;
+            return place;
         }
 
         private static void StopFollowing(MapChannel map, Creature creature)
@@ -2527,6 +2654,8 @@ namespace Rasa.Managers
             creature.Controller.ActionFighting.TargetEntityId = targetEntityId;
             creature.Controller.ActionFighting.StalledMs = 0;
             creature.Controller.ActionFighting.RouteIncomplete = false;
+            creature.Controller.ActionFighting.SpreadingTo = null;
+            creature.Controller.ActionFighting.SettleMs = 0;
             creature.LastAgression = 0;
 
             // Whatever brought it here - the scan, a hit, an assist - the target is on its table.
