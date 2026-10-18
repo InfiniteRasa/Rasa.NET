@@ -109,7 +109,12 @@ These change nothing in the world, except where noted.
 | `.navmesh path <x> <y> <z>` | Observer | The route the AI would take from you to that point: complete or partial, number of corners, length. |
 | `.cover` | Observer | Cover between you and your target in both directions: body points visible and the ranged damage multiplier. Needs `navmesh/<map>.cover`. |
 | `.los [entityId]` | Observer | The server's line-of-sight report to your target or to the id given. The LOS slash commands send the same `RequestLOSReport`, but they are in the unshipped developer module, so a retail client never sends them. |
-| `.camerascript list` / `.camerascript <id>` | Observer | Lists this map's camera scripts, or plays one on your own client. Space or Escape ends it. |
+| `.camerascript list` | Observer | This map's camera scripts: keyframes, length, where the camera starts and ends, and how far it comes from you. Scripts have no names; where the camera stands and looks is what there is to go on. |
+| `.camerascript near [n]` | Observer | This map's camera scripts nearest you first (5 unless you say). |
+| `.camerascript info <id>` | Observer | Every keyframe of one script: position, facing, how far it looks up or down, focal length, arrive and hold times. |
+| `.camerascript goto <id> [keyframe]` | GameMaster | Puts you where that keyframe's camera is (the first unless you say), facing the way it looks. A camera can hang in the air; you come down under it. |
+| `.camerascript maps` | Observer | Every map that carries camera scripts, with how many (37 maps, 129 scripts). |
+| `.camerascript <id>` | Observer | Plays the script on your own client. Space or Escape ends it. |
 | `.clientevent [list]` | Observer | The client's scriptable events, marking which ones you are tracking. |
 | `.clientevent track <id\|name\|all> ...` / `stop <id\|name> ...` / `stop all` | Observer | Starts or stops tracking scriptable client events on your own client; tracked events are echoed to you. |
 | `.rqs` | Observer | Opens the client's developer RQS window (`DevRQSWindow`). |

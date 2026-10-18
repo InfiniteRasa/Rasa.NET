@@ -227,7 +227,7 @@ namespace Rasa.Managers
             RegisterCommand(".motd", GmLevel.Observer, MotdCommand);
             RegisterCommand(".cover", GmLevel.Observer, CoverCommand);
             RegisterCommand(".los", GmLevel.Observer, LosCommand, "entityId");
-            RegisterCommand(".camerascript", GmLevel.Observer, CameraScriptCommand, "id");
+            RegisterCommand(".camerascript", GmLevel.Observer, CameraScriptCommand, "list | near [n] | info <id> | goto <id> [keyframe] | maps | <id>");
             RegisterCommand(".clientevent", GmLevel.Observer, ClientEventCommand, "action", "event");
 
             // GameMaster: moves you, spawns and drives scenery and creatures, drives
@@ -3631,8 +3631,17 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// .camerascript list | &lt;id&gt;: the camera scripts of the map you are on (CameraScriptTable),
-        /// or one of them played on your own client (CameraScripts). Space or escape cuts it short.
+        /// .camerascript: the camera scripts the client's maps carry (CameraScriptTable), to find
+        /// out where they are and what they were for. Nothing names a script or says what set it
+        /// off, so where its camera stands and looks is what there is to go on.
+        ///  - list (or nothing): this map's, each with where its camera starts and ends and how far
+        ///    its nearest keyframe is from you.
+        ///  - near [n]: this map's, nearest first, the first n (5).
+        ///  - info &lt;id&gt;: every keyframe of one: where, facing, focal length, arrive and hold.
+        ///  - goto &lt;id&gt; [keyframe]: puts you where that keyframe's camera is (the first, unless
+        ///    you say), facing the way it looks. GameMaster, as .tele.
+        ///  - maps: every map that carries scripts, with how many.
+        ///  - &lt;id&gt;: plays it on your own client (CameraScripts). Space or Escape ends it.
         /// </summary>
         private void CameraScriptCommand(string[] parts)
         {
@@ -3642,30 +3651,155 @@ namespace Rasa.Managers
                 return;
 
             var onMap = CameraScriptTable.OnMap(mapInfo.MapName).ToList();
+            var here = _client.Player.Position;
+            var verb = parts.Length < 2 ? "list" : parts[1].ToLowerInvariant();
 
-            if (parts.Length < 2 || parts[1].ToLowerInvariant() == "list")
+            void Say(string text) => CommunicatorManager.Instance.SystemMessage(_client, text);
+            static string At(Vector3 p) => FormattableString.Invariant($"({p.X:0.#}, {p.Y:0.#}, {p.Z:0.#})");
+            string Line(CameraScriptInfo s) => FormattableString.Invariant(
+                $"  {s.ScriptId}: {s.Keyframes} keyframe(s), {s.LengthMs / 1000.0:0.#} s, from {At(s.First.Position)}") +
+                (s.Keyframes > 1 ? $" to {At(s.Last.Position)}" : "") +
+                FormattableString.Invariant($", {s.DistanceTo(here):0} m from you");
+
+            CameraScriptInfo Script(string id)
             {
-                if (onMap.Count == 0)
+                var script = uint.TryParse(id, out var scriptId) ? onMap.FirstOrDefault(s => s.ScriptId == scriptId) : null;
+
+                if (script == null)
+                    Say($"{mapInfo.MapName} has no camera script {id}. .camerascript list shows its scripts.");
+
+                return script;
+            }
+
+            switch (verb)
+            {
+                case "list":
+                case "near":
                 {
-                    CommunicatorManager.Instance.SystemMessage(_client, $"{mapInfo.MapName} has no camera scripts.");
+                    if (onMap.Count == 0)
+                    {
+                        Say($"{mapInfo.MapName} has no camera scripts. .camerascript maps lists the maps that do.");
+                        return;
+                    }
+
+                    var count = onMap.Count;
+
+                    if (verb == "near")
+                    {
+                        count = 5;
+                        if (parts.Length > 2 && (!int.TryParse(parts[2], out count) || count < 1))
+                        {
+                            Say("Usage: .camerascript near [count]");
+                            return;
+                        }
+                    }
+
+                    var shown = verb == "near"
+                        ? onMap.OrderBy(s => s.DistanceTo(here)).ThenBy(s => s.ScriptId).Take(count).ToList()
+                        : onMap;
+
+                    Say(verb == "near"
+                        ? $"{mapInfo.MapName}: the {shown.Count} camera script(s) nearest you, of {onMap.Count}."
+                        : $"{mapInfo.MapName}: {onMap.Count} camera script(s). .camerascript <id> plays one; .camerascript goto <id> takes you to its camera.");
+
+                    foreach (var s in shown)
+                        Say(Line(s));
+
                     return;
                 }
 
-                CommunicatorManager.Instance.SystemMessage(_client, $"{mapInfo.MapName}: {onMap.Count} camera script(s). .camerascript <id> plays one; space or escape ends it.");
+                case "info":
+                {
+                    if (parts.Length != 3)
+                    {
+                        Say("Usage: .camerascript info <id>");
+                        return;
+                    }
 
-                foreach (var s in onMap)
-                    CommunicatorManager.Instance.SystemMessage(_client, $"  {s.ScriptId}: {s.Keyframes} keyframe(s), {s.LengthMs / 1000.0:0.#} s");
+                    var script = Script(parts[2]);
+                    if (script == null)
+                        return;
 
-                return;
+                    Say(FormattableString.Invariant($"{mapInfo.MapName} camera script {script.ScriptId}: {script.Keyframes} keyframe(s), {script.LengthMs / 1000.0:0.#} s, back to the player in {script.ReturnMs / 1000.0:0.#} s."));
+
+                    for (var i = 0; i < script.Frames.Count; i++)
+                    {
+                        var frame = script.Frames[i];
+                        var pitch = Math.Asin(Math.Clamp(frame.Forward.Y, -1f, 1f)) * 180 / Math.PI;
+                        Say(FormattableString.Invariant(
+                            $"  {i + 1}: at {At(frame.Position)} facing {frame.Facing:0.###} ({(pitch < 0 ? "down" : "up")} {Math.Abs(pitch):0} deg), focal {frame.FocalLength:0.##}, arrives in {frame.ArriveMs / 1000.0:0.#} s, holds {frame.HoldMs / 1000.0:0.#} s"));
+                    }
+
+                    return;
+                }
+
+                case "goto":
+                {
+                    if (!HasLevel(_client, GmLevel.GameMaster))
+                    {
+                        Say(".camerascript goto needs GameMaster, as .tele does.");
+                        return;
+                    }
+
+                    if (parts.Length < 3 || parts.Length > 4)
+                    {
+                        Say("Usage: .camerascript goto <id> [keyframe]");
+                        return;
+                    }
+
+                    var script = Script(parts[2]);
+                    if (script == null)
+                        return;
+
+                    var index = 1;
+                    if (parts.Length == 4 && (!int.TryParse(parts[3], out index) || index < 1 || index > script.Keyframes))
+                    {
+                        Say($"Camera script {script.ScriptId} has keyframes 1 to {script.Keyframes}.");
+                        return;
+                    }
+
+                    var frame = script.Frames[index - 1];
+                    var facing = (float)frame.Facing;
+
+                    // As .tele: PlaceAt so the server holds the position too. The camera can hang
+                    // in the air over what it shows; you come down under it.
+                    _client.Player.PlaceAt(frame.Position);
+                    _client.Player.Rotation = facing;
+                    _client.MoveObject(_client.Player.EntityId, new Movement(frame.Position, new Vector2(facing, 0f)));
+
+                    Say(FormattableString.Invariant($"At camera script {script.ScriptId}'s keyframe {index} of {script.Keyframes}, {At(frame.Position)}, facing the way it looks ({frame.Facing:0.###})."));
+                    return;
+                }
+
+                case "maps":
+                {
+                    var maps = CameraScriptTable.Maps().ToList();
+                    Say($"{maps.Count} maps carry {CameraScriptTable.All.Length} camera scripts:");
+
+                    foreach (var (name, count) in maps)
+                        Say($"  {name}: {count}{(string.Equals(name, mapInfo.MapName, StringComparison.OrdinalIgnoreCase) ? " (this map)" : "")}");
+
+                    return;
+                }
             }
 
-            if (!uint.TryParse(parts[1], out var scriptId) || !CameraScripts.Run(_client, scriptId))
+            if (parts.Length != 2)
             {
-                CommunicatorManager.Instance.SystemMessage(_client, $"{mapInfo.MapName} has no camera script {parts[1]}. .camerascript list shows its scripts.");
+                SendCommandUsage(".camerascript");
                 return;
             }
 
-            CommunicatorManager.Instance.SystemMessage(_client, $"Playing camera script {scriptId}.");
+            var played = Script(parts[1]);
+            if (played == null)
+                return;
+
+            if (!CameraScripts.Run(_client, played.ScriptId))
+            {
+                Say($"Camera script {played.ScriptId} could not be played.");
+                return;
+            }
+
+            Say($"Playing camera script {played.ScriptId}. Space or Escape ends it.");
         }
 
         /// <summary>
