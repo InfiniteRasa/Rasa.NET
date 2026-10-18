@@ -5797,7 +5797,9 @@ namespace Rasa.Managers
         /// <summary>
         /// A slash command the client has no handler of its own for: client/communicator.py's
         /// ProcessSlashCommand sends whatever is not a local command as (command, arg), and the
-        /// client's GM pickers send their picks the same way. The ones the server knows are in
+        /// client's GM pickers send their picks the same way. The client's guild commands come
+        /// this way too, and are a player's clan commands (<see cref="GuildCommands"/>). The ones
+        /// the server knows are in
         /// <see cref="PrivilegedCommands"/>, each with the level it takes; anything else, or one
         /// above the account's level, is answered as the dot commands answer it, and goes on
         /// the audit log as they do.
@@ -5809,6 +5811,10 @@ namespace Rasa.Managers
 
             var command = packet.Command.Trim();
             var entered = $"/{command} {packet.Args}".TrimEnd();
+
+            // The client's guild commands are a player's clan commands, not a game master's.
+            if (GuildCommands.TryRun(client, command, packet.Args))
+                return;
 
             if (!PrivilegedCommands.TryGetValue(command, out var registered))
             {

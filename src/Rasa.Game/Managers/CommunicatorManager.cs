@@ -757,6 +757,8 @@ namespace Rasa.Managers
             foreach (var channelId in GlobalChannels)
                 JoinGlobalChannel(client, channelId);
 
+            NewPlayerChannel(client);
+
             foreach (var channelId in MapChannels)
                 JoinDefaultLocalChannel(client, channelId);
 
@@ -801,6 +803,54 @@ namespace Rasa.Managers
 
             client.Player.JoinedChannels = 0;
         }
+
+        #region The New Player channel
+
+        /// <summary>The level at which a character is no longer in the New Player channel.</summary>
+        public const byte NewPlayerLevelLimit = 10;
+
+        /// <summary>
+        /// Puts a character below <see cref="NewPlayerLevelLimit"/> in the New Player channel
+        /// (ChatChannelId.NewPlayer: /2, /np, /newplayer), and one at it or above out of it.
+        /// It is a channel of the whole world, as General is. Run on arriving on a map and
+        /// whenever the level changes (a level up, .setlevel); the one who leaves it is told with
+        /// ChatChannelLeft, as the client holds a channel until then.
+        /// </summary>
+        public void NewPlayerChannel(Client client)
+        {
+            var player = client?.Player;
+
+            if (player == null)
+                return;
+
+            var seed = GenerateDefaultChannelHash((int)ChatChannelId.NewPlayer, 0, 0);
+            var index = Array.IndexOf(player.ChannelHashes, seed, 0, player.JoinedChannels);
+            var isNew = player.Level < NewPlayerLevelLimit;
+
+            if (isNew && index < 0)
+            {
+                JoinGlobalChannel(client, ChatChannelId.NewPlayer);
+                return;
+            }
+
+            if (isNew || index < 0)
+                return;
+
+            if (ChannelsBySeed.TryGetValue(seed, out var channel))
+            {
+                channel.Players.Remove(player.EntityId);
+                DropIfEmpty(seed, channel);
+            }
+
+            // The channels after it move up: ChannelOf reads the first JoinedChannels of them.
+            Array.Copy(player.ChannelHashes, index + 1, player.ChannelHashes, index, player.JoinedChannels - index - 1);
+            player.JoinedChannels--;
+
+            if (client.State != ClientState.Disconnected)
+                client.CallMethod(SysEntity.CommunicatorId, new ChatChannelLeftPacket(ChatChannelId.NewPlayer));
+        }
+
+        #endregion
 
         #region The team channel
 

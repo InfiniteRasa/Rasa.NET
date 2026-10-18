@@ -2711,6 +2711,7 @@ namespace Rasa.Managers
                 SocialManager.Instance.FriendStatusUpdate(client);
                 InventoryManager.WagerLevelChanged(client, grant.PreviousLevel);
                 MissionGiversAfterLevel(client);
+                CommunicatorManager.Instance.NewPlayerChannel(client);
             }
         }
 
@@ -2857,6 +2858,7 @@ namespace Rasa.Managers
                 SocialManager.Instance.FriendStatusUpdate(client);
                 InventoryManager.WagerLevelChanged(client, levelBefore);
                 MissionGiversAfterLevel(client);
+                CommunicatorManager.Instance.NewPlayerChannel(client);
             }
         }
 
@@ -3246,6 +3248,7 @@ namespace Rasa.Managers
             SocialManager.Instance.FriendStatusUpdate(client);
             InventoryManager.WagerLevelChanged(client, from);
             MissionGiversAfterLevel(client);
+            CommunicatorManager.Instance.NewPlayerChannel(client);
 
             Logger.WriteLog(LogType.Command, $"{player.FamilyName} set from level {from} to {level}" + (notes.Count > 0 ? $": {string.Join(", ", notes)}" : ""));
 
