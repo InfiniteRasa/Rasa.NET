@@ -93,18 +93,70 @@ namespace Rasa.Test.Database
         // Youngblood_fort_squad. Of them only the cave-in's and the squad's touch the same rows -
         // each wrote the Proving Grounds' scene bindings whole - and the one run second undid the
         // other; Bootcamp_cave_in_with_fort_squad (20270110000000) writes the two together after.
+        // And two at 20270111000000, run on Worlds since: Proving_grounds_front_squads and
+        // Targets_of_opportunity_givers, made the same morning on trees without each other. Both
+        // write creature, its action, appearance and stat rows and spawnpool, but no row the other
+        // writes: the squads are 400301-400306, the officers and bosses 510300-510305,
+        // 520015-520073 and 540002. Proving_grounds_front_squads was there first and sorts
+        // first, so every World ran them in the same order.
         // A new pair is a mistake: EF runs both, ordered by the rest of the id, whatever was meant.
         [TestMethod]
         public void NoNewMigrationSharesATimestamp()
         {
             var known = new[] { "20260927000000", "20260930000000", "20261012000000", "20261104000000", "20261111000000", "20261203000000",
-                "20261230000000", "20261231000000", "20270109000000" };
+                "20261230000000", "20261231000000", "20270109000000", "20270111000000" };
 
             using var database = new OrdinaryLootTestDatabase();
             var shared = database.Context.Database.GetMigrations()
                 .GroupBy(id => id.Substring(0, 14)).Where(stamp => stamp.Count() > 1).Select(stamp => stamp.Key).ToList();
 
             CollectionAssert.AreEquivalent(known, shared, string.Join(", ", shared));
+        }
+
+        // The same for every database and both providers, read off the migrations' attributes. The
+        // character database has two pairs, run on every Char since and touching nothing of each
+        // other's: Add_character_boss_kill (a new table) and Use_client_waypoint_ids
+        // (character_teleporter rows) at 20261110000000, Family_name_unique (an index on account)
+        // and Index_character_and_clan_inventory (two indexes on the inventory tables) at
+        // 20261215000000. And since the schemas were consolidated (2026-09-26) a migration made for
+        // one provider is made for the other under the same id: a twin left out is a database the
+        // other provider never gets.
+        [TestMethod]
+        public void EveryDatabaseKeepsItsTimestampsAndBothProvidersHaveEveryMigration()
+        {
+            var known = new System.Collections.Generic.Dictionary<string, string[]>
+            {
+                ["World"] = new[] { "20260927000000", "20260930000000", "20261012000000", "20261104000000", "20261111000000", "20261203000000",
+                    "20261230000000", "20261231000000", "20270109000000", "20270111000000" },
+                ["Char"] = new[] { "20261110000000", "20261215000000" },
+                ["Auth"] = new string[0]
+            };
+            var migrations = typeof(Rasa.Context.World.SqliteWorldContext).Assembly.GetTypes()
+                .Where(type => typeof(Microsoft.EntityFrameworkCore.Migrations.Migration).IsAssignableFrom(type) && !type.IsAbstract)
+                .Select(type => (
+                    id: type.GetCustomAttributes(typeof(MigrationAttribute), false).Cast<MigrationAttribute>().SingleOrDefault()?.Id,
+                    context: type.GetCustomAttributes(typeof(DbContextAttribute), false).Cast<DbContextAttribute>().SingleOrDefault()?.ContextType.Name,
+                    name: type.FullName))
+                .ToList();
+
+            CollectionAssert.AreEqual(new string[0], migrations.Where(m => m.id == null || m.context == null).Select(m => m.name).ToArray(),
+                "a migration without its [Migration] or [DbContext] is never run");
+
+            foreach (var database in known.Keys)
+            {
+                var mySql = migrations.Where(m => m.context == $"MySql{database}Context").Select(m => m.id).ToList();
+                var sqlite = migrations.Where(m => m.context == $"Sqlite{database}Context").Select(m => m.id).ToList();
+
+                foreach (var (provider, ids) in new[] { ("MySql", mySql), ("Sqlite", sqlite) })
+                {
+                    var shared = ids.GroupBy(id => id.Substring(0, 14)).Where(stamp => stamp.Count() > 1).Select(stamp => stamp.Key).ToList();
+                    CollectionAssert.AreEquivalent(known[database], shared, $"{provider}{database}: " + string.Join(", ", shared));
+                }
+
+                var since = mySql.Concat(sqlite).Where(id => string.CompareOrdinal(id, "20260927") >= 0).Distinct()
+                    .Where(id => !mySql.Contains(id) || !sqlite.Contains(id)).ToList();
+                CollectionAssert.AreEqual(new string[0], since, $"{database}: on one provider only: " + string.Join(", ", since));
+            }
         }
 
         [TestMethod]
