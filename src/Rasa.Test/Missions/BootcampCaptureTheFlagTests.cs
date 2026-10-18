@@ -23,15 +23,24 @@ namespace Rasa.Test.Missions
     {
         private const uint CaptureTheFlagMissionId = 1994;
         private const uint CaveInAreaId = 439;
-        private const uint PromotionRewardExperience = 500;
+        private const uint PromotionRewardExperience = 1750;
+
+        /// <summary>What Initiation (1990, 100) and Gearing Up (1992, 1250) pay before Capture the Flag.</summary>
+        private const uint EarnedBeforePromotion = 1350;
         private const uint YoungbloodRewardExperience = 5000;
         private static readonly System.TimeSpan YoungbloodDelay = System.TimeSpan.FromSeconds(7);
 
         [TestMethod]
-        public void CaptureTheFlagPromotionKeepsRecruitAndPays500Experience()
+        public void CaptureTheFlagPromotionKeepsRecruitAndTakesThemToLevelTwo()
         {
             using var harness = BootcampRuntimeTestHarness.Create();
             SeedCaptureTheFlagPrerequisites(harness, seedLightning: true);
+
+            // The recruit comes to DeSimone with what the missions before paid.
+            using (var unit = harness.Context.CreateChar())
+                unit.Characters.UpdateCharacterProgression(harness.Client.Player.Id, EarnedBeforePromotion, 1);
+            harness.Client.Player.Experience = EarnedBeforePromotion;
+
             var deSimone = harness.AddNpc(
                 BootcampRuntimeTestHarness.CorporalDeSimoneCreatureId,
                 BootcampRuntimeTestHarness.CorporalDeSimonePackageId);
@@ -59,13 +68,17 @@ namespace Rasa.Test.Missions
                 (1U, MissionObjectiveState.Inactive),
                 (3U, MissionObjectiveState.Inactive));
             Assert.AreEqual((uint)CharacterClass.Recruit, harness.Client.Player.Class);
-            // 500 experience: the recruit is promoted in name, not taken up four levels at once.
+            // 1750 experience on the 1350 before it: 3100, level 2 (3000) - one level, not four.
             Assert.AreEqual((byte)1, previousLevel);
-            Assert.AreEqual(previousLevel, harness.Client.Player.Level);
-            Assert.AreEqual(previousCloneCredits, harness.Client.Player.CloneCredits);
+            Assert.AreEqual((byte)2, harness.Client.Player.Level);
+            Assert.AreEqual(EarnedBeforePromotion + PromotionRewardExperience, harness.Client.Player.Experience);
             using (var unit = harness.Context.CreateChar())
-                Assert.AreEqual(harness.Client.Player.CloneCredits,
-                    unit.Characters.Get(harness.Client.Player.Id).CloneCredits);
+            {
+                var character = unit.Characters.Get(harness.Client.Player.Id);
+                Assert.AreEqual((byte)2, character.Level, "level 2 kept");
+                Assert.AreEqual(EarnedBeforePromotion + PromotionRewardExperience, character.Experience);
+                Assert.AreEqual(harness.Client.Player.CloneCredits, character.CloneCredits);
+            }
             Assert.AreEqual(
                 before.Experience + PromotionRewardExperience,
                 harness.Context.ReadRewardTotals().Experience);
@@ -73,10 +86,9 @@ namespace Rasa.Test.Missions
             Assert.AreEqual(0, CountScenarioCreatures(harness.BootcampMap, 1994, 2));
 
             var packets = harness.Context.Drain();
-            Assert.AreEqual(0, packets.OfType<CharacterClassPacket>().Count());
-            Assert.AreEqual(0, packets.OfType<LevelUpPacket>().Count());
-            Assert.AreEqual(0, packets.OfType<AvailableAllocationPointsPacket>().Count(), "no level, so no new points");
-            Assert.AreEqual(PromotionRewardExperience, packets.OfType<ExperienceChangedPacket>().Single().XPInfo.Gained, "the client is told 500");
+            Assert.AreEqual(0, packets.OfType<CharacterClassPacket>().Count(), "still a Recruit");
+            Assert.AreEqual((byte)2, packets.OfType<LevelUpPacket>().Single().Level, "the client is told level 2");
+            Assert.AreEqual(PromotionRewardExperience, packets.OfType<ExperienceChangedPacket>().Single().XPInfo.Gained, "the client is told 1750");
         }
 
         [TestMethod]

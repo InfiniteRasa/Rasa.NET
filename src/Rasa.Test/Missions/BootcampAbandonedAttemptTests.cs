@@ -34,7 +34,7 @@ namespace Rasa.Test.Missions
         private const uint CaptureTheFlag = 1994;
         private const uint CrateObjective = 1;
         private const uint BriefingObjective = 4;
-        private const uint PromotionExperience = 500;
+        private const uint PromotionExperience = 1750;
         private static readonly Vector3 CratePosition = new(398, 122, 173);
         private static readonly uint[] TemplateIds = { 13066, 13096, 13156, 13186, 13713, 28 };
 
