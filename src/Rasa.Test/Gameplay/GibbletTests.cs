@@ -68,6 +68,16 @@ namespace Rasa.Test.Gameplay
         }
 
         [TestMethod]
+        public void AMachinaLeavesTheScrapPileToo()
+        {
+            // MACHINA alone, as the creature flags have it: not MECHANICAL as well.
+            using var context = new LootFixture();
+            context.Corpse.ExtraFlags.Add(CreatureFlag.Machina);
+
+            Assert.AreEqual(LootDispenserManager.MechGibbletClass, context.Manager.LeaveGibblet(context.Map, context.Corpse).EntityClassId);
+        }
+
+        [TestMethod]
         public void NothingIsLeftWithNothingToLeave()
         {
             using var context = new LootFixture();

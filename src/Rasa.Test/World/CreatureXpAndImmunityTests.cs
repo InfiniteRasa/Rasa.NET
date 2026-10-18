@@ -169,6 +169,10 @@ namespace Rasa.Test.World
                 var unrootable = Spawn(world, CreatureFlag.ImmuneRoot);
                 Assert.IsFalse(CrowdControl.Root(world.Map, unrootable, player, CrowdControl.NetGunRootTypeId, 3000));
                 Assert.IsFalse(CrowdControl.IsRooted(unrootable));
+                var immobile = Spawn(world, CreatureFlag.ImmobilizeImmunity);
+                Assert.IsFalse(CrowdControl.Root(world.Map, immobile, player, CrowdControl.NetGunRootTypeId, 3000), "IMMOBILIZE_IMMUNITY is the same");
+                Assert.IsFalse(CrowdControl.IsRooted(immobile));
+                Assert.IsTrue(CrowdControl.Root(world.Map, Spawn(world), player, CrowdControl.NetGunRootTypeId, 3000), "the control");
 
                 // Slow: not slowed - unless it rides on damage, which keeps its damage and loses the slow.
                 var unslowable = Spawn(world, CreatureFlag.ImmuneSnare);

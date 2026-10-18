@@ -347,7 +347,9 @@ namespace Rasa.Test.World
             };
             var store = new MonsterFlagStore(world, () => classes);
             var read = store.Read();
-            CollectionAssert.AreEqual(new uint[] { 5, 71 }, read.Single(row => row.ClassId == 6032).Flags.ToArray());
+            // The seed's BIOLOGICAL and SPECIES_AMOEBOID, and the monster flag editor's (CreatureFlagEdits).
+            CollectionAssert.AreEqual(new uint[] { 1, 4, 5, 14, 15, 23, 30, 40, 71, 128, 142, 143 },
+                read.Single(row => row.ClassId == 6032).Flags.OrderBy(flag => flag).ToArray());
             amoeboid.CreatureFlags = new List<CreatureFlag> { CreatureFlag.Biological, (CreatureFlag)71 };
             var captured = amoeboid.CreatureFlags;
             using var before = world.Open();

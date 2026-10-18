@@ -323,7 +323,9 @@ namespace Rasa.Managers
                     !IsFinite(corpse.Position) || !CellManager.TryGetCellCoordinates(corpse.Position, out _, out _))
                     return null;
 
-                var mechanical = CreatureManager.CreatureFlagsOf(corpse).Contains((int)CreatureFlag.Mechanical);
+                // A machine's, a Machina's included: MACHINA is its own flag, not MECHANICAL as well.
+                var flags = CreatureManager.CreatureFlagsOf(corpse);
+                var mechanical = flags.Contains((int)CreatureFlag.Mechanical) || flags.Contains((int)CreatureFlag.Machina);
                 var gibblet = new DynamicObject
                 {
                     EntityClassId = mechanical ? MechGibbletClass : GibbletClass,

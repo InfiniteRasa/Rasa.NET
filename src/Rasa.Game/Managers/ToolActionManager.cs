@@ -701,12 +701,28 @@ namespace Rasa.Managers
             return null;
         }
 
-        /// <summary>Biological, Mechanical, or null when the class carries neither.</summary>
-        private static CreatureFlag? SubstanceOf(Creature creature)
+        /// <summary>
+        /// What harvest.py says to a harvest of this kind at this creature for what it is made of:
+        /// Salvage refuses a BIOLOGICAL creature, Tissue Extraction a MECHANICAL one, and a
+        /// MACHINA - part flesh, part machine, and neither of the other two - neither. Asked of
+        /// the flags the client was sent (CreatureManager.CreatureFlagsOf), as it asks them. A
+        /// creature with none of the three is refused by both, since nothing is known about what
+        /// it is made of. Null when the harvest may go on.
+        /// </summary>
+        internal static PlayerMessage? SubstanceRefusal(Creature creature, uint harvestArg)
         {
-            foreach (var flag in FlagsOf(creature))
-                if (flag == CreatureFlag.Biological || flag == CreatureFlag.Mechanical)
-                    return flag;
+            var flags = CreatureManager.CreatureFlagsOf(creature);
+            var biological = flags.Contains((int)CreatureFlag.Biological);
+            var mechanical = flags.Contains((int)CreatureFlag.Mechanical);
+
+            if (!biological && !mechanical && !flags.Contains((int)CreatureFlag.Machina))
+                return PlayerMessage.PmHarvestFailNotHarvestable;
+
+            if (harvestArg == Harvest.SalvageArg && biological)
+                return PlayerMessage.PmTargetInvalid;
+
+            if (harvestArg == Harvest.TissueExtractionArg && mechanical)
+                return PlayerMessage.PmTargetInvalid;
 
             return null;
         }
@@ -956,19 +972,8 @@ namespace Rasa.Managers
 
             var species = SpeciesOf(creature);
 
-            // harvest.py: Salvage refuses a BIOLOGICAL creature, Tissue Extraction refuses a
-            // MECHANICAL one. A creature with no flags at all - the 128 classes no species was
-            // matched to - is refused by both, since nothing is known about what it is made of.
-            var substance = SubstanceOf(creature);
-
-            if (substance == null)
-                return PlayerMessage.PmHarvestFailNotHarvestable;
-
-            if (packet.ActionArgId == Harvest.SalvageArg && substance == CreatureFlag.Biological)
-                return PlayerMessage.PmTargetInvalid;
-
-            if (packet.ActionArgId == Harvest.TissueExtractionArg && substance == CreatureFlag.Mechanical)
-                return PlayerMessage.PmTargetInvalid;
+            if (SubstanceRefusal(creature, packet.ActionArgId) is PlayerMessage refusal)
+                return refusal;
 
             // Nothing is known to come off this species. Refused before the roll so the player is
             // not charged ammo and an attempt for a corpse that could never have paid out.

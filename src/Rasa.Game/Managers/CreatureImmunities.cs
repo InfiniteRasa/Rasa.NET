@@ -13,7 +13,8 @@ namespace Rasa.Managers
     ///   _ENERGY (Electrical). A hit of that type does nothing and shows "Immune"
     ///   (DamageImmunity.IsImmune, which every hit asks: weapon fire, creature attacks, abilities,
     ///   damage over time, bombs, lightning).
-    /// - Control: IMMUNE_KNOCKBACK, _STUN, _SLEEP, _SNARE, _ROOT, _CONFUSION, _FEAR and _BLIND.
+    /// - Control: IMMUNE_KNOCKBACK, _STUN, _SLEEP, _SNARE, _ROOT, _CONFUSION, _FEAR and _BLIND,
+    ///   and IMMOBILIZE_IMMUNITY, which is IMMUNE_ROOT under another name.
     ///   An effect that would do that to it is refused as it is attached, with "Immune" over it
     ///   (GameEffectManager.Attach), and does nothing else: a knockback does not throw it, a
     ///   stun neither stops it nor opens its Critical Death window, a root does not stop it. What
@@ -60,6 +61,10 @@ namespace Rasa.Managers
 
             if (type == 0)
                 type = DamageType.Physical;
+
+            // IMMOBILIZE_IMMUNITY is IMMUNE_ROOT by another name: nothing holds it where it stands.
+            if (type == DamageType.Root && CreatureManager.HasFlag(creature, CreatureFlag.ImmobilizeImmunity))
+                return true;
 
             return Flags.TryGetValue(type, out var flag) && CreatureManager.HasFlag(creature, flag);
         }
