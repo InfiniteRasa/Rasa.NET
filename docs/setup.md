@@ -758,6 +758,7 @@ You should be ready to compile Rasa.NET and run the servers.
 - If you have to overwrite the default database connection parameters, see "Custom configuration" and "Database configuration"
 - Build the solution
 - For MySQL, apply pending migrations; SQLite runs them automatically on startup
+- Build the cover files once from your game client, or walls do not block shots. See [Cover files](#cover-files-line-of-sight)
 - Run the `Rasa.Auth` project via `Debug > Start without Debugging`
 - Run the `Rasa.Game` project via `Debug > Start Debugging`
 - Alternatively, define multiple start projects as follows:
@@ -807,6 +808,28 @@ dotnet run --project src\Rasa.NavMesh\Rasa.NavMesh.csproj --no-build -- --client
 ```
 
 Use `--map adv_foreas_concordia_wilderness` to rebuild one map. Generated files are inputs to `Rasa.Game`; no game client or live database is required to compile the navigation projects.
+
+#### Cover files (line of sight)
+
+The repository does not contain the cover files (`navmesh/<map>.cover`). Each server must build them from its own 1.16.5.0 client installation. Without them, `Rasa.Game` starts, but all line-of-sight and cover checks are off:
+
+- Creatures shoot at targets behind walls.
+- Player shots go through walls at full damage.
+- The weapon sight check and the movement geometry and hover checks do not run.
+
+The startup log shows this state with the line `No cover files (<map>.cover, Rasa.NavMesh --cover-only); ranged attacks ignore cover`.
+
+To build the cover files for all maps, without changing the `.nav` files:
+
+```powershell
+dotnet run --project src\Rasa.NavMesh\Rasa.NavMesh.csproj --no-build -- --client "C:\Games\Tabula Rasa" --out navmesh --cover-only
+```
+
+On Linux, use forward slashes and the path of your client folder. Add `--threads <N>` to use more CPU cores; 77 maps take about 4 minutes on 12 threads. Restart `Rasa.Game` after the build. The startup log then reports `Loaded cover for <N> maps`, and the GM command `.cover` shows the cover between you and your target.
+
+The cover files contain geometry from the game client. Do not commit them.
+
+With cover files, a creature does not fire at a target wholly behind a wall. A player shot at such a target still fires, because `WeaponChecks.Sight` is `log` by default, but cover cuts its damage to a tenth. Set `"WeaponChecks": { "Sight": "refuse" }` in `appsettings.env.json` to refuse these shots. The server mesh is not identical to the client's at edges and props, so `refuse` can refuse a few shots that look clear in the client.
 
 ### Database compatibility tests
 
