@@ -46,7 +46,7 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.IsFalse(harness.Manager.AcceptOfferedMission(harness.Client, eleanor.EntityId, 425));
             SeedCompleted(harness, 444);
             var sampleReward = Offer(harness, eleanor, 425);
-            AssertSelectable(sampleReward, (12827, 13483), (12855, 13511));
+            AssertSelectable(sampleReward, 425, (12827, 13483), (12855, 13511));
             Assert.AreEqual(1350U, sampleReward.FixedReward.Credits[CurencyType.Credits]);
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, eleanor.EntityId, 425));
             Assert.AreEqual(0U, Held(harness, 620));
@@ -88,7 +88,7 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.IsTrue(harness.Manager.CompleteOfferedObjective(harness.Client, nula.EntityId, 679, 1, 1));
             CompleteAndCheckReward(harness, nula, 679, null, 4500, 900);
             var councilReward = Offer(harness, nula, 451);
-            AssertSelectable(councilReward, (631, 7615), (97037, 25830));
+            AssertSelectable(councilReward, 451, (631, 7615), (97037, 25830));
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, nula.EntityId, 451));
 
             harness.MoveTo(todae.Position);
@@ -746,7 +746,7 @@ namespace Rasa.Test.Missions.Wilderness
             harness.SpawnWorld(206, 202);
             var sten = RequireNpc(harness, 206, 128);
             var quincy = RequireNpc(harness, 202, 124);
-            AssertSelectable(Offer(harness, sten, 860), (3315, 12147), (11568, 6498));
+            AssertSelectable(Offer(harness, sten, 860), 860, (3315, 12147), (11568, 6498));
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, sten.EntityId, 860));
             var clusters = harness.Map.DynamicObjects.Where(obj => obj.SceneMissionId == 860 &&
                     obj.SceneOwnerCharacterId == harness.Client.Player.Id)
@@ -988,13 +988,13 @@ namespace Rasa.Test.Missions.Wilderness
             return offers[missionId].MissionConstantData.RewardInfo;
         }
 
-        internal static void AssertSelectable(RewardInfo preview, params (uint Template, uint Class)[] expected)
+        internal static void AssertSelectable(RewardInfo preview, uint missionId, params (uint Template, uint Class)[] expected)
         {
             CollectionAssert.AreEqual(expected.Select(item => item.Template).ToArray(),
                 preview.SelectableReward.Select(item => item.ItemTemplateId).ToArray());
             CollectionAssert.AreEqual(expected.Select(item => item.Class).ToArray(),
                 preview.SelectableReward.Select(item => (uint)item.Class).ToArray());
-            Assert.IsTrue(preview.SelectableReward.All(item => item.Quantity == 1 && item.ModuleIds.Count == 0));
+            Assert.IsTrue(preview.SelectableReward.All(item => item.Quantity == 1 && WildernessRewardModulesTests.OfferedAsAuthored(missionId, item)));
         }
 
         private static void AssertFixed(RewardInfo preview, params (uint Template, uint Quantity)[] expected)

@@ -823,7 +823,7 @@ namespace Rasa.Test.Missions.Wilderness
             var rewards = offers[missionId].MissionConstantData.RewardInfo.SelectableReward;
             CollectionAssert.AreEqual(new[] { firstTemplate, secondTemplate },
                 rewards.Select(item => item.ItemTemplateId).ToArray());
-            Assert.IsTrue(rewards.All(item => item.Quantity == 1 && item.ModuleIds.Count == 0));
+            Assert.IsTrue(rewards.All(item => item.Quantity == 1 && WildernessRewardModulesTests.OfferedAsAuthored(missionId, item)));
         }
 
         private static void CompleteObjective(WildernessRuntimeTestHarness harness, NpcManager npcs,

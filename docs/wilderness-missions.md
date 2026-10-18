@@ -713,24 +713,25 @@ recipe identity in the examined target data. The older module recipes may be
 obsolete rather than unresolved fabrication IDs. Finished module items 122978
 and 122983 are real current-client assets, but they do not recover those recipes.
 
-**Coordinator-owned reward capability gap:** `MissionRewardItemEntry` has no
-loot-module field. `ItemInfoPacket` writes both module lists empty, and
-`ItemTemplateTooltipInfoPacket` writes `None` for module IDs. A bare base
-template does not produce the historical armor prefix or effect. The current
-rollout does not add a separate item-modifier subsystem or pretend to implement
-those effects through cosmetic names.
+**Reward modules:** `mission_reward_item` carries `module_1` to `module_4`
+(`Add_mission_reward_item_modules`): a reward item is offered and granted with
+them. `Wilderness_reward_modules` (`WildernessRewardModules`) gives 40 named
+rows their source's module. Each prefix is turned back into the module of
+that client name (`modulenamelanguage`) in the item's class set, level [1], in
+the first slot: Pulsar Resist EMP, Pathogex Resist Virulent, Phoenix Regen
+Bonus, Olympia Resist Physical, Luminar Resist Photonic, Dynamo Power Bonus,
+Prodigy Mind Bonus, AccuMax Crit Hit Bonus, Eclipse Threat Reduction. The level
+is R: the name does not carry it. Mission 1069 and 479 keep their base
+templates (Hazmat Armor Gloves 20399 or Reflective Armor Boots 35486; Hazmat
+Armor Vest 20846), now with Dynamo, Prodigy and Luminar.
 
-**Current implementation reconstruction (R):** the rollout uses functional
-replacements within the existing item system rather than adding a modifier
-subsystem.
-Mission 1407 grants schematic 641 (Standard Grade Cartridge Ammunition) and
-45072 (Class I Basic Med Pack), one each. Mission 1069 offers base Hazmat Armor
-Gloves 20399 or Reflective Armor Boots 35486; mission 479 grants base Hazmat
-Armor Vest 20846. The previews and granted items use their real base names,
-without Dynamo/Prodigy/Luminar modifiers. This is an explicit fidelity
-limitation, not recovered retail reward data or a user-approved reward choice.
-The original candidates above remain recorded for a future modifier-capable
-reward revision.
+Left without a module, as before: prefixes that name more than one kind of
+module for the item (ChiTech and Vitalius weapons, the Teleract Helmet,
+Vextronics weapons), tools whose prefix has no tool module (Astra Healing
+Disc, Prodigy Repair Tool), 508's unprefixed "Reflective Legs", and rewards
+with no source name (1992, 2010, 2011). Mission 1407 grants schematic 641
+(Standard Grade Cartridge Ammunition) and 45072 (Class I Basic Med Pack), one
+each.
 
 The artifact's `openingRewardResolution` records complete native name families,
 hashes, the empty recipe sets, and the selected reconstruction tuples.

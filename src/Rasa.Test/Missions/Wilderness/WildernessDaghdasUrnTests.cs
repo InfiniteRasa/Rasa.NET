@@ -541,7 +541,7 @@ namespace Rasa.Test.Missions.Wilderness
             CollectionAssert.AreEqual(selectable, info.MissionConstantData.RewardInfo.SelectableReward
                 .Select(item => item.ItemTemplateId).ToArray());
             Assert.IsTrue(info.MissionConstantData.RewardInfo.SelectableReward.All(item => item.Quantity == 1 &&
-                item.ModuleIds.Count == 0));
+                WildernessRewardModulesTests.OfferedAsAuthored(mission, item)));
         }
     }
 }

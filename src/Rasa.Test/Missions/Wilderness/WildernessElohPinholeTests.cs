@@ -616,8 +616,8 @@ namespace Rasa.Test.Missions.Wilderness
             CollectionAssert.AreEqual(fixedItems, reward.FixedReward.FixedItems.Select(item => item.ItemTemplateId).ToArray());
             CollectionAssert.AreEqual(selectableItems, reward.SelectableReward.Select(item => item.ItemTemplateId).ToArray());
             Assert.IsTrue(reward.FixedReward.FixedItems.Concat(reward.SelectableReward)
-                .All(item => item.Quantity == 1 && item.ModuleIds.Count == 0),
-                "The preview must advertise the same functional base items the server can actually grant.");
+                .All(item => item.Quantity == 1 && WildernessRewardModulesTests.OfferedAsAuthored(missionId, item)),
+                "The preview must advertise the same items, and modules, the server can actually grant.");
         }
 
         private static uint OwnedQuantity(WildernessRuntimeTestHarness harness, uint missionId, Client client = null) =>

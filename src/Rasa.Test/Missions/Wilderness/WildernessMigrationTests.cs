@@ -583,8 +583,10 @@ namespace Rasa.Test.Missions.Wilderness
         private static string[] EvidenceRows(WildernessRuntimeTestHarness harness) =>
             harness.World.MissionEvidenceEntries.AsNoTracking().AsEnumerable()
                 .Where(entry => entry.ContentRevision != TargetsOfOpportunitySeed.Revision)
-                // Wilderness_reward_consumables, dated after the Wilderness migrations, adds its own.
-                .Where(entry => entry.SourceUri != "repository:WildernessRewardConsumables")
+                // Wilderness_reward_consumables and Wilderness_reward_modules, dated after the
+                // Wilderness migrations, add their own.
+                .Where(entry => entry.SourceUri != "repository:WildernessRewardConsumables" &&
+                    entry.SourceUri != "repository:WildernessRewardModules")
                 .OrderBy(entry => entry.MissionId).ThenBy(entry => entry.ContentRevision).ThenBy(entry => entry.EvidenceId)
                 .Select(entry => JsonSerializer.Serialize(new
                 {
