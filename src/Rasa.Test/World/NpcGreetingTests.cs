@@ -296,7 +296,7 @@ namespace Rasa.Test.World
                     var repository = new CreatureRepository(context);
                     var rows = repository.GetNpcGreetings().ToDictionary(row => row.Id, row => row.GreetingId);
 
-                    Assert.AreEqual(84 + AliaDasNpcs.Greetings.Count(g => g.Was == null), rows.Count, "one added, two changed");
+                    Assert.AreEqual(84 + AliaDasNpcs.Greetings.Count(g => g.Was == null) + VanValkenbergLine, rows.Count, "one added, two changed");
                     Assert.AreEqual(146u, rows[101]);
                     Assert.AreEqual(19u, rows[100]);
                     Assert.AreEqual(466u, rows[99]);
@@ -693,7 +693,7 @@ namespace Rasa.Test.World
             stopped.World.Initialize();
 
             CollectionAssert.AreEqual(new[] { (Beacham, 488u, true) }, Lines().Where(row => row.Item3).ToList());
-            Assert.AreEqual(83 + AliaDasNpcs.Greetings.Count(g => g.Was == null), Lines().Count);
+            Assert.AreEqual(83 + AliaDasNpcs.Greetings.Count(g => g.Was == null) + VanValkenbergLine, Lines().Count);
 
             // And over another line a game master gave him: it is left as it is, not marked.
             Down();
@@ -702,10 +702,16 @@ namespace Rasa.Test.World
 
             Assert.AreEqual((Beacham, 1620u, false), Lines().Single(row => row.Item1 == Beacham));
             Assert.IsFalse(Lines().Any(row => row.Item3));
-            Assert.AreEqual(83 + AliaDasNpcs.Greetings.Count(g => g.Was == null), Lines().Count);
+            Assert.AreEqual(83 + AliaDasNpcs.Greetings.Count(g => g.Was == null) + VanValkenbergLine, Lines().Count);
         }
 
-        /// <summary>The seeded lines as the migrated world has them: Alia_das_npcs gives Rogers another and two more NPCs one.</summary>
+        /// <summary>Corporal Van Valkenberg's line (Bootcamp_van_valkenberg), in a world migrated to the end.</summary>
+        private const int VanValkenbergLine = 1;
+
+        /// <summary>
+        /// The seeded lines as the migrated world has them: Alia_das_npcs gives Rogers another and two more NPCs one,
+        /// and Bootcamp_van_valkenberg gives Corporal Van Valkenberg his.
+        /// </summary>
         private static IEnumerable<(uint, uint)> Migrated(IEnumerable<(uint Creature, uint Greeting)> rows) =>
             Migrated(rows.Select(row => (row.Creature, row.Greeting, false))).Select(row => (row.Item1, row.Item2));
 
@@ -713,7 +719,8 @@ namespace Rasa.Test.World
             rows.Select(row => AliaDasNpcs.Greetings.FirstOrDefault(g => g.Creature == row.Creature && g.Was == row.Greeting) is { } change
                     ? (row.Creature, change.Is, row.Important)
                     : (row.Creature, row.Greeting, row.Important))
-                .Concat(AliaDasNpcs.Greetings.Where(g => g.Was == null).Select(g => (g.Creature, g.Is, false)));
+                .Concat(AliaDasNpcs.Greetings.Where(g => g.Was == null).Select(g => (g.Creature, g.Is, false)))
+                .Append((BootcampVanValkenberg.VanValkenberg, BootcampVanValkenberg.Greeting, false));
 
         private static List<(uint, uint, bool)> Marks(string database)
         {

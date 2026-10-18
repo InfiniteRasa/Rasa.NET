@@ -593,6 +593,9 @@ namespace Rasa.Test.Missions
                     .Select(spawn => spawn.CreatureId))
                 .Where(id => id != 0).Distinct().ToArray();
             var actions = world.Set<CreatureActionEntry>().AsNoTracking().ToDictionary(action => action.Id);
+            // The line each greets a player with, as the server's CreatureManager reads it (NpcGreetings).
+            var greetings = world.Set<NpcGreetingEntry>().AsNoTracking()
+                .Where(greeting => ids.Contains(greeting.Id)).ToDictionary(greeting => greeting.Id);
 
             // The Bane tunnel doors are put on every channel of a map as it opens (TunnelDoors.Place),
             // the Bootcamp's included, and logged as an error when their class is not loaded, as a
@@ -627,7 +630,11 @@ namespace Rasa.Test.Missions
                                 .Select(package => package.PackageId).SingleOrDefault(),
                             NpcMissionIds = missions.LoadedMissions.Values
                                 .Where(mission => mission.MissionGiver == entry.Id || mission.MissionReciver == entry.Id)
-                                .Select(mission => mission.MissionId).ToList()
+                                .Select(mission => mission.MissionId).ToList(),
+                            GreetingId = greetings.TryGetValue(entry.Id, out var greeting) && NpcGreetings.IsLine(greeting.GreetingId)
+                                ? greeting.GreetingId
+                                : 0,
+                            GreetingImportant = greetings.TryGetValue(entry.Id, out var marked) && marked.Important
                         }
                         : null,
                     AppearanceData = world.Set<CreatureAppearanceEntry>().AsNoTracking()
