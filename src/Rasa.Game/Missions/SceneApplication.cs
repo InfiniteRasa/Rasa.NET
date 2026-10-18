@@ -105,6 +105,9 @@ namespace Rasa.Game.Missions
             _experiences.Add(experience.MapContextId, experience);
         }
 
+        private static bool IsOwnPrivateMap(uint characterId, MapChannel map) =>
+            map != null && map.IsPrivateInstance && map.OwnerCharacterId == characterId;
+
         internal void StageExperience(uint characterId, MapChannel map)
         {
             if (!_experiences.TryGetValue(map.MapInfo.MapContextId, out var experience))
@@ -148,7 +151,11 @@ namespace Rasa.Game.Missions
             var map = client.Player.MapChannel;
             if (_resumed.TryGetValue((client.Player.Id, map), out var attached) && ReferenceEquals(attached, client))
                 return;
-            StageExperience(client.Player.Id, map);
+            // A private experience runs on its character's own copy of the map. Someone on the
+            // map's shared channel - a game master's .teleport, /gotomap or a map link - or on
+            // another character's copy is there without it.
+            if (IsOwnPrivateMap(client.Player.Id, map))
+                StageExperience(client.Player.Id, map);
             foreach (var resident in _runs.Values.Where(run => run.Run.OwnerCharacterId == client.Player.Id && run.Map == map))
             {
                 resident.Owner = client;
@@ -223,7 +230,8 @@ namespace Rasa.Game.Missions
                 }
             }
             if (client?.Player?.MapChannel == null ||
-                !_experiences.TryGetValue(client.Player.MapContextId, out var experience))
+                !_experiences.TryGetValue(client.Player.MapContextId, out var experience) ||
+                !IsOwnPrivateMap(client.Player.Id, client.Player.MapChannel))
                 return;
             Resume(client);
             var root = _runs.Values.Single(run => run.Run.OwnerCharacterId == client.Player.Id &&
