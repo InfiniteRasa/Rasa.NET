@@ -3783,12 +3783,33 @@ namespace Rasa.Managers
                 return false;
 
             // Stunned or knocked down: the fire and ability paths already refuse, and moving is
-            // refused the same way, with the client put back where the server has them.
+            // refused the same way, with the client put back where the server has them - but not
+            // what a stunned client sends without going anywhere (JudgeStunnedMove).
             if (Stuns.IsStunned(player))
             {
-                RefuseMove(client, movement, "while stunned");
-                return false;
+                // Thrown by a knockback (PlayerCrowdControl.Knockback): the server has them where
+                // it ends from the start, and the client flies them there. What it says on the
+                // way, and where it lands, is set aside as a charge's is: neither applied nor
+                // corrected, and nothing to report.
+                if (IsKnockedBack(player))
+                    return false;
+
+                var anchor = player.StunAnchor ??= player.Position;
+
+                switch (JudgeStunnedMove(anchor, movement.Position))
+                {
+                    case StunnedMove.Settles:
+                        return true;
+                    case StunnedMove.PutBack:
+                        RefuseMove(client, movement, "while stunned", report: false);
+                        return false;
+                    default:
+                        RefuseMove(client, movement, "while stunned");
+                        return false;
+                }
             }
+
+            player.StunAnchor = null;
 
             // Dead (PlayerDeath): nowhere until they are back.
             if (player.State == CharacterState.Dead)
@@ -3807,6 +3828,61 @@ namespace Rasa.Managers
                 return true;
 
             RefuseMove(client, movement, verdict.Refusal);
+            return false;
+        }
+
+        /// <summary>
+        /// How far from where a stun found them a stunned player's client may have them: across
+        /// the ground, and up. Within it a Move is the client settling them where they stand -
+        /// onto the ground under them (the server's height for a spot and the client's differ by
+        /// tenths of a metre), a turn of the head - and it is taken.
+        /// </summary>
+        public const float StunnedDrift = 0.5f;
+
+        /// <summary>
+        /// Beyond this from where a stun found them, across the ground, a stunned player's Move is
+        /// worth a line in the log. Nearer, it is a step their client took before it heard of the
+        /// stun - running at 6.5 m/s, a few tenths of a second of it - and they are put back
+        /// without one.
+        /// </summary>
+        public const float StunnedReportDistance = 3f;
+
+        /// <summary>What a stunned player's Move is (JudgeStunnedMove).</summary>
+        public enum StunnedMove
+        {
+            /// <summary>Their client settling them where they stand: taken.</summary>
+            Settles,
+
+            /// <summary>A step they took before their client heard of the stun: put back, not reported.</summary>
+            PutBack,
+
+            /// <summary>Walking off while stunned: put back and reported.</summary>
+            Reported
+        }
+
+        /// <summary>
+        /// What a Move to <paramref name="to"/> is for a player stunned at <paramref name="anchor"/>,
+        /// measured from where the stun found them, not from their last Move, so that settling a
+        /// little at a time cannot walk them anywhere. A fall is no movement of theirs.
+        /// </summary>
+        public static StunnedMove JudgeStunnedMove(Vector3 anchor, Vector3 to)
+        {
+            var across = Math.Sqrt((to.X - anchor.X) * (to.X - anchor.X) + (to.Z - anchor.Z) * (to.Z - anchor.Z));
+            var rise = to.Y - anchor.Y;
+
+            if (across <= StunnedDrift && rise <= StunnedDrift)
+                return StunnedMove.Settles;
+
+            return across > StunnedReportDistance ? StunnedMove.Reported : StunnedMove.PutBack;
+        }
+
+        /// <summary>Whether a knockback (KNOCKBACK 8) is on the player: thrown, or down after it.</summary>
+        private static bool IsKnockedBack(Manifestation player)
+        {
+            foreach (var effect in player.ActiveEffects.Values)
+                if (effect.TypeId == CrowdControl.KnockbackTypeId && effect.IsStun && !effect.IsExpired)
+                    return true;
+
             return false;
         }
 
@@ -3876,7 +3952,8 @@ namespace Rasa.Managers
         /// and answering every one would be a packet out per packet in and a log line per packet,
         /// which is a worse thing to be on the end of than the movement was.
         /// </summary>
-        private static void RefuseMove(Client client, Movement movement, string what)
+        /// <param name="report">False for a refusal that is no sign of anything - a stunned client's step from before it knew - which is corrected without a log line.</param>
+        private static void RefuseMove(Client client, Movement movement, string what, bool report = true)
         {
             var player = client.Player;
             var now = Environment.TickCount64;
@@ -3888,8 +3965,9 @@ namespace Rasa.Managers
 
             var repeat = player.RefusedMoves > 1 ? $" ({player.RefusedMoves} refused since the last of these)" : "";
 
-            Logger.WriteLog(LogType.Security,
-                $"{player.FamilyName} tried to move {what} on map {player.MapContextId}, from {player.Position} to {movement.Position}{repeat}; put back.");
+            if (report)
+                Logger.WriteLog(LogType.Security,
+                    $"{player.FamilyName} tried to move {what} on map {player.MapContextId}, from {player.Position} to {movement.Position}{repeat}; put back.");
 
             player.LastMoveCorrectionTick = now;
             player.RefusedMoves = 0;

@@ -116,6 +116,9 @@ namespace Rasa.Structures
         /// <summary>How many Moves have been refused since the last one was reported.</summary>
         public int RefusedMoves { get; set; }
 
+        /// <summary>Where the first Move of their current stun found them (ManifestationManager.JudgeStunnedMove); null when they are not stunned.</summary>
+        internal Vector3? StunAnchor { get; set; }
+
         /// <summary>Environment.TickCount64 since when nothing has been under the player (Managers.MovementChecks); 0 while something is.</summary>
         public long UnsupportedSinceTick { get; set; }
 
