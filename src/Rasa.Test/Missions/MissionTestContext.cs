@@ -238,9 +238,10 @@ namespace Rasa.Test.Missions
 
         internal static MissionTestContext WithCompletableMission(
             uint missionId,
-            Action<Item> beforeRewardItemPublication = null)
+            Action<Item> beforeRewardItemPublication = null,
+            MissionRewardDefinition customReward = null)
         {
-            var reward = new MissionRewardDefinition(
+            var reward = customReward ?? new MissionRewardDefinition(
                 experience: 100,
                 currencies: new Dictionary<CurencyType, int>
                 {

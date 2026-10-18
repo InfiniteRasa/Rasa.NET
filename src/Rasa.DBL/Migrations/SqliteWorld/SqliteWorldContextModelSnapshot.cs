@@ -2150,6 +2150,22 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnType("tinyint(3)")
                         .HasColumnName("kind");
 
+                    b.Property<uint>("Module1")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("module_1");
+
+                    b.Property<uint>("Module2")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("module_2");
+
+                    b.Property<uint>("Module3")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("module_3");
+
+                    b.Property<uint>("Module4")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("module_4");
+
                     b.Property<uint>("Quantity")
                         .HasColumnType("int(11)")
                         .HasColumnName("quantity");

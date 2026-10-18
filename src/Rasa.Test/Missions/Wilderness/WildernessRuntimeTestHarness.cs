@@ -257,9 +257,10 @@ namespace Rasa.Test.Missions.Wilderness
                 new MapRegionRepository(context), new MapMarkerRepository(context),
                 new MapEmitterRepository(context), new SpawnPoolArrivalRepository(context), new RecipeRepository(context),
                 new NpcMissionRepository(context), new NpcMissionRewardRepository(context),
-                new MissionContentRepository(context), new OrdinaryLootRepository(context), new NpcPackageRepository(context),
+                new Rasa.Test.Missions.MissionContentOfThisWorld(context), new OrdinaryLootRepository(context), new NpcPackageRepository(context),
                 new PlayerRandomNameRepository(context), new SpawnpoolsOfThisWorld(context), new TeleporterRepository(context));
         }
+
 
         /// <summary>
         /// The creature rows of this harness's World, which a test can stop at an earlier

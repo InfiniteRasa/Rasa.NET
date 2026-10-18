@@ -29,13 +29,26 @@ namespace Rasa.Managers
 
     internal readonly struct MissionRewardItem
     {
+        private static readonly uint[] NoModules = new uint[ItemEntry.ModuleSlots];
+
         internal uint ItemTemplateId { get; }
         internal uint Quantity { get; }
 
-        internal MissionRewardItem(uint itemTemplateId, uint quantity)
+        /// <summary>The module in each of the item's four slots, 0 for an empty one: what the item is made with.</summary>
+        internal IReadOnlyList<uint> ModuleIds => _moduleIds ?? NoModules;
+
+        /// <summary>Whether any slot holds a module.</summary>
+        internal bool HasModules => _moduleIds != null;
+
+        private readonly uint[] _moduleIds;
+
+        internal MissionRewardItem(uint itemTemplateId, uint quantity, IReadOnlyList<uint> moduleIds = null)
         {
             ItemTemplateId = itemTemplateId;
             Quantity = quantity;
+            _moduleIds = moduleIds == null || moduleIds.All(moduleId => moduleId == 0)
+                ? null
+                : Enumerable.Range(0, ItemEntry.ModuleSlots).Select(slot => slot < moduleIds.Count ? moduleIds[slot] : 0u).ToArray();
         }
     }
 
@@ -129,11 +142,16 @@ namespace Rasa.Managers
                 var reward = new RewardItem
                 {
                     ItemTemplateId = item.ItemTemplateId,
-                    Quantity = item.Quantity
+                    Quantity = item.Quantity,
+                    ModuleIds = item.HasModules ? item.ModuleIds.ToList() : new List<uint>()
                 };
                 if (ItemManager.Instance.ItemTemplateItemClass.TryGetValue(
                         item.ItemTemplateId, out var entityClass))
                     reward.Class = entityClass;
+
+                // The quality the item is made in: the offer's tooltip and name are drawn in it.
+                if (ItemManager.Instance.GetItemTemplateById(item.ItemTemplateId) is { } template)
+                    reward.QualityId = template.QualityId;
                 return reward;
             }
         }
@@ -166,7 +184,7 @@ namespace Rasa.Managers
             _experience = experience;
             _currencies = currencies;
             _items = items.Select(item =>
-                new InventoryManager.InventoryItemGrant(item.ItemTemplateId, item.Quantity)).ToArray();
+                new InventoryManager.InventoryItemGrant(item.ItemTemplateId, item.Quantity, item.HasModules ? item.ModuleIds : null)).ToArray();
             _inventory = new InventoryManager.InventoryGrant(beforeItemPublication);
         }
 

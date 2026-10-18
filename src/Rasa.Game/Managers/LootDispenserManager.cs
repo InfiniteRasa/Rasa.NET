@@ -844,6 +844,8 @@ namespace Rasa.Managers
                                 throw new GameplayRejectionException($"Invalid reward loot template {row.ItemTemplateId}.");
 
                             var item = ItemManager.StageItem(template, row.Quantity, string.Empty);
+                            for (var slot = 0; slot < row.ModuleIds.Count && slot < ItemModules.Slots; slot++)
+                                item.SetModule(slot, row.ModuleIds[slot]);
                             stagedItems.Add(item);
                             item.Id = unit.Items.CreateItem(item);
                             if (item.Id == 0)

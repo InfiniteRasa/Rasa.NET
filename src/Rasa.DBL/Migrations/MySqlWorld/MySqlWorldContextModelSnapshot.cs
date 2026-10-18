@@ -2208,6 +2208,22 @@ namespace Rasa.Migrations.MySqlWorld
                         .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("kind");
 
+                    b.Property<uint>("Module1")
+                        .HasColumnType("int(11) unsigned")
+                        .HasColumnName("module_1");
+
+                    b.Property<uint>("Module2")
+                        .HasColumnType("int(11) unsigned")
+                        .HasColumnName("module_2");
+
+                    b.Property<uint>("Module3")
+                        .HasColumnType("int(11) unsigned")
+                        .HasColumnName("module_3");
+
+                    b.Property<uint>("Module4")
+                        .HasColumnType("int(11) unsigned")
+                        .HasColumnName("module_4");
+
                     b.Property<uint>("Quantity")
                         .HasColumnType("int(11) unsigned")
                         .HasColumnName("quantity");

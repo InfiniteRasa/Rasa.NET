@@ -1381,8 +1381,11 @@ namespace Rasa.Test.Missions
 
         private sealed class RepositoryBackedWorldUnitOfWork : IWorldUnitOfWork
         {
+            private readonly SqliteWorldContext _context;
+
             internal RepositoryBackedWorldUnitOfWork(SqliteWorldContext context)
             {
+                _context = context;
                 Actions = null;
                 Equipment = new EquipmentRepository(context);
                 Creatures = new CreatureRepository(context);
@@ -1397,7 +1400,7 @@ namespace Rasa.Test.Missions
                 Recipes = null;
                 NpcMissions = null;
                 NpcMissionRewards = null;
-                MissionContent = new MissionContentRepository(context);
+                MissionContent = new MissionContentOfThisWorld(context);
                 OrdinaryLoot = new OrdinaryLootRepository(context);
                 NpcPackages = new NpcPackageRepository(context);
                 RandomNames = null;
@@ -1431,6 +1434,9 @@ namespace Rasa.Test.Missions
             public IControlPointRepository ControlPoints { get; }
             public ISpawnPoolArrivalRepository SpawnPoolArrivals { get; }
             public ITeleporterRepository Teleporters { get; }
+
+            // A reward item with a module is checked against the module tables as missions load.
+            public IItemModuleRepository ItemModules => new ItemModuleRepository(_context);
             public void Complete() { }
             public void Reject() { }
             public Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction BeginTransaction() =>

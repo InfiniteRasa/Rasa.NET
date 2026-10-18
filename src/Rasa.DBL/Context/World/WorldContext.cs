@@ -968,6 +968,18 @@ namespace Rasa.Context.World
             modelBuilder.Entity<MissionRewardItemEntry>()
                 .Property(entry => entry.Quantity)
                 .AsUnsignedInt(_dbContextPropertyModifier, 11);
+            modelBuilder.Entity<MissionRewardItemEntry>()
+                .Property(entry => entry.Module1)
+                .AsUnsignedInt(_dbContextPropertyModifier, 11);
+            modelBuilder.Entity<MissionRewardItemEntry>()
+                .Property(entry => entry.Module2)
+                .AsUnsignedInt(_dbContextPropertyModifier, 11);
+            modelBuilder.Entity<MissionRewardItemEntry>()
+                .Property(entry => entry.Module3)
+                .AsUnsignedInt(_dbContextPropertyModifier, 11);
+            modelBuilder.Entity<MissionRewardItemEntry>()
+                .Property(entry => entry.Module4)
+                .AsUnsignedInt(_dbContextPropertyModifier, 11);
 
             modelBuilder.Entity<MissionIndicatorEntry>()
                 .HasKey(entry => new { entry.MissionId, entry.ContentRevision, entry.ObjectiveId, entry.IndicatorId });

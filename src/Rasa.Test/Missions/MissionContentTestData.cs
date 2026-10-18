@@ -37,6 +37,10 @@ namespace Rasa.Test.Missions
             [29] = 3147
         };
         internal HashSet<uint> EntityClassIds { get; } = new() { 3147, 4001 };
+
+        /// <summary>The module tables, when a test gives them (module_class, modifiable_class).</summary>
+        internal List<ModuleClassEntry> ModuleClasses { get; } = new();
+        internal List<ModifiableClassEntry> ModifiableClasses { get; } = new();
         internal Dictionary<uint, uint> CreatureClasses { get; } = new()
         {
             [501] = 4001
@@ -406,6 +410,8 @@ namespace Rasa.Test.Missions
                 NpcPackages = new FakeNpcPackageRepository(fixture);
             }
 
+            public IItemModuleRepository ItemModules => new FakeItemModuleRepository(_fixture);
+
             public IActionRepository Actions => null;
             public IEquipmentRepository Equipment { get; }
             public ICreatureRepository Creatures { get; }
@@ -433,6 +439,18 @@ namespace Rasa.Test.Missions
             public void Reject() { }
             public IDbContextTransaction BeginTransaction() => throw new NotSupportedException();
             public void Dispose() { }
+        }
+
+        private sealed class FakeItemModuleRepository : IItemModuleRepository
+        {
+            private readonly MissionContentFixture _fixture;
+
+            internal FakeItemModuleRepository(MissionContentFixture fixture) => _fixture = fixture;
+
+            public List<ModuleClassEntry> GetModuleClasses() => _fixture.ModuleClasses.ToList();
+            public List<ModuleEffectEntry> GetModuleEffects() => new();
+            public List<ModuleItemEntry> GetModuleItems() => new();
+            public List<ModifiableClassEntry> GetModifiableClasses() => _fixture.ModifiableClasses.ToList();
         }
 
         private sealed class FakeNpcPackageRepository : INpcPackageRepository
@@ -714,7 +732,11 @@ namespace Rasa.Test.Missions
                 ItemId = entry.ItemId,
                 Kind = entry.Kind,
                 ItemTemplateId = entry.ItemTemplateId,
-                Quantity = entry.Quantity
+                Quantity = entry.Quantity,
+                Module1 = entry.Module1,
+                Module2 = entry.Module2,
+                Module3 = entry.Module3,
+                Module4 = entry.Module4
             };
 
         private static MissionIndicatorEntry Clone(MissionIndicatorEntry entry) =>

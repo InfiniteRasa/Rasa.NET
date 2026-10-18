@@ -231,8 +231,11 @@ namespace Rasa.Test.Missions.Wilderness
             return request;
         }
 
+        // Only the columns compared: the World is stopped before the reward items had modules.
         private static RewardRow[] RewardRows(WildernessRuntimeTestHarness harness) =>
-            harness.World.MissionRewardItemEntries.AsNoTracking().AsEnumerable()
+            harness.World.MissionRewardItemEntries.AsNoTracking()
+                .Select(row => new { row.MissionId, row.ContentRevision, row.RewardId, row.ItemId, row.Kind, row.ItemTemplateId, row.Quantity })
+                .AsEnumerable()
                 .OrderBy(row => row.MissionId).ThenBy(row => row.ContentRevision)
                 .ThenBy(row => row.RewardId).ThenBy(row => row.ItemId)
                 .Select(row => new RewardRow(row.MissionId, row.ContentRevision, row.RewardId, row.ItemId,
