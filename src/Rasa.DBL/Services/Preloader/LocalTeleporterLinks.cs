@@ -24,7 +24,8 @@ namespace Rasa.Services.Preloader
     ///    own ("Ashoka Upper Teleporter", "Ashoka Lower Teleporter").
     ///
     /// The rest of the type 1 rows have no link and take nobody anywhere: Thunderhead's base pads
-    /// (one label for fourteen markers) and its pads at Larai Outpost, Outpost Aurora and the
+    /// (one label for fourteen markers; ThunderheadBaseTeleporters links ten of them later, by the
+    /// signs beside them) and its pads at Larai Outpost, Outpost Aurora and the
     /// Atta Collector; Stonewall's four towers on Ashen Desert; Fithik Hatchery, Bane Detention
     /// Center and Bane Comm Tower in Devil's Den; Falcon Hold's tower teleporter on the Marshes;
     /// and the rows of type 1 that are not local teleporters (Treeback Ridge 64, the
