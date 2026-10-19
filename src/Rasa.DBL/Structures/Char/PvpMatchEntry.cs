@@ -1,6 +1,7 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace Rasa.Structures.Char
 {
@@ -34,6 +35,7 @@ namespace Rasa.Structures.Char
     /// up on every kill, and closed when the feud ends.
     /// </summary>
     [Table(TableName)]
+    [Index(nameof(Kind), nameof(EndedAt), Name = "pvp_match_index_kind_ended")]
     public class PvpMatchEntry
     {
         public const string TableName = "pvp_match";

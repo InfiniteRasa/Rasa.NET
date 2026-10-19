@@ -12,6 +12,7 @@ namespace Rasa.Structures.Char
     /// </summary>
     [Table(TableName)]
     [Index(nameof(AccountId), nameof(CharacterId), Name = "character_inventory_index_account_character")]
+    [Index(nameof(CharacterId), nameof(InventoryType), Name = "character_inventory_index_character_type")]
     public class CharacterInventoryEntry
     {
         public const string TableName = "character_inventory";

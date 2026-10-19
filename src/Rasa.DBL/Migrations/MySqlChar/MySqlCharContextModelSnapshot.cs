@@ -496,6 +496,8 @@ namespace Rasa.Migrations.MySqlChar
 
                     b.HasIndex(new[] { "AccountId", "CharacterId" }, "character_inventory_index_account_character");
 
+                    b.HasIndex(new[] { "CharacterId", "InventoryType" }, "character_inventory_index_character_type");
+
                     b.ToTable("character_inventory");
                 });
 
@@ -2107,6 +2109,8 @@ namespace Rasa.Migrations.MySqlChar
                     b.HasIndex("OwnerCharacterId", "MissionId", "ScriptKey", "AssignmentId")
                         .IsUnique();
 
+                    b.HasIndex(new[] { "AssignmentId" }, "mission_scene_index_assignment");
+
                     b.ToTable("mission_scene");
                 });
 
@@ -2178,6 +2182,8 @@ namespace Rasa.Migrations.MySqlChar
                         .HasColumnName("assignment_id");
 
                     b.HasKey("RunId", "CharacterId");
+
+                    b.HasIndex(new[] { "AssignmentId" }, "mission_scene_participant_index_assignment");
 
                     b.ToTable("mission_scene_participant");
                 });
@@ -2366,6 +2372,8 @@ namespace Rasa.Migrations.MySqlChar
 
                     b.HasKey("Id");
 
+                    b.HasIndex(new[] { "AccountId", "NoticePending" }, "petition_index_account_notice");
+
                     b.ToTable("petition");
                 });
 
@@ -2450,6 +2458,8 @@ namespace Rasa.Migrations.MySqlChar
                         .HasColumnName("winner_side");
 
                     b.HasKey("Id");
+
+                    b.HasIndex(new[] { "Kind", "EndedAt" }, "pvp_match_index_kind_ended");
 
                     b.ToTable("pvp_match");
                 });
@@ -2591,6 +2601,8 @@ namespace Rasa.Migrations.MySqlChar
 
                     b.HasKey("Id");
 
+                    b.HasIndex(new[] { "OwnerCharacterId", "MapContextId" }, "squad_instance_index_owner_map");
+
                     b.ToTable("squad_instance");
                 });
 
@@ -2624,6 +2636,8 @@ namespace Rasa.Migrations.MySqlChar
                         .HasColumnName("instance_id");
 
                     b.HasKey("CharacterId");
+
+                    b.HasIndex(new[] { "InstanceId" }, "squad_instance_visitor_index_instance");
 
                     b.ToTable("squad_instance_visitor");
                 });

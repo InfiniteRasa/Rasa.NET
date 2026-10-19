@@ -1,6 +1,7 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace Rasa.Structures.Char
 {
@@ -13,6 +14,7 @@ namespace Rasa.Structures.Char
     /// only place the text survives - it is written for whoever is running the server.
     /// </summary>
     [Table(TableName)]
+    [Index(nameof(AccountId), nameof(NoticePending), Name = "petition_index_account_notice")]
     public class PetitionEntry : IHasId
     {
         public const string TableName = "petition";

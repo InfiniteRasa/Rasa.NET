@@ -400,6 +400,8 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnType("INTEGER")
                         .HasColumnName("slot_id");
 
+                    b.HasIndex(new[] { "Id", "SlotId" }, "creature_appearance_index_creature_slot");
+
                     b.ToTable("creature_appearance");
                 });
 
