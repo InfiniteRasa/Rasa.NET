@@ -7,6 +7,7 @@ namespace Rasa.Test.World
     using Rasa.Game;
     using Rasa.Managers;
     using Rasa.Missions;
+    using Rasa.Packets.Manifestation.Server;
     using Rasa.Packets.MapChannel.Server;
     using Rasa.Structures;
     using Rasa.Test.Missions;
@@ -98,15 +99,25 @@ namespace Rasa.Test.World
 
             Assert.IsNotNull(ExperienceBoost.Put(context.Map, boosted.Player, 50, 1, 60_000, announce: false));
 
-            // 100 split two ways first: 50 each, and the holder's 50 half again.
-            Assert.AreEqual(50u, KillShares.AwardExperience(manifestations, new[] { boosted, mate }, boosted, 100));
-            Assert.AreEqual(75u, boosted.Player.Experience);
-            Assert.AreEqual(50u, mate.Player.Experience, "another's boost does nothing for them");
+            // 100 shared by two first: 92 each, and the holder's 92 half again.
+            MissionTestContext.Drain(boosted);
+            MissionTestContext.Drain(mate);
+            Assert.AreEqual(92u, KillShares.AwardExperience(manifestations, new[] { boosted, mate }, boosted, 100));
+            Assert.AreEqual(138u, boosted.Player.Experience);
+            Assert.AreEqual(92u, mate.Player.Experience, "another's boost does nothing for them");
+
+            // Each line says it: " (+50% Booster Bonus)" on the holder's, none on the mate's.
+            var holders = MissionTestContext.Drain(boosted).OfType<ExperienceChangedPacket>().Single().XPInfo;
+            var mates = MissionTestContext.Drain(mate).OfType<ExperienceChangedPacket>().Single().XPInfo;
+            Assert.AreEqual(1.5, holders.BoosterMod, 1e-9);
+            Assert.AreEqual(1, mates.BoosterMod);
+            Assert.AreEqual(1.84, holders.GroupMod, 1e-9);
+            Assert.AreEqual(50u, holders.BaseGained);
 
             // The mate's kill is no different: the boost is to the holder's part, whoever killed.
-            Assert.AreEqual(50u, KillShares.AwardExperience(manifestations, new[] { mate, boosted }, mate, 100));
-            Assert.AreEqual(150u, boosted.Player.Experience);
-            Assert.AreEqual(100u, mate.Player.Experience);
+            Assert.AreEqual(92u, KillShares.AwardExperience(manifestations, new[] { mate, boosted }, mate, 100));
+            Assert.AreEqual(276u, boosted.Player.Experience);
+            Assert.AreEqual(184u, mate.Player.Experience);
         }
 
         [TestMethod]

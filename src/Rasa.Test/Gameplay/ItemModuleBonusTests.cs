@@ -745,11 +745,11 @@ namespace Rasa.Test.Gameplay
             MissionTestContext.Drain(context.Client);
             MissionTestContext.Drain(mate);
 
-            // Half each, and the mate's ten percent on the mate's half alone.
-            Assert.AreEqual(50u, KillShares.AwardExperience(manifestations, new[] { context.Client, mate }, context.Client, 100), "the part before anyone's modules");
-            Assert.AreEqual(50u, context.Client.Player.Experience);
-            Assert.AreEqual(55u, mate.Player.Experience);
-            Assert.AreEqual(55u, MissionTestContext.Drain(mate).OfType<ExperienceChangedPacket>().Single().XPInfo.Gained);
+            // 92 each, and the mate's ten percent on the mate's part alone: 101.2, 101.
+            Assert.AreEqual(92u, KillShares.AwardExperience(manifestations, new[] { context.Client, mate }, context.Client, 100), "the part before anyone's modules");
+            Assert.AreEqual(92u, context.Client.Player.Experience);
+            Assert.AreEqual(101u, mate.Player.Experience);
+            Assert.AreEqual(101u, MissionTestContext.Drain(mate).OfType<ExperienceChangedPacket>().Single().XPInfo.Gained);
         }
 
         #endregion

@@ -2733,7 +2733,13 @@ namespace Rasa.Managers
         /// client adds " (+100% Kill Streak Bonus)" for 2, and shows the experience over it as
         /// the base.
         /// </param>
-        internal void GainExperience(Client client, uint experience, CritKill critKill = CritKill.None, int streakMod = 1)
+        /// <summary>
+        /// Experience gained. streakMod, groupMod and boosterMod are what it has been multiplied
+        /// by, and baseGained what it was before them (by default experience over the streak):
+        /// the client says each multiplier above 1 after the amount.
+        /// </summary>
+        internal void GainExperience(Client client, uint experience, CritKill critKill = CritKill.None, int streakMod = 1,
+            double groupMod = 1, double boosterMod = 1, uint? baseGained = null)
         {
             var player = client?.Player;
             if (player == null || experience == 0 || client.State != ClientState.Ingame ||
@@ -2805,9 +2811,12 @@ namespace Rasa.Managers
 
             player.Experience = experienceAfter;
             client.CallMethod(player.EntityId,
-                new ExperienceChangedPacket(new XPInfo(experienceAfter, experience, streakMod > 1 ? experience / (uint)streakMod : experience)
+                new ExperienceChangedPacket(new XPInfo(experienceAfter, experience,
+                    baseGained ?? (streakMod > 1 ? experience / (uint)streakMod : experience))
                 {
                     StreakMod = Math.Max(1, streakMod),
+                    GroupMod = Math.Max(1, groupMod),
+                    BoosterMod = Math.Max(1, boosterMod),
                     WasCritKill = critKill == CritKill.Own,
                     WasTeamCritKill = critKill == CritKill.Team
                 }));
