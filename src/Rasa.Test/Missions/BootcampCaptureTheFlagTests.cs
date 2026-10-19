@@ -352,6 +352,10 @@ namespace Rasa.Test.Missions
             Assert.IsTrue(harness.Manager.RecordProgress(
                 harness.Client,
                 MissionProgressEvent.Area(CaptureTheFlagMissionId, CaveInAreaId)));
+            // Reaching the doorwell blows the cave-in, and its Thrax come two seconds after
+            // (BootcampCaveInAnyRouteV13): let them come before the clock is watched.
+            harness.UtcNow += System.TimeSpan.FromSeconds(2.5);
+            harness.Manager.TickScenarios(harness.Client);
             harness.Context.Drain();
         }
 

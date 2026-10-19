@@ -320,6 +320,10 @@ namespace Rasa.Test.Missions
             Assert.IsTrue(new MissionAreaService(() => harness.Manager).RecordAcceptedMovement(
                 harness.Client, previousPosition, exit.Position));
             Assert.AreEqual(MissionObjectiveState.Completed, harness.Client.Player.Missions[1994].Objectives[2].State);
+            // Reaching the doorwell blows the cave-in, and its Thrax come two seconds after
+            // (BootcampCaveInAnyRouteV13): let them come before the clock is watched.
+            harness.UtcNow += TimeSpan.FromSeconds(2.5);
+            harness.Manager.TickScenarios(harness.Client);
             BootcampRuntimeTestHarness.PrepareDirectDamageClient(harness.Client);
             harness.Client.Player.Attributes[Attributes.Health] =
                 new ActorAttributes(Attributes.Health, 1000, 1000, 1000, 0, 0);
