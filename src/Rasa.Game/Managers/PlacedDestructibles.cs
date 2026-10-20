@@ -810,6 +810,11 @@ namespace Rasa.Managers
                     break;
             }
 
+            // A coil's wreck is no target: the client takes a coil's targetability from SetUsable
+            // alone (teslacoil.py OnEnabledChanged), not from its state.
+            if (live.Placement.Kind == Kind.TeslaCoil)
+                DynamicObjectManager.Instance.SetEnabled(obj, false);
+
             live.Stage = Stage.Idle;
             live.NextAt = 0;
             live.RespawnAt = Now() + Math.Clamp(Roll(RespawnMinMs, RespawnMaxMs), RespawnMinMs, RespawnMaxMs);
@@ -904,6 +909,10 @@ namespace Rasa.Managers
             else
                 // Destroyed to intact, to idle, to POWER_DOWN: each class has the way.
                 Show(live, up, 0, use: true);
+
+            // A coil a target again, once it is out of its destroyed state (OnEnabledChanged asks).
+            if (live.Placement.Kind == Kind.TeslaCoil)
+                DynamicObjectManager.Instance.SetEnabled(obj, true);
 
             CellManager.Instance.CellCallMethod(live.Map, obj, new DamageInfoPacket(true, false, live.MaxHitPoints, live.MaxHitPoints));
             CellManager.Instance.CellCallMethod(live.Map, obj, new UpdateHitPointsPacket((int)live.MaxHitPoints));

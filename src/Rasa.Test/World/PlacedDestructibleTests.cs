@@ -504,6 +504,42 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void APlacedCoilIsOutOfServiceWhileItIsDownAndABarrelIsNever()
+        {
+            using var world = new WorldTestContext();
+            using var placed = Put(world, Row(1, Coil, 10, 20), Row(2, Barrel, 40, 20));
+            var coil = ObjectOf(world, 1);
+            var barrel = ObjectOf(world, 2);
+            var shooter = Stand(world, coil.Position + new Vector3(30, 0, 0));
+            WorldTestContext.Drain(shooter);
+
+            Shoot(world, shooter, coil, 600);
+            var sent = Sent(shooter);
+            CollectionAssert.AreEqual(new[] { false }, Usable(sent, coil.EntityId), "teslacoil.py: SetUsable is what takes the wreck's targeting away");
+            Assert.IsTrue(IndexOf<UsePacket>(sent, coil.EntityId) < IndexOf<SetUsablePacket>(sent, coil.EntityId), "into its wreck first");
+            Assert.IsFalse(coil.IsEnabled, "and in the UsableInfo of whoever meets it");
+
+            Shoot(world, shooter, barrel, (int)barrel.CurrentHitPoints);
+            Assert.IsEmpty(Usable(Sent(shooter), barrel.EntityId), "an inert destroyable goes by its state");
+            Assert.IsTrue(barrel.IsEnabled);
+
+            _now += 60_000;
+            PlacedDestructibles.Worker(world.Map);
+            sent = Sent(shooter);
+            CollectionAssert.AreEqual(new[] { true }, Usable(sent, coil.EntityId));
+            Assert.IsTrue(IndexOf<UsePacket>(sent, coil.EntityId) < IndexOf<SetUsablePacket>(sent, coil.EntityId),
+                "out of destroyed first: OnEnabledChanged asks IsDestroyed");
+            Assert.IsTrue(coil.IsEnabled);
+            Assert.IsEmpty(Usable(sent, barrel.EntityId));
+        }
+
+        private static List<bool> Usable(List<(ulong EntityId, PythonPacket Packet)> sent, ulong entityId) =>
+            sent.Where(entry => entry.EntityId == entityId).Select(entry => entry.Packet).OfType<SetUsablePacket>().Select(packet => packet.IsEnabled).ToList();
+
+        private static int IndexOf<T>(List<(ulong EntityId, PythonPacket Packet)> sent, ulong entityId) =>
+            sent.FindIndex(entry => entry.EntityId == entityId && entry.Packet is T);
+
+        [TestMethod]
         public void AHortimonculusIsDestroyedGrownAndComesBackAsASproutThatGrows()
         {
             using var world = new WorldTestContext();
