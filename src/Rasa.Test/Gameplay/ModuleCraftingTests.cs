@@ -2059,6 +2059,36 @@ namespace Rasa.Test.Gameplay
         }
 
         [TestMethod]
+        public void AStationOnAnotherMapIsNotAnsweredEvenFromItsCoordinates()
+        {
+            using var bench = new Bench();
+
+            var armor = bench.GiveGear(ArmorClass, LootQuality.Rare, 23, Body1, 0, Body5);
+            var home = bench.Client.Player.MapChannel;
+            var elsewhere = new MapChannel { MapInfo = new MapInfo(1220, "adv_foreas_concordia_wilderness", 1556, 0), ClientList = new List<Client>() };
+
+            try
+            {
+                // Standing on the station's spot, but on another map (another copy of it, say).
+                bench.Client.Player.MapChannel = elsewhere;
+                var sent = bench.After((station, id) => station.RequestSalvageItem(bench.Client, new RequestSalvageItemPacket { KraftwerksId = id, ItemId = armor.EntityId, CraftingAction = 2 }));
+
+                Assert.AreEqual(0, sent.Count, "not answered at all");
+                Assert.IsTrue(bench.InPack(armor), "and nothing salvaged");
+                Assert.IsEmpty(bench.JobRows());
+            }
+            finally
+            {
+                bench.Client.Player.MapChannel = home;
+            }
+
+            // On the station's own map, the same request goes through.
+            var done = bench.After((station, id) => station.RequestSalvageItem(bench.Client, new RequestSalvageItemPacket { KraftwerksId = id, ItemId = armor.EntityId, CraftingAction = 2 }));
+            Assert.IsTrue(Succeeded(done));
+            Assert.IsFalse(bench.InPack(armor));
+        }
+
+        [TestMethod]
         public void ExtractionTakesTheModuleOutOfTheSlotForItsFeeAndMakesItAnItem()
         {
             using var bench = new Bench();
