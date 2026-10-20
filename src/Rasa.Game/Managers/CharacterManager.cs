@@ -41,7 +41,7 @@ namespace Rasa.Managers
         private const uint StartingAmmoQuantity = 1000;
 
         /// <summary>The colour the starting items and the recruit armour are made in.</summary>
-        private const uint StartingItemColor = 2139062144;
+        private const uint StartingItemColor = Color.ItemDefault;
         internal static readonly IReadOnlyList<uint> StartingLogos = new[] { AbilityLogos.Power };
         internal Game.Missions.Integration.IStartingExperiencePolicy StartingExperience { get; }
 
@@ -957,9 +957,9 @@ namespace Rasa.Managers
         private IEnumerable<CharacterAppearanceEntry> CreateCharacterAppearanceEntries(
             IDictionary<EquipmentData, AppearanceData> appearanceData)
         {
-            yield return new CharacterAppearanceEntry((uint)EquipmentData.Shoes, (uint)EntityClasses.ArmorRecruitV01CMNBoots, 2139062144);
-            yield return new CharacterAppearanceEntry((uint)EquipmentData.Torso, (uint)EntityClasses.ArmorRecruitV01CMNVest, 2139062144);
-            yield return new CharacterAppearanceEntry((uint)EquipmentData.Legs, (uint)EntityClasses.ArmorRecruitV01CMNLegs, 2139062144);
+            yield return new CharacterAppearanceEntry((uint)EquipmentData.Shoes, (uint)EntityClasses.ArmorRecruitV01CMNBoots, StartingItemColor);
+            yield return new CharacterAppearanceEntry((uint)EquipmentData.Torso, (uint)EntityClasses.ArmorRecruitV01CMNVest, StartingItemColor);
+            yield return new CharacterAppearanceEntry((uint)EquipmentData.Legs, (uint)EntityClasses.ArmorRecruitV01CMNLegs, StartingItemColor);
 
             using var worldUnitOfWork = _gameUnitOfWorkFactory.CreateWorld();
             var appearancesFromPacket = appearanceData

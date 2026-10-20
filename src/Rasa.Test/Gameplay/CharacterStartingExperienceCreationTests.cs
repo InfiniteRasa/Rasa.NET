@@ -184,8 +184,8 @@ namespace Rasa.Test.Gameplay
 
             // The pistol's class, in the colour the pistol itself was made in.
             Assert.AreEqual(27120U, weapon.Class);
-            Assert.AreEqual(2139062144U, weapon.Color);
-            Assert.AreEqual(2139062144U, verify.ItemEntries.Single(entry => entry.ItemTemplateId == 17131).Color);
+            Assert.AreEqual(Color.ItemDefault, weapon.Color);
+            Assert.AreEqual(Color.ItemDefault, verify.ItemEntries.Single(entry => entry.ItemTemplateId == 17131).Color);
         }
 
         [TestMethod]
@@ -220,7 +220,7 @@ namespace Rasa.Test.Gameplay
 
                 var shown = client.Player.AppearanceData[EquipmentData.Weapon];
                 Assert.AreEqual(27120U, shown.Class);
-                Assert.AreEqual(2139062144U, shown.Color.Hue);
+                Assert.AreEqual(Color.ItemDefault, shown.Color.Hue);
                 Assert.AreEqual(1, saves);
 
                 using (var verify = context.Open())

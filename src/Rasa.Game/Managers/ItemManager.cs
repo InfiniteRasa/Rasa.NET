@@ -15,10 +15,11 @@ namespace Rasa.Managers
     public class ItemManager
     {
         /// <summary>
-        /// The colour every new item is made with - looted, granted, a GM's, bought (0x7F7F7F80).
-        /// A painted item has its own (Customization).
+        /// The colour every new item is made with - looted, granted, a GM's, bought: white, the
+        /// client's colour for an unpainted piece (<see cref="Color.ItemDefault"/>). A painted
+        /// item has its own (Customization).
         /// </summary>
-        public const uint DefaultItemColor = 2139062144;
+        public const uint DefaultItemColor = Color.ItemDefault;
 
         /*      Item Packets:
          *  - SetConsumable(self, isConsumable)
