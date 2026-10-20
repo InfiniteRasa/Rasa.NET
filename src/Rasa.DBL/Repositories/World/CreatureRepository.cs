@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 
 using Microsoft.EntityFrameworkCore;
@@ -87,6 +87,71 @@ namespace Rasa.Repositories.World
             _worldContext.ChangeTracker.Clear();
         }
 
+
+        public void UpdateCreatureEditor(CreatureEntry creature, IReadOnlyList<CreatureAppearanceEntry> appearance)
+        {
+            using var transaction = _worldContext.Database.BeginTransaction();
+            var row = _worldContext.CreateTrackingQuery(_worldContext.CreatureEntries)
+                .FirstOrDefault(e => e.Id == creature.Id);
+            if (row == null)
+                throw new System.InvalidOperationException($"Creature {creature.Id} no longer exists");
+            if (row.ClassId != creature.ClassId)
+                throw new System.InvalidOperationException("Creature entity class changed concurrently");
+
+            row.Comment = creature.Comment;
+            row.Faction = creature.Faction;
+            row.Level = creature.Level;
+            row.MaxHitPoints = creature.MaxHitPoints;
+            row.NameId = creature.NameId;
+            row.RunSpeed = creature.RunSpeed;
+            row.WalkSpeed = creature.WalkSpeed;
+            row.Action1 = creature.Action1;
+            row.Action2 = creature.Action2;
+            row.Action3 = creature.Action3;
+            row.Action4 = creature.Action4;
+            row.Action5 = creature.Action5;
+            row.Action6 = creature.Action6;
+            row.Action7 = creature.Action7;
+            row.Action8 = creature.Action8;
+            _worldContext.SaveChanges();
+
+            // Appearance has no EF key. Use parameterized SQL rather than tracking keyless rows.
+            _worldContext.Database.ExecuteSqlInterpolated($"DELETE FROM creature_appearance WHERE id = {creature.Id}");
+            foreach (var item in appearance)
+            {
+                _worldContext.Database.ExecuteSqlInterpolated(
+                    $"INSERT INTO creature_appearance (id, slot_id, Class_id, color) VALUES ({creature.Id}, {item.SlotId}, {item.ClassId}, {item.Color})");
+            }
+            // Validate the database state while the transaction is still open. The editor
+            // must never report success based only on the rows it was asked to write.
+            // If the provider truncated, ignored, or otherwise changed a value, throwing
+            // here rolls back BOTH the creature and appearance changes.
+            var persisted = _worldContext.CreateNoTrackingQuery(_worldContext.CreatureEntries)
+                .Single(e => e.Id == creature.Id);
+            if (persisted.ClassId != creature.ClassId || persisted.Comment != creature.Comment ||
+                persisted.Faction != creature.Faction || persisted.Level != creature.Level ||
+                persisted.MaxHitPoints != creature.MaxHitPoints || persisted.NameId != creature.NameId ||
+                persisted.RunSpeed != creature.RunSpeed || persisted.WalkSpeed != creature.WalkSpeed ||
+                persisted.Action1 != creature.Action1 || persisted.Action2 != creature.Action2 ||
+                persisted.Action3 != creature.Action3 || persisted.Action4 != creature.Action4 ||
+                persisted.Action5 != creature.Action5 || persisted.Action6 != creature.Action6 ||
+                persisted.Action7 != creature.Action7 || persisted.Action8 != creature.Action8)
+                throw new System.InvalidOperationException(
+                    $"Creature {creature.Id} database verification failed: creature fields differ");
+
+            var persistedAppearance = _worldContext.CreateNoTrackingQuery(_worldContext.CreatureAppearanceEntries)
+                .Where(e => e.Id == creature.Id).ToList();
+            if (persistedAppearance.Count != appearance.Count ||
+                appearance.Any(wanted => !persistedAppearance.Any(saved =>
+                    saved.SlotId == wanted.SlotId && saved.ClassId == wanted.ClassId &&
+                    saved.Color == wanted.Color)))
+                throw new System.InvalidOperationException(
+                    $"Creature {creature.Id} database verification failed: appearance colors or slots differ");
+
+            transaction.Commit();
+            _worldContext.ChangeTracker.Clear();
+        }
+
         public CreatureStatEntry GetCreatureStats(uint creatureId)
         {
             var query = _worldContext.CreateNoTrackingQuery(_worldContext.CreatureStatEntries);
@@ -169,6 +234,41 @@ namespace Rasa.Repositories.World
         public List<NpcGreetingEntry> GetNpcGreetings()
         {
             return _worldContext.CreateNoTrackingQuery(_worldContext.NpcGreetingEntries).ToList();
+        }
+
+        public bool UpdateNpcGreetingEditor(uint creatureId, uint expectedId, bool expectedImportant,
+            uint greetingId, bool important)
+        {
+            using var transaction = _worldContext.Database.BeginTransaction();
+            var row = _worldContext.CreateTrackingQuery(_worldContext.NpcGreetingEntries)
+                .FirstOrDefault(e => e.Id == creatureId);
+            if ((row?.GreetingId ?? 0) != expectedId || (row?.Important ?? false) != expectedImportant)
+                return false;
+
+            if (greetingId == 0)
+            {
+                if (row != null) _worldContext.NpcGreetingEntries.Remove(row);
+            }
+            else if (row == null)
+                _worldContext.NpcGreetingEntries.Add(new NpcGreetingEntry
+                {
+                    Id = creatureId, GreetingId = greetingId, Important = important
+                });
+            else
+            {
+                row.GreetingId = greetingId;
+                row.Important = important;
+            }
+            _worldContext.SaveChanges();
+            // Query again without using the tracked row to verify the actual DB state.
+            _worldContext.ChangeTracker.Clear();
+            var persisted = _worldContext.CreateNoTrackingQuery(_worldContext.NpcGreetingEntries)
+                .FirstOrDefault(e => e.Id == creatureId);
+            if ((persisted?.GreetingId ?? 0) != greetingId ||
+                (persisted?.Important ?? false) != (greetingId != 0 && important))
+                throw new System.InvalidOperationException($"NPC greeting {creatureId} did not persist");
+            transaction.Commit();
+            return true;
         }
 
         public void SaveNpcGreeting(uint creatureId, uint greetingId)

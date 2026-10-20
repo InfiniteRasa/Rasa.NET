@@ -961,8 +961,11 @@ namespace Rasa.Test.Networking
                     new[]
                     {
                         "addaccount", "closepetition", "getallpetitions", "getopenpetitions", "healthcheck", "ingame/creature-actions",
-                        "ingame/creatures", "ingame/creatures/{id}",
-                        "ingame/items", "ingame/items/categories", "ingame/items/{id}", "ingame/session/exchange",
+                        "ingame/creatures", "ingame/creatures/update", "ingame/creatures/{id}",
+                        "ingame/items", "ingame/items/categories", "ingame/items/update", "ingame/items/{id}",
+                        "ingame/lootpools", "ingame/missions", "ingame/missions/{id}", "ingame/monsterflags", "ingame/npc-greetings",
+                        "ingame/npc-greetings/update", "ingame/session/exchange",
+                        "ingame/updatelootpools", "ingame/updatemonsterflags",
                         "kickuser", "lootpools", "monsterflags", "respondpetition", "serverstatus", "updatelootpools", "updatemonsterflags", "usersonline"
                     },
                     host.Rest.Endpoints.ToArray());

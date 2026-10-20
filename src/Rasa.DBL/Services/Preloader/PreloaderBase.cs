@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
@@ -41,6 +41,7 @@ namespace Rasa.Services.Preloader
             var columns = publicProperties.SelectMany(p => p.GetCustomAttributes<ColumnAttribute>());
             var columnNames = columns.Select(c => c.Name)
                 .Where(name => !string.IsNullOrEmpty(name));
+
             return columnNames.ToArray();
         }
 

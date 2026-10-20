@@ -19,6 +19,7 @@ namespace Rasa.Api.Ingame
             endpointName != null
             && endpointName.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase)
             && endpointName.Length > Prefix.Length
+            && !string.Equals(endpointName, "ingame/items/update", StringComparison.OrdinalIgnoreCase)
             && endpointName.IndexOf('/', Prefix.Length) < 0;
 
         protected override ApiResponse HandleAuthenticated(ApiRequest request, Client client)

@@ -289,6 +289,14 @@ namespace Rasa.Test.World
                     Assert.IsTrue(repository.SaveNpcGreetingImportant(99, true));
                     Assert.IsFalse(repository.SaveNpcGreetingImportant(4242, true), "no line, nothing to mark");
                     repository.SaveNpcGreeting(99, 466);
+
+                    // In-game editor's atomic greeting+important update, including stale snapshots.
+                    Assert.IsFalse(repository.UpdateNpcGreetingEditor(100, 999, false, 1620, true),
+                        "a stale browser/overlay snapshot cannot overwrite another editor");
+                    Assert.IsTrue(repository.UpdateNpcGreetingEditor(100, 19, false, 1620, true));
+                    Assert.IsTrue(repository.UpdateNpcGreetingEditor(100, 1620, true, 19, false));
+                    Assert.IsTrue(repository.UpdateNpcGreetingEditor(101, 146, false, 0, false));
+                    Assert.IsTrue(repository.UpdateNpcGreetingEditor(101, 0, false, 146, false));
                 }
 
                 using (var context = (WorldContext)PersistenceIntegrationTests.CreateContext(typeof(SqliteWorldContext), database))
