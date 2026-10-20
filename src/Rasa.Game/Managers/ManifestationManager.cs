@@ -2518,14 +2518,22 @@ namespace Rasa.Managers
                 new PlayerFlagsPacket(ReferenceEquals(client, recipient)
                     ? CharacterFlagProjection.ToNativeIds(player.PlayerFlags)
                     : Array.Empty<uint>()),
-                new IsTrialAccountPacket(player.IsTrialAccount),
-                // Their own client is told about their fists as well (Unarmed).
-                forSelf ? Unarmed.EquipmentFor(player) : new EquipmentInfoPacket(client.Player.Inventory.EquippedInventory),
-                // "Received because the manifestation was loaded on the server", and only ever
-                // for the player's own. It is what fills the advancement tracker; it offers
-                // nothing, so it goes out whether the list is empty or not.
-                new TierAdvancementInfoPacket(AvailableClassIds(player))
+                new IsTrialAccountPacket(player.IsTrialAccount)
             };
+
+            // Their equipment to their own client only, their fists included (Unarmed). Another
+            // client holds none of the item entities it names: Recv_EquipmentInfo logs "Told about
+            // equipment we don't have" for each, then posts UI_UPDATE_ARMED_WEAPON, which the
+            // viewer's own weapon tray and weapon targeting answer as if their own weapon had
+            // changed (weapondrawerwindow.py HandleUpdateArmedWeapon, targeting.py
+            // OnUpdateArmedWeapon). Others see the weapon from the appearance data.
+            if (forSelf)
+                entityData.Add(Unarmed.EquipmentFor(player));
+
+            // "Received because the manifestation was loaded on the server", and only ever
+            // for the player's own. It is what fills the advancement tracker; it offers
+            // nothing, so it goes out whether the list is empty or not.
+            entityData.Add(new TierAdvancementInfoPacket(AvailableClassIds(player)));
 
             // Someone who arrives while the player is crouched would otherwise draw them standing:
             // nothing else here carries posture to other clients.
