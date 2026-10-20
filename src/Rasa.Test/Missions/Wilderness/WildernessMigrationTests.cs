@@ -603,7 +603,9 @@ namespace Rasa.Test.Missions.Wilderness
             var wilderness = rows.Where(row => row.ContentRevision == WildernessMissionDataV1.Revision).ToArray();
 
             Assert.AreEqual(12, bootcamp.Length);
-            Assert.AreEqual(97, wilderness.Length);
+            // 97 from the Wilderness migrations, and Kill Proctor Fulgor's (427/6) from
+            // Wilderness_fulgor_indicator, dated after them.
+            Assert.AreEqual(98, wilderness.Length);
             Assert.AreEqual(rows.Length, bootcamp.Length + wilderness.Length);
             // Bootcamp's keys are missionobjectiveindicatorlanguage ids: 430 "Eloh Approach" to 439
             // "Cave-in Location".
