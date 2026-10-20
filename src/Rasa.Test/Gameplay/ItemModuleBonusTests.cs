@@ -393,6 +393,7 @@ namespace Rasa.Test.Gameplay
             // "Regen: 5%" from the helmet and 10% from the weapon in hand, on the attribute...
             Assert.AreEqual(regen, attributes[Attributes.Regen].NormalMax);
             Assert.AreEqual(regen + 15, attributes[Attributes.Regen].CurrentMax);
+            Assert.AreEqual(regen + 15, attributes[Attributes.Regen].Current, "and the window's figure with it");
 
             // ...which is the rate health and power regenerate at; "Regen Health: 6 HP/sec" and
             // "Regen Power: 5 per sec" are a second's worth on top of it.

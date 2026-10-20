@@ -51,6 +51,7 @@ namespace Rasa.Test.Gameplay
             Assert.AreEqual(health, client.Player.Attributes[Attributes.Health].Current);
             Assert.AreEqual(chi, client.Player.Attributes[Attributes.Chi].Current);
             Assert.AreEqual(regen, client.Player.Attributes[Attributes.Regen].CurrentMax);
+            Assert.AreEqual(regen, client.Player.Attributes[Attributes.Regen].Current, "what the attributes window prints");
         }
 
         [TestMethod]

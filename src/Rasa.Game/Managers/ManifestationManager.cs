@@ -4896,6 +4896,9 @@ namespace Rasa.Managers
 
             attribute[Attributes.Regen].NormalMax   = totalRegen; // regenRate in percent
             attribute[Attributes.Regen].CurrentMax  = Math.Max(0, totalRegen + regenBonus);
+            // What the attributes window prints as the rate (attributeswindow.py: int(regen.current)
+            // %); its colour compares the two maxima. Left at 0, it read "Regen 0%".
+            attribute[Attributes.Regen].Current     = attribute[Attributes.Regen].CurrentMax;
 
             if (fullreset)
             {
