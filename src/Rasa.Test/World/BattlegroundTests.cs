@@ -1161,6 +1161,25 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void TheMedicalMarkerOverADeadPlayerIsInTheirTeamsColour()
+        {
+            using var f = new Fixture();
+            var red = f.Join(Battlegrounds.Red);
+            var blue = f.Join(Battlegrounds.Blue);
+
+            f.Begin();
+
+            foreach (var (client, level) in new[] { (red, PlayerDeath.RezMeRed), (blue, PlayerDeath.RezMeBlue) })
+            {
+                client.Player.Attributes[Attributes.Health] = new ActorAttributes(Attributes.Health, 1000, 1000, 0, 0, 0);
+                PlayerDeath.AtZero(f.World.Map, client.Player, null);
+
+                // OVERHEAD_MEDICAL_PVP_RED at 2, _BLUE at 1.
+                Assert.AreEqual(level, client.Player.ActiveEffects.Values.Single(e => e.TypeId == PlayerDeath.RezMeTypeId).EffectLevel);
+            }
+        }
+
+        [TestMethod]
         public void AUseOfAPointsObjectThatRunsItsTimeTakesThePoint()
         {
             using var f = new Fixture();
