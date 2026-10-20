@@ -25,7 +25,8 @@ namespace Rasa.Managers
     ///    DESTROYED (191-194, 196-199); CLANFORCEFIELD's USE_CFF_STATE_AFS_OWNS / BANE_OWNS /
     ///    CLAN_OWNS (211-213), its damage animations picked from the hit points, and
     ///    USE_STATE_DESTROYED; OWNABLEFORCEFIELD takes a target category (Recv_TargetCategory) and
-    ///    a hue (Recv_SetHue, 0-255 each) and is destroyed at USE_STATE_DESTROYED;
+    ///    a hue (Recv_SetHue, 0-255 each), and has two states, USE_STATE_ACTIVE (170) standing and
+    ///    USE_STATE_DESTROYED (2) down;
     ///  - hit points through Recv_DamageInfo and Recv_UpdateHitPoints, as any destroyable usable.
     ///
     /// The maps build the gates - human outpost fences, fort walls, Bane outpost walls - with
@@ -164,8 +165,14 @@ namespace Rasa.Managers
             if (kind == Kind.Clan)
                 return health <= 0 ? UseObjectState.StateDestroyed : side == Side.A ? UseObjectState.CffStateAfsOwns : UseObjectState.CffStateBaneOwns;
 
+            // Class 10000083 has 170 and 2 and nothing else (usabledata): its hum, loop effect
+            // (arch_hum_forcefield_loop.pkg) and animation are keyed on 170, its wreck mesh on 2,
+            // and its transitions are 2 to 170 and 170 to 2. USE_STATE_NULL (97) is not one of its
+            // states: the client's _SetState raised KeyError on it and kept no state, so the field
+            // stood without its hum or effect, and the Use to 2 that should have taken it down,
+            // from no state, was dropped.
             if (kind == Kind.Ownable)
-                return health <= 0 ? UseObjectState.StateDestroyed : UseObjectState.StateNull;
+                return health <= 0 ? UseObjectState.StateDestroyed : UseObjectState.StateActive;
 
             var a = side == Side.A;
 
@@ -199,8 +206,8 @@ namespace Rasa.Managers
         /// destroyed and back up, with one shortcut, destroyed straight to intact (event 166, the
         /// field coming back up); client/augmentations/usable.py drops a Use whose (current, new)
         /// pair it has no transition for, so a hit across two bands, a kill from intact or a repair
-        /// from 25% would leave the field drawn as it was. The clan field's and the ownable field's
-        /// states go from any to any, so theirs is the one step.
+        /// from 25% would leave the field drawn as it was. The clan field's states go from any to
+        /// any (79), and the ownable field has two, active and destroyed (84), so theirs is the one step.
         /// </summary>
         public static IReadOnlyList<UseObjectState> Steps(Kind kind, UseObjectState from, UseObjectState to)
         {

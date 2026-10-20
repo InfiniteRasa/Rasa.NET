@@ -111,6 +111,44 @@ namespace Rasa.Test.World
             }
         }
 
+        /// <summary>usabledata for class 10000083 (OWNABLEFORCEFIELD 84): states 2 and 170, transitions 2 to 170 and 170 to 2.</summary>
+        private static readonly HashSet<(int, int)> OwnableTransitions = new() { (2, 170), (170, 2) };
+
+        [TestMethod]
+        public void AnOwnableFieldStandsActiveAndGoesDownAndUpByTheTransitionsItsClassHas()
+        {
+            Assert.AreEqual(UseObjectState.StateActive, ForceFields.StateOf(ForceFields.Kind.Ownable, ForceFields.Side.A, 100, 100));
+            Assert.AreEqual(UseObjectState.StateDestroyed, ForceFields.StateOf(ForceFields.Kind.Ownable, ForceFields.Side.B, 0, 100));
+
+            using var world = new WorldTestContext();
+            var watcher = world.CreateClient(x: 10, z: 5);
+            CellManager.Instance.AddToWorld(watcher);
+            var field = ForceFields.Place(world.Map, ForceFields.ClassOf("ownable"), ForceFields.Side.B, new Vector3(10, 0, 0), 0f, 1000);
+
+            try
+            {
+                Assert.AreEqual(UseObjectState.StateActive, field.Object.StateId, "created in the state its hum and loop effect are keyed on");
+                WorldTestContext.Drain(watcher);
+
+                ForceFields.Damage(field, 400, 0);
+                Assert.IsEmpty(Uses(watcher, field), "no bands: standing is one state");
+
+                ForceFields.Damage(field, field.Health, 0);
+                var down = Uses(watcher, field);
+                CollectionAssert.AreEqual(new[] { UseObjectState.StateDestroyed }, down);
+                Assert.Contains(((int)UseObjectState.StateActive, (int)down.Single()), OwnableTransitions);
+
+                ForceFields.Repair(field, 0);
+                var up = Uses(watcher, field);
+                CollectionAssert.AreEqual(new[] { UseObjectState.StateActive }, up);
+                Assert.Contains(((int)UseObjectState.StateDestroyed, (int)up.Single()), OwnableTransitions);
+            }
+            finally
+            {
+                ForceFields.Remove(field);
+            }
+        }
+
         private static List<UseObjectState> Uses(Client client, ForceFields.Field field) =>
             WorldTestContext.Drain(client).Select(packet => packet.Message).OfType<CallMethodMessage>()
                 .Where(message => message.EntityId == field.Object.EntityId)
