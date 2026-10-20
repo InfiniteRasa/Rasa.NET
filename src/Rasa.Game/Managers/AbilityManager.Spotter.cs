@@ -252,6 +252,9 @@ namespace Rasa.Managers
                 HateToMasterPercent = info.Get(AbilityProperty.MinionHateToMasterPercent)
             };
 
+            // Run 9 / walk 5 is the placeholder every creature row had: the class's own gait instead.
+            EntityMovementRates.Apply(spotter);
+
             if (spec.AppearanceWeaponClassId != 0)
                 spotter.AppearanceData[EquipmentData.Weapon] = new AppearanceData { SlotId = EquipmentData.Weapon, Class = spec.AppearanceWeaponClassId, Color = Color.RandomColor(), Hue2 = Color.RandomColor() };
 

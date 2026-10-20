@@ -560,6 +560,9 @@ namespace Rasa.Managers
                 Stance = MinionStance.Passive
             };
 
+            // Run 9 / walk 5 is the placeholder every creature row had: the class's own gait instead.
+            EntityMovementRates.Apply(creature);
+
             creature.Attributes.Add(Attributes.Body, new ActorAttributes(Attributes.Body, 1, 1, 1, 0, 0));
             creature.Attributes.Add(Attributes.Mind, new ActorAttributes(Attributes.Mind, 1, 1, 1, 0, 0));
             creature.Attributes.Add(Attributes.Spirit, new ActorAttributes(Attributes.Spirit, 1, 1, 1, 0, 0));

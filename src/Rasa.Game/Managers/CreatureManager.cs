@@ -846,6 +846,7 @@ namespace Rasa.Managers
             creature.NameId = data.NameId;
             creature.RunSpeed = data.RunSpeed;
             creature.WalkSpeed = data.WalkSpeed;
+            EntityMovementRates.Apply(creature);
             creature.AppearanceData = appearance;
             creature.Actions = actions;
         }

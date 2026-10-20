@@ -188,6 +188,9 @@ namespace Rasa.Managers
                 State = CharacterState.Idle
             };
 
+            // Run 9 / walk 5 is the placeholder every creature row had: the class's own gait instead.
+            EntityMovementRates.Apply(clone);
+
             var enemyClient = mapChannel.ClientList.Find(c => c?.Player == enemy);
             var weaponItem = enemyClient != null ? InventoryManager.Instance.CurrentWeapon(enemyClient) : null;
             var weapon = EntityClassManager.Instance.GetWeaponClassInfo(weaponItem);

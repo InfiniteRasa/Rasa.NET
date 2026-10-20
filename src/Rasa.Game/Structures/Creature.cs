@@ -265,6 +265,9 @@ namespace Rasa.Structures
             NameId = data.NameId;
             RunSpeed = data.RunSpeed;
             WalkSpeed = data.WalkSpeed;
+
+            // The seed's 9 and 5 are placeholders: the class's own gait instead.
+            EntityMovementRates.Apply(this);
         }
 
         public Creature()
