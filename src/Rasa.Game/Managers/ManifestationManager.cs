@@ -2548,6 +2548,26 @@ namespace Rasa.Managers
             if (!forSelf && player.State == CharacterState.Dead)
                 entityData.Add(new DeadOnArrivalPacket());
 
+            // What they are doing with their weapon and how they stand, to anyone who meets them
+            // while they do it. Every actor starts holstered (no tool), at ease and not away, and
+            // otherwise a draw, a stance and AFK reach only those who could see them at the
+            // moment it changed: a player met mid-fight showed the weapon on their back, without
+            // its glow, standing at ease, until they next drew, stowed or changed stance.
+            //  - the weapon in hand (actor.py Recv_WeaponReady: _tool_ready and the appearance
+            //    again, which is what puts the weapon and its FX in the hand);
+            //  - the combat stance (Recv_RequestVisualCombatMode), as the cell is told it when it
+            //    changes (ActorManager.UpdateCombatMode);
+            //  - away (manifestation.py Recv_PlayerAfk): the idle marker over their head. Not to
+            //    their own client, which would say "You are AFK" again.
+            if (!forSelf && player.WeaponReady)
+                entityData.Add(new WeaponReadyPacket(true));
+
+            if (!forSelf && player.InCombatMode)
+                entityData.Add(new RequestVisualCombatModePacket(true));
+
+            if (!forSelf && player.IsAFK)
+                entityData.Add(new PlayerAfkPacket(true));
+
             // Stealth Armor's radar signature, to everyone who meets them; and to their own client
             // how far their radar reaches for a stealthed enemy (a Spotter). Both start at 1.0.
             if (!forSelf && player.DetectionRangePercent != 100)
