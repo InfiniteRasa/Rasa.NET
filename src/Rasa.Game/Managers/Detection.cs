@@ -25,11 +25,23 @@ namespace Rasa.Managers
     /// those clients, which is what the cell code does when a player walks out of and back into
     /// range. Squad mates keep seeing them: it is a squad cloak, and its shimmer is theirs to
     /// follow.
+    ///
+    /// A GM can also go out of sight on purpose (.invisible, <see cref="SetGmInvisible"/>): from
+    /// every player who is not a GM, squad mates included, and from every creature. The same
+    /// destroying and re-creating does it, and the two do not undo each other: a cloak that ends
+    /// on an invisible GM gives them back to the other GMs only, and a GM who turns visible while
+    /// cloaked is given only to their squad.
     /// </summary>
     public static class Detection
     {
-        /// <summary>Whether anything on this actor is keeping it out of sight.</summary>
+        /// <summary>Whether anything on this actor is keeping it out of sight: a cloak, or a GM's invisibility.</summary>
         public static bool IsHidden(Actor actor)
+        {
+            return IsCloaked(actor) || actor is Manifestation { GmInvisible: true };
+        }
+
+        /// <summary>Whether an effect on this actor is cloaking it (Cloak Wave's STEALTH_EFFECT).</summary>
+        public static bool IsCloaked(Actor actor)
         {
             if (actor == null)
                 return false;
@@ -39,6 +51,18 @@ namespace Rasa.Managers
                     return true;
 
             return false;
+        }
+
+        /// <summary>Whether this client sees invisible GMs: a GM's own, of any level.</summary>
+        public static bool SeesInvisibleGms(Client viewer)
+        {
+            return (viewer?.AccountEntry?.Level ?? 0) >= (byte)GmLevel.Observer;
+        }
+
+        /// <summary>Whether a GM's invisibility keeps them from this client: it is on, and the client is not a GM's.</summary>
+        public static bool IsGmHiddenFrom(Manifestation player, Client viewer)
+        {
+            return player != null && player.GmInvisible && viewer?.Player != player && !SeesInvisibleGms(viewer);
         }
 
         /// <summary>Whether anything on this actor is keeping it from seeing.</summary>
@@ -60,13 +84,19 @@ namespace Rasa.Managers
             return !IsBlind(creature) && !IsHidden(target);
         }
 
-        /// <summary>Whether a player is out of sight for this onlooker: hidden, and not in their squad.</summary>
+        /// <summary>
+        /// Whether a player is out of sight for this onlooker: an invisible GM and the onlooker no
+        /// GM, or cloaked and the onlooker not in their squad.
+        /// </summary>
         public static bool IsHiddenFrom(Manifestation player, Client viewer)
         {
             if (player == null || viewer?.Player == null || viewer.Player == player)
                 return false;
 
-            if (!IsHidden(player))
+            if (IsGmHiddenFrom(player, viewer))
+                return true;
+
+            if (!IsCloaked(player))
                 return false;
 
             return !SameSquad(player, viewer.Player);
@@ -88,8 +118,11 @@ namespace Rasa.Managers
 
             foreach (var viewer in Onlookers(mapChannel, player))
             {
-                viewer.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(player.EntityId));
-                AbilityManager.HideMorphFrom(viewer, player);
+                // An invisible GM's: they never had it.
+                if (IsGmHiddenFrom(player, viewer))
+                    continue;
+
+                TakeFrom(viewer, player);
             }
 
             // And a team mate, not of their squad, who held them from across the map.
@@ -106,13 +139,96 @@ namespace Rasa.Managers
 
             foreach (var viewer in Onlookers(mapChannel, player))
             {
-                viewer.CallMethod(SysEntity.ClientMethodId,
-                    new CreatePhysicalEntityPacket(player.EntityId, player.EntityClass, ManifestationManager.Instance.CreatePlayerEntityData(client, viewer)));
-                GameEffectManager.ShowEffectsTo(viewer, player);
+                // Still an invisible GM to this one.
+                if (IsGmHiddenFrom(player, viewer))
+                    continue;
 
-                // Partway through claiming a control point: shown at it.
-                DynamicObjectManager.Instance.ShowClaimsTo(viewer, new[] { client });
+                GiveTo(viewer, client);
             }
+        }
+
+        /// <summary>
+        /// .invisible: a GM out of sight of every player who is not a GM, or back in it. Whoever
+        /// it changes things for - those around them, creatures fighting them, the team mates who
+        /// hold them from across the map, their friends and their clan - is told. False when it
+        /// was already so.
+        /// </summary>
+        public static bool SetGmInvisible(Client gm, bool invisible)
+        {
+            var player = gm?.Player;
+
+            if (player == null || player.GmInvisible == invisible)
+                return false;
+
+            var mapChannel = player.MapChannel;
+            var sawThem = mapChannel == null
+                ? new List<Client>()
+                : ViewersAround(mapChannel, player).Where(viewer => !IsHiddenFrom(player, viewer)).ToList();
+
+            player.GmInvisible = invisible;
+            player.GmInvisibleWhispered.Clear();
+
+            if (mapChannel != null)
+            {
+                if (invisible)
+                {
+                    // Off every creature's table, as a cloak takes them.
+                    Threat.Forget(mapChannel, player);
+
+                    foreach (var viewer in sawThem)
+                        if (IsHiddenFrom(player, viewer))
+                            TakeFrom(viewer, player);
+
+                    FarAllies.Hidden(player);
+                }
+                else
+                {
+                    // Not to anyone a cloak still keeps them from; the team mates across the map
+                    // are given them back by FarAllies' next pass.
+                    foreach (var viewer in ViewersAround(mapChannel, player))
+                        if (!sawThem.Contains(viewer) && !IsHiddenFrom(player, viewer))
+                            GiveTo(viewer, gm);
+                }
+            }
+
+            SocialManager.Instance.GmVisibilityChanged(gm);
+            ClanManager.Instance.GmVisibilityChanged(gm);
+
+            return true;
+        }
+
+        /// <summary>A player's entity, taken off one client.</summary>
+        private static void TakeFrom(Client viewer, Manifestation player)
+        {
+            viewer.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(player.EntityId));
+            AbilityManager.HideMorphFrom(viewer, player);
+        }
+
+        /// <summary>A player's entity, given to one client as it is now: clan, effects, a claim under way.</summary>
+        private static void GiveTo(Client viewer, Client client)
+        {
+            var player = client.Player;
+
+            ClanManager.Instance.ShowClanTo(viewer, player);
+            viewer.CallMethod(SysEntity.ClientMethodId,
+                new CreatePhysicalEntityPacket(player.EntityId, player.EntityClass, ManifestationManager.Instance.CreatePlayerEntityData(client, viewer)));
+            GameEffectManager.ShowEffectsTo(viewer, player);
+
+            // Partway through claiming a control point: shown at it.
+            DynamicObjectManager.Instance.ShowClaimsTo(viewer, new[] { client });
+        }
+
+        /// <summary>Every other player around this one, squad or not.</summary>
+        private static List<Client> ViewersAround(MapChannel mapChannel, Manifestation player)
+        {
+            var found = new List<Client>();
+
+            foreach (var cell in CellManager.CellsIn(mapChannel, player.Cells))
+                foreach (var viewer in cell.ClientList)
+                    if (viewer?.Player != null && viewer.Player != player && !found.Contains(viewer))
+                        found.Add(viewer);
+
+            return found;
         }
 
         /// <summary>The players around this one who are not in their squad - who lose sight of them.</summary>

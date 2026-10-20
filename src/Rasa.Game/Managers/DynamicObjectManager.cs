@@ -32,6 +32,7 @@ namespace Rasa.Managers
         private readonly Action<Client> _disconnect;
         private readonly MissionApplication _missionManager;
         private readonly CharacterManager _characterManager;
+        private readonly int _localTravelHoldMs;
         private MapChannelManager Maps => _maps ?? MapChannelManager.Instance;
         private CharacterManager Characters => _characterManager ?? CharacterManager.Instance;
 
@@ -40,6 +41,13 @@ namespace Rasa.Managers
 
         /// <summary>The wormhole network's locks (wormhole_lock), read by <see cref="InitWormholes"/>.</summary>
         public Wormholes Wormholes { get; } = new Wormholes();
+
+        /// <summary>
+        /// Where each local teleporter takes whoever steps onto it, by teleporter id
+        /// (local_teleporter_link), read by <see cref="InitLocalTeleporters"/>. One with no entry
+        /// takes nobody anywhere.
+        /// </summary>
+        private Dictionary<uint, uint> _localTeleporterLinks = new Dictionary<uint, uint>();
 
         /// <summary>
         /// The UseObject arg id each kind of object is used with, which is what picks the recovery
@@ -98,7 +106,7 @@ namespace Rasa.Managers
                     lock (InstanceLock)
                     {
                         if (_instance == null)
-                            _instance = new DynamicObjectManager(Server.GameUnitOfWorkFactory);
+                            _instance = new DynamicObjectManager(Server.GameUnitOfWorkFactory, localTravelHoldMs: WaypointHoldMs);
                     }
                 }
 
@@ -111,9 +119,11 @@ namespace Rasa.Managers
             Action<Client, CharacterUpdate, object> updateCharacter = null,
             Action<Client> disconnect = null,
             MissionApplication missionManager = null,
-            CharacterManager characterManager = null)
+            CharacterManager characterManager = null,
+            int localTravelHoldMs = 0)
         {
             _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
+            _localTravelHoldMs = Math.Max(0, localTravelHoldMs);
             _maps = maps;
             _clock = clock ?? (() => Environment.TickCount64);
             _updateCharacter = updateCharacter ?? ((client, update, value) =>
@@ -128,6 +138,7 @@ namespace Rasa.Managers
             InitFootlockers();
             InitTeleporters();
             InitWormholes();
+            InitLocalTeleporters();
 
             // After the teleporters: a control point's hospital and waypoint are among them.
             ControlPoints.Instance.Init(_gameUnitOfWorkFactory);
@@ -231,6 +242,13 @@ namespace Rasa.Managers
             if (obj.DynamicObjectType == DynamicObjectType.PlacedUsable)
             {
                 PlacedUsables.RequestUse(client, obj, packet);
+                return;
+            }
+
+            // A lootable container the server put down (WorldContainers): its own rules.
+            if (obj.DynamicObjectType == DynamicObjectType.Container)
+            {
+                WorldContainers.RequestUse(client, obj, packet);
                 return;
             }
 
@@ -525,6 +543,9 @@ namespace Rasa.Managers
             // crafting stations
             KraftwerksManager.Instance.Worker(mapChannel);
 
+            // gibblets: the loot a corpse left, gone once emptied or its time is up
+            LootDispenserManager.Instance.GibbletWorker(mapChannel, delta);
+
             // teleporters
             foreach (var entry in mapChannel.Teleporters)
             {
@@ -536,9 +557,11 @@ namespace Rasa.Managers
 
                     if (teleporter.RespawnTime <= 0)
                     {
+                        // Running before it is put in the world: AddToWorld shows it at once to
+                        // whoever is in range, in the state it has then (TeleporterRunningState).
+                        teleporter.StateId = TeleporterRunningState(teleporter.EntityClassId);
                         CellManager.Instance.AddToWorld(mapChannel, teleporter);
                         teleporter.IsInWorld = true;
-                        teleporter.StateId = UseObjectState.TsState1;
                     }
                 }
 
@@ -571,6 +594,18 @@ namespace Rasa.Managers
             }
         }
 
+        /// <summary>
+        /// The state a placed teleporter is shown running in. A two-state teleporter's field and
+        /// effects are in USE_TS_STATE_1 (56): the waypoint pads, wormholes and the Eloh bridge
+        /// waypoint carry their effect there (usabledata.specialFX (class, 56, USE_STATE_NULL)).
+        /// The human teleporter (UsableTwoStateHumTeleporter, 7895) is the other way about: its
+        /// own mesh, arch_hum_teleporter.geo with its blue field, is USE_TS_STATE_0 (55), and 56
+        /// swaps it for arch_hum_teleporter_disabled.geo (usabledata.alternateMesh (7895, 56,
+        /// USE_STATE_NULL)), the pad dark (MapUsables sends Thunderhead's unused four 56 for that).
+        /// </summary>
+        internal static UseObjectState TeleporterRunningState(EntityClasses classId) =>
+            (uint)classId == MapUsables.HumanTeleporter ? UseObjectState.TsState0 : UseObjectState.TsState1;
+
         internal void DynamicObjectProximityWorker(MapChannel mapChannel, DynamicObject obj, long delta)
         {
             switch (obj.DynamicObjectType)
@@ -588,6 +623,9 @@ namespace Rasa.Managers
 
                         break;
                     }
+                case DynamicObjectType.LocalTeleporter:
+                    LocalTeleporterWorker(obj);
+                    break;
                 // Control point
                 case DynamicObjectType.ControlPoint:
                 default:
@@ -689,6 +727,10 @@ namespace Rasa.Managers
         {
             if (dynamicObject == null)
                 return;
+
+            // One this client holds from beyond its cells is taken off it first: made anew, not
+            // updated (Landmarks).
+            Landmarks.Entering(client, dynamicObject);
 
             if (dynamicObject.EntityClassId == 0)
                 return;
@@ -795,6 +837,9 @@ namespace Rasa.Managers
             client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(dynamicObject.EntityId, dynamicObject.EntityClassId, entityData));
             PublishRewardLoot(client, dynamicObject);
 
+            // A lootable container: opened or closed to this client, their lock, and what they have left in it (WorldContainers).
+            WorldContainers.Introduce(client, dynamicObject);
+
             // A Hortimonculus plant: its owner and its hit points.
             if (dynamicObject.DynamicObjectType == DynamicObjectType.Hortimonculus)
                 AbilityManager.ShowPlantTo(client, dynamicObject);
@@ -813,6 +858,15 @@ namespace Rasa.Managers
 
             // A propellant pool's proxy: the pool burning on it.
             PropellantPools.ShowTo(client, dynamicObject);
+
+            // An EMP bomb still waiting to go off: its effect, for the blast to play on.
+            AbilityManager.ShowPlacedBombTo(client, dynamicObject);
+
+            // A mag flash grenade still waiting to go off: its delay effect, for the flash to play on.
+            AbilityManager.ShowFlashGrenadeTo(client, dynamicObject);
+
+            // A firework's, a flare's or a smoke grenade's: what is going on it (AbilityManager.Toys).
+            AbilityManager.ShowLocationEffectTo(client, dynamicObject);
 
             // Someone is partway through using it. Players are introduced before objects, and the
             // user is standing at it, so this client already has the actor the effect runs to.
@@ -1581,6 +1635,43 @@ namespace Rasa.Managers
             Wormholes.Load(locks);
         }
 
+        /// <summary>Reads local_teleporter_link (<see cref="LoadLocalTeleporterLinks"/>).</summary>
+        internal void InitLocalTeleporters()
+        {
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
+            LoadLocalTeleporterLinks(unitOfWork.Teleporters.GetLocalTeleporterLinks());
+        }
+
+        /// <summary>
+        /// Takes the rows of local_teleporter_link. A row is kept only when both ends are local
+        /// teleporters (teleporter rows of type 1), different ones, on the same map; any other is
+        /// logged and left out, and the teleporter it is from takes nobody anywhere.
+        /// </summary>
+        internal void LoadLocalTeleporterLinks(IEnumerable<LocalTeleporterLinkEntry> rows)
+        {
+            var links = new Dictionary<uint, uint>();
+
+            foreach (var row in rows ?? Enumerable.Empty<LocalTeleporterLinkEntry>())
+            {
+                if (row.FromTeleporterId == row.ToTeleporterId ||
+                    !Teleporters.TryGetValue(row.FromTeleporterId, out var from) ||
+                    !Teleporters.TryGetValue(row.ToTeleporterId, out var to) ||
+                    from.ObjectData is not WaypointInfo { WaypointType: WaypointType.LocalTeleporter } ||
+                    to.ObjectData is not WaypointInfo { WaypointType: WaypointType.LocalTeleporter } ||
+                    from.MapContextId != to.MapContextId)
+                {
+                    Logger.WriteLog(LogType.Error,
+                        $"local_teleporter_link {row.FromTeleporterId} -> {row.ToTeleporterId} is not from one local teleporter to another on the same map: it takes nobody anywhere.");
+                    continue;
+                }
+
+                links[row.FromTeleporterId] = row.ToTeleporterId;
+            }
+
+            _localTeleporterLinks = links;
+            Logger.WriteLog(LogType.Initialize, $"Loaded {links.Count} local teleporter links.");
+        }
+
         internal void CheckPlayerWaypoint(Client client, WaypointInfo objectData)
         {
             if (Characters.StartingExperience.IsExitWaypoint(objectData.WaypointId))
@@ -1872,15 +1963,31 @@ namespace Rasa.Managers
         }
 
         /// <summary>
+        /// How long a player who has picked a waypoint on the map they are on stands in its
+        /// teleport-out effect before they are moved: 3 seconds. In footage of the live game the
+        /// player picks the destination, the teleport-out effect plays out over two or three
+        /// seconds while the body fades away, and only then do they appear at the far waypoint;
+        /// it is the same effect (TeleportType.Default) and the same time as a passage's
+        /// (<see cref="PassageHoldMs"/>). Sent the Teleport at once, the client cut the effect
+        /// short: no fade, and the player stood at the far end before it had played.
+        ///
+        /// The game server's own manager holds for this long (<see cref="Instance"/>); one made
+        /// without it moves the player at once.
+        /// </summary>
+        internal const int WaypointHoldMs = 3000;
+
+        /// <summary>
         /// The player is taken to a place on the map they are on, as a waypoint takes them: held
-        /// until the client has acknowledged the teleport (<see cref="TeleportAcknowledge"/>).
-        /// Called with the client's lock held, by SelectWaypoint and ReturnToWormhole.
+        /// in the teleport-out effect for the manager's hold (<see cref="WaypointHoldMs"/>), moved
+        /// (<see cref="PassagesWorker"/>), then held until the client has acknowledged the
+        /// teleport (<see cref="TeleportAcknowledge"/>). Called with the client's lock held, by
+        /// SelectWaypoint (a waypoint, or a wormhole on the same map) and ReturnToWormhole.
         /// </summary>
         private void BeginLocalTravel(Client client, MapChannel map, Vector3 destination, double rotation)
         {
-            var transfer = StartLocalTravel(client, map, destination, rotation, 0, false);
+            var transfer = StartLocalTravel(client, map, destination, rotation, _localTravelHoldMs, false);
 
-            if (transfer != null)
+            if (transfer != null && transfer.DepartAt == 0)
                 DepartLocalTravel(client, transfer);
         }
 
@@ -1891,7 +1998,8 @@ namespace Rasa.Managers
         /// holdMs later (PassagesWorker); the time is added to the deadline the client has to
         /// answer it by. Null, with the client told, when travel is not configured.
         /// </summary>
-        private PlayerTransfer StartLocalTravel(Client client, MapChannel map, Vector3 destination, double rotation, int holdMs, bool isPassage)
+        private PlayerTransfer StartLocalTravel(Client client, MapChannel map, Vector3 destination, double rotation, int holdMs, bool isPassage,
+            DynamicObject arrivalPad = null)
         {
             var timeout = client.Server?.Config.GameConfig.TransferTimeoutSeconds ??
                 Config.GameConfig.DefaultTransferTimeoutSeconds;
@@ -1914,6 +2022,8 @@ namespace Rasa.Managers
                 Deadline = checked(now + timeout * 1000L + Math.Max(0, holdMs)),
                 IsDropship = false,
                 IsPassage = isPassage,
+                ArrivalPad = arrivalPad,
+                IsHeld = holdMs > 0,
                 DepartAt = holdMs > 0 ? now + holdMs : 0
             };
             client.PendingTransfer = transfer;
@@ -1946,8 +2056,15 @@ namespace Rasa.Managers
             var destination = transfer.DestinationPosition;
             var rotation = transfer.DestinationRotation;
 
+            ShowDeparture(client);
+
             transfer.DepartAt = 0;
             CloseWaypointWindows(client, transfer.OriginMap);
+
+            // On the far pad's list as they land on it, so it does not send them back.
+            if (transfer.ArrivalPad != null && !transfer.ArrivalPad.TriggeredByPlayers.Contains(client))
+                transfer.ArrivalPad.TriggeredByPlayers.Add(client);
+
             client.State = ClientState.Teleporting;
             client.SetWorldPosition(destination, rotation);
             CellManager.Instance.UpdateVisibility(client);
@@ -1991,9 +2108,12 @@ namespace Rasa.Managers
         {
             var closed = false;
 
+            // A local teleporter opens no window: off its list, with nothing to close.
             if (map != null)
                 foreach (var teleporter in map.Teleporters.Values)
-                    closed |= teleporter.TriggeredByPlayers.Remove(client);
+                    if (teleporter.TriggeredByPlayers.Remove(client) &&
+                        teleporter.ObjectData is not WaypointInfo { WaypointType: WaypointType.LocalTeleporter })
+                        closed = true;
 
             closed |= PersonalWaypoints.CloseWindow(map, client);
 
@@ -2018,7 +2138,7 @@ namespace Rasa.Managers
         /// to everyone at the far end - then held there until their client has answered. False
         /// when they cannot travel now, and nothing has been done.
         /// </summary>
-        internal bool TakePassage(Client client, Vector3 destination, double rotation)
+        internal bool TakePassage(Client client, Vector3 destination, double rotation, DynamicObject arrivalPad = null)
         {
             lock (client.SyncRoot)
             {
@@ -2029,17 +2149,18 @@ namespace Rasa.Managers
                     !CellManager.TryGetCellCoordinates(destination, out _, out _) || !double.IsFinite(rotation))
                     return false;
 
-                StartLocalTravel(client, client.Player.MapChannel, destination, rotation, PassageHoldMs, true);
+                StartLocalTravel(client, client.Player.MapChannel, destination, rotation, PassageHoldMs, true, arrivalPad);
 
                 return client.PendingTransfer != null;
             }
         }
 
         /// <summary>
-        /// Moves on the passage teleports whose effect has played (TakePassage). One whose player
-        /// can no longer go - dead, logging out, gone from the map - is called off: the effect
-        /// stopped for everyone who saw it start (actor.py Recv_TeleportFailed) and the player
-        /// let go where they stand.
+        /// Moves on the teleports held for their effect whose effect has played: passages
+        /// (TakePassage) and waypoints (<see cref="WaypointHoldMs"/>). One whose player can no
+        /// longer go - dead, logging out, gone from the map - is called off: the effect stopped
+        /// for everyone who saw it start (actor.py Recv_TeleportFailed) and the player let go
+        /// where they stand.
         /// </summary>
         internal void PassagesWorker(MapChannel map)
         {
@@ -2052,7 +2173,7 @@ namespace Rasa.Managers
             {
                 var held = client?.PendingTransfer;
 
-                if (held == null || !held.IsPassage || held.DepartAt == 0 || now < held.DepartAt)
+                if (held == null || !held.IsHeld || held.DepartAt == 0 || now < held.DepartAt)
                     continue;
 
                 lock (client.SyncRoot)
@@ -2254,9 +2375,9 @@ namespace Rasa.Managers
                 // _TelportMovementCompleted needs: the arrival would play and the rest never
                 // happen.
                 //
-                // Through a passage: everyone already at the far end sees them arrive (actor.py
-                // _PlayTeleportArrivalFX), as at a dropship's pad.
-                if (transfer.IsPassage)
+                // Through a passage, or a waypoint held in its effect: everyone already at the far
+                // end sees them arrive (actor.py _PlayTeleportArrivalFX), as at a dropship's pad.
+                if (transfer.IsHeld)
                     client.CellIgnoreSelfCallMethod(client, new TeleportArrivalPacket());
 
                 client.CallMethod(SysEntity.ClientMethodId, new UnrequestMovementBlockPacket());
@@ -2289,6 +2410,27 @@ namespace Rasa.Managers
             }
         }
 
+        /// <summary>
+        /// The end of the teleport-out, to everyone who can see the traveller go: PostTeleport
+        /// (actor.py Recv_PostTeleport), the departure effect where they stand, for the
+        /// PreTeleport they were shown (teleportertype DEFAULT: 8551, PreTeleport's 8555 and the
+        /// arrival's 8550 being the other two). Nothing sent it: those around saw the fade and
+        /// then the body jump to the far end, or vanish off the map, with no flash where it had
+        /// been.
+        ///
+        /// Sent from where they are, before they are moved or taken off the map, so it plays
+        /// there and reaches those who see them there. Not to their own client: the Teleport
+        /// plays it there (Recv_Teleport calls Recv_PostTeleport), and a ride to another map
+        /// takes it to a loading screen.
+        /// </summary>
+        private static void ShowDeparture(Client client)
+        {
+            if (client.Player?.MapChannel == null || !CellManager.Instance.IsInWorld(client))
+                return;
+
+            client.CellIgnoreSelfCallMethod(client, new PostTeleportPacket());
+        }
+
         private void DepartDropship(Client client, Dropship dropship)
         {
             lock (client.SyncRoot)
@@ -2297,6 +2439,9 @@ namespace Rasa.Managers
                 if (transfer == null || !transfer.IsDropship || transfer.HasDeparted ||
                     transfer.DropshipId != dropship.EntityId || CheckTransferTimeout(client))
                     return;
+
+                // Gone from where they boarded, for everyone who saw them board.
+                ShowDeparture(client);
 
                 if (ReferenceEquals(transfer.OriginMap, transfer.DestinationMap))
                 {
@@ -2339,23 +2484,10 @@ namespace Rasa.Managers
                     return;
                 }
 
-                // Effects end with the map, as MapChannelManager.RemovePlayer ends them - a
-                // dropship ride never goes through it. A sprint used to ride along: the arrival
-                // introduced the player to everyone without it, their own client included, while
-                // the arrival's ActorInfo gave that client the sprint's speed and its drain picked
-                // up again, under an effect id handed out by the map they had left and with no
-                // buff on any screen to show for it. The timed buffs are kept aside, clocks stopped,
-                // and go on again when the ride lands them (EffectCarry).
-                EffectCarry.Stash(client.Player);
-                GameEffectManager.Instance.ClearEffects(transfer.OriginMap, client.Player);
-                ManifestationManager.Instance.RemovePlayerCharacter(client);
-                ForgetPlayer(transfer.OriginMap, client);
-
-                CommunicatorManager.Instance.LeaveMapChannels(client);
-                LootDispenserManager.Instance.RemoveForOwner(transfer.OriginMap, client);
-                CellManager.Instance.RemoveFromWorld(client);
-                transfer.OriginMap.ClientList.RemoveAll(member => member == client);
-                Maps.DetachMissionScenes(client, transfer.OriginMap);
+                // Off the map as a map link takes them off it: effects (the timed buffs kept aside
+                // for the landing), queued actions, weapon and stance, minions and pet, kill
+                // streak, weapon clips, and every roster of the map's.
+                Maps.LeaveForTransfer(client, transfer.OriginMap, this);
                 transfer.HasDeparted = true;
                 client.Player.MapChannel = transfer.DestinationMap;
                 client.Player.MapContextId = transfer.DestinationMap.MapInfo.MapContextId;
@@ -2487,6 +2619,54 @@ namespace Rasa.Managers
 
                 foreach (var trigger in cell.MapTriggers)
                     trigger.TriggeredBy.RemoveAll(c => c == client);
+            }
+        }
+
+        /// <summary>
+        /// A local teleporter (teleporter rows of type 1) takes whoever steps onto it - within
+        /// 2 m, as a waypoint opens its window - to the local teleporter its local_teleporter_link
+        /// row names, on the same map, as a passage that shows itself does: held in the
+        /// teleport-out effect for <see cref="PassageHoldMs"/>, then moved onto the far pad,
+        /// facing as its row does (<see cref="TakePassage"/>). Nothing is gained and no window
+        /// opens: the client has no name for a local teleporter.
+        ///
+        /// Whoever is on a pad is on its list (TriggeredByPlayers) until they step off, and is not
+        /// taken again until then. The traveller arrives on the far pad already on its list
+        /// (PlayerTransfer.ArrivalPad), so it does not send them straight back; stepping off and
+        /// on again does. A pad with no link keeps no list.
+        /// </summary>
+        internal void LocalTeleporterWorker(DynamicObject pad)
+        {
+            var mapChannel = pad.RuntimeMapChannel;
+            if (mapChannel == null || pad.ObjectData is not WaypointInfo info)
+                return;
+
+            // Off the pad, or gone: free to be taken again. One whose teleport is under way stays
+            // on the list of the pad they are leaving (until they have left it) or arriving on.
+            for (var i = pad.TriggeredByPlayers.Count - 1; i >= 0; i--)
+            {
+                var client = pad.TriggeredByPlayers[i];
+
+                if (client.State == ClientState.Disconnected || client.Player?.MapChannel != mapChannel ||
+                    (client.PendingTransfer == null && client.State == ClientState.Ingame && !client.Player.IsNear2m(pad)))
+                    pad.TriggeredByPlayers.RemoveAt(i);
+            }
+
+            if (!_localTeleporterLinks.TryGetValue(info.WaypointId, out var toId) ||
+                !mapChannel.Teleporters.TryGetValue(toId, out var destination))
+                return;
+
+            if (!CellManager.TryGetCellCoordinates(pad.Position, out var x, out var z))
+                return;
+
+            foreach (var client in CellManager.Instance.GetClientsInCells(mapChannel, CellManager.Instance.CreateCellMatrix(mapChannel, x, z)))
+            {
+                if (client.State != ClientState.Ingame || client.PendingTransfer != null ||
+                    !client.Player.IsNear2m(pad) || pad.TriggeredByPlayers.Contains(client))
+                    continue;
+
+                pad.TriggeredByPlayers.Add(client);
+                TakePassage(client, destination.Position + new Vector3(0, 1, 0), destination.Rotation, destination);
             }
         }
 

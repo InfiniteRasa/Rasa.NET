@@ -119,6 +119,41 @@ namespace Rasa.Test.Gameplay
         }
 
         [TestMethod]
+        public void ArmorThatAsksForNoSkillIsTheKindItsClassNameSays()
+        {
+            // 51 armor templates have no skill requirement row (122722 and its neighbours among
+            // them); they were listed under Accessory.
+            var motorAssist = Worn("Armor_T1_MotorAssist_V04_UNC_Vest_01_to_02", EquipmentData.Torso);
+            var hazmat = Worn("Armor_T2_Hazmat_V02_UNC_Gloves_50_to_50", EquipmentData.Gloves);
+            var bio = Worn("Armor_T3_Bio_V02_UNC_Vest_15_to_19", EquipmentData.Torso);
+            var graviton = Worn("Armor_T3_Graviton_V06_RAR_Helmet_50_to_50", EquipmentData.Helmet);
+            var mech = Worn("Armor_T3_Mech_V01_CMN_Legs_45_to_49", EquipmentData.Legs);
+            var reflective = Worn("Armor_T2_Reflective_V01_CMN_Boots_10_to_14", EquipmentData.Shoes);
+            var stealth = Worn("Armor_T3_Stealth_V01_CMN_Gloves_30_to_34", EquipmentData.Gloves);
+            var recruit = Worn("Armor_Recruit_V01_CMN_Vest", EquipmentData.Torso);
+            var beret = Worn("Armor_Special_VetReward_Green_Beret", EquipmentData.Helmet);
+            var eloh = Worn("Armor_Unique_Eloh_Vest_35", EquipmentData.Torso);
+
+            Assert.AreEqual("Armor_MotorAssist_Chest", AuctionItemCategories.CategoryOf(motorAssist));
+            Assert.AreEqual("Armor_Hazmat_Hands", AuctionItemCategories.CategoryOf(hazmat));
+            Assert.AreEqual("Armor_BioSuit_Chest", AuctionItemCategories.CategoryOf(bio));
+            Assert.AreEqual("Armor_Graviton_Head", AuctionItemCategories.CategoryOf(graviton));
+            Assert.AreEqual("Armor_MechSuit_Legs", AuctionItemCategories.CategoryOf(mech));
+            Assert.AreEqual("Armor_Reflective_Feet", AuctionItemCategories.CategoryOf(reflective));
+            Assert.AreEqual("Armor_Stealth_Hands", AuctionItemCategories.CategoryOf(stealth));
+
+            Assert.AreEqual("Armor_Accessory", AuctionItemCategories.CategoryOf(recruit), "no kind in its name");
+            Assert.AreEqual("Armor_Accessory", AuctionItemCategories.CategoryOf(beret));
+            Assert.AreEqual("Armor_Accessory", AuctionItemCategories.CategoryOf(eloh));
+
+            Assert.IsFalse(AuctionItemCategories.InCategory(motorAssist, 113), "no longer an accessory");
+
+            // A skill still decides over the name.
+            var named = Worn("Armor_T2_Hazmat_V01_CMN_Helmet_24_to_28", EquipmentData.Helmet, skill: 21);
+            Assert.AreEqual("Armor_Reflective_Head", AuctionItemCategories.CategoryOf(named));
+        }
+
+        [TestMethod]
         public void ConsumablesAndCraftingGoByWhatTheItemIs()
         {
             var cartridges = Thing("Ammo_Cartridge_1_Standard_Grade", InventoryCategory.Consumable);

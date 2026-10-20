@@ -131,6 +131,60 @@ namespace Rasa.Test.World
             Assert.AreEqual(ClientState.Ingame, client.State);
         }
 
+        // A ride off the map leaves the map as a map link does: it had a copy of its own that
+        // left target, weapon, stance, kill streak and the map's rosters with the player.
+        [TestMethod]
+        public void ADropshipRideLeavesTheMapAsAMapLinkDoes()
+        {
+            using var world = new WorldTestContext();
+            world.AddClass(EntityClasses.UsableCrSpawnerHumDropshipV01);
+            var client = world.CreateClient();
+            CellManager.Instance.AddToWorld(client);
+            var destination = CreateDestination();
+            var maps = CreateMaps(world, destination);
+            var manager = CreateDropshipManager(maps);
+            using var managers = new ManagerInstances(maps, manager);
+            KillStreaks.Reset();
+
+            try
+            {
+                var player = client.Player;
+                KillStreaks.Set(client, 2);
+                Assert.AreEqual(2, KillStreaks.LevelOf(client));
+                StartDropshipTransfer(world, destination, client, manager);
+
+                player.Target = 4242;
+                player.WeaponReady = true;
+                player.InCombatMode = true;
+                player.RequestedCombatMode = true;
+                player.AutoFireCombatMode = true;
+                player.TrackingTargetEntityId = 4242;
+                player.InsideMapLinks.Add(7);
+                player.RegionIds = new List<uint> { 1 };
+                player.RegionsHeld = true;
+
+                Depart(world.Map, manager, client);
+
+                Assert.IsTrue(client.PendingTransfer.HasDeparted);
+                Assert.AreSame(destination, player.MapChannel);
+                Assert.AreEqual(0UL, player.Target, "a target of the map left");
+                Assert.IsFalse(player.WeaponReady);
+                Assert.IsFalse(player.InCombatMode);
+                Assert.IsFalse(player.RequestedCombatMode);
+                Assert.IsFalse(player.AutoFireCombatMode);
+                Assert.AreEqual(0UL, player.TrackingTargetEntityId);
+                Assert.AreEqual(0, KillStreaks.LevelOf(client), "a kill streak is of its map");
+                Assert.IsEmpty(player.InsideMapLinks);
+                Assert.IsNull(player.RegionIds);
+                Assert.IsFalse(player.RegionsHeld);
+                Assert.IsFalse(world.Map.ClientList.Contains(client));
+            }
+            finally
+            {
+                KillStreaks.Reset();
+            }
+        }
+
         // BR-166: a buff carried across a map change goes on again where the player's own client
         // is told of it - once they are in the world, not while they are still Teleporting.
         [TestMethod]
@@ -193,6 +247,89 @@ namespace Rasa.Test.World
                 destination.ClientList.Clear();
             }
         }
+
+        [TestMethod]
+        public void AClanMemberArrivingByDropshipIsGivenTheirOwnEntityWithTheirClan()
+        {
+            using var world = new WorldTestContext();
+            world.AddClass(EntityClasses.UsableCrSpawnerHumDropshipV01);
+            var client = world.CreateClient();
+            client.Player.ClanId = 77;
+            CellManager.Instance.AddToWorld(client);
+            var destination = CreateDestination();
+            var maps = CreateMaps(world, destination);
+            var manager = CreateDropshipManager(maps);
+            using var managers = new ManagerInstances(maps, manager);
+            StartDropshipTransfer(world, destination, client, manager);
+            Depart(world.Map, manager, client);
+            WorldTestContext.Drain(client);
+
+            RouteMapLoaded(client);
+
+            Assert.AreEqual(77u, OwnClanId(client), "the entity the client makes again carries the clan");
+        }
+
+        [TestMethod]
+        public void AClanMemberThroughAMapLinkIsGivenTheirOwnEntityWithTheirClan()
+        {
+            using var world = new WorldTestContext();
+            var client = world.CreateClient();
+            client.Player.ClanId = 77;
+            var destination = CreateDestination();
+            CellManager.Instance.AddToWorld(client);
+            var maps = CreateMaps(world, destination);
+
+            // The map link tells the clan's feuds of the arrival, which asks the clan for the
+            // member's rank: a member of it, in the cache, as a server has them.
+            var members = ClanManager.Instance.ClanMembers;
+            ClanManager.Instance.ClanMembers = new System.Collections.Concurrent.ConcurrentDictionary<uint, Lazy<List<ClanMemberEntry>>>(
+                new[]
+                {
+                    new KeyValuePair<uint, Lazy<List<ClanMemberEntry>>>(77, new Lazy<List<ClanMemberEntry>>(() =>
+                        new List<ClanMemberEntry> { new() { ClanId = 77, CharacterId = client.Player.Id, Rank = 0, Note = "" } }))
+                });
+
+            Assert.IsTrue(maps.ChangeMap(client, destination.MapInfo.MapContextId, new Vector3(400, 5, 0), 0));
+            WorldTestContext.Drain(client);
+
+            try
+            {
+                maps.MapLoaded(client);
+
+                Assert.AreEqual(77u, OwnClanId(client));
+            }
+            finally
+            {
+                ClanManager.Instance.ClanMembers = members;
+                CellManager.Instance.RemoveFromWorld(client);
+                destination.ClientList.Clear();
+            }
+        }
+
+        [TestMethod]
+        public void TheClanGoesWithThePlayersEntityOnlyWhenTheyHaveOne()
+        {
+            using var world = new WorldTestContext();
+            var member = world.CreateClient();
+            var other = world.CreateClient(5, 0);
+            member.Player.ClanId = 77;
+
+            var own = ManifestationManager.Instance.CreatePlayerEntityData(member, member);
+            Assert.AreEqual(77u, own.OfType<ClanIdPacket>().Single().ClanId);
+            Assert.AreEqual(77u, ManifestationManager.Instance.CreatePlayerEntityData(member, other).OfType<ClanIdPacket>().Single().ClanId,
+                "to another's client too, for the tag over the name (ClanTagTests)");
+            Assert.IsFalse(ManifestationManager.Instance.CreatePlayerEntityData(other, other).OfType<ClanIdPacket>().Any(),
+                "no clan, nothing: every manifestation starts in none");
+        }
+
+        /// <summary>The clan id in the creation of the player's own entity on their own client, or null.</summary>
+        private static uint? OwnClanId(Rasa.Game.Client client) =>
+            WorldTestContext.Drain(client)
+                .Select(packet => packet.Message).OfType<CallMethodMessage>()
+                .Select(message => message.Packet).OfType<Rasa.Packets.Game.Server.CreatePhysicalEntityPacket>()
+                .Where(create => create.EntityId == client.Player.EntityId)
+                .SelectMany(create => create.EntityData).OfType<ClanIdPacket>()
+                .Select(packet => (uint?)packet.ClanId).SingleOrDefault();
 
         [TestMethod]
         public void BuffsStillAsideWhenThePlayerLeavesAgainGoWithThem()
@@ -536,6 +673,85 @@ namespace Rasa.Test.World
                 manager.Dropships.Remove(ship.EntityId);
                 EntityManager.Instance.FreeEntity(ship.EntityId);
             }
+        }
+
+        // Those who saw the traveller board see the flash where they were as the ship takes them
+        // (PostTeleport, after the PreTeleport fade), before the body goes off the map. Nothing
+        // sent it: the body vanished with no departure effect.
+        [TestMethod]
+        public void ThoseAroundSeeTheDepartureEffectBeforeTheBodyGoesOffTheMap()
+        {
+            using var world = new WorldTestContext();
+            world.AddClass(EntityClasses.UsableCrSpawnerHumDropshipV01);
+            var client = world.CreateClient();
+            var watcher = world.CreateClient(5, 0);
+            CellManager.Instance.AddToWorld(client);
+            CellManager.Instance.AddToWorld(watcher);
+            var destination = CreateDestination();
+            var maps = CreateMaps(world, destination);
+            var manager = CreateDropshipManager(maps);
+            using var managers = new ManagerInstances(maps, manager);
+            StartDropshipTransfer(world, destination, client, manager);
+            WorldTestContext.Drain(watcher);
+
+            Depart(world.Map, manager, client);
+
+            var seen = Departure(watcher, client.Player.EntityId);
+            Assert.AreEqual(1, seen.Count(kind => kind == "pre"), "the fade as they board");
+            Assert.AreEqual(1, seen.Count(kind => kind == "post"), "the flash as they go");
+            Assert.IsTrue(seen.IndexOf("pre") < seen.IndexOf("post"));
+            Assert.IsTrue(seen.IndexOf("post") < seen.IndexOf("destroy"), "where the body was");
+            Assert.IsFalse(Departure(client, client.Player.EntityId).Contains("post"), "not to the traveller, on their way to a loading screen");
+        }
+
+        [TestMethod]
+        public void ARideOnTheSameMapShowsTheDepartureEffectBeforeTheBodyMoves()
+        {
+            using var world = new WorldTestContext();
+            world.AddClass(EntityClasses.UsableCrSpawnerHumDropshipV01);
+            var client = world.CreateClient();
+            var watcher = world.CreateClient(5, 0);
+            CellManager.Instance.AddToWorld(client);
+            CellManager.Instance.AddToWorld(watcher);
+            var maps = CreateMaps(world, CreateDestination());
+            var manager = CreateDropshipManager(maps);
+            using var managers = new ManagerInstances(maps, manager);
+            WaypointTravelTests.AddWaypoint(manager, world.Map, 10, Vector3.Zero, type: WaypointType.Dropship);
+            WaypointTravelTests.AddWaypoint(manager, world.Map, 20, new Vector3(30, 5, 0), type: WaypointType.Dropship);
+            client.Player.GainedWaypoints.Add(new CharacterTeleporterEntry(client.Player.Id, 20, (byte)WaypointType.Dropship));
+            manager.SelectWaypoint(client, new SelectWaypointPacket { MapInstanceId = 1, WaypointId = 20 });
+            Assert.IsTrue(client.PendingTransfer?.IsDropship == true, "a ride, on the same map");
+            WorldTestContext.Drain(watcher);
+
+            Depart(world.Map, manager, client);
+
+            var seen = Departure(watcher, client.Player.EntityId);
+            Assert.AreEqual(1, seen.Count(kind => kind == "post"));
+            Assert.IsTrue(seen.IndexOf("post") < seen.IndexOf("move"), "where they boarded, before the body moves");
+            Assert.IsFalse(Departure(client, client.Player.EntityId).Contains("post"), "their own client plays it from the Teleport");
+        }
+
+        /// <summary>What a client was sent about the traveller, in order: their fade, the departure, a move of the body, its removal.</summary>
+        internal static List<string> Departure(Rasa.Game.Client client, ulong traveller)
+        {
+            var seen = new List<string>();
+
+            foreach (var message in WorldTestContext.Drain(client).Select(p => p.Message))
+            {
+                if (message is MoveObjectMessage move && move.EntityId == traveller)
+                    seen.Add("move");
+                else if (message is CallMethodMessage call)
+                {
+                    if (call.EntityId == traveller && call.Packet is PreTeleportPacket)
+                        seen.Add("pre");
+                    else if (call.EntityId == traveller && call.Packet is PostTeleportPacket)
+                        seen.Add("post");
+                    else if (call.Packet is DestroyPhysicalEntityPacket destroy && destroy.EntityId == traveller)
+                        seen.Add("destroy");
+                }
+            }
+
+            return seen;
         }
 
         internal static MapChannel CreateDestination()

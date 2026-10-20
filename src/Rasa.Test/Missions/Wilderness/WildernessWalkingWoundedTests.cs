@@ -199,7 +199,7 @@ namespace Rasa.Test.Missions.Wilderness
             var matthew = WildernessRanjaGorgeTests.RequireNpc(harness, 201, 123);
             var quincy = WildernessRanjaGorgeTests.RequireNpc(harness, 202, 124);
             Assert.AreEqual(121U, quincy.Npc.NpcPackageId);
-            WildernessRanjaGorgeTests.AssertSelectable(WildernessRanjaGorgeTests.Offer(harness, matthew, 697),
+            WildernessRanjaGorgeTests.AssertSelectable(WildernessRanjaGorgeTests.Offer(harness, matthew, 697), 697,
                 (11567, 6495), (3061, 11893));
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, matthew.EntityId, 697));
             var lease = harness.Manager.PublicActors.Handle(harness.Map, 201);

@@ -179,6 +179,17 @@ namespace Rasa.Memory
             return Reader.ReadInt64();
         }
 
+        /// <summary>
+        /// A whole number in whichever form the client marshalled it: a Python int, or a long once
+        /// it is past what an int holds. int(text) in the client gives a long for a typed amount
+        /// past 2147483647 (a ten-digit one can be), and ReadInt throws on a long - a throw out of
+        /// Read closes the connection.
+        /// </summary>
+        public long ReadInteger()
+        {
+            return PeekType() == PythonType.Long ? ReadLong() : ReadInt();
+        }
+
         public ulong ReadULong()
         {
             var type = Reader.ReadByte();

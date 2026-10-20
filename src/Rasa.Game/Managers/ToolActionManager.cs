@@ -265,7 +265,8 @@ namespace Rasa.Managers
             mapChannel.PerformRecovery.Add(
                 new ActionData(client.Player, packet.ActionId, packet.ActionArgId, targetId, windup)
                 {
-                    Args = (uint)Math.Max(amount, 0)
+                    Args = (uint)Math.Max(amount, 0),
+                    StunInterrupts = true
                 });
         }
 
@@ -574,11 +575,20 @@ namespace Rasa.Managers
             // Spent before the roll, so that a failure costs the same as a success. Without this
             // the decode chance is decoration: a 55% cipher retried until it lands is a 100%
             // cipher that takes longer, and the tool levels stop meaning anything.
-            obj.Lock.CipherAttemptsLeft--;
+            var usableLock = WorldContainers.LockFor(client, obj);
+            usableLock.CipherAttemptsLeft--;
 
             // The chance is the tool class's min damage - 55 at level 5, 100 at 50.
             if (Next(100) >= (int)action.Args)
                 return PlayerMessage.PmUseObjectUsableLocked;
+
+            // A lootable container's lock is each player's own (WorldContainers): open to this
+            // one and their squad, and locked to everyone else still.
+            if (WorldContainers.LiveOf(obj) is { } container)
+            {
+                WorldContainers.Unlocked(client, container);
+                return null;
+            }
 
             Unlock(obj);
             return null;
@@ -606,12 +616,16 @@ namespace Rasa.Managers
             if (!obj.IsEnabled)
                 return PlayerMessage.PmTargetInvalid;
 
-            var usableLock = obj.Lock;
+            // A lootable container has a lock for each player, and a state for each (WorldContainers).
+            var usableLock = WorldContainers.LockFor(client, obj);
+            var state = WorldContainers.LiveOf(obj) is { } container
+                ? WorldContainers.StateFor(container, client.Player.Id)
+                : obj.StateId;
 
             // "not target.IsCipherable()" - no lock, no cipher level, already open, or sitting in
             // a state its lock does not apply to. All four are the same refusal to the player,
             // which is what the client would have said.
-            if (usableLock == null || !usableLock.IsCipherableIn(obj.StateId))
+            if (usableLock == null || !usableLock.IsCipherableIn(state))
                 return PlayerMessage.PmTargetInvalid;
 
             // Already worked over. Checked before the range and skill rules so that a lock nobody
@@ -687,12 +701,28 @@ namespace Rasa.Managers
             return null;
         }
 
-        /// <summary>Biological, Mechanical, or null when the class carries neither.</summary>
-        private static CreatureFlag? SubstanceOf(Creature creature)
+        /// <summary>
+        /// What harvest.py says to a harvest of this kind at this creature for what it is made of:
+        /// Salvage refuses a BIOLOGICAL creature, Tissue Extraction a MECHANICAL one, and a
+        /// MACHINA - part flesh, part machine, and neither of the other two - neither. Asked of
+        /// the flags the client was sent (CreatureManager.CreatureFlagsOf), as it asks them. A
+        /// creature with none of the three is refused by both, since nothing is known about what
+        /// it is made of. Null when the harvest may go on.
+        /// </summary>
+        internal static PlayerMessage? SubstanceRefusal(Creature creature, uint harvestArg)
         {
-            foreach (var flag in FlagsOf(creature))
-                if (flag == CreatureFlag.Biological || flag == CreatureFlag.Mechanical)
-                    return flag;
+            var flags = CreatureManager.CreatureFlagsOf(creature);
+            var biological = flags.Contains((int)CreatureFlag.Biological);
+            var mechanical = flags.Contains((int)CreatureFlag.Mechanical);
+
+            if (!biological && !mechanical && !flags.Contains((int)CreatureFlag.Machina))
+                return PlayerMessage.PmHarvestFailNotHarvestable;
+
+            if (harvestArg == Harvest.SalvageArg && biological)
+                return PlayerMessage.PmTargetInvalid;
+
+            if (harvestArg == Harvest.TissueExtractionArg && mechanical)
+                return PlayerMessage.PmTargetInvalid;
 
             return null;
         }
@@ -741,6 +771,11 @@ namespace Rasa.Managers
 
             if (client.Player.State == CharacterState.Dead)
                 return PlayerMessage.PmActionFailedActorDead;
+
+            // Stunned or knocked down: the client blocks its actions and tools and says this
+            // (Actor.PerformAction, AreActionsBlocked), as the server does for an ability.
+            if (Stuns.IsStunned(client.Player))
+                return PlayerMessage.PmCannotPerformActionNow;
 
             // basetoolaction.py: "if not actor.IsWeaponReady(): PM_CANNOT_PERFORM_ACTION_NOW"
             if (!client.Player.WeaponReady)
@@ -937,19 +972,8 @@ namespace Rasa.Managers
 
             var species = SpeciesOf(creature);
 
-            // harvest.py: Salvage refuses a BIOLOGICAL creature, Tissue Extraction refuses a
-            // MECHANICAL one. A creature with no flags at all - the 128 classes no species was
-            // matched to - is refused by both, since nothing is known about what it is made of.
-            var substance = SubstanceOf(creature);
-
-            if (substance == null)
-                return PlayerMessage.PmHarvestFailNotHarvestable;
-
-            if (packet.ActionArgId == Harvest.SalvageArg && substance == CreatureFlag.Biological)
-                return PlayerMessage.PmTargetInvalid;
-
-            if (packet.ActionArgId == Harvest.TissueExtractionArg && substance == CreatureFlag.Mechanical)
-                return PlayerMessage.PmTargetInvalid;
+            if (SubstanceRefusal(creature, packet.ActionArgId) is PlayerMessage refusal)
+                return refusal;
 
             // Nothing is known to come off this species. Refused before the roll so the player is
             // not charged ammo and an attempt for a corpse that could never have paid out.

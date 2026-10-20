@@ -24,9 +24,11 @@ namespace Rasa.Managers
     ///    one; otherwise the kind its class name says (<see cref="WeaponKinds"/>), and Weapon alone
     ///    when it says none;
     ///  - armor and clothing (the other equipment slots): the armor its skill requirement is for
-    ///    (<see cref="ArmorSkills"/> - every armor template asks for one), in the slot it is worn
-    ///    in (<see cref="ArmorSlots"/>). Equipment that asks for no armor skill - clothing,
-    ///    rewards, face pieces - is Accessory, with Upper Face and Lower Face for those slots.
+    ///    (<see cref="ArmorSkills"/>), in the slot it is worn in (<see cref="ArmorSlots"/>). 51
+    ///    armor templates ask for no skill (122673, 122722-122754, 122809-122813, 122846-122850,
+    ///    130430-130436); they go by the armor their class name says, Armor_T1_MotorAssist_... and
+    ///    the like (<see cref="ArmorKinds"/>). Equipment that is neither - clothing, rewards, face
+    ///    pieces, the Recruit set - is Accessory, with Upper Face and Lower Face for those slots.
     ///    Hair, faces and the creature shields are in no category;
     ///  - Mimeogel is Mimeomech, and junk loot (Loot_Junk_) is Salvage;
     ///  - the fabrication ingredients are Consumables, Resources: the raw materials (Metal1 and
@@ -79,6 +81,22 @@ namespace Rasa.Managers
             [48] = "Armor_Stealth",         // T3_RANGER_STEALTH_ARMOR
             [57] = "Armor_MechSuit",        // T3_SAPPER_MECH_ARMOR
             [66] = "Armor_BioSuit"          // T3_BIOTECHNICIAN_BIO_ARMOR
+        };
+
+        /// <summary>
+        /// The armor kinds by the word an armor class name has after its tier, Armor_T2_Hazmat_...:
+        /// for the armor templates that ask for no armor skill. Every Armor_T class name has one of
+        /// these seven.
+        /// </summary>
+        private static readonly IReadOnlyDictionary<string, string> ArmorKinds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["MotorAssist"] = "Armor_MotorAssist",
+            ["Reflective"] = "Armor_Reflective",
+            ["Hazmat"] = "Armor_Hazmat",
+            ["Graviton"] = "Armor_Graviton",
+            ["Stealth"] = "Armor_Stealth",
+            ["Mech"] = "Armor_MechSuit",
+            ["Bio"] = "Armor_BioSuit"
         };
 
         /// <summary>The Tools skill (T2_SPECIALIST_TOOLS).</summary>
@@ -165,7 +183,7 @@ namespace Rasa.Managers
                 return WeaponCategory(template, words, skill);
 
             if (slot != null)
-                return WornCategory(slot.Value, skill);
+                return WornCategory(slot.Value, skill, words);
 
             if ((uint)template.Class == ItemModules.MimeogelClassId)
                 return "Crafting_Mimeogel";
@@ -219,17 +237,27 @@ namespace Rasa.Managers
             return "Weapon";
         }
 
-        private static string WornCategory(EquipmentData slot, int skill)
+        private static string WornCategory(EquipmentData slot, int skill, string[] words)
         {
             if (!WornSlots.Contains(slot))
                 return null;
 
             ArmorSlots.TryGetValue(slot, out var part);
 
-            if (ArmorSkills.TryGetValue(skill, out var armor))
+            if (ArmorSkills.TryGetValue(skill, out var armor) || ArmorKindOf(words, out armor))
                 return part != null && CodeByName.ContainsKey($"{armor}_{part}") ? $"{armor}_{part}" : armor;
 
             return part != null && CodeByName.ContainsKey($"Armor_Accessory_{part}") ? $"Armor_Accessory_{part}" : "Armor_Accessory";
+        }
+
+        /// <summary>The armor an Armor_T&lt;tier&gt;_&lt;kind&gt;_... class name says it is.</summary>
+        private static bool ArmorKindOf(string[] words, out string armor)
+        {
+            armor = null;
+
+            return words.Length > 2 && Is(words, 0, "Armor") && words[1].Length == 2
+                && char.ToUpperInvariant(words[1][0]) == 'T' && char.IsDigit(words[1][1])
+                && ArmorKinds.TryGetValue(words[2], out armor);
         }
 
         private static bool IsResource(string className, string[] words, bool ammunition) =>

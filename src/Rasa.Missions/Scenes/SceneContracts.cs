@@ -23,7 +23,9 @@ namespace Rasa.Missions.Scenes
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SceneObjectConversation Conversation = null,
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Definitions.ActorGameplayPolicy GameplayPolicy = null,
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SceneObjectAction UseAction = null,
-        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SceneObjectDestruction Destruction = null);
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SceneObjectDestruction Destruction = null,
+        // An object seen from further off than its cells: metres (Managers.Landmarks).
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] float ViewRadius = 0);
     public sealed record SceneObjectAction(uint MissionId, uint ObjectiveId, uint SequenceId, uint ActionArgId = 1);
     public sealed record SceneObjectDestruction(uint MissionId, uint ObjectiveId, uint SequenceId,
         uint HitPoints = 100, uint DestroyedState = 2);
@@ -31,7 +33,11 @@ namespace Rasa.Missions.Scenes
         uint DialogObjectiveId, uint PlayerFlagId = 1,
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] Definitions.MissionDialogueKind Kind =
             Definitions.MissionDialogueKind.Completion);
-    public sealed record SceneWaypoint(ScenePosition Position, double Orientation = 0, uint PauseMilliseconds = 0);
+    public sealed record SceneWaypoint(ScenePosition Position, double Orientation = 0, uint PauseMilliseconds = 0,
+        // Held and fought from: on a route that resumes after combat, an actor here takes on what
+        // it would pick a fight with within this many metres, and goes on once a pause passes
+        // with nothing left (SceneRouteController).
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] float EngageRadius = 0);
     public sealed record SceneSpawnPose(ActorHandle Handle, uint OwnerCharacterId, ScenePosition Position, double Orientation);
     public sealed record SceneRoute(string Key, IReadOnlyList<SceneWaypoint> Points, float Speed = 6.5f, bool ResumeAtDestination = false);
     public sealed record SceneRun(
@@ -58,6 +64,8 @@ namespace Rasa.Missions.Scenes
     [JsonDerivedType(typeof(RestoreActorPoseIntent), "restore-pose")]
     [JsonDerivedType(typeof(TransitionObjectStateIntent), "object-state")]
     [JsonDerivedType(typeof(AttackActorIntent), "attack")]
+    [JsonDerivedType(typeof(QuietSpawnPoolsIntent), "quiet-spawn-pools")]
+    [JsonDerivedType(typeof(WakeSpawnPoolsIntent), "wake-spawn-pools")]
     public abstract record WorldIntent(string OperationKey, string Role);
     public sealed record EnsureActorIntent(string OperationKey, string Role, ScenePosition RestorePosition = null) : WorldIntent(OperationKey, Role);
     public sealed record RemoveActorIntent(string OperationKey, string Role) : WorldIntent(OperationKey, Role);
@@ -75,6 +83,24 @@ namespace Rasa.Missions.Scenes
         : WorldIntent(OperationKey, Role);
     public sealed record TransitionObjectStateIntent(string OperationKey, string Role, uint State,
         uint WindupMilliseconds = 0) : WorldIntent(OperationKey, Role);
+
+    /// <summary>
+    /// The map's own spawn pools named (spawnpool ids) spawn nothing more on the owner's private
+    /// map: a place the player has taken back. It is held by its actor (Role): rebuilt with that
+    /// actor when the map is made again (SceneApplication.DesiredEffects), so a new map never
+    /// spawns them - while the actor stands. What those pools have standing is left to be fought.
+    /// </summary>
+    public sealed record QuietSpawnPoolsIntent(string OperationKey, string Role, uint[] SpawnPools)
+        : WorldIntent(OperationKey, Role);
+
+    /// <summary>
+    /// The map's own scripted spawn pools named (spawnpool ids, mode 2) spawn on their own timer
+    /// on the owner's private map from now: a place the player's side now fights over. Held by its
+    /// actor (Role), as QuietSpawnPoolsIntent is: rebuilt with that actor when the map is made
+    /// again, so a new map has them going from the start - while the actor stands.
+    /// </summary>
+    public sealed record WakeSpawnPoolsIntent(string OperationKey, string Role, uint[] SpawnPools)
+        : WorldIntent(OperationKey, Role);
 
     [JsonPolymorphic(TypeDiscriminatorPropertyName = "$kind")]
     [JsonDerivedType(typeof(GrantRewardIntent), "reward")]

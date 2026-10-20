@@ -34,6 +34,10 @@
         public int StunMs { get; set; }
         /// <summary>How long the hit holds a creature where it stands (net guns); 0 for not at all.</summary>
         public int RootMs { get; set; }
+
+        /// <summary>The damage over time the hit leaves (an injection or net gun, WeaponDots), and the share of the shot's damage it was given.</summary>
+        public Managers.WeaponDots.Spec Dot { get; set; }
+        public int DotDamage { get; set; }
         /// <summary>Chance in percent that the hit knocks a creature back (Firearms' shotguns, Hand to Hand).</summary>
         public int KnockbackChance { get; set; }
         /// <summary>How much longer a creature this knocks back stays down (Hand to Hand's "Stun Duration").</summary>

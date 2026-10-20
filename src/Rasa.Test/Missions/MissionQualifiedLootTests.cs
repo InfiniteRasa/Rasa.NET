@@ -120,6 +120,29 @@ namespace Rasa.Test.Missions
         }
 
         [TestMethod]
+        public void AMissionDropLeftOnAGibbletIsStillTheMissionsToPickUp()
+        {
+            using var fixture = new Fixture();
+            var context = fixture.Context;
+            var loot = fixture.Spawn();
+            var corpse = loot.Corpse;
+            var quest = loot.LootItems.Single(item => item.ItemTemplateId == fixture.QuestTemplateId);
+
+            // The corpse goes with the loot on it: the drop stays, bound to the creature it was.
+            Assert.IsNotNull(fixture.Manager.LeaveGibblet(context.Map, corpse));
+            CellManager.Instance.RemoveCreatureFromWorld(context.Map, corpse);
+            Assert.AreEqual(corpse.DbId, loot.SourceCreatureDbId);
+
+            fixture.Take(loot);
+
+            Assert.IsTrue(quest.Taken, "picked up off the gibblet");
+            Assert.AreEqual(1U, context.Client.Player.Missions[901].Objectives[1].ItemCounters[3147]);
+
+            fixture.Manager.GibbletWorker(context.Map, 1);
+            Assert.IsFalse(context.Map.LootDispensers.ContainsKey(loot.EntityId), "emptied, it goes");
+        }
+
+        [TestMethod]
         [DataRow(PartyLootMethod.FreeForAll)]
         [DataRow(PartyLootMethod.Rotation)]
         [DataRow(PartyLootMethod.DiceRoll)]
@@ -504,10 +527,16 @@ namespace Rasa.Test.Missions
                 itemClass.ItemClassInfo = new ItemClassInfo(new ItemClassEntry { StackSize = 1 });
                 fixture.Grant(30, 50);
                 var before = context.ReadRewardTotals();
+                var credits = loot.Credits;
 
                 fixture.Take(loot);
 
-                Assert.AreEqual(before, context.ReadRewardTotals());
+                // No item fits: they stay, and Loot All pays the corpse's credits all the same.
+                var taken = context.ReadRewardTotals();
+                Assert.AreEqual(before.ItemCount, taken.ItemCount);
+                Assert.AreEqual(before.Experience, taken.Experience);
+                Assert.AreEqual(before.Credits + credits, taken.Credits);
+                Assert.AreEqual(0, loot.Credits);
                 Assert.AreEqual(0U, fixture.Counter);
                 Assert.IsTrue(loot.LootItems.All(item => !item.Taken));
                 var inventory = new InventoryManager(context, context.Manager);

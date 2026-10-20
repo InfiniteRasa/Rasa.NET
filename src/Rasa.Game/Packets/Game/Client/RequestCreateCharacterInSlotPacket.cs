@@ -28,7 +28,7 @@ namespace Rasa.Packets.Game.Client
 
         public Dictionary<EquipmentData, AppearanceData> AppearanceData { get; } = new Dictionary<EquipmentData, AppearanceData>();
 
-        private static readonly Regex NameRegex = new Regex(@"^\w{3,20}\z", RegexOptions.Compiled);
+        private static readonly Regex NameRegex = new Regex(@"^\w+\z", RegexOptions.Compiled);
 
         public override void Read(PythonReader pr)
         {
@@ -99,10 +99,10 @@ namespace Rasa.Packets.Game.Client
 
         private static CreateCharacterResult ValidateName(string name)
         {
-            if (name.Length < 3)
+            if (name.Length < Managers.CharacterManager.MinNameLength)
                 return CreateCharacterResult.NameTooShort;
 
-            if (name.Length > 20)
+            if (name.Length > Managers.CharacterManager.MaxNameLength)
                 return CreateCharacterResult.NameTooLong;
 
             if (!NameRegex.IsMatch(name))

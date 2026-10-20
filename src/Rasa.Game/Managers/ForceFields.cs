@@ -392,6 +392,21 @@ namespace Rasa.Managers
 
         #region Blocking creatures
 
+        /// <summary>
+        /// Whether an intact field that stops players (a Bane one) stands between one point and
+        /// the next: what a player is carried across by a knockback, a pull or a charge, which
+        /// the client flies them through on the server's word. Their own steps are checked as
+        /// they are reported (MovementChecks.CrossedField).
+        /// </summary>
+        public static bool StopsPlayer(MapChannel mapChannel, Vector3 from, Vector3 to)
+        {
+            foreach (var field in OnMap(mapChannel))
+                if (StopsPlayer(field) && Crosses(field.Class, field.Position, field.Yaw, from, to))
+                    return true;
+
+            return false;
+        }
+
         /// <summary>Whether a field stops this creature walking from one point to the next.</summary>
         public static bool Stops(MapChannel mapChannel, Creature creature, Vector3 from, Vector3 to)
         {

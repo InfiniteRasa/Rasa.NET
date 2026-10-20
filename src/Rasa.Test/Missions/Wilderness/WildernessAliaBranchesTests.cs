@@ -96,7 +96,7 @@ namespace Rasa.Test.Missions.Wilderness
             ReplayTurnIn(harness, npcs, 219, 1390, choice - 1);
             Assert.AreEqual(experience + 2000U, harness.Client.Player.Experience);
             Assert.AreEqual(credits + 400, harness.Client.Player.Credits[CurencyType.Credits]);
-            Assert.AreEqual(1U, HeldQuantity(harness, choice == 1 ? 44918U : 44917U));
+            Assert.AreEqual(1U, HeldQuantity(harness, choice == 1 ? 111247U : 44917U));   // Class I EMP Bomb or Basic Med Pack
             var after = Open(harness, npcs, apirka.EntityId);
             Assert.IsTrue(Offers(after, followup));
             Assert.IsFalse(Offers(after, excluded));
@@ -275,14 +275,15 @@ namespace Rasa.Test.Missions.Wilderness
             harness.SpawnWorld(100, 192, 219, 630010);
             SeedCompletedHistory(harness, 1407, 1069, 479);
             var offer = Accept(harness, npcs, 219, 1390);
-            CollectionAssert.AreEqual(new uint[] { 44918, 44917 },
+            CollectionAssert.AreEqual(new uint[] { 111247, 44917 },
                 Preview(offer, 1390).SelectableReward.Select(item => item.ItemTemplateId).ToArray());
             Assert.IsFalse(harness.Drain().OfType<MissionGainedPacket>().Single(packet => packet.MissionId == 1390)
                 .MissionInfo.ObjectivesList.Any(objective => objective.ObjectiveId == 12));
             var quillas = harness.Npc(192);
             Assert.AreEqual(114U, quillas.DbId);
             Assert.AreEqual(1646U, quillas.Npc.NpcPackageId);
-            Assert.IsTrue(Vector3.Distance(quillas.Position, new Vector3(783, 303.317277f, 130)) < 0.5f);
+            // Where a GM put him from gameplay video (WildernessPostNpcs).
+            Assert.IsTrue(Vector3.Distance(quillas.Position, new Vector3(774.0859f, 309.0352f, 104.7969f)) < 0.5f);
             harness.MoveTo(quillas.Position);
             Open(harness, npcs, quillas.EntityId);
             Choose(3);
@@ -425,7 +426,7 @@ namespace Rasa.Test.Missions.Wilderness
             SeedCompletedHistory(harness, 1407, 1069);
             var npcs = new NpcManager(harness, harness.Manager);
             var offer = Accept(harness, npcs, 100, 422);
-            CollectionAssert.AreEqual(new uint[] { 44918, 44918 },
+            CollectionAssert.AreEqual(new uint[] { 111247, 44918 },
                 Preview(offer, 422).FixedReward.FixedItems.Select(item => item.ItemTemplateId).ToArray());
             Assert.AreEqual(1U, HeldQuantity(harness, 97));
             Assert.AreEqual(1U, HeldQuantity(harness, 697));
@@ -443,11 +444,13 @@ namespace Rasa.Test.Missions.Wilderness
             TurnIn(harness, npcs, 204, 422);
             Assert.AreEqual(0U, HeldQuantity(harness, 97));
             Assert.AreEqual(0U, HeldQuantity(harness, 697));
-            Assert.AreEqual(2U, HeldQuantity(harness, 44918));
+            Assert.AreEqual(1U, HeldQuantity(harness, 111247));   // the Class I EMP Bomb
+            Assert.AreEqual(1U, HeldQuantity(harness, 44918));    // and the Standard Med Pack
             Assert.AreEqual(experience + 5000U, harness.Client.Player.Experience);
             Assert.AreEqual(credits + 215, harness.Client.Player.Credits[CurencyType.Credits]);
             ReplayTurnIn(harness, npcs, 204, 422);
-            Assert.AreEqual(2U, HeldQuantity(harness, 44918));
+            Assert.AreEqual(1U, HeldQuantity(harness, 111247));
+            Assert.AreEqual(1U, HeldQuantity(harness, 44918));
         }
 
         [TestMethod]
@@ -491,6 +494,7 @@ namespace Rasa.Test.Missions.Wilderness
             Accept(harness, npcs, 198, 421);
             CompleteObjective(harness, npcs, 194, 421, 3);
             FillCategory(harness, 3869, 50);
+            harness.FillInbox();
             var receiver = harness.Npc(194);
             Open(harness, npcs, receiver.EntityId);
             var credits = harness.Client.Player.Credits[CurencyType.Credits];

@@ -427,14 +427,15 @@ namespace Rasa.Test.Gameplay
             Assert.AreEqual(1, KillStreaks.LevelOf(mate));
             CollectionAssert.AreEquivalent(new[] { (context.Client, 1), (mate, 1) }, _prestige);
 
-            // And the next is doubled for both: each their half, twice.
+            // And the next is doubled for both: each their 92%, twice, against an even half.
             var killers = Gains(Kill(context)).Single();
             var mates = Gains(Sent(mate)).Single();
 
             Assert.AreEqual(2, killers.StreakMod);
             Assert.AreEqual(2, mates.StreakMod);
+            Assert.AreEqual(1.84, killers.GroupMod, 1e-9);
             Assert.IsTrue(killers.BaseGained >= 45 && killers.BaseGained <= 55, $"half of 90 to 110, not {killers.BaseGained}");
-            Assert.AreEqual(killers.BaseGained * 2, killers.Gained);
+            Assert.IsTrue(killers.Gained >= 82 * 2 && killers.Gained <= 101 * 2 && killers.Gained % 2 == 0, $"92% of 90 to 110, twice, not {killers.Gained}");
             Assert.AreEqual(killers.Gained, mates.Gained);
 
             Assert.AreEqual(0, KillStreaks.CreditOf(away));
@@ -647,8 +648,12 @@ namespace Rasa.Test.Gameplay
             var plain = MissionTestContext.Encode(new ExperienceChangedPacket(new XPInfo(500, 200, 100)));
             var streak = MissionTestContext.Encode(new ExperienceChangedPacket(new XPInfo(500, 200, 100) { StreakMod = 2 }));
 
-            Assert.AreEqual(plain.Length, streak.Length);
-            Assert.AreEqual(1, plain.Zip(streak, (a, b) => a != b).Count(differs => differs), "one number differs: the streak's");
+            // A multiplier of 1 is the one byte for 1; the streak's 2 a float, half a percent over.
+            var two = new byte[] { 0x3F }.Concat(BitConverter.GetBytes(2.005f)).ToArray();
+            var at = Enumerable.Range(0, streak.Length - two.Length + 1).Single(i => streak.Skip(i).Take(two.Length).SequenceEqual(two));
+
+            Assert.AreEqual(plain.Length + 4, streak.Length);
+            CollectionAssert.AreEqual(plain, streak.Take(at).Append((byte)0x31).Concat(streak.Skip(at + two.Length)).ToArray(), "only the streak's number differs");
         }
     }
 }

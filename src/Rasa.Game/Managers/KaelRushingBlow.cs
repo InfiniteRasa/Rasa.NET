@@ -58,6 +58,19 @@ namespace Rasa.Managers
     /// target before setting it, which a player's own client has set already and a watcher's has
     /// not (KaelRushingBlowAbility.Windup calls SetTarget first), so a watching client is likely
     /// to drop the windup's animation; the run and the hit are sent all the same.
+    ///
+    /// CR_FITHIK_LUNGE (405) is a charge too, timed by its own client class. FithikLungeAbility
+    /// is a plain BaseActorAbility: its windup is the argument's 1200 ms whatever the distance,
+    /// playing ABILITY_CREATURE_FITHIK_LUNGE_WINDUP (1137), then _RESOLVE (1138), and its
+    /// stopMovement and blockMovement act on the player's own character alone, so a watched
+    /// Fithik can still be run. Its VFX_VELOCITY is 30. It reached 1-30 m and was resolved as
+    /// a shot: the Fithik stood where it was and the hit landed on a player up to thirty metres
+    /// off. Now the Fithik winds up where it stands and leaps at 30 m/s for the spot
+    /// ChargeStopShort short of where its target is when it leaps, timed to land as the
+    /// client's windup ends (FithikLeapAt). The blow is its target's if the target is within
+    /// FithikReach of where the Fithik lands, the Fithik's bite range; a target that has got
+    /// further away is missed. The destination is taken at the leap rather than at the
+    /// windup's start, since nothing on the client is tied to it.
     /// </summary>
     public static class KaelRushingBlow
     {
@@ -65,6 +78,12 @@ namespace Rasa.Managers
 
         /// <summary>CR_HUMAN_RUSHING_BLOW: a charge with a blow on its target alone.</summary>
         public const ActionId HumanAction = ActionId.CrHumanRushingBlow;
+
+        /// <summary>CR_FITHIK_LUNGE: a leap at the end of a windup of fixed length, with a blow on its target if it is still in reach.</summary>
+        public const ActionId FithikAction = ActionId.CrFithikLunge;
+
+        /// <summary>How near the Fithik's target must be to where it lands to be struck: Weapon_Creature_Fithik's 174/34 range. Not in the client.</summary>
+        public const float FithikReach = 3f;
 
         /// <summary>DEFAULT_PROJECTILE_VELOCITY, what the client falls back on when an argument gives no VFX_VELOCITY.</summary>
         public const float DefaultVelocity = 70f;
@@ -86,13 +105,25 @@ namespace Rasa.Managers
             public int Damage;
             public long LandsAt;
             public ScriptedCombatAuthorization CombatAuthorization;
+
+            /// <summary>A Fithik's lunge: when it leaps, and how fast; 0 for a run that started with the windup.</summary>
+            public long LeapAt;
+            public float LeapVelocity;
+            public bool Leapt = true;
+
+            /// <summary>Above 0, the blow is the target's only if it is within this of where the creature ends.</summary>
+            public float Reach;
         }
+
+        /// <summary>The clock charges are timed on, Environment.TickCount64; a test sets its own.</summary>
+        public static Func<long> Now { get; set; } = () => Environment.TickCount64;
 
         private static readonly List<Charge> Charges = new List<Charge>();
         private static readonly object ChargesLock = new object();
 
         /// <summary>Whether the action is a charge: the Kael's rushing blow or the human one.</summary>
-        public static bool Is(CreatureAction action) => action != null && (action.ActionId == Action || action.ActionId == HumanAction);
+        public static bool Is(CreatureAction action) => action != null
+            && (action.ActionId == Action || action.ActionId == HumanAction || action.ActionId == FithikAction);
 
         /// <summary>
         /// The area the blow falls on around where the target stood: EFFECT_RADIUS, the Kael's
@@ -132,6 +163,18 @@ namespace Rasa.Managers
         }
 
         /// <summary>
+        /// When a Fithik leaps, in ms after its windup starts: late enough that a run of this
+        /// length at this speed lands as the windup ends, and never before the windup starts.
+        /// </summary>
+        public static long FithikLeapAt(long windupMs, float run, float velocity)
+        {
+            if (windupMs <= 0)
+                return 0;
+
+            return Math.Max(0, windupMs - WindupMs(run, velocity));
+        }
+
+        /// <summary>
         /// Where a charge from `from` at a target standing at `target` ends: ChargeStopShort short
         /// of it on the flat, along the ground where the map has a navmesh.
         /// </summary>
@@ -157,6 +200,12 @@ namespace Rasa.Managers
                 return;
 
             AbilityManager.Instance.TryGetLevel(action.ActionId, action.ActionArgId, out var level);
+
+            if (action.ActionId == FithikAction)
+            {
+                StartLunge(mapChannel, kael, action, target, damage, level, authorization);
+                return;
+            }
 
             var velocity = level != null && level.Get(AbilityProperty.VfxVelocity) > 0 ? level.Get(AbilityProperty.VfxVelocity) : DefaultVelocity;
             var radius = RadiusOf(action.ActionId, level);
@@ -184,25 +233,95 @@ namespace Rasa.Managers
                     Impact = impact,
                     Radius = radius,
                     Damage = damage,
-                    LandsAt = Environment.TickCount64 + windupMs,
+                    LandsAt = Now() + windupMs,
                     CombatAuthorization = authorization
                 });
             }
+        }
+
+        /// <summary>A Fithik's lunge: the windup now, where it stands; the leap when FithikLeapAt says.</summary>
+        private static void StartLunge(MapChannel mapChannel, Creature fithik, CreatureAction action, Actor target, int damage,
+            ActionLevelInfo level, ScriptedCombatAuthorization authorization)
+        {
+            var velocity = level != null && level.Get(AbilityProperty.VfxVelocity) > 0 ? level.Get(AbilityProperty.VfxVelocity) : DefaultVelocity;
+            var windupMs = (long)CreatureWindups.WindupMsOf(action, level);
+            var run = Vector3.Distance(fithik.Position, ChargeEnd(mapChannel, fithik.Position, target.Position));
+            var now = Now();
+
+            CellManager.Instance.CellCallMethod(mapChannel, fithik,
+                new PerformWindupPacket(PerformType.ThreeArgs, action.ActionId, action.ActionArgId, target.EntityId));
+
+            // Wound up standing: whatever it was doing, it is not doing it now.
+            fithik.Controller.Path.Clear();
+            fithik.Controller.PathIndex = 0;
+            BehaviorManager.Instance.StopMoving(fithik);
+
+            lock (ChargesLock)
+            {
+                Charges.RemoveAll(c => c.Kael == fithik);
+                Charges.Add(new Charge
+                {
+                    MapChannel = mapChannel,
+                    Kael = fithik,
+                    Action = action,
+                    Target = target,
+                    Impact = target.Position,
+                    Damage = damage,
+                    LandsAt = now + windupMs,
+                    CombatAuthorization = authorization,
+                    LeapAt = now + FithikLeapAt(windupMs, run, velocity),
+                    LeapVelocity = velocity,
+                    Leapt = false,
+                    Reach = FithikReach
+                });
+            }
+        }
+
+        /// <summary>
+        /// The Fithik leaps for where its target stands now, at whatever speed lands it as its
+        /// windup ends - its VFX_VELOCITY when the target has not moved since the windup began.
+        /// </summary>
+        private static void Leap(MapChannel mapChannel, Charge charge, long now)
+        {
+            var fithik = charge.Kael;
+            var target = charge.Target;
+
+            charge.Leapt = true;
+
+            if (target == null || !CreatureManager.IsLivingOnMap(mapChannel, fithik))
+                return;
+
+            charge.Impact = target.Position;
+
+            var end = CrowdControl.BeforeFields(mapChannel, fithik, fithik.Position, ChargeEnd(mapChannel, fithik.Position, charge.Impact));
+            var run = Vector3.Distance(fithik.Position, end);
+            var left = Math.Max(1, charge.LandsAt - now);
+
+            if (run > 0.1f)
+                BehaviorManager.Instance.Rush(fithik, end, Math.Max(charge.LeapVelocity, run / (left / 1000f)));
         }
 
         /// <summary>Lands due blows on this map, unless their Kael has fallen or their manual combat grant has expired.</summary>
         public static void Worker(MapChannel mapChannel)
         {
             List<Charge> due;
-            var now = Environment.TickCount64;
+            List<Charge> leaping;
+            var now = Now();
 
             lock (ChargesLock)
             {
+                leaping = Charges.Where(c => c.MapChannel == mapChannel && !c.Leapt && now >= c.LeapAt && Standing(c.Kael)).ToList();
                 due = Charges.Where(c => c.MapChannel == mapChannel && (now >= c.LandsAt || !Standing(c.Kael))).ToList();
 
                 foreach (var charge in due)
                     Charges.Remove(charge);
             }
+
+            // A Fithik whose time to leap has come: unless its blow falls this pass, when it has
+            // nowhere left to go but where it is.
+            foreach (var charge in leaping)
+                if (!due.Contains(charge) && CreatureWindups.HasCombatAuthorization(mapChannel, charge.Kael, charge.CombatAuthorization))
+                    Leap(mapChannel, charge, now);
 
             foreach (var charge in due)
             {
@@ -226,6 +345,18 @@ namespace Rasa.Managers
                 BehaviorManager.Instance.EndCarry(mapChannel, kael);
                 kael.LastYaw = AbilityManager.YawTowards(kael.Position, charge.Impact);
                 BehaviorManager.Instance.StopMoving(kael);
+
+                // A Fithik's lunge: its target's if it is still within reach of where the Fithik
+                // came down, and nobody's otherwise.
+                if (charge.Reach > 0)
+                {
+                    var inReach = charge.Target != null
+                        && Vector3.DistanceSquared(charge.Target.Position, kael.Position) <= charge.Reach * charge.Reach;
+
+                    MissileManager.Instance.CreatureStrike(mapChannel, kael, charge.Action, inReach ? charge.Target : null, charge.Damage,
+                        default, charge.Impact, charge.CombatAuthorization);
+                    continue;
+                }
 
                 // A blow with no area is the target's, wherever it has got to (CreatureStrike
                 // passes over one that has died or left); one with an area falls on whoever is in

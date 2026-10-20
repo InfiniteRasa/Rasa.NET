@@ -11,7 +11,8 @@ namespace Rasa.Managers
 
     /// <summary>
     /// What a character leaves the world with, kept for when it comes back: health, armour and
-    /// power, and the penalties a revive leaves (Rez Trauma and the no-healing, PlayerDeath).
+    /// power, the penalties a revive leaves (Rez Trauma and the no-healing, PlayerDeath), and an
+    /// Experience Booster's boost, for the time it had left (ExperienceBoost).
     ///
     /// Loading a character used to put it on full health, armour and power (UpdateStatsValues
     /// with a full reset) with no effects at all, so logging out and in again was a free heal,
@@ -73,6 +74,17 @@ namespace Rasa.Managers
             if (noHeal != null)
                 saved.NoHealEndsAt = nowUnixMs + noHeal.RemainingMs;
 
+            // An Experience Booster's boost keeps the time it has left, not when it would end:
+            // logging out keeps it, and the time away does not count.
+            var boost = Longest(effects, ExperienceBoost.TypeId);
+
+            if (boost != null && boost.ExperienceBoostPercent > 0)
+            {
+                saved.XpBoostPercent = boost.ExperienceBoostPercent;
+                saved.XpBoostLevel = boost.EffectLevel;
+                saved.XpBoostRemainingMs = boost.RemainingMs;
+            }
+
             return saved;
         }
 
@@ -110,6 +122,7 @@ namespace Rasa.Managers
                 using var unitOfWork = Server.GameUnitOfWorkFactory.CreateChar();
                 unitOfWork.Characters.UpdateCharacterVitals(player.Id, saved.Health, saved.Armor, saved.Power,
                     (uint)Math.Max(0, saved.RezTraumaStacks), saved.RezTraumaEndsAt, saved.NoHealEndsAt);
+                unitOfWork.Characters.UpdateCharacterXpBoost(player.Id, (uint)Math.Max(0, saved.XpBoostPercent), saved.XpBoostLevel, saved.XpBoostRemainingMs);
             }
             catch (Exception e)
             {
@@ -162,6 +175,10 @@ namespace Rasa.Managers
                 saved.RezTraumaStacks,
                 Math.Max(0, saved.RezTraumaEndsAt - nowUnixMs),
                 Math.Max(0, saved.NoHealEndsAt - nowUnixMs));
+
+            // An Experience Booster's boost, for the time it had left.
+            if (saved.XpBoostPercent > 0 && saved.XpBoostRemainingMs > 0)
+                ExperienceBoost.Put(player.MapChannel, player, saved.XpBoostPercent, saved.XpBoostLevel, saved.XpBoostRemainingMs, announce: true);
         }
     }
 }

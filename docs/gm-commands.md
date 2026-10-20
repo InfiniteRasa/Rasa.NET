@@ -1,7 +1,7 @@
 # GM commands
 
 Every GM command the game and auth servers understand: the level each one needs, what it takes and what it does.
-Checked against `development` at `f4439234`. The sources are:
+Checked against `development` at `253bbbe0`. The sources are:
 
 - `Rasa.Game/Managers/ChatCommandsManager.cs`: dot commands and the privileged slash-command table.
 - `GmMapCommands.cs` and `GmMissionCommands.cs`: map and mission commands.
@@ -21,6 +21,8 @@ There are three ways in:
 | **Console commands** (`gm`, `ban` ...) | The game or auth server's console window | `CommandProcessor`. They need no account, and granting GM goes through this route. |
 
 A few GM actions are client packets with their own handlers instead of commands. These are `/gotomob`, `/changefirstname`, `/changelastname`, the LOS slash commands and the mission window's Complete button. They are listed in the sections they belong to.
+
+The guild slash commands (`/guildinvite`, `/guildkick`, `/guildleave`, `/guilddisband` and their short forms) also arrive as `PrivilegedCommand`, but they are a player's clan commands and are not covered on this page. `GuildCommands` handles them before the privileged table looks, and they are not written to the GM audit log.
 
 Conventions used below:
 
@@ -101,7 +103,7 @@ These change nothing in the world, except where noted.
 | `.missions [characterId]` | Observer | Mission state for a character: you by default, or the character id given. |
 | `.links` | Observer | Map links on this map, nearest first (up to 10), marking the one you are standing in. |
 | `.regions` | Observer | Whether you are underground, the region ids you are being sent, and the region volumes on this map, nearest first (up to 12). |
-| `.skytime` | Observer | How long this map's sky has been running, how long its day lasts, and the time of day there now (00:00 midnight, 12:00 noon). |
+| `.skytime` | Observer | How long this map's sky has been running, how long its day lasts, and the time of day there now (00:00 midnight, 12:00 noon). On a map whose sky is held (the Proving Grounds, at 12:00), the time it is held at. |
 | `.emitters` | Observer | FX emitters on this map, nearest first (up to 15). |
 | `.fxpackages <word> [word ...]` | Observer | Searches the client's FX package names; every word must match (up to 25 results). |
 | `.ambients [word ...]` | Observer | The client's ambient figures - people who are scenery: a soldier at a firing range, two men talking on chairs, a medic at a monitor - as class id and name, and how many stand on this map. Words narrow the list; every word must be in the name (up to 25 results). |
@@ -109,7 +111,12 @@ These change nothing in the world, except where noted.
 | `.navmesh path <x> <y> <z>` | Observer | The route the AI would take from you to that point: complete or partial, number of corners, length. |
 | `.cover` | Observer | Cover between you and your target in both directions: body points visible and the ranged damage multiplier. Needs `navmesh/<map>.cover`. |
 | `.los [entityId]` | Observer | The server's line-of-sight report to your target or to the id given. The LOS slash commands send the same `RequestLOSReport`, but they are in the unshipped developer module, so a retail client never sends them. |
-| `.camerascript list` / `.camerascript <id>` | Observer | Lists this map's camera scripts, or plays one on your own client. Space or Escape ends it. |
+| `.camerascript list` | Observer | This map's camera scripts: keyframes, length, where the camera starts and ends, and how far it comes from you. Scripts have no names; where the camera stands and looks is what there is to go on. |
+| `.camerascript near [n]` | Observer | This map's camera scripts nearest you first (5 unless you say). |
+| `.camerascript info <id>` | Observer | Every keyframe of one script: position, facing, how far it looks up or down, focal length, arrive and hold times. |
+| `.camerascript goto <id> [keyframe]` | GameMaster | Puts you where that keyframe's camera is (the first unless you say), facing the way it looks. A camera can hang in the air; you come down under it. |
+| `.camerascript maps` | Observer | Every map that carries camera scripts, with how many (37 maps, 129 scripts). |
+| `.camerascript <id>` | Observer | Plays the script on your own client. Space or Escape ends it. |
 | `.clientevent [list]` | Observer | The client's scriptable events, marking which ones you are tracking. |
 | `.clientevent track <id\|name\|all> ...` / `stop <id\|name> ...` / `stop all` | Observer | Starts or stops tracking scriptable client events on your own client; tracked events are echoed to you. |
 | `.rqs` | Observer | Opens the client's developer RQS window (`DevRQSWindow`). |
@@ -233,6 +240,7 @@ These are testing tools. Their changes are held in memory only.
 | `.effect pause\|restart <effectId\|all> [#entityId\|#target]` | GameMaster | Stops or restarts an effect's clock; the client shows its "Paused" tooltip. |
 | `.vamp <health\|power\|armor\|adrenaline> <amount> [#entityId]` | GameMaster | Steals up to that amount from your target or the actor named, as a weapon's Steal module does on a hit. |
 | `.immune [all \| off \| <type> ... \| -<type> ...]` | GameMaster | Makes your target (or you, with no target) immune to all damage or to the damage types named. With no argument, shows the current immunities. |
+| `.allowdeath [on\|off]` | GameMaster | Whether you die at zero health. A GameMaster account does not: it is put back on its feet instead. `on` lets you die like anyone else and `off` stops it again; with no argument it toggles. Held for the session only, so every login starts with death off. |
 | `.falldamage <metres>` | GameMaster | Deals you the damage a fall of that height would, and says whether you are standing in water. |
 | `.blockaction [actionId [off]]` | GameMaster | With no argument, lists the actions blocked for you and why. With an id, blocks that action for you; `off` removes only the GM block. |
 | `.actorstate <state> [state ...] [#entityId]` | GameMaster | Sends a `StateCorrection` to everyone who can see the actor, by state name or id (`standing`, `sitting`, `crouched`, `dead`, `stunned` ...). It changes appearance only. |
@@ -258,7 +266,7 @@ Values these commands accept:
 | `.comehere <entityId>` | GameMaster | Sends a `MoveObject` to your own client that brings the entity to you. Only your client sees it move; the server's copy stays put. |
 | `.bark <entityId> <barkId>` | GameMaster | Plays a bark on that entity, on your client only. |
 | `.battlecry [packageId typeId]` | GameMaster | With a creature targeted. Bare, it says which battle cry package the creature cries with: its own row's in `creature_battlecry`, or else its class's, or else the human voice it was given - an armed human's is rolled for that spawn and says so; a mission escort's is kept for its creature row, so it shows as the row's. With a package (2 to 22) and a cry type (1 Aggro, 2 KilledTarget, 3 ReceivedDamage, 4 ReceivedCriticalDamage, 5 Help, 6 CloseToDeath, 7 EnterCombat, 8 ExitCombat, 9 StartPatrol, 10 StopPatrol, 11 ResumePatrol) it plays that cry from the creature for everyone near, whatever package the creature has; it is refused for a pair the client has no sound for. Nothing is saved. A client with "Enable Battle Cries" off hears nothing. |
-| `.creatureappearance <entityId> <slotId> <classId> <color>` | GameMaster | Sets one appearance slot on a creature. |
+| `.creatureappearance <entityId> <slotId> <classId> <color>` | GameMaster | Sets one appearance slot of a creature: the slot is an equipment slot id, a class of 0 keeps the one there. Every creature of the same creature row takes it, as they share their look, and it is saved to `creature_appearance`. A creature of no row (a summons, a scenario's own) changes until it goes, unsaved. |
 | `.pose [pose]` | GameMaster | Puts your target, a creature, in a pose at the spot it stands on: `standing`, `weaponout`, `crouched`, `crouchedweaponout`, `leaning`, `sitting`, `lyingdown`, `atconsole`, `handtool`, by name or number (1 to 9). `none` takes its pose off. With no pose, says which the target has. It lasts until that creature dies and is not saved; a spawn pool's own pose is its `spawnpool_pose` row. The last five are human only, and `atconsole` and `handtool` female only. |
 | `.creatureloc` | GameMaster | Registered but does nothing: the body is commented out. |
 | `.reloadcreatures` | Admin | Clears and re-reads the creature table. Creatures already spawned are unaffected. |
@@ -272,7 +280,10 @@ Map links, region volumes, FX emitters and crafting stations are **saved to the 
 | `.createobj <entityClassId>` | GameMaster | A dynamic object at your feet, facing your way. |
 | `.createobjonloc <entityClassId> <x> <y> <z> <orientation>` | GameMaster | A dynamic object at the given point. |
 | `.ambient <class>` / `.ambient clear` | GameMaster | Stands one of the client's ambient figures where you are, facing your way, for everyone on the map. The class is an id or a name from `.ambients`; part of a name will do if only one figure has it. A seated figure brings no chair, and the firing range soldier brings his own target, 14.25 m in front of him. It is not saved: `clear` takes away the ones put down this way on this map, and a restart takes them all. The ones that stay are rows of `ambient_npc`. Also written to the server log with an `[.ambient]` tag: class, map, position and facing. |
-| `.removeobj <entityId>` | GameMaster | Removes an entity from the world for everyone. |
+| `.worldcontainer classes [word]` / `put <class> [profile=key] [items=template:quantity,...] [cipher=N] [reset=S]` / `near` / `reset [row]` / `clear` | GameMaster | Lootable containers (crates, lockers, consoles, corpses: the treasure dispenser classes). `classes` lists the classes that can be placed. `put` stands one where you are, facing your way: it holds the fixed items, plus a roll of the `loot_profile` if one is named. `cipher` locks it until decoded with a cipher tool of that Specialist Tools level. `reset` is how many seconds it stays opened to those who opened it (0 means 30 minutes). It is not saved, and `put` prints the `world_container` and `world_container_item` rows for that spot. `near` lists the containers within 30 m, with what is in them and whether they are opened to you. `reset` closes the nearest one (or that row) and fills it again for everyone. `clear` takes away the ones put down this way. Each player gets their own copy of a container, and a squad shares one by its loot method. |
+| `.destructible classes [word]` / `put <class> [hp] [creatureId] [count] [afs\|bane]` / `near` / `kill [row]` / `back [row]` / `clear` | GameMaster | Destructible world objects (`world_destructible`): inert destroyables, creature spawners, tesla coils, destroyable switches and force fields, plus shrines and stateless switches as scenery with no hit points. `classes` lists the classes that can be placed, 25 at a time (words narrow it), with their kind, hit points and whether a player can target them. `put` stands one where you are, facing your way. The class is an id or a name; part of a name will do if only one class has it. A 0 or a missing `hp`, `creatureId` or `count` takes the class's own, `afs` or `bane` sets its side, and a spawner's creature must be in the database. It is not saved, and `put` prints the `WorldDestructiblePreloader` `Row(...)` line for that spot; the line is also written to the server log with a `[.destructible]` tag. `near` lists up to 15 placed within 30 m, with hit points, state, time until one shot down comes back (45-60 s) and what it spawns. `kill` takes the nearest one (or that row) down at once and `back` brings it back now. `clear` takes away the ones put down this way. |
+| `.worldusable classes [word]` / `put <class> [state=N] [usable=0\|1] [item=N] [itemclass=N] [count=N] [reset=S] [min=S] [max=S] [dmin=N] [dmax=N] [radius=M] [arg=N]` / `near` / `state <state> [row]` / `blast [row]` / `clear` | GameMaster | Usable world objects (`world_usable`): switches, doors, item dispensers and acceptors, bombs and random explosions, and other classes that are only shown in a state. `classes` lists the classes that can be placed, 25 at a time (words narrow it), with their kind and states; the first state is the default. `put` stands one where you are, facing your way. The class is an id or a name, as for `.destructible`. The keys are `world_usable`'s columns, and 0 or a missing key takes the kind's own value. It is not saved, and `put` prints the `WorldUsablePreloader` `Row(...)` line for that spot; the line is also written to the server log with a `[.worldusable]` tag. `near` lists up to 15 placed within 30 m. `state` sets the nearest one (or that row) to one of its states for everyone in range. `blast` sets off a random explosion or a bomb now and says how many players it hit. `clear` takes away the ones put down this way. |
+| `.removeobj <entityId>` | GameMaster | Takes a creature or a plain object off your map, on the server and for everyone. A spawn pool's creature is counted as dead, so the pool spawns it again. Players, items, objects some system keeps (control points, teleporters, waypoints, crafting stations, dropships, placed fields, emitters and so on) and anything on another map are refused, with the reason. |
 | `.deleteobj <entityId>` | GameMaster | Sends `DestroyPhysicalEntity` to **your own client only**; the object still exists on the server. |
 | `.moveobj <entityId> <x> <y> <z> [yawDegrees \| qx qy qz qw]` | GameMaster | Moves a non-actor object for every client on the map. Also works on static map objects, but only for clients on the map now. Actors are refused. |
 | `.forcestate <entityId> <stateId\|name>` | GameMaster | Sends `ForceState` for a `UseObjectState`, for example `DoorStateOpen` or `91`, to your own client. |
@@ -286,7 +297,7 @@ Map links, region volumes, FX emitters and crafting stations are **saved to the 
 | `.region here <regionId> [radius] [comment]` / `.region box <regionId> <halfX> <halfZ> [comment]` | GameMaster | Creates a region volume at your position: a circle (radius defaults to 50) or a box. |
 | `.region <id> here \| radius <r> \| size <hx> <hz> \| y <min> <max> \| underground 0\|1\|2 \| region <regionId> \| enable \| disable \| comment <text> \| delete` | GameMaster | Edits a volume. For `underground`: 0 = any, 1 = underground only, 2 = surface only. |
 | `.setregion <regionId> [regionId ...]` / `.setregion off` | GameMaster | Forces the listed region ids on your own client until `off` or a map change. |
-| `.setskytime <hh:mm>` | GameMaster | Runs this map's sky on to that time of day for everyone on the map (this copy of it, for an instance). It runs on from there; a restart puts every map back at its own starting hour. |
+| `.setskytime <hh:mm>` | GameMaster | Runs this map's sky on to that time of day for everyone on the map (this copy of it, for an instance). It runs on from there; a restart puts every map back at its own starting hour. On a map whose sky is held (the Proving Grounds), holds this copy's sky at that time instead, until the copy closes. |
 | `.emitter here <package> [off] [comment]` | GameMaster | Places an FX emitter. The package is a name or id from `.fxpackages`. |
 | `.emitter <id> on \| off \| package <package> \| here \| comment <text> \| delete` | GameMaster | Edits an emitter; `on` and `off` also set its default state. |
 | `.kraftwerks` | GameMaster | Crafting stations on this map, nearest first. |
@@ -328,6 +339,7 @@ Commands that act on other players. A GM can only use them on accounts **below t
 | `.kick <familyName> [reason]` | GameMaster | Tells the player "You have been disconnected by a game master" (with the reason, if given), then closes every connection of that account a second later. The character leaves as if the connection had dropped, but never stays behind in a fight. Works at character selection too. |
 | `.mute <familyName> <minutes> [reason]` | GameMaster | Silences the account's chat for 1 to 525,600 minutes (one year). Works on accounts that are not online. The player gets the client's own "You are now blocked from sending chat messages for the duration of N minutes", plus the reason if given; you get "User ... is silenced". |
 | `.unmute <familyName>` | GameMaster | Lifts a silence. Answers "User ... is not currently silenced" if there is none. |
+| `.invisible [on\|off]` | GameMaster | Hides you from every player who is not a GM, or shows you again. With no argument, says which you are. Off at every login; a map change keeps it. |
 
 How a silence works:
 
@@ -335,6 +347,15 @@ How a silence works:
 - A silenced player cannot say, shout, emote, or use squad, clan, clan leader, channel or whisper/reply chat. Each attempt is answered with "You have been silenced by a game master."
 - They can still **whisper a GM** (GameMaster level and above), send petitions, and use dot commands.
 - They are reminded when they enter the world, and told "You are no longer silenced" when the time runs out.
+
+How `.invisible` works:
+
+- Players who are not GMs lose your character from their screens, squad mates included, and are not given it when they come into range. GMs of any level, Observer up, go on seeing you.
+- Creatures do not notice you, and any fighting you drop you from their hate lists.
+- To players you are offline: your friends see you log off and back on when you turn it on and off, and nothing in between. Your clan's roster shows you offline. You are not in `/who`, a looking-for-group ad you have up is not in their searches, and you are left out of `GET /usersonline`.
+- Whispers, squad invitations, duel challenges and summons by your name answer as if you were not in the game. A player you whisper while invisible can whisper you back.
+- A cloak and `.invisible` do not undo each other: a cloak that ends while you are invisible shows you to GMs only, and turning visible while cloaked shows you to your squad only.
+- What you do in the open still shows: speaking in local chat, using abilities near players, trading, and being in a squad (your squad window row stays).
 
 ## Client messages and presentation
 
@@ -377,7 +398,7 @@ Typed in the game server's window. There is no account check; the console is the
 | `gm <familyName> [level]` | Shows or sets an account's GM level; see Access levels. |
 | `petition list [open\|resolved\|cancelled\|all] [count]` | Petitions, newest first. The default is open ones. |
 | `petition show <id>` | One petition, including its body. |
-| `petition resolve <id> [what you did]` | Closes a petition and tells the player if they are online. |
+| `petition resolve <id> [what you did]` | Closes a petition, with what you did as its answer (left out, it keeps the answer it has), and tells the player: at once if they are in the world, otherwise when they next arrive. |
 | `flag list \| set <name\|id> \| clear <name\|id>` | The same as `.flag`. |
 | `perf` | Main-loop rate, slowest pass, players and connections since the last metrics window. |
 | `maperrors [clear]` | Everything the world load and spawn path found wrong with the data. `clear` resets the list; errors come back as the data is used again. |

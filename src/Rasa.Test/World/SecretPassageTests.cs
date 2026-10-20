@@ -113,11 +113,94 @@ namespace Rasa.Test.World
             Assert.IsNull(SecretPassages.Crossed(Wilderness, new Vector3(832f, 224f, 924f), new Vector3(832f, 224f, 920f)));
             Assert.IsNull(SecretPassages.Crossed(Wilderness, new Vector3(832f, 96f, 924f), new Vector3(832f, 96f, 920f)));
 
-            // The Alia Caverns pair shows itself; the Torden Abyss pair does not.
+            // Every passage with an alcove shows itself; the leap into the Growth chamber does not.
             Assert.IsTrue(SecretPassages.AliaCavernsDoor.WithEffect);
             Assert.IsTrue(SecretPassages.EnhanceShrineExit.WithEffect);
+            Assert.IsTrue(SecretPassages.GrowthHallEnd.WithEffect);
             Assert.IsFalse(SecretPassages.JumpAndBelieve.WithEffect);
-            Assert.IsFalse(SecretPassages.GrowthHallEnd.WithEffect);
+        }
+
+        [TestMethod]
+        public void TheGroundBeforeTheGrowthHallAlcoveIsAPassageAndTheHallBeforeItIsNot()
+        {
+            const uint torden = SecretPassages.TordenAbyss;
+
+            // Up the hall (its floor is at y 199, from z -355 to z -339), short of the alcove; and along a wall to the hall's end.
+            Assert.IsNull(SecretPassages.Crossed(torden, new Vector3(-315f, 199.2f, -354f), new Vector3(-315f, 199.2f, -342f)));
+            Assert.IsNull(SecretPassages.Crossed(torden, new Vector3(-322f, 199.2f, -350f), new Vector3(-322f, 199.2f, -339.5f)));
+
+            Assert.AreSame(SecretPassages.GrowthHallEnd,
+                SecretPassages.Crossed(torden, new Vector3(-315f, 199.2f, -343f), new Vector3(-315f, 199.2f, -341f)));
+            Assert.AreSame(SecretPassages.GrowthHallEnd,
+                SecretPassages.Crossed(torden, new Vector3(-317.5f, 199.2f, -342f), new Vector3(-317.5f, 199.2f, -340f)));
+            Assert.AreSame(SecretPassages.GrowthHallEnd,
+                SecretPassages.Crossed(torden, new Vector3(-315f, 199.2f, -339.5f), new Vector3(-315f, 199.2f, -338f)));
+
+            // The chamber below, where the leap ends, and the shelf it leads back to, are clear of it.
+            Assert.IsFalse(SecretPassages.GrowthHallEnd.Contains(SecretPassages.JumpAndBelieve.Destination));
+            Assert.IsFalse(SecretPassages.JumpAndBelieve.Contains(SecretPassages.GrowthHallEnd.Destination));
+            Assert.AreEqual(new Vector3(-347.8f, 523.5f, -531f), SecretPassages.GrowthHallEnd.Destination);
+        }
+
+        [TestMethod]
+        public void WalkingUpToTheGrowthHallAlcoveTeleportsThePlayerBackToTheObelisks()
+        {
+            using var world = new WorldTestContext();
+
+            var torden = new MapChannel
+            {
+                MapInfo = new MapInfo(SecretPassages.TordenAbyss, "adv_arieki_torden_abyss", 1556, 0),
+                ClientList = new List<Rasa.Game.Client>(),
+                PlayerLimit = 128
+            };
+            var saved = 0;
+            var now = 1000L;
+            var manager = Travel(world, () => saved++, () => now);
+            var client = world.CreateClient();
+            var player = client.Player;
+
+            torden.ClientList.Add(client);
+            player.MapChannel = torden;
+            player.MapContextId = SecretPassages.TordenAbyss;
+            player.PlaceAt(new Vector3(-315f, 199.2f, -348f));
+            CellManager.Instance.AddToWorld(client);
+            player.MoveBudget = 60;
+            WorldTestContext.Drain(client);
+
+            try
+            {
+                // Up the hall: an ordinary step.
+                Assert.IsTrue(client.HandleMovement(new Movement(new Vector3(-315f, 199.2f, -342.5f), Vector2.Zero)));
+                Assert.AreEqual(new Vector3(-315f, 199.2f, -342.5f), player.Position);
+                Assert.AreEqual(ClientState.Ingame, client.State);
+
+                // Up to the niche: the teleport-out effect where they stand, held there while it plays.
+                Assert.IsTrue(client.HandleMovement(new Movement(new Vector3(-315f, 199.2f, -340.5f), Vector2.Zero)));
+                Assert.AreEqual(new Vector3(-315f, 199.2f, -340.5f), player.Position);
+                Assert.IsNotNull(client.PendingTransfer);
+
+                var held = Methods(client);
+                Assert.IsTrue(held.Any(packet => packet is PreTeleportPacket), "no teleport effect where they stood");
+                Assert.IsFalse(held.Any(packet => packet is TeleportPacket), "moved before the effect has played");
+
+                // Then taken back to the obelisks, and held until the client answers.
+                now += DynamicObjectManager.PassageHoldMs;
+                manager.PassagesWorker(torden);
+                Assert.AreEqual(SecretPassages.GrowthHallEnd.Destination, player.Position);
+                Assert.AreEqual(0f, (float)player.Rotation, 1e-4f);
+                Assert.AreEqual(ClientState.Teleporting, client.State);
+                Assert.AreEqual(SecretPassages.GrowthHallEnd.Destination, Methods(client).OfType<TeleportPacket>().Single().Position);
+
+                manager.TeleportAcknowledge(client);
+
+                Assert.AreEqual(ClientState.Ingame, client.State);
+                Assert.AreEqual(1, saved);
+            }
+            finally
+            {
+                if (CellManager.Instance.IsInWorld(client))
+                    CellManager.Instance.RemoveFromWorld(client);
+            }
         }
 
         [TestMethod]
@@ -181,7 +264,7 @@ namespace Rasa.Test.World
         {
             var nav = WildernessNavMesh();
 
-            foreach (var doorway in SecretPassages.Doorways)
+            foreach (var doorway in new[] { SecretPassages.AliaCavernsDoorway, SecretPassages.EnhanceShrineDoorway })
             {
                 // Where the corridor's floor still is, a metre and a half out from the alcove's wall: inside the passage.
                 var before = doorway.Position + doorway.Out * 1.5f + new Vector3(0f, 0.2f, 0f);
@@ -456,25 +539,69 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
-        public void EachWildernessAlcoveStandsAtItsCorridorsEndWithItsPassageBeforeIt()
+        public void EachAlcoveStandsAtItsCorridorsEndOpeningDownTheCorridor()
         {
-            // The corridors' straights have their origins at z 739 and z 920, on floors at y 286.0 and y 159.93.
-            Assert.AreEqual(new Vector3(835f, 286f, 739f), SecretPassages.AliaCavernsDoorway.Position);
-            Assert.AreEqual(new Vector3(832f, 159.93f, 920f), SecretPassages.EnhanceShrineDoorway.Position);
-            AssertNear(new Vector3(0f, 0f, -1f), SecretPassages.AliaCavernsDoorway.Out, 1e-5f, "the cave alcove opens down the corridor");
-            AssertNear(new Vector3(0f, 0f, 1f), SecretPassages.EnhanceShrineDoorway.Out, 1e-5f, "the shrine alcove opens up the corridor");
+            // Where the client's maps have the end of each corridor's piece, and which way the corridor runs from it.
+            var expected = new (SecretPassages.Doorway Doorway, uint Map, Vector3 Position, Vector3 Out)[]
+            {
+                (SecretPassages.AliaCavernsDoorway, Wilderness, new Vector3(835f, 286f, 739f), new Vector3(0f, 0f, -1f)),
+                (SecretPassages.EnhanceShrineDoorway, Wilderness, new Vector3(832f, 159.93f, 920f), new Vector3(0f, 0f, 1f)),
+                (SecretPassages.GrowthHallDoorway, SecretPassages.TordenAbyss, new Vector3(-315f, 199f, -339f), new Vector3(0f, 0f, -1f)),
+                (SecretPassages.EarthCaveDoorway, Wilderness, new Vector3(-837.03f, 141f, -684.48f), Vector3.Normalize(new Vector3(-848.34f + 837.03f, 0f, -695.79f + 684.48f))),
+                (SecretPassages.FewRoomDoorway, SecretPassages.HowlingMaw, new Vector3(-482f, 123f, -557f), new Vector3(0f, 0f, 1f)),
+                (SecretPassages.DonnDoorway, SecretPassages.CavesOfDonn, new Vector3(-328f, 25f, -359f), new Vector3(1f, 0f, 0f)),
+                (SecretPassages.DonnEpicDoorway, SecretPassages.CavesOfDonnEpic, new Vector3(-328f, 25f, -359f), new Vector3(1f, 0f, 0f))
+            };
 
-            Assert.AreSame(SecretPassages.AliaCavernsDoor, SecretPassages.AliaCavernsDoorway.Passage);
-            Assert.AreSame(SecretPassages.EnhanceShrineExit, SecretPassages.EnhanceShrineDoorway.Passage);
+            CollectionAssert.AreEquivalent(expected.Select(row => row.Doorway).ToList(), SecretPassages.Doorways);
 
+            foreach (var (doorway, map, position, away) in expected)
+            {
+                Assert.AreEqual(map, doorway.MapContextId, doorway.Name);
+                Assert.AreEqual(position, doorway.Position, doorway.Name);
+                AssertNear(away, doorway.Out, 1e-4f, doorway.Name);
+                Assert.AreEqual(SecretPassages.ElohAlcove, doorway.ClassId, doorway.Name);
+            }
+
+            // The rotation a client is sent is the one its own map gives the corridor's piece.
+            AssertNear(new Vector3(0f, 0.3827f, 0.9239f), YawAsSent(SecretPassages.EarthCaveDoorway), 1e-4f, "the Earth cave alcove's turn");
+            AssertNear(new Vector3(0f, -0.7071f, 0.7071f), YawAsSent(SecretPassages.DonnDoorway), 1e-4f, "the Caves of Donn alcove's turn");
+        }
+
+        /// <summary>The (x, y, w) of the rotation a doorway is sent with; z is 0 for a turn about the vertical.</summary>
+        private static Vector3 YawAsSent(SecretPassages.Doorway doorway)
+        {
+            var rotation = new WorldLocationDescriptorPacket(doorway.Position, doorway.Yaw).Rotation;
+
+            Assert.AreEqual(0f, rotation.Z, 1e-6f);
+
+            return new Vector3(rotation.X, rotation.Y, rotation.W);
+        }
+
+        [TestMethod]
+        public void ALitAlcoveHasItsPassageBeforeItAndAnUnlitOneHasNone()
+        {
             foreach (var doorway in SecretPassages.Doorways)
             {
-                Assert.AreEqual(SecretPassages.ElohAlcove, doorway.ClassId, doorway.Name);
-                Assert.AreEqual(UseObjectState.TsState1, doorway.State, doorway.Name);
-
                 var away = doorway.Out;
                 var across = new Vector3(away.Z, 0f, -away.X);
                 var head = new Vector3(0f, 0.3f, 0f);
+
+                if (doorway.Passage == null)
+                {
+                    // Unlit, and walking into its niche from down the corridor is a walk and nothing more.
+                    Assert.AreEqual(UseObjectState.TsState0, doorway.State, doorway.Name);
+
+                    for (var side = -6f; side <= 6f; side += 1.5f)
+                        Assert.IsNull(SecretPassages.Crossed(doorway.MapContextId,
+                            doorway.Position + across * side + head + away * 10f, doorway.Position + across * side + head - away * 1.4f), $"{doorway.Name}, {side} m across");
+
+                    continue;
+                }
+
+                Assert.AreEqual(UseObjectState.TsState1, doorway.State, doorway.Name);
+                Assert.AreEqual(doorway.MapContextId, doorway.Passage.MapContextId, doorway.Name);
+                Assert.IsTrue(doorway.Passage.WithEffect, doorway.Name);
 
                 for (var side = -2.9f; side <= 2.9f; side += 0.58f)
                 {
@@ -492,13 +619,23 @@ namespace Rasa.Test.World
                     Assert.IsNull(SecretPassages.Crossed(doorway.MapContextId,
                         doorway.Position + across * side + head + away * 4f, doorway.Position + across * side + head + away * 0.6f), $"{doorway.Name}, {side} m across");
 
-                // Whoever arrives in this corridor comes out of the other passage clear of this one, a run's step and more.
-                var arriving = SecretPassages.All.Single(passage => passage != doorway.Passage && passage.MapContextId == doorway.MapContextId &&
-                    Vector3.Distance(passage.Destination, doorway.Position) < 20f);
-
-                Assert.IsTrue(Vector3.Dot(arriving.Destination - doorway.Position, away) > SecretPassages.AlcoveReach + 3f, $"{arriving.Name} ends too near {doorway.Name}");
+                // Whoever arrives in this corridor by another passage comes out clear of this one, a run's step and more.
+                foreach (var arriving in SecretPassages.All.Where(passage => passage != doorway.Passage && passage.MapContextId == doorway.MapContextId &&
+                    Vector3.Distance(passage.Destination, doorway.Position) < 20f))
+                    Assert.IsTrue(Vector3.Dot(arriving.Destination - doorway.Position, away) > SecretPassages.AlcoveReach + 3f, $"{arriving.Name} ends too near {doorway.Name}");
             }
+
+            Assert.AreSame(SecretPassages.AliaCavernsDoor, SecretPassages.AliaCavernsDoorway.Passage);
+            Assert.AreSame(SecretPassages.EnhanceShrineExit, SecretPassages.EnhanceShrineDoorway.Passage);
+            Assert.AreSame(SecretPassages.GrowthHallEnd, SecretPassages.GrowthHallDoorway.Passage);
         }
+
+        private static MapChannel Channel(uint mapContextId, string name) => new MapChannel
+        {
+            MapInfo = new MapInfo(mapContextId, name, 1556, 0),
+            ClientList = new List<Rasa.Game.Client>(),
+            PlayerLimit = 128
+        };
 
         [TestMethod]
         public void TheDoorwaysArePlacedOnceOnTheirOwnMapAndNowhereElse()
@@ -507,40 +644,57 @@ namespace Rasa.Test.World
 
             world.AddClass(SecretPassages.ElohAlcove);
 
-            var torden = new MapChannel
+            var divide = Channel(1148, "adv_foreas_concordia_divide");
+            var others = new[]
             {
-                MapInfo = new MapInfo(SecretPassages.TordenAbyss, "adv_arieki_torden_abyss", 1556, 0),
-                ClientList = new List<Rasa.Game.Client>(),
-                PlayerLimit = 128
+                Channel(SecretPassages.TordenAbyss, "adv_arieki_torden_abyss"),
+                Channel(SecretPassages.HowlingMaw, "adv_foreas_howlingmaw1"),
+                Channel(SecretPassages.CavesOfDonn, "adv_foreas_concordia_wilderness_cavesofdonn02"),
+                Channel(SecretPassages.CavesOfDonnEpic, "adv_foreas_concordia_wilderness_cavesofdonn_epic")
             };
 
             try
             {
                 Assert.AreEqual(0, SecretPassages.PlaceDoorways(null));
-                Assert.AreEqual(0, SecretPassages.PlaceDoorways(torden));
-                Assert.AreEqual(0, torden.MapCellInfo.Cells.Count);
+                Assert.AreEqual(0, SecretPassages.PlaceDoorways(divide));
+                Assert.AreEqual(0, divide.MapCellInfo.Cells.Count);
 
-                Assert.AreEqual(2, SecretPassages.PlaceDoorways(world.Map));
+                Assert.AreEqual(3, SecretPassages.PlaceDoorways(world.Map));
                 Assert.AreEqual(0, SecretPassages.PlaceDoorways(world.Map), "placed a second time");
+
+                foreach (var map in others)
+                {
+                    Assert.AreEqual(1, SecretPassages.PlaceDoorways(map), map.MapInfo.MapName);
+                    Assert.AreEqual(0, SecretPassages.PlaceDoorways(map), "placed a second time");
+                }
 
                 foreach (var doorway in SecretPassages.Doorways)
                 {
-                    var obj = SecretPassages.DoorwayObject(world.Map, doorway);
+                    var map = doorway.MapContextId == Wilderness ? world.Map : others.Single(other => other.MapInfo.MapContextId == doorway.MapContextId);
+                    var obj = SecretPassages.DoorwayObject(map, doorway);
 
                     Assert.IsNotNull(obj, doorway.Name);
                     Assert.AreEqual(DynamicObjectType.Scenery, obj.DynamicObjectType);
                     Assert.AreEqual(SecretPassages.ElohAlcove, obj.EntityClassId);
                     Assert.AreEqual(doorway.Position, obj.Position);
                     Assert.AreEqual(doorway.Yaw, obj.Rotation, 1e-6);
-                    Assert.AreEqual(UseObjectState.TsState1, obj.StateId);
-                    Assert.AreEqual(Wilderness, obj.MapContextId);
-                    Assert.AreSame(world.Map, obj.RuntimeMapChannel);
-                    Assert.AreEqual(1, world.Map.MapCellInfo.Cells.Values.Sum(cell => cell.DynamicObjectList.Count(o => ReferenceEquals(o, obj))));
+                    Assert.AreEqual(doorway.State, obj.StateId);
+                    Assert.AreEqual(doorway.SeenFrom, obj.CellPosition);
+                    Assert.AreEqual(doorway.MapContextId, obj.MapContextId);
+                    Assert.AreSame(map, obj.RuntimeMapChannel);
+                    Assert.AreEqual(1, map.MapCellInfo.Cells.Values.Sum(cell => cell.DynamicObjectList.Count(o => ReferenceEquals(o, obj))));
+
+                    // A doorway of another map is not on this one.
+                    foreach (var other in others.Append(world.Map).Where(other => other != map))
+                        Assert.IsNull(SecretPassages.DoorwayObject(other, doorway), doorway.Name);
                 }
             }
             finally
             {
                 Remove(world.Map);
+
+                foreach (var map in others)
+                    Remove(map);
             }
 
             Assert.IsNull(SecretPassages.DoorwayObject(world.Map, SecretPassages.AliaCavernsDoorway));
@@ -583,7 +737,7 @@ namespace Rasa.Test.World
 
             try
             {
-                Assert.AreEqual(2, SecretPassages.PlaceDoorways(world.Map));
+                Assert.AreEqual(3, SecretPassages.PlaceDoorways(world.Map));
 
                 // A piece of scenery with no state to stand in, beside it.
                 plain = new DynamicObject
@@ -644,6 +798,20 @@ namespace Rasa.Test.World
                 Assert.IsTrue(MathF.Abs(Quaternion.Dot(where.Rotation, new Quaternion(0f, 1f, 0f, 0f))) > 0.99999f, $"the shrine alcove is not turned about: {where.Rotation}");
                 Assert.AreEqual(UseObjectState.TsState1, ((UsableInfoPacket)made.EntityData[2]).CurState);
                 Assert.IsTrue(seen.OfType<DestroyPhysicalEntityPacket>().Any(packet => packet.EntityId == cave.EntityId), "the cave alcove was left on the client");
+
+                // The alcove off the Earth logos cave: shown unlit, and from the cave's junction before its corridor.
+                var earth = SecretPassages.DoorwayObject(world.Map, SecretPassages.EarthCaveDoorway);
+                var other = world.CreateClient();
+
+                other.Player.PlaceAt(new Vector3(-862f, 145.3f, -700f));
+                CellManager.Instance.AddToWorld(other);
+
+                made = Methods(other).OfType<CreatePhysicalEntityPacket>().Single(packet => packet.EntityId == earth.EntityId);
+
+                Assert.AreEqual(3, made.EntityData.Count);
+                Assert.AreEqual(new Vector3(-837.03f, 141f, -684.48f), ((WorldLocationDescriptorPacket)made.EntityData[1]).Position);
+                Assert.IsFalse(((UsableInfoPacket)made.EntityData[2]).Enabled);
+                Assert.AreEqual(UseObjectState.TsState0, ((UsableInfoPacket)made.EntityData[2]).CurState, "the Earth cave alcove is lit");
             }
             finally
             {
@@ -663,7 +831,7 @@ namespace Rasa.Test.World
 
             try
             {
-                Assert.AreEqual(2, SecretPassages.PlaceDoorways(world.Map));
+                Assert.AreEqual(3, SecretPassages.PlaceDoorways(world.Map));
 
                 var cave = SecretPassages.DoorwayObject(world.Map, SecretPassages.AliaCavernsDoorway);
                 var shrine = SecretPassages.DoorwayObject(world.Map, SecretPassages.EnhanceShrineDoorway);
@@ -724,14 +892,14 @@ namespace Rasa.Test.World
 
             try
             {
-                Assert.AreEqual(2, SecretPassages.PlaceDoorways(world.Map));
+                Assert.AreEqual(3, SecretPassages.PlaceDoorways(world.Map));
 
                 copy = maps.GetOrCreatePrivateInstance(Wilderness, 7);
 
                 Assert.IsNotNull(copy);
                 Assert.AreNotSame(world.Map, copy);
 
-                foreach (var doorway in SecretPassages.Doorways)
+                foreach (var doorway in SecretPassages.Doorways.Where(doorway => doorway.MapContextId == Wilderness))
                 {
                     var open = SecretPassages.DoorwayObject(world.Map, doorway);
                     var own = SecretPassages.DoorwayObject(copy, doorway);

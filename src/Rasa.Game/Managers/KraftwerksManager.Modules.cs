@@ -258,9 +258,15 @@ namespace Rasa.Managers
             client.CallMethod(station.EntityId, CraftingResultPacket.Success(client.Player.EntityId));
         }
 
-        private bool HandOverModule(Client client, DynamicObject station, CraftingJob job)
+        /// <summary>
+        /// The transaction of a hand-over (HandOver): as many of the job's items as there is room
+        /// for, made with the crafter given (null: nobody's name, onto any stack of the template),
+        /// with the inbox after the backpack when overflowToInbox, and the job's row (JobClaim).
+        /// </summary>
+        private bool HandOver(Client client, DynamicObject station, CraftingJob job, string crafter, bool overflowToInbox)
         {
             InventoryManager.InventoryPlan inventory = null;
+            JobClaim claim = null;
             var progress = MissionProgressPublicationPlan.Empty;
             var amount = 0u;
             var full = false;
@@ -269,29 +275,39 @@ namespace Rasa.Managers
                 using var unit = _gameUnitOfWorkFactory.CreateChar();
                 unit.ExecuteTransaction(() =>
                 {
-                    unit.Enlist(() => new ModuleOutputClaim(this, client, station, job));
+                    claim = unit.Enlist(() => new JobClaim(this, client, station, job, unit));
                     inventory = InventoryManager.InventoryPlan.For(client, unit);
                     var template = InventoryManager.InventoryPlan.RequireTemplate(job.ResultItemTemplateId);
                     if ((uint)template.Class != job.ResultClassId)
-                        throw new GameplayRejectionException("Module output class does not match its template.");
-                    amount = Math.Min(job.Count, inventory.GrantCapacity(job.ResultItemTemplateId));
+                        throw new GameplayRejectionException("Crafting job output class does not match its template.");
+                    amount = Math.Min(job.Count, inventory.GrantCapacity(job.ResultItemTemplateId, crafter, overflowToInbox));
                     if (amount == 0)
                     {
                         full = true;
-                        throw new GameplayRejectionException("The module output inventory category is full.");
+                        throw new GameplayRejectionException("There is no room for the crafting job's output.");
                     }
-                    inventory.Grant(job.ResultItemTemplateId, amount);
+                    inventory.Grant(job.ResultItemTemplateId, amount, overflowToInbox: overflowToInbox, crafter: crafter);
+                    claim.Take(amount);
                     progress = MissionApplication.Instance.PlanProgress(client,
                         new[] { MissionProgressEvent.ItemAcquired(job.ResultClassId, amount) }, unit);
                 });
             }
             catch (Exception error) when (GameplayRejectionException.IsExpected(error))
             {
-                Logger.WriteLog(LogType.Error, $"Module output claim {job.ResultItemId} for {client.Player.FamilyName} failed: {error}");
                 if (full)
+                {
                     Fail(client, station, PlayerMessage.PmInventoryFull);
-                else
-                    Fail(client, station, "The finished item could not be saved. It remains at the station; try again.");
+                    return false;
+                }
+                // Its row is gone: it was handed over already, or deleted. It goes from the station.
+                if (claim?.RowMissing == true)
+                {
+                    Logger.WriteLog(LogType.Error, $"Crafting job {job.ResultItemId} of {client.Player.FamilyName} has no row any more; it is dropped without a hand-over");
+                    CommunicatorManager.Instance.SystemMessage(client, "That job is no longer at the station.");
+                    return true;
+                }
+                Logger.WriteLog(LogType.Error, $"Crafting job {job.ResultItemId} hand-over to {client.Player.FamilyName} failed: {error}");
+                Fail(client, station, "The finished item could not be saved. It remains at the station; try again.");
                 return false;
             }
             job.Count -= amount;
@@ -304,22 +320,41 @@ namespace Rasa.Managers
             return false;
         }
 
-        private sealed class ModuleOutputClaim : ITransactionParticipant
+        /// <summary>
+        /// A finished job being handed over: still the player's, at this station, unchanged and
+        /// the station in reach, from the plan to the commit; and its row (when it has one) goes,
+        /// or is brought down to what is left, in the same transaction as the items.
+        /// </summary>
+        private sealed class JobClaim : ITransactionParticipant
         {
             private readonly KraftwerksManager _manager;
             private readonly Client _client;
             private readonly DynamicObject _station;
             private readonly CraftingJob _job;
             private readonly (ulong id, uint template, uint @class, uint count, uint page, uint quality, long finish) _original;
+            private readonly ICharUnitOfWork _unit;
+            private uint _taken;
 
-            internal ModuleOutputClaim(KraftwerksManager manager, Client client, DynamicObject station, CraftingJob job)
+            /// <summary>The job has a row no longer (Prepare): there is nothing to hand over.</summary>
+            internal bool RowMissing { get; private set; }
+
+            internal JobClaim(KraftwerksManager manager, Client client, DynamicObject station, CraftingJob job, ICharUnitOfWork unit)
             {
                 _manager = manager;
                 _client = client;
                 _station = station;
                 _job = job;
+                _unit = unit;
                 _original = State();
                 RequireClaim();
+            }
+
+            /// <summary>How many of the job's items the transaction gives the player.</summary>
+            internal void Take(uint amount)
+            {
+                if (amount == 0 || amount > _job.Count)
+                    throw new GameplayRejectionException("Crafting job hand-over amount is invalid.");
+                _taken = amount;
             }
 
             private (ulong, uint, uint, uint, uint, uint, long) State() =>
@@ -335,10 +370,29 @@ namespace Rasa.Managers
                     _station.DynamicObjectType != DynamicObjectType.Kraftwerks ||
                     _station.MapContextId != _client.Player.MapContextId ||
                     Vector3.Distance(_client.Player.Position, _station.Position) > InteractionRange + 2f)
-                    throw new GameplayRejectionException("Module output claim or station changed.");
+                    throw new GameplayRejectionException("Crafting job claim or station changed.");
             }
 
-            public void Prepare() => RequireClaim();
+            public void Prepare()
+            {
+                RequireClaim();
+                if (_taken == 0)
+                    throw new GameplayRejectionException("Crafting job hand-over planned no items.");
+                if (!_job.Persisted)
+                    return;
+                var id = (uint)_job.ResultItemId;
+                var written = _taken == _job.Count
+                    ? _unit.CraftingJobs.Delete(id)
+                    : _unit.CraftingJobs.UpdateCount(id, _job.Count - _taken);
+                // Gone already (taken through another station's manager, or a GM's delete): nothing
+                // to give.
+                if (!written)
+                {
+                    RowMissing = true;
+                    throw new GameplayRejectionException("Crafting job row is missing.");
+                }
+            }
+
             public void ValidateCommitBoundary() => RequireClaim();
             public void Committed() { }
             public void Dispose() { }

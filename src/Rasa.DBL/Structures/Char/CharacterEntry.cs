@@ -193,6 +193,24 @@ namespace Rasa.Structures.Char
         [Required]
         public bool WagerLocked { get; set; }
 
+        /// <summary>
+        /// An Experience Booster's boost the character left the world with (the game server's
+        /// ExperienceBoost): the percent more experience from kills, 0 for none; the booster's
+        /// level; and the time it had left, in milliseconds. Kept as time left, not as when it
+        /// would end: time away does not count.
+        /// </summary>
+        [Column("xp_boost_percent")]
+        [Required]
+        public uint XpBoostPercent { get; set; }
+
+        [Column("xp_boost_level")]
+        [Required]
+        public uint XpBoostLevel { get; set; }
+
+        [Column("xp_boost_remaining_ms")]
+        [Required]
+        public long XpBoostRemainingMs { get; set; }
+
         /// <summary>The value of the current_* columns for a character that has not saved one.</summary>
         public const int VitalNotSaved = -1;
 

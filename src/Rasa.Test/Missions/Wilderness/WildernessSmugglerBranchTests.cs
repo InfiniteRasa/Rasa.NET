@@ -161,8 +161,8 @@ namespace Rasa.Test.Missions.Wilderness
                 ChoiceIdx = 1
             });
             Assert.AreEqual(paid, harness.Context.ReadRewardTotals());
-            Assert.AreEqual(0L, WildernessTwinPillarsTests.Held(harness, 44918));
-            Assert.AreEqual(0L, WildernessTwinPillarsTests.Held(harness, 44917));
+            Assert.AreEqual(0L, WildernessTwinPillarsTests.Held(harness, 111247));
+            Assert.AreEqual(0L, WildernessTwinPillarsTests.Held(harness, 111136));
         }
 
         [TestMethod]
@@ -369,9 +369,8 @@ namespace Rasa.Test.Missions.Wilderness
         }
 
         [TestMethod]
+        // 791's betrayal reward is an EMP Bomb and an Adrenaline Booster now (Wilderness_reward_consumables).
         [DataRow(623U, 44919U, 3)]
-        [DataRow(791U, 44918U, 2)]
-        [DataRow(791U, 44917U, 1)]
         public void SupportedMedicalRewardHealsAfterOneCommittedNativeConsumption(
             uint missionId, uint templateId, int argument)
         {
@@ -429,10 +428,8 @@ namespace Rasa.Test.Missions.Wilderness
                 };
                 harness.Drain();
 
-                // A level no medpack in the pack performs. The betrayal reward is both 44917
-                // (level 1) and 44918 (level 2), and a request the named item does not perform
-                // is carried out with a pack item that does (AbilityManager.PackItemPerforming):
-                // asking for the other one's level is not a refusal.
+                // A level no medpack in the pack performs; a request the named item does not perform
+                // is carried out with a pack item that does (AbilityManager.PackItemPerforming).
                 abilities.RequestPerformAbility(harness.Client, new RequestPerformAbilityPacket
                 {
                     ActionId = request.ActionId,
@@ -561,12 +558,13 @@ namespace Rasa.Test.Missions.Wilderness
             var previews = (System.Collections.Generic.Dictionary<uint, RewardInfo>)
                 conversation.ConvoDataDict[ConversationType.MissionComplete];
             var items = previews[SuspicionMission].FixedReward.FixedItems;
-            CollectionAssert.AreEqual(new uint[] { 44917, 44918 },
+            // A Class I Adrenaline Booster and a Class I EMP Bomb.
+            CollectionAssert.AreEqual(new uint[] { 111136, 111247 },
                 items.Select(item => item.ItemTemplateId).OrderBy(id => id).ToArray());
             Assert.IsTrue(items.All(item => item.Quantity == 1));
             WildernessTwinPillarsTests.Reward(harness, taylor, SuspicionMission, null, null, 3500, 700);
-            Assert.AreEqual(1L, WildernessTwinPillarsTests.Held(harness, 44917));
-            Assert.AreEqual(1L, WildernessTwinPillarsTests.Held(harness, 44918));
+            Assert.AreEqual(1L, WildernessTwinPillarsTests.Held(harness, 111136));
+            Assert.AreEqual(1L, WildernessTwinPillarsTests.Held(harness, 111247));
         }
 
         private static void Accept(WildernessRuntimeTestHarness harness, NpcManager npcs, Creature npc, uint missionId)

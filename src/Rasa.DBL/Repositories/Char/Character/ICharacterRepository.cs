@@ -43,6 +43,9 @@ namespace Rasa.Repositories.Char.Character
         void UpdateCharacterCurrentTitle(uint id, uint titleId);
         void UpdateCharacterVitals(uint id, int health, int armor, int power, uint rezTraumaStacks, long rezTraumaEndsAt, long noHealEndsAt);
         void UpdateWagerLocked(uint id, bool locked);
+
+        /// <summary>An Experience Booster's boost the character leaves the world with: 0 percent for none.</summary>
+        void UpdateCharacterXpBoost(uint id, uint percent, uint level, long remainingMs);
         void UpdateCharacterName(uint id, string name);
 
         /// <summary>Whether another character already has this name, matched case-insensitively.</summary>

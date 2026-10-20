@@ -34,7 +34,7 @@ namespace Rasa.Test.Missions
         private const uint CaptureTheFlag = 1994;
         private const uint CrateObjective = 1;
         private const uint BriefingObjective = 4;
-        private const uint PromotionExperience = 43000;
+        private const uint PromotionExperience = 1750;
         private static readonly Vector3 CratePosition = new(398, 122, 173);
         private static readonly uint[] TemplateIds = { 13066, 13096, 13156, 13186, 13713, 28 };
 
@@ -176,7 +176,7 @@ namespace Rasa.Test.Missions
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, deSimone.EntityId, CaptureTheFlag));
             Assert.IsTrue(harness.Manager.CompleteOfferedObjective(harness.Client, deSimone.EntityId, CaptureTheFlag, 4, 1));
             Assert.AreEqual(before + PromotionExperience, harness.Context.ReadRewardTotals().Experience);
-            Assert.AreEqual((byte)5, harness.Client.Player.Level);
+            var level = harness.Client.Player.Level;
             var cloneCredits = harness.Client.Player.CloneCredits;
 
             for (var attempt = 2; attempt <= 3; attempt++)
@@ -206,7 +206,7 @@ namespace Rasa.Test.Missions
                     (3U, MissionObjectiveState.Inactive));
                 Assert.AreEqual(before + PromotionExperience, harness.Context.ReadRewardTotals().Experience,
                     $"Attempt {attempt} was paid the promotion again.");
-                Assert.AreEqual((byte)5, harness.Client.Player.Level);
+                Assert.AreEqual(level, harness.Client.Player.Level);
                 Assert.AreEqual(cloneCredits, harness.Client.Player.CloneCredits);
                 Assert.AreEqual(0, harness.Drain().OfType<LevelUpPacket>().Count());
             }

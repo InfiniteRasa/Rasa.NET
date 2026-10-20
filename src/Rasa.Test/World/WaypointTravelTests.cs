@@ -378,13 +378,136 @@ namespace Rasa.Test.World
         private static System.Collections.Generic.List<Rasa.Packets.PythonPacket> Sent(Client client) =>
             WorldTestContext.Drain(client).Select(p => p.Message).OfType<CallMethodMessage>().Select(p => p.Packet).ToList();
 
+        /// <summary>A manager on the context's map. Without holdMs it moves a traveller at once, as the tests of where travel takes them want.</summary>
         internal static DynamicObjectManager CreateManager(WorldTestContext world,
-            Action<Client, CharacterUpdate, object> update = null, Func<long> clock = null)
+            Action<Client, CharacterUpdate, object> update = null, Func<long> clock = null, int holdMs = 0)
         {
             var maps = new MapChannelManager(null);
             maps.MapChannelArray.Add(world.Map.MapInfo.MapContextId, world.Map);
             return new DynamicObjectManager(null, maps, clock ?? (() => 1000),
-                update ?? ((_, _, _) => { }), client => client.State = ClientState.Disconnected);
+                update ?? ((_, _, _) => { }), client => client.State = ClientState.Disconnected,
+                localTravelHoldMs: holdMs);
+        }
+
+        // In footage the teleport-out effect plays out, the body fading away, before the player
+        // appears at the far waypoint. Teleported at once, the client cut it short.
+        [TestMethod]
+        public void AWaypointHoldsThePlayerInTheTeleportOutEffectBeforeMovingThem()
+        {
+            using var world = new WorldTestContext();
+            var client = world.CreateClient();
+            CellManager.Instance.AddToWorld(client);
+            WorldTestContext.Drain(client);
+            long now = 1000;
+            var manager = CreateManager(world, clock: () => now, holdMs: DynamicObjectManager.WaypointHoldMs);
+            AddWaypoint(manager, world.Map, 10, Vector3.Zero);
+            AddWaypoint(manager, world.Map, 20, new Vector3(200, 5, 0));
+            client.Player.GainedWaypoints.Add(new CharacterTeleporterEntry(client.Player.Id, 20, (byte)WaypointType.Waypoint));
+
+            manager.SelectWaypoint(client, new SelectWaypointPacket { MapInstanceId = 1, WaypointId = 20 });
+
+            Assert.AreEqual(ClientState.Ingame, client.State);
+            Assert.IsNotNull(client.PendingTransfer);
+            Assert.AreEqual(Vector3.Zero, client.Player.Position);
+            var held = Sent(client);
+            Assert.IsTrue(held.Any(packet => packet is RequestMovementBlockPacket), "held where they stand");
+            Assert.IsTrue(held.Any(packet => packet is PreTeleportPacket), "the teleport-out effect");
+            Assert.IsFalse(held.Any(packet => packet is TeleportPacket || packet is BeginTeleportPacket), "moved before the effect has played");
+
+            // Picking again while it plays changes nothing.
+            var transfer = client.PendingTransfer;
+            manager.SelectWaypoint(client, new SelectWaypointPacket { MapInstanceId = 1, WaypointId = 20 });
+            Assert.AreSame(transfer, client.PendingTransfer);
+
+            now += DynamicObjectManager.WaypointHoldMs - 1;
+            manager.PassagesWorker(world.Map);
+            Assert.AreEqual(Vector3.Zero, client.Player.Position, "moved before the effect has played");
+
+            now++;
+            manager.PassagesWorker(world.Map);
+            Assert.AreEqual(new Vector3(200, 6, 0), client.Player.Position);
+            Assert.AreEqual(ClientState.Teleporting, client.State);
+            var sent = Sent(client);
+            var begin = sent.FindIndex(packet => packet is BeginTeleportPacket);
+            var teleport = sent.FindIndex(packet => packet is TeleportPacket);
+            Assert.IsTrue(begin >= 0 && teleport > begin, "BeginTeleport, Teleport: the order the client answers");
+
+            manager.TeleportAcknowledge(client);
+            Assert.AreEqual(ClientState.Ingame, client.State);
+            Assert.IsNull(client.PendingTransfer);
+        }
+
+        [TestMethod]
+        public void ThoseAtTheFarWaypointSeeAHeldTravellerArrive()
+        {
+            using var world = new WorldTestContext();
+            var client = world.CreateClient();
+            var watcher = world.CreateClient(200, 0);
+            CellManager.Instance.AddToWorld(client);
+            CellManager.Instance.AddToWorld(watcher);
+            long now = 1000;
+            var manager = CreateManager(world, clock: () => now, holdMs: DynamicObjectManager.WaypointHoldMs);
+            AddWaypoint(manager, world.Map, 10, Vector3.Zero);
+            AddWaypoint(manager, world.Map, 20, new Vector3(200, 5, 0));
+            client.Player.GainedWaypoints.Add(new CharacterTeleporterEntry(client.Player.Id, 20, (byte)WaypointType.Waypoint));
+
+            manager.SelectWaypoint(client, new SelectWaypointPacket { MapInstanceId = 1, WaypointId = 20 });
+            now += DynamicObjectManager.WaypointHoldMs;
+            manager.PassagesWorker(world.Map);
+            WorldTestContext.Drain(watcher);
+
+            manager.TeleportAcknowledge(client);
+
+            Assert.IsTrue(Sent(watcher).Any(packet => packet is TeleportArrivalPacket), "seen arriving at the far waypoint");
+            Assert.IsFalse(Sent(client).Any(packet => packet is TeleportArrivalPacket), "their own client plays its own");
+        }
+
+        [TestMethod]
+        public void ATravellerWhoDiesWhileHeldStaysWhereTheyStood()
+        {
+            using var world = new WorldTestContext();
+            var client = world.CreateClient();
+            CellManager.Instance.AddToWorld(client);
+            long now = 1000;
+            var manager = CreateManager(world, clock: () => now, holdMs: DynamicObjectManager.WaypointHoldMs);
+            AddWaypoint(manager, world.Map, 10, Vector3.Zero);
+            AddWaypoint(manager, world.Map, 20, new Vector3(200, 5, 0));
+            client.Player.GainedWaypoints.Add(new CharacterTeleporterEntry(client.Player.Id, 20, (byte)WaypointType.Waypoint));
+
+            manager.SelectWaypoint(client, new SelectWaypointPacket { MapInstanceId = 1, WaypointId = 20 });
+            WorldTestContext.Drain(client);
+            client.Player.State = CharacterState.Dead;
+            now += DynamicObjectManager.WaypointHoldMs;
+            manager.PassagesWorker(world.Map);
+
+            Assert.IsNull(client.PendingTransfer);
+            Assert.AreEqual(Vector3.Zero, client.Player.Position);
+            var sent = Sent(client);
+            Assert.IsTrue(sent.Any(packet => packet is TeleportFailedPacket), "the effect stopped");
+            Assert.IsTrue(sent.Any(packet => packet is UnrequestMovementBlockPacket), "let go");
+        }
+
+        // A waypoint on the map they are on: those around see the fade, then the flash where the
+        // traveller stood, before the body moves to the far waypoint.
+        [TestMethod]
+        public void ThoseAroundSeeTheDepartureEffectWhereTheTravellerStood()
+        {
+            using var world = new WorldTestContext();
+            var client = world.CreateClient();
+            var watcher = world.CreateClient(5, 0);
+            CellManager.Instance.AddToWorld(client);
+            CellManager.Instance.AddToWorld(watcher);
+            WorldTestContext.Drain(watcher);
+            var manager = CreateManager(world, (_, _, _) => { });
+            AddWaypoint(manager, world.Map, 10, Vector3.Zero);
+            AddWaypoint(manager, world.Map, 20, new Vector3(30, 5, 0));
+            client.Player.GainedWaypoints.Add(new CharacterTeleporterEntry(client.Player.Id, 20, (byte)WaypointType.Waypoint));
+
+            manager.SelectWaypoint(client, new SelectWaypointPacket { MapInstanceId = 1, WaypointId = 20 });
+
+            var seen = DropshipTravelTests.Departure(watcher, client.Player.EntityId);
+            CollectionAssert.AreEqual(new[] { "pre", "post", "move" }, seen.Where(kind => kind != "destroy").Take(3).ToArray());
+            Assert.IsFalse(DropshipTravelTests.Departure(client, client.Player.EntityId).Contains("post"), "their own client plays it from the Teleport");
         }
 
         internal static DynamicObject AddWaypoint(DynamicObjectManager manager, MapChannel map,

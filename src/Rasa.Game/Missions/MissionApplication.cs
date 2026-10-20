@@ -304,6 +304,20 @@ namespace Rasa.Managers
                         () => NpcManager.Instance.UpdateConversationStatus(client, npc, this),
                         $"NPC {npc.EntityId} conversation status after mission progress");
 
+            // The objects a mission talks through (MissionObjectConversations) have an NPC's
+            // status too, given only when the client first meets them: one put out ahead of its
+            // objective - Quarantine's blood analyzer, there from the mission's start - stayed
+            // with none, so could not be talked to, until the player left and came back.
+            foreach (var obj in CellManager.CellsIn(map, player.Cells)
+                .SelectMany(cell => cell.DynamicObjectList)
+                .Where(candidate => candidate.MissionConversation != null)
+                .Distinct()
+                .ToArray())
+                if (MapInstanceScope.Contains(map, obj))
+                    TryPublish(
+                        () => client.CallMethod(obj.EntityId, ObjectConversations.Status(client, obj)),
+                        $"object {obj.EntityId} conversation status after mission progress");
+
             // A mission that can now be handed in puts its receiver on the map, and an objective
             // to talk through its NPC; handed in, talked through or abandoned takes them off.
             TryPublish(() => MissionContacts.Sync(client), "mission contacts after mission progress");

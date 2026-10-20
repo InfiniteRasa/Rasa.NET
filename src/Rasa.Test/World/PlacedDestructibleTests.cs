@@ -662,7 +662,12 @@ namespace Rasa.Test.World
                 {
                     MigratedDatabaseTemplates.Migrate(context, () => context.Database.Migrate());
 
-                    Assert.IsEmpty(new WorldDestructibleRepository(context).Get(), "no rows of its own");
+                    // No rows of its own: the only ones are a later migration's (Wilderness_post_npcs), taken out
+                    // here so the fixture's lot is all there is.
+                    CollectionAssert.AreEquivalent(
+                        Enumerable.Range(0, WildernessPostNpcs.Barrels.Length + 1).Select(i => WildernessPostNpcs.FirstDestructible + (uint)i).ToList(),
+                        new WorldDestructibleRepository(context).Get().Select(row => row.Id).ToList(), "no rows of its own");
+                    context.Database.ExecuteSqlRaw("DELETE FROM world_destructible");
                     Assert.IsFalse(context.Database.HasPendingModelChanges());
                 }
 

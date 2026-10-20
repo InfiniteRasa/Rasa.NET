@@ -116,6 +116,11 @@ namespace Rasa.Api
                 if (account == null || !client.IsAuthenticated())
                     continue;
 
+                // An invisible GM (.invisible) is offline to players, and a list a website can show
+                // them is no different.
+                if (client.Player?.GmInvisible == true)
+                    continue;
+
                 var player = client.Player;
                 var playing = client.State == ClientState.Loading || client.State == ClientState.Ingame
                               || client.State == ClientState.Teleporting;

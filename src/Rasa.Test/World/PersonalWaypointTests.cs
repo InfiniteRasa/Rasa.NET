@@ -1001,11 +1001,23 @@ namespace Rasa.Test.World
 
                 migrator.Migrate();
 
+                // The vendors Alia_das_npcs, Wilderness_post_npcs and Bootcamp_fort_medic add later stock
+                // their own counters (Savage and Schramm the hospital stock, waypoints and all).
+                var later = string.Join(", ", Rasa.Services.Preloader.AliaDasNpcs.Vendors.Select(vendor => vendor.Creature)
+                    .Concat(Rasa.Services.Preloader.WildernessPostNpcs.Vendors.Select(vendor => vendor.Creature))
+                    .Append(Rasa.Services.Preloader.BootcampFortMedic.Schramm));
+
                 // Each of the three, once, at each medical vendor and nowhere else, after what it sold.
-                var stocked = Rows(context, $"select id, item_template_id from vendor_item where item_template_id in ({Items}) order by id, item_template_id");
+                var stocked = Rows(context, $"select id, item_template_id from vendor_item where item_template_id in ({Items}) and id not in ({later}) order by id, item_template_id");
                 CollectionAssert.AreEqual(
                     vendors.SelectMany(vendor => PersonalWaypointStock.Items.Select(item => $"{vendor}|{item}")).ToArray(), stocked);
-                CollectionAssert.AreEqual(before, Rows(context, $"select id, item_template_id from vendor_item where item_template_id not in ({Items}) order by rowid"));
+                // And Cp_prestige_stock later changes the control point Prestige Vendors', and
+                // Alia_das_touchups Supply Sergeant Caruso's (Bradshaw's armour).
+                var restocked = CpPrestigeStock.Vendors.Append(Rasa.Services.Preloader.AliaDasNpcs.Caruso).ToArray();
+                var prestige = restocked.Select(vendor => $"{vendor}|").ToArray();
+                var laterOrPrestige = string.Join(", ", new[] { later }.Concat(restocked.Select(vendor => vendor.ToString())));
+                CollectionAssert.AreEqual(before.Where(row => !prestige.Any(row.StartsWith)).ToList(),
+                    Rows(context, $"select id, item_template_id from vendor_item where item_template_id not in ({Items}) and id not in ({laterOrPrestige}) order by rowid"));
 
                 // What they cost is the templates' own.
                 CollectionAssert.AreEqual(new[] { "118781|1000", "118782|2500", "118783|5000" },

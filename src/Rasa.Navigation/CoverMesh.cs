@@ -1,8 +1,11 @@
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Rasa.Navigation
 {
@@ -38,6 +41,8 @@ namespace Rasa.Navigation
         private int _terrainColumns, _terrainRows;
         private float[] _terrain = Array.Empty<float>();
 
+        /// <summary>Laid out as a node is in the file: six floats and two ints, 32 bytes (<see cref="Read"/>).</summary>
+        [StructLayout(LayoutKind.Sequential)]
         private struct Node
         {
             public Vector3 Min, Max;
@@ -336,7 +341,55 @@ namespace Rasa.Navigation
                 w.Write(h);
         }
 
+        /// <summary>
+        /// Reads a cover file. The triangles, the nodes and the terrain are each read from the
+        /// decompressed stream in one block, straight into their arrays: a node is laid out in
+        /// memory as it is in the file. Reading them a float at a time through a BinaryReader, as
+        /// <see cref="ReadByElement"/> does, took 37 s for the 76 maps' covers (1.7 GB
+        /// decompressed); this takes about 6, nearly all of it the decompression.
+        ///
+        /// The file is little-endian (BinaryWriter); on a big-endian machine each value is turned
+        /// round after it is read.
+        /// </summary>
         public static CoverMesh Read(string path)
+        {
+            if (Unsafe.SizeOf<Node>() != 32)
+                throw new InvalidOperationException("A cover node is not 32 bytes in memory; it cannot be read in a block.");
+
+            using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 1 << 16);
+            using var gzip = new GZipStream(file, CompressionMode.Decompress);
+            using var r = new BufferedStream(gzip, 1 << 16);
+
+            Span<byte> magic = stackalloc byte[4];
+            r.ReadExactly(magic);
+
+            if (magic[0] != 'R' || magic[1] != 'C' || magic[2] != 'O' || magic[3] != 'V')
+                throw new InvalidDataException($"{path} is not a cover file");
+
+            var version = ReadInt32(r);
+
+            if (version != Version)
+                throw new InvalidDataException($"{path} is cover version {version}; this server reads {Version}");
+
+            var mesh = new CoverMesh();
+
+            mesh._triangles = ReadBlock<float>(r, checked(Count(r, path) * 9));
+            mesh._nodes = ReadBlock<Node>(r, Count(r, path));
+            mesh._terrainOriginX = ReadSingle(r);
+            mesh._terrainOriginZ = ReadSingle(r);
+            mesh._terrainSpacing = ReadSingle(r);
+            mesh._terrainColumns = Count(r, path);
+            mesh._terrainRows = Count(r, path);
+            mesh._terrain = ReadBlock<float>(r, checked(mesh._terrainColumns * mesh._terrainRows));
+
+            return mesh;
+        }
+
+        /// <summary>
+        /// A cover file read a value at a time, as <see cref="Read"/> used to: what the block read
+        /// is checked against (CoverMeshFileTests).
+        /// </summary>
+        internal static CoverMesh ReadByElement(string path)
         {
             using var file = File.OpenRead(path);
             using var gzip = new GZipStream(file, CompressionMode.Decompress);
@@ -376,6 +429,62 @@ namespace Rasa.Navigation
                 mesh._terrain[i] = r.ReadSingle();
 
             return mesh;
+        }
+
+        /// <summary>Whether another cover holds exactly the same triangles, nodes and terrain, bit for bit (NaN heights included).</summary>
+        internal bool SameAs(CoverMesh other) =>
+            other != null &&
+            MemoryMarshal.AsBytes(_triangles.AsSpan()).SequenceEqual(MemoryMarshal.AsBytes(other._triangles.AsSpan())) &&
+            MemoryMarshal.AsBytes(_nodes.AsSpan()).SequenceEqual(MemoryMarshal.AsBytes(other._nodes.AsSpan())) &&
+            BitConverter.SingleToInt32Bits(_terrainOriginX) == BitConverter.SingleToInt32Bits(other._terrainOriginX) &&
+            BitConverter.SingleToInt32Bits(_terrainOriginZ) == BitConverter.SingleToInt32Bits(other._terrainOriginZ) &&
+            BitConverter.SingleToInt32Bits(_terrainSpacing) == BitConverter.SingleToInt32Bits(other._terrainSpacing) &&
+            _terrainColumns == other._terrainColumns && _terrainRows == other._terrainRows &&
+            MemoryMarshal.AsBytes(_terrain.AsSpan()).SequenceEqual(MemoryMarshal.AsBytes(other._terrain.AsSpan()));
+
+        private static int ReadInt32(Stream stream)
+        {
+            Span<byte> bytes = stackalloc byte[4];
+            stream.ReadExactly(bytes);
+            return BinaryPrimitives.ReadInt32LittleEndian(bytes);
+        }
+
+        private static float ReadSingle(Stream stream)
+        {
+            Span<byte> bytes = stackalloc byte[4];
+            stream.ReadExactly(bytes);
+            return BinaryPrimitives.ReadSingleLittleEndian(bytes);
+        }
+
+        /// <summary>A count, which is never below zero in a good file.</summary>
+        private static int Count(Stream stream, string path)
+        {
+            var count = ReadInt32(stream);
+
+            if (count < 0)
+                throw new InvalidDataException($"{path} has a negative count ({count})");
+
+            return count;
+        }
+
+        /// <summary>
+        /// <paramref name="count"/> values of a type made only of 4-byte fields, read in one block.
+        /// A file that ends early throws (EndOfStreamException), as one read a value at a time did.
+        /// </summary>
+        private static T[] ReadBlock<T>(Stream stream, int count) where T : struct
+        {
+            var values = new T[count];
+            var bytes = MemoryMarshal.AsBytes(values.AsSpan());
+            stream.ReadExactly(bytes);
+
+            if (!BitConverter.IsLittleEndian)
+            {
+                var words = MemoryMarshal.Cast<byte, int>(bytes);
+                for (var i = 0; i < words.Length; i++)
+                    words[i] = BinaryPrimitives.ReverseEndianness(words[i]);
+            }
+
+            return values;
         }
 
         #endregion

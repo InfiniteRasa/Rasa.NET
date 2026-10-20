@@ -41,6 +41,9 @@ namespace Rasa.Managers
         /// <summary>How close a hostile pool's area may come to a friendly NPC, a hospital or a waypoint.</summary>
         public const float SafeClearance = 15f;
 
+        /// <summary>How many points a pool with a radius draws for a creature before taking the first, clear of the others or not (SpawnPoint).</summary>
+        internal const int SpawnDraws = 12;
+
         /// <summary>
         /// How close a hostile pool's ground may come to a turret: a creature's scan
         /// (Creature.AggroRange). Nearer, the turret and the camp find each other and fight for
@@ -138,6 +141,8 @@ namespace Rasa.Managers
             spawnPool.AliveCreatures--;
             if ((spawnPool.DropshipQueue + spawnPool.QueuedCreatures + spawnPool.AliveCreatures) == 0)
                 Emptied(spawnPool);
+            else if (spawnPool.UpdateTimer >= spawnPool.RespawnTime)
+                spawnPool.UpdateTimer = 0; // its first loss since it was whole: the top-up's time starts (TopUp)
         }
 
         public void IncreaseDeadCreatureCount(SpawnPool spawnPool)
@@ -222,6 +227,21 @@ namespace Rasa.Managers
                     poses++;
             }
 
+            // How many a pool sends at a time, drawn from its slots (spawnpool_draw; DrawCreatures).
+            var draws = 0;
+
+            foreach (var row in unitOfWork.Spawnpools.GetDraws())
+            {
+                if (!LoadedSpawnPools.TryGetValue(row.Id, out var pool))
+                {
+                    Logger.WriteLog(LogType.Error, $"spawnpool_draw {row.Id} names a spawnpool that is not loaded.");
+                    continue;
+                }
+
+                pool.DrawCount = row.Count;
+                draws++;
+            }
+
             // The beat a pool's creature walks (spawnpool_patrol; Patrols).
             var patrols = 0;
 
@@ -248,7 +268,7 @@ namespace Rasa.Managers
             foreach (var mapChannel in MapChannelManager.Instance.MapChannelArray.Values)
                 InitializeMapChannel(mapChannel);
 
-            Logger.WriteLog(LogType.Initialize, $"Loaded {LoadedSpawnPools.Count} SpawnPools, {arrivals} arrival points, {poses} posed, {patrols} patrolling");
+            Logger.WriteLog(LogType.Initialize, $"Loaded {LoadedSpawnPools.Count} SpawnPools, {arrivals} arrival points, {poses} posed, {patrols} patrolling, {draws} drawing");
         }
 
         internal void InitializeMapChannel(MapChannel mapChannel)
@@ -292,14 +312,24 @@ namespace Rasa.Managers
 
                 // A scripted pool is not on a timer; nor is a pool set aside for a control point
                 // that no control point has (ControlPoints). A garrison is, while its side holds
-                // the point - and not while the other does, whatever its mode.
-                if (spawnPool.Suspended
+                // the point - and not while the other does, whatever its mode. Nor is one in a
+                // place the player has taken back (Quieted). A scripted pool a mission scene has
+                // woken on the player's map is (Woken).
+                if (spawnPool.Suspended || spawnPool.Quieted
                     || spawnPool.Mode != ModeAutomatic && !(spawnPool.Mode == ModeControlPoint && spawnPool.IsGarrison)
+                        && !(spawnPool.Mode == ModeScripted && spawnPool.Woken)
                     || spawnPool.AnimType < 0 || spawnPool.AnimType > 2)
                     continue;
 
-                if (spawnPool.AliveCreatures > 0 || spawnPool.QueuedCreatures > 0 || spawnPool.DropshipQueue > 0)
+                if (spawnPool.QueuedCreatures > 0 || spawnPool.DropshipQueue > 0)
+                    continue; // on its way
+
+                // Some of it standing: what it lost comes back on its own (TopUp).
+                if (spawnPool.AliveCreatures > 0)
+                {
+                    TopUp(mapChannel, spawnPool, timePassed);
                     continue;
+                }
 
                 // A Bane garrison comes back together: a pool of it that has been killed waits
                 // until the whole garrison has been down long enough (ControlPoints.HoldsBack).
@@ -341,32 +371,134 @@ namespace Rasa.Managers
                 if (creatureList.Count == 0)
                     continue; // nothing to spawn
 
-                // An arrival point: through a teleporter, or off a dropship on a pad or in a bay.
-                var arrival = BaneArrivals.Pick(spawnPool);
+                spawnPool.Complement = creatureList
+                    .GroupBy(creature => creature.DbId)
+                    .Select(group => (group.Key, group.Count()))
+                    .ToList();
 
-                spawnPool.HasSpawned = true;
+                Dispatch(mapChannel, spawnPool, creatureList);
+            }
+        }
 
-                if (arrival?.Kind == SpawnPoolArrivalEntry.KindTeleporter)
-                    BaneArrivals.BeginTeleport(mapChannel, spawnPool, arrival, creatureList.Count);
-                else if (arrival?.Kind == SpawnPoolArrivalEntry.KindDropship)
-                    EnqueueDropship(mapChannel, spawnPool, creatureList, arrival);
-                else if (spawnPool.AnimType == 0)    // animType==0; spawn without animation
+        /// <summary>
+        /// How often a pool due to be topped up looks again while one of its creatures is fighting.
+        /// Ours: often enough that it fills soon after the fight, seldom enough that a long fight
+        /// does not look at the map's creatures every tick.
+        /// </summary>
+        public const long TopUpRecheckMs = 5000;
+
+        /// <summary>
+        /// A pool with some of its creatures standing and some lost - killed, taken off by a GM,
+        /// hatched into another - has what it lost set down again its respawn time after it first
+        /// lost one (DecreaseAliveCreatureCount starts the time), so one survivor no longer holds
+        /// back the rest until it too is dead. Only what it is short of comes, against what its last
+        /// full spawn set down (Complement), by creature row and no more in all than it is short;
+        /// they come as its full spawn does, through its arrival point or dropship if it has one.
+        ///
+        /// Not while any of the survivors is fighting: what was killed in a fight does not come back
+        /// at the player's back in the same fight; it is looked at again <see cref="TopUpRecheckMs"/>
+        /// later. Its wrecks, if it has any, are put back in service in place of new creatures, as at
+        /// a full respawn (AlternateMesh).
+        ///
+        /// Left out, and coming back only whole as before: a control point's garrison, which comes
+        /// back together (ControlPoints.HoldsBack), and a pool in a squad's instance, where what has
+        /// been killed stays killed until the instance's own respawn (SquadInstanceState).
+        /// </summary>
+        private void TopUp(MapChannel mapChannel, SpawnPool spawnPool, long timePassed)
+        {
+            if (spawnPool.IsGarrison || mapChannel.SquadState != null || spawnPool.Complement == null)
+                return;
+
+            var shortBy = spawnPool.Complement.Sum(entry => entry.Count) - spawnPool.AliveCreatures;
+
+            if (shortBy <= 0)
+                return;
+
+            if (spawnPool.UpdateTimer < spawnPool.RespawnTime)
+                spawnPool.UpdateTimer += Math.Min(Math.Max(0, timePassed), spawnPool.RespawnTime - spawnPool.UpdateTimer);
+
+            if (spawnPool.UpdateTimer < spawnPool.RespawnTime)
+                return;
+
+            var standing = EntityManager.Instance.Creatures.Values
+                .Where(creature => ReferenceEquals(creature.SpawnPool, spawnPool) && CreatureManager.IsLivingOnMap(mapChannel, creature))
+                .ToList();
+
+            if (standing.Any(creature => creature.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting))
+            {
+                spawnPool.UpdateTimer = Math.Max(0, spawnPool.RespawnTime - TopUpRecheckMs);
+                return;
+            }
+
+            if (AlternateMesh.ReviveWrecks(mapChannel, spawnPool))
+                return;
+
+            if (!HasWalkableGround(mapChannel, spawnPool))
+                return;
+
+            var missing = Missing(spawnPool.Complement, standing, shortBy, CreatureManager.Instance.LoadedCreatures);
+
+            if (missing.Count > 0)
+                Dispatch(mapChannel, spawnPool, missing);
+        }
+
+        /// <summary>
+        /// What a pool is short of: each creature row of its complement less those of it standing,
+        /// in the complement's order, no more than <paramref name="shortBy"/> in all. A creature that
+        /// stands for another (a grub's adult) is counted in the pool's living but not by its row,
+        /// so the cap is what keeps the pool to its size.
+        /// </summary>
+        internal static List<Creature> Missing(IReadOnlyList<(uint CreatureId, int Count)> complement, IEnumerable<Creature> standing,
+            int shortBy, IReadOnlyDictionary<uint, Creature> definitions)
+        {
+            var have = standing.GroupBy(creature => creature.DbId).ToDictionary(group => group.Key, group => group.Count());
+            var missing = new List<Creature>();
+
+            foreach (var (creatureId, count) in complement)
+            {
+                if (!definitions.TryGetValue(creatureId, out var definition) || definition == null)
+                    continue;
+
+                for (var i = have.GetValueOrDefault(creatureId); i < count && missing.Count < shortBy; i++)
+                    missing.Add(definition);
+            }
+
+            return missing;
+        }
+
+        /// <summary>Sets a pool's creatures down: through its arrival point, off its dropship, or where it stands.</summary>
+        private void Dispatch(MapChannel mapChannel, SpawnPool spawnPool, List<Creature> creatureList)
+        {
+            // An arrival point: through a teleporter, or off a dropship on a pad or in a bay.
+            var arrival = BaneArrivals.Pick(spawnPool);
+
+            spawnPool.HasSpawned = true;
+
+            if (arrival?.Kind == SpawnPoolArrivalEntry.KindTeleporter)
+            {
+                // The teleporter sends through what was counted here, not a list rolled anew when
+                // it opens (CreateListOfCreatures takes the queued list first).
+                spawnPool.QueuedCreatureList = creatureList;
+                BaneArrivals.BeginTeleport(mapChannel, spawnPool, arrival, creatureList.Count);
+            }
+            else if (arrival?.Kind == SpawnPoolArrivalEntry.KindDropship)
+                EnqueueDropship(mapChannel, spawnPool, creatureList, arrival);
+            else if (spawnPool.AnimType == 0)    // animType==0; spawn without animation
+            {
+                IncreaseQueuedCreatureCount(spawnPool, creatureList.Count);
+
+                try
                 {
-                    IncreaseQueuedCreatureCount(spawnPool, creatureList.Count);
-
-                    try
-                    {
-                        SpawnCreatures(spawnPool, creatureList);
-                    }
-                    finally
-                    {
-                        DecreaseQueuedCreatureCount(spawnPool, creatureList.Count);
-                    }
+                    SpawnCreatures(spawnPool, creatureList);
                 }
-                else
+                finally
                 {
-                    EnqueueDropship(mapChannel, spawnPool, creatureList);
+                    DecreaseQueuedCreatureCount(spawnPool, creatureList.Count);
                 }
+            }
+            else
+            {
+                EnqueueDropship(mapChannel, spawnPool, creatureList);
             }
         }
 
@@ -489,10 +621,15 @@ namespace Rasa.Managers
                         BehaviorManager.Instance.SetActionFollow(
                             creature,
                             spawnPool.FollowTargetEntityId);
-                    CellManager.Instance.AddToWorld(mapChannel, creature);
+
+                    // A Maw lies under the ground until something comes near (MawLurk).
+                    if (arrival == null && MawLurk.Lurks(creature))
+                        MawLurk.Bury(mapChannel, creature);
+                    else
+                        CellManager.Instance.AddToWorld(mapChannel, creature);
 
                     if (arrival != null)
-                        BehaviorManager.Instance.WalkIn(creature, SpawnPoint(mapChannel, spawnPool, creatureList.Count));
+                        BehaviorManager.Instance.WalkIn(creature, SpawnPoint(mapChannel, spawnPool, creatureList.Count, creature));
 
                     MissionApplication.Instance.Scenes.ActorAvailable(mapChannel, spawnPool.DbId);
                 }
@@ -547,6 +684,9 @@ namespace Rasa.Managers
             if (spawnPool.SpawnSlot == null)
                 return creatureList;
 
+            if (spawnPool.DrawCount > 0)
+                return DrawCreatures(spawnPool, definitions, random);
+
             foreach (var spawnSlot in spawnPool.SpawnSlot)
             {
                 if (creatureList.Count == 64)
@@ -577,6 +717,56 @@ namespace Rasa.Managers
                 // entity id that nothing ever freed.
                 for (var i = 0; i < spawnCreatureCount && creatureList.Count < 64; i++)
                     creatureList.Add(definition);
+            }
+
+            return creatureList;
+        }
+
+        /// <summary>
+        /// A pool with a draw (spawnpool_draw): that many creatures, each one of its slots drawn at
+        /// random, a slot's chance its max count over all its slots' - an AFS squad of three of
+        /// whom each is an Infantryman with a rifle two times in four, with a pistol or a Field
+        /// Gunner one time in four. A slot with no creature, no max count or no loaded creature
+        /// row is not drawn.
+        /// </summary>
+        internal static List<Creature> DrawCreatures(SpawnPool spawnPool, IReadOnlyDictionary<uint, Creature> definitions, Random random)
+        {
+            var creatureList = new List<Creature>();
+            var slots = new List<(Creature Definition, int Weight)>();
+
+            foreach (var slot in spawnPool.SpawnSlot)
+            {
+                if (slot == null || slot.CreatureId == 0 || slot.CountMax <= 0)
+                    continue;
+
+                if (!definitions.TryGetValue(slot.CreatureId, out var definition) || definition == null)
+                {
+                    Logger.WriteLog(LogType.Error, $"SpawnPool {spawnPool.DbId}: missing creature {slot.CreatureId}");
+                    continue;
+                }
+
+                slots.Add((definition, slot.CountMax));
+            }
+
+            var total = slots.Sum(slot => slot.Weight);
+
+            if (total == 0)
+                return creatureList;
+
+            for (var i = 0; i < spawnPool.DrawCount && creatureList.Count < 64; i++)
+            {
+                var roll = random.Next(total);
+
+                foreach (var (definition, weight) in slots)
+                {
+                    if (roll < weight)
+                    {
+                        creatureList.Add(definition);
+                        break;
+                    }
+
+                    roll -= weight;
+                }
             }
 
             return creatureList;
@@ -725,20 +915,42 @@ namespace Rasa.Managers
         {
             var pos = pool.Position;
 
+            // Where the others of its side already stand round the pool, and where any walking
+            // there is making for: it comes out Spacing.Distance clear of them where it can.
+            var keeps = Spacing.Keeps(creature);
+            var taken = keeps ? Spacing.Taken(mapChannel, creature, pos) : new List<Vector3>();
+
             if (pool.Radius > 0)
             {
-                var walkable = NavMeshManager.RandomPointAround(mapChannel, pos, pool.Radius);
+                Vector3? first = null;
 
-                if (!walkable.HasValue && Anchor(mapChannel, pool) is Vector3 anchor)
-                    walkable = NavMeshManager.RandomPointAround(mapChannel, anchor, pool.Radius) ?? anchor;
+                for (var draw = 0; draw < SpawnDraws; draw++)
+                {
+                    var walkable = NavMeshManager.RandomPointAround(mapChannel, pos, pool.Radius);
 
-                if (walkable.HasValue)
-                    return walkable.Value;
+                    if (!walkable.HasValue && Anchor(mapChannel, pool) is Vector3 anchor)
+                        walkable = NavMeshManager.RandomPointAround(mapChannel, anchor, pool.Radius) ?? anchor;
+
+                    if (!walkable.HasValue)
+                        break;
+
+                    first ??= walkable;
+
+                    if (Spacing.IsClear(walkable.Value, taken))
+                        return walkable.Value;
+                }
+
+                if (first.HasValue)
+                    return first.Value;
 
                 pos += InDisc(pool.Radius);
             }
             else if (count != 1)
             {
+                // A group at one point: the first on it, the rest on rings round it a spacing apart.
+                if (keeps && Spacing.OnRings(mapChannel, pos, taken) is Vector3 spot)
+                    return spot;
+
                 pos.X += Random.Shared.Next() % 5 - 2;
                 pos.Z += Random.Shared.Next() % 5 - 2;
             }
@@ -919,6 +1131,7 @@ namespace Rasa.Managers
                 Radius = template.Radius,
                 Pose = template.Pose,
                 Patrol = template.Patrol,
+                DrawCount = template.DrawCount,
                 SpawnSlot = template.SpawnSlot?.Select(slot =>
                     new SpawnPoolSlot(slot.CreatureId, slot.CountMin, slot.CountMax)).ToList() ?? new List<SpawnPoolSlot>(),
                 Mode = template.Mode,

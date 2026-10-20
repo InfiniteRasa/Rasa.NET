@@ -290,7 +290,13 @@ namespace Rasa.Managers
                 return;
             }
 
-            if (Vector3.Distance(client.Player.Position, packet.Destination) > MaxGoDistance)
+            // Within reach, and a point at all: a coordinate that is NaN or an infinity - or a
+            // double past a float's range - gives no distance to compare, and NaN passed the
+            // comparison and was kept as the minion's anchor, every path to it after built for
+            // nowhere. The client sends a point on the terrain under its reticle.
+            var distance = Vector3.Distance(client.Player.Position, packet.Destination);
+
+            if (!float.IsFinite(distance) || distance > MaxGoDistance)
             {
                 Refuse(client, GameOpcode.MinionGoAck, PlayerMessage.PmMinionTargetTooFarAway, minion);
                 return;

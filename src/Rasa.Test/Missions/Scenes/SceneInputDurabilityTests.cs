@@ -28,11 +28,13 @@ namespace Rasa.Test.Missions.Scenes
             Assert.IsTrue(context.Manager.Scenes.ExecuteNamed(context.Client, 321, "disable"));
 
             Assert.IsFalse(fixture.Guide.IsInteractable,
-                "A private root's stored instance key predates new assignments accepted after instance recreation.");
+                "Work from an assignment accepted after the instance was recreated reaches the private root.");
             using var verify = context.CreateChar();
             var root = verify.CharacterMissions.Runtime.Scene(fixture.RootId);
             var source = verify.CharacterMissions.Runtime.AssignmentScene(context.ReadMission(321).AssignmentId);
-            Assert.AreNotEqual(root.MapKey, source.MapKey);
+            // Attached in the recreated copy, the root's row names that copy, as the new run's does.
+            Assert.AreEqual(Rasa.Game.Missions.World.PublicActorLeaseService.MapKey(context.Map), root.MapKey);
+            Assert.AreEqual(root.MapKey, source.MapKey);
             Assert.AreEqual("Applied", verify.CharacterMissions.Runtime.ForwardedEffects(source.RunId).Single().Status);
         }
 

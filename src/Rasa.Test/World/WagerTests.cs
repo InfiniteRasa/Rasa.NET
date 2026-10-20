@@ -1,3 +1,5 @@
+extern alias RasaGame;
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -9,6 +11,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Rasa.Test.World
 {
+    using ClientState = RasaGame::Rasa.Data.ClientState;
     using Rasa.Data;
     using Rasa.Game;
     using Rasa.Managers;
@@ -567,6 +570,56 @@ namespace Rasa.Test.World
             using var check = context.CreateChar();
             Assert.AreEqual((uint)InventoryType.WagerInventory, check.CharacterInventories.FindByItemId(wagered.Id).InventoryType);
             Assert.AreEqual(wagered.EntityId, loser.Player.Inventory.WagerItem);
+        }
+
+        [TestMethod]
+        public void AWinnerBetweenMapsIsMailedTheForfeitAndShownItOnArrival()
+        {
+            using var context = Context(out var loser, out var inventory);
+            var winner = context.CreateAdditionalClient(2);
+
+            var losers = Clan(context, "Losers", (1, ClanRank.Leader));
+            var winners = Clan(context, "Winners", (2, ClanRank.Leader));
+
+            Join(loser, losers);
+            Join(winner, winners);
+            FillLockbox(context, winners.Id);
+
+            var first = Gear(context, loser, 9001, 0);
+            inventory.WagerItem(loser, new WagerItemPacket { Slot = 0 });
+            context.Drain();
+            MissionTestContext.Drain(winner);
+
+            // On a loading screen between maps.
+            winner.State = ClientState.Teleporting;
+            winner.AwaitingMapLoaded = true;
+
+            var result = inventory.ForfeitWagers(losers.Id, winners.Id, 2, "Losers", "Winners");
+
+            Assert.AreEqual(1, result.Mailed);
+            CollectionAssert.AreEqual(new[] { first.EntityId }, winner.Player.Inventory.InboxItems, "in their inbox as the server holds it");
+            Assert.AreSame(first, EntityManager.Instance.GetItem(first.EntityId));
+            Assert.AreEqual(2u, first.OwnerId);
+            var sent = MissionTestContext.Drain(winner).ToList();
+            Assert.IsFalse(sent.OfType<AddInboxItemPacket>().Any(), "not to a client that is loading the map");
+            Assert.IsTrue(sent.OfType<SystemMessagePacket>().Any(p => p.TextMessage.Contains("your pick-up box")), "but told");
+
+            // Arrived: the inbox is shown again, with it (ResendForMap).
+            winner.AwaitingMapLoaded = false;
+            inventory.ShowInbox(winner, true);
+            Assert.AreEqual(first.EntityId, MissionTestContext.Drain(winner).OfType<AddInboxItemPacket>().Single().EntityId);
+
+            // Past the loading screen, still Teleporting (a dropship setting them down): at once.
+            var second = Gear(context, loser, 9002, 1);
+            winner.State = ClientState.Ingame;
+            inventory.WagerItem(loser, new WagerItemPacket { Slot = 1 });
+            winner.State = ClientState.Teleporting;
+            MissionTestContext.Drain(winner);
+
+            inventory.ForfeitWagers(losers.Id, winners.Id, 2, "Losers", "Winners");
+
+            Assert.AreEqual(second.EntityId, MissionTestContext.Drain(winner).OfType<AddInboxItemPacket>().Single().EntityId);
+            CollectionAssert.AreEquivalent(new[] { first.EntityId, second.EntityId }, winner.Player.Inventory.InboxItems);
         }
 
         [TestMethod]

@@ -261,18 +261,18 @@ namespace Rasa.Test.Missions
             {
                 characters.GetService<IMigrator>().Migrate(CharBefore);
 
-                characters.GameAccountEntries.Add(new GameAccountEntry
-                {
-                    Id = 1, Email = "oneoffs@example.invalid", Name = "Oneoffs", FamilyName = "Fixture", SelectedSlot = 1,
-                    CanSkipBootcamp = false, CreatedAt = DateTime.UtcNow, LastLogin = DateTime.UtcNow, LastIp = "127.0.0.1", Level = 0
-                });
+                // The account and character rows are written by hand: the entities have columns this
+                // schema does not have yet (hybrid_unlocks, xp_boost_*), and the rest are left to
+                // their defaults.
+                characters.Database.ExecuteSqlRaw(
+                    "INSERT INTO account (id, email, name, family_name, selected_slot, last_ip) " +
+                    "VALUES (1, 'oneoffs@example.invalid', 'Oneoffs', 'Fixture', 1, '127.0.0.1')");
                 foreach (var id in new uint[] { 1, 2 })
-                    characters.CharacterEntries.Add(new CharacterEntry
-                    {
-                        Id = id, AccountId = 1, Slot = (byte)id, Name = $"Holder{id}", Race = 1, Class = 1, Scale = 1, Level = 40,
-                        MapContextId = 1220, RunState = 1, LastLogin = DateTime.UtcNow, CreatedAt = DateTime.UtcNow, LastPvPClan = DateTime.UtcNow
-                    });
-                characters.SaveChanges();
+                    characters.Database.ExecuteSqlRaw(
+                        "INSERT INTO character (id, account_id, slot, name, race, class, gender, scale, body, mind, spirit, level, map_context_id, " +
+                        "coord_x, coord_y, coord_z, rotation, run_state, last_login, created_at, last_pvp_clan) " +
+                        "VALUES ({0}, 1, {0}, {1}, 1, 1, 0, 1, 0, 0, 0, 40, 1220, 0, 0, 0, 0, 1, {2}, {2}, {2})",
+                        id, $"Holder{id}", DateTime.UtcNow);
 
                 // Character 1 holds the three missions as they were, and has seen every cave.
                 // Character 2 holds the Divide's, and the Wilderness's with caves yet to see.
@@ -554,6 +554,7 @@ namespace Rasa.Test.Missions
             using var harness = BootcampRuntimeTestHarness.Create();
             var client = harness.Client;
             client.MissionAreaService = new MissionAreaService(() => harness.Manager);
+            AddMap(harness, HowlingMawMap);
             AddMap(harness, MiresMap);
             AddMap(harness, 2115);
 
@@ -563,16 +564,22 @@ namespace Rasa.Test.Missions
 
             // By the loading screen, as a pass, a summon and .teleport take a player (ChangeMap),
             // and the client's MapLoaded through the handler.
-            Assert.IsTrue(harness.Maps.ChangeMap(client, MiresMap, new Vector3(100, 5, 100), 0));
+            Assert.IsTrue(harness.Maps.ChangeMap(client, HowlingMawMap, new Vector3(100, 5, 100), 0));
             Assert.AreEqual(ClientState.Teleporting, client.State);
             harness.Drain();
             harness.RouteMapLoaded();
 
             Assert.AreEqual(ClientState.Ingame, client.State);
-            Assert.AreEqual(MiresMap, client.Player.MapContextId);
-            Assert.AreEqual(Mires, harness.Drain().OfType<DispenseRadioMissionPacket>().Single().MissionId);
+            Assert.AreEqual(HowlingMawMap, client.Player.MapContextId);
+            Assert.AreEqual(HowlingMaw, harness.Drain().OfType<DispenseRadioMissionPacket>().Single().MissionId);
             Assert.IsFalse(client.MissionArrivalPending);
-            Assert.IsTrue(harness.Manager.TryAcceptRadioMission(client, Mires));
+
+            // The Mires' is Commander Tumlinson's (TargetsOfOpportunityGivers): no radio offers it.
+            Assert.IsTrue(harness.Maps.ChangeMap(client, MiresMap, new Vector3(100, 5, 100), 0));
+            harness.RouteMapLoaded();
+            Assert.AreEqual(MiresMap, client.Player.MapContextId);
+            Assert.IsFalse(harness.Drain().OfType<DispenseRadioMissionPacket>().Any());
+            Assert.IsTrue(harness.TakeFromGiver(Mires));
             harness.Drain();
 
             Assert.IsTrue(harness.Maps.ChangeMap(client, 2115, new Vector3(100, 5, 100), 0));
@@ -717,12 +724,20 @@ namespace Rasa.Test.Missions
 
         #endregion
 
-        /// <summary>Onto the battlefield, and its mission taken from the radio that offers it there.</summary>
+        /// <summary>
+        /// Onto the battlefield, and its mission taken from its officer if it has one
+        /// (TargetsOfOpportunityGivers), or from the radio that offers it there.
+        /// </summary>
         private static void Take(BootcampRuntimeTestHarness.Harness harness, uint missionId, uint mapContextId)
         {
             Arrive(harness, mapContextId);
-            harness.Manager.OfferArrivalMissions(harness.Client);
-            Assert.IsTrue(harness.Manager.TryAcceptRadioMission(harness.Client, missionId));
+            if (TargetsOfOpportunityGivers.Givers.Any(giver => giver.MissionId == missionId))
+                Assert.IsTrue(harness.TakeFromGiver(missionId));
+            else
+            {
+                harness.Manager.OfferArrivalMissions(harness.Client);
+                Assert.IsTrue(harness.Manager.TryAcceptRadioMission(harness.Client, missionId));
+            }
             harness.Drain();
         }
 

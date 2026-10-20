@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace Rasa.Structures.Char
 {
@@ -9,6 +10,7 @@ namespace Rasa.Structures.Char
     /// instance lasts through a restart. One per owner per map; the server keeps that so.
     /// </summary>
     [Table(TableName)]
+    [Index(nameof(OwnerCharacterId), nameof(MapContextId), Name = "squad_instance_index_owner_map")]
     public class SquadInstanceEntry
     {
         public const string TableName = "squad_instance";
@@ -65,6 +67,7 @@ namespace Rasa.Structures.Char
     /// enter the world on its map. One row a character, written over each time they go into one.
     /// </summary>
     [Table(TableName)]
+    [Index(nameof(InstanceId), Name = "squad_instance_visitor_index_instance")]
     public class SquadInstanceVisitorEntry
     {
         public const string TableName = "squad_instance_visitor";

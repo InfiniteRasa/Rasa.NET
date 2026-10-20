@@ -169,6 +169,7 @@ namespace Rasa.Test.Missions.Wilderness
                         unit.ExecuteTransaction(() => grant.PlanAndSave(harness.Client,
                             new[] { new InventoryManager.InventoryItemGrant(28692, 50) }, unit));
                     grant.Publish(harness.Client);
+                    harness.FillInbox();
                 }
                 var rodriguez = harness.Npc(172);
                 harness.MoveTo(rodriguez.Position);

@@ -127,7 +127,8 @@ namespace Rasa.Services.Preloader
         /// </summary>
         private static readonly Dictionary<System.Type, string[]> ColumnsAddedAfterSeed = new Dictionary<System.Type, string[]>
         {
-            [typeof(SpawnPoolEntry)] = new[] { "radius" }   // 20260926200300_Add_spawn_areas
+            [typeof(SpawnPoolEntry)] = new[] { "radius" },   // 20260926200300_Add_spawn_areas
+            [typeof(MissionRewardItemEntry)] = new[] { "module_1", "module_2", "module_3", "module_4" }   // 20270115000000_Add_mission_reward_item_modules
         };
 
         private static string[] GetColumns(System.Type entityType)

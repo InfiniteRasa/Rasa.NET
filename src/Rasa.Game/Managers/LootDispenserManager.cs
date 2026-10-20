@@ -282,6 +282,110 @@ namespace Rasa.Managers
             return Math.Max(deadTime, creature.Controller?.DeadTime ?? 0) >= EmptyCorpseMs;
         }
 
+        /// <summary>
+        /// The client's lootable proxies (augmentation LOOTABLEPROXY 74, lootableproxy.py): a
+        /// usable that carries a loot dispenser as a corpse does - the same 2.5 m auto-loot reach
+        /// and corpse-loot hover text - and nothing else. Sys_Default_LootProxy is what the
+        /// client names "Gibblet" (loot_corpse_object_v01.geo); LootableProxy_Mech is a pile of
+        /// scrap (vfx_crit_emp_resolve_junk_v01.geo), left for a MECHANICAL creature. No .map
+        /// places either and nothing in the client makes one: they are the server's.
+        /// </summary>
+        public const EntityClasses GibbletClass = (EntityClasses)28656;
+        public const EntityClasses MechGibbletClass = (EntityClasses)28670;
+
+        /// <summary>
+        /// A corpse is leaving the world with loot still on it - its time is up, or a Cadaver
+        /// Immolation or a Necromite has blown it apart (the clients take the body away with the
+        /// blast) - and the loot is left behind on a gibblet where it lay. The dispenser is the
+        /// same one, moved: its owner, looters, rolls and items stay as they were, and each of
+        /// its looters is told what it is attached to now (AttachInfo), which is all the client
+        /// needs to put the loot sparkle and the auto-loot on the gibblet (lootdispenser.py
+        /// _SetAttachedEntityId). Everyone around sees the gibblet; only its looters see loot on
+        /// it, as on the corpse.
+        ///
+        /// Nothing is left by a corpse with nothing on it, one whose loot is gone already (a
+        /// Filcher's, eaten, revived), or one that is not going because of its corpse clock.
+        /// The gibblet lies as long as a corpse with loot does, counted again from now
+        /// (<see cref="GibbletWorker"/>). Returns the gibblet, or null.
+        /// </summary>
+        internal DynamicObject LeaveGibblet(MapChannel mapChannel, Creature corpse)
+        {
+            if (mapChannel == null || corpse == null || corpse.CorpseLootEntityId == 0)
+                return null;
+
+            RetryPendingRetirements();
+
+            lock (mapChannel.LootSyncRoot)
+            {
+                if (!mapChannel.LootDispensers.TryGetValue(corpse.CorpseLootEntityId, out var loot) ||
+                    (loot.Corpse != null && !ReferenceEquals(loot.Corpse, corpse)) || loot.AttachedTo != corpse.EntityId || loot.AttachedObject != null || loot.Gibblet != null ||
+                    !loot.IsLootable || loot.FullyLooted || !loot.HasLoot ||
+                    !IsFinite(corpse.Position) || !CellManager.TryGetCellCoordinates(corpse.Position, out _, out _))
+                    return null;
+
+                // A machine's, a Machina's included: MACHINA is its own flag, not MECHANICAL as well.
+                var flags = CreatureManager.CreatureFlagsOf(corpse);
+                var mechanical = flags.Contains((int)CreatureFlag.Mechanical) || flags.Contains((int)CreatureFlag.Machina);
+                var gibblet = new DynamicObject
+                {
+                    EntityClassId = mechanical ? MechGibbletClass : GibbletClass,
+                    DynamicObjectType = DynamicObjectType.Gibblet,
+                    Position = corpse.Position,
+                    Rotation = corpse.Rotation,
+                    MapContextId = corpse.MapContextId,
+                    RuntimeMapChannel = mapChannel,
+                    TargetCategory = TargetCategory.Object,
+                    IsEnabled = true,
+                    Comment = $"gibblet of creature {corpse.DbId}"
+                };
+
+                loot.Corpse = null;
+                loot.AttachedTo = gibblet.EntityId;
+                loot.Gibblet = gibblet;
+                loot.GibbletAge = 0;
+                corpse.CorpseLootEntityId = 0;
+
+                CellManager.Instance.AddToWorld(mapChannel, gibblet);
+                gibblet.IsInWorld = true;
+
+                var shownTo = LootersHere(mapChannel, loot);
+                if (loot.OwnerClient != null && !shownTo.Contains(loot.OwnerClient))
+                    shownTo.Add(loot.OwnerClient);
+
+                foreach (var looter in shownTo)
+                    if (looter.State == ClientState.Ingame)
+                        AttachInfo(looter, loot);
+
+                return gibblet;
+            }
+        }
+
+        /// <summary>
+        /// The gibblets on a map: one that has been emptied goes, and one that has lain as long as
+        /// a corpse with loot may (or with someone's window open on it, as long as that) goes with
+        /// what is left on it, as a corpse's would. Its time is the map's, as a corpse's is.
+        /// </summary>
+        internal void GibbletWorker(MapChannel mapChannel, long delta)
+        {
+            if (mapChannel == null)
+                return;
+
+            RetryPendingRetirements();
+            var notices = new List<RetirementNotice>();
+
+            lock (mapChannel.LootSyncRoot)
+                foreach (var loot in mapChannel.LootDispensers.Values.Where(entry => entry.Gibblet != null).ToArray())
+                {
+                    if (delta > 0)
+                        loot.GibbletAge = loot.GibbletAge > long.MaxValue - delta ? long.MaxValue : loot.GibbletAge + delta;
+
+                    if (!loot.HasLoot || !loot.IsLootable || loot.FullyLooted || loot.GibbletAge >= LifetimeLimit(loot))
+                        notices.AddRange(Retire(mapChannel, loot, true));
+                }
+
+            Publish(notices);
+        }
+
         internal LootDispenser Create(Client killer, Creature creature, ActorGameplayPolicy policy = null)
         {
             var loot = Create(killer, creature, new List<Client> { killer }, 0, policy);
@@ -310,6 +414,7 @@ namespace Rasa.Managers
             loot.Player = owner.Player;
             loot.Map = mapChannel;
             loot.Corpse = creature;
+            loot.SourceCreatureDbId = creature.DbId;
             loot.CharacterId = owner.Player.Id;
             loot.AccountId = owner.AccountEntry?.Id ?? 0;
             loot.UnitOfWorkFactory = _gameUnitOfWorkFactory;
@@ -434,13 +539,23 @@ namespace Rasa.Managers
                 drops = ordinary != null ? ordinary.Roll(_lootRoll) :
                     _lootRoll(0, 2) == 0 ? Array.Empty<(uint, uint)>() : new[] { (28U, 3U) };
             }
-            MaterializeCorpseItems(killer, owner, loot, drops.ToArray(), mapContextId, creatureId, partyId);
+            // The drops are rolled before the credits, as they always were: a test's sequence of
+            // rolls depends on it.
+            var rolled = drops.ToArray();
+            loot.Credits = _lootRoll(1, 10);
+            MaterializeItems(owner, loot, rolled, partyId,
+                () => ValidateCreationSource(killer, loot.Corpse, loot.Map, mapContextId, creatureId));
         }
 
-        private void MaterializeCorpseItems(Client killer, Client owner, LootDispenser loot,
-            IReadOnlyList<(uint TemplateId, uint Quantity)> drops, uint mapContextId, uint creatureId, uint partyId)
+        /// <summary>
+        /// Each drop made an item, saved, and put on the dispenser for its looters; the
+        /// dispenser's quality the best of them. All or none: a drop that cannot be made, or a
+        /// source that is no longer current at the commit (<paramref name="atCommit"/> throws),
+        /// leaves nothing behind.
+        /// </summary>
+        private void MaterializeItems(Client owner, LootDispenser loot,
+            IReadOnlyList<(uint TemplateId, uint Quantity)> drops, uint partyId, Action atCommit)
         {
-            loot.Credits = _lootRoll(1, 10);
             loot.LootQuality = LootQuality.Junk;
             var staged = new List<Item>();
             var committed = false;
@@ -451,8 +566,8 @@ namespace Rasa.Managers
                 using var unit = _gameUnitOfWorkFactory.CreateChar();
                 unit.ExecuteTransaction(() =>
                 {
-                    TransactionValidation.AtCommitBoundary(unit,
-                        () => ValidateCreationSource(killer, loot.Corpse, loot.Map, mapContextId, creatureId));
+                    if (atCommit != null)
+                        TransactionValidation.AtCommitBoundary(unit, atCommit);
                     foreach (var drop in drops)
                     {
                         var template = InventoryManager.InventoryPlan.RequireTemplate(drop.TemplateId);
@@ -547,6 +662,105 @@ namespace Rasa.Managers
             }
         }
 
+        /// <summary>
+        /// What a player found in a lootable container the server put down (WorldContainers): a
+        /// dispenser on the container with these drops, for the looters the opener's squad loot
+        /// method gives it to, as a corpse's is - the opener first, and with the items at or over
+        /// the squad's threshold rolled for among everyone who shares in it (LootRolls). No
+        /// credits. Each looter is shown it. Null, with the reason logged, if it could not be
+        /// made; nothing is left behind then.
+        /// </summary>
+        internal LootDispenser LootContainer(Client opener, DynamicObject container,
+            IReadOnlyList<(uint TemplateId, uint Quantity)> drops,
+            List<Client> looters, uint partyId, Party party, List<Client> eligible)
+        {
+            RetryPendingRetirements();
+            var mapChannel = container?.RuntimeMapChannel;
+
+            if (opener?.Player == null || mapChannel == null || looters == null || looters.Count == 0)
+                return null;
+
+            var owner = looters[0];
+            var loot = new LootDispenser
+            {
+                IsLootable = true,
+                AttachedTo = container.EntityId,
+                ContainerObject = container,
+                Owner = owner.Player.EntityId,
+                OwnerClient = owner,
+                Player = owner.Player,
+                Map = mapChannel,
+                CharacterId = owner.Player.Id,
+                AccountId = owner.AccountEntry?.Id ?? 0,
+                UnitOfWorkFactory = _gameUnitOfWorkFactory
+            };
+
+            foreach (var looter in looters)
+                loot.Looters.Add(looter.Player.EntityId);
+
+            try
+            {
+                MaterializeItems(owner, loot, drops ?? Array.Empty<(uint, uint)>(), partyId,
+                    () =>
+                    {
+                        if (!container.IsInWorld || !ReferenceEquals(container.RuntimeMapChannel, mapChannel))
+                            throw new GameplayRejectionException($"Container {container.EntityId} is no longer in the world.");
+                    });
+
+                // Nothing in it this time: opened, and nothing to loot.
+                loot.IsLootable = loot.HasLoot;
+                loot.FullyLooted = !loot.HasLoot;
+
+                lock (mapChannel.LootSyncRoot)
+                    mapChannel.LootDispensers.Add(loot.EntityId, loot);
+            }
+            catch (Exception error) when (GameplayRejectionException.IsExpected(error))
+            {
+                lock (mapChannel.LootSyncRoot)
+                    Retire(mapChannel, loot, false, failedCreation: true);
+                Logger.WriteLog(LogType.Error, $"The loot of container {container.EntityId} could not be made: {error.Message}");
+                return null;
+            }
+
+            var shownTo = new List<Client>(looters);
+
+            foreach (var winner in LootRolls.Distribute(loot, party, eligible ?? looters))
+                if (!shownTo.Contains(winner))
+                {
+                    shownTo.Add(winner);
+                    loot.Looters.Add(winner.Player.EntityId);
+                }
+
+            foreach (var looter in shownTo)
+                ShowContainerLoot(looter, loot);
+
+            return loot;
+        }
+
+        /// <summary>A container's dispenser shown to one of its looters: made on their client, attached to the container, and what they may take.</summary>
+        internal void ShowContainerLoot(Client looter, LootDispenser loot)
+        {
+            looter.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(loot.EntityId, loot.EntityClassId));
+            AttachInfo(looter, loot);
+            LootInfo(looter, loot);
+            OverallQuality(looter, loot);
+            CanLootItems(looter, loot);
+        }
+
+        /// <summary>A container's dispenser taken away (its reset): off its looters' screens, and whatever nobody took gone.</summary>
+        internal void RemoveContainerLoot(MapChannel mapChannel, LootDispenser loot)
+        {
+            if (mapChannel == null || loot == null)
+                return;
+
+            RetryPendingRetirements();
+            var notices = new List<RetirementNotice>();
+            lock (mapChannel.LootSyncRoot)
+                if (mapChannel.LootDispensers.TryGetValue(loot.EntityId, out var current) && ReferenceEquals(current, loot))
+                    notices.AddRange(Retire(mapChannel, loot, true));
+            Publish(notices);
+        }
+
         internal void AttachRewardLoot(Client owner, MapChannel mapChannel, DynamicObject obj)
         {
             if (owner?.Player == null || mapChannel == null || obj?.MissionLootSource == null)
@@ -630,6 +844,8 @@ namespace Rasa.Managers
                                 throw new GameplayRejectionException($"Invalid reward loot template {row.ItemTemplateId}.");
 
                             var item = ItemManager.StageItem(template, row.Quantity, string.Empty);
+                            for (var slot = 0; slot < row.ModuleIds.Count && slot < ItemModules.Slots; slot++)
+                                item.SetModule(slot, row.ModuleIds[slot]);
                             stagedItems.Add(item);
                             item.Id = unit.Items.CreateItem(item);
                             if (item.Id == 0)
@@ -961,7 +1177,7 @@ namespace Rasa.Managers
                     if (refused && !packet.AutoLootOnly)
                         InventoryManager.TellCharacterUnique(client);
 
-                    Claim(client, loot, selected, null, true);
+                    Claim(client, loot, selected, null, true, quiet: packet.AutoLootOnly);
                 }
             }
         }
@@ -999,51 +1215,83 @@ namespace Rasa.Managers
             client.Player.AutoLootThreshold = threshold;
         }
 
+        /// <summary>
+        /// The player takes these items off the corpse, and with Loot All (lootAll) its credits.
+        ///
+        /// What does not fit the backpack stays on the corpse, item by item, and the player is
+        /// told their inventory is full; what fits is taken. Taking used to be all or nothing: one
+        /// item with no room refused the whole claim, credits included, with an error in the log
+        /// and nothing said to the player. Corpse loot does not go to the inbox, as a mission
+        /// reward does: it is there to take once room is made. Nothing is said when the claim is
+        /// the client's auto-loot (quiet), which it sends again and again while the player stands
+        /// in reach.
+        ///
+        /// The credits go when the corpse's last item does, split among everyone sharing the kill
+        /// (CreditRecipients); a corpse that is one player's pays them on Loot All too, whether its
+        /// items fit or not. They, and the prestige a rare item is worth, are worked out from what
+        /// was taken, in the same write (Settle).
+        /// </summary>
         private void Claim(
             Client client,
             LootDispenser loot,
-            IReadOnlyList<LootItem> items,
+            IReadOnlyList<LootItem> asked,
             uint? destSlot,
-            bool includeCredits)
+            bool lootAll,
+            bool quiet = false)
         {
-            // The credits go when the corpse's last item does, split among everyone sharing the
-            // kill (CreditRecipients); a corpse that is one player's pays them on Loot All too.
-            var emptiesItems = loot.LootItems.All(item => item.Taken || items.Contains(item));
-            includeCredits = loot.Credits > 0 &&
-                ((includeCredits && loot.CreditSharers.Count == 0) || emptiesItems);
-
-            var recipients = includeCredits ? CreditRecipients(client, loot) : new List<Client> { client };
-            var shares = includeCredits ? SplitCredits(loot.Credits, recipients.Count) : new List<int> { 0 };
             var currentCredits = client.Player.Credits.GetValueOrDefault(CurencyType.Credits);
-            var ownShare = shares[0];
-            var creditsGranted = includeCredits && ownShare != 0;
-            var others = new List<(Client Recipient, int Share, int Before, int After)>();
-            int creditsAfter;
-            try
-            {
-                creditsAfter = checked(currentCredits + ownShare);
-
-                for (var i = 1; i < recipients.Count; i++)
-                {
-                    if (shares[i] <= 0)
-                        continue;
-
-                    var before = recipients[i].Player.Credits.GetValueOrDefault(CurencyType.Credits);
-                    others.Add((recipients[i], shares[i], before, checked(before + shares[i])));
-                }
-            }
-            catch (OverflowException)
-            {
-                return;
-            }
-
-            // A rare item off a creature's corpse is worth prestige to whoever takes it
-            // (ItemLootPrestige), kept in the same write as the item: both or neither.
-            var prestigeAwards = ItemLootPrestige.Awards(loot, items);
             var currentPrestige = client.Player.Credits.GetValueOrDefault(CurencyType.Prestige);
-            var prestigeAfter = (int)Math.Min(
-                currentPrestige + prestigeAwards.Sum(award => (long)award.Amount), int.MaxValue);
-            var prestigeGranted = prestigeAfter > currentPrestige;
+
+            IReadOnlyList<LootItem> items = asked;
+            var includeCredits = false;
+            var ownShare = 0;
+            var creditsGranted = false;
+            var creditsAfter = currentCredits;
+            var others = new List<(Client Recipient, int Share, int Before, int After)>();
+            var prestigeAwards = ItemLootPrestige.Awards(loot, Array.Empty<LootItem>());
+            var prestigeAfter = currentPrestige;
+            var prestigeGranted = false;
+
+            // What the take pays, once it is known which of the items it takes.
+            void Settle(IReadOnlyList<LootItem> taken)
+            {
+                items = taken;
+
+                var emptiesItems = loot.LootItems.All(item => item.Taken || taken.Contains(item));
+                includeCredits = loot.Credits > 0 &&
+                    ((lootAll && loot.CreditSharers.Count == 0) || emptiesItems);
+
+                var recipients = includeCredits ? CreditRecipients(client, loot) : new List<Client> { client };
+                var shares = includeCredits ? SplitCredits(loot.Credits, recipients.Count) : new List<int> { 0 };
+                ownShare = shares[0];
+                creditsGranted = includeCredits && ownShare != 0;
+                others.Clear();
+
+                try
+                {
+                    creditsAfter = checked(currentCredits + ownShare);
+
+                    for (var i = 1; i < recipients.Count; i++)
+                    {
+                        if (shares[i] <= 0)
+                            continue;
+
+                        var before = recipients[i].Player.Credits.GetValueOrDefault(CurencyType.Credits);
+                        others.Add((recipients[i], shares[i], before, checked(before + shares[i])));
+                    }
+                }
+                catch (OverflowException error)
+                {
+                    throw new GameplayRejectionException("A corpse's credit share exceeds the supported range.", error);
+                }
+
+                // A rare item off a creature's corpse is worth prestige to whoever takes it
+                // (ItemLootPrestige), kept in the same write as the item: both or neither.
+                prestigeAwards = ItemLootPrestige.Awards(loot, taken);
+                prestigeAfter = (int)Math.Min(
+                    currentPrestige + prestigeAwards.Sum(award => (long)award.Amount), int.MaxValue);
+                prestigeGranted = prestigeAfter > currentPrestige;
+            }
 
             var grant = new InventoryManager.LootGrant(_beforeItemPublication);
             var missionManager = _missionManager ?? MissionApplication.Instance;
@@ -1069,6 +1317,12 @@ namespace Rasa.Managers
                         throw new GameplayRejectionException(
                             "Durable character credits changed.");
                     }
+
+                    // What fits the backpack is taken; the rest stays on the corpse.
+                    Settle(grant.PlanAndSave(client, asked, unitOfWork, destSlot));
+                    if (items.Count == 0 && !creditsGranted && others.Count == 0)
+                        throw new NothingFitsException();
+
                     if (prestigeGranted && character.Prestige != currentPrestige)
                     {
                         CharacterManager.PutPurseRight(client, character);
@@ -1095,7 +1349,6 @@ namespace Rasa.Managers
 
                     MissionLootPlanner.ValidateClaim(client, loot, items, missionManager, unitOfWork,
                         () => TryGetLoot(client, loot.EntityId, out var admittedLoot) && ReferenceEquals(admittedLoot, loot));
-                    grant.PlanAndSave(client, items, unitOfWork, destSlot);
                     var events = items.GroupBy(item => item.ItemClassId)
                         .Select(group => MissionProgressEvent.ItemAcquired(
                             group.Key,
@@ -1141,6 +1394,13 @@ namespace Rasa.Managers
                             "Corpse state changed during the claim.");
                 });
             }
+            catch (NothingFitsException)
+            {
+                // Nothing of it fits and there is nothing else to pay: nothing was written.
+                if (!quiet)
+                    TellInventoryFull(client);
+                return;
+            }
             catch (Exception error) when (
                 error is GameplayRejectionException ||
                 error is DbUpdateException ||
@@ -1152,6 +1412,9 @@ namespace Rasa.Managers
             }
 
             grant.Publish(client);
+
+            if (items.Count < asked.Count && !quiet)
+                TellInventoryFull(client);
 
             if (prestigeGranted)
                 client.Player.Credits[CurencyType.Prestige] = prestigeAfter;
@@ -1287,6 +1550,19 @@ namespace Rasa.Managers
             progressPlan.Publish(client);
         }
 
+        /// <summary>A claim's item that did not fit the backpack, and stays on the corpse: PM_INVENTORY_FULL.</summary>
+        private static void TellInventoryFull(Client client) =>
+            client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(
+                PlayerMessage.PmInventoryFull, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+
+        /// <summary>A claim none of whose items fit, with nothing else to pay: rolled back, and not an error.</summary>
+        private sealed class NothingFitsException : Exception
+        {
+            public NothingFitsException() : base("Nothing of the claim fits the backpack.")
+            {
+            }
+        }
+
         private bool TryGetLoot(Client client, ulong entityId, out LootDispenser loot)
         {
             loot = null;
@@ -1310,6 +1586,38 @@ namespace Rasa.Managers
                 (loot.Owner == player.EntityId && loot.AccountId != 0 && loot.AccountId != client.AccountEntry?.Id) ||
                 !IsFinite(player.Position))
                 return false;
+
+            // A gibblet: what the corpse left its loot on. In the world, on this map, and in the
+            // reach a corpse is looted from.
+            if (loot.Gibblet != null)
+            {
+                var gibblet = loot.Gibblet;
+                var reach = _distance(client);
+                return double.IsFinite(reach) && reach > 0 &&
+                    gibblet.IsInWorld &&
+                    client.PendingTransfer == null &&
+                    loot.AttachedTo == gibblet.EntityId &&
+                    MapInstanceScope.Contains(map, gibblet) &&
+                    EntityManager.Instance.TryGetObject(gibblet.EntityId, out var registeredGibblet) &&
+                    ReferenceEquals(gibblet, registeredGibblet) &&
+                    IsFinite(gibblet.Position) &&
+                    loot.GibbletAge < LifetimeLimit(loot) &&
+                    Vector3.Distance(player.Position, gibblet.Position) <= reach;
+            }
+
+            // A container the server put down (WorldContainers): still the same object, still in
+            // the world on this map, and in reach.
+            if (loot.ContainerObject != null)
+            {
+                var container = loot.ContainerObject;
+                return container.IsInWorld &&
+                    client.PendingTransfer == null &&
+                    ReferenceEquals(container.RuntimeMapChannel, map) &&
+                    EntityManager.Instance.TryGetObject(loot.AttachedTo, out var registeredContainer) &&
+                    ReferenceEquals(container, registeredContainer) &&
+                    IsFinite(container.Position) &&
+                    Vector3.Distance(player.Position, container.Position) <= DynamicObjectManager.MaxUseDistance;
+            }
 
             // A scripted prop (a mission reward crate) instead of something killed - no corpse,
             // no kill-ownership semantics, just: is it still the same object, still in the world,
@@ -1456,6 +1764,17 @@ namespace Rasa.Managers
                 loot.Corpse.CorpseLootEntityId = 0;
             if (loot.AttachedObject?.LootDispenserEntityId == loot.EntityId)
                 loot.AttachedObject.LootDispenserEntityId = 0;
+
+            // A gibblet is there only for its loot: it goes with it.
+            if (loot.Gibblet is { } gibblet)
+            {
+                loot.Gibblet = null;
+                if (gibblet.IsInWorld)
+                {
+                    gibblet.IsInWorld = false;
+                    CellManager.Instance.RemoveFromWorld(map, gibblet);
+                }
+            }
 
             return notices;
         }

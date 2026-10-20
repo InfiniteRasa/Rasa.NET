@@ -16,9 +16,10 @@ namespace Rasa.Test.Gameplay
     using Rasa.Test.Missions;
 
     /// <summary>
-    /// A kill's experience and adrenaline are split evenly between the player with the kill and
-    /// every member of their squad within 200 m of the corpse: the experience between those
-    /// below the level cap, the adrenaline between those alive.
+    /// A kill's experience and adrenaline are shared between the player with the kill and every
+    /// member of their squad within 200 m of the corpse: the experience between those below the
+    /// level cap, each 100% less 8% for every other (KillShares.GroupPartOf), the adrenaline
+    /// evenly between those alive.
     /// </summary>
     [TestClass]
     [DoNotParallelize]
@@ -60,7 +61,7 @@ namespace Rasa.Test.Gameplay
                 var gained = Gains(context.Client).Single();
                 Assert.IsTrue(gained.Gained >= 90 && gained.Gained <= 110, $"a level 1 kill is 100 give or take 10, not {gained.Gained}");
                 Assert.AreEqual(gained.Gained, gained.BaseGained);
-                Assert.AreEqual(1, gained.GroupMod, "no group bonus");
+                Assert.AreEqual(1, gained.GroupMod, "no group bonus alone");
                 Assert.AreEqual(gained.Gained, context.Client.Player.Experience);
                 Assert.AreEqual(gained.Gained, Saved(context, context.Client));
 
@@ -74,7 +75,7 @@ namespace Rasa.Test.Gameplay
         }
 
         [TestMethod]
-        public void TheSquadWithinTwoHundredMetresOfTheCorpseSplitsTheKillEvenly()
+        public void TheSquadWithinTwoHundredMetresOfTheCorpseSharesTheKill()
         {
             using var context = Start();
             var near = context.CreateAdditionalClient(2);
@@ -95,8 +96,11 @@ namespace Rasa.Test.Gameplay
             {
                 Creatures(context).HandleCreatureKill(context.Map, creature, context.Client.Player);
 
+                // Three: 84% of 90 to 110 each, and a third of it their Base XP.
                 var killers = Gains(context.Client).Single();
-                Assert.IsTrue(killers.Gained >= 30 && killers.Gained <= 36, $"a third of 90 to 110, not {killers.Gained}");
+                Assert.IsTrue(killers.Gained >= 75 && killers.Gained <= 92, $"84% of 90 to 110, not {killers.Gained}");
+                Assert.IsTrue(killers.BaseGained >= 30 && killers.BaseGained <= 36, $"a third of 90 to 110, not {killers.BaseGained}");
+                Assert.AreEqual(2.52, killers.GroupMod, 1e-9);
 
                 foreach (var sharer in new[] { context.Client, near, edge })
                 {
@@ -108,9 +112,9 @@ namespace Rasa.Test.Gameplay
                 {
                     var gained = Gains(sharer).Single();
                     Assert.AreEqual(killers.Gained, gained.Gained);
-                    Assert.AreEqual(killers.Gained, gained.BaseGained);
+                    Assert.AreEqual(killers.BaseGained, gained.BaseGained);
                     Assert.AreEqual(killers.Gained, gained.Total);
-                    Assert.AreEqual(1, gained.GroupMod, "no group bonus");
+                    Assert.AreEqual(2.52, gained.GroupMod, 1e-9, "+152% Group Bonus");
                     Assert.IsFalse(gained.WasCritKill || gained.WasTeamCritKill);
                 }
 
@@ -152,7 +156,7 @@ namespace Rasa.Test.Gameplay
                 Assert.HasCount(2, mates);
 
                 var share = killers[0].Gained;
-                Assert.IsTrue(share >= 45 && share <= 55, $"half of 90 to 110, not {share}");
+                Assert.IsTrue(share >= 82 && share <= 101, $"92% of 90 to 110, not {share}");
                 Assert.IsTrue(killers.Concat(mates).All(gain => gain.Gained == share), "the kill and the finish are each split the same");
                 Assert.AreEqual(share * 2, context.Client.Player.Experience);
                 Assert.AreEqual(share * 2, mate.Player.Experience);
@@ -172,7 +176,7 @@ namespace Rasa.Test.Gameplay
         }
 
         [TestMethod]
-        public void AnAwardIsPaidInEqualPartsAndWhatDoesNotDivideIsLost()
+        public void AnAwardIsPaidInGroupPartsRoundedDown()
         {
             using var context = Start();
             var second = context.CreateAdditionalClient(2);
@@ -180,17 +184,28 @@ namespace Rasa.Test.Gameplay
             var manifestations = new ManifestationManager(context);
             var sharers = new[] { context.Client, second, third };
 
-            Assert.AreEqual(33u, KillShares.AwardExperience(manifestations, sharers, context.Client, 100));
+            Assert.AreEqual(84u, KillShares.AwardExperience(manifestations, sharers, context.Client, 100));
 
             foreach (var sharer in sharers)
             {
-                Assert.AreEqual(33u, sharer.Player.Experience);
-                Assert.AreEqual(33u, Saved(context, sharer));
-                Assert.AreEqual(33u, Gains(sharer).Single().Gained);
+                var gained = Gains(sharer).Single();
+
+                Assert.AreEqual(84u, sharer.Player.Experience);
+                Assert.AreEqual(84u, Saved(context, sharer));
+                Assert.AreEqual(84u, gained.Gained);
+                Assert.AreEqual(33u, gained.BaseGained, "an even split");
+                Assert.AreEqual(2.52, gained.GroupMod, 1e-9);
             }
 
+            // 84% of 7 is 5.88: 5.
+            Assert.AreEqual(5u, KillShares.AwardExperience(manifestations, sharers, context.Client, 7));
+            Assert.AreEqual(89u, context.Client.Player.Experience);
+            Gains(context.Client);
+            Gains(second);
+            Gains(third);
+
             // A finish somebody else opened is the team's to all of them.
-            Assert.AreEqual(50u, KillShares.AwardExperience(manifestations, new[] { context.Client, second }, context.Client, 100, CritKill.Team));
+            Assert.AreEqual(92u, KillShares.AwardExperience(manifestations, new[] { context.Client, second }, context.Client, 100, CritKill.Team));
             Assert.IsTrue(Gains(context.Client).Single().WasTeamCritKill);
             Assert.IsTrue(Gains(second).Single().WasTeamCritKill);
             Assert.IsEmpty(Gains(third));
@@ -215,10 +230,10 @@ namespace Rasa.Test.Gameplay
             Assert.AreEqual(100u, context.Client.Player.Experience);
             Assert.AreEqual(100u, Gains(context.Client).Single().Gained);
 
-            // With another who can gain: halves, not thirds.
-            Assert.AreEqual(50u, KillShares.AwardExperience(manifestations, new[] { context.Client, veteran, mate }, context.Client, 100));
-            Assert.AreEqual(150u, context.Client.Player.Experience);
-            Assert.AreEqual(50u, mate.Player.Experience);
+            // With another who can gain: two parts of 92, not three of 84.
+            Assert.AreEqual(92u, KillShares.AwardExperience(manifestations, new[] { context.Client, veteran, mate }, context.Client, 100));
+            Assert.AreEqual(192u, context.Client.Player.Experience);
+            Assert.AreEqual(92u, mate.Player.Experience);
 
             Assert.AreEqual(0u, veteran.Player.Experience);
             Assert.IsEmpty(Gains(veteran));

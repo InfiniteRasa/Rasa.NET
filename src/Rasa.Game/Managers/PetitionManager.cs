@@ -11,6 +11,7 @@ namespace Rasa.Managers
     using Packets;
     using Packets.Petition.Client;
     using Packets.Petition.Server;
+    using Repositories.Char;
     using Repositories.UnitOfWork;
     using Structures;
     using Structures.Char;
@@ -55,6 +56,9 @@ namespace Rasa.Managers
         /// </summary>
         private const int MaxSummaryLength = 255;
         private const int MaxBodyLength = 8000;
+
+        /// <summary>A game master's answer goes in petition.resolution, varchar(255).</summary>
+        public const int MaxResponseLength = 255;
 
         /// <summary>
         /// A petition plus everything appended to it. petition.body is MySQL TEXT, which holds
@@ -322,31 +326,180 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// Marks a petition dealt with. The player is told if they happen to be online - they
-        /// filed it and then heard nothing, which is most of what makes a petition system feel
-        /// broken - and nothing is sent if they are not, because there is no offline mail here.
+        /// The console's resolve: marks a petition dealt with, with a line about what was done -
+        /// or, with none, keeps the answer it has. The player is told now if they are in the
+        /// world and when they next arrive in it if not (<see cref="Tell"/>).
         /// </summary>
         public bool Resolve(uint id, string resolution)
+        {
+            var note = Clamp(resolution, MaxResponseLength);
+
+            return Settle(id, note.Length > 0 ? note : null, close: true).Answer == PetitionAnswer.Done;
+        }
+
+        #endregion
+
+        #region Answers
+
+        /// <summary>
+        /// A game master's answer, through the REST API (respondpetition): written as the
+        /// petition's resolution, which it replaces, and told to the player. The petition stays
+        /// open. Only an open petition is answered.
+        /// </summary>
+        public PetitionResult Respond(uint id, string response) => Settle(id, Clamp(response, MaxResponseLength), close: false);
+
+        /// <summary>
+        /// Marks a petition resolved, through the REST API (closepetition), keeping the answer it
+        /// has, and tells the player. Only an open petition is closed.
+        /// </summary>
+        public PetitionResult Close(uint id) => Settle(id, null, close: true);
+
+        /// <summary>
+        /// Writes the answer when there is one, the close when asked for, and tells the player.
+        /// A petition that is not open - resolved, or withdrawn - is left as it is.
+        /// </summary>
+        private PetitionResult Settle(uint id, string response, bool close)
         {
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
 
             var petition = unitOfWork.Petitions.GetPetition(id);
 
-            if (petition == null || petition.Status != (byte)PetitionStatus.Open)
-                return false;
+            if (petition == null)
+                return new PetitionResult(PetitionAnswer.NoSuchPetition);
 
-            if (!unitOfWork.Petitions.SetPetitionStatus(id, (byte)PetitionStatus.Resolved, Clamp(resolution, MaxSummaryLength)))
-                return false;
+            if (petition.Status != (byte)PetitionStatus.Open)
+                return new PetitionResult(PetitionAnswer.NotOpen, (PetitionStatus)petition.Status);
 
-            var author = Server.Clients.FirstOrDefault(
-                c => c.State == ClientState.Ingame && c.AccountEntry?.Id == petition.AccountId);
+            if (response != null)
+            {
+                if (!unitOfWork.Petitions.SetPetitionResolution(id, response))
+                    return new PetitionResult(PetitionAnswer.NotSaved);
+
+                petition.Resolution = response;
+            }
+
+            if (close)
+            {
+                if (!unitOfWork.Petitions.SetPetitionStatus(id, (byte)PetitionStatus.Resolved, petition.Resolution))
+                    return new PetitionResult(PetitionAnswer.NotSaved);
+
+                petition.Status = (byte)PetitionStatus.Resolved;
+            }
+
+            return new PetitionResult(PetitionAnswer.Done, (PetitionStatus)petition.Status, Tell(unitOfWork, petition));
+        }
+
+        /// <summary>
+        /// Tells the player who filed it what has become of their petition: now, when they are
+        /// in the world, and otherwise when they next arrive in it (<see cref="DeliverNotices"/>),
+        /// by petition.notice_pending. True when they were told now.
+        /// </summary>
+        private static bool Tell(ICharUnitOfWork unitOfWork, PetitionEntry petition)
+        {
+            // The console's resolve runs on its own thread, and the main loop adds to and takes
+            // from the client list every tick: it is walked under its lock, as every other walk
+            // of it is, and the message is sent outside it.
+            Client author;
+
+            lock (Server.Clients)
+                author = Server.Clients.FirstOrDefault(
+                    c => c != null && c.State == ClientState.Ingame && c.AccountEntry?.Id == petition.AccountId);
 
             if (author != null)
-                CommunicatorManager.Instance.SystemMessage(author,
-                    $"Your petition #{id} has been answered"
-                    + (string.IsNullOrWhiteSpace(resolution) ? "." : $": {Clamp(resolution, MaxSummaryLength)}"));
+            {
+                // Answered or resolved whatever happens to the message: a connection closing
+                // under it leaves the player to be told when they next arrive.
+                try
+                {
+                    CommunicatorManager.Instance.SystemMessage(author, NoticeOf(petition));
 
-            return true;
+                    if (petition.NoticePending)
+                        unitOfWork.Petitions.SetNoticePending(petition.Id, false);
+
+                    return true;
+                }
+                catch (Exception e)
+                {
+                    Logger.WriteLog(LogType.Error, $"Petition #{petition.Id}: its author could not be told now, and will be when they next arrive: {e.Message}");
+                }
+            }
+
+            unitOfWork.Petitions.SetNoticePending(petition.Id, true);
+            return false;
+        }
+
+        /// <summary>
+        /// What the player is told, by where the petition is now: one line for an answer and a
+        /// close made while they were away. Null for one they withdrew.
+        /// </summary>
+        public static string NoticeOf(PetitionEntry petition)
+        {
+            var answer = string.IsNullOrWhiteSpace(petition.Resolution) ? null : petition.Resolution.Trim();
+
+            return (PetitionStatus)petition.Status switch
+            {
+                PetitionStatus.Resolved => $"Your petition #{petition.Id} has been resolved" + (answer == null ? "." : $": {answer}"),
+                PetitionStatus.Open when answer != null => $"A game master has answered your petition #{petition.Id}: {answer}",
+                _ => null
+            };
+        }
+
+        /// <summary>
+        /// On every arrival in the world (CommunicatorManager.LoginOk): what was answered or closed
+        /// while the player was away, one line a petition, and then nothing more to tell.
+        /// </summary>
+        public void DeliverNotices(Client client)
+        {
+            var accountId = client?.AccountEntry?.Id;
+
+            if (accountId == null || _gameUnitOfWorkFactory == null)
+                return;
+
+            try
+            {
+                using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+
+                foreach (var petition in unitOfWork.Petitions.ListNoticesPending(accountId.Value))
+                {
+                    var notice = NoticeOf(petition);
+
+                    if (notice != null)
+                        CommunicatorManager.Instance.SystemMessage(client, notice);
+
+                    unitOfWork.Petitions.SetNoticePending(petition.Id, false);
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, $"Petitions: what was answered for account {accountId} could not be told: {e.GetBaseException().Message}");
+            }
+        }
+
+        /// <summary>
+        /// For the REST API's getopenpetitions and getallpetitions: newest first, every column,
+        /// with the account's login and family names and the character's name. A null status is
+        /// every status.
+        /// </summary>
+        public List<Api.PetitionRecord> ListRecords(PetitionStatus? status)
+        {
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+
+            var accounts = new Dictionary<uint, GameAccountEntry>();
+            var characters = new Dictionary<uint, CharacterEntry>();
+            var records = new List<Api.PetitionRecord>();
+
+            foreach (var petition in unitOfWork.Petitions.ListPetitions((byte?)status, int.MaxValue))
+            {
+                if (!accounts.TryGetValue(petition.AccountId, out var account))
+                    accounts[petition.AccountId] = account = unitOfWork.GameAccounts.Find(petition.AccountId);
+
+                if (!characters.TryGetValue(petition.CharacterId, out var character))
+                    characters[petition.CharacterId] = character = unitOfWork.Characters.Find(petition.CharacterId);
+
+                records.Add(new Api.PetitionRecord(petition, account?.Name, account?.FamilyName, character?.Name));
+            }
+
+            return records;
         }
 
         #endregion
@@ -508,5 +661,36 @@ namespace Rasa.Managers
 
             return value.Length <= maxLength ? value : value.Substring(0, maxLength);
         }
+    }
+
+    /// <summary>What came of a game master's answer or close.</summary>
+    public enum PetitionAnswer
+    {
+        Done,
+        NoSuchPetition,
+
+        /// <summary>Resolved already, or withdrawn by the player: <see cref="PetitionResult.Status"/> says which.</summary>
+        NotOpen,
+
+        /// <summary>The database would not take it.</summary>
+        NotSaved
+    }
+
+    public sealed class PetitionResult
+    {
+        public PetitionResult(PetitionAnswer answer, PetitionStatus status = PetitionStatus.Open, bool told = false)
+        {
+            Answer = answer;
+            Status = status;
+            Told = told;
+        }
+
+        public PetitionAnswer Answer { get; }
+
+        /// <summary>Where the petition is now.</summary>
+        public PetitionStatus Status { get; }
+
+        /// <summary>The player was told now; false for one who will be told when they next arrive in the world.</summary>
+        public bool Told { get; }
     }
 }

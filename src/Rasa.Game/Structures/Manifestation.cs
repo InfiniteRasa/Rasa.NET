@@ -116,6 +116,9 @@ namespace Rasa.Structures
         /// <summary>How many Moves have been refused since the last one was reported.</summary>
         public int RefusedMoves { get; set; }
 
+        /// <summary>Where the first Move of their current stun found them (ManifestationManager.JudgeStunnedMove); null when they are not stunned.</summary>
+        internal Vector3? StunAnchor { get; set; }
+
         /// <summary>Environment.TickCount64 since when nothing has been under the player (Managers.MovementChecks); 0 while something is.</summary>
         public long UnsupportedSinceTick { get; set; }
 
@@ -127,7 +130,7 @@ namespace Rasa.Structures
         public long WeaponCheckLogTick { get; set; }
         public int WeaponCheckHits { get; set; }
 
-        /// <summary>When this player was last told a shot's target was out of range (WeaponChecks.Tell).</summary>
+        /// <summary>When this player was last told why a shot was refused: out of range, or out of sight (WeaponChecks.Tell).</summary>
         public long WeaponRangeToldTick { get; set; }
 
         /// <summary>
@@ -148,6 +151,9 @@ namespace Rasa.Structures
         /// </summary>
         /// <summary>Polymorph: the creature weapon the player fires while morphed; null when they are themselves.</summary>
         public Item MorphWeapon { get; set; }
+
+        /// <summary>The player's bare hands, the HANDTOHAND item their client fights with when nothing is in hand (Managers.Unarmed); made when first needed.</summary>
+        public Managers.UnarmedItem Fists { get; set; }
 
         /// <summary>The creature's combat actions a polymorphed player has in their drawer, and may perform (AbilityManager.Polymorph).</summary>
         public System.Collections.Generic.List<(Data.ActionId ActionId, uint Level)> MorphAbilities { get; set; } = new System.Collections.Generic.List<(Data.ActionId, uint)>();
@@ -410,6 +416,17 @@ namespace Rasa.Structures
         /// past the session.
         /// </summary>
         public bool AllowDeath { get; set; }
+
+        /// <summary>
+        /// A GM out of sight of every player who is not a GM (.invisible, Detection.SetGmInvisible):
+        /// not drawn on their clients, not noticed by creatures, offline on their friends lists and
+        /// clan rosters, and not found by /who or by name. Off when the character comes into the
+        /// world; a map change keeps it.
+        /// </summary>
+        public bool GmInvisible { get; set; }
+
+        /// <summary>The accounts this GM has whispered while invisible: they can whisper back.</summary>
+        public HashSet<uint> GmInvisibleWhispered { get; } = new HashSet<uint>();
 
         /// <summary>Killed by an enemy player across a wargame: back from a hospital with PvP Safety.</summary>
         public bool DiedInPvp { get; set; }

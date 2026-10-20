@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Reflection;
@@ -14,7 +14,8 @@ namespace Rasa.Test.World
     /// <summary>
     /// A creature's rushing blow is a charge (KaelRushingBlow): the Kael's falls on whoever stands
     /// in its EFFECT_RADIUS where its target stood, and the AFS soldiers' CR_HUMAN_RUSHING_BLOW,
-    /// with no radius, on its target alone.
+    /// with no radius, on its target alone. The Fithik's CR_FITHIK_LUNGE is a leap at the end of
+    /// its windup, its blow on its target if the target is still in reach where it lands.
     /// </summary>
     [TestClass]
     [DoNotParallelize]
@@ -23,9 +24,13 @@ namespace Rasa.Test.World
         private readonly List<Creature> _creatures = new List<Creature>();
         private readonly Dictionary<ActionId, ActionInfo> _previous = new Dictionary<ActionId, ActionInfo>();
 
+        private long _clock = 1_000_000;
+
         [TestCleanup]
         public void Cleanup()
         {
+            KaelRushingBlow.Now = () => System.Environment.TickCount64;
+
             foreach (var creature in _creatures)
             {
                 EntityManager.Instance.UnregisterCreature(creature.EntityId);
@@ -98,6 +103,109 @@ namespace Rasa.Test.World
             world.Map.QueuedMissiles.Clear();
         }
 
+        [TestMethod]
+        public void AFithikLungeIsALeapTimedToLandAsItsWindupEnds()
+        {
+            Assert.IsTrue(KaelRushingBlow.Is(new CreatureAction { ActionId = ActionId.CrFithikLunge }));
+            Assert.IsFalse(KaelRushingBlow.Is(new CreatureAction { ActionId = ActionId.CrFithikAcidSpray }));
+
+            // 28 m at 30 m/s is 933 ms: it leaps 267 ms into its 1200 ms windup.
+            Assert.AreEqual(267, KaelRushingBlow.FithikLeapAt(1200, 28, 30));
+
+            // Nothing to cross: it strikes where it stands as the windup ends.
+            Assert.AreEqual(1200, KaelRushingBlow.FithikLeapAt(1200, 0, 30));
+
+            // A run the windup is too short for starts with it.
+            Assert.AreEqual(0, KaelRushingBlow.FithikLeapAt(1200, 40, 30));
+            Assert.AreEqual(0, KaelRushingBlow.FithikLeapAt(0, 10, 30));
+        }
+
+        [TestMethod]
+        public void AFithikWindsUpWhereItStandsLeapsForWhereItsTargetIsAndBitesItOnLanding()
+        {
+            Seed(ActionId.CrFithikLunge, Lunge(), "CR_FITHIK_LUNGE", "abilities.ai.fithiklungeability");
+
+            KaelRushingBlow.Now = () => _clock;
+
+            using var world = new WorldTestContext();
+            var fithik = Place(world, TargetCategory.Hostile, new Vector3(0, 0, 0));
+            var prey = Place(world, TargetCategory.Friendly, new Vector3(0, 0, -20));
+            var row = LungeRow();
+
+            KaelRushingBlow.Start(world.Map, fithik, row, prey, 90);
+            KaelRushingBlow.Worker(world.Map);
+
+            Assert.IsTrue(KaelRushingBlow.IsCharging(fithik));
+            Assert.IsFalse(fithik.IsRushing, "winding up where it stands: 18 m at 30 m/s is the windup's last 600 ms");
+
+            // It moves while the Fithik winds up; the leap goes where it is now.
+            prey.Position = new Vector3(0, 0, -25);
+            _clock += 700;
+            KaelRushingBlow.Worker(world.Map);
+
+            Assert.IsTrue(fithik.IsRushing, "leaping");
+            Assert.AreEqual(23f, Vector3.Distance(fithik.Position, fithik.RushTo.Value), 0.05f, "2 m short of where its target is now");
+            Assert.AreEqual(10000, prey.Attributes[Attributes.Health].Current, "nothing has landed yet");
+
+            _clock += 600;
+            KaelRushingBlow.Worker(world.Map);
+            MissileManager.Instance.DoWork(world.Map, 250);
+
+            Assert.IsFalse(KaelRushingBlow.IsCharging(fithik));
+            Assert.IsFalse(fithik.IsRushing);
+            Assert.AreEqual(-23f, fithik.Position.Z, 0.05f, "where the leap ends");
+            Assert.IsLessThan(10000, prey.Attributes[Attributes.Health].Current, "bitten where it stood");
+
+            world.Map.QueuedMissiles.Clear();
+        }
+
+        [TestMethod]
+        public void AFithikMissesATargetThatHasGotOutOfReachWhenItLands()
+        {
+            Seed(ActionId.CrFithikLunge, Lunge(), "CR_FITHIK_LUNGE", "abilities.ai.fithiklungeability");
+
+            KaelRushingBlow.Now = () => _clock;
+
+            using var world = new WorldTestContext();
+            var fithik = Place(world, TargetCategory.Hostile, new Vector3(0, 0, 0));
+            var prey = Place(world, TargetCategory.Friendly, new Vector3(0, 0, -20));
+
+            KaelRushingBlow.Start(world.Map, fithik, LungeRow(), prey, 90);
+            _clock += 700;
+            KaelRushingBlow.Worker(world.Map);
+            Assert.IsTrue(fithik.IsRushing);
+
+            // Out of the way while it is in the air: six metres from where it comes down.
+            prey.Position = new Vector3(6, 0, -18);
+            _clock += 600;
+            KaelRushingBlow.Worker(world.Map);
+            MissileManager.Instance.DoWork(world.Map, 250);
+
+            Assert.IsFalse(KaelRushingBlow.IsCharging(fithik));
+            Assert.AreEqual(-18f, fithik.Position.Z, 0.05f);
+            Assert.AreEqual(10000, prey.Attributes[Attributes.Health].Current, "missed: not bitten from six metres");
+
+            world.Map.QueuedMissiles.Clear();
+        }
+
+        /// <summary>CR_FITHIK_LUNGE argument 1 as the world database has it.</summary>
+        private static ActionLevelInfo Lunge()
+        {
+            var info = new ActionLevelInfo { ActionId = ActionId.CrFithikLunge, Level = 1, WindupMs = 1200, RecoveryMs = 2350, MaxRange = 30, ReuseMs = 15000 };
+
+            info.Properties[AbilityProperty.DamageAmountMin] = 50;
+            info.Properties[AbilityProperty.DamageAmountMax] = 63;
+            info.Properties[AbilityProperty.VfxVelocity] = 30;
+
+            return info;
+        }
+
+        /// <summary>The Palisades Fithik's lunge row, 55007.</summary>
+        private static CreatureAction LungeRow() => new CreatureAction
+        {
+            ActionId = ActionId.CrFithikLunge, ActionArgId = 1, RangeMin = 1, RangeMax = 30, Cooldown = 15000, WindupTime = 1200, MinDamage = 84, MaxDamage = 106, DamageType = 1
+        };
+
         /// <summary>CR_HUMAN_RUSHING_BLOW argument 1 as the world database has it.</summary>
         private static ActionLevelInfo Human()
         {
@@ -112,7 +220,7 @@ namespace Rasa.Test.World
             return info;
         }
 
-        private void Seed(ActionId id, ActionLevelInfo info)
+        private void Seed(ActionId id, ActionLevelInfo info, string name = "CR_HUMAN_RUSHING_BLOW", string module = AbilityManager.RushingBlowModule)
         {
             var actions = Actions();
 
@@ -122,7 +230,7 @@ namespace Rasa.Test.World
                 _previous[id] = previous;
             }
 
-            var action = new ActionInfo { ActionId = id, Name = "CR_HUMAN_RUSHING_BLOW", Module = AbilityManager.RushingBlowModule };
+            var action = new ActionInfo { ActionId = id, Name = name, Module = module };
             action.Levels[info.Level] = info;
             actions[id] = action;
         }

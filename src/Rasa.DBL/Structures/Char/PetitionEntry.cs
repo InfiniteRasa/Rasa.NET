@@ -1,6 +1,7 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace Rasa.Structures.Char
 {
@@ -13,6 +14,7 @@ namespace Rasa.Structures.Char
     /// only place the text survives - it is written for whoever is running the server.
     /// </summary>
     [Table(TableName)]
+    [Index(nameof(AccountId), nameof(NoticePending), Name = "petition_index_account_notice")]
     public class PetitionEntry : IHasId
     {
         public const string TableName = "petition";
@@ -86,12 +88,21 @@ namespace Rasa.Structures.Char
         public byte Status { get; set; }
 
         /// <summary>
-        /// What was done about it, written when a petition is resolved from the console. Empty
-        /// while it is open, and empty for one the player withdrew.
+        /// What a game master answered, from the console's resolve or the REST API's
+        /// respondpetition, up to 255 characters. Empty until one has, and empty for one the
+        /// player withdrew.
         /// </summary>
         [Column("resolution", TypeName = "varchar(255)")]
         [Required]
         public string Resolution { get; set; }
+
+        /// <summary>
+        /// The player has yet to be told of an answer or a close: they were not in the world
+        /// when it was made, and are told when they next arrive in it.
+        /// </summary>
+        [Column("notice_pending")]
+        [Required]
+        public bool NoticePending { get; set; }
 
         [Column("created_at")]
         [Required]

@@ -1055,6 +1055,16 @@ namespace Rasa.Test.World
             // past it, it is.
             f.Grounds.Claiming(red, point);
             Assert.AreEqual(0, Packets(red).OfType<DisplayClientMessagePacket>().Count(m => m.MsgId == PlayerMessage.PmControlpointClaiming));
+
+            // The gap is the team's: the other team starting on the point inside it is told, and
+            // so is the first team starting again after them.
+            f.Grounds.Claiming(blue, point);
+            Assert.AreEqual("Blue Team", Packets(red).OfType<DisplayClientMessagePacket>().Single(m => m.MsgId == PlayerMessage.PmControlpointClaiming).Args["faction"]);
+            f.Grounds.Claiming(red, point);
+            Assert.AreEqual("Red Team", Packets(red).OfType<DisplayClientMessagePacket>().Single(m => m.MsgId == PlayerMessage.PmControlpointClaiming).Args["faction"]);
+            f.Grounds.Claiming(red, point);
+            Assert.AreEqual(0, Packets(red).OfType<DisplayClientMessagePacket>().Count(m => m.MsgId == PlayerMessage.PmControlpointClaiming));
+
             f.Now += ControlPoints.ClaimAnnounceGapMs;
             f.Grounds.Claiming(red, point);
             Assert.AreEqual(1, Packets(red).OfType<DisplayClientMessagePacket>().Count(m => m.MsgId == PlayerMessage.PmControlpointClaiming));

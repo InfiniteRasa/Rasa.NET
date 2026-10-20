@@ -815,10 +815,13 @@ namespace Rasa.Test.Missions
                     ["mission_content_definition"] = 5, ["mission_prerequisite"] = 4,
                     // Add_bootcamp_cave_in_breach adds Capture the Flag's bridge crossing: a transition, its
                     // trigger, action, area and scenario, and the Thrax wave's group and six spawns.
-                    ["mission_objective_definition"] = 21, ["mission_objective_transition"] = 28,
-                    ["mission_trigger"] = 28, ["mission_action"] = 81, ["mission_reward_definition"] = 7,
-                    ["mission_reward_item"] = 6, ["mission_indicator"] = 12, ["mission_area"] = 8,
-                    ["mission_spawn_group"] = 13, ["mission_spawn"] = 32, ["mission_scenario"] = 21,
+                    // Youngblood_fort_squad adds Youngblood's squad: a group and six spawns.
+                    // Bootcamp_cave_in_any_route adds the breach to the doorwell's transition (an
+                    // action), and the pile's area with a Tizzik transition, its trigger and action.
+                    ["mission_objective_definition"] = 21, ["mission_objective_transition"] = 29,
+                    ["mission_trigger"] = 29, ["mission_action"] = 83, ["mission_reward_definition"] = 7,
+                    ["mission_reward_item"] = 6, ["mission_indicator"] = 12, ["mission_area"] = 9,
+                    ["mission_spawn_group"] = 14, ["mission_spawn"] = 38, ["mission_scenario"] = 21,
                     ["mission_scenario_step"] = 52, ["mission_evidence"] = 17, ["mission_scene_binding"] = 5,
                     ["mission_channel_policy"] = 1, ["mission_repeat_policy"] = 0
                 };
@@ -946,8 +949,11 @@ namespace Rasa.Test.Missions
 
         private sealed class RepositoryBackedWorldUnitOfWork : Repositories.World.IWorldUnitOfWork
         {
+            private readonly SqliteWorldContext _context;
+
             public RepositoryBackedWorldUnitOfWork(SqliteWorldContext context)
             {
+                _context = context;
                 Actions = null;
                 Equipment = new EquipmentRepository(context);
                 Creatures = new CreatureRepository(context);
@@ -992,6 +998,9 @@ namespace Rasa.Test.Missions
             public IMapEmitterRepository MapEmitters { get; }
             public ISpawnPoolArrivalRepository SpawnPoolArrivals { get; }
             public ITeleporterRepository Teleporters { get; }
+
+            // A reward item with a module is checked against the module tables as missions load.
+            public IItemModuleRepository ItemModules => new ItemModuleRepository(_context);
             public void Complete() { }
             public void Reject() { }
             public Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction BeginTransaction() =>

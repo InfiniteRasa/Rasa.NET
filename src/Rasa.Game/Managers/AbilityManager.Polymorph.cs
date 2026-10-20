@@ -322,7 +322,17 @@ namespace Rasa.Managers
             if (mapChannel == null)
                 return;
 
-            CellManager.Instance.CellCallMethod(mapChannel, player, new EquipmentInfoPacket(player.Inventory.EquippedInventory));
+            // Their own client with their fists in it (Unarmed): an EquipmentInfo replaces the
+            // whole of what the client holds equipped.
+            var own = GameEffectManager.ClientOf(mapChannel, player);
+
+            if (own != null)
+            {
+                own.CallMethod(player.EntityId, Unarmed.EquipmentFor(player));
+                own.CellIgnoreSelfCallMethod(own, new EquipmentInfoPacket(player.Inventory.EquippedInventory));
+            }
+            else
+                CellManager.Instance.CellCallMethod(mapChannel, player, new EquipmentInfoPacket(player.Inventory.EquippedInventory));
             SendAround(mapChannel, player, (ulong)SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(weapon.EntityId));
         }
     }

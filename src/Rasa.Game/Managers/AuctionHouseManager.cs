@@ -74,6 +74,9 @@ namespace Rasa.Managers
         private sealed class BuyoutResult
         {
             internal PlayerMessage? FailureMessage { get; init; }
+
+            /// <summary>Refused because the auction had run out: it is to be sent back now.</summary>
+            internal AuctionEntry RunOut { get; init; }
             internal AuctionEntry Auction { get; init; }
             internal Client Seller { get; init; }
             internal int BuyerCredits { get; init; }
@@ -106,6 +109,11 @@ namespace Rasa.Managers
         /// picked. These are the client's own figures: it reads them from auctionhouse.durationdata
         /// and shows the result in the Deposit field before the player presses Create, so the
         /// server has to charge the same or the window lies. 12h costs 0.5%, three days 2.5%.
+        ///
+        /// It is a listing fee and is never given back: not on a sale, a cancellation or an expiry.
+        /// The client says nothing either way - no message, no field after the listing is made -
+        /// so this is the server's rule. The listing's economy log entry has it leaving the seller,
+        /// and the auction row keeps it (AuctionEntry.Deposit) as what the listing cost.
         /// </summary>
         private static readonly uint[] DepositTenthsOfPercent = { 5, 10, 20, 25 };
 
@@ -168,7 +176,8 @@ namespace Rasa.Managers
         /// Buys an auction outright. The item goes to the buyer's inbox, not their pack: the
         /// client has a Pick Up Items tab for exactly this, and it is the only delivery that
         /// works when the pack is full. The seller is paid into their character row, so the
-        /// money reaches them whether or not they are logged in.
+        /// money reaches them whether or not they are logged in. They are paid the price; the
+        /// deposit is kept (DepositTenthsOfPercent).
         /// </summary>
         public void RequestAuctionBuyout(Client client, RequestAuctionBuyoutPacket packet)
         {
@@ -198,6 +207,11 @@ namespace Rasa.Managers
             if (result.FailureMessage.HasValue)
             {
                 BuyoutFailed(client, packet.ItemId, result.FailureMessage.Value);
+
+                // Run out and not yet swept: back to its seller now, not at the next sweep.
+                if (result.RunOut != null)
+                    ExpireAll(new List<AuctionEntry> { result.RunOut });
+
                 return;
             }
 
@@ -288,6 +302,7 @@ namespace Rasa.Managers
             Item item)
         {
             AuctionEntry auction = null;
+            AuctionEntry runOut = null;
             Client seller = null;
             var buyerAfter = 0;
             var sellerAfter = 0;
@@ -308,6 +323,15 @@ namespace Rasa.Managers
                     if (auction.SellerId == client.Player.Id)
                         throw new BuyoutRejection(
                             PlayerMessage.PmAuctionCannotPurchaseOwnItem);
+
+                    // Past its duration it is the seller's again, whether or not the sweep has
+                    // been round: as one already swept would be, it is not to be found.
+                    if (auction.HasRunOut(DateTime.UtcNow))
+                    {
+                        runOut = auction;
+                        throw new BuyoutRejection(
+                            PlayerMessage.PmAuctionItemNotFound);
+                    }
 
                     if (packet.Price != auction.Price)
                         throw new BuyoutRejection(
@@ -396,7 +420,8 @@ namespace Rasa.Managers
             {
                 return new BuyoutResult
                 {
-                    FailureMessage = rejection.FailureMessage
+                    FailureMessage = rejection.FailureMessage,
+                    RunOut = runOut
                 };
             }
             catch (Exception error) when (
@@ -476,7 +501,7 @@ namespace Rasa.Managers
             client.CallMethod(SysEntity.ClientAuctionHouseManagerId, new AuctionStatusSuccessPacket(rows));
         }
 
-        /// <summary>Takes a listing down and puts the item back in the seller's pack. The deposit is not refunded.</summary>
+        /// <summary>Takes a listing down and puts the item back in the seller's pack. The deposit is kept (DepositTenthsOfPercent).</summary>
         public void RequestCancelAuction(Client client, RequestCancelAuctionPacket packet)
         {
             // At an auction house: the auctioneer the window was opened from has to be in reach.
@@ -724,11 +749,20 @@ namespace Rasa.Managers
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
             var now = DateTime.UtcNow;
             var matches = new List<(AuctionEntry Auction, Item Item, int Level)>();
+            var runOut = new List<AuctionEntry>();
 
             foreach (var auction in unitOfWork.Auctions.GetAuctions())
             {
                 if (auction.SellerId == client.Player.Id)
                     continue;               // the browse tab is for other people's auctions
+
+                // Past its duration it is no longer for sale, though the sweep may not have
+                // sent it back yet; it goes back once this search is answered.
+                if (auction.HasRunOut(now))
+                {
+                    runOut.Add(auction);
+                    continue;
+                }
 
                 var item = FindAuctionedItem(auction, unitOfWork);
 
@@ -752,6 +786,7 @@ namespace Rasa.Managers
             if (matches.Count == 0)
             {
                 QueryFailed(client, PlayerMessage.PmAuctionNoResultsFound);
+                ExpireAll(runOut);
                 return;
             }
 
@@ -812,6 +847,7 @@ namespace Rasa.Managers
                     $"Auction search by {client.Player.FamilyName} matched {matches.Count} auctions in {AuctionCategory.Names[packet.CategoryId]}; the {reply.AuctionItemList.Count} cheapest fit the reply.");
 
             client.CallMethod(SysEntity.ClientAuctionHouseManagerId, reply);
+            ExpireAll(runOut);
         }
 
         /// <summary>
@@ -870,7 +906,11 @@ namespace Rasa.Managers
 
         /// <summary>
         /// The same three rules the create window filters the item list by, so the server agrees
-        /// with what the player was offered.
+        /// with what the player was offered, and the server's own fourth: the item is in one of the
+        /// browse categories (AuctionItemCategories). One that is in none - mission items,
+        /// creature shields, hair and faces - could be listed, and the deposit taken, for a
+        /// listing no search finds: the client's sell window offers none of them, so it took a
+        /// forged request or an item a GM made.
         ///
         /// Note ItemInfo.Tradable is misnamed: ItemManager fills it from the template's
         /// NotTradableFlag, and ItemInfoPacket writes it into the client's notTradable field, so
@@ -887,7 +927,10 @@ namespace Rasa.Managers
             if (!item.ItemTemplate.HasSellableFlag)
                 return false;
 
-            return item.ItemTemplate.ItemInfo == null || !item.ItemTemplate.ItemInfo.Tradable;
+            if (item.ItemTemplate.ItemInfo != null && item.ItemTemplate.ItemInfo.Tradable)
+                return false;
+
+            return AuctionItemCategories.CodeOf(item.ItemTemplate) != 0;
         }
 
         /// <summary>
@@ -913,7 +956,7 @@ namespace Rasa.Managers
 
             foreach (var auction in auctions)
             {
-                if (auction.RemainingHours(now) > 0)
+                if (!auction.HasRunOut(now))
                     continue;
 
                 try
@@ -955,7 +998,8 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// Moves one expired auction's item back to its seller's inbox and deletes the row. An
+        /// Moves one expired auction's item back to its seller's inbox and deletes the row, the
+        /// deposit kept (DepositTenthsOfPercent). An
         /// inbox that is full leaves the auction standing rather than destroying the item - it
         /// is simply retried on the next sweep, once the seller has made room.
         ///
@@ -972,7 +1016,7 @@ namespace Rasa.Managers
                 {
                     var auction = unitOfWork.Auctions.GetAuctionByItemId(itemId);
                     if (auction == null ||
-                        auction.RemainingHours(DateTime.UtcNow) > 0)
+                        !auction.HasRunOut(DateTime.UtcNow))
                         return;
 
                     var accountId = AccountOf(auction.SellerId, unitOfWork);

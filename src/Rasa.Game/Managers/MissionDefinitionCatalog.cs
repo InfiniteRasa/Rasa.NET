@@ -73,10 +73,10 @@ namespace Rasa.Managers
                         [CurencyType.Prestige] = checked((int)authoredReward.Prestige)
                     },
                     authoredReward.FixedItems
-                        .Select(item => new MissionRewardItem(item.ItemTemplateId, item.Quantity))
+                        .Select(item => new MissionRewardItem(item.ItemTemplateId, item.Quantity, item.ModuleIds))
                         .ToArray(),
                     authoredReward.SelectableItems
-                        .Select(item => new MissionRewardItem(item.ItemTemplateId, item.Quantity))
+                        .Select(item => new MissionRewardItem(item.ItemTemplateId, item.Quantity, item.ModuleIds))
                         .ToArray());
             }
 
@@ -105,10 +105,10 @@ namespace Rasa.Managers
                                 [CurencyType.Prestige] = checked((int)reward.Prestige)
                             },
                             reward.FixedItems
-                                .Select(item => new MissionRewardItem(item.ItemTemplateId, item.Quantity))
+                                .Select(item => new MissionRewardItem(item.ItemTemplateId, item.Quantity, item.ModuleIds))
                                 .ToArray(),
                             reward.SelectableItems
-                                .Select(item => new MissionRewardItem(item.ItemTemplateId, item.Quantity))
+                                .Select(item => new MissionRewardItem(item.ItemTemplateId, item.Quantity, item.ModuleIds))
                                 .ToArray()));
                 result[content.MissionId] =
                     new ReadOnlyDictionary<uint, MissionRewardDefinition>(packages);

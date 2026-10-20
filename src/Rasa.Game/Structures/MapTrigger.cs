@@ -15,6 +15,12 @@ namespace Rasa.Structures
         internal List<Client> TriggeredBy = new List<Client>();
         internal HashSet<Client> ExitOccupants { get; } = new();
 
+        /// <summary>
+        /// Those of <see cref="ExitOccupants"/> who were in a one-way exit while it was not open
+        /// to them: when it opens under them they are told how to board, once.
+        /// </summary>
+        internal HashSet<Client> ExitWaiting { get; } = new();
+
         public MapTrigger(uint id, string name, Vector3 positon, double rotation, uint contextId)
         {
             TriggerId = id;

@@ -223,6 +223,18 @@ namespace Rasa.Test.Missions
 
             var youngblood = Actors(harness).Single(actor => actor.DbId == BootcampRuntimeTestHarness.CaptainYoungbloodCreatureId);
             AssertGrounded(harness, youngblood);
+
+            // He comes in through the east gate with his squad (BootcampFortSquadV10), to where he stands.
+            var post = new Vector3(93.2f, 109.2201f, 137.5f);
+            for (var tick = 0; tick < 400 && Vector3.Distance(youngblood.Position, post) > 0.5f; tick++)
+            {
+                BehaviorManager.Instance.MapChannelThink(harness.BootcampMap, 250);
+                harness.UtcNow += TimeSpan.FromMilliseconds(250);
+                harness.Manager.TickScenarios(harness.Client);
+            }
+            Assert.IsTrue(Vector3.Distance(youngblood.Position, post) < 0.5f, $"Youngblood at {youngblood.Position}");
+            AssertGrounded(harness, youngblood);
+            CellManager.Instance.UpdateVisibility(harness.Client);
             Assert.IsTrue(WorldTestContext.Drain(harness.Client)
                 .Select(packet => packet.Message).OfType<CallMethodMessage>()
                 .Where(message => message.EntityId == youngblood.EntityId)
@@ -308,6 +320,10 @@ namespace Rasa.Test.Missions
             Assert.IsTrue(new MissionAreaService(() => harness.Manager).RecordAcceptedMovement(
                 harness.Client, previousPosition, exit.Position));
             Assert.AreEqual(MissionObjectiveState.Completed, harness.Client.Player.Missions[1994].Objectives[2].State);
+            // Reaching the doorwell blows the cave-in, and its Thrax come two seconds after
+            // (BootcampCaveInAnyRouteV13): let them come before the clock is watched.
+            harness.UtcNow += TimeSpan.FromSeconds(2.5);
+            harness.Manager.TickScenarios(harness.Client);
             BootcampRuntimeTestHarness.PrepareDirectDamageClient(harness.Client);
             harness.Client.Player.Attributes[Attributes.Health] =
                 new ActorAttributes(Attributes.Health, 1000, 1000, 1000, 0, 0);

@@ -236,8 +236,12 @@ namespace Rasa.Structures.Missions
         public uint ItemTemplateId { get; }
         public uint Quantity { get; }
 
+        /// <summary>The module in each of the item's four slots, 0 for an empty one (mission_reward_item.module_1 to module_4).</summary>
+        public IReadOnlyList<uint> ModuleIds { get; }
+
         public MissionAuthoringRewardItemDefinition(MissionRewardItemEntry entry)
         {
+            ModuleIds = Array.AsReadOnly(entry.Modules);
             MissionId = entry.MissionId;
             ContentRevision = entry.ContentRevision;
             RewardId = entry.RewardId;

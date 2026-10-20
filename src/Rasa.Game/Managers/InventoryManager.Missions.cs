@@ -23,8 +23,12 @@ namespace Rasa.Managers
         {
             internal uint ItemTemplateId { get; }
             internal uint Quantity { get; }
-            internal InventoryItemGrant(uint itemTemplateId, uint quantity)
-            { ItemTemplateId = itemTemplateId; Quantity = quantity; }
+
+            /// <summary>The modules each item of the grant is made with, by slot; null for none.</summary>
+            internal IReadOnlyList<uint> ModuleIds { get; }
+
+            internal InventoryItemGrant(uint itemTemplateId, uint quantity, IReadOnlyList<uint> moduleIds = null)
+            { ItemTemplateId = itemTemplateId; Quantity = quantity; ModuleIds = moduleIds; }
         }
 
         internal sealed class InventoryGrant : IDisposable
@@ -40,7 +44,8 @@ namespace Rasa.Managers
                 // Reward items: what the backpack cannot take goes to the inbox rather than
                 // refusing the turn-in.
                 foreach (var grant in grants)
-                    _plan.Grant(grant.ItemTemplateId, grant.Quantity, beforeRegister: _beforeRegister, overflowToInbox: true);
+                    _plan.Grant(grant.ItemTemplateId, grant.Quantity, beforeRegister: _beforeRegister, overflowToInbox: true,
+                        modules: grant.ModuleIds);
             }
 
             internal void ConvergeRuntime(Client client) => _plan?.ConvergeRuntime(client);
@@ -67,6 +72,23 @@ namespace Rasa.Managers
                 internal MissionItemOwnership Ownership;
                 internal MissionItemOwnership OriginalOwnership;
                 internal Action<Item> BeforeRegister;
+
+                /// <summary>For a stack split off another (Move with a quantity): the item whose crafter, colour, condition, binding and modules the new one carries.</summary>
+                internal Item SplitFrom;
+
+                /// <summary>For a new stack (Grant with a crafter): the name it is made with.</summary>
+                internal string Crafter;
+
+                /// <summary>For a new stack (Grant with modules): the modules it is made with, by slot; null for none.</summary>
+                internal IReadOnlyList<uint> Modules;
+
+                /// <summary>The modules the stack's item has or will have, by slot; null or all 0 for none.</summary>
+                internal IReadOnlyList<uint> ModulesHeld => Existing != null ? Existing.ModuleIds : Incoming != null ? Incoming.Item?.ModuleIds
+                    : SplitFrom != null ? SplitFrom.ModuleIds : Modules;
+
+                /// <summary>The maker's name the stack's item has or will have: "" for none.</summary>
+                internal string MadeBy => (Existing != null ? Existing.Crafter : Incoming != null ? Incoming.Item?.Crafter
+                    : SplitFrom != null ? SplitFrom.Crafter : Crafter) ?? "";
                 internal bool Changed => Count != OriginalCount || Existing != null && Index != OriginalIndex;
             }
 
@@ -78,6 +100,8 @@ namespace Rasa.Managers
                 internal uint Slot;
                 internal Item Staged;
                 internal Action<Item> BeforeRegister;
+                internal string Crafter;
+                internal IReadOnlyList<uint> Modules;
             }
 
             private readonly List<InboxStack> _inbox = new();
@@ -262,7 +286,16 @@ namespace Rasa.Managers
                 return MissionProgressEvent.ItemConsumed((uint)stack.Template.Class, quantity);
             }
 
-            internal void Move(uint source, uint destination)
+            /// <summary>
+            /// A pack move (PersonalInventory_MoveItem), of the whole stack or of
+            /// <paramref name="quantity"/> of it - the client's quantity chooser drags part of a
+            /// stack, and it sends the stack's count for a plain drag (inventory.AddItemToPersonalInventory).
+            /// Onto a stack it can join (MayJoin) it goes into that stack, as much as fits, and the
+            /// rest stays where it was. Otherwise the whole stack moves, or swaps with what is
+            /// there; part of a stack goes only to an empty slot, as a new stack carrying what the
+            /// old one carries. 0 is the whole stack.
+            /// </summary>
+            internal void Move(uint source, uint destination, uint quantity = 0)
             {
                 var from = _stacks.SingleOrDefault(stack => stack.Index == source && stack.Count > 0);
                 var to = _stacks.SingleOrDefault(stack => stack.Index == destination && stack.Count > 0);
@@ -270,13 +303,71 @@ namespace Rasa.Managers
                     destination / PersonalCategorySize != (uint)from.Template.InventoryCategory - 1 ||
                     to != null && source / PersonalCategorySize != (uint)to.Template.InventoryCategory - 1)
                     throw new GameplayRejectionException("Items can move only within their personal inventory category.");
-                from.Index = (int)destination;
+
+                var whole = quantity == 0 || quantity >= from.Count;
+                var amount = whole ? from.Count : quantity;
+
+                if (to != null && MayJoin(from, to))
+                {
+                    var joined = Math.Min(amount, to.Maximum - to.Count);
+
+                    if (joined > 0)
+                    {
+                        to.Count += joined;
+                        from.Count -= joined;
+                        return;
+                    }
+                }
+
+                if (whole)
+                {
+                    from.Index = (int)destination;
+                    if (to != null)
+                        to.Index = (int)source;
+                    return;
+                }
+
                 if (to != null)
-                    to.Index = (int)source;
+                    throw new GameplayRejectionException("Part of a stack goes only to an empty slot or onto a stack it can join.");
+
+                from.Count -= amount;
+                _stacks.Add(new Stack
+                {
+                    Index = (int)destination, Template = from.Template, Count = amount, Maximum = from.Maximum,
+                    Ownership = from.Ownership, SplitFrom = from.Existing
+                });
             }
 
+            /// <summary>
+            /// Whether one stack can go into another: the same template, a stack of more than one,
+            /// not Character Unique (two of them in one stack would be two held), the same
+            /// assignment (or none), and two items alike in everything an item keeps of its own -
+            /// crafter, colour, binding, modules - so that nothing is lost or gained by the one
+            /// becoming part of the other.
+            /// </summary>
+            internal static bool MayJoin(Item from, Item to, uint maximum) =>
+                from != null && to != null && maximum > 1 &&
+                from.ItemTemplateId == to.ItemTemplateId &&
+                !(from.ItemTemplate?.HasCharacterUniqueFlag ?? false) &&
+                from.MissionOwnership == to.MissionOwnership &&
+                from.BoundCharacterId == to.BoundCharacterId &&
+                (from.Crafter ?? "") == (to.Crafter ?? "") &&
+                from.Color == to.Color &&
+                from.ModuleIds.SequenceEqual(to.ModuleIds);
+
+            private static bool MayJoin(Stack from, Stack to) =>
+                !ReferenceEquals(from, to) && from.Template.ItemTemplateId == to.Template.ItemTemplateId &&
+                from.Ownership == to.Ownership && MayJoin(from.Existing, to.Existing, to.Maximum);
+
+            /// <summary>
+            /// New items of a template, all of them or none: onto stacks of it first, then into free
+            /// slots of its category, then (overflowToInbox) the inbox. With a crafter, they are made
+            /// with that name and join only stacks that carry the same one; without, any stack of
+            /// the template.
+            /// </summary>
             internal void Grant(uint templateId, uint quantity, MissionItemOwnership owner = null,
-                Action<Item> beforeRegister = null, bool overflowToInbox = false)
+                Action<Item> beforeRegister = null, bool overflowToInbox = false, string crafter = null,
+                IReadOnlyList<uint> modules = null)
             {
                 if (quantity == 0)
                     throw new GameplayRejectionException("Invalid inventory item grant quantity.");
@@ -284,8 +375,11 @@ namespace Rasa.Managers
                 var maximum = EntityClassManager.Instance.LoadedEntityClasses[template.Class].ItemClassInfo.StackSize;
                 var start = ((int)template.InventoryCategory - 1) * PersonalCategorySize;
                 var remaining = quantity;
+                // Only onto a stack of items with the same modules: a reward's Titan Rifle does not
+                // join a plain one, nor a plain one a Titan.
                 foreach (var stack in _stacks.Where(stack => stack.Template.ItemTemplateId == templateId &&
-                    stack.Ownership == owner && stack.Count > 0))
+                    stack.Ownership == owner && stack.Count > 0 && (crafter == null || stack.MadeBy == crafter) &&
+                    SameModules(stack.ModulesHeld, modules)))
                 {
                     var added = Math.Min(remaining, stack.Maximum - stack.Count);
                     stack.Count += added;
@@ -299,7 +393,7 @@ namespace Rasa.Managers
                         continue;
                     var added = Math.Min(remaining, maximum);
                     _stacks.Add(new Stack { Index = index, Template = template, Count = added, Maximum = maximum,
-                        Ownership = owner, BeforeRegister = beforeRegister });
+                        Ownership = owner, BeforeRegister = beforeRegister, Crafter = crafter, Modules = modules });
                     remaining -= added;
                 }
 
@@ -311,7 +405,8 @@ namespace Rasa.Managers
                     while (remaining > 0 && _freeInboxSlots.Count > 0)
                     {
                         var added = Math.Min(remaining, maximum);
-                        _inbox.Add(new InboxStack { Template = template, Count = added, Slot = _freeInboxSlots[0], BeforeRegister = beforeRegister });
+                        _inbox.Add(new InboxStack { Template = template, Count = added, Slot = _freeInboxSlots[0],
+                            BeforeRegister = beforeRegister, Crafter = crafter, Modules = modules });
                         _freeInboxSlots.RemoveAt(0);
                         remaining -= added;
                     }
@@ -323,7 +418,33 @@ namespace Rasa.Managers
                         : "The complete item grant does not fit its inventory categories.");
             }
 
-            internal uint GrantCapacity(uint templateId)
+            /// <summary>Puts the modules given, by slot, in a new item's slots.</summary>
+            private static void SetModules(Item item, IReadOnlyList<uint> modules)
+            {
+                for (var slot = 0; slot < ItemModules.Slots && slot < modules.Count; slot++)
+                    item.SetModule(slot, modules[slot]);
+            }
+
+            /// <summary>Whether two items' module slots hold the same modules; null is four empty slots.</summary>
+            private static bool SameModules(IReadOnlyList<uint> first, IReadOnlyList<uint> second)
+            {
+                for (var slot = 0; slot < ItemModules.Slots; slot++)
+                {
+                    var a = first != null && slot < first.Count ? first[slot] : 0;
+                    var b = second != null && slot < second.Count ? second[slot] : 0;
+
+                    if (a != b)
+                        return false;
+                }
+
+                return true;
+            }
+
+            /// <summary>
+            /// How many of a template a Grant with the same crafter could take: room on its stacks
+            /// and in free slots of its category, and with overflowToInbox the free inbox slots.
+            /// </summary>
+            internal uint GrantCapacity(uint templateId, string crafter = null, bool overflowToInbox = false)
             {
                 var template = RequireTemplate(templateId);
                 var maximum = EntityClassManager.Instance.LoadedEntityClasses[template.Class].ItemClassInfo.StackSize;
@@ -332,8 +453,14 @@ namespace Rasa.Managers
                     .Count(index => !_stacks.Any(stack => stack.Index == index && stack.Count > 0));
                 var capacity = (ulong)free * maximum;
                 foreach (var stack in _stacks.Where(stack => stack.Template.ItemTemplateId == templateId &&
-                    stack.Ownership == null && stack.Count > 0))
+                    stack.Ownership == null && stack.Count > 0 && (crafter == null || stack.MadeBy == crafter) &&
+                    SameModules(stack.ModulesHeld, null)))
                     capacity += stack.Maximum - stack.Count;
+                if (overflowToInbox)
+                {
+                    _freeInboxSlots ??= FreeInboxSlots(_unit, _accountId, _characterId);
+                    capacity += (ulong)_freeInboxSlots.Count * maximum;
+                }
                 return (uint)Math.Min(uint.MaxValue, capacity);
             }
 
@@ -355,18 +482,29 @@ namespace Rasa.Managers
                     throw new GameplayRejectionException("Loot item durable state is stale.");
             }
 
-            internal void AcceptLoot(LootItem loot, uint? preferredSlot, Action<Item> beforePublication)
+            /// <summary>
+            /// A corpse's item into the backpack: merged into stacks of its template, the rest in a
+            /// free slot of its category. False, with nothing planned, when it does not all fit:
+            /// it stays on the corpse, whole, and the items after it are still tried.
+            /// </summary>
+            internal bool AcceptLoot(LootItem loot, uint? preferredSlot, Action<Item> beforePublication)
             {
                 ValidateLoot(loot, _unit.CharacterInventories.GetItems(_client.AccountEntry.Id));
                 if (_loot.Any(entry => entry.EntityId == loot.EntityId || entry.Item.Id == loot.Item.Id))
                     throw new GameplayRejectionException("The same loot item cannot be planned twice.");
-                _loot.Add(loot);
                 var template = RequireTemplate(loot.ItemTemplateId);
                 var start = ((int)template.InventoryCategory - 1) * PersonalCategorySize;
                 var maximum = EntityClassManager.Instance.LoadedEntityClasses[template.Class].ItemClassInfo.StackSize;
+                var merges = _stacks.Where(stack => stack.Template.ItemTemplateId == loot.ItemTemplateId &&
+                    stack.Ownership == null && stack.Count > 0).ToList();
+                var room = merges.Aggregate(0L, (total, stack) => total + Math.Max(0L, (long)stack.Maximum - stack.Count));
+                var available = Enumerable.Range(start, PersonalCategorySize)
+                    .Where(index => !_stacks.Any(stack => stack.Index == index && stack.Count > 0)).ToArray();
+                if (room < loot.ItemQuantity && available.Length == 0)
+                    return false;
+                _loot.Add(loot);
                 var remaining = loot.ItemQuantity;
-                foreach (var stack in _stacks.Where(stack => stack.Template.ItemTemplateId == loot.ItemTemplateId &&
-                    stack.Ownership == null && stack.Count > 0))
+                foreach (var stack in merges)
                 {
                     var added = Math.Min(remaining, stack.Maximum - stack.Count);
                     stack.Count += added;
@@ -375,15 +513,12 @@ namespace Rasa.Managers
                         break;
                 }
                 if (remaining == 0)
-                    return;
-                var available = Enumerable.Range(start, PersonalCategorySize)
-                    .Where(index => !_stacks.Any(stack => stack.Index == index && stack.Count > 0)).ToArray();
-                if (available.Length == 0)
-                    throw new GameplayRejectionException("The complete loot batch does not fit its inventory category.");
+                    return true;
                 var destination = preferredSlot.HasValue && available.Contains((int)preferredSlot.Value)
                     ? (int)preferredSlot.Value : available[0];
                 _stacks.Add(new Stack { Index = destination, Incoming = loot, Template = template,
                     Count = remaining, Maximum = maximum, BeforeRegister = beforePublication });
+                return true;
             }
 
             public void Prepare()
@@ -420,7 +555,17 @@ namespace Rasa.Managers
                         }
                         else
                         {
-                            item = stack.Staged = ItemManager.StageItem(stack.Template, stack.Count, "");
+                            item = stack.Staged = ItemManager.StageItem(stack.Template, stack.Count, stack.SplitFrom?.Crafter ?? stack.Crafter ?? "");
+                            if (stack.SplitFrom is { } original)
+                            {
+                                item.Color = original.Color;
+                                item.CurrentHitPoints = original.CurrentHitPoints;
+                                item.BoundCharacterId = original.BoundCharacterId;
+                                for (var slot = 0; slot < original.ModuleIds.Count; slot++)
+                                    item.SetModule(slot, original.ModuleIds[slot]);
+                            }
+                            else if (stack.Modules != null)
+                                SetModules(item, stack.Modules);
                             item.OwnerId = _client.Player.Id;
                             item.OwnerSlotId = (uint)stack.Index;
                             item.MissionOwnership = stack.Ownership;
@@ -441,7 +586,9 @@ namespace Rasa.Managers
 
                 foreach (var box in _inbox)
                 {
-                    var item = box.Staged = ItemManager.StageItem(box.Template, box.Count, "");
+                    var item = box.Staged = ItemManager.StageItem(box.Template, box.Count, box.Crafter ?? "");
+                    if (box.Modules != null)
+                        SetModules(item, box.Modules);
                     item.OwnerId = _characterId;
                     item.OwnerSlotId = box.Slot;
                     item.Id = _unit.Items.CreateItem(item);
@@ -510,8 +657,9 @@ namespace Rasa.Managers
                         inboxItems.TryGetValue(box.Staged.Id, out var saved);
                         if (boxRows.Length != 1 || boxRows[0].CharacterId != _characterId ||
                             boxRows[0].InventoryType != (uint)InventoryType.InboxInventory || boxRows[0].SlotId != box.Slot ||
-                            saved?.ItemTemplateId != box.Template.ItemTemplateId || saved.StackSize != box.Count)
-                            throw new GameplayRejectionException("Final inbox identity, slot or count does not match the transaction plan.");
+                            saved?.ItemTemplateId != box.Template.ItemTemplateId || saved.StackSize != box.Count ||
+                            (saved.CrafterName ?? "") != (box.Crafter ?? "") || !saved.Modules.SequenceEqual(box.Staged.ModuleIds))
+                            throw new GameplayRejectionException("Final inbox identity, slot, count, crafter or modules does not match the transaction plan.");
                     }
                 }
             }

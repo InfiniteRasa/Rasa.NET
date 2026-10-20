@@ -284,12 +284,13 @@ namespace Rasa.Test.World
             /// <summary>A pack item right-clicked with the lockbox open, or dropped on a tab's button.</summary>
             internal void Deposit(int packSlot, int tabId, bool noTabNamed = false)
             {
+                // The whole stack, as a right-click or a plain drag sends it (inventorywindow._GetQuantity).
                 Inventory.ClanLockbox_DepositItemInTab(Client, new ClanLockbox_DepositItemInTabPacket
                 {
                     SrcSlot = packSlot,
                     DestTab = noTabNamed ? 0 : tabId,
                     NoTabNamed = noTabNamed,
-                    Quantity = 1
+                    Quantity = EntityManager.Instance.GetItem(Pack[packSlot])?.StackSize ?? 1
                 });
             }
 
@@ -343,7 +344,8 @@ namespace Rasa.Test.World
                 var from = (int)item.OwnerSlotId;
 
                 Assert.AreEqual(item.EntityId, Pack[from]);
-                Inventory.PersonalInventory_MoveItem(Client, new PersonalInventory_MoveItemPacket { SrcSlot = from, DestSlot = from + 1, Quantity = 1 });
+                // A plain drag: the client sends the stack's count (inventorywindow._StartItemDrag).
+                Inventory.PersonalInventory_MoveItem(Client, new PersonalInventory_MoveItemPacket { SrcSlot = from, DestSlot = from + 1, Quantity = (int)item.StackSize });
 
                 Assert.AreEqual(item.EntityId, Pack[from + 1], "a pack move is refused");
                 Assert.AreEqual(0UL, Pack[from]);

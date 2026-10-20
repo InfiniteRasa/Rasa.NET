@@ -113,5 +113,58 @@ namespace Rasa.Repositories.Char.Petition
                 return false;
             }
         }
+
+        public bool SetPetitionResolution(uint id, string resolution)
+        {
+            try
+            {
+                var entry = _charContext.GetWritable(_charContext.PetitionEntries, id);
+
+                if (entry == null)
+                    return false;
+
+                entry.Resolution = resolution ?? string.Empty;
+
+                _charContext.SaveChanges();
+                return true;
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, "Error answering Petition:");
+                Logger.WriteLog(LogType.Error, e);
+                return false;
+            }
+        }
+
+        public bool SetNoticePending(uint id, bool pending)
+        {
+            try
+            {
+                var entry = _charContext.GetWritable(_charContext.PetitionEntries, id);
+
+                if (entry == null)
+                    return false;
+
+                entry.NoticePending = pending;
+
+                _charContext.SaveChanges();
+                return true;
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, "Error updating Petition notice:");
+                Logger.WriteLog(LogType.Error, e);
+                return false;
+            }
+        }
+
+        public List<PetitionEntry> ListNoticesPending(uint accountId)
+        {
+            var query = _charContext.CreateNoTrackingQuery(_charContext.PetitionEntries);
+
+            return query.Where(e => e.AccountId == accountId && e.NoticePending)
+                        .OrderBy(e => e.Id)
+                        .ToList();
+        }
     }
 }

@@ -26,7 +26,7 @@ namespace Rasa.Packets.MapChannel.Server
     /// </summary>
     public class AbilityRecoveryPacket : ServerPythonPacket
     {
-        public enum HitDataKind { None, Damage, Heal, EffectAttach, CureLists, TypeIds, RawInfo, HealRepair, DamagePair }
+        public enum HitDataKind { None, Damage, Heal, EffectAttach, CureLists, TypeIds, RawInfo, HealRepair, DamagePair, Splash }
 
         public override GameOpcode Opcode { get; } = GameOpcode.PerformRecovery;
 
@@ -53,6 +53,14 @@ namespace Rasa.Packets.MapChannel.Server
         /// </summary>
         public List<int> TypeIds { get; } = new List<int>();
 
+        /// <summary>
+        /// For HitDataKind.Splash: what the ability landed on, the one entry in hits, and 0 for
+        /// nothing. Hits are everyone it hurt, the one it landed on among them or not; they go
+        /// out as that hit's hitdata, [(entityId, rawInfo), ...], which GrenadeAbility.DoAbility
+        /// announces on each. hits is where the client draws the blast.
+        /// </summary>
+        public ulong SplashOn { get; set; }
+
         public AbilityRecoveryPacket(ActionId actionId, uint actionArgId, HitDataKind kind)
         {
             ActionId = actionId;
@@ -65,6 +73,32 @@ namespace Rasa.Packets.MapChannel.Server
             pw.WriteTuple(6);
             pw.WriteUInt((uint)ActionId);
             pw.WriteUInt(ActionArgId);
+
+            if (Kind == HitDataKind.Splash)
+            {
+                var landed = SplashOn != 0 ? 1 : 0;
+
+                pw.WriteList(landed);
+                if (landed != 0)
+                    pw.WriteULong(SplashOn);
+
+                pw.WriteList(0);                // misses
+                pw.WriteList(0);                // missdata
+                pw.WriteList(landed);           // hitdata
+
+                if (landed == 0)
+                    return;
+
+                pw.WriteList(Hits.Count);
+                foreach (var hit in Hits)
+                {
+                    pw.WriteTuple(2);
+                    pw.WriteULong(hit.EntityId);
+                    DamageInfoWriter.WriteRawInfo(pw, hit.DamageType, hit.Amount, hit.Resisted, hit.IsCritical, hit.DeathBlow, absorbed: hit.Absorbed, wasImmune: hit.WasImmune, targetEffectIds: hit.TargetEffectIds);
+                }
+
+                return;
+            }
 
             pw.WriteList(Hits.Count);
             foreach (var hit in Hits)

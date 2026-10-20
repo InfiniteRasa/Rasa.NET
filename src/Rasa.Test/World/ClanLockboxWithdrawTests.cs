@@ -165,6 +165,71 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void AnItemPutOnASlotAndTakenOutAreBothInTheHistory()
+        {
+            using var lockbox = new Lockbox();
+
+            lockbox.Deposit(3);
+
+            var deposit = History(lockbox).Single();
+            Assert.AreEqual(InventoryTransactionType.Deposit, deposit.TransactionType);
+            Assert.AreEqual(Template, deposit.ItemTemplateId);
+            Assert.AreEqual(3u, deposit.Quantity);
+            Assert.AreEqual(lockbox.Taker.Player.Id, deposit.CharacterId);
+
+            lockbox.RightClick();
+
+            var history = History(lockbox);
+            Assert.HasCount(2, history);
+            Assert.AreEqual(InventoryTransactionType.Withdrawal, history[0].TransactionType, "the newest first");
+            Assert.AreEqual(Template, history[0].ItemTemplateId);
+            Assert.AreEqual(3u, history[0].Quantity);
+            Assert.AreEqual(lockbox.Taker.Player.Id, history[0].CharacterId);
+        }
+
+        [TestMethod]
+        public void PartOfAStackTakenOutIsInTheHistoryForWhatWasTaken()
+        {
+            using var lockbox = new Lockbox();
+            var stored = lockbox.Deposit(10);
+
+            lockbox.Inventory.ClanLockbox_WithdrawItem(lockbox.Taker,
+                new ClanLockbox_WithdrawItemPacket { SrcSlot = 0, Quantity = 4, ManagePersonalSlot = true });
+
+            Assert.AreEqual(6u, stored.StackSize, "the rest stays in the lockbox");
+
+            var taken = History(lockbox)[0];
+            Assert.AreEqual(InventoryTransactionType.Withdrawal, taken.TransactionType);
+            Assert.AreEqual(4u, taken.Quantity);
+        }
+
+        [TestMethod]
+        public void ASwapOnASlotPutsBothHalvesInTheHistory()
+        {
+            using var lockbox = new Lockbox();
+            lockbox.Deposit(3);
+
+            var other = lockbox.Context.CreateInventoryItem(OtherTemplate, ItemClass, 1);
+            Assert.AreSame(other, lockbox.Inventory.GrantItemToInventory(lockbox.Taker, other));
+
+            lockbox.Inventory.ClanLockbox_DepositItemInSlot(lockbox.Taker,
+                new ClanLockbox_DepositItemInSlotPacket { SrcSlot = other.OwnerSlotId, DestSlot = 0, Quantity = 1 });
+
+            Assert.AreEqual(other.EntityId, lockbox.Taker.Player.Inventory.ClanInventory[0], "swapped");
+
+            var swap = History(lockbox).Take(2).ToList();
+            CollectionAssert.AreEquivalent(
+                new[] { (InventoryTransactionType.Deposit, OtherTemplate, 1u), (InventoryTransactionType.Withdrawal, Template, 3u) },
+                swap.Select(line => (line.TransactionType, line.ItemTemplateId, line.Quantity)).ToList());
+        }
+
+        private static List<ClanLockboxLogEntry> History(Lockbox lockbox)
+        {
+            using var unit = lockbox.Context.CreateChar();
+            return unit.ClanLockboxLogs.Get(lockbox.Clan.Id, 10);
+        }
+
+        [TestMethod]
         public void ARefreshThatNamesNoItemSendsTheLockboxAndNothingElse()
         {
             using var lockbox = new Lockbox();

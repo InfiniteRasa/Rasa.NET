@@ -101,6 +101,25 @@ namespace Rasa.Game.Missions.World
             // (SceneApplication cancels such effects as it reconciles).
             if (intent.Role == null || !world.Bindings.Actors.TryGetValue(intent.Role, out var definition))
                 return WorldEffectResult.Failed($"Actor role {intent.Role} is not in the scene's bindings.");
+            if (intent is QuietSpawnPoolsIntent quiet)
+            {
+                if (!world.Map.IsPrivateInstance || world.Map.OwnerCharacterId != run.OwnerCharacterId)
+                    return WorldEffectResult.Failed("Spawn pools are quieted only on their owner's private map.");
+                foreach (var pool in world.Map.SpawnPools.Where(pool => pool.ScenarioKey == null && quiet.SpawnPools.Contains(pool.DbId)))
+                    pool.Quieted = true;
+                return WorldEffectResult.Applied();
+            }
+            if (intent is WakeSpawnPoolsIntent wake)
+            {
+                if (!world.Map.IsPrivateInstance || world.Map.OwnerCharacterId != run.OwnerCharacterId)
+                    return WorldEffectResult.Failed("Spawn pools are woken only on their owner's private map.");
+                foreach (var pool in world.Map.SpawnPools.Where(pool => pool.ScenarioKey == null && pool.Mode == SpawnPoolManager.ModeScripted &&
+                             wake.SpawnPools.Contains(pool.DbId)))
+                    pool.Woken = true;
+                return WorldEffectResult.Applied();
+            }
+            if (intent is RestoreActorPoseIntent { } creaturePose && definition.Kind == SceneActorKind.Creature)
+                return RestoreCreaturePose(world, run, definition, creaturePose);
             if (intent is RestoreActorPoseIntent pose)
             {
                 if (!world.Map.IsPrivateInstance || world.Map.OwnerCharacterId != run.OwnerCharacterId ||
@@ -297,6 +316,29 @@ namespace Rasa.Game.Missions.World
             return WorldEffectResult.Failed($"Unsupported world intent {intent.GetType().Name}.");
         }
 
+        /// <summary>
+        /// A creature the scene set walking to a place of its own, put straight there when its
+        /// private map is made again (a route that resumes at its destination): at the route's
+        /// end and facing, and, a defender, at its post (SceneRouteController.TakeUpPost).
+        /// </summary>
+        private WorldEffectResult RestoreCreaturePose(WorldRun world, SceneRun run, SceneActorDefinition definition,
+            RestoreActorPoseIntent pose)
+        {
+            if (!world.Map.IsPrivateInstance || world.Map.OwnerCharacterId != run.OwnerCharacterId)
+                return WorldEffectResult.Failed("Pose recovery is restricted to an owned private-map actor.");
+            if (!world.Actors.TryGetValue(pose.Role, out var actor) || !IsCurrent(world, actor))
+                TryBindExisting(world, definition, out actor);
+            if (actor?.Creature == null || !IsCurrent(world, actor))
+                return WorldEffectResult.Failed($"Actor role {pose.Role} is unavailable.");
+            var position = SceneRouteController.Position(pose.Position);
+            actor.Creature.SpawnPool.Position = position;
+            actor.Creature.SpawnPool.Rotation = pose.Orientation;
+            if (!BehaviorManager.Instance.RestoreScriptedPose(world.Map, actor.Creature, position, pose.Orientation))
+                return WorldEffectResult.Failed("Creature actor pose could not be restored.");
+            SceneRouteController.TakeUpPost(actor.Creature);
+            return WorldEffectResult.Applied();
+        }
+
         private void RevokeAttackOperation(WorldRun world, BoundActor actor, string operationKey)
         {
             CancelOperation(world.Run.Id, world.Run.Generation, operationKey);
@@ -319,6 +361,7 @@ namespace Rasa.Game.Missions.World
                 {
                     if (existing.Object?.StateId == UseObjectState.IdStateActive)
                         existing.Object.StateId = (UseObjectState)definition.InitialObjectState;
+                    ApplyView(existing.Object, definition);
                     return WorldEffectResult.Applied();
                 }
                 if (existing.Object.MissionLootSource != null || existing.Object.LootDispenserEntityId != 0)
@@ -415,6 +458,7 @@ namespace Rasa.Game.Missions.World
                     obj.MissionUseAction = definition.UseAction;
                     obj.MissionDestruction = definition.Destruction;
                     obj.CurrentHitPoints = definition.Destruction?.HitPoints ?? 0;
+                    obj.ViewRadius = definition.ViewRadius;
                     if (definition.Kind == SceneActorKind.PracticeTarget || definition.Destruction != null)
                         obj.DynamicObjectType = DynamicObjectType.PracticeDummy;
                     if (definition.LootMissionId.HasValue && definition.LootRewardId.HasValue && definition.LootObjectiveId.HasValue)
@@ -429,8 +473,12 @@ namespace Rasa.Game.Missions.World
                     CellManager.Instance.AddToWorld(world.Map, obj);
                     obj.IsInWorld = true;
                 }
-                else if (obj.StateId == UseObjectState.IdStateActive)
-                    obj.StateId = (UseObjectState)definition.InitialObjectState;
+                else
+                {
+                    if (obj.StateId == UseObjectState.IdStateActive)
+                        obj.StateId = (UseObjectState)definition.InitialObjectState;
+                    ApplyView(obj, definition);
+                }
                 world.Actors[definition.Role] = new BoundActor(handle, null, obj);
             }
             return WorldEffectResult.Applied();
@@ -485,13 +533,26 @@ namespace Rasa.Game.Missions.World
             {
                 var obj = world.Map.DynamicObjects.SingleOrDefault(candidate => candidate.ScenarioKey == key);
                 if (obj != null && ObjectShapeMatches(obj, definition))
+                {
                     actor = new BoundActor(handle, null, obj);
+                    ApplyView(obj, definition);
+                }
             }
             if (actor == null)
                 return false;
             world.Actors[definition.Role] = actor;
             BindCreaturePolicy(world, definition, actor);
             return true;
+        }
+
+        /// <summary>
+        /// An object a scene takes up is seen as that scene says (Landmarks): one already standing -
+        /// put down by another scene that shares it, or before its definition had a radius - too.
+        /// </summary>
+        private static void ApplyView(DynamicObject obj, SceneActorDefinition definition)
+        {
+            if (obj != null)
+                obj.ViewRadius = definition.ViewRadius;
         }
 
         private void BindCreaturePolicy(WorldRun world, SceneActorDefinition definition, BoundActor actor)

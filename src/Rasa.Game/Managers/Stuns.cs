@@ -127,6 +127,11 @@ namespace Rasa.Managers
 
             GameEffectManager.Instance.Attach(mapChannel, target, stun);
 
+            // Refused (IMMUNE_STUN, Cure, running home): not stunned, so it neither stops nor has
+            // its Critical Death window opened by it.
+            if (!target.ActiveEffects.ContainsKey(stun.EffectId))
+                return false;
+
             // Whatever it was doing, it stops where it is: without this the clients keep
             // extrapolating its last movement for the length of the stun.
             BehaviorManager.Instance.StopMoving(target);

@@ -231,18 +231,18 @@ namespace Rasa.Test.Missions.Wilderness
             {
                 characters.GetService<IMigrator>().Migrate(CharBefore);
 
-                characters.GameAccountEntries.Add(new GameAccountEntry
-                {
-                    Id = 1, Email = "rules@example.invalid", Name = "Rules", FamilyName = "Fixture", SelectedSlot = 1,
-                    CanSkipBootcamp = false, CreatedAt = DateTime.UtcNow, LastLogin = DateTime.UtcNow, LastIp = "127.0.0.1", Level = 0
-                });
+                // The account and character rows are written by hand: the entities have columns this
+                // schema does not have yet (hybrid_unlocks, xp_boost_*), and the rest are left to
+                // their defaults.
+                characters.Database.ExecuteSqlRaw(
+                    "INSERT INTO account (id, email, name, family_name, selected_slot, last_ip) " +
+                    "VALUES (1, 'rules@example.invalid', 'Rules', 'Fixture', 1, '127.0.0.1')");
                 foreach (var id in new uint[] { 1, 2 })
-                    characters.CharacterEntries.Add(new CharacterEntry
-                    {
-                        Id = id, AccountId = 1, Slot = (byte)id, Name = $"Holder{id}", Race = 1, Class = 1, Scale = 1, Level = 9,
-                        MapContextId = 1220, RunState = 1, LastLogin = DateTime.UtcNow, CreatedAt = DateTime.UtcNow, LastPvPClan = DateTime.UtcNow
-                    });
-                characters.SaveChanges();
+                    characters.Database.ExecuteSqlRaw(
+                        "INSERT INTO character (id, account_id, slot, name, race, class, gender, scale, body, mind, spirit, level, map_context_id, " +
+                        "coord_x, coord_y, coord_z, rotation, run_state, last_login, created_at, last_pvp_clan) " +
+                        "VALUES ({0}, 1, {0}, {1}, 1, 1, 0, 1, 0, 0, 0, 9, 1220, 0, 0, 0, 0, 1, {2}, {2}, {2})",
+                        id, $"Holder{id}", DateTime.UtcNow);
 
                 // Character 1: the Wilderness's and the Divide's, both of the revision that went
                 // from the Wilderness. Character 2: 1449 as the Wilderness missions have it.

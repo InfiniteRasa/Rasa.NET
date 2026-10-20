@@ -21,6 +21,7 @@ namespace Rasa.Managers
     using Packets;
     using Repositories;
     using Repositories.Char;
+    using Repositories.Char.GameAccount;
     using Repositories.Char.CharacterMissionProgress;
     using Repositories.UnitOfWork;
     using Repositories.World;
@@ -139,12 +140,13 @@ namespace Rasa.Managers
 
             client.State = ClientState.CharacterSelection;
 
-            // get userOptions
-            var optionsList = unitOfWork.UserOptions.Get(client.AccountEntry.Id);
+            // The account's options, as saved. In place of what the connection held, not added
+            // to it: a logout comes back here on the same connection, and each visit used to
+            // append another copy of every option, all of them sent again below.
+            client.UserOptions = unitOfWork.UserOptions.Get(client.AccountEntry.Id)
+                .Select(userOption => new UserOptions((UserOption)userOption.OptionId, userOption.Value))
+                .ToList();
 
-            foreach (var userOption in optionsList)
-                client.UserOptions.Add(new UserOptions((UserOption)userOption.OptionId, userOption.Value));
-            
             client.CallMethod(SysEntity.ClientMethodId, new UserOptionsPacket(client.UserOptions));
         }
 
@@ -474,7 +476,9 @@ namespace Rasa.Managers
             uint characterId;
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
 
-            // TODO to remove this lock, the family name check and update must be redesigned to be thread safe
+            // The family name is checked and then written; this lock keeps two creations on this
+            // server apart, and the name's unique index (Family_name_unique) holds it against
+            // anything else.
             lock (_createLock)
             {
                 if (!TryPersistCharacterCreation(
@@ -504,12 +508,16 @@ namespace Rasa.Managers
         #region Name changes
 
         /// <summary>
-        /// Names the client will accept, from PM_NAME_TOO_SHORT, PM_NAME_TOO_LONG and
-        /// PM_NAME_FORMAT_INVALID: "Your name must start with a capital letter, contain only
-        /// letters, and must not contain letters repeated more than twice in a row", 3 to 20
-        /// characters.
+        /// Names the server takes: from PM_NAME_FORMAT_INVALID, "Your name must start with a
+        /// capital letter, contain only letters, and must not contain letters repeated more than
+        /// twice in a row", and PM_NAME_TOO_LONG, at most 20 characters.
+        ///
+        /// At least 2, where PM_NAME_TOO_SHORT says 3: the random names the character creation
+        /// screen hands out (player_random_name) include An, Ed, Li, My and Xu, which a minimum of
+        /// 3 offered and then refused. The client itself checks only that a name is not empty, so
+        /// a one-letter name is still told "no shorter than 3 characters".
         /// </summary>
-        public const int MinNameLength = 3;
+        public const int MinNameLength = 2;
         public const int MaxNameLength = 20;
 
         /// <summary>/changefirstname: renames the character the player is on.</summary>
@@ -568,7 +576,6 @@ namespace Rasa.Managers
                 }
 
                 unitOfWork.GameAccounts.UpdateFamilyName(target.AccountEntry.Id, name);
-                target.Player.FamilyName = name;
             }
             else
             {
@@ -588,7 +595,23 @@ namespace Rasa.Managers
             // row, and the unit of work discards that on dispose unless it is completed. The
             // family name change was lost here, and ReloadGameAccountEntry then read the old
             // name straight back.
-            unitOfWork.Complete();
+            //
+            // The family name's unique index (Family_name_unique) refuses a name another account
+            // took in the moment since CanChangeFamilyName: a character created with it, or a
+            // rename on another server on the same database.
+            try
+            {
+                unitOfWork.Complete();
+            }
+            catch (DbUpdateException ex) when (familyName && GameAccountRepository.RefusedFamilyName(ex))
+            {
+                Logger.WriteLog(LogType.Error, $"Could not rename the family of account {target.AccountEntry.Id} to {name}: {ex.GetBaseException().Message}");
+                NameMessage(requester, PlayerMessage.PmFamilyNameReserved);
+                return false;
+            }
+
+            if (familyName)
+                target.Player.FamilyName = name;
 
             target.ReloadGameAccountEntry();
 
@@ -682,6 +705,13 @@ namespace Rasa.Managers
             return CreateCharacterResult.Success;
         }
 
+        /// <summary>
+        /// A character or family name: a capital and then letters A to Z, no letter three times
+        /// in a row. Any script's letters were taken, so a name could be spelt with Cyrillic or
+        /// Greek letters that look like another player's; and SQLite folds only A to Z when it
+        /// compares without case, so "Élan" and "élan" were two family names there and one on
+        /// MySQL. Names already given out are left as they are.
+        /// </summary>
         public static bool IsValidName(string name, out PlayerMessage error)
         {
             error = PlayerMessage.PmNameFormatInvalid;
@@ -698,12 +728,12 @@ namespace Rasa.Managers
                 return false;
             }
 
-            if (!char.IsUpper(name[0]))
+            if (name[0] is not (>= 'A' and <= 'Z'))
                 return false;
 
             for (var i = 0; i < name.Length; i++)
             {
-                if (!char.IsLetter(name[i]))
+                if (name[i] is not (>= 'A' and <= 'Z' or >= 'a' and <= 'z'))
                     return false;
 
                 // No letter three times in a row.
@@ -836,14 +866,21 @@ namespace Rasa.Managers
             return characterEntry.Id;
         }
 
+        /// <summary>
+        /// The Recruit skills every character starts with at rank 1. Their five points are part of
+        /// every character's skill budget (ManifestationManager.GetSkillPointsAvailable), which is
+        /// why a skill respec leaves them at rank 1 (ManifestationManager.SkillsAfterRespec).
+        /// </summary>
+        public static readonly SkillId[] StartingSkills =
+        {
+            SkillId.Lightning, SkillId.Sprint, SkillId.Firearms,
+            SkillId.HandToHand, SkillId.MotorAssistArmor
+        };
+
         private void CreateStartingLoadout(ICharUnitOfWork unitOfWork, uint accountId, uint characterId)
         {
             var progression = new ManifestationManager(_gameUnitOfWorkFactory);
-            foreach (var skill in new[]
-                     {
-                         SkillId.Lightning, SkillId.Sprint, SkillId.Firearms,
-                         SkillId.HandToHand, SkillId.MotorAssistArmor
-                     })
+            foreach (var skill in StartingSkills)
                 unitOfWork.CharacterSkills.AddOrUpdate(
                     characterId,
                     (uint)skill,
@@ -900,7 +937,13 @@ namespace Rasa.Managers
             catch (Exception error) when (error is GameplayRejectionException or DbUpdateException or DbException)
             {
                 Logger.WriteLog(LogType.Error, $"Character creation failed: {error}");
-                SendCharacterCreateFailed(client, CreateCharacterResult.TechnicalDifficulty);
+
+                // Refused by the family name's unique index: another account took the name
+                // between the check and the write. Everything was rolled back; the player is
+                // told the name is taken, as the check would have told them.
+                SendCharacterCreateFailed(client, GameAccountRepository.RefusedFamilyName(error)
+                    ? CreateCharacterResult.FamilyNameReserved
+                    : CreateCharacterResult.TechnicalDifficulty);
                 return false;
             }
         }

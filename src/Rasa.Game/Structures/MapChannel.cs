@@ -55,6 +55,12 @@ namespace Rasa.Structures
 
         /// <summary>The tick at which this channel's sky started running: when the channel was made (Managers.SkyClock).</summary>
         internal long SkyStartedTick { get; set; } = System.Environment.TickCount64;
+
+        /// <summary>The time of day (0.5 noon) .setskytime has held this channel's sky at, when its map's sky is held (SkyClock.Held).</summary>
+        internal double? SkyHeldAt { get; set; }
+
+        /// <summary>When the players on this channel were last sent its held sky's time (SkyClock.Worker).</summary>
+        internal long SkyHoldSentTick { get; set; }
         /// <summary>Milliseconds since this map's creatures last ran BehaviorManager.CreatureThink.</summary>
         public long ControllerElapsed { get; set; }
         //public int TimerPlayerUpdate { get; set; }

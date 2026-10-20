@@ -22,6 +22,12 @@ namespace Rasa.Structures
 
         /// <summary>The beat its creature walks (spawnpool_patrol; Managers.Patrols); null for a pool with none.</summary>
         public IReadOnlyList<PatrolStep> Patrol { get; set; }
+
+        /// <summary>
+        /// How many it sends at a time, each drawn from its slots at random, weighted by the slot's
+        /// max count (spawnpool_draw); 0 for a pool that sends each slot's own count.
+        /// </summary>
+        public int DrawCount { get; set; }
         public List<SpawnPoolSlot> SpawnSlot { get; set; }
 
         /// <summary>Where its creatures arrive (spawnpool_arrival): a pad or bay the Bane dropship lands on, a teleporter. Empty: they appear on its ground.</summary>
@@ -38,6 +44,18 @@ namespace Rasa.Structures
 
         /// <summary>The other side holds its control point (ControlPoints): it spawns nothing until its own side does.</summary>
         public bool Suspended { get; set; }
+
+        /// <summary>
+        /// A place on a player's private map they have taken back (a mission scene's
+        /// QuietSpawnPoolsIntent): it spawns nothing more there, and does not top up what it lost.
+        /// </summary>
+        public bool Quieted { get; set; }
+
+        /// <summary>
+        /// A scripted pool (mode 2) a mission scene has set going on the player's private map
+        /// (WakeSpawnPoolsIntent): it spawns on its own timer there, as an automatic one does.
+        /// </summary>
+        public bool Woken { get; set; }
 
         /// <summary>
         /// Its area has no walkable ground on its map's navmesh (SpawnPoolManager.Anchor), so it
@@ -60,6 +78,13 @@ namespace Rasa.Structures
         public int AliveCreatures { get; set; } // number of spawned creatures that are alive
         public int DeadCreatures { get; set; }  // number of spawned creatures that are dead (either killed or spawned dead)
         internal List<Creature> QueuedCreatureList { get; set; }
+
+        /// <summary>
+        /// What its last full spawn set down, creature row and how many of it, in the order they
+        /// were rolled: what a pool that has lost some of them is topped back up to
+        /// (SpawnPoolManager.TopUp). Null until it has spawned on its map channel.
+        /// </summary>
+        internal List<(uint CreatureId, int Count)> Complement { get; set; }
 
         /// <summary>
         /// Its emplacements that are wrecks on their mounts (AlternateMesh): dead, kept in the

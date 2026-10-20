@@ -146,9 +146,8 @@ namespace Rasa.Managers
             if (tempItem == null)
                 return;
 
+            // All of a stack destroyed deletes the item (ReduceStackCount).
             ReduceStackCount(client, InventoryType.HomeInventory, tempItem, packet.Quantity);
-
-            // ToDo delete item from db? or we sill keep all items
         }
 
         public void HomeInventory_MoveItem(Client client, HomeInventory_MoveItemPacket packet)
@@ -173,6 +172,21 @@ namespace Rasa.Managers
 
             if (entityId == 0 || HasProtected(entityId, client.Player.Inventory.HomeInventory[(int)packet.DestSlot]))
                 return;
+
+            // Part of a stack, or onto a stack it joins (InventoryManager.Stacks).
+            lock (client.SyncRoot)
+            {
+                try
+                {
+                    if (MoveHomeStack(client, packet.SrcSlot, packet.DestSlot, packet.Quantity))
+                        return;
+                }
+                catch (Exception error) when (GameplayRejectionException.IsExpected(error))
+                {
+                    Logger.WriteLog(LogType.Error, $"Footlocker stack move rejected: {error.Message}");
+                    return;
+                }
+            }
 
             RemoveItemBySlot(client, InventoryType.HomeInventory, packet.SrcSlot);
             // if toSlot is not empty, move current item to SrcSlot (item swap)
@@ -212,9 +226,8 @@ namespace Rasa.Managers
             if (tempItem == null)
                 return;
 
+            // All of a stack destroyed deletes the item (ReduceStackCount).
             ReduceStackCount(client, InventoryType.Personal, tempItem, packet.Quantity);
-
-            // ToDo delete item from db? or we sill keep all items
         }
 
         public void PersonalInventory_MoveItem(Client client, PersonalInventory_MoveItemPacket packet)
@@ -250,7 +263,7 @@ namespace Rasa.Managers
                         unit.ExecuteTransaction(() =>
                         {
                             plan = InventoryPlan.For(client, unit);
-                            plan.Move((uint)packet.SrcSlot, (uint)packet.DestSlot);
+                            plan.Move((uint)packet.SrcSlot, (uint)packet.DestSlot, (uint)Math.Max(0, packet.Quantity));
                         });
                     plan.Publish(client);
                 }
@@ -653,6 +666,11 @@ namespace Rasa.Managers
             if (!MayStore(client, entityId, false))
                 return;
 
+            // Part of a stack, or onto a stack it joins (InventoryManager.Stacks).
+            if (TransferStack(client, PackStore(client), packet.SrcSlot, HomeStore(client), packet.DestSlot, Quantity(packet.Quantity),
+                    () => BindPassingThroughFootlocker(client, entityId)) != StackTransfer.Whole)
+                return;
+
             // A swap takes the footlocker's item out into the pack.
             var swappedOut = client.Player.Inventory.HomeInventory[(int)packet.DestSlot];
 
@@ -753,6 +771,19 @@ namespace Rasa.Managers
             if (!MayStore(client, entityId, true))
                 return;
 
+            // Part of a stack, or onto a stack it joins (InventoryManager.Stacks). Nothing comes
+            // out of the lockbox, so no rank is asked for.
+            var depositing = EntityManager.Instance.GetItem(entityId);
+            var depositingSize = depositing?.StackSize ?? 0;
+            var stackTransfer = TransferStack(client, PackStore(client), packet.SrcSlot, ClanStore(client), packet.DestSlot, Quantity(packet.Quantity));
+
+            if (stackTransfer == StackTransfer.Done)
+                RecordClanLockboxItem(client, InventoryTransactionType.Deposit, depositing,
+                    MovedOff(client.Player.Inventory.PersonalInventory, packet.SrcSlot, entityId, depositingSize));
+
+            if (stackTransfer != StackTransfer.Whole)
+                return;
+
             // If DestSlot is not empty, move current item to SrcSlot (item swap)
             bool wasSwap = client.Player.Inventory.ClanInventory[(int)packet.DestSlot] != 0;
 
@@ -787,6 +818,10 @@ namespace Rasa.Managers
                 return;
             }
 
+            // What comes out with a swap, for the history: taken before the slot is given over.
+            var swappedOut = wasSwap ? EntityManager.Instance.GetItem(client.Player.Inventory.ClanInventory[(int)packet.DestSlot]) : null;
+            var swappedOutSize = swappedOut?.StackSize ?? 0;
+
             RemoveItemBySlot(client, InventoryType.Personal, packet.SrcSlot);
 
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
@@ -810,6 +845,12 @@ namespace Rasa.Managers
 
             depositedItem.OwnerSlotId = packet.DestSlot;
             RefreshClanLockbox(client.Player.ClanId, entityId, client.Player.Id, packet.DestSlot, ref client.Player.Inventory.ClanInventory, true);
+
+            // In the lockbox's history, as a deposit to a tab is - and what a swap took out of it.
+            RecordClanLockboxItem(client, InventoryTransactionType.Deposit, depositedItem, depositedItem.StackSize);
+
+            if (swappedOut != null)
+                RecordClanLockboxItem(client, InventoryTransactionType.Withdrawal, swappedOut, swappedOutSize);
         }
 
         public void ClanLockbox_DepositItemInTab(Client client, ClanLockbox_DepositItemInTabPacket packet)
@@ -860,6 +901,28 @@ namespace Rasa.Managers
 
             if (IsProtected(tempItem))
                 return;
+
+            // Part of a stack - a ctrl+right-click sends one (inventorywindow._GetQuantity): into
+            // the first stack it joins that has room, or a free slot of the tab
+            // (InventoryManager.Stacks). The whole stack goes as before, below.
+            if (tempItem != null && Quantity(packet.Quantity) > 0 && Quantity(packet.Quantity) < tempItem.StackSize)
+            {
+                var stackSlot = StackDestination(tempItem, client.Player.Inventory.ClanInventory, (0, (int)unlocked), ((int)firstSlot, (int)lastSlot));
+
+                if (stackSlot < 0)
+                {
+                    client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmInventoryFull, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+                    return;
+                }
+
+                var before = tempItem.StackSize;
+
+                if (TransferStack(client, PackStore(client), (uint)packet.SrcSlot, ClanStore(client), (uint)stackSlot, Quantity(packet.Quantity)) == StackTransfer.Done)
+                    RecordClanLockboxLog(client, ClanLockboxLogEntry.ForItem(client.Player.ClanId, InventoryTransactionType.Deposit,
+                        client.Player.Id, client.Player.Name, client.Player.FamilyName, tempItem.ItemTemplate.ItemTemplateId, before - tempItem.StackSize));
+
+                return;
+            }
 
             // AddItemToClanInventory saves the stack sizes it changes, and deletes every row
             // of an item it merges away; updating tempItem here afterwards was redundant, and
@@ -931,6 +994,10 @@ namespace Rasa.Managers
                 return;
 
             if (HasProtected(entityId, client.Player.Inventory.ClanInventory[(int)destSlot]))
+                return;
+
+            // Part of a stack, or onto a stack it joins (InventoryManager.Stacks).
+            if (TransferStack(client, ClanStore(client), packet.SrcSlot, ClanStore(client), destSlot, Quantity(packet.Quantity)) != StackTransfer.Whole)
                 return;
 
             // If DestSlot is not empty, move current item to SrcSlot (item swap)
@@ -1037,6 +1104,48 @@ namespace Rasa.Managers
                 return;
             }
 
+            // Part of a stack, or onto a stack it joins (InventoryManager.Stacks). With no slot
+            // named - a ctrl+right-click, one of the stack - into the first stack of the item's tab
+            // it joins, or the tab's first free slot.
+            if (tempItem?.ItemTemplate != null)
+            {
+                var takeSlot = destSlot;
+                var transfer = !packet.ManagePersonalSlot;
+
+                if (packet.ManagePersonalSlot && Quantity(packet.Quantity) > 0 && Quantity(packet.Quantity) < tempItem.StackSize)
+                {
+                    var tab = ((int)tempItem.ItemTemplate.InventoryCategory - 1) * PersonalCategorySize;
+                    var found = StackDestination(tempItem, client.Player.Inventory.PersonalInventory, (tab, tab + PersonalCategorySize), (tab, tab + PersonalCategorySize));
+
+                    if (found < 0)
+                    {
+                        client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmInventoryFull, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+                        return;
+                    }
+
+                    takeSlot = (uint)found;
+                    transfer = true;
+                }
+
+                if (transfer)
+                {
+                    var takingSize = tempItem.StackSize;
+                    var stackTransfer = TransferStack(client, ClanStore(client), packet.SrcSlot, PackStore(client), takeSlot, Quantity(packet.Quantity));
+
+                    if (stackTransfer == StackTransfer.Done)
+                        RecordClanLockboxItem(client, InventoryTransactionType.Withdrawal, tempItem,
+                            MovedOff(client.Player.Inventory.ClanInventory, packet.SrcSlot, entityId, takingSize));
+
+                    if (stackTransfer != StackTransfer.Whole)
+                        return;
+                }
+            }
+
+            // For the history: what comes out, and what a swap puts in, as they stand before the move.
+            var withdrawnSize = tempItem?.StackSize ?? 0;
+            var swappedIn = wasSwap && !packet.ManagePersonalSlot ? EntityManager.Instance.GetItem(client.Player.Inventory.PersonalInventory[(int)destSlot]) : null;
+            var swappedInSize = swappedIn?.StackSize ?? 0;
+
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
 
             if (packet.ManagePersonalSlot)
@@ -1081,6 +1190,40 @@ namespace Rasa.Managers
 
                 RefreshClanLockbox(client.Player.ClanId, entityId, client.Player.Id, 0, ref client.Player.Inventory.ClanInventory, false);
             }
+
+            // In the lockbox's history, as a credit withdrawal is - and what a swap put in.
+            RecordClanLockboxItem(client, InventoryTransactionType.Withdrawal, tempItem, withdrawnSize);
+
+            if (swappedIn != null)
+                RecordClanLockboxItem(client, InventoryTransactionType.Deposit, swappedIn, swappedInSize);
+        }
+
+        /// <summary>
+        /// A line of the lockbox's history for an item the player put in or took out: its
+        /// template, how many, and who. Nothing for none of it.
+        ///
+        /// Only a deposit to a tab, a destruction and the forfeits of a feud used to be written:
+        /// items taken out, and items dropped on a slot (whole, part of a stack, or a swap's two
+        /// halves), left nothing in the history the officers read to see who took what.
+        /// </summary>
+        private void RecordClanLockboxItem(Client client, byte transactionType, Item item, uint quantity)
+        {
+            if (item?.ItemTemplate == null || quantity == 0)
+                return;
+
+            RecordClanLockboxLog(client, ClanLockboxLogEntry.ForItem(client.Player.ClanId, transactionType,
+                client.Player.Id, client.Player.Name, client.Player.FamilyName, item.ItemTemplate.ItemTemplateId, quantity));
+        }
+
+        /// <summary>
+        /// How much of a stack a join or a split took off the slot it was in: what it held before
+        /// less what is there now - nothing, when the whole stack was joined to another.
+        /// </summary>
+        private static uint MovedOff(List<ulong> slots, uint slot, ulong entityId, uint before)
+        {
+            var now = slots[(int)slot] == entityId ? EntityManager.Instance.GetItem(entityId)?.StackSize ?? 0 : 0;
+
+            return before > now ? before - now : 0;
         }
 
         public void ClanLockbox_DestroyItem(Client client, ClanLockbox_DestroyItemPacket packet)
@@ -1174,6 +1317,11 @@ namespace Rasa.Managers
                 TellCharacterUnique(client);
                 return;
             }
+
+            // Part of a stack, or onto a stack it joins (InventoryManager.Stacks).
+            if (TransferStack(client, HomeStore(client), packet.SrcSlot, PackStore(client), destSlot, Quantity(packet.Quantity),
+                    () => BindPassingThroughFootlocker(client, entityId)) != StackTransfer.Whole)
+                return;
 
             if (swappedIn != 0 && !MayStore(client, swappedIn, false))
                 return;
@@ -1379,7 +1527,7 @@ namespace Rasa.Managers
                 new AddInboxItemPacket(item.EntityId));
         }
 
-        public void TransferCreditToLockbox(Client client, int amount)
+        public void TransferCreditToLockbox(Client client, long amount)
         {
             // The client sends a withdrawal as the negated amount, and its marshaller puts
             // -128..-1 in one byte, which PythonReader.ReadInt used to take unsigned: a withdrawal
@@ -1397,20 +1545,22 @@ namespace Rasa.Managers
             long purse = client.Player.Credits[CurencyType.Credits];
             long lockbox = client.Player.LockboxCredits;
 
-            var purseAfter = purse - amount;
-            var lockboxAfter = lockbox + amount;
-
-            if (purseAfter < 0)
+            // The amount is the client's long (TransferCreditToLockboxPacket): more than either
+            // side holds is refused before any sum, so none of them can overflow.
+            if (amount > purse)
             {
                 CommunicatorManager.Instance.SystemMessage(client, "Not enof credit's in inventory\nP.S. Go earn some credits :)");
                 return;
             }
 
-            if (lockboxAfter < 0)
+            if (amount < -lockbox)
             {
                 CommunicatorManager.Instance.SystemMessage(client, "Not enof credit's in Lockbox\nP.S. Dont be greedy :)");
                 return;
             }
+
+            var purseAfter = purse - amount;
+            var lockboxAfter = lockbox + amount;
 
             if (purseAfter > int.MaxValue || lockboxAfter > int.MaxValue)
             {
@@ -2004,8 +2154,8 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// Removes a merged-away item from the database: its inventory row first, then the item
-        /// row. The item row alone used to be deleted here, and the caller was expected to
+        /// Removes an item that is gone - merged away, used up, destroyed - from the database:
+        /// its inventory row first, then the item row. The item row alone used to be deleted here, and the caller was expected to
         /// delete the inventory row afterwards - by slot, with a character id that is not
         /// written consistently, and after a call that threw. Nothing in the schema stops a
         /// character_inventory or clan_inventory row from pointing at an item that no longer
@@ -3080,15 +3230,17 @@ namespace Rasa.Managers
             // emptying it.
             if (stackDecreaseCount >= tempItem.StackSize)
             {
+                // Used up or destroyed: the item is gone, its rows with it - the inventory row by
+                // item id (its character id has been written as the character id, the account's
+                // selected slot or 0 depending on which path stored it) and the items row. The
+                // items row used to be left behind for a recovery nothing offered, referenced by
+                // nothing. Deleted before anything in memory changes, so a write that fails
+                // leaves the stack where it was.
+                DeleteItemRows(unitOfWork, tempItem);
+
                 EntityManager.Instance.DestroyPhysicalEntity(client, tempItem.EntityId, EntityType.Item);
                 client.CallMethod(SysEntity.ClientInventoryManagerId, new InventoryRemoveItemPacket(inventoryType, tempItem.EntityId));
                 FreeSlotIndex(client.Player, inventoryType, (uint)slotId);
-
-                // By item id: the row's character id has been written as the character id, the
-                // account's selected slot or 0 depending on which path stored it.
-                unitOfWork.CharacterInventories.DeleteInvItemByItemId(tempItem.Id);
-                // ToDo will we delete items from db, or we will let tham stay, so thay can be retrived
-                //ItemsTable.DeleteItem(tempItem.ItemId);
             }
             else
             {

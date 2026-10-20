@@ -102,6 +102,20 @@ namespace Rasa.Game.Missions.World
                 }
                 var point = run.Route.Points[run.Index];
                 run.ResumeAt ??= now.AddMilliseconds(point.PauseMilliseconds);
+
+                // A waypoint held and fought from: whatever it would pick a fight with in reach is
+                // taken on; after each fight it comes back here and holds again, and goes on only
+                // once a pause passes with nothing left. A scripted walk otherwise looks for no
+                // fight at all (BehaviorManager.AdvanceScriptedMove): a wave sent through a
+                // defended post ran past it, and stood at the end of its route.
+                if (Engages(run, point) && now < run.ResumeAt &&
+                    BehaviorManager.FindAttackableInRange(map, actor, point.EngageRadius) is var found && found != 0 &&
+                    BehaviorManager.Instance.TrySetActionFighting(actor, found))
+                {
+                    run.ResumeAt = null;
+                    continue;
+                }
+
                 if (now < run.ResumeAt)
                     continue;
                 _observe(run.Handle.RunId, new SceneObservation(SceneEventKind.WaypointReached,
@@ -141,7 +155,24 @@ namespace Rasa.Game.Missions.World
                 return;
             _routes.Remove((run.Handle.RunId, run.Handle.Role));
             actor.RunSpeed = run.PreviousSpeed;
+            TakeUpPost(actor);
         }
+
+        /// <summary>
+        /// A defender (ActorGameplayPolicy.DefenseRadius) where a route set it down takes it as its
+        /// post: no longer walked, it guards it as one spawned there does
+        /// (BehaviorManager.AdvanceBaseDefender), fighting what comes near and going back to it.
+        /// Anything else stands where it arrived, as before.
+        /// </summary>
+        internal static void TakeUpPost(Creature creature)
+        {
+            if (CreatureGameplayRules.IsDefender(creature))
+                BehaviorManager.Instance.SetActionAnchor(creature, creature.Position);
+        }
+
+        /// <summary>Whether the actor holds and fights from this waypoint: it has a reach, and the route leads through fights.</summary>
+        private static bool Engages(RouteRun run, SceneWaypoint point) =>
+            point.EngageRadius > 0 && run.Intent.ResumeAfterCombat;
 
         private static bool IsLivingRouteActor(MapChannel map, Creature actor) =>
             CreatureManager.IsLivingOnMap(map, actor) && actor.State != Data.CharacterState.Dying;

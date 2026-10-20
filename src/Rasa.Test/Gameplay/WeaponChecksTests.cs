@@ -236,7 +236,9 @@ namespace Rasa.Test.Gameplay
 
             Assert.IsFalse(manager.PlayerTryFireWeapon(context.Client), "past reach on log, and behind on refuse");
             Assert.AreEqual(7u, context.Weapon.CurrentAmmo);
-            Assert.AreEqual(0, OutOfRangeMessages(context.Client), "facing has no message");
+            var told = Messages(context.Client);
+            CollectionAssert.Contains(told, PlayerMessage.PmFailedLineOfSight, "refused by the facing check");
+            CollectionAssert.DoesNotContain(told, PlayerMessage.PmTargetOutOfRange, "the range finding was only logged");
         }
 
         [TestMethod]
@@ -268,9 +270,33 @@ namespace Rasa.Test.Gameplay
             Assert.AreEqual(1, OutOfRangeMessages(client), "and again once the quiet time is up");
 
             WeaponChecks.Tell(client, new WeaponChecks.Finding(WeaponChecks.Check.Range, "far", false), 100_000);
-            WeaponChecks.Tell(client, new WeaponChecks.Finding(WeaponChecks.Check.Facing, "behind", true), 200_000);
-            WeaponChecks.Tell(client, new WeaponChecks.Finding(WeaponChecks.Check.Sight, "behind cover", true), 300_000);
-            Assert.AreEqual(0, OutOfRangeMessages(client), "a shot that went, and the other checks, say nothing");
+            Assert.AreEqual(0, OutOfRangeMessages(client), "a shot that went says nothing");
+        }
+
+        [TestMethod]
+        public void ARefusedFacingOrSightShotFailsItsLineOfSightCheck()
+        {
+            using var world = new WorldTestContext();
+            var client = world.CreateClient();
+            MissionTestContext.Drain(client);
+
+            // Behind: the client has no facing message, and shows this one itself for a target
+            // not in front of the player.
+            WeaponChecks.Tell(client, new WeaponChecks.Finding(WeaponChecks.Check.Facing, "behind", true), 1000);
+            CollectionAssert.AreEqual(new[] { PlayerMessage.PmFailedLineOfSight }, Messages(client));
+
+            // Held down, it is told once in the quiet time, whichever check refused it.
+            WeaponChecks.Tell(client, new WeaponChecks.Finding(WeaponChecks.Check.Sight, "behind cover", true), 1000 + WeaponChecks.ToldQuietMs - 1);
+            WeaponChecks.Tell(client, new WeaponChecks.Finding(WeaponChecks.Check.Range, "far", true), 1000 + WeaponChecks.ToldQuietMs - 1);
+            Assert.IsEmpty(Messages(client));
+
+            WeaponChecks.Tell(client, new WeaponChecks.Finding(WeaponChecks.Check.Sight, "behind cover", true), 1000 + WeaponChecks.ToldQuietMs);
+            CollectionAssert.AreEqual(new[] { PlayerMessage.PmFailedLineOfSight }, Messages(client));
+
+            // Logged only, the shot went: nothing to say.
+            WeaponChecks.Tell(client, new WeaponChecks.Finding(WeaponChecks.Check.Facing, "behind", false), 100_000);
+            WeaponChecks.Tell(client, new WeaponChecks.Finding(WeaponChecks.Check.Sight, "behind cover", false), 200_000);
+            Assert.IsEmpty(Messages(client));
         }
 
         [TestMethod]
@@ -293,5 +319,8 @@ namespace Rasa.Test.Gameplay
         /// <summary>How many "target out of range" messages went to the client since last asked.</summary>
         private static int OutOfRangeMessages(Client client) => MissionTestContext.Drain(client)
             .OfType<DisplayClientMessagePacket>().Count(message => message.MsgId == PlayerMessage.PmTargetOutOfRange);
+
+        private static PlayerMessage[] Messages(Client client) => MissionTestContext.Drain(client)
+            .OfType<DisplayClientMessagePacket>().Select(message => message.MsgId).ToArray();
     }
 }

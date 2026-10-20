@@ -26,7 +26,8 @@ namespace Rasa.Test.Missions
     /// The kill titles: "Divide Exterminator" is what objective 3 of the Divide Targets of
     /// Opportunity gives, "Kill 40 Xanx!", and the other battlefields have theirs. The
     /// Wilderness's are on the Wilderness missions' own Targets of Opportunity
-    /// (WildernessTargetsKillRulesTests).
+    /// (WildernessTargetsKillRulesTests). The Divide's is Agent Garrett's to give
+    /// (TargetsOfOpportunityGivers); the Plateau's is still offered by radio on arrival.
     /// </summary>
     [TestClass]
     [DoNotParallelize]
@@ -36,6 +37,8 @@ namespace Rasa.Test.Missions
         private const uint KillXanx = 3;                // "Kill 40 Xanx!"
         private const uint Exterminator = 464;          // "Divide Exterminator"
         private const uint DivideMap = 1148;
+        private const uint Plateau = 1586;              // still offered by radio
+        private const uint PlateauMap = 1497;
 
         private const uint Xanx = TargetsOfOpportunitySeed.Flag.Xanx;
         private const uint Thrax = TargetsOfOpportunitySeed.Flag.Thrax;
@@ -428,8 +431,13 @@ namespace Rasa.Test.Missions
                 Assert.IsTrue(harness.Manager.LoadedMissions.TryGetValue(zone.MissionId, out var mission), zone.Name);
                 Assert.IsTrue(mission.IsOperational, $"{zone.Name}: {mission.OperationalDiagnostic}");
                 Assert.AreEqual(TargetsOfOpportunitySeed.Revision, mission.ContentRevision);
-                Assert.AreEqual(MissionChannel.Radio, mission.AcceptanceChannel);
-                Assert.AreEqual(MissionChannel.Radio, mission.CompletionChannel);
+                // Six from their officers (TargetsOfOpportunityGivers), the rest by radio.
+                var giver = TargetsOfOpportunityGivers.Givers.SingleOrDefault(candidate => candidate.MissionId == zone.MissionId);
+                var channel = giver == null ? MissionChannel.Radio : MissionChannel.Npc;
+                Assert.AreEqual(channel, mission.AcceptanceChannel, zone.Name);
+                Assert.AreEqual(channel, mission.CompletionChannel, zone.Name);
+                Assert.AreEqual(giver?.Id, mission.MissionGiver, zone.Name);
+                Assert.AreEqual(giver?.Id, mission.MissionReciver, zone.Name);
                 // Its kills, "complete all", and what was added to it since (OneOffTitlesTests).
                 Assert.HasCount(zone.Kills.Count + 1 + (TargetsOfOpportunitySeed.OneOffs.AddedObjectives.GetValueOrDefault(zone.MissionId)?.Length ?? 0),
                     mission.Objectives);
@@ -467,25 +475,24 @@ namespace Rasa.Test.Missions
 
             // Bootcamp is nobody's battlefield.
             harness.Manager.OfferArrivalMissions(harness.Client);
-            Assert.IsFalse(harness.Drain().OfType<DispenseRadioMissionPacket>().Any(offer => offer.MissionId == Divide));
+            Assert.IsFalse(harness.Drain().OfType<DispenseRadioMissionPacket>().Any(offer => offer.MissionId == Plateau));
 
-            // Onto the Divide, as a map change puts a player there (MapChannelManager: AssignPlayer).
-            Arrive(harness, DivideMap);
+            // Onto the Plateau, as a map change puts a player there (MapChannelManager: AssignPlayer).
+            Arrive(harness, PlateauMap);
             harness.Drain();
             ManifestationManager.Instance.AssignPlayer(harness.Client);
 
             var offered = harness.Drain().OfType<DispenseRadioMissionPacket>().Single();
-            Assert.AreEqual(Divide, offered.MissionId);
+            Assert.AreEqual(Plateau, offered.MissionId);
             Assert.IsTrue(offered.ForceDialog);
 
-            Assert.IsTrue(harness.Manager.TryAcceptRadioMission(harness.Client, Divide));
+            Assert.IsTrue(harness.Manager.TryAcceptRadioMission(harness.Client, Plateau));
 
             var gained = harness.Drain().OfType<MissionGainedPacket>().Single();
-            Assert.AreEqual(Divide, gained.MissionId);
-            var log = harness.Client.Player.Missions[Divide];
+            Assert.AreEqual(Plateau, gained.MissionId);
+            var log = harness.Client.Player.Missions[Plateau];
             Assert.AreEqual(MissionState.Active, log.State);
             Assert.IsFalse(log.Completeable, "its one required objective is not done");
-            Assert.AreEqual(0U, log.Objectives[KillXanx].Counters[0]);
 
             // Held: arriving again offers nothing.
             harness.Manager.OfferArrivalMissions(harness.Client);
@@ -493,12 +500,32 @@ namespace Rasa.Test.Missions
         }
 
         [TestMethod]
+        public void TheDivideOffersNothingByRadioAndAgentGarrettGivesItsMission()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            Arrive(harness, DivideMap);
+            harness.Drain();
+            ManifestationManager.Instance.AssignPlayer(harness.Client);
+            Assert.IsFalse(harness.Drain().OfType<DispenseRadioMissionPacket>().Any(), "the Divide's is Agent Garrett's");
+            Assert.IsFalse(harness.Manager.TryAcceptRadioMission(harness.Client, Divide));
+            Assert.IsFalse(harness.Client.Player.Missions.ContainsKey(Divide));
+
+            var garrett = harness.StandGiver(Divide);
+            Assert.AreEqual(510300u, garrett.DbId);
+            Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, garrett.EntityId, Divide));
+
+            Assert.AreEqual(Divide, harness.Drain().OfType<MissionGainedPacket>().Single().MissionId);
+            var log = harness.Client.Player.Missions[Divide];
+            Assert.AreEqual(MissionState.Active, log.State);
+            Assert.AreEqual(0U, log.Objectives[KillXanx].Counters[0]);
+        }
+
+        [TestMethod]
         public void FortyXanxOnTheDivideMakeAnExterminator()
         {
             using var harness = BootcampRuntimeTestHarness.Create();
             Arrive(harness, DivideMap);
-            harness.Manager.OfferArrivalMissions(harness.Client);
-            Assert.IsTrue(harness.Manager.TryAcceptRadioMission(harness.Client, Divide));
+            Assert.IsTrue(harness.TakeFromGiver(Divide));
             harness.Drain();
 
             // A Thrax is another objective's.
@@ -542,8 +569,7 @@ namespace Rasa.Test.Missions
         {
             using var harness = BootcampRuntimeTestHarness.Create();
             Arrive(harness, DivideMap);
-            harness.Manager.OfferArrivalMissions(harness.Client);
-            Assert.IsTrue(harness.Manager.TryAcceptRadioMission(harness.Client, Divide));
+            Assert.IsTrue(harness.TakeFromGiver(Divide));
 
             for (var kills = 0; kills < 3; kills++)
                 Assert.IsTrue(harness.Manager.Credit.RecordKill(harness.Client, Kill(900, 4001, Xanx), Vector3.Zero));
@@ -567,8 +593,7 @@ namespace Rasa.Test.Missions
         {
             using var harness = BootcampRuntimeTestHarness.Create();
             Arrive(harness, DivideMap);
-            harness.Manager.OfferArrivalMissions(harness.Client);
-            Assert.IsTrue(harness.Manager.TryAcceptRadioMission(harness.Client, Divide));
+            Assert.IsTrue(harness.TakeFromGiver(Divide));
 
             // A Xanx of the world: a creature row whose class carries the flag.
             var world = harness.WorldContext;

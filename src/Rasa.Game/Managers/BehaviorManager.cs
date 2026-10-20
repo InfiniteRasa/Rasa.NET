@@ -210,8 +210,8 @@ namespace Rasa.Managers
                 if (client.Player.Attributes[Attributes.Health].Current <= 0)
                     continue;
 
-                // Cloaked (Cloak Wave): it cannot be noticed however close it stands. Nor can
-                // someone watching a camera script, who has no controls to answer with.
+                // Cloaked (Cloak Wave), or an invisible GM: it cannot be noticed however close it
+                // stands. Nor can someone watching a camera script, who has no controls to answer with.
                 if (Detection.IsHidden(client.Player) || CameraScripts.IsWatching(client.Player))
                     continue;
 
@@ -283,18 +283,36 @@ namespace Rasa.Managers
         /// </CheckForAttackableEntityInRange>
         private bool CheckForAttackableEntityInRange(MapChannel mapChannel, Creature creature, float range)
         {
+            var found = FindAttackableInRange(mapChannel, creature, range);
+
+            if (found != 0)
+            {
+                SetActionFighting(creature, found);
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// The nearest thing within range this creature would pick a fight with, 0 for none: the
+        /// aggro scan's choice, without the fight. A Maw lying under the ground looks with it for
+        /// what to come up at (MawLurk).
+        /// </summary>
+        internal static ulong FindAttackableInRange(MapChannel mapChannel, Creature creature, float range)
+        {
             var foundEntity_distance = range + 100.0f; // value that is guaranteed to be higher than the found creature
             var foundEntity_entityId = 0ul;
 
             // Blinded (Tactical Evasion's mag flash): it notices nobody at all.
             if (Detection.IsBlind(creature))
-                return false;
+                return 0;
 
             // Only HOSTILE and FRIENDLY go looking for a fight, and only with each other
             // (TargetCategories.Seeks): a NEUTRAL creature waits to be attacked, and an object or
             // decoration takes no part.
             if (creature.TargetCategory != TargetCategory.Hostile && creature.TargetCategory != TargetCategory.Friendly)
-                return false;
+                return 0;
 
             // Only the cells the range can reach. This used to walk the whole 5x5 matrix - 128 m
             // across - for an aggro range that is 18 m unless something raised it, on every think
@@ -327,13 +345,7 @@ namespace Rasa.Managers
                     }
             }
 
-            if (foundEntity_entityId != 0)
-            {
-                SetActionFighting(creature, foundEntity_entityId);
-                return true;
-            }
-
-            return false;
+            return foundEntity_entityId;
         }
 
         /// <CreatureThink>
@@ -374,7 +386,12 @@ namespace Rasa.Managers
                 // puts it back in service (AlternateMesh.KeepsWreck).
                 if (LootDispenserManager.Instance.AdvanceCorpseLifetime(mapChannel, creature, delta)
                     && !AlternateMesh.KeepsWreck(creature))
+                {
+                    // Going with loot still on it - its time up, or blown apart: the loot stays
+                    // behind where it lay, on a gibblet (LootDispenserManager.LeaveGibblet).
+                    LootDispenserManager.Instance.LeaveGibblet(mapChannel, creature);
                     needDeletion = true;
+                }
 
                 return; // creature dead
             }
@@ -390,6 +407,16 @@ namespace Rasa.Managers
             // over, a wound, a halt on its beat (Battlecries).
             Battlecries.Observe(mapChannel, creature);
 
+            // A line it says now and then, if it has any (NpcBarks).
+            NpcBarks.Observe(mapChannel, creature);
+
+            // An Atta Soldier brought below a third of its health rages, and calms down if it
+            // is healed back above it (AttaSoldierRage).
+            AttaSoldierRage.Observe(mapChannel, creature);
+
+            // A Warden Bot brought below half its health closes up, once a fight (WardenBotTurtle).
+            WardenBotTurtle.Observe(mapChannel, creature);
+
             // Knocked back, or stunned: it goes where the knockback carries it and nothing else,
             // but it can still cross into another cell doing so.
             var knockedBack = StepKnockback(mapChannel, creature, delta);
@@ -399,13 +426,15 @@ namespace Rasa.Managers
             if (creature.PoseShown && (knockedBack || Stuns.IsStunned(creature) || !NpcPoses.AtRest(creature)))
                 NpcPoses.Drop(mapChannel, creature);
 
-            // Mid-charge (Kael rushing blow), winding up to blow itself up (a Fithik), to drop an
+            // Mid-charge (a Kael's rushing blow, a Fithik's lunge), winding up to blow itself up (a Fithik), to drop an
             // egg (a Stalker) or any ability (CreatureWindups), in a cocoon (an Atta grub), a
             // cloud (a Miasma, CreatureMiasma), or climbing out of its egg cluster (a Fithik,
-            // FithikEggClusters), it does nothing else until that is done.
+            // FithikEggClusters), or coming up out of the ground or going down into it (a Maw,
+            // MawLurk), it does nothing else until that is done.
             if (knockedBack || Stuns.IsStunned(creature) || KaelRushingBlow.IsCharging(creature) || CreatureBombs.IsSelfDestructing(creature)
                 || CreatureSupport.IsCasting(creature) || CreatureHabits.IsBusy(creature) || CreatureSummons.IsBusy(creature)
-                || CreatureWindups.IsWindingUp(creature) || CreatureMiasma.IsDissipated(creature) || FithikEggClusters.IsHatching(creature))
+                || CreatureWindups.IsWindingUp(creature) || CreatureMiasma.IsDissipated(creature) || FithikEggClusters.IsHatching(creature)
+                || MawLurk.IsBusy(creature))
             {
                 // Busy in a fight is still the fight. LastAgression is how long the fighting
                 // think has gone without attending to its target, and AggressionTime (5 s) of
@@ -520,6 +549,10 @@ namespace Rasa.Managers
                     }
 
                 var wander = creature.Controller.ActionWander;
+
+                // A Maw with nothing left to fight goes back under the ground (MawLurk).
+                if (wander.State == WanderIdle && MawLurk.Sink(mapChannel, creature))
+                    return;
 
                 if (wander.State == WanderIdle)
                 {
@@ -960,6 +993,12 @@ namespace Rasa.Managers
                     return;
                 }
 
+                // One of a crowd of its side that stands here - all come to the same spot, or
+                // came out on top of each other - steps off to its own place round its target,
+                // as far from it as it is now (Spacing). It attacks again once there.
+                if (Spread(mapChannel, creature, targetPosition, delta))
+                    return;
+
                 var needToMove = true;
 
                 // An attack in range that it could not use for want of a clear line: it has to go
@@ -1077,8 +1116,8 @@ namespace Rasa.Managers
                     }
 
                     // A rushing blow - a Kael's, an AFS soldier's - is a charge: its windup carries
-                    // the creature to its target, and the blow lands when it gets there
-                    // (KaelRushingBlow).
+                    // the creature to its target, and the blow lands when it gets there. A Fithik's
+                    // lunge is one too, a leap at the end of its windup (KaelRushingBlow).
                     if (KaelRushingBlow.Is(action))
                     {
                         creature.Controller.Path.Clear();
@@ -1145,12 +1184,25 @@ namespace Rasa.Managers
                     return;
                 }
 
-                if (targetDistSqr <= 3.0f * 3.0f && !sightBlocked)
+                // Its target inside the minimum range of every attack it has: one that can walk
+                // backwards backs off, facing it, until it can strike again (CreatureStepBack).
+                // One that cannot stands, as below.
+                if (!sightBlocked && CreatureStepBack.Wants(creature, (float)Math.Sqrt(targetDistSqr))
+                    && StepBack(mapChannel, creature, targetPosition, delta))
+                    return;
+
+                // Near enough, don't move - and say so, after the step that brought it here. Near
+                // enough is three metres, or inside the creature's reach when that is shorter
+                // (NearEnoughFor).
+                var nearEnough = NearEnoughFor(creature);
+
+                if (targetDistSqr <= nearEnough * nearEnough && !sightBlocked)
                 {
-                    // near enough, dont move - and say so, after the step that brought it here
                     StopIfMoving(creature);
                     return;
                 }
+
+                var standoff = ChaseStandoffFor(creature);
 
                 // After checking for melee and ranged attacks without success, chase.
                 //
@@ -1159,10 +1211,18 @@ namespace Rasa.Managers
                 // then held that node forever, standing still while the player moved around it
                 // and shot at it. The path is now rebuilt whenever the target has moved away from
                 // the point it aims at, at most every ChasePathUpdateMs.
+                //
+                // And when it has none - walked to its end, or none to be had - except that a target
+                // no route reaches (on a rock, a roof, ground the mesh has cut off) gets a new search
+                // only when the lock is up too: its route runs out at once, often in the step it is
+                // built, and each think searched again. Such a search is bounded besides
+                // (NavMeshQuery.FindPathBounded): it walked the whole of the creature's region,
+                // tens of thousands of polygons on the large maps, each time.
                 var targetDrift = Vector3.Distance(targetPosition, creature.Controller.ActionFighting.LockedTargetPosition);
+                var lockUp = creature.Controller.TimerPathUpdateLock <= 0;
 
-                if (creature.Controller.Path.Count == 0
-                    || (targetDrift > ChaseRepathDistance && creature.Controller.TimerPathUpdateLock <= 0))
+                if ((creature.Controller.Path.Count == 0 && (!creature.Controller.ActionFighting.RouteIncomplete || lockUp))
+                    || (targetDrift > ChaseRepathDistance && lockUp))
                 {
                     creature.Controller.TimerPathUpdateLock = ChasePathUpdateMs;
 
@@ -1178,7 +1238,7 @@ namespace Rasa.Managers
                     {
                         // if too near, move out of enemy by running to random point somewhere x units around the creature
                         var angle = (Random.Shared.Next() / 32767.0f) * 6.28318f; // random angle
-                        var distance = 2.5f; // keep 2.5 meter distance
+                        var distance = standoff; // keep this distance (ChaseStandoffFor)
                         pathTarget.X = targetPosition.X + (float)Math.Cos(angle) * distance;
                         pathTarget.Y = targetPosition.Y;
                         pathTarget.Z = targetPosition.Z + (float)Math.Sin(angle) * distance;
@@ -1194,13 +1254,20 @@ namespace Rasa.Managers
                         vecV2A[0] /= vecV2ALen;
                         vecV2A[1] /= vecV2ALen;
                         // use vector to calculate nearest melee point from our current position
-                        var distance = 2.5f; // keep 2.5 meter distance
+                        var distance = standoff; // keep this distance (ChaseStandoffFor)
                         pathTarget.X = targetPosition.X + vecV2A[0] * distance;
                         pathTarget.Y = targetPosition.Y;
                         pathTarget.Z = targetPosition.Z + vecV2A[1] * distance;
                     }
 
-                    BuildPath(mapChannel, creature, pathTarget);
+                    // Its own place round the target: one no other of its side stands on or is
+                    // making for, turned round the target until it is clear (Spacing). With a
+                    // route to go round something in the way, the target itself, as before.
+                    if (!sightBlocked && Spacing.Keeps(creature))
+                        pathTarget = Spacing.AroundClear(mapChannel, targetPosition, pathTarget,
+                            Spacing.Taken(mapChannel, creature, targetPosition)) ?? pathTarget;
+
+                    creature.Controller.ActionFighting.RouteIncomplete = !BuildPath(mapChannel, creature, pathTarget, bounded: true);
 
                     // where the target was when this path was built
                     creature.Controller.ActionFighting.LockedTargetPosition = targetPosition;
@@ -1216,6 +1283,75 @@ namespace Rasa.Managers
                 if (creature.Position != before)
                     MadeProgress(creature);
             }//---fighting
+        }
+
+        /// <summary>
+        /// A fighting creature that stands with another of its side closer than Spacing.Crowded -
+        /// the one of the two with the greater entity id - walks off to the nearest place round
+        /// its target, at the distance it stands from it, that is Spacing.Distance clear of the
+        /// others of its side and where they are making for (Spacing.AroundClear). True while it
+        /// is walking there: it neither attacks nor chases meanwhile. Once there, or with nowhere
+        /// clear to go, it is left be for Spacing.SettleMs. One that cannot walk, an emplacement
+        /// on its mount, a Shield Drone holding its ground, one on the move, and one that does not
+        /// keep apart (a friendly that is no escort, Spacing.Keeps) are never moved.
+        /// </summary>
+        private bool Spread(MapChannel mapChannel, Creature creature, Vector3 targetPosition, long delta)
+        {
+            var fighting = creature.Controller.ActionFighting;
+
+            if (fighting.SpreadingTo.HasValue)
+            {
+                var speed = creature.WalkSpeed >= 0.01f ? creature.WalkSpeed : creature.RunSpeed;
+
+                if (FollowPath(mapChannel, creature, speed, delta))
+                {
+                    fighting.SpreadingTo = null;
+                    fighting.SettleMs = Spacing.SettleMs;
+                    StopIfMoving(creature);
+                    return false;
+                }
+
+                MadeProgress(creature);
+                return true;
+            }
+
+            if (fighting.SettleMs > 0)
+            {
+                fighting.SettleMs -= delta;
+                return false;
+            }
+
+            if (!Spacing.Keeps(creature) || NeverMoves(creature) || Emplacements.Is(creature) || ShieldDrone.HoldsGround(creature)
+                || creature.Controller.LastMovement is { Velocity: > 0 } || Spacing.CrowdedBy(mapChannel, creature) == null)
+                return false;
+
+            // At the distance it stands from its target, or - right up against it, where there is
+            // no room round it for a spacing - out at the edge of its reach (NearEnoughFor).
+            var taken = Spacing.Taken(mapChannel, creature, targetPosition);
+            var spot = Spacing.AroundClear(mapChannel, targetPosition, creature.Position, taken)
+                ?? Spacing.AroundClear(mapChannel, targetPosition, creature.Position,
+                    Math.Max(Spacing.AcrossGround(creature.Position, targetPosition), NearEnoughFor(creature) - 0.1f), taken);
+
+            fighting.SettleMs = Spacing.SettleMs;
+
+            if (spot == null || Spacing.AcrossGround(spot.Value, creature.Position) < 0.5f)
+                return false;
+
+            creature.Controller.Path.Clear();
+            creature.Controller.PathIndex = 0;
+
+            if (!BuildPath(mapChannel, creature, spot.Value) || creature.Controller.Path.Count == 0)
+            {
+                creature.Controller.Path.Clear();
+                creature.Controller.PathIndex = 0;
+                return false;
+            }
+
+            fighting.SpreadingTo = spot;
+            fighting.SettleMs = 0;
+            FollowPath(mapChannel, creature, creature.WalkSpeed >= 0.01f ? creature.WalkSpeed : creature.RunSpeed, delta);
+            MadeProgress(creature);
+            return true;
         }
 
         #region Wander
@@ -1708,7 +1844,14 @@ namespace Rasa.Managers
             }
             creature.Controller.CurrentAction = BehaviorActionFollow;
             follow.FollowTargetId = owner.Player.EntityId;
-            if (gap <= 4)
+
+            // Within 4 m of its owner it stands - unless another of its side is closer to it than
+            // Spacing.Crowded. Otherwise it makes for its own place round its owner, clear of the
+            // other escorts' places (Spacing), not the owner's spot: all of them walked to the
+            // owner and stopped where the first of them did.
+            var place = EscortPlace(map, creature, destination);
+            if (Spacing.AcrossGround(creature.Position, place) <= EscortPlaceReached ||
+                gap <= 4 && Spacing.CrowdedBy(map, creature) == null)
             {
                 follow.CatchUpRunning = false;
                 StopFollowing(map, creature);
@@ -1724,8 +1867,46 @@ namespace Rasa.Managers
             // Bounded 220% catch-up beats even rank five, without copying GM speed.
             var speed = gap > 20 ? 6.5f * 2.2f :
                 follow.CatchUpRunning ? Math.Clamp(creature.RunSpeed, 6.5f, 6.5f * 2.2f) : creature.WalkSpeed;
-            FollowGrounded(map, creature, destination, speed, delta, 4);
+            FollowGrounded(map, creature, place, speed, delta, EscortPlaceReached / 2);
             return true;
+        }
+
+        /// <summary>How far from its owner a mission escort's place is: inside the 4 m it used to stop at.</summary>
+        internal const float EscortRing = 3.5f;
+
+        /// <summary>Within this of its place, a mission escort stands.</summary>
+        internal const float EscortPlaceReached = 1f;
+
+        /// <summary>
+        /// A mission escort's place round its owner: <see cref="EscortRing"/> from them, kept
+        /// from think to think as an offset from them, so the escorts move with their owner as a
+        /// group. Taken first on the escort's own side of the owner, and turned round the owner
+        /// until it is Spacing.Distance from the places of the owner's other escorts
+        /// (Spacing.AroundClear); taken again when it comes too near another's, or the ground
+        /// there will not take it. On the navmesh when the map has one.
+        /// </summary>
+        internal static Vector3 EscortPlace(MapChannel map, Creature creature, Vector3 owner)
+        {
+            var follow = creature.Controller.ActionFollow;
+            var characterId = creature.SpawnPool?.FollowOwnerCharacterId ?? 0;
+            var others = new List<Vector3>();
+
+            foreach (var other in Spacing.Around(map, owner))
+                if (other != creature && other.SpawnPool?.FollowOwnerCharacterId == characterId && IsMissionEscort(other)
+                    && Spacing.Standing(other) && other.Controller.ActionFollow.PlaceOffset is Vector3 offset)
+                    others.Add(owner + offset);
+
+            if (follow.PlaceOffset is Vector3 kept && Spacing.IsClear(owner + kept, others)
+                && Spacing.Placed(map, owner + kept) is Vector3 standing)
+                return standing;
+
+            var away = new Vector3(creature.Position.X - owner.X, 0, creature.Position.Z - owner.Z);
+            var direction = away.LengthSquared() > 0.01f ? Vector3.Normalize(away) : new Vector3(1, 0, 0);
+            var preferred = owner + direction * EscortRing;
+            var place = Spacing.AroundClear(map, owner, preferred, others) ?? Spacing.Placed(map, preferred) ?? preferred;
+
+            follow.PlaceOffset = place - owner;
+            return place;
         }
 
         private static void StopFollowing(MapChannel map, Creature creature)
@@ -1931,10 +2112,18 @@ namespace Rasa.Managers
         /// Sets the creature's path to <paramref name="destination"/>: the navmesh corners when the
         /// map has one and both ends are on it. Mission escorts and defenders never use the
         /// straight-line fallback that ordinary creatures retain on maps without a navmesh.
+        ///
+        /// <paramref name="bounded"/>: the destination may be where no route goes - a chase's - and
+        /// is then searched for only so far (NavMeshManager.FindPathBounded). Returns whether the
+        /// path reaches the destination: false when it stops short of it, or there is none; a
+        /// straight line on a map with no navmesh counts as reaching it.
         /// </summary>
-        private static void BuildPath(MapChannel mapChannel, Creature creature, Vector3 destination)
+        private static bool BuildPath(MapChannel mapChannel, Creature creature, Vector3 destination, bool bounded = false)
         {
-            var path = NavMeshManager.FindPath(mapChannel, creature.Position, destination);
+            var complete = false;
+            var path = bounded
+                ? NavMeshManager.FindPathBounded(mapChannel, creature.Position, destination, out complete)
+                : mapChannel?.NavMesh?.FindPath(creature.Position, destination, out complete);
 
             creature.Controller.Path.Clear();
             creature.Controller.PathIndex = 0;
@@ -1943,11 +2132,16 @@ namespace Rasa.Managers
                 creature.Controller.Path.AddRange(path);
             else if (mapChannel.NavMesh == null &&
                      !IsMissionEscort(creature) && !Game.Missions.World.CreatureGameplayRules.IsDefender(creature))
+            {
                 creature.Controller.Path.Add(destination);
+                complete = true;
+            }
             else if (IsMissionEscort(creature) || Game.Missions.World.CreatureGameplayRules.IsDefender(creature))
                 Logger.WriteLog(LogType.Error,
                     $"Actor {creature.EntityId} has no navmesh route from {creature.Position} to {destination} " +
                     $"on map {mapChannel.MapInfo?.MapContextId} (mesh loaded: {mapChannel.NavMesh != null}).");
+
+            return complete;
         }
 
         /// <summary>
@@ -2459,6 +2653,9 @@ namespace Rasa.Managers
             creature.Controller.TimerPathUpdateLock = 0;
             creature.Controller.ActionFighting.TargetEntityId = targetEntityId;
             creature.Controller.ActionFighting.StalledMs = 0;
+            creature.Controller.ActionFighting.RouteIncomplete = false;
+            creature.Controller.ActionFighting.SpreadingTo = null;
+            creature.Controller.ActionFighting.SettleMs = 0;
             creature.LastAgression = 0;
 
             // Whatever brought it here - the scan, a hit, an assist - the target is on its table.
@@ -2494,6 +2691,11 @@ namespace Rasa.Managers
 
         private static bool MayFightTarget(Creature creature, ulong entityId)
         {
+            // An ambient creature fights nobody, and nothing - no creature on either side, no
+            // player's summon, nothing Mind Control has turned - fights it (AmbientCreatures).
+            if (AmbientCreatures.IsAmbient(creature) || AmbientCreatures.IsAmbient(entityId))
+                return false;
+
             var pump = AbilityManager.MindControlPumpOf(creature);
 
             if (pump == AbilityManager.MindControlFrighten)
@@ -2559,6 +2761,99 @@ namespace Rasa.Managers
 
         /// <summary>How far a frightened creature runs from whoever frightened it before it looks again.</summary>
         public const float FleeDistance = 20f;
+
+        /// <summary>How close a chase stops when the creature can reach that far: three metres, as it always was.</summary>
+        public const float NearEnoughDistance = 3.0f;
+
+        /// <summary>Where on the line to its target a chase aims for when the creature can reach that far.</summary>
+        public const float ChaseStandoffDistance = 2.5f;
+
+        /// <summary>
+        /// How much inside its reach a creature with a short one stops (<see cref="NearEnoughFor"/>)
+        /// and aims (<see cref="ChaseStandoffFor"/>): the target moves, the steps land where the
+        /// think's time puts them, and an attack is refused at exactly its range.
+        /// </summary>
+        public const float ReachMargin = 0.25f;
+        public const float ChaseReachMargin = 0.75f;
+
+        /// <summary>
+        /// The furthest any of the creature's attacks reaches: the attacks the fighting think
+        /// chooses between, not a heal, a habit or a Shield Drone's heal, nor anything with no
+        /// range. 0 for a creature with none.
+        /// </summary>
+        internal static float ReachOf(Creature creature)
+        {
+            var reach = 0.0;
+
+            foreach (var action in creature.Actions)
+            {
+                if (action.RangeMax <= 0 || CreatureSupport.Is(action) || CreatureHabits.Is(action) || action.ActionId == ShieldDrone.HealAction)
+                    continue;
+
+                reach = Math.Max(reach, action.RangeMax);
+            }
+
+            return (float)reach;
+        }
+
+        /// <summary>
+        /// How close a chase has to come before the creature stands: <see cref="NearEnoughDistance"/>,
+        /// or <see cref="ReachMargin"/> inside its longest reach when that is shorter. Three
+        /// metres for everything left a creature whose only attack reaches two - the Filcher's
+        /// CR_FILCHER_MELEE, the Amoeboid's slime, the Atta Grub's bite - standing a metre short of
+        /// its target for the whole fight, in it and never striking.
+        /// </summary>
+        internal static float NearEnoughFor(Creature creature)
+        {
+            var reach = ReachOf(creature);
+
+            return reach <= 0 ? NearEnoughDistance : Math.Min(NearEnoughDistance, Math.Max(ReachMargin, reach - ReachMargin));
+        }
+
+        /// <summary>
+        /// The point a chase aims for, this far short of the target: <see cref="ChaseStandoffDistance"/>,
+        /// or <see cref="ChaseReachMargin"/> inside the creature's longest reach when that is shorter,
+        /// and never nearer than half of it.
+        /// </summary>
+        internal static float ChaseStandoffFor(Creature creature)
+        {
+            var reach = ReachOf(creature);
+
+            return reach <= 0 ? ChaseStandoffDistance : Math.Min(ChaseStandoffDistance, Math.Max(reach / 2, reach - ChaseReachMargin));
+        }
+
+        /// <summary>
+        /// One think's step back from a target inside the creature's minimum range
+        /// (CreatureStepBack): at its walking speed, straight away from the target, facing it.
+        /// False when the way back is not clear, and it has not moved.
+        /// </summary>
+        private bool StepBack(MapChannel mapChannel, Creature creature, Vector3 targetPosition, long delta)
+        {
+            var destination = CreatureStepBack.Destination(creature, targetPosition);
+
+            if (destination == null)
+                return false;
+
+            var to = NavMeshManager.SnapToGround(mapChannel, destination.Value);
+
+            if (!CreatureStepBack.IsClear(mapChannel, creature.Position, to))
+                return false;
+
+            // Whatever chase it was on is not this: the next one is built for where the target is then.
+            creature.Controller.Path.Clear();
+            creature.Controller.PathIndex = 0;
+
+            var before = creature.Position;
+
+            UpdateEntityMovement(to.X - creature.Position.X, to.Y - creature.Position.Y, to.Z - creature.Position.Z,
+                creature, mapChannel, creature.WalkSpeed, true, delta, backwards: true);
+
+            // Ground gained from a target it could not hit is the fight going on (Stalled).
+            if (creature.Position != before)
+                MadeProgress(creature);
+
+            return true;
+        }
 
         /// <summary>The fight is over for this creature: it forgets everyone it hated and wanders again.</summary>
         public void GiveUp(Creature creature)
@@ -2696,9 +2991,12 @@ namespace Rasa.Managers
 
             if (!arrived && controller.ActionReturning.Elapsed >= controller.ActionReturning.TimeoutMs)
             {
-                // Stuck, or off the navmesh with no way round: put it there.
+                // Stuck, or off the navmesh with no way round: put it there, standing. Through
+                // StopMoving, which records the stop: with the run's last step still on record it
+                // went on counting as moving (ToHit.IsMoving), and the next StopIfMoving sent it
+                // another stop.
                 creature.Position = NavMeshManager.SnapToGround(mapChannel, home);
-                CellManager.Instance.CellMoveObject(creature, new Movement(creature.Position, 0f, 0x08, new Vector2(creature.LastYaw, 0f)));
+                StopMoving(creature);
                 arrived = true;
             }
 
@@ -2955,8 +3253,9 @@ namespace Rasa.Managers
         /// <param name="faceAlong">A carry that faces the way it goes (a Vortex pull) rather than back the way it came.</param>
         /// <param name="publish">Whether the step is sent to the clients: not for a rush, which they are making themselves.</param>
         /// <param name="grounded">Whether the step ends on the navmesh, as every walk's does but a beat's between two authored points (Patrols).</param>
+        /// <param name="backwards">A walk backwards (CreatureStepBack): facing back the way it came, and the clients told it moves backwards.</param>
         float UpdateEntityMovement(double difX, double difY, double difZ, Creature creature, MapChannel mapChannel, float speed, bool isMoved, long elapsedMs, bool knockback = false, bool faceAlong = false,
-            bool synchronizeVisibility = false, bool publish = true, bool grounded = true)
+            bool synchronizeVisibility = false, bool publish = true, bool grounded = true, bool backwards = false)
         {
             if (!knockback)
             {
@@ -2973,7 +3272,7 @@ namespace Rasa.Managers
             difX *= length;
             difY *= length;
             difZ *= length;
-            var vX = knockback && !faceAlong ? (float)Math.Atan2(difX, difZ) : (float)Math.Atan2(-difX, -difZ);
+            var vX = (knockback && !faceAlong) || backwards ? (float)Math.Atan2(difX, difZ) : (float)Math.Atan2(-difX, -difZ);
             creature.LastYaw = vX;
 
             var velocity = isMoved ? speed : 0.0f;
@@ -3012,8 +3311,10 @@ namespace Rasa.Managers
             if (!publish)
                 return step;
 
-            // send movement update
-            var movement = new Movement(new Vector3(creature.Position.X, creature.Position.Y, creature.Position.Z), velocity, 0x08, new Vector2(vX, 0f));
+            // send movement update; one walking backwards says so in the direction bits, which
+            // pick the class's backward walk (CreatureStepBack.BackwardDirection)
+            var flags = backwards && velocity > 0 ? (byte)(Movement.FastTurn | CreatureStepBack.BackwardDirection) : (byte)0x08;
+            var movement = new Movement(new Vector3(creature.Position.X, creature.Position.Y, creature.Position.Z), velocity, flags, new Vector2(vX, 0f));
 
             PublishMovement(creature, movement);
 

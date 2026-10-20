@@ -43,9 +43,18 @@ namespace Rasa.Managers
         {
         }
 
+        /// <summary>What a player standing in a one-way exit is told when it opens under them.</summary>
+        internal const string ExitReadyMessage =
+            "The extraction beam is ready. Step out of it and back in when you are ready to leave; you cannot come back.";
+
         /// <summary>
         /// Ordinary pads grant discovery and open travel. A ready one-way extraction
         /// starts its authored departure without joining the waypoint network.
+        ///
+        /// Only stepping into it boards: leaving is one-way, so a beam that opens under someone
+        /// already standing in it - handing in the last objective there - does not take them. It
+        /// did nothing at all, and the player had no way to know they had to step out and back
+        /// in; they are now told so, once each time it opens under them.
         /// </summary>
         internal void PlayerEnterTriggerRange(Client client, MapTrigger mapTrigger)
         {
@@ -55,9 +64,14 @@ namespace Rasa.Managers
             {
                 if (Objects.IsOneWayExit(mapTrigger.MapContextId, mapTrigger.TriggerId))
                 {
-                    if (mapTrigger.ExitOccupants.Add(client) &&
-                        Objects.IsStationAvailable(client, mapTrigger.MapContextId, mapTrigger.TriggerId))
+                    var entered = mapTrigger.ExitOccupants.Add(client);
+
+                    if (!Objects.IsStationAvailable(client, mapTrigger.MapContextId, mapTrigger.TriggerId))
+                        mapTrigger.ExitWaiting.Add(client);
+                    else if (entered)
                         Objects.BeginOneWayDeparture(client);
+                    else if (mapTrigger.ExitWaiting.Remove(client))
+                        CommunicatorManager.Instance.SystemMessage(client, ExitReadyMessage);
                     return;
                 }
                 if (mapTrigger.TriggeredBy.Contains(client))
@@ -88,7 +102,10 @@ namespace Rasa.Managers
                 if (client.State != ClientState.Ingame || client.PendingTransfer != null ||
                     client.Player?.MapChannel?.MapInfo.MapContextId != mapTrigger.MapContextId ||
                     !client.Player.IsNear5m(mapTrigger))
+                {
                     mapTrigger.ExitOccupants.Remove(client);
+                    mapTrigger.ExitWaiting.Remove(client);
+                }
                 return;
             }
             if (client.State != ClientState.Ingame || client.PendingTransfer != null ||

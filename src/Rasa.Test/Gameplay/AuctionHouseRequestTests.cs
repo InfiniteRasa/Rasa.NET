@@ -191,6 +191,51 @@ namespace Rasa.Test.Gameplay
         }
 
         [TestMethod]
+        public void AnItemInNoBrowseCategoryIsNotListedAndCostsNothing()
+        {
+            using var context = MissionTestContext.WithCompletableMission(429);
+            var seller = context.Client;
+            var item = InPack(context, slot: 7);
+            var auctions = Auctions(context);
+            var classInfo = EntityClassManager.Instance.LoadedEntityClasses[(EntityClasses)ItemClass];
+            var equipable = classInfo.EquipableClassInfo;
+            var singleton = typeof(InventoryManager).GetField("_instance", BindingFlags.Static | BindingFlags.NonPublic);
+            var before = singleton.GetValue(null);
+
+            singleton.SetValue(null, new InventoryManager(context));
+
+            try
+            {
+                Assert.IsTrue(AuctionHouseManager.CanBeAuctioned(item), "worn: Armor, Accessory");
+
+                // Not worn, not a weapon, a consumable or anything a search looks for: as a
+                // creature shield, hair or a face is.
+                classInfo.EquipableClassInfo = null;
+                Assert.AreEqual(0u, AuctionItemCategories.CodeOf(item.ItemTemplate));
+                Assert.IsFalse(AuctionHouseManager.CanBeAuctioned(item));
+
+                Credits(context, 1000);
+                context.Drain();
+
+                auctions.RequestCreateAuction(seller, new RequestCreateAuctionPacket
+                {
+                    EntityId = Auctioneer, ItemEntityId = item.EntityId, Price = 400, Duration = 2
+                });
+
+                Assert.AreEqual(PlayerMessage.PmAuctionItemCannotBeAuctioned,
+                    context.Drain().OfType<AuctionCreationFailedPacket>().Single().PlayerMessageId);
+                Assert.AreEqual(1000, seller.Player.Credits[CurencyType.Credits], "no deposit");
+                Assert.AreEqual(item.EntityId, seller.Player.Inventory.PersonalInventory[7], "still in the pack");
+                Assert.IsEmpty(seller.Player.Inventory.AuctionItems);
+            }
+            finally
+            {
+                classInfo.EquipableClassInfo = equipable;
+                singleton.SetValue(null, before);
+            }
+        }
+
+        [TestMethod]
         public void AListingAndItsCancellationAreOnTheEconomyLog()
         {
             using var context = MissionTestContext.WithCompletableMission(429);
@@ -431,6 +476,9 @@ namespace Rasa.Test.Gameplay
 
             classInfo.ItemClassInfo.StackSize = 1;
             classInfo.ItemClassInfo.MaxHitPoints = 100;
+            // Worn on the hands and asking for no armor skill: Armor, Accessory, Hands. An item in
+            // no browse category is not listed (AuctionHouseManager.CanBeAuctioned).
+            classInfo.EquipableClassInfo = new EquipableClassInfo(EquipmentData.Gloves);
 
             var template = classInfo.ItemTemplates[templateId];
 

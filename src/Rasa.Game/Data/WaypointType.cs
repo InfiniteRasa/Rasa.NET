@@ -7,7 +7,10 @@ namespace Rasa.Data
     /// </summary>
     public enum WaypointType
     {
-        /// <summary>A shortcut or tower teleporter inside a base: a usable object, never gained.</summary>
+        /// <summary>
+        /// A shortcut or tower teleporter inside a base: never gained and in no window. It takes
+        /// whoever steps onto it to the local teleporter its local_teleporter_link row names.
+        /// </summary>
         LocalTeleporter = 1,
         /// <summary>A waypoint of a map's own network, gained by walking over it.</summary>
         Waypoint = 2,

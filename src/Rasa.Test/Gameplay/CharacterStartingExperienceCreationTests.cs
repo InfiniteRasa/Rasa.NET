@@ -322,7 +322,7 @@ namespace Rasa.Test.Gameplay
         {
             using var context = new CharacterCreationContext();
             context.SeedAccount(187);
-            context.SeedAccount(188);
+            context.SeedAccount(188, familyName: "Other");
             var characterId = context.SeedCharacter(187, 1, "DeleteInventory");
             var siblingId = context.SeedCharacter(187, 2, "KeepInventory");
             var otherAccountCharacterId = context.SeedCharacter(188, 1, "OtherAccount");
@@ -717,6 +717,42 @@ namespace Rasa.Test.Gameplay
         }
 
         [TestMethod]
+        public void AFamilyNameTakenWhileTheCharacterIsMadeIsReportedTakenAndNothingIsKept()
+        {
+            using var context = new CharacterCreationContext();
+            context.SeedAccount(42, familyName: "");
+            context.SeedAccount(43, familyName: "");
+            var client = context.CreateClient(42);
+            var taken = false;
+
+            // Another account takes the name, in other capitals, after the check and before the
+            // write - as a rename, or another server on the same database, could. The unique
+            // index refuses the write.
+            context.BeforeSave = characters =>
+            {
+                if (taken)
+                    return;
+
+                taken = true;
+                characters.Database.ExecuteSqlRaw("UPDATE account SET family_name = 'SMITH' WHERE id = 43");
+            };
+
+            new CharacterManager(context).RequestCreateCharacterInSlot(
+                client,
+                CreatePacket(slot: 1, familyName: "Smith", characterName: "Second"));
+
+            Assert.IsTrue(taken);
+            Assert.AreEqual(CreateCharacterResult.FamilyNameReserved,
+                WorldTestContext.Drain(client).Select(packet => packet.Message).OfType<CallMethodMessage>()
+                    .Select(message => message.Packet).OfType<UserCreationFailedPacket>().Single().Result,
+                "told the name is taken, not of a technical difficulty");
+
+            using var verify = context.Open();
+            Assert.AreEqual(0, verify.CharacterEntries.Count(entry => entry.AccountId == 42));
+            Assert.AreEqual("", verify.GameAccountEntries.AsNoTracking().Single(entry => entry.Id == 42).FamilyName);
+        }
+
+        [TestMethod]
         public void CreatingCharacterPutsPowerInTheTabulaForRecruitLightning()
         {
             using var context = new CharacterCreationContext();
@@ -1049,6 +1085,7 @@ namespace Rasa.Test.Gameplay
             private readonly List<(EntityClasses Class, uint Template)> _addedItemTemplates = new();
             private readonly HashSet<ulong> _loadedItemEntities = new();
             internal Action<SqliteCharContext> AfterSave { get; set; }
+            internal Action<SqliteCharContext> BeforeSave { get; set; }
 
             private string Database => Path.Combine(_directory, "characters");
 
@@ -1193,6 +1230,7 @@ namespace Rasa.Test.Gameplay
             public ICharUnitOfWork CreateChar()
             {
                 var context = Open();
+                context.SavingChanges += (_, _) => BeforeSave?.Invoke(context);
                 context.SavedChanges += (_, _) => AfterSave?.Invoke(context);
                 return new CharUnitOfWork(
                     context,
@@ -1217,7 +1255,8 @@ namespace Rasa.Test.Gameplay
                     auctions: new AuctionRepository(context),
                     clans: new ClanRepository(context),
                     clanInventories: null,
-                    clanMembers: null,
+                    // Deleting a character takes it out of its clan (ClanManager.RemoveDeletedCharacter).
+                    clanMembers: new Rasa.Repositories.Char.ClanMember.ClanMemberRepository(context),
                     clanLockboxLogs: null,
                     friends: null,
                     ignoreds: null,

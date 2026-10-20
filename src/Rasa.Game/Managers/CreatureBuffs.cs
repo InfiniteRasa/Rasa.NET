@@ -92,7 +92,9 @@ namespace Rasa.Managers
 
         /// <summary>
         /// A creature leaving the world: its warcry clock goes with it, rather than staying in the
-        /// table for good and being inherited by the next creature given its entity id.
+        /// table for good and being inherited by the next creature given its entity id. So do its
+        /// Linker channels, fed or feeding: the boost of one fed is looked after only by the map it
+        /// is on (Worker), so one that left would be kept in the table for good.
         /// </summary>
         public static void Forget(Creature creature)
         {
@@ -101,6 +103,16 @@ namespace Rasa.Managers
 
             lock (WarcryLock)
                 WarcryAt.Remove(creature.EntityId);
+
+            lock (ChannelLock)
+            {
+                Links.Remove(creature);
+
+                foreach (var links in Links.Values)
+                    links.Remove(creature);
+
+                Channels.RemoveAll(channel => channel.Channeler == creature || channel.Fed == creature);
+            }
         }
 
         public static bool Is(CreatureAction action) =>
@@ -373,7 +385,10 @@ namespace Rasa.Managers
                 foreach (var channel in due)
                     Channels.Remove(channel);
 
-                fedHere = Links.Keys.Where(k => k.MapContextId == mapChannel.MapInfo.MapContextId).ToList();
+                // The Linkers fed on this map copy. By context id, every copy of the map - a
+                // squad's instance, a private one - refreshed every copy's fed Linkers, attaching
+                // and ending boosts with this map's effect ids and telling its own players.
+                fedHere = Links.Keys.Where(k => MapInstanceScope.Contains(mapChannel, k)).ToList();
             }
 
             foreach (var channel in due)
@@ -393,13 +408,7 @@ namespace Rasa.Managers
                 recovery.Hits.Add(new AbilityHit { EntityId = fed.EntityId });
                 CellManager.Instance.CellCallMethod(mapChannel, linker, recovery);
 
-                lock (ChannelLock)
-                {
-                    if (!Links.TryGetValue(fed, out var links))
-                        Links[fed] = links = new Dictionary<Creature, long>();
-
-                    links[linker] = now + ChannelBoostMs;
-                }
+                Feed(fed, linker, now + ChannelBoostMs);
 
                 if (!fedHere.Contains(fed))
                     fedHere.Add(fed);
@@ -407,6 +416,18 @@ namespace Rasa.Managers
 
             foreach (var fed in fedHere)
                 Refresh(mapChannel, fed, now);
+        }
+
+        /// <summary>A channel landed: the Linker fed by another until then.</summary>
+        internal static void Feed(Creature fed, Creature linker, long until)
+        {
+            lock (ChannelLock)
+            {
+                if (!Links.TryGetValue(fed, out var links))
+                    Links[fed] = links = new Dictionary<Creature, long>();
+
+                links[linker] = until;
+            }
         }
 
         private static bool Standing(Creature creature) =>

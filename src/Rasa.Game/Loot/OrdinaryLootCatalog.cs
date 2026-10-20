@@ -16,16 +16,22 @@ namespace Rasa.Loot
         private static OrdinaryLootCatalog _current;
         private readonly IReadOnlyDictionary<(uint Map, uint Creature), OrdinaryLootProfile> _bindings;
         private readonly HashSet<uint> _requiredMaps;
+        private readonly IReadOnlyDictionary<string, OrdinaryLootProfile> _profiles;
 
         internal static OrdinaryLootCatalog Current => Volatile.Read(ref _current) ??
             throw new InvalidOperationException("The ordinary loot catalog has not passed startup validation.");
 
         private OrdinaryLootCatalog(Dictionary<(uint Map, uint Creature), OrdinaryLootProfile> bindings,
-            IEnumerable<uint> requiredMaps)
+            IEnumerable<uint> requiredMaps, Dictionary<string, OrdinaryLootProfile> profiles)
         {
             _bindings = new ReadOnlyDictionary<(uint Map, uint Creature), OrdinaryLootProfile>(bindings);
             _requiredMaps = new HashSet<uint>(requiredMaps);
+            _profiles = new ReadOnlyDictionary<string, OrdinaryLootProfile>(profiles);
         }
+
+        /// <summary>The profile of this key, bound to a creature or not (a lootable container names one: WorldContainers), or null.</summary>
+        internal OrdinaryLootProfile Profile(string profileKey) =>
+            profileKey != null && _profiles.TryGetValue(profileKey, out var profile) ? profile : null;
 
         internal static void Publish(OrdinaryLootCatalog catalog) =>
             Volatile.Write(ref _current, catalog ?? throw new ArgumentNullException(nameof(catalog)));
@@ -186,7 +192,7 @@ namespace Rasa.Loot
                                     checked((uint)item.MinimumQuantity), checked((uint)item.MaximumQuantity))).ToArray()))
                         .ToArray()), StringComparer.Ordinal);
                 return new OrdinaryLootCatalog(bindings.ToDictionary(binding => (binding.MapContextId, binding.CreatureId),
-                    binding => immutableProfiles[binding.ProfileKey]), requiredMaps);
+                    binding => immutableProfiles[binding.ProfileKey]), requiredMaps, immutableProfiles);
             }
 
             private void ValidateNativeItems(IReadOnlyList<LootItemEntry> items, IReadOnlyList<OrdinaryLootGroupEntry> groups)

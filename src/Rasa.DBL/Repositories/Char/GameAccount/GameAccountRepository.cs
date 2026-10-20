@@ -70,15 +70,33 @@ namespace Rasa.Repositories.Char.GameAccount
 
             // Sqlite compares with BINARY collation, so a plain == is case-sensitive there
             // while MySQL's default collation is not. Lowering both sides behaves the same on
-            // both providers; the exact pass first keeps "Bob" from resolving to "bob" when
-            // both exist.
+            // both providers for A to Z, all a name may have now (CharacterManager.IsValidName);
+            // the exact pass first finds an older name with other letters, which SQLite's lower()
+            // leaves as they are. Lowered here without the server's culture, which in Turkish
+            // would make "I" a dotless "ı" that no stored name has.
             var exact = Get(familyName);
             if (exact != null)
                 return exact;
 
-            var lowered = familyName.ToLower();
+            var lowered = familyName.ToLowerInvariant();
             var query = _charContext.CreateNoTrackingQuery(_charContext.GameAccountEntries);
             return query.Where(e => e.FamilyName.ToLower() == lowered).FirstOrDefault();
+        }
+
+        /// <summary>The unique index on the family name, case-blind (Family_name_unique).</summary>
+        public const string FamilyNameIndex = "account_index_family_name";
+
+        /// <summary>
+        /// Whether a save was refused because another account has the family name: by
+        /// <see cref="FamilyNameIndex"/>, which MySQL names in its error and SQLite reports by its
+        /// column, account.family_name, as it does any index on a plain column.
+        /// </summary>
+        public static bool RefusedFamilyName(Exception error)
+        {
+            var message = error?.GetBaseException().Message ?? string.Empty;
+
+            return message.Contains(FamilyNameIndex, StringComparison.Ordinal)
+                || message.Contains("UNIQUE constraint failed: account.family_name", StringComparison.Ordinal);
         }
 
         public bool CanChangeFamilyName(uint id, string newFamilyName)
@@ -89,8 +107,9 @@ namespace Rasa.Repositories.Char.GameAccount
             // Compared without case, like FindByFamilyName above and like every lookup of a player
             // by the name someone typed. With Sqlite's case-sensitive ==, "Smith", "smith" and
             // "SMITH" could all be taken by different accounts, and a whisper or invite for one
-            // went to whichever of them was found first.
-            var lowered = newFamilyName.ToLower();
+            // went to whichever of them was found first. The unique index (Family_name_unique)
+            // holds the same rule in the database, for a name taken between this and the write.
+            var lowered = newFamilyName.ToLowerInvariant();
             var hasOtherAccountWithName = _charContext.GameAccountEntries.Any(e => e.Id != id && e.FamilyName.ToLower() == lowered);
             return !hasOtherAccountWithName;
         }

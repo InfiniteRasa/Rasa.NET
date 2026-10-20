@@ -374,6 +374,42 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void RandomExplosionsMissedWhileTheirMapStoodEmptyTakeNewPlacesInTheirCyclesRatherThanAllGoingOff()
+        {
+            AddFixtureClasses();
+            using var world = new WorldTestContext();
+            var near = Stand(world, new Vector3(12, 2, 20));
+            using var placed = Put(world.Map,
+                Row(1, Geyser, 10, 20, min: 10, max: 30, damageMin: 150, damageMax: 150, radius: 5),
+                Row(2, Geyser, 14, 20, min: 10, max: 30, damageMin: 150, damageMax: 150, radius: 5));
+            var first = PlacedUsables.LiveOf(world.Map, 1);
+            var second = PlacedUsables.LiveOf(world.Map, 2);
+            Assert.AreEqual((_now + 20_000, _now + 20_000), (first.NextBlastAt, second.NextBlastAt), "both at the roll's middle");
+            WorldTestContext.Drain(near);
+
+            // Nobody worked the map: both are past due by more than a map is late by.
+            _now += 20_000 + PlacedUsables.MissedMs + 1;
+            var rolls = new Queue<long>(new long[] { 4_000, 25_000 });
+            var asked = new List<(long, long)>();
+            PlacedUsables.Roll = (min, max) => { asked.Add((min, max)); return rolls.Dequeue(); };
+            PlacedUsables.Worker(world.Map);
+
+            Assert.IsFalse(Sent(near).Any(entry => entry.Packet is PerformObjectDamagePacket), "neither goes off as the map is worked again");
+            Assert.AreEqual(2000, near.Player.Attributes[Attributes.Health].Current);
+            CollectionAssert.AreEqual(new[] { (0L, 30_000L), (0L, 30_000L) }, asked, "each somewhere in its longest wait");
+            Assert.AreEqual((_now + 4_000, _now + 25_000), (first.NextBlastAt, second.NextBlastAt));
+
+            // Late by no more than that, one goes off; the other is not yet due.
+            PlacedUsables.Roll = (min, max) => min + (max - min) / 2;
+            _now += 4_000 + PlacedUsables.MissedMs;
+            PlacedUsables.Worker(world.Map);
+            var blasts = Sent(near).Select(entry => entry.Packet).OfType<PerformObjectDamagePacket>().ToList();
+            Assert.AreEqual(ObjectOf(world.Map, 1).EntityId, blasts.Single().SourceId);
+            Assert.AreEqual(_now + 20_000, first.NextBlastAt);
+            Assert.AreEqual(_now - 9_000 + 25_000, second.NextBlastAt);
+        }
+
+        [TestMethod]
         public void ADispenserGivesItsItemAndIsActiveAgainAfterItsReset()
         {
             using var harness = WildernessRuntimeTestHarness.Create();
@@ -524,7 +560,7 @@ namespace Rasa.Test.World
                 using (var context = (WorldContext)PersistenceIntegrationTests.CreateContext(typeof(SqliteWorldContext), database))
                 {
                     MigratedDatabaseTemplates.Migrate(context, () => context.Database.Migrate());
-                    Assert.IsEmpty(new WorldUsableRepository(context).Get());
+                    Assert.IsTrue(new WorldUsableRepository(context).Get().All(Seeded), "only the Arieki vents' eruptions, the Lightning Fields' strikes and the Wilderness terminals are seeded");
                     Assert.IsFalse(context.Database.HasPendingModelChanges());
                 }
 
@@ -536,7 +572,7 @@ namespace Rasa.Test.World
                     lot.Preload(builder);
                     Run(context, builder);
 
-                    var rows = new WorldUsableRepository(context).Get();
+                    var rows = new WorldUsableRepository(context).Get().Where(row => !Seeded(row)).OrderBy(row => row.Id).ToList();
                     Assert.HasCount(4, rows);
                     Assert.AreEqual((1u, 1220u, 4412u, 10.5, 2.25, 20.75, 0.5, 0u, 1u, 0u, 15u, "Door, it's by the gate"),
                         (rows[0].Id, rows[0].MapContextId, rows[0].ClassId, rows[0].PosX, rows[0].PosY, rows[0].PosZ, rows[0].Rotation,
@@ -549,7 +585,7 @@ namespace Rasa.Test.World
                     builder = new MigrationBuilder(context.Database.ProviderName);
                     lot.Remove(builder);
                     Run(context, builder);
-                    Assert.IsEmpty(new WorldUsableRepository(context).Get());
+                    Assert.IsTrue(new WorldUsableRepository(context).Get().All(Seeded), "the lot's rows gone, the seeded ones left");
                 }
 
                 using (var context = (WorldContext)PersistenceIntegrationTests.CreateContext(typeof(SqliteWorldContext), database))
@@ -581,6 +617,13 @@ namespace Rasa.Test.World
                 StringAssert.Contains(up, column);
             StringAssert.Contains(down, "DROP TABLE `world_usable`");
         }
+
+        private static bool Vent(WorldUsableEntry row) => row.Id is >= AriekiVentEruptions.FirstId and <= AriekiVentEruptions.LastId;
+
+        /// <summary>A row a migration seeds: an Arieki vent's eruption, or a Wilderness terminal of Wilderness_post_npcs.</summary>
+        private static bool Seeded(WorldUsableEntry row) => Vent(row) ||
+            row.Id is >= LightningFieldsStrikes.FirstId and <= LightningFieldsStrikes.LastId ||
+            row.Id >= WildernessPostNpcs.FirstUsable && row.Id < WildernessPostNpcs.FirstUsable + WildernessPostNpcs.Usables.Length;
 
         private static void Run(WorldContext context, MigrationBuilder builder)
         {

@@ -11,6 +11,9 @@ namespace Rasa.Repositories.World
 
         /// <summary>The conditions on travelling through the wormhole network (wormhole_lock).</summary>
         List<WormholeLockEntry> GetWormholeLocks();
+
+        /// <summary>Where each local teleporter takes whoever steps onto it (local_teleporter_link).</summary>
+        List<LocalTeleporterLinkEntry> GetLocalTeleporterLinks() => new List<LocalTeleporterLinkEntry>();
     }
     public class TeleporterRepository : ITeleporterRepository
     {
@@ -32,6 +35,11 @@ namespace Rasa.Repositories.World
         public List<WormholeLockEntry> GetWormholeLocks()
         {
             return _worldContext.CreateNoTrackingQuery(_worldContext.WormholeLockEntries).ToList();
+        }
+
+        public List<LocalTeleporterLinkEntry> GetLocalTeleporterLinks()
+        {
+            return _worldContext.CreateNoTrackingQuery(_worldContext.LocalTeleporterLinkEntries).ToList();
         }
     }
 }

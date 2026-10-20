@@ -46,7 +46,7 @@ namespace Rasa.Game.Missions.Persistence
                 {
                     if (binding.Drop == null || binding.Drop.ChancePercent == 0 ||
                         binding.Drop.MapContextId != client.Player.MapContextId ||
-                        !binding.Drop.CreatureIds.Contains(loot.Corpse.DbId))
+                        !binding.Drop.CreatureIds.Contains(loot.SourceCreatureDbId))
                         continue;
                     var candidate = new QualifiedDrop(client.Player.Id, log, binding, 0);
                     if (!IsCurrentAssignment(client, candidate, missions, unit))
@@ -103,24 +103,40 @@ namespace Rasa.Game.Missions.Persistence
 
         private static bool MatchesSource(Client client, LootDispenser loot, MissionItemBinding binding) =>
             IsCurrentSource(client, loot) && binding.Drop.MapContextId == client.Player.MapContextId &&
-            binding.Drop.CreatureIds.Contains(loot.Corpse.DbId);
+            binding.Drop.CreatureIds.Contains(loot.SourceCreatureDbId);
 
         private static bool IsCurrentSource(Client client, LootDispenser loot)
         {
             var player = client.Player;
             var map = player.MapChannel;
-            var corpse = loot.Corpse;
             return map != null && !map.IsPrivateInstance && map.OwnerCharacterId == 0 &&
                 ReferenceEquals(map, loot.Map) && loot.IsLootable && !loot.FullyLooted &&
                 map.LootDispensers.TryGetValue(loot.EntityId, out var dispenser) && ReferenceEquals(loot, dispenser) &&
                 client.PendingTransfer == null &&
                 client.State == ClientState.Ingame && player.State != CharacterState.Dead &&
-                player.MapContextId == map.MapInfo.MapContextId && corpse != null &&
+                player.MapContextId == map.MapInfo.MapContextId &&
+                (IsCurrentCorpse(map, player, loot) || IsCurrentGibblet(map, loot));
+        }
+
+        private static bool IsCurrentCorpse(MapChannel map, Manifestation player, LootDispenser loot)
+        {
+            var corpse = loot.Corpse;
+            return corpse != null &&
                 corpse.CorpseLootEntityId == loot.EntityId &&
                 corpse.State == CharacterState.Dead && corpse.MapContextId == player.MapContextId &&
                 EntityManager.Instance.Creatures.TryGetValue(corpse.EntityId, out var registered) &&
                 ReferenceEquals(corpse, registered) &&
                 map.MapCellInfo.Cells.Values.Any(cell => cell.CreatureList.Contains(corpse));
+        }
+
+        /// <summary>The loot is on the gibblet its corpse left (LootDispenserManager.LeaveGibblet), and the gibblet still lies on this map.</summary>
+        private static bool IsCurrentGibblet(MapChannel map, LootDispenser loot)
+        {
+            var gibblet = loot.Gibblet;
+            return gibblet != null && gibblet.IsInWorld && loot.AttachedTo == gibblet.EntityId &&
+                MapInstanceScope.Contains(map, gibblet) &&
+                EntityManager.Instance.TryGetObject(gibblet.EntityId, out var registered) &&
+                ReferenceEquals(gibblet, registered);
         }
 
         private static bool IsCurrentAssignment(Client client, QualifiedDrop drop, MissionApplication missions,

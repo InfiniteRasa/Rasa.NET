@@ -13,6 +13,7 @@ using Rasa.Memory;
 using Rasa.Game.Missions.World;
 using Rasa.Packets;
 using Rasa.Packets.ClientMethod.Server;
+using Rasa.Packets.Communicator.Server;
 using Rasa.Packets.Game.Server;
 using Rasa.Packets.LootDispenser.Client;
 using Rasa.Packets.LootDispenser.Server;
@@ -333,7 +334,7 @@ namespace Rasa.Test.Missions.Wilderness
         [DataRow(41665U, 5000U, 200, 1)]
         [DataRow(28U, 50000U, 50, 2)]
         [DataRow(3057U, 1U, 0, 1)]
-        public void FullPersistedNativeBagsRefuseTheWholeBatchAndRetryAfterSlotsAreFreed(
+        public void FullPersistedNativeBagsLeaveWhatDoesNotFitAndRetryAfterSlotsAreFreed(
             uint fillerTemplate, uint nativeStack, int firstSlot, int slotsNeeded)
         {
             var rolls = FamilyRolls(thrax: true);
@@ -354,10 +355,19 @@ namespace Rasa.Test.Missions.Wilderness
                 new[] { (41666U, 1U), (28U, 24U), (44917U, 1U), (17130U, 1U) }, menu: true);
             LootDispenserManager.Instance.RequestLootAllFromCorpse(harness.Client,
                 new RequestLootAllFromCorpsePacket { EntityId = loot.EntityId });
-            AssertUnclaimed(harness, loot, 4, 50);
-            AssertPersistedCredits(harness, 100);
-            Assert.AreEqual(100, harness.Client.Player.Credits[CurencyType.Credits]);
-            Assert.IsFalse(DrainCalls(harness).Any(call => call.Packet is GotLootPacket));
+
+            // What has no room - the filled category's - stays on the corpse; the rest is taken,
+            // and Loot All pays the corpse's credits, the player told their inventory is full.
+            var full = ItemManager.Instance.GetItemTemplateById(fillerTemplate).InventoryCategory;
+            foreach (var item in loot.LootItems)
+                Assert.AreEqual(item.Item.ItemTemplate.InventoryCategory != full, item.Taken, $"template {item.ItemTemplateId}");
+            Assert.AreEqual(slotsNeeded, loot.LootItems.Count(item => !item.Taken));
+            Assert.IsFalse(loot.FullyLooted);
+            AssertPersistedCredits(harness, 107);
+            Assert.AreEqual(107, harness.Client.Player.Credits[CurencyType.Credits]);
+            var firstTake = DrainCalls(harness);
+            Assert.IsTrue(firstTake.Any(call => call.Packet is GotLootPacket));
+            Assert.AreEqual(1, firstTake.Count(call => call.Packet is DisplayClientMessagePacket { MsgId: PlayerMessage.PmInventoryFull }));
             for (var index = 0; index < slotsNeeded; index++)
             {
                 var filler = EntityManager.Instance.GetItem(harness.Client.Player.Inventory.PersonalInventory[firstSlot + index]);
@@ -372,8 +382,8 @@ namespace Rasa.Test.Missions.Wilderness
                 LootDispenserManager.Instance.RequestLootItemFromCorpse(harness.Client,
                     new RequestLootItemFromCorpsePacket { EntityId = loot.EntityId, ItemId = skull.EntityId, DestSlot = 200 });
                 Assert.AreEqual(skull.EntityId, harness.Client.Player.Inventory.PersonalInventory[200]);
-                Assert.IsFalse(loot.FullyLooted);
-                AssertPersistedCredits(harness, 100);
+                Assert.IsTrue(loot.FullyLooted, "the skull was all that was left on it");
+                AssertPersistedCredits(harness, 107);
             }
             LootDispenserManager.Instance.RequestLootAllFromCorpse(harness.Client,
                 new RequestLootAllFromCorpsePacket { EntityId = loot.EntityId });
