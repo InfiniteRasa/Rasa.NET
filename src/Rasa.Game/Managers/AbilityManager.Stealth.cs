@@ -58,6 +58,27 @@ namespace Rasa.Managers
         private const int RetreatMarkTypeId = 10000079;         // TACTICAL_EVASION_LOCATION_EFFECT
 
         /// <summary>
+        /// What the mag flash does to the ranged weapon attacks of whoever it blinds, which its
+        /// tooltip promises a flashed player (tooltiplanguage 1879): "You are temporarily visually
+        /// impaired, and any ranged weapon attacks you make are likely to miss. (Your ranged
+        /// attacks do significantly less damage than normal.)" No figure for either is in the
+        /// data. The damage is Called Shot: Eye's, the client's other blinding of ranged attacks
+        /// (DAMAGE_MODIFIER_PERCENT -50, "Ranged attack damage reduced by 50%"); the to-hit is
+        /// ours, "likely to miss" taken as six shots in ten, on top of the target's own
+        /// modifiers (ToHit). Melee is untouched, as both say "ranged".
+        /// </summary>
+        internal const int MagFlashRangedDamagePercent = -50;
+        internal const int MagFlashToHitModifier = -60;
+
+        /// <summary>The mag flash's hold on whoever it blinds: no target, and ranged weapon attacks that miss and hit soft.</summary>
+        private static void Impair(GameEffect flash)
+        {
+            flash.Blinds = true;
+            flash.RangedDamagePercent = MagFlashRangedDamagePercent;
+            flash.RangedToHitModifier = MagFlashToHitModifier;
+        }
+
+        /// <summary>
         /// The level P5's two effects are sent at: their only specialFX rows are (10000078, 1) and
         /// (10000079, 1), and the client looks the pair up exactly, so at the pump's level 5 neither
         /// the retreat's FX nor the flag on the ground was drawn.
@@ -159,7 +180,7 @@ namespace Rasa.Managers
                 var flash = NewEffect(mapChannel, player, info, MagFlashTypeId, null);
 
                 flash.IsBuff = false;
-                flash.Blinds = true;
+                Impair(flash);
                 flash.ExpiresTick = Environment.TickCount64 + durationMs;
 
                 GameEffectManager.Instance.Attach(mapChannel, creature, flash);

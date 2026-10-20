@@ -59,6 +59,15 @@ namespace Rasa.Test.World
                 Assert.HasCount(2, flashes);
                 Assert.IsTrue(flashes.All(p => !p.Announced));
 
+                // Blinded, and shooting badly while it lasts (AbilityManager.Impair).
+                foreach (var creature in new[] { near, farther })
+                {
+                    var flash = creature.ActiveEffects.Values.Single(e => e.TypeId == MagFlashTypeId);
+                    Assert.IsTrue(flash.Blinds);
+                    Assert.AreEqual(AbilityManager.MagFlashToHitModifier, flash.RangedToHitModifier);
+                    Assert.AreEqual(AbilityManager.MagFlashRangedDamagePercent, flash.RangedDamagePercent);
+                }
+
                 var (hits, hitdata) = Decode(recovery);
                 CollectionAssert.AreEqual(hits, hitdata, "hitdata is the hits' own ids, one for one");
             }

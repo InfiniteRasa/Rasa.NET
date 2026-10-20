@@ -344,6 +344,13 @@ namespace Rasa.Structures
         /// <summary>Percent added to the damage of the holder's ranged attacks; negative reduces it (Laser crit).</summary>
         public int RangedDamagePercent { get; set; }
 
+        /// <summary>
+        /// Added to the chance that the holder's own ranged weapon shots hit; negative makes them
+        /// miss (Tactical Evasion's mag flash, "any ranged weapon attacks you make are likely to
+        /// miss"; Managers.ToHit). The strongest on the holder counts.
+        /// </summary>
+        public int RangedToHitModifier { get; set; }
+
         /// <summary>Whether it changes any regeneration rate, which the holder's client has to be told.</summary>
         public bool ChangesRegen => RegenPercent != 0 || ArmorRegenPercent != 0 || HealthRegenPercent != 0 || PowerRegenPercent != 0;
 

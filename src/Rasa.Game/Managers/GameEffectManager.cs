@@ -1225,6 +1225,24 @@ namespace Rasa.Managers
             return Math.Min(100, percent);
         }
 
+        /// <summary>
+        /// What the effects on the actor do to the chance its own ranged weapon shots hit (the mag
+        /// flash): the strongest penalty, 0 when nothing impairs it.
+        /// </summary>
+        public static int RangedToHitModifierOf(Actor actor)
+        {
+            var modifier = 0;
+
+            if (actor == null)
+                return 0;
+
+            foreach (var effect in actor.ActiveEffects.Values)
+                if (!effect.IsExpired && effect.RangedToHitModifier < modifier)
+                    modifier = effect.RangedToHitModifier;
+
+            return Math.Max(-100, modifier);
+        }
+
         /// <summary>Percent added to the actor's chance of a critical hit by the effects on them (Crit Wave).</summary>
         public static int CritChancePercentOf(Actor actor)
         {

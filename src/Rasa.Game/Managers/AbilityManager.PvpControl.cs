@@ -208,7 +208,9 @@ namespace Rasa.Managers
 
         /// <summary>
         /// Tactical Evasion's mag flash on the enemy players around the performer: blinded for the
-        /// flash's time, halved (GameEffectManager.Attach), each a hit on the recovery.
+        /// flash's time, halved (GameEffectManager.Attach), each a hit on the recovery - their
+        /// target let go, and their ranged weapon attacks missing and hitting soft (Impair), as
+        /// the flash's tooltip tells them.
         /// </summary>
         private static void FlashEnemies(MapChannel mapChannel, Manifestation player, ActionLevelInfo info, float radius, int durationMs, AbilityRecoveryPacket recovery)
         {
@@ -220,7 +222,7 @@ namespace Rasa.Managers
                 var flash = NewEffect(mapChannel, player, info, MagFlashTypeId, null);
 
                 flash.IsBuff = false;
-                flash.Blinds = true;
+                Impair(flash);
                 flash.ExpiresTick = Environment.TickCount64 + durationMs;
 
                 GameEffectManager.Instance.Attach(mapChannel, enemy, flash);

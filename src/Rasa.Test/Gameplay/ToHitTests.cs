@@ -100,6 +100,56 @@ namespace Rasa.Test.Gameplay
             CollectionAssert.AreEqual(new[] { 65 }, rolledFor);
         }
 
+        /// <summary>
+        /// A mag flash on the shooter (AbilityManager.Impair): "any ranged weapon attacks you make
+        /// are likely to miss. (Your ranged attacks do significantly less damage than normal.)"
+        /// Its to-hit comes off their shots on top of the target's own modifiers, and its damage
+        /// off what lands; a swing is untouched by either.
+        /// </summary>
+        [TestMethod]
+        public void AFlashedShootersShotsMissMoreAndHitSoftButTheirSwingsDoNot()
+        {
+            using var world = new WorldTestContext();
+            var shooter = world.CreateClient().Player;
+            var creature = ShotFlightTests.Spawn(world, new Vector3(0, 0, -3));
+
+            var swing = new Missile { Source = shooter, TargetActor = creature, TargetEntityId = creature.EntityId, ActionId = ActionId.WeaponMelee, ActionArgId = 1, IsMelee = true };
+            var shot = new Missile { Source = shooter, TargetActor = creature, TargetEntityId = creature.EntityId, ActionId = ActionId.WeaponAttack, ActionArgId = 1 };
+
+            var flash = new GameEffect
+            {
+                EffectId = 1,
+                Blinds = true,
+                RangedToHitModifier = AbilityManager.MagFlashToHitModifier,
+                RangedDamagePercent = AbilityManager.MagFlashRangedDamagePercent,
+                ExpiresTick = Environment.TickCount64 + 60000
+            };
+            shooter.ActiveEffects[1] = flash;
+
+            Assert.AreEqual(40, ToHit.ChanceOf(shot), "100 - the flash's 60");
+            Assert.AreEqual(100, ToHit.ChanceOf(swing));
+            Assert.AreEqual(50, GameEffectManager.ApplyRangedDamage(shooter, 100), "Called Shot: Eye's half");
+
+            creature.Controller.LastMovement = new Movement(creature.Position, 6f, Movement.FastTurn, Vector2.Zero);
+            creature.IsRunning = true;
+            Assert.AreEqual(25, ToHit.ChanceOf(shot), "and the target's running on top");
+
+            // On the target it is nothing to the shot: it is the shooter's eyes.
+            shooter.ActiveEffects.Clear();
+            creature.ActiveEffects[1] = flash;
+            Assert.AreEqual(85, ToHit.ChanceOf(shot));
+            creature.ActiveEffects.Clear();
+
+            // A creature it has blinded shoots as badly.
+            var atPlayer = new Missile { Source = creature, TargetActor = shooter, TargetEntityId = shooter.EntityId, ActionId = ActionId.WeaponAttack, ActionArgId = 1 };
+            creature.ActiveEffects[1] = flash;
+            Assert.AreEqual(40, ToHit.ChanceOf(atPlayer));
+
+            // Worn off: as before.
+            flash.ExpiresTick = Environment.TickCount64 - 1;
+            Assert.AreEqual(100, ToHit.ChanceOf(atPlayer));
+        }
+
         [TestMethod]
         public void APlayerIsOnTheMoveWhenTheirLastMoveTookThemSomewhere()
         {

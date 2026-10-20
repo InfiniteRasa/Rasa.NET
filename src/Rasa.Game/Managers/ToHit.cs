@@ -22,6 +22,10 @@ namespace Rasa.Managers
     /// misses in its own way (CreatureWindups): for one of those the chance is what Chaff
     /// leaves of it, as it was.
     ///
+    /// The shooter's side: a weapon shot by someone a mag flash has blinded takes the flash's
+    /// GameEffect.RangedToHitModifier off its chance too (AbilityManager.MagFlashToHitModifier),
+    /// as its tooltip says: "any ranged weapon attacks you make are likely to miss".
+    ///
     /// Only the one aimed at is rolled for. A launcher's round that misses still goes off where
     /// it comes down, and a cone weapon's other victims are caught as they were. The client's
     /// SHARE_MISSES weapon property says the original had a rule for them; its values are in
@@ -87,7 +91,10 @@ namespace Rasa.Managers
             var chance = Base - GameEffectManager.MissPercentOf(missile.TargetActor);
 
             if (CreatureAttacks.IsWeaponAttack(missile))
+            {
                 chance += MovementModifier(missile.TargetActor);
+                chance += GameEffectManager.RangedToHitModifierOf(missile.Source);
+            }
 
             return Math.Max(0, Math.Min(100, chance));
         }

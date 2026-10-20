@@ -180,8 +180,16 @@ namespace Rasa.Test.World
 
                 Invoke("FlashEnemies", world.Map, red.Player, Level(ActionId.AaRangerTacticalEvasion, 1, 5), 10f, 5000, recovery);
 
-                AssertLeft(2500, blue.Player.ActiveEffects.Values.Single(e => e.Blinds));
+                var flash = blue.Player.ActiveEffects.Values.Single(e => e.Blinds);
+                AssertLeft(2500, flash);
                 Assert.AreEqual(0UL, blue.Player.Target);
+
+                // And their guns, as the flash's tooltip tells them: likely to miss, and soft.
+                Assert.AreEqual(AbilityManager.MagFlashToHitModifier, flash.RangedToHitModifier);
+                Assert.AreEqual(AbilityManager.MagFlashRangedDamagePercent, flash.RangedDamagePercent);
+                var shot = new Missile { Source = blue.Player, TargetActor = red.Player, TargetEntityId = red.Player.EntityId, ActionId = ActionId.WeaponAttack, ActionArgId = 1 };
+                Assert.AreEqual(40, ToHit.ChanceOf(shot));
+                Assert.AreEqual(50, GameEffectManager.ApplyRangedDamage(blue.Player, 100));
                 Assert.IsFalse(redMate.Player.ActiveEffects.Values.Any(e => e.Blinds));
                 Assert.IsFalse(far.Player.ActiveEffects.Values.Any(e => e.Blinds), "out of the radius");
                 Assert.AreEqual(blue.Player.EntityId, recovery.Hits.Single().EntityId);
