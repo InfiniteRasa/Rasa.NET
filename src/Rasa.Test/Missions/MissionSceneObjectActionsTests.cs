@@ -261,6 +261,57 @@ namespace Rasa.Test.Missions
             Assert.IsTrue(target.CurrentHitPoints < 100);
         }
 
+        /// <summary>
+        /// A tool has no alternate attack (ToolTemplatesNoAltFire): a healing disc swung as one -
+        /// by the pistol pair every tool row used to carry, or by 0/0 - does nothing, where the
+        /// rifle's does.
+        /// </summary>
+        [TestMethod]
+        public void AToolHasNoAlternateAttack()
+        {
+            using var harness = Create(destructible: true);
+            harness.LoadAbilities();
+            harness.Client.Player.Skills[SkillId.SpecialistTools] = new SkillsData(SkillId.SpecialistTools, -1, 1);
+            using (var grant = new InventoryManager.InventoryGrant())
+            {
+                using (var unit = harness.CreateChar())
+                    unit.ExecuteTransaction(() => grant.PlanAndSave(harness.Client,
+                        new[] { new InventoryManager.InventoryItemGrant(630, 1) }, unit));
+                grant.Publish(harness.Client);
+            }
+            var disc = harness.Client.Player.Inventory.PersonalInventory.Where(id => id != 0)
+                .Select(EntityManager.Instance.GetItem).Single(item => item.ItemTemplateId == 630);
+            while (harness.Client.Player.Inventory.WeaponDrawer.Count < 5)
+                harness.Client.Player.Inventory.WeaponDrawer.Add(0);
+            // In hand and out: the drawer's first slot armed with it.
+            harness.Client.Player.ActiveWeapon = 0;
+            harness.Client.Player.Inventory.WeaponDrawer[0] = disc.EntityId;
+            harness.Client.Player.Inventory.EquippedInventory[13] = disc.EntityId;
+            harness.Client.Player.WeaponReady = true;
+            Assert.AreSame(disc, InventoryManager.Instance.CurrentWeapon(harness.Client));
+
+            var weapon = disc.ItemTemplate.WeaponInfo;
+            Assert.AreEqual(0u, weapon.AltActionId, "a healing disc: no alt action");
+            Assert.IsNull(weapon.WeaponAltInfo);
+            Assert.AreEqual(30u, weapon.Range, "TOOL_HEALING_DISC / direct's reach");
+
+            var target = Target(harness);
+            harness.MoveTo(target.Position + Vector3.UnitX);
+
+            foreach (var (action, arg) in new[] { (1, 133), (0, 0) })
+            {
+                harness.Client.Player.NextMeleeAt = 0;
+                MissileManager.Instance.RequestWeaponAttack(harness.Client, new RequestWeaponAttackPacket
+                {
+                    ActionId = (ActionId)action, ActionArgId = arg, TargetId = (long)target.EntityId, IsAltAction = true
+                });
+
+                Assert.AreEqual(0, harness.Map.QueuedMissiles.Count, $"no swing by {action}/{arg}");
+            }
+
+            Assert.AreEqual(100U, target.CurrentHitPoints);
+        }
+
         [TestMethod]
         [DataRow(0, CharacterState.Idle)]
         [DataRow(100, CharacterState.Dying)]

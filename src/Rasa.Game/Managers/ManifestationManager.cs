@@ -517,8 +517,10 @@ namespace Rasa.Managers
                 return;
 
             // Only the swing this weapon has. A client naming any other action as its alt attack
-            // is asking for something the weapon cannot do.
-            if ((uint)packet.ActionId != weaponInfo.AltActionId || (uint)packet.ActionArgId != weaponInfo.AltActionArgId)
+            // is asking for something the weapon cannot do, and a weapon with none - a tool - has
+            // nothing to swing.
+            if (weaponInfo.WeaponAltInfo == null ||
+                (uint)packet.ActionId != weaponInfo.AltActionId || (uint)packet.ActionArgId != weaponInfo.AltActionArgId)
             {
                 Logger.WriteLog(LogType.Security, $"{player.FamilyName} sent an alt attack {packet.ActionId}/{packet.ActionArgId} for a weapon whose alt attack is {weaponInfo.AltActionId}/{weaponInfo.AltActionArgId}");
                 return;
