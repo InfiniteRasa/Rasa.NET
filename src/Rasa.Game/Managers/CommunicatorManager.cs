@@ -558,6 +558,9 @@ namespace Rasa.Managers
         /// </summary>
         private const int WhoResultLimit = 50;
 
+        /// <summary>The number of the shared copy of a map a channel is, for /who (MapChannelManager.CopyNumberOf); replaceable for tests.</summary>
+        internal Func<MapChannel, uint?> CopyNumberOf { get; set; } = map => MapChannelManager.Instance.CopyNumberOf(map);
+
         internal void Who(Client client, WhoPacket packet)
         {
             var search = (packet.SearchText ?? string.Empty).Trim();
@@ -614,9 +617,10 @@ namespace Rasa.Managers
                     CharacterClass = match.Player.Class,
                     Level = match.Player.Level,
                     ContextId = match.Player.MapContextId,
-                    // One instance per map today, so there is no ordinal to disambiguate;
-                    // sending a value would make the client render "MapName(1)".
-                    CurrentGameContextOrdinal = null,
+                    // Recv_WhoAck writes it after the map's name, "MapName(2)": which shared
+                    // copy they are in, numbered as the instance picker numbers them. None while
+                    // the map stands in one copy, and in a private or squad instance.
+                    CurrentGameContextOrdinal = CopyNumberOf(match.Player.MapChannel),
                     IsAfk = match.Player.IsAFK,
                     IsTrialAccount = match.Player.IsTrialAccount
                 });
