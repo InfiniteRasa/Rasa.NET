@@ -185,6 +185,53 @@ namespace Rasa.Managers
 
         public static UseObjectState StateOf(Field field) => StateOf(field.Class.Kind, field.Side, field.Health, field.MaxHealth);
 
+        /// <summary>A faction field's health states, intact to destroyed, for side A (AFS) and B (Bane).</summary>
+        private static readonly UseObjectState[][] FactionChains =
+        {
+            new[] { UseObjectState.FfStateFactionAIntact, UseObjectState.FfStateFactionA75pHealth, UseObjectState.FfStateFactionA25pHealth, UseObjectState.FfStateFactionADestroyed },
+            new[] { UseObjectState.FfStateFactionBIntact, UseObjectState.FfStateFactionB75pHealth, UseObjectState.FfStateFactionB25pHealth, UseObjectState.FfStateFactionBDestroyed }
+        };
+
+        /// <summary>
+        /// The states a field's clients are taken through from one state to another, in order, not
+        /// counting <paramref name="from"/>: what Recv_Use can follow. FORCEFIELD (augmentation 62,
+        /// usabledata.usableaugmentationstatetransition) steps a band at a time, intact, 75%, 25%,
+        /// destroyed and back up, with one shortcut, destroyed straight to intact (event 166, the
+        /// field coming back up); client/augmentations/usable.py drops a Use whose (current, new)
+        /// pair it has no transition for, so a hit across two bands, a kill from intact or a repair
+        /// from 25% would leave the field drawn as it was. The clan field's and the ownable field's
+        /// states go from any to any, so theirs is the one step.
+        /// </summary>
+        public static IReadOnlyList<UseObjectState> Steps(Kind kind, UseObjectState from, UseObjectState to)
+        {
+            if (from == to)
+                return Array.Empty<UseObjectState>();
+
+            if (kind == Kind.Faction)
+                foreach (var chain in FactionChains)
+                {
+                    var start = Array.IndexOf(chain, from);
+                    var end = Array.IndexOf(chain, to);
+
+                    if (start < 0 || end < 0)
+                        continue;
+
+                    // Destroyed to intact is a transition of its own.
+                    if (start == chain.Length - 1 && end == 0)
+                        return new[] { to };
+
+                    var steps = new List<UseObjectState>();
+                    var direction = end > start ? 1 : -1;
+
+                    for (var i = start + direction; i != end + direction; i += direction)
+                        steps.Add(chain[i]);
+
+                    return steps;
+                }
+
+            return new[] { to };
+        }
+
         /// <summary>Whether an intact field of this side stops players (the AFS): only a Bane one does.</summary>
         public static bool StopsPlayers(Side side) => side == Side.B;
 
@@ -356,8 +403,13 @@ namespace Rasa.Managers
             if (now == before)
                 return;
 
-            field.Object.StateId = now;
-            CellManager.Instance.CellCallMethod(field.Object, new UsePacket(byEntityId, now, 0));
+            // A state at a time where the class only goes a band at a time: a Use between two
+            // states the class has no transition for is dropped by the client.
+            foreach (var step in Steps(field.Class.Kind, before, now))
+            {
+                field.Object.StateId = step;
+                CellManager.Instance.CellCallMethod(field.Object, new UsePacket(byEntityId, step, 0));
+            }
 
             // Down, or up again: whoever it stopped is told.
             SendBlockInfo(field);
