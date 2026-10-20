@@ -37,7 +37,9 @@ namespace Rasa.Managers
     ///    off ranged damage landing on them. The smoke stays where it was made and is re-applied
     ///    every EFFECT_INTERVAL_MS (1 s) for as long as EFFECT_DURATION_MS (10 s), so walking out
     ///    of it loses it within the second, as "as long as the user and his squad members remain
-    ///    inside the smoke screen" asks.
+    ///    inside the smoke screen" asks. The cover is sent at the pump's level, 2 or 4: those are
+    ///    the levels the client has its icon at (gameeffectdata.iconOverride), and the buff bar
+    ///    leaves out an effect it has no icon for.
     ///  - P5, the delayed teleport: the spot is flagged (TACTICAL_EVASION_LOCATION_EFFECT 10000079
     ///    there) and TACTICAL_EVASION_TELEPORT_EFFECT 10000078, "Tactical Retreat", runs on the
     ///    performer for EFFECT_DURATION_MS (60 s); when it runs out they are put back on the
@@ -65,6 +67,8 @@ namespace Rasa.Managers
             public int EffectId;
             public float Radius;
             public int Mitigation;
+            /// <summary>The pump the smoke was thrown at: its cover is sent at it, since the client's icons for the cover are at levels 2 and 4.</summary>
+            public uint Level;
             public int IntervalMs;
             public long NextTick;
             public long EndsAt;
@@ -205,6 +209,7 @@ namespace Rasa.Managers
                     EffectId = effectId,
                     Radius = info.Get(AbilityProperty.EffectRadius, 5),
                     Mitigation = info.Get(AbilityProperty.EffectModifier, 30),
+                    Level = Math.Max(1u, info.Level),
                     IntervalMs = interval,
                     NextTick = Environment.TickCount64,
                     EndsAt = Environment.TickCount64 + durationMs
@@ -283,7 +288,7 @@ namespace Rasa.Managers
             {
                 TypeId = SmokeScreenTypeId,
                 EffectId = GameEffectManager.Instance.NextEffectId(mapChannel),
-                EffectLevel = 1,
+                EffectLevel = smoke.Level,
                 SourceId = smoke.Player.EntityId,
                 Source = smoke.Player,
                 SourceLevel = smoke.Player.Level,
