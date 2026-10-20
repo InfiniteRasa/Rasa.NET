@@ -459,6 +459,7 @@ namespace Rasa.Game.Missions.World
                     obj.MissionDestruction = definition.Destruction;
                     obj.CurrentHitPoints = definition.Destruction?.HitPoints ?? 0;
                     obj.ViewRadius = definition.ViewRadius;
+                    obj.NameOverrideId = definition.NameOverrideId;
                     if (definition.Kind == SceneActorKind.PracticeTarget || definition.Destruction != null)
                         obj.DynamicObjectType = DynamicObjectType.PracticeDummy;
                     if (definition.LootMissionId.HasValue && definition.LootRewardId.HasValue && definition.LootObjectiveId.HasValue)
@@ -546,13 +547,21 @@ namespace Rasa.Game.Missions.World
         }
 
         /// <summary>
-        /// An object a scene takes up is seen as that scene says (Landmarks): one already standing -
-        /// put down by another scene that shares it, or before its definition had a radius - too.
+        /// An object a scene takes up is seen as that scene says (Landmarks) and called what it
+        /// says (NameOverrideId): one already standing - put down by another scene that shares
+        /// it, or before its definition had either - too. A name given to one already shown goes
+        /// with its next UsableInfo, and to whoever meets it from then on.
         /// </summary>
         private static void ApplyView(DynamicObject obj, SceneActorDefinition definition)
         {
-            if (obj != null)
-                obj.ViewRadius = definition.ViewRadius;
+            if (obj == null)
+                return;
+
+            obj.ViewRadius = definition.ViewRadius;
+
+            // A scene that names nothing leaves a name another scene sharing the object gave it.
+            if (definition.NameOverrideId != 0)
+                obj.NameOverrideId = definition.NameOverrideId;
         }
 
         private void BindCreaturePolicy(WorldRun world, SceneActorDefinition definition, BoundActor actor)

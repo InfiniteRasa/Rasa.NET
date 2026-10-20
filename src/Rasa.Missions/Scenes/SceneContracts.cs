@@ -25,7 +25,10 @@ namespace Rasa.Missions.Scenes
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SceneObjectAction UseAction = null,
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SceneObjectDestruction Destruction = null,
         // An object seen from further off than its cells: metres (Managers.Landmarks).
-        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] float ViewRadius = 0);
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] float ViewRadius = 0,
+        // What an object is called in place of its class's name: a usablenameoverridelanguage
+        // id, sent in UsableInfo (usable.py GetName); 0 for the class's own name.
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] uint NameOverrideId = 0);
     public sealed record SceneObjectAction(uint MissionId, uint ObjectiveId, uint SequenceId, uint ActionArgId = 1);
     public sealed record SceneObjectDestruction(uint MissionId, uint ObjectiveId, uint SequenceId,
         uint HitPoints = 100, uint DestroyedState = 2);
