@@ -324,6 +324,9 @@ namespace Rasa.Managers
 
             // And the objects a mission now wants used, or no longer does, start or stop sparkling.
             TryPublish(() => MissionObjects.Refresh(client, this), "mission objects after mission progress");
+
+            // A lock a mission now opens for them, or no longer does, is told so (MissionLocks).
+            TryPublish(() => MissionLocks.Refresh(client), "mission locks after mission progress");
         }
 
         /// <summary>

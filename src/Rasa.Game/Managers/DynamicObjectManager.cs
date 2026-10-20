@@ -813,8 +813,9 @@ namespace Rasa.Managers
             // Only for an object that actually has a lock. An unlocked usable is the default the
             // client already assumes, and sending a lock of zeroes would tell it the same thing
             // at the cost of a packet per object per client.
+            // Open for this player if they have completed the mission it asks for (MissionLocks).
             if (dynamicObject.Lock != null)
-                entityData.Add(new LockInfoPacket(dynamicObject.Lock));
+                entityData.Add(MissionLocks.InfoFor(client, dynamicObject));
 
             // A clan control point: whether it is a PvP one. The client keeps the answer and
             // asks for it nowhere (PvPEnabledPacket).

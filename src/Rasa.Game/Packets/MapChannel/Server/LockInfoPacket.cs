@@ -31,9 +31,13 @@ namespace Rasa.Packets.MapChannel.Server
         public List<uint> PlayerFlagReqs { get; }
         public List<uint> PlayerFlagExs { get; }
 
-        public LockInfoPacket(UsableLock usableLock)
+        /// <param name="openForViewer">
+        /// Open for the player it is sent to although not for everyone: a lock whose mission they
+        /// have completed (MissionLocks).
+        /// </param>
+        public LockInfoPacket(UsableLock usableLock, bool openForViewer = false)
         {
-            Unlocked = usableLock.Unlocked;
+            Unlocked = usableLock.Unlocked || openForViewer;
             LockStateId = usableLock.LockStateId;
             MissionId = usableLock.MissionId;
             LogosIds = usableLock.LogosIds;

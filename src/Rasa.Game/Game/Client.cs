@@ -192,6 +192,12 @@ namespace Rasa.Game
         /// </summary>
         internal HashSet<ulong> MissionObjects { get; } = new HashSet<ulong>();
 
+        /// <summary>
+        /// The locked objects this client has been told are open for its player, by a mission
+        /// they have completed (Managers.MissionLocks). By entity id.
+        /// </summary>
+        internal HashSet<ulong> MissionLocks { get; } = new HashSet<ulong>();
+
         /// <summary>Whether this connection has been sent the message of the day (Managers.MessageOfTheDay).</summary>
         internal bool MotdSent { get; set; }
 
