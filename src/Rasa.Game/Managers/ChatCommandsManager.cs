@@ -426,7 +426,7 @@ namespace Rasa.Managers
                     }
                     : null;
 
-                if (actor == null || actor.MapContextId != _client.Player.MapContextId)
+                if (!MapInstanceScope.Contains(_client.Player.MapChannel, actor))
                 {
                     CommunicatorManager.Instance.SystemMessage(_client, $"No creature or player {idPart} on this map.");
                     return;
@@ -488,7 +488,7 @@ namespace Rasa.Managers
                     ? (player.Target != 0 ? ActorById(player.Target) : null)
                     : ulong.TryParse(idPart.Substring(1), out var entityId) ? ActorById(entityId) : null;
 
-                if (actor == null || actor.MapContextId != player.MapContextId)
+                if (!MapInstanceScope.Contains(player.MapChannel, actor))
                 {
                     CommunicatorManager.Instance.SystemMessage(_client, $"No creature or player {idPart} on this map.");
                     return;
@@ -560,7 +560,7 @@ namespace Rasa.Managers
                 _ => null
             };
 
-            if (victim == null || victim == player || victim.MapContextId != player.MapContextId)
+            if (victim == null || victim == player || !MapInstanceScope.Contains(player.MapChannel, victim))
             {
                 CommunicatorManager.Instance.SystemMessage(_client, idPart != null ? $"No creature or player {idPart} on this map." : "Target a creature or another player first.");
                 return;
@@ -602,7 +602,7 @@ namespace Rasa.Managers
                     _ => null
                 };
 
-                if (actor == null || actor.MapContextId != player.MapContextId)
+                if (!MapInstanceScope.Contains(player.MapChannel, actor))
                 {
                     CommunicatorManager.Instance.SystemMessage(_client, $"No creature or player {idPart} on this map.");
                     return;
@@ -3145,13 +3145,13 @@ namespace Rasa.Managers
                     ? player.Target
                     : ulong.TryParse(idPart.Substring(1), out var named) ? named : 0;
 
-                if (!EntityManager.Instance.TryGetObject(entityId, out obj) || obj.MapContextId != player.MapContextId)
+                if (!EntityManager.Instance.TryGetObject(entityId, out obj) || !MapInstanceScope.Contains(player.MapChannel, obj))
                 {
                     CommunicatorManager.Instance.SystemMessage(_client, $"No object {idPart} on this map.");
                     return;
                 }
             }
-            else if (player.Target != 0 && EntityManager.Instance.TryGetObject(player.Target, out var targeted) && targeted.MapContextId == player.MapContextId)
+            else if (player.Target != 0 && EntityManager.Instance.TryGetObject(player.Target, out var targeted) && MapInstanceScope.Contains(player.MapChannel, targeted))
                 obj = targeted;
             else
             {
@@ -3160,7 +3160,8 @@ namespace Rasa.Managers
                 try
                 {
                     obj = EntityManager.Instance.DynamicObjects.Values
-                        .Where(o => o.MapContextId == player.MapContextId && Vector3.Distance(o.Position, player.Position) <= UsableCommandReach)
+                        .Where(o => o.MapContextId == player.MapContextId && Vector3.Distance(o.Position, player.Position) <= UsableCommandReach &&
+                                    MapInstanceScope.Contains(player.MapChannel, o))
                         .OrderBy(o => Vector3.Distance(o.Position, player.Position))
                         .FirstOrDefault();
                 }
@@ -3621,7 +3622,7 @@ namespace Rasa.Managers
                 _ => null
             };
 
-            if (target == null || target.MapContextId != player.MapContextId)
+            if (target == null || !MapInstanceScope.Contains(player.MapChannel, target))
             {
                 CommunicatorManager.Instance.SystemMessage(_client, "Target a creature or player to use .cover");
                 return;
