@@ -472,7 +472,7 @@ namespace Rasa.Managers
         {
             SendStatus(client, station);
             client.CallMethod(station.EntityId, CraftingResultPacket.Failure(client.Player.EntityId));
-            client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(message, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+            CommunicatorManager.ShowPlayerMessage(client, message);
         }
 
         /// <summary>The 1.16.5 window: (station, the schematic item's entity id, page).</summary>

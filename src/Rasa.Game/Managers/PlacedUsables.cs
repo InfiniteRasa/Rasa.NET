@@ -761,7 +761,7 @@ namespace Rasa.Managers
                     unitOfWork.Items.DeleteItem(item.Id);
 
             if (placed == 0)
-                client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmInventoryFull, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+                CommunicatorManager.ShowPlayerMessage(client, PlayerMessage.PmInventoryFull);
 
             return placed > 0;
         }

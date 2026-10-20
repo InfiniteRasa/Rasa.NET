@@ -180,7 +180,7 @@ namespace Rasa.Test.World
 
             fixture.AssertHolders(3, stored.EntityId);
             fixture.AssertLockboxRow(stored, 3);
-            Assert.AreEqual(PlayerMessage.PmYourFootlockerIsFull, ((DisplayClientMessagePacket)fixture.Sent(fixture.Taker).Single()).MsgId);
+            Assert.AreEqual(PlayerMessage.PmYourFootlockerIsFull, ((Rasa.Packets.ClientMethod.Server.DisplaySystemMessagePacket)fixture.Sent(fixture.Taker).Single()).MsgId);
             Assert.AreEqual(0, fixture.Sent(fixture.Other).Count);
         }
 

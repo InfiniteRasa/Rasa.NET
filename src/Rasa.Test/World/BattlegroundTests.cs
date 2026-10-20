@@ -2515,7 +2515,8 @@ namespace Rasa.Test.World
             Packets(client).OfType<ScoreBoardIndividualUpdatePacket>().ToList();
 
         private static List<PlayerMessage> Messages(IEnumerable<PythonPacket> packets) =>
-            packets.OfType<DisplayClientMessagePacket>().Select(p => p.MsgId).ToList();
+            packets.Select(p => p switch { DisplayClientMessagePacket chat => (PlayerMessage?)chat.MsgId, Rasa.Packets.ClientMethod.Server.DisplaySystemMessagePacket shown => shown.MsgId, _ => null })
+                .Where(id => id.HasValue).Select(id => id.Value).ToList();
 
         private static void Read(ServerPythonPacket packet, Action<PythonReader> read)
         {

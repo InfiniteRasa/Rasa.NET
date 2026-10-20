@@ -216,8 +216,9 @@ namespace Rasa.Managers
                 return;
 
             player.WeaponRangeToldTick = now;
-            client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(message.Value,
-                new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+            // Out of range and no line of sight are the client's own: the avatar says the one and
+            // the other is thrown across the screen (CommunicatorManager.ClientPresented).
+            CommunicatorManager.ShowPlayerMessage(client, message.Value);
         }
 
         private static string Mode(string value)

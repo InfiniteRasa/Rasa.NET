@@ -318,9 +318,9 @@ namespace Rasa.Test.Gameplay
 
         /// <summary>How many "target out of range" messages went to the client since last asked.</summary>
         private static int OutOfRangeMessages(Client client) => MissionTestContext.Drain(client)
-            .OfType<DisplayClientMessagePacket>().Count(message => message.MsgId == PlayerMessage.PmTargetOutOfRange);
+            .OfType<Rasa.Packets.ClientMethod.Server.DisplaySystemMessagePacket>().Count(message => message.MsgId == PlayerMessage.PmTargetOutOfRange);
 
         private static PlayerMessage[] Messages(Client client) => MissionTestContext.Drain(client)
-            .OfType<DisplayClientMessagePacket>().Select(message => message.MsgId).ToArray();
+            .OfType<Rasa.Packets.ClientMethod.Server.DisplaySystemMessagePacket>().Select(message => message.MsgId).ToArray();
     }
 }

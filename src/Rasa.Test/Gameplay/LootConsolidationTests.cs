@@ -422,7 +422,7 @@ namespace Rasa.Test.Gameplay
         }
 
         private static int InventoryFull(List<Rasa.Packets.PythonPacket> sent) =>
-            sent.OfType<Rasa.Packets.Communicator.Server.DisplayClientMessagePacket>().Count(message => message.MsgId == PlayerMessage.PmInventoryFull);
+            sent.OfType<Rasa.Packets.ClientMethod.Server.DisplaySystemMessagePacket>().Count(message => message.MsgId == PlayerMessage.PmInventoryFull);
 
         [TestMethod]
         [DataRow(50U)]

@@ -131,7 +131,7 @@ namespace Rasa.Test.World
             }
 
             Assert.AreEqual(PlayerMessage.PmInventoryFull,
-                Sent(lockbox.Taker).Select(m => m.Packet).OfType<DisplayClientMessagePacket>().Single().MsgId);
+                Sent(lockbox.Taker).Select(m => m.Packet).OfType<Rasa.Packets.ClientMethod.Server.DisplaySystemMessagePacket>().Single().MsgId);
 
             // The other member sees what is left of it.
             var other = Sent(lockbox.Other);

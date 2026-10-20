@@ -2050,10 +2050,12 @@ namespace Rasa.Managers
 
         private static void Tell(Match match, PlayerMessage message, params (string Key, string Value)[] args)
         {
-            var packet = new DisplayClientMessagePacket(message, args.ToDictionary(a => a.Key, a => a.Value), MsgFilterId.GeneralSystemMessages);
+            // The six battleground messages are thrown across the screen as well as printed, when
+            // they come as DisplaySystemMessage (CommunicatorManager.ClientPresented).
+            var dictionary = args.ToDictionary(a => a.Key, a => a.Value);
 
             foreach (var client in Present(match))
-                client.CallMethod(SysEntity.CommunicatorId, packet);
+                CommunicatorManager.ShowPlayerMessage(client, message, dictionary);
         }
 
         private static void Say(Match match, string text)

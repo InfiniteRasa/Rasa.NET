@@ -1744,7 +1744,7 @@ namespace Rasa.Test.Gameplay
             var sent = bench.Route(new RequestRetrieveFinishedCraftItemPacket
             { KraftwerksId = bench.Object.EntityId, ItemId = job.ResultItemId });
             Assert.AreEqual(GameOpcode.CraftingFailure, sent.OfType<CraftingResultPacket>().Single().Opcode);
-            Assert.AreEqual(PlayerMessage.PmInventoryFull, sent.OfType<DisplayClientMessagePacket>().Single().MsgId);
+            Assert.AreEqual(PlayerMessage.PmInventoryFull, sent.OfType<Rasa.Packets.ClientMethod.Server.DisplaySystemMessagePacket>().Single().MsgId);
             CollectionAssert.AreEqual(durable, bench.DurableSnapshot());
             Assert.AreEqual(1u, job.Count);
 
@@ -2374,12 +2374,12 @@ namespace Rasa.Test.Gameplay
             Assert.AreEqual(1000u, bench.JobRows().Single().Count);
             Assert.AreEqual((0u, Body2Item, 5000u, bench.Client.Player.FamilyName), Inbox(bench).First());
             Assert.HasCount(1, sent.OfType<AddInboxItemPacket>().ToArray());
-            Assert.IsTrue(sent.OfType<DisplayClientMessagePacket>().Any(packet => packet.MsgId == PlayerMessage.PmInventoryFull));
+            Assert.IsTrue(sent.OfType<Rasa.Packets.ClientMethod.Server.DisplaySystemMessagePacket>().Any(packet => packet.MsgId == PlayerMessage.PmInventoryFull));
 
             // Neither has room: nothing changes.
             var durable = bench.DurableSnapshot();
             sent = TakeAll(bench, station);
-            Assert.AreEqual(PlayerMessage.PmInventoryFull, sent.OfType<DisplayClientMessagePacket>().Single().MsgId);
+            Assert.AreEqual(PlayerMessage.PmInventoryFull, sent.OfType<Rasa.Packets.ClientMethod.Server.DisplaySystemMessagePacket>().Single().MsgId);
             CollectionAssert.AreEqual(durable, bench.DurableSnapshot());
             Assert.AreEqual(1000u, bench.JobRows().Single().Count);
 

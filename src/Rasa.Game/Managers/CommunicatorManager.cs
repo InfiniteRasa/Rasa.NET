@@ -1099,6 +1099,55 @@ namespace Rasa.Managers
         }
 
         /// <summary>
+        /// The player messages the client presents in a way of its own, and only when they come
+        /// as DisplaySystemMessage (clientmethod.py Recv_DisplaySystemMessage -> gameui.py
+        /// DisplayPlayerMessage); DisplayClientMessage (communicator.py) is a bare chat line for
+        /// any id:
+        ///  - spoken by the player's avatar (manifestation.py kPlayerMessageVOs): inventory full,
+        ///    footlocker full, out of ammo, not enough power or chi, no line of sight (spoken only,
+        ///    no chat line), weapon jammed, locked, no Logos, the action failures;
+        ///  - thrown across the middle of the screen as well as printed (gameui.py
+        ///    kPlayerMessageDisplayBigText): weapon jammed, the inventory fulls, out of range, no
+        ///    line of sight, the trade and vending busy messages, and the six battleground ones;
+        ///  - and PM_CANNOT_PERFORM_ACTION_NOW, the error sound and nothing printed.
+        /// </summary>
+        internal static readonly HashSet<PlayerMessage> ClientPresented = new HashSet<PlayerMessage>
+        {
+            // kPlayerMessageVOs
+            PlayerMessage.PmYourInventoryIsFull, PlayerMessage.PmNoRoomInInventory, PlayerMessage.PmTradeNotEnoughRoom,
+            PlayerMessage.PmInventoryFull, PlayerMessage.PmYourFootlockerIsFull, PlayerMessage.PmInventoryOutOfAmmo,
+            PlayerMessage.PmWeaponOutOfAmmo, PlayerMessage.PmConsumableNotEnoughPower, PlayerMessage.PmConsumableNotEnoughChi,
+            PlayerMessage.PmFailedLineOfSight, PlayerMessage.PmWeaponJammed, PlayerMessage.PmUseObjectUsableLocked,
+            PlayerMessage.PmCannotUseAbilityNoLogos, PlayerMessage.PmActionFailedActorFriendly, PlayerMessage.PmActionFailedActorHostile,
+            PlayerMessage.PmActionFailedActorSwimming, PlayerMessage.PmActionFailedNoTarget, PlayerMessage.PmActionFailedTargetDead,
+            PlayerMessage.PmActionFailedTargetNotDead, PlayerMessage.PmCannotPerformActionNow, PlayerMessage.PmInvalidWeapon,
+            PlayerMessage.PmTargetInvalid,
+            // kPlayerMessageDisplayBigText, beyond those
+            PlayerMessage.PmTargetOutOfRange, PlayerMessage.PmCannotVendWhileTrading, PlayerMessage.PmTradeYouAreTooBusy,
+            PlayerMessage.PmCannotTradeWhileVending, PlayerMessage.PmCannotOpenAhWhileTrading, PlayerMessage.PmCannotAhWhileTrading,
+            PlayerMessage.PmTradeTheyAreTooBusy, PlayerMessage.PmBattlegroundEnds, PlayerMessage.PmBattlegroundBegins,
+            PlayerMessage.PmBattlegroundMinimumTimeExpired, PlayerMessage.PmBattlegroundCpTaken,
+            PlayerMessage.PmBattleground1MinuteWarning, PlayerMessage.PmBattleground5MinuteWarning
+        };
+
+        /// <summary>
+        /// A player message the way the client wants it: DisplaySystemMessage for one it presents
+        /// itself (<see cref="ClientPresented"/>), so the avatar says it and the banner shows;
+        /// a DisplayClientMessage chat line for every other.
+        /// </summary>
+        public static void ShowPlayerMessage(Client client, PlayerMessage message,
+            Dictionary<string, string> args = null, MsgFilterId filterId = MsgFilterId.GeneralSystemMessages)
+        {
+            if (client == null)
+                return;
+
+            if (ClientPresented.Contains(message))
+                client.CallMethod(SysEntity.ClientMethodId, new DisplaySystemMessagePacket(message, args, filterId));
+            else
+                client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(message, args ?? new Dictionary<string, string>(), filterId));
+        }
+
+        /// <summary>
         /// A player message put somewhere specific: Big across the middle of the screen,
         /// Destination on the sub-region strip.
         /// </summary>
