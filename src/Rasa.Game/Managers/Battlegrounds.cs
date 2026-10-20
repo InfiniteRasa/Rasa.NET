@@ -1030,6 +1030,9 @@ namespace Rasa.Managers
 
             client.CallMethod(SysEntity.ClientTeamManagerId, new SetNumberOfTeamsPacket(2));
 
+            // The match's rules: on every arrival, as the client's table has it.
+            Tutorials.Raise(client, TutorialId.BattlegroundRulesIntro);
+
             // Here by a way that is not the door, which no player has (a login goes back into
             // the copy left, or outside: MapChannelManager.PlaceLogin): no team of this copy
             // takes them, and they hear why before they try one.

@@ -444,7 +444,12 @@ namespace Rasa.Managers
             // A hit a player endures wears the armour they have on (Durability) - a creature's
             // lightning, an effect's tick, as weapon fire does in MissileManager.
             if (target is Manifestation struck && armorTaken + healthTaken > 0)
+            {
                 Durability.WearArmor(mapChannel, struck);
+
+                // The bars that just moved: health, armour and power.
+                Tutorials.Raise(mapChannel, struck, TutorialId.Tuthealthpower);
+            }
 
             if (target is Creature creature)
             {

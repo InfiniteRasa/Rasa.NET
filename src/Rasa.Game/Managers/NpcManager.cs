@@ -397,6 +397,10 @@ namespace Rasa.Managers
                     creature.EntityId,
                     new NPCConversationStatusPacket(missionStatus, missionIds));
                 statusSet = true;
+
+                // The yellow icon over a giver's head.
+                if (missionStatus == ConversationStatus.Available)
+                    Tutorials.Raise(client, TutorialId.Tutmissiongiver);
             }
 
             /*

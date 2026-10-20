@@ -545,6 +545,9 @@ namespace Rasa.Managers
 
                         // ambient/music/sky/minimap regions: tell whoever changed region
                         Guard("RegionManager.Worker", mapChannel, () => RegionManager.Instance.Worker(mapChannel));
+
+                        // the tutorials the server raises: the HUD's after an arrival, a control point's on coming near one
+                        Guard("Tutorials.Worker", mapChannel, () => Tutorials.Worker(mapChannel));
                     }
 
                     // check for effects (buffs)
@@ -842,6 +845,7 @@ namespace Rasa.Managers
 
                 // A battleground's teams, clock and scoreboard.
                 Battlegrounds.Instance.PlayerEntered(client);
+                Tutorials.PlayerEntered(client);
 
                 // And what they sold before the ride, still to be bought back.
                 NpcManager.Instance.ResendBuyback(client);
@@ -901,6 +905,7 @@ namespace Rasa.Managers
 
             // A battleground's teams, clock and scoreboard.
             Battlegrounds.Instance.PlayerEntered(client);
+            Tutorials.PlayerEntered(client);
 
             // Why a character that left the world on a map of several copies is outside it.
             ShowArrivalNotice(client);
@@ -992,6 +997,7 @@ namespace Rasa.Managers
             NpcManager.Instance.ResendBuyback(client);
             ClanFeuds.Instance.PlayerEnteredWorld(client);
             Battlegrounds.Instance.PlayerEntered(client);
+            Tutorials.PlayerEntered(client);
 
             client.PendingTransfer = null;
             client.State = ClientState.Ingame;

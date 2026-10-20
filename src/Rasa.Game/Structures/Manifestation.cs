@@ -435,6 +435,15 @@ namespace Rasa.Structures
         /// <summary>The accounts this GM has whispered while invisible: they can whisper back.</summary>
         public HashSet<uint> GmInvisibleWhispered { get; } = new HashSet<uint>();
 
+        /// <summary>The tutorials raised for this player this session (Tutorials): each once.</summary>
+        internal HashSet<TutorialId> TutorialsRaised { get; } = new HashSet<TutorialId>();
+
+        /// <summary>The HUD's tutorials still to come after the session's first arrival, soonest first (Tutorials.Arrival).</summary>
+        internal List<(long Due, TutorialId Tutorial)> TutorialsDue { get; } = new List<(long Due, TutorialId Tutorial)>();
+
+        /// <summary>Whether the HUD's tutorials have been lined up this session.</summary>
+        internal bool TutorialsLinedUp { get; set; }
+
         /// <summary>Killed by an enemy player across a wargame: back from a hospital with PvP Safety.</summary>
         public bool DiedInPvp { get; set; }
 

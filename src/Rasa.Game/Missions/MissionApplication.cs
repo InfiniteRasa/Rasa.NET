@@ -1009,6 +1009,7 @@ namespace Rasa.Managers
                         $"mission {missionId} acceptance world state");
                 TryPublish(() => Scenes.MissionChanged(client, missionId, "Accepted"),
                     $"mission {missionId} experience acceptance");
+                Tutorials.Raise(client, TutorialId.Tutmissions);
                 _protocol.PublishAudio(client, missionId, Rasa.Missions.Content.MissionAudioEvent.Accepted);
 
                 // ClassifyNpcConversation's "dispensable" list is recomputed here, so the giver's

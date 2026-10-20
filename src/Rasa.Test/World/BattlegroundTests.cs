@@ -394,6 +394,22 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void EveryArrivalOnTheMapIsShownTheMatchsRules()
+        {
+            using var f = new Fixture();
+            var player = f.Player();
+            Drain(player);
+
+            // BATTLEGROUND_RULES_INTRO is always-display: on every arrival, not once.
+            for (var arrival = 0; arrival < 2; arrival++)
+            {
+                f.Grounds.PlayerEntered(player);
+                Assert.AreEqual(TutorialId.BattlegroundRulesIntro,
+                    Packets(player).OfType<DisplayPlayerTutorialNotificationPacket>().Single().TutorialId, $"arrival {arrival + 1}");
+            }
+        }
+
+        [TestMethod]
         public void NoTeamOfAnotherInstanceTakesALockedOutPlayer()
         {
             using var f = new Fixture();

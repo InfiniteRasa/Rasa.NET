@@ -1794,6 +1794,8 @@ namespace Rasa.Managers
             CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.ActiveWeapon, (byte)requestedWeaponDrawerSlot);
             // update ammo info
             client.CallMethod(weapon.EntityId, new WeaponAmmoInfoPacket(weapon.CurrentAmmo));
+
+            Tutorials.Raise(client, TutorialId.Tutinventorytotray);
         }
 
         public void RequestSetAbilitySlot(Client client, RequestSetAbilitySlotPacket packet)
@@ -1861,6 +1863,9 @@ namespace Rasa.Managers
                     new AbilityDrawerData(packet.SlotId, (int)packet.AbilityId, (uint)packet.AbilityLevel, item?.Id);
 
             client.CallMethod(client.Player.EntityId, new AbilityDrawerPacket(client.Player.Abilities, client.Player));
+
+            if (!clearing)
+                Tutorials.Raise(client, TutorialId.Tutinventoryability);
         }
 
         public void RequestSwapAbilitySlots(Client client, RequestSwapAbilitySlotsPacket packet)
@@ -1933,6 +1938,7 @@ namespace Rasa.Managers
                 case FireResult.Fired:
                     ActorManager.Instance.SetAutoFireCombatMode(client, true);
                     RegisterAutoFire(client);
+                    Tutorials.Raise(client, TutorialId.Tutfire);
                     break;
 
                 // Pressed again before the last shot's refire was up. The press still starts the
@@ -4357,6 +4363,9 @@ namespace Rasa.Managers
                 client.CellIgnoreSelfCallMethod(client, new PerformWindupPacket(PerformType.TwoArgs, ActionId.WeaponReload, (uint)weaponClassInfo.ReloadActionId));
 
             client.Player.MapChannel.PerformRecovery.Add(new ActionData(client.Player, ActionId.WeaponReload, (uint)weaponClassInfo.ReloadActionId, foundAmmo, ReloadTimeFor(client.Player, weapon)) { SourceId = weapon.EntityId });
+
+            // "Your weapon will automatically reload if you attempt to fire it when the clip is empty."
+            Tutorials.Raise(client, TutorialId.Reload);
         }
 
         /// <summary>
@@ -4571,7 +4580,10 @@ namespace Rasa.Managers
             player.IsCrouching = state == CharacterState.Crouched;
 
             if (player.IsCrouching)
+            {
                 player.CrouchedAt = player.Position;
+                Tutorials.Raise(client, TutorialId.Tutcrouch);
+            }
 
             // Crouching lifts the bead's ceiling to full and doubles its rate; standing drops it.
             Accuracy.UpdateRates(player, AimRateOf(client), Environment.TickCount64);
@@ -4635,6 +4647,10 @@ namespace Rasa.Managers
 
             // The client works its bead's rates out again on every target change, so this does.
             Accuracy.UpdateRates(client.Player, AimRateOf(client), Environment.TickCount64);
+
+            if (entityId != 0 && EntityManager.Instance.Creatures.TryGetValue(entityId, out var creature)
+                && creature.TargetCategory == TargetCategory.Hostile)
+                Tutorials.Raise(client, TutorialId.Tuttarget);
         }
 
         /// <summary>The aim rate of the weapon in hand, as sent in WeaponInfo; 0 with none.</summary>
