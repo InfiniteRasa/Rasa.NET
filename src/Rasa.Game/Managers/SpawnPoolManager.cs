@@ -629,7 +629,11 @@ namespace Rasa.Managers
                         CellManager.Instance.AddToWorld(mapChannel, creature);
 
                     if (arrival != null)
+                    {
+                        // Through a Bane teleporter: its arrival effect on them (BaneArrivals.ShowArrival).
+                        BaneArrivals.ShowArrival(mapChannel, creature, arrival);
                         BehaviorManager.Instance.WalkIn(creature, SpawnPoint(mapChannel, spawnPool, creatureList.Count, creature));
+                    }
 
                     MissionApplication.Instance.Scenes.ActorAvailable(mapChannel, spawnPool.DbId);
                 }

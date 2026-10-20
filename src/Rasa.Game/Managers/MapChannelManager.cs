@@ -582,6 +582,9 @@ namespace Rasa.Managers
                         // Scatterbombs: the spent bombs are taken away once their blasts have played.
                         Guard("AbilityManager.ScatterbombWorker", mapChannel, () => AbilityManager.Instance.ScatterbombWorker(mapChannel));
 
+                        // Tactical Retreat: the Rangers whose vanishing effect has played, sent back.
+                        Guard("AbilityManager.ReturnWorker", mapChannel, () => AbilityManager.Instance.ReturnWorker(mapChannel));
+
                         // Cadaver Immolation: the bodies whose delay is up.
                         Guard("AbilityManager.CorpseWorker", mapChannel, () => AbilityManager.Instance.CorpseWorker(mapChannel));
 

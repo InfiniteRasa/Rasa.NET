@@ -169,8 +169,8 @@ namespace Rasa.Managers
             if (victims.Count > 0)
                 ManifestationManager.Instance.EnterCombat(client);
 
-            player.PlaceAt(home);
-            client.MoveObject(player.EntityId, new Movement(home, client.Movement.ViewDirection));
+            // As the client's Self Destruct teleport (AbilityManager.Teleports).
+            SendBack(mapChannel, client, home, TeleportType.SelfDestruct);
         }
 
         /// <summary>The five bomb points: radius metres out from the centre, evenly round, the first along the facing.</summary>

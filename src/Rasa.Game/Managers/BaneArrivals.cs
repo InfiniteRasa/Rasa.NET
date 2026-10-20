@@ -6,6 +6,7 @@ namespace Rasa.Managers
 {
     using Data;
     using Game;
+    using Packets.MapChannel.Client;
     using Packets.MapChannel.Server;
     using Structures;
     using Structures.World;
@@ -102,6 +103,23 @@ namespace Rasa.Managers
                 SpawnPoolManager.Instance.DecreaseQueueCount(teleport.Pool);
                 Teleports.RemoveAt(i);
             }
+        }
+
+        /// <summary>
+        /// A creature come through a teleporter: Teleport(where it stands, its yaw,
+        /// BANE_TELEPORTER) on it to everyone who can see it, which plays
+        /// teleport_thrax_arrival.pkg on its body (actor.py Recv_Teleport, _PlayTeleportArrivalFX);
+        /// the teleporter's own effect is its USE_TS_STATE_1. PreTeleport goes first so the
+        /// Teleport's departure effect is the type's - none - and not the default teleporter's
+        /// (Recv_PostTeleport). Nothing for one that steps off a dropship.
+        /// </summary>
+        public static void ShowArrival(MapChannel mapChannel, Creature creature, SpawnPoolArrivalEntry arrival)
+        {
+            if (mapChannel == null || creature == null || arrival == null || arrival.Kind != SpawnPoolArrivalEntry.KindTeleporter)
+                return;
+
+            CellManager.Instance.CellCallMethod(mapChannel, creature, new PreTeleportPacket(TeleportType.BaneTeleporter));
+            CellManager.Instance.CellCallMethod(mapChannel, creature, new TeleportPacket(creature.Position, creature.Rotation, TeleportType.BaneTeleporter, 0));
         }
 
         /// <summary>Where a creature comes out: a walkable spot within StepOutRadius of the point, or the point.</summary>

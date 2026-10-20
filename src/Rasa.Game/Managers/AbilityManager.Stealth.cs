@@ -335,10 +335,8 @@ namespace Rasa.Managers
             if (client == null)
                 return;
 
-            var home = effect.ReturnTo.Value;
-
-            player.PlaceAt(home);
-            client.MoveObject(player.EntityId, new Movement(home, client.Movement.ViewDirection));
+            // As the client's Tactical Evasion teleport (AbilityManager.Teleports).
+            SendBack(mapChannel, client, effect.ReturnTo.Value, TeleportType.TacticalEvasion, RetreatHoldMs);
         }
     }
 }
