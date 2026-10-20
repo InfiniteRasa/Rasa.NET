@@ -57,6 +57,8 @@ namespace Rasa.Managers
                     PlayerLimit = template.PlayerLimit,
                     ClientList = new List<Game.Client>(),
                     NavMesh = template.NavMesh,
+                    SafetyFloorY = template.SafetyFloorY,
+                    TopWalkableY = template.TopWalkableY,
                     IsPrivateInstance = true,
                     OwnerCharacterId = ownerCharacterId
                 };
