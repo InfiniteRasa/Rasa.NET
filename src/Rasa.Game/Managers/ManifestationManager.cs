@@ -4185,6 +4185,12 @@ namespace Rasa.Managers
             // idle indicator over anyone else's head.
             client.CellCallMethod(client, client.Player.EntityId, new PlayerAfkPacket(isAfk));
 
+            // The pose that goes with it, which only the server starts (Gestures.AfkLoop).
+            if (isAfk)
+                GestureManager.Instance.StartAfkPose(client.Player.MapChannel, client.Player);
+            else
+                GestureManager.Instance.EndAfkPose(client.Player.MapChannel, client.Player);
+
             // The squad window reads a different source: its own party tuples, not the
             // manifestation. A squadmate on another map is not in visibility range at all, so
             // without this they never learn the member went away.

@@ -30,6 +30,13 @@ namespace Rasa.Structures
         internal bool CalledOff { get; set; }
         public ulong SourceId { get; set; }
 
+        /// <summary>
+        /// Started by the server, not asked for by the actor's own client (GestureManager.StartAfkPose):
+        /// that client has played nothing of it, so it is sent the windup, the recovery and any
+        /// interrupt like everyone else.
+        /// </summary>
+        public bool ServerStarted { get; set; }
+
         public ActionData(Actor actor, ActionId actionId, uint actionArgId, long waitTime)
         {
             Actor = actor;
