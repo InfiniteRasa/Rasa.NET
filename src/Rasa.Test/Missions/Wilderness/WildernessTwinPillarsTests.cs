@@ -362,6 +362,10 @@ namespace Rasa.Test.Missions.Wilderness
                 ActorManager.Instance.Damage(harness.Map, creature, lethalDamage, harness.Client.Player));
         }
 
+        /// <summary>The pool's own respawn time: long enough for it to be due again, whatever it is.</summary>
+        private static long RespawnOf(WildernessRuntimeTestHarness harness, uint spawnId) =>
+            harness.Map.SpawnPools.Single(pool => pool.DbId == spawnId).RespawnTime;
+
         private static void CollectMachinaRemains(WildernessRuntimeTestHarness harness)
         {
             // The action data, as a server has it: the Machina's revive (CR_MACHINA_REVIVE 429)
@@ -376,7 +380,7 @@ namespace Rasa.Test.Missions.Wilderness
             for (uint count = 0; count < 10; count++)
             {
                 var spawnId = 630100U + count % 3;
-                harness.SpawnWorldAfter(60000, spawnId);
+                harness.SpawnWorldAfter(RespawnOf(harness, spawnId), spawnId);
                 var creature = harness.Map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList)
                     .FirstOrDefault(actor => actor.DbId == creatureId &&
                         actor.SpawnPool?.DbId == spawnId && actor.State != CharacterState.Dead);
@@ -510,7 +514,7 @@ namespace Rasa.Test.Missions.Wilderness
                 ActorManager.Instance.Regenerate(harness.Map);
             var armorBeforeHit = harness.Client.Player.Attributes[Attributes.Armor].Current;
             Assert.IsTrue(armorBeforeHit >= 5, "Real armor regeneration must fill the equipped capacity.");
-            harness.SpawnWorldAfter(60000, 630100);
+            harness.SpawnWorldAfter(RespawnOf(harness, 630100), 630100);
             var attacker = harness.Map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList)
                 .First(actor => actor.DbId == 630100 && actor.State != CharacterState.Dead);
             harness.MoveTo(attacker.Position + new Vector3(2, 0, 0));
