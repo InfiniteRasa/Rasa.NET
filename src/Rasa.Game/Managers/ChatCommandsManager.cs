@@ -300,7 +300,6 @@ namespace Rasa.Managers
             // Admin: hands out progression, changes who a player is, reloads server data.
             // A restart does not undo these.
             RegisterCommand(".addtitle", GmLevel.Admin, AddTitleCommand, "titleId");
-            RegisterCommand(".memory", GmLevel.Admin, MemoryCommand, "map|full");
             RegisterCommand(".chg_class", GmLevel.Admin, ChangeClassCommand, "className");
             RegisterCommand(".flag", GmLevel.Admin, FlagCommand, "action", "nameOrId");
             RegisterCommand(".givecredits", GmLevel.Admin, GiveCreditsCommand, "amount", "familyName");
@@ -316,6 +315,7 @@ namespace Rasa.Managers
             RegisterCommand(".failmission", GmLevel.Admin, FailMissionCommand, "missionId");
             RegisterCommand(".failobjective", GmLevel.Admin, FailObjectiveCommand, "missionId", "objectiveId");
             RegisterCommand(".reloadcreatures", GmLevel.Admin, ReloadCreaturesCommand);
+            RegisterCommand(".memory", GmLevel.Admin, MemoryCommand, "map|full");
         }
 
         #region RegularUser
