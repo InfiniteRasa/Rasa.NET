@@ -1725,7 +1725,11 @@ namespace Rasa.Managers
 
             PublishMovement(creature, new Movement(creature.Position, 0f, 0x08, new Vector2(yaw, 0f)));
 
-            return Patrols.TurnMs(turn);
+            // And the turn itself, where the creature has the animation for it (CreatureTurns).
+            var turnMs = Patrols.TurnMs(turn);
+            CreatureTurns.Begin(creature, turn, yaw, turnMs);
+
+            return turnMs;
         }
 
         #endregion
@@ -2404,6 +2408,9 @@ namespace Rasa.Managers
                     {
                         if (creature == null || !processedCreatures.Add(creature))
                             continue;
+
+                        // A turn in place that has had its time is told its end (CreatureTurns).
+                        CreatureTurns.Finish(creature);
 
                         CreatureThink(mapChannel, creature, elapsed, out var needDeletion, out var needCellUpdate);
 
