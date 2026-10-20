@@ -2746,6 +2746,8 @@ namespace Rasa.Managers
 
             player.Level = grant.FinalLevel;
             player.CloneCredits = grant.FinalCloneCredits;
+            if (grant.FinalLevel > grant.PreviousLevel)
+                Ding(client);
             if (grant.FinalLevel != grant.PreviousLevel)
             {
                 PartyManager.Instance.MemberInfoChanged(client);
@@ -2903,6 +2905,9 @@ namespace Rasa.Managers
                     client.CallMethod(player.EntityId, new AvailableCharacterClassesPacket(opened));
             }
 
+            if (levelAfter > levelBefore)
+                Ding(client);
+
             if (levelAfter != levelBefore)
             {
                 PartyManager.Instance.MemberInfoChanged(client);
@@ -2912,6 +2917,42 @@ namespace Rasa.Managers
                 MissionGiversAfterLevel(client);
                 CommunicatorManager.Instance.NewPlayerChannel(client);
             }
+        }
+
+        /// <summary>DING_EFFECT: the level-up's burst of light round the player.</summary>
+        public const int DingTypeId = 1;
+
+        /// <summary>How long the ding stays on: about as long as level_up.pkg plays. Ours.</summary>
+        public const int DingMs = 3000;
+
+        /// <summary>
+        /// The level-up's visual, to the player and everyone round them. LevelUp only posts the
+        /// status text (actor.py Recv_LevelUp) and nothing on the client plays LEVEL_UP
+        /// (level_up.pkg): it is DING_EFFECT's FX at level 1, (1, 1) in gameeffectdata.specialFX -
+        /// level 3 is the Eloh control point takeover. Attached once however many levels were
+        /// gained at once, announced, and not to anyone who comes along afterwards.
+        /// </summary>
+        internal static void Ding(Client client)
+        {
+            var player = client?.Player;
+            var mapChannel = player?.MapChannel;
+
+            if (mapChannel == null)
+                return;
+
+            GameEffectManager.Instance.Attach(mapChannel, player, new GameEffect
+            {
+                TypeId = DingTypeId,
+                EffectId = GameEffectManager.Instance.NextEffectId(mapChannel),
+                EffectLevel = 1,
+                SourceId = player.EntityId,
+                Source = player,
+                SourceLevel = player.Level,
+                IsBuff = true,
+                AnnounceOnAttach = true,
+                AnnounceToNewcomers = false,
+                ExpiresTick = Environment.TickCount64 + DingMs
+            });
         }
 
         /// <summary>
