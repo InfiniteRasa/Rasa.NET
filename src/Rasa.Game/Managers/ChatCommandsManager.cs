@@ -159,14 +159,23 @@ namespace Rasa.Managers
 
             var audit = Audit;
 
-            if (audit == null)
+            // A command that throws is the command's failure, not the GM's: it is logged (and its
+            // audit row marked failed by GmAudit.Run) and the GM told, where the exception used to
+            // go on up to the packet handler, which closes the connection on any exception.
+            try
             {
-                registered.Handler(parts);
-                return;
+                if (audit == null)
+                    registered.Handler(parts);
+                else
+                    audit.Run(audit.Record(client, GmCommandSource.Chat, parts[0], command, registered.Level, GmCommandResult.Executed),
+                        () => registered.Handler(parts));
             }
-
-            audit.Run(audit.Record(client, GmCommandSource.Chat, parts[0], command, registered.Level, GmCommandResult.Executed),
-                () => registered.Handler(parts));
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, $"Command failed: {command}: {e}");
+                CommunicatorManager.Instance.SystemMessage(client,
+                    $"{parts[0]} failed ({e.GetType().Name}: {e.Message}). See the server log.");
+            }
         }
 
         internal static bool HasLevel(Client client, GmLevel required)
@@ -2790,8 +2799,19 @@ namespace Rasa.Managers
                 return;
             }
 
+            // A template is made from its class's item data (stack size, hit points); one whose
+            // class has none, or a stack of nothing, is no item, as for .mailitem
+            // (InventoryManager.MailItems).
+            var itemClassInfo = EntityClassManager.Instance.GetClassInfo(itemClass)?.ItemClassInfo;
+
+            if (itemClassInfo == null || itemClassInfo.StackSize == 0)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, $"Item template {itemTemplateId} has no item class data (class {(uint)itemClass}), so it cannot be made.");
+                return;
+            }
+
             // With no quantity, a full stack.
-            var quantity = EntityClassManager.Instance.GetClassInfo(itemClass).ItemClassInfo.StackSize;
+            var quantity = itemClassInfo.StackSize;
 
             if (parts.Length > 2 && !uint.TryParse(parts[2], out quantity))
             {
