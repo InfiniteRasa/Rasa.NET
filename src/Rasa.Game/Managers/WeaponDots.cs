@@ -103,6 +103,14 @@ namespace Rasa.Managers
             return (int)((effect.ExpiresTick + half - effect.NextTickTick) / effect.TickIntervalMs) + 1;
         }
 
+        /// <summary>
+        /// The level an effect is sent at, which picks what the client draws for it: a net gun's
+        /// burn by its damage type (CrowdControl.NetGunLevel); an injection gun's dose at 1, the
+        /// one level its effects (241 to 246) have a row at.
+        /// </summary>
+        public static uint LevelOf(Spec spec, DamageType damageType) =>
+            spec?.TypeId == NetGunTypeId ? CrowdControl.NetGunLevel(damageType) : 1;
+
         /// <summary>A hit that landed: its damage over time on what it hit, taking up what the last dose there had still to do. Null when none went on.</summary>
         public static GameEffect Apply(MapChannel mapChannel, Actor target, Missile missile)
         {
@@ -132,7 +140,7 @@ namespace Rasa.Managers
             {
                 TypeId = spec.TypeId,
                 EffectId = GameEffectManager.Instance.NextEffectId(mapChannel),
-                EffectLevel = 1,
+                EffectLevel = LevelOf(spec, damageType),
                 ActionId = missile.ActionId,
                 SourceId = shooter.EntityId,
                 Source = shooter,

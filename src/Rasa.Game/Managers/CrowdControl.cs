@@ -75,6 +75,22 @@ namespace Rasa.Managers
         /// <summary>How long a net gun hit holds a creature. Not in the server's weapon data.</summary>
         public const int NetGunRootMs = 3000;
 
+        /// <summary>
+        /// The level a net gun's net (NET_GUN_IMMOBILIZE_EFFECT 125) and burn (NET_GUN_DOT_EFFECT
+        /// 10000016) are sent at: the shot's damage type. The client draws an effect from its
+        /// (type, level) row in gameeffectdata.specialFX, looked up exactly
+        /// (BaseGameEffect.DoAnnounceAttachVisuals), and both effects have rows only at the three
+        /// damage types net guns are made in: 2 fire (WEAPON_NETGUN_FIRE_NET_EFFECT 943,
+        /// WEAPON_NETGUN_FIRE_DOT_EFFECT 648), 3 ice (942, 649) and 13 electric (944, 647). At
+        /// level 1 there is no row, and the net and its burn were not drawn at all. Any other
+        /// damage type, which no net gun has, keeps 1.
+        /// </summary>
+        public static uint NetGunLevel(DamageType damageType) => damageType switch
+        {
+            DamageType.Fire or DamageType.Ice or DamageType.Electrical => (uint)damageType,
+            _ => 1
+        };
+
         private const float PathStep = 0.5f;
 
         public static bool IsRooted(Actor actor)
@@ -350,8 +366,8 @@ namespace Rasa.Managers
             return true;
         }
 
-        /// <summary>Holds a creature where it stands for durationMs; it can still attack.</summary>
-        public static bool Root(MapChannel mapChannel, Creature target, Actor source, int typeId, int durationMs)
+        /// <summary>Holds a creature where it stands for durationMs; it can still attack. Shown at the given level (a net gun's: NetGunLevel).</summary>
+        public static bool Root(MapChannel mapChannel, Creature target, Actor source, int typeId, int durationMs, uint level = 1)
         {
             if (target == null || durationMs <= 0 || target.State == CharacterState.Dead || target.State == CharacterState.Dying)
                 return false;
@@ -360,7 +376,7 @@ namespace Rasa.Managers
             {
                 TypeId = typeId,
                 EffectId = GameEffectManager.Instance.NextEffectId(mapChannel),
-                EffectLevel = 1,
+                EffectLevel = level,
                 SourceId = source?.EntityId ?? 0,
                 Source = source,
                 SourceLevel = (source as Manifestation)?.Level ?? 1,

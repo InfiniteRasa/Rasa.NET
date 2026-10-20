@@ -201,6 +201,76 @@ namespace Rasa.Test.Gameplay
             Assert.AreEqual(DamageType.Electrical, burn.TickDamageType);
         }
 
+        /// <summary>
+        /// The client draws the net and its burn from their (type, level) rows in
+        /// gameeffectdata.specialFX, which are at the damage type: (125, 2/3/13) the
+        /// WEAPON_NETGUN_{FIRE,ICE,ELECTRIC}_NET_EFFECT packages, (10000016, 2/3/13) the _DOT_
+        /// ones. Sent at level 1, as they were, neither had a row and neither was drawn.
+        /// </summary>
+        [TestMethod]
+        [DataRow(DamageType.Fire, 2u)]
+        [DataRow(DamageType.Ice, 3u)]
+        [DataRow(DamageType.Electrical, 13u)]
+        public void ANetGunsNetAndBurnAreSentAtTheLevelOfItsElement(DamageType damageType, uint level)
+        {
+            using var world = new WorldTestContext();
+            var shooter = Watch(world);
+            var creature = Spawn(world, new Vector3(0, 0, -5));
+
+            MissileManager.Instance.MissileTrigger(world.Map, new Missile
+            {
+                Source = shooter.Player,
+                TargetActor = creature,
+                TargetEntityId = creature.EntityId,
+                DamageA = 100,
+                DamageType = damageType,
+                ActionId = ActionId.WeaponAttack,
+                ActionArgId = 1,
+                CritChance = 0,
+                RootMs = CrowdControl.NetGunRootMs,
+                Dot = WeaponDots.Of(WeaponSkills.NetGuns, damageType),
+                DotDamage = 90
+            });
+
+            Assert.AreEqual(level, creature.ActiveEffects.Values.Single(e => e.TypeId == CrowdControl.NetGunRootTypeId).EffectLevel, "the net");
+            Assert.AreEqual(level, creature.ActiveEffects.Values.Single(e => e.TypeId == WeaponDots.NetGunTypeId).EffectLevel, "the burn");
+
+            // And it is what the onlookers are sent.
+            var attached = WorldTestContext.Drain(shooter).Select(p => p.Message).OfType<CallMethodMessage>()
+                .Select(m => m.Packet).OfType<GameEffectAttachedPacket>().ToList();
+            Assert.AreEqual(level, attached.Single(p => p.EffectTypeId == CrowdControl.NetGunRootTypeId).EffectLevel);
+            Assert.AreEqual(level, attached.Single(p => p.EffectTypeId == WeaponDots.NetGunTypeId).EffectLevel);
+        }
+
+        [TestMethod]
+        public void OnlyTheThreeNetGunElementsHaveALevelOfTheirOwnAndAnInjectionDoseStaysAtOne()
+        {
+            Assert.AreEqual(2u, CrowdControl.NetGunLevel(DamageType.Fire));
+            Assert.AreEqual(3u, CrowdControl.NetGunLevel(DamageType.Ice));
+            Assert.AreEqual(13u, CrowdControl.NetGunLevel(DamageType.Electrical));
+
+            foreach (var other in new[] { DamageType.Physical, DamageType.Virulent, DamageType.EMP, DamageType.Laser, DamageType.Sonic })
+                Assert.AreEqual(1u, CrowdControl.NetGunLevel(other), $"{other}: no net gun is made in it");
+
+            // The injection guns' effects have their one row at level 1, whatever the element.
+            foreach (var element in new[] { DamageType.Fire, DamageType.Ice, DamageType.Electrical, DamageType.Virulent, DamageType.EMP, DamageType.Sonic })
+                Assert.AreEqual(1u, WeaponDots.LevelOf(WeaponDots.Of(WeaponSkills.InjectionGuns, element), element), $"{element} dose");
+
+            Assert.AreEqual(13u, WeaponDots.LevelOf(WeaponDots.Of(WeaponSkills.NetGuns, DamageType.Electrical), DamageType.Electrical));
+        }
+
+        [TestMethod]
+        public void AnInjectionGunsDoseIsStillSentAtLevelOne()
+        {
+            using var world = new WorldTestContext();
+            var shooter = Watch(world);
+            var creature = Spawn(world, new Vector3(0, 0, -5));
+
+            Shoot(world, shooter, creature, WeaponDots.Of(WeaponSkills.InjectionGuns, DamageType.Ice), 90, damageType: DamageType.Ice);
+
+            Assert.AreEqual(1u, creature.ActiveEffects.Values.Single(e => e.TypeId == WeaponDots.InjectionIceTypeId).EffectLevel);
+        }
+
         [TestMethod]
         public void TheHitKeepsAtLeastOneDamage()
         {

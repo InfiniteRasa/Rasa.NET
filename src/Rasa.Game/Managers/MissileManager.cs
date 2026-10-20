@@ -301,7 +301,7 @@ namespace Rasa.Managers
 
                 // Net guns hold what they hit where it stands.
                 if (creature.State != CharacterState.Dying && missile.RootMs > 0)
-                    CrowdControl.Root(mapChannel, creature, missile.Source, CrowdControl.NetGunRootTypeId, missile.RootMs);
+                    CrowdControl.Root(mapChannel, creature, missile.Source, CrowdControl.NetGunRootTypeId, missile.RootMs, CrowdControl.NetGunLevel(damageType));
 
                 // An injection gun's dose, a net gun's burn: the rest of the shot's damage, over time.
                 if (creature.State != CharacterState.Dying)
@@ -550,7 +550,7 @@ namespace Rasa.Managers
                     PlayerCrowdControl.Stun(mapChannel, enemy, missile.Source, Pvp.ScaleDuration(missile.Source, enemy, missile.StunMs));
 
                 if (missile.RootMs > 0)
-                    PlayerCrowdControl.Root(mapChannel, enemy, missile.Source, CrowdControl.NetGunRootTypeId, missile.RootMs);
+                    PlayerCrowdControl.Root(mapChannel, enemy, missile.Source, CrowdControl.NetGunRootTypeId, missile.RootMs, CrowdControl.NetGunLevel(damageType));
 
                 if (missile.Dot != null)
                     using (HitEffects.On(enemy, missile.Source, HitOf(missile, enemy)?.TargetEffectIds, StrikeMsOf(missile, enemy)))
