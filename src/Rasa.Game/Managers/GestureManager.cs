@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Linq;
 
 namespace Rasa.Managers
 {
@@ -205,7 +206,11 @@ namespace Rasa.Managers
                 SourceId = actor.EntityId,
                 // Held until detached.
                 ExpiresTick = long.MaxValue,
-                AllowDetach = true
+                AllowDetach = true,
+                // GestureEffect.OnAnnounceAttach(target, actionId, actionArgId, actionTargetId):
+                // what GameEffectManager.NewcomerPackets sends a client that meets the gesturer
+                // while the pose is held, as GestureEffectAttachedPacket sends it to those in range.
+                AttachArgs = new List<object> { (uint)ActionId.Gesture, actionArgId, targetId != 0 ? (object)targetId : null }
             };
 
             GameEffectManager.Instance.AddToList(actor, effect);
