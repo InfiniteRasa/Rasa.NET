@@ -27,7 +27,11 @@ namespace Rasa.Test.Gameplay
     public class ToHitTests
     {
         [TestCleanup]
-        public void Cleanup() => ToHit.Roll = Stuns.Roll;
+        public void Cleanup()
+        {
+            ToHit.Roll = Stuns.Roll;
+            ToHit.Now = () => Environment.TickCount64;
+        }
 
         [TestMethod]
         public void AShotAtSomethingStandingDoesNotMissAndOneAtSomethingMovingMay()
@@ -57,6 +61,7 @@ namespace Rasa.Test.Gameplay
             Assert.AreEqual(100, ToHit.ChanceOf(atPlayer));
 
             target.MoveVelocity = 6.5f;
+            target.MoveVelocityTick = Environment.TickCount64;
             target.IsRunning = true;
             Assert.AreEqual(85, ToHit.ChanceOf(atPlayer));
 
@@ -131,6 +136,42 @@ namespace Rasa.Test.Gameplay
             Assert.IsTrue(client.HandleMovement(new Movement(new Vector3(0, 0, 3), 6.5f, Movement.FastTurn, Vector2.Zero)));
             player.PlaceAt(new Vector3(5, 0, 5));
             Assert.IsFalse(ToHit.IsMoving(player));
+        }
+
+        /// <summary>
+        /// A client whose last Move went somewhere and that then sends no more is standing once
+        /// ToHit.MovingMs have passed: it does not keep the moving target's modifier for good.
+        /// </summary>
+        [TestMethod]
+        public void APlayerWhoseMovesStopComingIsStandingAfterHalfASecond()
+        {
+            using var world = new WorldTestContext();
+            var client = world.CreateClient();
+            var player = client.Player;
+            var now = 1_000_000L;
+            ToHit.Now = () => now;
+
+            CellManager.Instance.AddToWorld(client);
+            player.PlaceAt(new Vector3(0, 0, 0));
+            player.MoveBudget = 60;
+            player.IsRunning = true;
+
+            Assert.IsTrue(client.HandleMovement(new Movement(new Vector3(0, 0, 1), 6.5f, Movement.FastTurn, Vector2.Zero)));
+            var moved = player.MoveVelocityTick;
+            Assert.AreNotEqual(0L, moved, "the Move's time kept with its velocity");
+
+            now = moved + ToHit.MovingMs;
+            Assert.IsTrue(ToHit.IsMoving(player), "within half a second of it");
+            Assert.AreEqual(ToHit.TargetRunning, ToHit.MovementModifier(player));
+
+            now = moved + ToHit.MovingMs + 1;
+            Assert.IsFalse(ToHit.IsMoving(player), "no Move since: standing");
+            Assert.AreEqual(0, ToHit.MovementModifier(player));
+
+            // The next Move that goes somewhere puts them on the move again.
+            Assert.IsTrue(client.HandleMovement(new Movement(new Vector3(0, 0, 2), 6.5f, Movement.FastTurn, Vector2.Zero)));
+            now = player.MoveVelocityTick;
+            Assert.IsTrue(ToHit.IsMoving(player));
         }
 
         [TestMethod]

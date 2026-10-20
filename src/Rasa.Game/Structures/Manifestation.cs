@@ -107,6 +107,13 @@ namespace Rasa.Structures
         internal float MoveVelocity { get; set; }
 
         /// <summary>
+        /// Environment.TickCount64 of the Move that set <see cref="MoveVelocity"/>. A client on the
+        /// move sends ten a second; one that has sent none for a while is standing, whatever its
+        /// last said (Managers.ToHit.MovingMs).
+        /// </summary>
+        internal long MoveVelocityTick { get; set; }
+
+        /// <summary>
         /// Environment.TickCount64 of the last movement correction sent to this client, so a
         /// client that keeps sending refused positions is snapped back and logged at a bounded
         /// rate rather than once per packet.

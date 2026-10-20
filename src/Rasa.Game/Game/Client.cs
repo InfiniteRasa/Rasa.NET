@@ -815,8 +815,9 @@ namespace Rasa.Game
                 ManifestationManager.Instance.StandIfMoved(this);
 
                 // On the move or not, for whoever shoots at them (ToHit): a Move that says so
-                // and has taken them somewhere.
+                // and has taken them somewhere, and when it came.
                 Player.MoveVelocity = movement.Position != previousPosition ? movement.Velocity : 0;
+                Player.MoveVelocityTick = moveTick;
                 MissionAreaService?.RecordAcceptedMovement(
                     this,
                     previousPosition,
