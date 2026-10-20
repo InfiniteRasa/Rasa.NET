@@ -90,6 +90,8 @@ namespace Rasa.Api.Ingame
                         return ApiResponse.Error(400, "skill requirement level must be 0..255");
                     if (input.Weapon != null && input.Weapon.MinDamage is int min && input.Weapon.MaxDamage is int max && min > max)
                         return ApiResponse.Error(400, "minimum damage cannot exceed maximum damage");
+                    if (input.Weapon?.Windup is < ItemTemplateWeaponEntry.AutofireWindup)
+                        return ApiResponse.Error(400, "windup must be -1 (autofire) or a time in milliseconds");
 
                     if (template.WeaponInfo == null && input.Weapon != null &&
                         (input.Weapon.AmmoPerShot != null || input.Weapon.Range != null ||

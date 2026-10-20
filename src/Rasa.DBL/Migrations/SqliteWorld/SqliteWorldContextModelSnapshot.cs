@@ -1018,7 +1018,7 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnType("INTEGER")
                         .HasColumnName("tool_type");
 
-                    b.Property<uint>("Windup")
+                    b.Property<int>("Windup")
                         .HasColumnType("INTEGER")
                         .HasColumnName("windup");
 

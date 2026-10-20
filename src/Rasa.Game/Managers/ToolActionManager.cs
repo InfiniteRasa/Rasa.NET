@@ -259,7 +259,9 @@ namespace Rasa.Managers
             SendToOthers(mapChannel, client.Player,
                 new PerformWindupPacket(PerformType.ThreeArgs, packet.ActionId, packet.ActionArgId, targetId));
 
-            var windup = tool.ItemTemplate.WeaponInfo?.Windup ??
+            // A tool's own windup when it has one; an autofire mark (-1) is not a time.
+            var templateWindup = tool.ItemTemplate.WeaponInfo?.Windup;
+            var windup = templateWindup is >= 0 ? templateWindup.Value :
                          (packet.ActionId == ActionId.ToolNerfweapon ? SnowballWindupMs : DefaultWindupMs);
 
             mapChannel.PerformRecovery.Add(

@@ -1064,8 +1064,8 @@ namespace Rasa.Migrations.MySqlWorld
                         .HasColumnType("int unsigned")
                         .HasColumnName("tool_type");
 
-                    b.Property<uint>("Windup")
-                        .HasColumnType("int unsigned")
+                    b.Property<int>("Windup")
+                        .HasColumnType("int")
                         .HasColumnName("windup");
 
                     b.HasKey("Id");

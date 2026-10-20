@@ -43,7 +43,8 @@ namespace Rasa.Api.Ingame
         public uint? ClipSize { get; set; }
         public uint? AmmoPerShot { get; set; }
         public uint? Range { get; set; }
-        public uint? Windup { get; set; }
+        /// <summary>Milliseconds, or -1 for an autofire weapon (the tooltip's "Autofire" line).</summary>
+        public int? Windup { get; set; }
         public uint? Recovery { get; set; }
         public uint? Refire { get; set; }
         public uint? ReloadTime { get; set; }
