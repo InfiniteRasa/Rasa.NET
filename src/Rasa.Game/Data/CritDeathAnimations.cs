@@ -140,6 +140,9 @@ namespace Rasa.Data
             return BySkeleton.TryGetValue(skeleton, out var types) ? types : System.Array.Empty<DamageType>();
         }
 
+        /// <summary>The skeleton a mesh is drawn on (animationdata.meshSkeleton), or null for a mesh the table does not know.</summary>
+        public static int? SkeletonOf(int meshId) => SkeletonOfMesh.TryGetValue(meshId, out var skeleton) ? skeleton : null;
+
         private static DamageType[] Types(params int[] types) => System.Array.ConvertAll(types, type => (DamageType)type);
     }
 }
