@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 using Rasa.Data;
 using Rasa.Missions.Content;
 using Rasa.Missions.Scenes;
+using Rasa.Structures;
 using Rasa.Structures.World;
 
 namespace Rasa.Services.Preloader.Missions.Plateau
@@ -95,9 +96,14 @@ namespace Rasa.Services.Preloader.Missions.Plateau
                 ("item_intent", itemIntent == null ? null : JsonSerializer.Serialize(itemIntent, MissionContentCodec.Options)),
                 ("comment", $"Objective {objective} action {id}"));
 
+        /// <summary>
+        /// An indicator with no client name: its id is <paramref name="id"/> above
+        /// <see cref="MissionIndicator.UnnamedFrom"/>, as WildernessUnnamedIndicatorsV1 keys the
+        /// Wilderness ones. A lower id is a missionobjectiveindicatorlanguage name of another mission.
+        /// </summary>
         public void Indicator(uint objective, uint id, double x, double y, double z, double radius = 8) =>
             Insert("mission_indicator",
-                ("objective_id", objective), ("indicator_id", id), ("pos_x", x), ("pos_y", y), ("pos_z", z),
+                ("objective_id", objective), ("indicator_id", MissionIndicator.UnnamedFrom + id), ("pos_x", x), ("pos_y", y), ("pos_z", z),
                 ("radius", radius), ("show_3d_effect", false), ("comment", "Plateau navigation"));
 
         public void Evidence(uint id, MissionEvidenceSourceKind kind, string source, string note) =>
