@@ -196,6 +196,12 @@ namespace Rasa.Managers
                     break;
 
                 case "abilities.tacticalevasion":
+                    // The flash names who it blinded in hitdata: the client announces the flash
+                    // on each (TacticalEvasionAction.DoAbility), which is its FX and icon and, on
+                    // a flashed player's own client, the target lock let go (BlindEffect).
+                    if (IsMagFlash(info))
+                        recovery = new AbilityRecoveryPacket(action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.EntityIds);
+
                     TacticalEvasion(mapChannel, client, player, info, recovery);
                     break;
 

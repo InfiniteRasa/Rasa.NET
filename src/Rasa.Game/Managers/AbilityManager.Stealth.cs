@@ -96,6 +96,13 @@ namespace Rasa.Managers
             }
         }
 
+        /// <summary>
+        /// The pump is a mag flash (P1 / P3): it has a radius and no re-apply interval. The smoke
+        /// screen (P2 / P4) has the interval; the delayed teleport (P5) has no radius.
+        /// </summary>
+        private static bool IsMagFlash(ActionLevelInfo info) =>
+            !info.Has(AbilityProperty.EffectIntervalMs) && info.Has(AbilityProperty.EffectRadius);
+
         private void TacticalEvasion(MapChannel mapChannel, Client client, Manifestation player, ActionLevelInfo info, AbilityRecoveryPacket recovery)
         {
             var durationMs = Math.Max(1000, info.Get(AbilityProperty.EffectDurationMs, 5000));
@@ -125,7 +132,9 @@ namespace Rasa.Managers
                 return;
             }
 
-            // P1 / P3: the mag flash, which blinds what is around.
+            // P1 / P3: the mag flash, which blinds what is around. The flash is attached quietly
+            // and the recovery's hitdata names who it hit (IsMagFlash): the client announces it on
+            // each of them itself.
             var radius = info.Get(AbilityProperty.EffectRadius, info.Get(AbilityProperty.RadiusAroundSource, 10));
 
             foreach (var creature in HostilesWithin(mapChannel, player, player.Position, radius))
