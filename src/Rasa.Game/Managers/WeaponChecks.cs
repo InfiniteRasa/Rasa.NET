@@ -25,7 +25,8 @@ namespace Rasa.Managers
     ///    server has the shooter facing (their last Move's view direction). Wide, because the
     ///    retail client keeps shooting at a target the reticle has left: for the sticky-targeting
     ///    second after it leaves, and for as long as a target lock is on. Behind is behind
-    ///    whatever the lock.
+    ///    whatever the lock. Refused, the player is told the shot failed its line of sight
+    ///    check, as the client tells them itself for a target not in front of them.
     ///  - <b>Range.</b> The target is past <see cref="RangeFalloff.FarMultiple"/> times the
     ///    weapon's range and <see cref="RangeSlack"/>: where the shot's damage has already
     ///    dropped to its floor. Log only by default: such a shot lands for that floor, a quarter,
@@ -34,7 +35,8 @@ namespace Rasa.Managers
     ///  - <b>Sight.</b> Not one of the target's sample points is in the clear from the shooter's
     ///    eyes (Cover), and the target is further than <see cref="SightMinDistance"/>. Log only
     ///    by default: cover already takes the damage down to a tenth, and the server's mesh is
-    ///    not the client's at an edge or a prop.
+    ///    not the client's at an edge or a prop. Refused, the player is told the shot failed its
+    ///    line of sight check.
     ///
     /// Cone weapons are not looked at: the server picks their targets itself, from the shooter's
     /// facing (ConeWeapons), whatever the client selected. A shot with no target is a blind
@@ -55,7 +57,7 @@ namespace Rasa.Managers
         /// <summary>Quiet time between one player's lines.</summary>
         public const long QuietMs = 5000;
 
-        /// <summary>Quiet time between one player's "target out of range" messages: a held trigger asks again every refire.</summary>
+        /// <summary>Quiet time between one player's messages for refused shots: a held trigger asks again every refire.</summary>
         public const long ToldQuietMs = 2000;
 
         public static WeaponChecksConfig Config { get; set; } = new WeaponChecksConfig();
@@ -181,23 +183,40 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// Tells the shooter a refused shot's target is out of range, with the message an ability
-        /// out of range gets (PmTargetOutOfRange), at most once per <see cref="ToldQuietMs"/>. The
-        /// client has played the shot already and nothing else says it did not go. The range check
-        /// only: facing has no message in the client, and sight, like facing, is log only as shipped.
+        /// Tells the shooter why a shot was refused, at most once per <see cref="ToldQuietMs"/>.
+        /// The client has played the shot already and nothing else says it did not go.
+        ///
+        ///  - Range: the message an ability out of range gets, PM_TARGET_OUT_OF_RANGE.
+        ///  - Facing and sight: PM_FAILED_LINE_OF_SIGHT, "Action failed line of sight check." The
+        ///    client has no facing message of its own; its targeted actions show this one for a
+        ///    target that is not in front of the player as well as for one out of sight
+        ///    (targetedaction.py CheckAction, bFailedFrontal and bFailedLOS).
+        ///
+        /// Both are log only as shipped, so a server sees these only once it sets them to refuse.
         /// </summary>
         public static void Tell(Client client, Finding finding, long now)
         {
             var player = client?.Player;
 
-            if (player == null || !finding.Refuse || finding.Check != Check.Range)
+            if (player == null || !finding.Refuse)
+                return;
+
+            var message = finding.Check switch
+            {
+                Check.Range => PlayerMessage.PmTargetOutOfRange,
+                Check.Facing => PlayerMessage.PmFailedLineOfSight,
+                Check.Sight => PlayerMessage.PmFailedLineOfSight,
+                _ => (PlayerMessage?)null
+            };
+
+            if (message == null)
                 return;
 
             if (player.WeaponRangeToldTick != 0 && now < player.WeaponRangeToldTick + ToldQuietMs)
                 return;
 
             player.WeaponRangeToldTick = now;
-            client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmTargetOutOfRange,
+            client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(message.Value,
                 new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
         }
 

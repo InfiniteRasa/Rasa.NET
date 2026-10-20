@@ -198,7 +198,7 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.IsNotNull(randolph);
             Assert.IsFalse(harness.Manager.AcceptOfferedMission(harness.Client, witherspoon.EntityId, 434));
             CompleteEarlierHistory(harness, 432);
-            AssertRewardOffer(harness, witherspoon, 434, 600, new uint[] { 44918, 44918 }, Array.Empty<uint>());
+            AssertRewardOffer(harness, witherspoon, 434, 600, new uint[] { 44918, 111247 }, Array.Empty<uint>());
 
             Assert.IsFalse(harness.Manager.AcceptOfferedMission(harness.Client, jennings.EntityId, 434));
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, witherspoon.EntityId, 434));
@@ -206,10 +206,11 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.IsFalse(harness.Manager.CompleteOfferedObjective(harness.Client, jennings.EntityId, 434, 1, 1));
             Assert.IsTrue(harness.Manager.CompleteOfferedObjective(harness.Client, randolph.EntityId, 434, 1, 1));
             Assert.IsTrue(harness.Manager.CompleteOfferedMission(harness.Client, randolph.EntityId, 434, null));
-            Assert.AreEqual(2U, HeldQuantity(harness, 44918));
-            Assert.AreEqual(0U, HeldQuantity(harness, 111247));
+            Assert.AreEqual(1U, HeldQuantity(harness, 44918));
+            Assert.AreEqual(1U, HeldQuantity(harness, 111247));   // the Class I EMP Bomb
             Assert.IsFalse(harness.Manager.CompleteOfferedMission(harness.Client, randolph.EntityId, 434, null));
-            Assert.AreEqual(2U, HeldQuantity(harness, 44918));
+            Assert.AreEqual(1U, HeldQuantity(harness, 44918));
+            Assert.AreEqual(1U, HeldQuantity(harness, 111247));
         }
 
         [TestMethod]
@@ -219,7 +220,7 @@ namespace Rasa.Test.Missions.Wilderness
             harness.SpawnWorld(213);
             var jennings = harness.Npc(213);
             Assert.IsNotNull(jennings);
-            AssertRewardOffer(harness, jennings, 432, 600, new uint[] { 44917, 44918 }, Array.Empty<uint>());
+            AssertRewardOffer(harness, jennings, 432, 600, new uint[] { 44917, 111022 }, Array.Empty<uint>());
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, jennings.EntityId, 432));
             var first = Object(harness, 432, "gas-harvester-1");
             Assert.AreEqual(7906U, (uint)first.EntityClassId);
@@ -266,7 +267,7 @@ namespace Rasa.Test.Missions.Wilderness
                 Assert.AreEqual(3U, harness.Client.Player.Missions[432].Objectives[1].Counters[0]);
                 Assert.IsTrue(harness.Manager.CompleteOfferedMission(harness.Client, jennings.EntityId, 432, null));
                 Assert.AreEqual(1U, HeldQuantity(harness, 44917));
-                Assert.AreEqual(1U, HeldQuantity(harness, 44918));
+                Assert.AreEqual(1U, HeldQuantity(harness, 111022));   // the Class I EMP Grenade
                 Assert.AreEqual(MissionObjectiveState.Incomplete, second.Player.Missions[432].Objectives[1].State);
             }
             finally
@@ -453,7 +454,7 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.IsNotNull(richards);
             Assert.IsFalse(harness.Manager.AcceptOfferedMission(harness.Client, richards.EntityId, 436));
             CompleteEarlierHistory(harness, 506);
-            AssertRewardOffer(harness, richards, 436, 500, new uint[] { 44919, 44918 }, Array.Empty<uint>());
+            AssertRewardOffer(harness, richards, 436, 500, new uint[] { 44919, 111022 }, Array.Empty<uint>());
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, richards.EntityId, 436));
             Assert.AreEqual(1U, HeldQuantity(harness, 2230));
             var emanator = Object(harness, 436, "sonic-emanator");
@@ -494,7 +495,7 @@ namespace Rasa.Test.Missions.Wilderness
                 }
                 Assert.IsTrue(harness.Manager.CompleteOfferedMission(harness.Client, richards.EntityId, 436, null));
                 Assert.AreEqual(1U, HeldQuantity(harness, 44919));
-                Assert.AreEqual(1U, HeldQuantity(harness, 44918));
+                Assert.AreEqual(1U, HeldQuantity(harness, 111022));   // the Class I EMP Grenade
                 Assert.AreEqual(1U, OwnedQuantity(harness, 436, second));
                 Assert.AreEqual(MissionObjectiveState.Incomplete, second.Player.Missions[436].Objectives[1].State);
                 Assert.IsTrue(harness.Manager.TryAbandon(second, 436));
@@ -615,8 +616,8 @@ namespace Rasa.Test.Missions.Wilderness
             CollectionAssert.AreEqual(fixedItems, reward.FixedReward.FixedItems.Select(item => item.ItemTemplateId).ToArray());
             CollectionAssert.AreEqual(selectableItems, reward.SelectableReward.Select(item => item.ItemTemplateId).ToArray());
             Assert.IsTrue(reward.FixedReward.FixedItems.Concat(reward.SelectableReward)
-                .All(item => item.Quantity == 1 && item.ModuleIds.Count == 0),
-                "The preview must advertise the same functional base items the server can actually grant.");
+                .All(item => item.Quantity == 1 && WildernessRewardModulesTests.OfferedAsAuthored(missionId, item)),
+                "The preview must advertise the same items, and modules, the server can actually grant.");
         }
 
         private static uint OwnedQuantity(WildernessRuntimeTestHarness harness, uint missionId, Client client = null) =>

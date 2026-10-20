@@ -431,13 +431,14 @@ namespace Rasa.Test.Missions
                          TizzikGiCreatureId,
                          PracticeDummyCreatureId,
                          LightningDummyCreatureId,
-                         510213U, 510214U, 510215U, 510227U, 510228U
+                         510213U, 510214U, 510215U, 510227U, 510228U,
+                         510290U, 510291U, 510292U
                      })
             {
                 creatures.LoadedCreatures[creatureId] = new Creature
                 {
                     DbId = creatureId,
-                    TargetCategory = creatureId == 510227 ? TargetCategory.Friendly : TargetCategory.Hostile,
+                    TargetCategory = creatureId is 510227 or (>= 510290 and <= 510292) ? TargetCategory.Friendly : TargetCategory.Hostile,
                     EntityClass = (EntityClasses)4001,
                     Npc = new Npc
                     {
@@ -592,6 +593,20 @@ namespace Rasa.Test.Missions
                     .Select(spawn => spawn.CreatureId))
                 .Where(id => id != 0).Distinct().ToArray();
             var actions = world.Set<CreatureActionEntry>().AsNoTracking().ToDictionary(action => action.Id);
+            // The line each greets a player with, as the server's CreatureManager reads it (NpcGreetings).
+            var greetings = world.Set<NpcGreetingEntry>().AsNoTracking()
+                .Where(greeting => ids.Contains(greeting.Id)).ToDictionary(greeting => greeting.Id);
+
+            // The Bane tunnel doors are put on every channel of a map as it opens (TunnelDoors.Place),
+            // the Bootcamp's included, and logged as an error when their class is not loaded, as a
+            // server loads every class. Loaded here, a channel opened in a test logs nothing.
+            var door = world.Set<EntityClassEntry>().AsNoTracking().SingleOrDefault(row => row.Id == (uint)TunnelDoors.DoorClass);
+            if (door != null)
+                EntityClassManager.Instance.LoadedEntityClasses[TunnelDoors.DoorClass] =
+                    new EntityClass(door.Id, door.ClassName, door.MeshId, door.ClassCollisionRole,
+                        door.AugList.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(value => (AugmentationType)uint.Parse(value)).ToList(),
+                        door.TargetFlag != 0);
+
             foreach (var entry in world.Set<CreatureEntry>().AsNoTracking().Where(entry => ids.Contains(entry.Id)))
             {
                 var classEntry = world.Set<EntityClassEntry>().AsNoTracking().Single(row => row.Id == entry.ClassId);
@@ -615,7 +630,11 @@ namespace Rasa.Test.Missions
                                 .Select(package => package.PackageId).SingleOrDefault(),
                             NpcMissionIds = missions.LoadedMissions.Values
                                 .Where(mission => mission.MissionGiver == entry.Id || mission.MissionReciver == entry.Id)
-                                .Select(mission => mission.MissionId).ToList()
+                                .Select(mission => mission.MissionId).ToList(),
+                            GreetingId = greetings.TryGetValue(entry.Id, out var greeting) && NpcGreetings.IsLine(greeting.GreetingId)
+                                ? greeting.GreetingId
+                                : 0,
+                            GreetingImportant = greetings.TryGetValue(entry.Id, out var marked) && marked.Important
                         }
                         : null,
                     AppearanceData = world.Set<CreatureAppearanceEntry>().AsNoTracking()
@@ -887,13 +906,14 @@ namespace Rasa.Test.Missions
                              TizzikGiCreatureId,
                              PracticeDummyCreatureId,
                              LightningDummyCreatureId,
-                             510213U, 510214U, 510215U, 510227U, 510228U
+                             510213U, 510214U, 510215U, 510227U, 510228U,
+                             510290U, 510291U, 510292U
                          })
                 {
                     creatures.LoadedCreatures[creatureId] = new Creature
                     {
                         DbId = creatureId,
-                        TargetCategory = creatureId == 510227 ? TargetCategory.Friendly : TargetCategory.Hostile,
+                        TargetCategory = creatureId is 510227 or (>= 510290 and <= 510292) ? TargetCategory.Friendly : TargetCategory.Hostile,
                         EntityClass = (EntityClasses)4001,
                         Npc = new Npc
                         {
@@ -1340,10 +1360,32 @@ namespace Rasa.Test.Missions
                 new RepositoryBackedWorldUnitOfWork(_worldContext);
         }
 
+        /// <summary>
+        /// The pools' draws, the table of which is Proving_grounds_front_squads': a world stopped
+        /// before that migration (worldMigration) has no pool that draws.
+        /// </summary>
+        private sealed class SpawnpoolsOfThisWorld : SpawnpoolRepository, ISpawnpoolRepository
+        {
+            private readonly SqliteWorldContext _context;
+
+            internal SpawnpoolsOfThisWorld(SqliteWorldContext context) : base(context) => _context = context;
+
+            List<Rasa.Structures.World.SpawnPoolDrawEntry> ISpawnpoolRepository.GetDraws() =>
+                _context.Database
+                    .SqlQueryRaw<int>("SELECT COUNT(*) AS Value FROM sqlite_master WHERE type = 'table' AND name = {0}",
+                        Rasa.Structures.World.SpawnPoolDrawEntry.TableName)
+                    .AsEnumerable().Single() > 0
+                    ? GetDraws()
+                    : new List<Rasa.Structures.World.SpawnPoolDrawEntry>();
+        }
+
         private sealed class RepositoryBackedWorldUnitOfWork : IWorldUnitOfWork
         {
+            private readonly SqliteWorldContext _context;
+
             internal RepositoryBackedWorldUnitOfWork(SqliteWorldContext context)
             {
+                _context = context;
                 Actions = null;
                 Equipment = new EquipmentRepository(context);
                 Creatures = new CreatureRepository(context);
@@ -1358,11 +1400,11 @@ namespace Rasa.Test.Missions
                 Recipes = null;
                 NpcMissions = null;
                 NpcMissionRewards = null;
-                MissionContent = new MissionContentRepository(context);
+                MissionContent = new MissionContentOfThisWorld(context);
                 OrdinaryLoot = new OrdinaryLootRepository(context);
                 NpcPackages = new NpcPackageRepository(context);
                 RandomNames = null;
-                Spawnpools = new SpawnpoolRepository(context);
+                Spawnpools = new SpawnpoolsOfThisWorld(context);
                 MapEmitters = new MapEmitterRepository(context);
                 ControlPoints = new ControlPointRepository(context);
                 SpawnPoolArrivals = new SpawnPoolArrivalRepository(context);
@@ -1392,6 +1434,9 @@ namespace Rasa.Test.Missions
             public IControlPointRepository ControlPoints { get; }
             public ISpawnPoolArrivalRepository SpawnPoolArrivals { get; }
             public ITeleporterRepository Teleporters { get; }
+
+            // A reward item with a module is checked against the module tables as missions load.
+            public IItemModuleRepository ItemModules => new ItemModuleRepository(_context);
             public void Complete() { }
             public void Reject() { }
             public Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction BeginTransaction() =>

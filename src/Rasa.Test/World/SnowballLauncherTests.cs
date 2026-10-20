@@ -66,6 +66,61 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void AStunnedPlayerCannotThrow()
+        {
+            using var world = new WorldTestContext();
+            var thrower = Arm(world, world.CreateClient());
+            var target = world.CreateClient(10, 0);
+            CellManager.Instance.AddToWorld(thrower);
+            CellManager.Instance.AddToWorld(target);
+            Assert.IsTrue(PlayerCrowdControl.Stun(world.Map, thrower.Player, null, 3000));
+            WorldTestContext.Drain(thrower);
+
+            ToolActionManager.Instance.RequestToolAction(thrower, Request(target.Player.EntityId));
+
+            Assert.AreEqual(0, world.Map.PerformRecovery.Count);
+            Assert.IsTrue(MissionTestContext.Drain(thrower).OfType<UserActionFailedPacket>()
+                .Any(packet => packet.ActionId == ActionId.ToolNerfweapon && packet.MsgId == PlayerMessage.PmCannotPerformActionNow));
+        }
+
+        [TestMethod]
+        public void AStunCallsOffAThrowBeingWoundUp()
+        {
+            using var world = new WorldTestContext();
+            var thrower = Arm(world, world.CreateClient());
+            var target = world.CreateClient(10, 0);
+            CellManager.Instance.AddToWorld(thrower);
+            CellManager.Instance.AddToWorld(target);
+
+            ToolActionManager.Instance.RequestToolAction(thrower, Request(target.Player.EntityId));
+            var action = world.Map.PerformRecovery.Single();
+            Assert.IsTrue(action.StunInterrupts);
+            WorldTestContext.Drain(thrower);
+            WorldTestContext.Drain(target);
+
+            Assert.IsTrue(PlayerCrowdControl.Stun(world.Map, thrower.Player, null, 3000));
+
+            Assert.IsTrue(action.CalledOff);
+            Assert.IsTrue(MissionTestContext.Drain(target).OfType<ActionInterruptPacket>()
+                .Any(packet => packet.ActionId == ActionId.ToolNerfweapon && packet.SourceId == thrower.Player.EntityId), "the onlooker sees it stop");
+
+            lock (Server.Clients)
+                Server.Clients.Add(thrower);
+            try
+            {
+                ActorActionManager.Instance.DoWork(world.Map, 10_000);
+            }
+            finally
+            {
+                lock (Server.Clients)
+                    Server.Clients.Remove(thrower);
+            }
+
+            Assert.AreEqual(0, world.Map.PerformRecovery.Count);
+            Assert.IsFalse(MissionTestContext.Drain(thrower).OfType<ToolActionRecoveryPacket>().Any(), "no throw");
+        }
+
+        [TestMethod]
         public void SnowballBeyondFortyMetresIsRefused()
         {
             using var world = new WorldTestContext();
@@ -104,6 +159,8 @@ namespace Rasa.Test.World
             EntityManager.Instance.RegisterItem(launcher.EntityId, launcher);
             client.Player.Inventory.EquippedInventory[13] = launcher.EntityId;
             client.Player.WeaponReady = true;
+            // Alive, so a stun can land on them.
+            client.Player.Attributes[Attributes.Health] = new ActorAttributes(Attributes.Health, 100, 100, 100, 0, 0);
             return client;
         }
 
@@ -121,7 +178,9 @@ namespace Rasa.Test.World
                 Server.Clients.Add(thrower);
             try
             {
-                ToolActionManager.Instance.PerformRecovery(world.Map, action);
+                // As the map's worker hands it on, not straight to the tool manager: the
+                // dispatch is where the snowball used to be lost.
+                ActorActionManager.Instance.PerformRecovery(world.Map, action);
             }
             finally
             {

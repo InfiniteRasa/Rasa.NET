@@ -287,7 +287,7 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
-        public void LastDeathStartsCooldownAndCorpsesDoNotDelayTheNextGeneration()
+        public void TheFirstLossStartsTheTopUpTimeTheLastStartsTheCooldownAndCorpsesDoNotDelayTheNextGeneration()
         {
             var manager = new SpawnPoolManager(null);
             var pool = CreatePool();
@@ -298,7 +298,8 @@ namespace Rasa.Test.World
 
             manager.DecreaseAliveCreatureCount(CreateMap(), pool);
             manager.IncreaseDeadCreatureCount(pool);
-            Assert.AreEqual(2000L, pool.UpdateTimer);
+            Assert.AreEqual(0L, pool.UpdateTimer, "its first loss starts the time to top it up (SpawnPoolTopUpTests)");
+            pool.UpdateTimer = 1500;
             manager.DecreaseAliveCreatureCount(CreateMap(), pool);
             manager.IncreaseDeadCreatureCount(pool);
             Assert.AreEqual(0L, pool.UpdateTimer);
@@ -713,7 +714,7 @@ namespace Rasa.Test.World
                 Assert.AreEqual(1, pool.AliveCreatures);
                 Assert.AreEqual(0, pool.QueuedCreatures);
                 Assert.AreEqual(0, pool.DeadCreatures);
-                Assert.AreEqual(pool.RespawnTime, pool.UpdateTimer);
+                Assert.AreEqual(0L, pool.UpdateTimer, "short of the one that did not go in: it is tried again by the top-up, its respawn time later, not every tick");
                 Assert.AreEqual(1, world.Map.MapCellInfo.Cells.Values.Sum(candidate =>
                     candidate.CreatureList.Count(creature => creature.SpawnPool == pool)));
             }
@@ -857,6 +858,8 @@ namespace Rasa.Test.World
             public List<SpawnPoolEntry> Pools { get; } = new();
             public List<SpawnPoolPoseEntry> Poses { get; } = new();
             public List<SpawnPoolPoseEntry> GetPoses() => Poses;
+            public List<SpawnPoolDrawEntry> Draws { get; } = new();
+            public List<SpawnPoolDrawEntry> GetDraws() => Draws;
             public List<SpawnPoolPatrolEntry> Patrols { get; } = new();
             public List<SpawnPoolPatrolEntry> GetPatrols() => Patrols;
             public Action<uint> ReadStats { get; set; }

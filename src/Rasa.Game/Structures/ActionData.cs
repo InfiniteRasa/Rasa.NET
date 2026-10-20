@@ -22,6 +22,12 @@ namespace Rasa.Structures
 
         public bool IsInrerrupted = false;
         public bool Completed { get; set; }
+
+        /// <summary>A stun that lands on the actor calls the windup off (ActorActionManager.CallOffForStun): a player's ability or tool.</summary>
+        public bool StunInterrupts { get; set; }
+
+        /// <summary>Called off by a stun, and everyone told: taken off the queue unperformed.</summary>
+        internal bool CalledOff { get; set; }
         public ulong SourceId { get; set; }
 
         public ActionData(Actor actor, ActionId actionId, uint actionArgId, long waitTime)

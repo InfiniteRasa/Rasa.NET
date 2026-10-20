@@ -65,17 +65,31 @@ namespace Rasa.Managers
         /// <summary>Vortex's client module: its targets are pulled in (CrowdControl.Pull) as well as hurt.</summary>
         public const string VortexModule = "abilities.vortex";
 
+        /// <summary>The grenades' client module (CONSUMABLE_GRENADE, action 420): see GrenadeSplash.</summary>
+        public const string GrenadeModule = "abilities.grenade";
+
+        /// <summary>
+        /// The abilities whose client action is noInterrupt (instantkill.py, gmstealth.py,
+        /// invulnerability.py, qaknowledge.py): the client ignores an interrupt of them, so a stun
+        /// does not call them off (ActorActionManager.CallOffForStun). All four are GM tools.
+        /// </summary>
+        internal static readonly HashSet<string> NoStunInterrupt = new HashSet<string>
+        {
+            "abilities.instantkill", "abilities.gmstealth", "abilities.invulnerability", "abilities.qaknowledge"
+        };
+
         /// <summary>
         /// The client modules whose DoAbility reads hit data as (rawInfo, onHitData) - the
-        /// DamageBase subclasses in client/actions/abilities. These are the damage abilities
-        /// resolved here; a damage ability of another class has some other shape and its own
-        /// mechanics, and waits.
+        /// DamageBase subclasses in client/actions/abilities - and the few with a shape of their
+        /// own that ResolveDirectDamage writes for them: the creature attacks' bare rawInfo, and
+        /// the grenade's splash list. A damage ability of another class has some other shape and
+        /// its own mechanics, and waits.
         /// </summary>
         private static readonly HashSet<string> DirectDamageModules = new HashSet<string>
         {
             "abilities.lightning", "abilities.knockback", "abilities.rushingblow", "abilities.shrapnel",
             "abilities.tectonicstrike", "abilities.stun", "abilities.concussivewave", "abilities.energywave",
-            "abilities.vortex", "abilities.deathdamage", "abilities.stalkereggattack",
+            "abilities.vortex", "abilities.deathdamage", "abilities.stalkereggattack", GrenadeModule,
             // Polymorph's creature attacks (AbilityManager.MorphAbilities).
             KaelSmashModule, KaelGroundPoundModule, CaretakerAttackModule
         };
@@ -94,8 +108,14 @@ namespace Rasa.Managers
             "abilities.selfdestruct", "abilities.scatterbombs", "abilities.calledshot", "abilities.feedback",
             "abilities.reflection", "abilities.conversion", "abilities.corpseexplode", "abilities.cure",
             "abilities.cloakwave", "abilities.tacticalevasion", "abilities.traitor", "abilities.hack", "abilities.mindcontrol",
-            "abilities.medpack"
+            "abilities.medpack", RestoreKitModule, AdrenalineBoosterModule, AddEffectModule
         };
+
+        /// <summary>
+        /// CONSUMABLE_ADD_EFFECT: puts its GAME_EFFECT_ID on the performer. The Experience Boosters
+        /// are all there is of it, and the only effect it is resolved for (ExperienceBoost).
+        /// </summary>
+        public const string AddEffectModule = "abilities.addeffect";
 
         /// <summary>
         /// Of those, the ones aimed at a friend (client targetType TARGET_FRIENDLY): another
@@ -350,6 +370,34 @@ namespace Rasa.Managers
                 return;
             }
 
+            // A Rez Trauma Kit with no Rez Trauma to take off (RezTraumaKitAction.CheckAction).
+            if (RezTraumaKitRefusal(player, action) is { } kitRefusal)
+            {
+                Fail(client, actionId, level, kitRefusal);
+                return;
+            }
+
+            // A respec token with nothing to give back is kept (Respec).
+            if (RespecRefusal(player, action) is { } respecRefusal)
+            {
+                Fail(client, actionId, level, respecRefusal);
+                return;
+            }
+
+            // Self Revive by someone not dead.
+            if (SelfReviveRefusal(player, action) is { } reviveRefusal)
+            {
+                Fail(client, actionId, level, reviveRefusal);
+                return;
+            }
+
+            // An Adrenaline Booster on a full bar (AdrenalShotAction.CheckAction), or one that would add nothing.
+            if (AdrenalineBoosterRefusal(player, action, info) is { } boosterRefusal)
+            {
+                Fail(client, actionId, level, boosterRefusal);
+                return;
+            }
+
             // An emote or title the player already has, a rocket still in the air (Toys).
             var toyRefusal = ToyRefusal(mapChannel, player, action, info);
 
@@ -504,7 +552,15 @@ namespace Rasa.Managers
                     return;
                 }
 
-                location = packet.Target.Location;
+                // On the ground it was aimed at, and in range there: a point in the air is where
+                // the ground under it is, which can be out of reach.
+                location = OnTheGround(mapChannel, packet.Target.Location, info);
+
+                if (!LocationInRange(player, location.Value, info))
+                {
+                    Fail(client, actionId, level, PlayerMessage.PmTargetOutOfRange);
+                    return;
+                }
             }
 
             var wantsHostile = IsDirectDamage(action, info) || HostileEffectModules.Contains(action.Module);
@@ -613,7 +669,8 @@ namespace Rasa.Managers
             {
                 TargetObject = practiceTarget,
                 TargetLocation = location,
-                ItemId = item?.EntityId ?? 0
+                ItemId = item?.EntityId ?? 0,
+                StunInterrupts = !NoStunInterrupt.Contains(action.Module)
             });
         }
 
@@ -739,14 +796,45 @@ namespace Rasa.Managers
             return info.MaxRange > 0 && Vector3.Distance(player.Position, location) <= info.MaxRange + RangeSlack;
         }
 
+        /// <summary>
+        /// A point a player aimed at, put on the walkable ground of its column: the navmesh point
+        /// nearest to it within the ability's reach above and below and 4 m across
+        /// (NavMeshQuery.NearestInColumn), so of two floors the nearer, and a point in the air or
+        /// inside the terrain comes down or up to the ground there.
+        ///
+        /// The client picks the point on the world under the cursor, and the height was taken as
+        /// sent: range and finite values were checked and nothing else. Fire support's strike and
+        /// the area of an ability aimed at a point were centred on it, and both reach only
+        /// RADIUS_AROUND_TARGET from it, so a point in the air hit nothing and one lifted to a
+        /// ledge or dropped to a floor below hit whoever was there. Reality Ripper, the trap, fire
+        /// support's beacon and the toys snapped to the ground, but only within 3 m
+        /// (NavMeshManager.SnapTolerance), and left anything further as it was.
+        ///
+        /// Unchanged on a map with no navmesh, and where there is no walkable ground in the column
+        /// at all: nothing there to hold it to, and a point on a prop with no mesh near it is not
+        /// refused.
+        /// </summary>
+        internal static Vector3 OnTheGround(MapChannel mapChannel, Vector3 point, ActionLevelInfo info)
+        {
+            var navMesh = mapChannel?.NavMesh;
+
+            if (navMesh == null || !float.IsFinite(point.X) || !float.IsFinite(point.Y) || !float.IsFinite(point.Z))
+                return point;
+
+            return navMesh.NearestInColumn(point, Math.Max(1, info.MaxRange) + RangeSlack) ?? point;
+        }
+
         /// <summary>Whether this server knows how to apply the ability; see the class remarks.</summary>
         private static bool CanResolve(ActionInfo action, ActionLevelInfo info)
         {
             return action.Module == "abilities.sprint" || action.Module == PolymorphModule || action.Module == SelfResModule || action.Module == CrabMinesModule || action.Module == RealityRipperModule || action.Module == TrapModule || action.Module == TurretModule
                 || action.Module == HortimonculusModule || action.Module == ReanimationModule || action.Module == ReanimationWaveModule
                 || action.Module == SpotterModule || action.Module == BotConstructionModule || action.Module == CreateCloneModule
+                || action.Module == RezTraumaKitModule || action.Module == PlaceBombModule || action.Module == FlashGrenadeModule
+                || IsRespec(action)
                 || MorphSupportModules.Contains(action.Module)
-                || IsDirectDamage(action, info) || TimedEffectModules.Contains(action.Module)
+                || IsDirectDamage(action, info)
+                || (TimedEffectModules.Contains(action.Module) && (action.Module != AddEffectModule || info.Get(AbilityProperty.GameEffectId) == ExperienceBoost.TypeId))
                 || IsToy(action, info) || PersonalWaypoints.Is(action);
         }
 
@@ -786,14 +874,19 @@ namespace Rasa.Managers
             return IsOnMap(mapChannel, target) ? target : null;
         }
 
-        /// <summary>The Bootcamp practice target or mission prop that the recruit's lightning can hit from here.</summary>
+        /// <summary>
+        /// The object an ability can hit from here: for the recruit's lightning, the Bootcamp
+        /// practice target or a mission prop; for a grenade, any of the objects a weapon can
+        /// damage (PracticeTargetManager) - the client lets a grenade be thrown at an object
+        /// that CanTakeDamage (GrenadeAbility.CheckAction), and it was refused here as no target.
+        /// </summary>
         private static DynamicObject ResolvePracticeTarget(
             MapChannel map, Manifestation player, ActionLevelInfo info, ulong entityId)
         {
-            if (info.ActionId != ActionId.AaRecruitLightning ||
+            if (info.ActionId != ActionId.AaRecruitLightning && info.ActionId != ActionId.ConsumableGrenade ||
                 !PracticeTargetManager.TryGetTarget(map, entityId, out var target) ||
                 !PracticeTargetManager.CanHit(map, player, target) ||
-                target.MissionDestruction == null && info.Level != 1)
+                info.ActionId == ActionId.AaRecruitLightning && target.MissionDestruction == null && info.Level != 1)
                 return null;
             return target;
         }
@@ -894,7 +987,8 @@ namespace Rasa.Managers
             }
 
             // The items it takes, and the one it was used from, in one write; never a mission's.
-            // An emote's flag or a title goes in the same write; a rocket or a pet is kept (Toys).
+            // An emote's flag or a title goes in the same write; a rocket, a pet or a piece of
+            // equipment is kept (Toys).
             // This is the last thing that can still refuse the ability, so it comes before the
             // costs: power or chi used to be taken first, and an ability refused here for want
             // of an item - used up or moved while the windup ran - had been paid for all the
@@ -903,7 +997,10 @@ namespace Rasa.Managers
 
             try
             {
-                ConsumeAbilityItems(client, info, KeepsSourceItem(actionInfo) ? 0 : action.ItemId, ToyWrite(actionInfo, info, player, toyCommit));
+                var source = action.ItemId != 0 ? EntityManager.Instance.GetItem(action.ItemId) : null;
+
+                ConsumeAbilityItems(client, info, KeepsSourceItem(actionInfo, source) ? 0 : action.ItemId,
+                    ToyWrite(actionInfo, info, player, toyCommit) ?? RespecWrite(actionInfo, player));
             }
             catch (Exception error) when (GameplayRejectionException.IsExpected(error))
             {
@@ -953,6 +1050,22 @@ namespace Rasa.Managers
                 return;
             }
 
+            if (actionInfo.Module == FlashGrenadeModule)
+            {
+                var thrown = new AbilityRecoveryPacket(action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.None);
+                ThrowFlashGrenade(mapChannel, player, info, action, thrown);
+                CellManager.Instance.CellCallMethod(mapChannel, player, thrown);
+                return;
+            }
+
+            if (actionInfo.Module == PlaceBombModule)
+            {
+                var placed = new AbilityRecoveryPacket(action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.None);
+                PlaceBomb(mapChannel, player, info, placed);
+                CellManager.Instance.CellCallMethod(mapChannel, player, placed);
+                return;
+            }
+
             if (actionInfo.Module == TrapModule)
             {
                 PlantTrap(mapChannel, player, info, action);
@@ -975,6 +1088,18 @@ namespace Rasa.Managers
             if (actionInfo.Module == CreateCloneModule)
             {
                 CreateClone(mapChannel, client, player, info, action);
+                return;
+            }
+
+            if (actionInfo.Module == RezTraumaKitModule)
+            {
+                UseRezTraumaKit(mapChannel, player, action);
+                return;
+            }
+
+            if (IsRespec(actionInfo))
+            {
+                ResolveRespec(mapChannel, client, player, actionInfo, action);
                 return;
             }
 
@@ -1148,6 +1273,22 @@ namespace Rasa.Managers
             if (!Grants(player, action.ActionId, action.ActionArgId, item))
                 return PlayerMessage.PmCannotPerformActionNow;
 
+            // A Rez Trauma that ran out during the windup leaves the kit unspent.
+            if (_actions.TryGetValue(action.ActionId, out var landing) && RezTraumaKitRefusal(player, landing) is { } kitRefusal)
+                return kitRefusal;
+
+            // As does a respec token whose points were spent back during it (Respec).
+            if (landing != null && RespecRefusal(player, landing) is { } respecRefusal)
+                return respecRefusal;
+
+            // As does a Self Revive whose Machina someone else got up during it.
+            if (landing != null && SelfReviveRefusal(player, landing) is { } reviveRefusal)
+                return reviveRefusal;
+
+            // As does a bar that filled during it, for an Adrenaline Booster.
+            if (landing != null && AdrenalineBoosterRefusal(player, landing, info) is { } boosterRefusal)
+                return boosterRefusal;
+
             // A sustained ability pays through its drain rather than up front, so all it needs
             // is something left in the tank - the same test the request makes.
             if (IsSustained(info))
@@ -1259,8 +1400,9 @@ namespace Rasa.Managers
             var min = info.Get(AbilityProperty.DamageAmountMin);
             var max = Math.Max(min, info.Get(AbilityProperty.DamageAmountMax, min));
 
-            // The recruit's lightning at a Bootcamp practice target: a hit on the target, nothing else.
-            if (action.TargetObject != null)
+            // The recruit's lightning at a Bootcamp practice target: a hit on the target, nothing
+            // else. A grenade thrown at an object goes off there like one thrown at a creature.
+            if (action.TargetObject != null && actionInfo.Module != GrenadeModule)
             {
                 var practiceTarget = ResolvePracticeTarget(mapChannel, player, info, action.TargetId);
 
@@ -1290,10 +1432,12 @@ namespace Rasa.Managers
 
             // Creatures a player may attack, and enemy players across a wargame (Pvp).
             var targets = new List<Actor>();
-            var primary = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) : null;
+            var aimed = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) : null;
+            var primary = aimed != null && IsAttackable(player, aimed) ? aimed : null;
 
-            if (primary != null && !IsAttackable(player, primary))
-                primary = null;
+            // Where a grenade went off, and on what (ResolveGrenade).
+            var landedOn = 0UL;
+            DynamicObject struckObject = null;
 
             // Lightning's bolt strikes its target alone; what else it reaches is its arc and its
             // storm (ResolveLightningExtras), not an area around the target.
@@ -1301,6 +1445,10 @@ namespace Rasa.Managers
             {
                 if (primary != null)
                     targets.Add(primary);
+            }
+            else if (actionInfo.Module == GrenadeModule)
+            {
+                targets.AddRange(GrenadeSplash(mapChannel, player, info, action, aimed, primary, out landedOn, out struckObject));
             }
             else if (info.Has(AbilityProperty.ConeRadius))
             {
@@ -1335,13 +1483,16 @@ namespace Rasa.Managers
 
             // A creature attack's client class wants each hit's rawInfo as it is (KaelSmashAbility and
             // the rest); the players' abilities, DamageBase's (rawInfo, onHitData).
+            // A grenade's, every hit as a splash of the one it landed on (GrenadeAbility.DoAbility).
             var recovery = new AbilityRecoveryPacket(action.ActionId, action.ActionArgId,
-                RawInfoModules.Contains(actionInfo.Module) ? AbilityRecoveryPacket.HitDataKind.RawInfo : AbilityRecoveryPacket.HitDataKind.Damage)
+                actionInfo.Module == GrenadeModule ? AbilityRecoveryPacket.HitDataKind.Splash
+                : RawInfoModules.Contains(actionInfo.Module) ? AbilityRecoveryPacket.HitDataKind.RawInfo : AbilityRecoveryPacket.HitDataKind.Damage)
             {
-                ArcData = actionInfo.Module == "abilities.lightning"
+                ArcData = actionInfo.Module == "abilities.lightning",
+                SplashOn = landedOn
             };
 
-            if (targets.Count > 0)
+            if (targets.Count > 0 || struckObject != null)
                 ManifestationManager.Instance.EnterCombat(client);
 
             var critChance = CriticalHits.AttackerChance(player, false);
@@ -1440,7 +1591,75 @@ namespace Rasa.Managers
                     ResolveLightningExtras(mapChannel, player, info, creature, rolled, hit);
             }
 
+            // The object a grenade was thrown at takes the blast as a weapon's shot would.
+            var objectAmount = 0;
+
+            if (struckObject != null)
+            {
+                objectAmount = GameEffectManager.ApplyDamageDealt(player, Scale(player.Level, _random.Next(min, max + 1), scaleType));
+                recovery.Hits.Insert(0, new AbilityHit { EntityId = struckObject.EntityId, Amount = objectAmount, DamageType = damageType });
+            }
+
             CellManager.Instance.CellCallMethod(mapChannel, player, recovery);
+
+            if (struckObject != null && objectAmount > 0)
+                PracticeTargetManager.RecordHit(mapChannel, player, struckObject, action.ActionId, _missionManager, objectAmount);
+        }
+
+        /// <summary>
+        /// Who a grenade hits. It lands on what it was thrown at and goes off there: the target
+        /// itself, when it is still one to attack, and everything hostile within EFFECT_RADIUS of
+        /// it - the full roll at any distance from the blast, and no roll to hit. The splash is
+        /// HostilesWithin and Pvp.EnemiesWithin, which pass over the thrower, friendly creatures,
+        /// every summon on their side, and any player who is not their enemy across a duel or
+        /// wargame - a squad or clan mate is caught only from the other side of one.
+        ///
+        /// A target that died during the throw, or an object destroyed during it, is still where
+        /// the grenade lands, and it goes off there; one gone from the map leaves nowhere to land,
+        /// and it hits nothing. landedOn is what the client draws the blast on, 0 for nothing;
+        /// struck, the object that takes the blast, when it was thrown at one that still can.
+        /// </summary>
+        private static List<Actor> GrenadeSplash(MapChannel mapChannel, Manifestation player, ActionLevelInfo info, ActionData action,
+            Actor aimed, Actor primary, out ulong landedOn, out DynamicObject struck)
+        {
+            var hit = new List<Actor>();
+            Vector3 centre;
+
+            landedOn = 0;
+            struck = null;
+
+            if (action.TargetObject != null)
+            {
+                var still = ResolvePracticeTarget(mapChannel, player, info, action.TargetId);
+
+                if (ReferenceEquals(still, action.TargetObject))
+                    struck = still;
+
+                landedOn = action.TargetObject.EntityId;
+                centre = action.TargetObject.Position;
+            }
+            else if (aimed != null)
+            {
+                landedOn = aimed.EntityId;
+                centre = aimed.Position;
+            }
+            else
+                return hit;
+
+            if (primary != null)
+                hit.Add(primary);
+
+            var radius = info.Get(AbilityProperty.EffectRadius);
+
+            foreach (var creature in HostilesWithin(mapChannel, player, centre, radius))
+                if (!hit.Contains(creature))
+                    hit.Add(creature);
+
+            foreach (var enemy in Pvp.EnemiesWithin(mapChannel, player, centre, radius))
+                if (!hit.Contains(enemy))
+                    hit.Add(enemy);
+
+            return hit;
         }
 
         /// <summary>

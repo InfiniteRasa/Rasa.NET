@@ -960,13 +960,13 @@ namespace Rasa.Test.Networking
                 CollectionAssert.AreEqual(
                     new[]
                     {
-                        "addaccount", "healthcheck", "ingame/creature-actions",
+                        "addaccount", "closepetition", "getallpetitions", "getopenpetitions", "healthcheck", "ingame/creature-actions",
                         "ingame/creatures", "ingame/creatures/update", "ingame/creatures/{id}",
                         "ingame/items", "ingame/items/categories", "ingame/items/update", "ingame/items/{id}",
                         "ingame/lootpools", "ingame/missions", "ingame/missions/{id}", "ingame/monsterflags", "ingame/npc-greetings",
                         "ingame/npc-greetings/update", "ingame/session/exchange",
                         "ingame/updatelootpools", "ingame/updatemonsterflags",
-                        "kickuser", "lootpools", "monsterflags", "serverstatus", "updatelootpools", "updatemonsterflags", "usersonline"
+                        "kickuser", "lootpools", "monsterflags", "respondpetition", "serverstatus", "updatelootpools", "updatemonsterflags", "usersonline"
                     },
                     host.Rest.Endpoints.ToArray());
 

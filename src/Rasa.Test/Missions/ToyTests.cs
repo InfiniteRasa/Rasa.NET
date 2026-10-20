@@ -30,6 +30,7 @@ namespace Rasa.Test.Missions
         private const uint ShadowTitleTemplate = 122272;   // Title: Shadow: 507 level 1, title 905
         private const uint BlueFireworkTemplate = 117207;  // Blue firework: 482 level 1, FIREWORK_EFFECT 364 level 1
         private const uint FlareGunTemplate = 117222;      // Flare Gun: 483 level 1, FLARE_GUN_EFFECT 374
+        private const uint SmokeGrenadeTemplate = 117206;  // Smoke Grenade: 404 level 1, SMOKE_GRENADE_EFFECT 182 (the class's), DURATION 15
         private const uint SnowballTemplate = 131481;      // Snowball: 528 level 1
         private const uint PineOckTemplate = 111117;       // Companion Pine-Ock: 460 level 1, variant 864
         private const uint GriselTemplate = 131950;        // Pet: Grisel: 460 level 10, variant 4976
@@ -197,7 +198,8 @@ namespace Rasa.Test.Missions
         [TestMethod]
         [DataRow(BlueFireworkTemplate, 482, 364)]
         [DataRow(FlareGunTemplate, 483, 374)]
-        public void AFireworkOrFlareGoesOffWhereItWasAimedAndIsCleanedUp(uint template, int actionId, int effectTypeId)
+        [DataRow(SmokeGrenadeTemplate, 404, 182)]
+        public void AFireworkFlareOrSmokeGrenadeGoesOffWhereItWasAimedAndIsCleanedUp(uint template, int actionId, int effectTypeId)
         {
             using var harness = BootcampRuntimeTestHarness.Create();
             var item = Grant(harness, template);
@@ -225,6 +227,69 @@ namespace Rasa.Test.Missions
             Assert.HasCount(1, Proxies(harness).ToArray(), "Kept while the effect fades.");
             manager.ToyWorker(harness.BootcampMap, Environment.TickCount64 + 19_000);
             Assert.IsEmpty(Proxies(harness).ToArray());
+        }
+
+        /// <summary>
+        /// One who comes into view of the smoke - a firework, a flare - while it is going is shown
+        /// it, announced, as no recovery is coming to announce it for them; they were sent the
+        /// invisible proxy and nothing on it. Not once its effect is detached and it is only fading.
+        /// </summary>
+        [TestMethod]
+        [DataRow(SmokeGrenadeTemplate, 404, 182)]
+        [DataRow(BlueFireworkTemplate, 482, 364)]
+        public void OneWhoComesIntoViewWhileItIsGoingIsShownIt(uint template, int actionId, int effectTypeId)
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var item = Grant(harness, template);
+            var manager = CreateManager(harness, (uint)actionId, 1, template);
+            var player = harness.Client.Player;
+            harness.Drain();
+
+            manager.RequestPerformAbility(harness.Client, Request(actionId, 1, item.EntityId, player.Position + AbilityManager.FacingOf(player) * 30f));
+            Land(harness, manager, harness.BootcampMap.PerformRecovery.Single(action => action.ActionId == (ActionId)actionId));
+
+            var proxy = Proxies(harness).Single();
+            var effectId = harness.Drain().OfType<GameEffectAttachedPacket>().Single(p => p.EffectTypeId == effectTypeId).EffectId;
+
+            // The server loads every class at start-up; the harness, what a test asks for.
+            LoadClass(harness, (uint)AbilityManager.LocationProxyClass);
+
+            DynamicObjectManager.Instance.CreateDynamicObjectOnClient(harness.Client, proxy);
+
+            var shown = harness.Drain().OfType<GameEffectAttachedPacket>().Single();
+            Assert.AreEqual((effectTypeId, effectId, true, player.EntityId), (shown.EffectTypeId, shown.EffectId, shown.Announced, shown.SourceId));
+
+            manager.ToyWorker(harness.BootcampMap, Environment.TickCount64 + 16_000);
+            harness.Drain();
+
+            DynamicObjectManager.Instance.CreateDynamicObjectOnClient(harness.Client, proxy);
+            Assert.IsFalse(harness.Drain().OfType<GameEffectAttachedPacket>().Any(), "fading, not going");
+        }
+
+        [TestMethod]
+        public void ASmokeGrenadeIsUsedUpAndThrownOnlyWithinItsRange()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var item = Grant(harness, SmokeGrenadeTemplate, 2);
+            var manager = CreateManager(harness, 404, 1, SmokeGrenadeTemplate);
+            var player = harness.Client.Player;
+
+            Assert.IsTrue(manager.TryGetAction(ActionId.ConsumableSmokeGrenade, 1, out var module, out var info));
+            Assert.AreEqual(AbilityManager.SmokeGrenadeModule, module);
+            Assert.AreEqual(80, (int)info.MaxRange);
+            harness.Drain();
+
+            manager.RequestPerformAbility(harness.Client, Request(404, 1, item.EntityId, player.Position + AbilityManager.FacingOf(player) * 120f));
+            Assert.AreEqual(PlayerMessage.PmTargetOutOfRange, harness.Drain().OfType<UserActionFailedPacket>().Single().MsgId);
+            Assert.AreEqual(2U, item.StackSize, "kept");
+
+            manager.RequestPerformAbility(harness.Client, Request(404, 1, item.EntityId, player.Position + AbilityManager.FacingOf(player) * 60f));
+            Assert.IsFalse(harness.Drain().OfType<UserActionFailedPacket>().Any());
+            Land(harness, manager, harness.BootcampMap.PerformRecovery.Single(action => action.ActionId == ActionId.ConsumableSmokeGrenade));
+
+            Assert.AreEqual(1U, item.StackSize, "one used");
+            Assert.IsFalse(harness.Drain().OfType<UserActionFailedPacket>().Any());
+            Assert.HasCount(1, Proxies(harness).ToArray());
         }
 
         [TestMethod]
@@ -448,12 +513,12 @@ namespace Rasa.Test.Missions
                     .Any(entry => entry.AugList.Split(',').Contains("1")), $"{variant}: {classId} is a creature class");
         }
 
-        /// <summary>A creature class, as the server loads every class at start-up.</summary>
+        /// <summary>A class, as the server loads every class at start-up (EntityClassManager.ParseAugmentations).</summary>
         internal static void LoadClass(BootcampRuntimeTestHarness.Harness harness, uint classId)
         {
             var entry = harness.WorldContext.Set<EntityClassEntry>().AsNoTracking().Single(row => row.Id == classId);
             EntityClassManager.Instance.LoadedEntityClasses[(EntityClasses)classId] = new EntityClass(entry.Id, entry.ClassName, entry.MeshId,
-                entry.ClassCollisionRole, entry.AugList.Split(',').Select(value => (AugmentationType)uint.Parse(value)).ToList(), entry.TargetFlag != 0);
+                entry.ClassCollisionRole, EntityClassManager.ParseAugmentations(entry.AugList), entry.TargetFlag != 0);
         }
 
         private static IEnumerable<DynamicObject> Proxies(BootcampRuntimeTestHarness.Harness harness) =>

@@ -65,5 +65,8 @@ namespace Rasa.Services.Preloader
         }
 
         protected abstract IEnumerable<object[]> GetRows();
+
+        /// <summary>The rows this preloader seeds, for code that is worked out from them (WeaponTemplateRows).</summary>
+        internal IEnumerable<object[]> Rows() => GetRows();
     }
 }

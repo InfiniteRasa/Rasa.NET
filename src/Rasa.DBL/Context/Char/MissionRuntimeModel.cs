@@ -33,7 +33,9 @@ namespace Rasa.Context.Char
             model.Entity<MissionSceneEntry>().HasIndex(entry =>
                 new { entry.OwnerCharacterId, entry.MissionId, entry.ScriptKey, entry.AssignmentId }).IsUnique();
             model.Entity<MissionSceneEntry>().Property(entry => entry.AssignmentId).HasDefaultValue("");
+            model.Entity<MissionSceneEntry>().HasIndex(entry => entry.AssignmentId).HasDatabaseName("mission_scene_index_assignment");
             model.Entity<MissionSceneParticipantEntry>().HasKey(entry => new { entry.RunId, entry.CharacterId });
+            model.Entity<MissionSceneParticipantEntry>().HasIndex(entry => entry.AssignmentId).HasDatabaseName("mission_scene_participant_index_assignment");
             model.Entity<MissionSceneParticipantEntry>().HasOne<MissionSceneEntry>().WithMany()
                 .HasForeignKey(entry => entry.RunId).OnDelete(DeleteBehavior.Cascade);
             model.Entity<MissionActorLeaseEntry>().HasKey(entry => new { entry.MapKey, entry.SpawnKey });

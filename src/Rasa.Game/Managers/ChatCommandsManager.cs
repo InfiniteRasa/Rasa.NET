@@ -227,7 +227,7 @@ namespace Rasa.Managers
             RegisterCommand(".motd", GmLevel.Observer, MotdCommand);
             RegisterCommand(".cover", GmLevel.Observer, CoverCommand);
             RegisterCommand(".los", GmLevel.Observer, LosCommand, "entityId");
-            RegisterCommand(".camerascript", GmLevel.Observer, CameraScriptCommand, "id");
+            RegisterCommand(".camerascript", GmLevel.Observer, CameraScriptCommand, "list | near [n] | info <id> | goto <id> [keyframe] | maps | <id>");
             RegisterCommand(".clientevent", GmLevel.Observer, ClientEventCommand, "action", "event");
 
             // GameMaster: moves you, spawns and drives scenery and creatures, drives
@@ -246,6 +246,7 @@ namespace Rasa.Managers
             RegisterCommand(".falldamage", GmLevel.GameMaster, FallDamageCommand, "metres");
             RegisterCommand(".immune", GmLevel.GameMaster, ImmuneCommand, "damageType");
             RegisterCommand(".allowdeath", GmLevel.GameMaster, AllowDeathCommand, "on|off");
+            RegisterCommand(".invisible", GmLevel.GameMaster, InvisibleCommand, "on|off");
             RegisterCommand(".feud", GmLevel.GameMaster, FeudCommand, "action", "arg1", "arg2");
             RegisterCommand(".bark", GmLevel.GameMaster, BarkCommand, "creatureEntityId", "barkId");
             RegisterCommand(".battlecry", GmLevel.GameMaster, BattlecryCommand, "packageId", "typeId");
@@ -277,6 +278,7 @@ namespace Rasa.Managers
             RegisterCommand(".ambient", GmLevel.GameMaster, AmbientCommand, "class | clear");
             RegisterCommand(".destructible", GmLevel.GameMaster, DestructibleCommand, "action", "arg1", "arg2", "arg3", "arg4", "arg5");
             RegisterCommand(".worldusable", GmLevel.GameMaster, WorldUsableCommand, "action", "arg1", "arg2", "arg3", "arg4", "arg5", "arg6", "arg7", "arg8");
+            RegisterCommand(".worldcontainer", GmLevel.GameMaster, WorldContainerCommand, "action", "arg1", "arg2", "arg3", "arg4", "arg5", "arg6");
             RegisterCommand(".removeobj", GmLevel.GameMaster, RemoveObjectCommand, "entityId");
             RegisterCommand(".moveobj", GmLevel.GameMaster, MoveObjectCommand, "entityId", "x", "y", "z", "rotation");
             RegisterCommand(".rename", GmLevel.GameMaster, RenameCommand, "part", "newName", "familyName");
@@ -1158,6 +1160,251 @@ namespace Rasa.Managers
                 default:
                     Say("usage: .worldusable classes [word] | put <class> [key=value ...] | near | state <state> [row] | blast [row] | clear");
                     Say("       put stands it at your feet, facing your way, not saved, and prints the WorldUsablePreloader Row line for a migration.");
+                    return;
+            }
+        }
+
+        /// <summary>How far .worldcontainer looks for the nearest container when no row id is given.</summary>
+        private const float NearestWorldContainerRange = 30f;
+
+        /// <summary>
+        /// .worldcontainer: the lootable containers the server puts down (WorldContainers).
+        ///   .worldcontainer classes [word]          - the classes that can be placed (treasure dispensers)
+        ///   .worldcontainer put &lt;class&gt; [key=value ...] - at your feet, facing your way; not saved. Keys:
+        ///                                        profile (a loot_profile key), items (template:quantity,...),
+        ///                                        cipher (level), reset (seconds)
+        ///   .worldcontainer near                    - what is placed within 30 m, and who it is opened to
+        ///   .worldcontainer reset [row]             - closes it and fills it again for everyone, now
+        ///   .worldcontainer clear                   - takes away what .worldcontainer put put down
+        /// A put prints the world_container and world_container_item rows for where it stands.
+        /// </summary>
+        private void WorldContainerCommand(string[] parts)
+        {
+            var player = _client.Player;
+            var mapChannel = player.MapChannel;
+            var sub = parts.Length > 1 ? parts[1].ToLowerInvariant() : string.Empty;
+
+            void Say(string text) => CommunicatorManager.Instance.SystemMessage(_client, text);
+
+            string Describe(WorldContainers.Live live)
+            {
+                var placement = live.Placement;
+                var items = placement.Items.Count == 0 ? "no fixed items" : string.Join(", ", placement.Items.Select(item => $"{item.TemplateId} x{item.Quantity}"));
+                int opened;
+
+                lock (live)
+                    opened = live.Openings.Count;
+
+                return $"{(placement.IsPutDown ? "put down" : $"row {placement.Id}")}: {(uint)placement.ClassId} {EntityClassManager.Instance.GetClassInfo(placement.ClassId)?.ClassName}, "
+                    + $"{items}, profile {placement.LootProfileKey ?? "none"}, cipher {placement.CipherLevel}, reset {placement.ResetMs / 1000} s, "
+                    + $"{(WorldContainers.IsOpenedTo(live, player.Id) ? "opened" : "closed")} to you, opened to {opened}, {Vector3.Distance(live.Object.Position, player.Position):0.0} m away";
+            }
+
+            WorldContainers.Live Target(string row)
+            {
+                if (row != null)
+                {
+                    var byRow = uint.TryParse(row, out var rowId) ? WorldContainers.LiveOf(mapChannel, rowId) : null;
+
+                    if (byRow == null)
+                        Say($"No world_container row {row} on this map.");
+
+                    return byRow;
+                }
+
+                var nearest = WorldContainers.On(mapChannel)
+                    .Where(live => Vector3.Distance(live.Object.Position, player.Position) <= NearestWorldContainerRange)
+                    .OrderBy(live => Vector3.DistanceSquared(live.Object.Position, player.Position))
+                    .FirstOrDefault();
+
+                if (nearest == null)
+                    Say($"No container within {NearestWorldContainerRange:0} m.");
+
+                return nearest;
+            }
+
+            List<EntityClass> Placeable(string word) => EntityClassManager.Instance.LoadedEntityClasses.Values
+                .Where(c => c?.ClassName != null && WorldContainers.WhyNot((EntityClasses)c.ClassId) == null)
+                .Where(c => word == null || c.ClassName.Contains(word, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(c => c.ClassName)
+                .ToList();
+
+            switch (sub)
+            {
+                case "classes":
+                    {
+                        var classes = Placeable(parts.Length > 2 && parts[2].Length > 0 ? parts[2] : null);
+
+                        Say($"{classes.Count} container class(es):");
+
+                        foreach (var c in classes.Take(30))
+                            Say($"{c.ClassId} {c.ClassName}");
+
+                        if (classes.Count > 30)
+                            Say($"... and {classes.Count - 30} more; add a word to narrow it: .worldcontainer classes crate");
+
+                        return;
+                    }
+
+                case "put":
+                    {
+                        if (parts.Length < 3)
+                        {
+                            Say("usage: .worldcontainer put <class id or name> [profile=key] [items=template:quantity,...] [cipher=N] [reset=S]");
+                            return;
+                        }
+
+                        EntityClasses classId;
+
+                        if (uint.TryParse(parts[2], out var id))
+                            classId = (EntityClasses)id;
+                        else
+                        {
+                            var named = Placeable(parts[2]);
+                            var exact = named.FirstOrDefault(c => c.ClassName.Equals(parts[2], StringComparison.OrdinalIgnoreCase))
+                                ?? (named.Count == 1 ? named[0] : null);
+
+                            if (exact == null)
+                            {
+                                Say(named.Count == 0
+                                    ? $"No container class is named like '{parts[2]}'. See .worldcontainer classes."
+                                    : $"{named.Count} classes match '{parts[2]}': {string.Join(", ", named.Take(6).Select(c => c.ClassName))}{(named.Count > 6 ? ", ..." : "")}");
+                                return;
+                            }
+
+                            classId = (EntityClasses)exact.ClassId;
+                        }
+
+                        var row = new Structures.World.WorldContainerEntry { ClassId = (uint)classId };
+                        var items = new List<Structures.World.WorldContainerItemEntry>();
+
+                        foreach (var pair in parts.Skip(3).Where(part => part.Length > 0))
+                        {
+                            var kv = pair.Split('=', 2);
+                            var key = kv[0].ToLowerInvariant();
+
+                            if (kv.Length != 2)
+                            {
+                                Say($"'{pair}' is no key=value. Keys: profile, items, cipher, reset.");
+                                return;
+                            }
+
+                            switch (key)
+                            {
+                                case "profile":
+                                    row.LootProfileKey = kv[1];
+                                    break;
+
+                                case "items":
+                                    foreach (var entry in kv[1].Split(',', StringSplitOptions.RemoveEmptyEntries))
+                                    {
+                                        var item = entry.Split(':', 2);
+
+                                        if (!uint.TryParse(item[0], out var templateId) ||
+                                            (item.Length > 1 ? !uint.TryParse(item[1], out var quantity) : (quantity = 1) == 0))
+                                        {
+                                            Say($"'{entry}' is no template:quantity.");
+                                            return;
+                                        }
+
+                                        items.RemoveAll(existing => existing.ItemTemplateId == templateId);
+                                        items.Add(new Structures.World.WorldContainerItemEntry { ItemTemplateId = templateId, Quantity = quantity });
+                                    }
+                                    break;
+
+                                case "cipher":
+                                case "reset":
+                                    if (!uint.TryParse(kv[1], out var number))
+                                    {
+                                        Say($"'{pair}' needs a whole number.");
+                                        return;
+                                    }
+
+                                    if (key == "cipher")
+                                        row.CipherLevel = number;
+                                    else
+                                        row.ResetSeconds = number;
+                                    break;
+
+                                default:
+                                    Say($"'{kv[0]}' is no key. Keys: profile, items, cipher, reset.");
+                                    return;
+                            }
+                        }
+
+                        var position = _client.Movement.Position;
+                        var rotation = _client.Movement.ViewDirection.X;
+
+                        row.PosX = position.X;
+                        row.PosY = position.Y;
+                        row.PosZ = position.Z;
+                        row.Rotation = rotation;
+
+                        var live = WorldContainers.PutDown(mapChannel, row, items, out var why);
+
+                        if (live == null)
+                        {
+                            Say($"Not placed: {why}.");
+                            return;
+                        }
+
+                        Say($"{Describe(live)}. Not saved; .worldcontainer clear takes it away.");
+
+                        var rowId = WorldContainers.All.Where(p => !p.IsPutDown).Select(p => p.Id).DefaultIfEmpty(0U).Max() + 1;
+                        var profile = row.LootProfileKey == null ? "NULL" : $"'{row.LootProfileKey.Replace("'", "''")}'";
+                        var lines = new List<string>
+                        {
+                            FormattableString.Invariant(
+                                $"INSERT INTO world_container (id, map_context_id, class_id, pos_x, pos_y, pos_z, rotation, loot_profile_key, cipher_level, reset_seconds, comment) VALUES ({rowId}, {player.MapContextId}, {(uint)classId}, {position.X:0.####}, {position.Y:0.####}, {position.Z:0.####}, {rotation:0.####}, {profile}, {row.CipherLevel}, {row.ResetSeconds}, '{EntityClassManager.Instance.GetClassInfo(classId)?.ClassName}');")
+                        };
+
+                        lines.AddRange(items.Select(item => FormattableString.Invariant(
+                            $"INSERT INTO world_container_item (container_id, item_template_id, quantity) VALUES ({rowId}, {item.ItemTemplateId}, {item.Quantity});")));
+
+                        foreach (var line in lines)
+                        {
+                            Say(line);
+                            Logger.WriteLog(LogType.Command, $"[.worldcontainer] {player.FamilyName}: {line}");
+                        }
+
+                        return;
+                    }
+
+                case "near":
+                    {
+                        var near = WorldContainers.On(mapChannel)
+                            .Where(live => Vector3.Distance(live.Object.Position, player.Position) <= NearestWorldContainerRange)
+                            .OrderBy(live => Vector3.DistanceSquared(live.Object.Position, player.Position))
+                            .ToList();
+
+                        if (near.Count == 0)
+                            Say($"No container within {NearestWorldContainerRange:0} m; {WorldContainers.On(mapChannel).Count} on this map.");
+
+                        foreach (var live in near.Take(15))
+                            Say(Describe(live));
+
+                        return;
+                    }
+
+                case "reset":
+                    {
+                        var live = Target(parts.Length > 2 ? parts[2] : null);
+
+                        if (live == null)
+                            return;
+
+                        var openings = WorldContainers.CloseAll(live);
+                        Say($"Closed and filled again ({openings} opening(s) reset): {Describe(live)}.");
+                        return;
+                    }
+
+                case "clear":
+                    Say($"Took away {WorldContainers.TakeAwayPutDown(mapChannel)} container(s) put down with .worldcontainer put.");
+                    return;
+
+                default:
+                    Say("usage: .worldcontainer classes [word] | put <class> [profile=key] [items=template:quantity,...] [cipher=N] [reset=S] | near | reset [row] | clear");
+                    Say("       put stands it at your feet, facing your way, not saved, and prints its world_container and world_container_item rows.");
                     return;
             }
         }
@@ -3185,6 +3432,49 @@ namespace Rasa.Managers
                 : "Death is off: at zero health you stand back up. .allowdeath on to die.");
         }
 
+        /// <summary>
+        /// .invisible on|off: out of sight of every player who is not a GM, or back in it
+        /// (Detection.SetGmInvisible). With no argument, says which. Off at every login.
+        /// </summary>
+        private void InvisibleCommand(string[] parts)
+        {
+            var player = _client.Player;
+            var word = parts.Length > 1 ? parts[1].ToLowerInvariant() : null;
+            bool invisible;
+
+            switch (word)
+            {
+                case null:
+                    CommunicatorManager.Instance.SystemMessage(_client, player.GmInvisible
+                        ? "You are invisible to players. .invisible off to be seen."
+                        : "You are visible. .invisible on to be seen by GMs only.");
+                    return;
+                case "on":
+                case "1":
+                case "true":
+                    invisible = true;
+                    break;
+                case "off":
+                case "0":
+                case "false":
+                    invisible = false;
+                    break;
+                default:
+                    SendCommandUsage(".invisible");
+                    return;
+            }
+
+            if (!Detection.SetGmInvisible(_client, invisible))
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, invisible ? "You are already invisible." : "You are already visible.");
+                return;
+            }
+
+            CommunicatorManager.Instance.SystemMessage(_client, invisible
+                ? "You are invisible: only GMs see you, creatures do not notice you, and to everyone else you are offline. .invisible off to be seen."
+                : "You are visible again: players see you, and your friends and clan see you online.");
+        }
+
         private void ImmuneCommand(string[] parts)
         {
             var communicator = CommunicatorManager.Instance;
@@ -3341,8 +3631,17 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// .camerascript list | &lt;id&gt;: the camera scripts of the map you are on (CameraScriptTable),
-        /// or one of them played on your own client (CameraScripts). Space or escape cuts it short.
+        /// .camerascript: the camera scripts the client's maps carry (CameraScriptTable), to find
+        /// out where they are and what they were for. Nothing names a script or says what set it
+        /// off, so where its camera stands and looks is what there is to go on.
+        ///  - list (or nothing): this map's, each with where its camera starts and ends and how far
+        ///    its nearest keyframe is from you.
+        ///  - near [n]: this map's, nearest first, the first n (5).
+        ///  - info &lt;id&gt;: every keyframe of one: where, facing, focal length, arrive and hold.
+        ///  - goto &lt;id&gt; [keyframe]: puts you where that keyframe's camera is (the first, unless
+        ///    you say), facing the way it looks. GameMaster, as .tele.
+        ///  - maps: every map that carries scripts, with how many.
+        ///  - &lt;id&gt;: plays it on your own client (CameraScripts). Space or Escape ends it.
         /// </summary>
         private void CameraScriptCommand(string[] parts)
         {
@@ -3352,30 +3651,155 @@ namespace Rasa.Managers
                 return;
 
             var onMap = CameraScriptTable.OnMap(mapInfo.MapName).ToList();
+            var here = _client.Player.Position;
+            var verb = parts.Length < 2 ? "list" : parts[1].ToLowerInvariant();
 
-            if (parts.Length < 2 || parts[1].ToLowerInvariant() == "list")
+            void Say(string text) => CommunicatorManager.Instance.SystemMessage(_client, text);
+            static string At(Vector3 p) => FormattableString.Invariant($"({p.X:0.#}, {p.Y:0.#}, {p.Z:0.#})");
+            string Line(CameraScriptInfo s) => FormattableString.Invariant(
+                $"  {s.ScriptId}: {s.Keyframes} keyframe(s), {s.LengthMs / 1000.0:0.#} s, from {At(s.First.Position)}") +
+                (s.Keyframes > 1 ? $" to {At(s.Last.Position)}" : "") +
+                FormattableString.Invariant($", {s.DistanceTo(here):0} m from you");
+
+            CameraScriptInfo Script(string id)
             {
-                if (onMap.Count == 0)
+                var script = uint.TryParse(id, out var scriptId) ? onMap.FirstOrDefault(s => s.ScriptId == scriptId) : null;
+
+                if (script == null)
+                    Say($"{mapInfo.MapName} has no camera script {id}. .camerascript list shows its scripts.");
+
+                return script;
+            }
+
+            switch (verb)
+            {
+                case "list":
+                case "near":
                 {
-                    CommunicatorManager.Instance.SystemMessage(_client, $"{mapInfo.MapName} has no camera scripts.");
+                    if (onMap.Count == 0)
+                    {
+                        Say($"{mapInfo.MapName} has no camera scripts. .camerascript maps lists the maps that do.");
+                        return;
+                    }
+
+                    var count = onMap.Count;
+
+                    if (verb == "near")
+                    {
+                        count = 5;
+                        if (parts.Length > 2 && (!int.TryParse(parts[2], out count) || count < 1))
+                        {
+                            Say("Usage: .camerascript near [count]");
+                            return;
+                        }
+                    }
+
+                    var shown = verb == "near"
+                        ? onMap.OrderBy(s => s.DistanceTo(here)).ThenBy(s => s.ScriptId).Take(count).ToList()
+                        : onMap;
+
+                    Say(verb == "near"
+                        ? $"{mapInfo.MapName}: the {shown.Count} camera script(s) nearest you, of {onMap.Count}."
+                        : $"{mapInfo.MapName}: {onMap.Count} camera script(s). .camerascript <id> plays one; .camerascript goto <id> takes you to its camera.");
+
+                    foreach (var s in shown)
+                        Say(Line(s));
+
                     return;
                 }
 
-                CommunicatorManager.Instance.SystemMessage(_client, $"{mapInfo.MapName}: {onMap.Count} camera script(s). .camerascript <id> plays one; space or escape ends it.");
+                case "info":
+                {
+                    if (parts.Length != 3)
+                    {
+                        Say("Usage: .camerascript info <id>");
+                        return;
+                    }
 
-                foreach (var s in onMap)
-                    CommunicatorManager.Instance.SystemMessage(_client, $"  {s.ScriptId}: {s.Keyframes} keyframe(s), {s.LengthMs / 1000.0:0.#} s");
+                    var script = Script(parts[2]);
+                    if (script == null)
+                        return;
 
-                return;
+                    Say(FormattableString.Invariant($"{mapInfo.MapName} camera script {script.ScriptId}: {script.Keyframes} keyframe(s), {script.LengthMs / 1000.0:0.#} s, back to the player in {script.ReturnMs / 1000.0:0.#} s."));
+
+                    for (var i = 0; i < script.Frames.Count; i++)
+                    {
+                        var frame = script.Frames[i];
+                        var pitch = Math.Asin(Math.Clamp(frame.Forward.Y, -1f, 1f)) * 180 / Math.PI;
+                        Say(FormattableString.Invariant(
+                            $"  {i + 1}: at {At(frame.Position)} facing {frame.Facing:0.###} ({(pitch < 0 ? "down" : "up")} {Math.Abs(pitch):0} deg), focal {frame.FocalLength:0.##}, arrives in {frame.ArriveMs / 1000.0:0.#} s, holds {frame.HoldMs / 1000.0:0.#} s"));
+                    }
+
+                    return;
+                }
+
+                case "goto":
+                {
+                    if (!HasLevel(_client, GmLevel.GameMaster))
+                    {
+                        Say(".camerascript goto needs GameMaster, as .tele does.");
+                        return;
+                    }
+
+                    if (parts.Length < 3 || parts.Length > 4)
+                    {
+                        Say("Usage: .camerascript goto <id> [keyframe]");
+                        return;
+                    }
+
+                    var script = Script(parts[2]);
+                    if (script == null)
+                        return;
+
+                    var index = 1;
+                    if (parts.Length == 4 && (!int.TryParse(parts[3], out index) || index < 1 || index > script.Keyframes))
+                    {
+                        Say($"Camera script {script.ScriptId} has keyframes 1 to {script.Keyframes}.");
+                        return;
+                    }
+
+                    var frame = script.Frames[index - 1];
+                    var facing = (float)frame.Facing;
+
+                    // As .tele: PlaceAt so the server holds the position too. The camera can hang
+                    // in the air over what it shows; you come down under it.
+                    _client.Player.PlaceAt(frame.Position);
+                    _client.Player.Rotation = facing;
+                    _client.MoveObject(_client.Player.EntityId, new Movement(frame.Position, new Vector2(facing, 0f)));
+
+                    Say(FormattableString.Invariant($"At camera script {script.ScriptId}'s keyframe {index} of {script.Keyframes}, {At(frame.Position)}, facing the way it looks ({frame.Facing:0.###})."));
+                    return;
+                }
+
+                case "maps":
+                {
+                    var maps = CameraScriptTable.Maps().ToList();
+                    Say($"{maps.Count} maps carry {CameraScriptTable.All.Length} camera scripts:");
+
+                    foreach (var (name, count) in maps)
+                        Say($"  {name}: {count}{(string.Equals(name, mapInfo.MapName, StringComparison.OrdinalIgnoreCase) ? " (this map)" : "")}");
+
+                    return;
+                }
             }
 
-            if (!uint.TryParse(parts[1], out var scriptId) || !CameraScripts.Run(_client, scriptId))
+            if (parts.Length != 2)
             {
-                CommunicatorManager.Instance.SystemMessage(_client, $"{mapInfo.MapName} has no camera script {parts[1]}. .camerascript list shows its scripts.");
+                SendCommandUsage(".camerascript");
                 return;
             }
 
-            CommunicatorManager.Instance.SystemMessage(_client, $"Playing camera script {scriptId}.");
+            var played = Script(parts[1]);
+            if (played == null)
+                return;
+
+            if (!CameraScripts.Run(_client, played.ScriptId))
+            {
+                Say($"Camera script {played.ScriptId} could not be played.");
+                return;
+            }
+
+            Say($"Playing camera script {played.ScriptId}. Space or Escape ends it.");
         }
 
         /// <summary>
@@ -3509,27 +3933,109 @@ namespace Rasa.Managers
 
         private void ReloadCreaturesCommand(string[] obj)
         {
-            CreatureManager.Instance.LoadedCreatures.Clear();
-            CreatureManager.Instance.CreatureInit();
-            CommunicatorManager.Instance.SystemMessage(_client, "Creatures Reloaded.");
+            // CreatureInit puts its new table in place only once it has read every row, so a
+            // reload that fails keeps the creatures already loaded; the GM is told so, rather than
+            // the exception going on up and taking the GM's connection with it.
+            try
+            {
+                CreatureManager.Instance.CreatureInit();
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, $".reloadcreatures failed: {e}");
+                CommunicatorManager.Instance.SystemMessage(_client,
+                    $"Creatures were not reloaded ({e.GetType().Name}: {e.Message}); the {CreatureManager.Instance.LoadedCreatures.Count} creatures loaded before are kept. See the server log.");
+
+                return;
+            }
+
+            CommunicatorManager.Instance.SystemMessage(_client, $"Creatures Reloaded ({CreatureManager.Instance.LoadedCreatures.Count}).");
         }
 
+        /// <summary>
+        /// .removeobj &lt;entityId&gt;: takes a creature or a plain object off your map, on the server
+        /// and for everyone who can see it (<see cref="RemoveFromMap"/>). It used to send every
+        /// client on the map a destroy for whatever id it was given and remove nothing: the entity
+        /// went on in the cells, its workers and its spawn pool, and came back for anyone who
+        /// next walked into its cells.
+        /// </summary>
         private void RemoveObjectCommand(string[] parts)
         {
-            if (parts.Length == 1)
+            if (parts.Length != 2 || !ulong.TryParse(parts[1], out var entityId) || entityId == 0)
             {
                 SendCommandUsage(".removeobj");
                 return;
             }
-            if (parts.Length == 2)
+
+            CommunicatorManager.Instance.SystemMessage(_client, RemoveFromMap(_client.Player.MapChannel, entityId));
+        }
+
+        /// <summary>
+        /// What .removeobj does with an id, and what it tells the GM.
+        ///
+        ///  - A creature on the map goes as a corpse taken away does (MapReset.Remove): out of the
+        ///    cells and the entity tables, with whatever it was holding. One of a spawn pool that
+        ///    was alive is counted as having died first, so the pool spawns its place again.
+        ///  - An object on the map goes out of the cells and the entity tables
+        ///    (CellManager.RemoveFromWorld) and off the map's object list. Only a plain one: an
+        ///    object of a kind some system keeps - a control point, a teleporter, a waypoint, a
+        ///    crafting station, a dropship, a placed field or emitter and the rest - would be left
+        ///    held by it, and is refused with its kind named.
+        ///  - Anything else - a player, an item, an id nothing has, one on another map - is
+        ///    refused, and nothing is sent.
+        /// </summary>
+        internal static string RemoveFromMap(MapChannel map, ulong entityId)
+        {
+            var entities = EntityManager.Instance;
+
+            if (map == null)
+                return "You are not on a map.";
+
+            if (entities.Creatures.TryGetValue(entityId, out var creature))
             {
-                if (ulong.TryParse(parts[1], out var entityId))
+                if (!MapInstanceScope.Contains(map, creature))
+                    return $"Creature {entityId} is not on your map.";
+
+                // Dead, it was counted out of its pool's living when it died.
+                if (creature.State != CharacterState.Dead && creature.SpawnPool != null)
                 {
-                    CellManager.Instance.RemoveFromWorld(_client.Player.MapChannel, entityId);
-                    CommunicatorManager.Instance.SystemMessage(_client, $"Removed object EntityId = {entityId}");
+                    SpawnPoolManager.Instance.DecreaseAliveCreatureCount(map, creature.SpawnPool);
+                    SpawnPoolManager.Instance.IncreaseDeadCreatureCount(creature.SpawnPool);
                 }
+
+                MapReset.Remove(map, creature);
+                return $"Removed creature {entityId} ({creature.Name}).";
             }
-            return;
+
+            if (entities.TryGetObject(entityId, out var obj))
+            {
+                if (!MapInstanceScope.Contains(map, obj))
+                    return $"Object {entityId} is not on your map.";
+
+                var kind = obj switch
+                {
+                    Dropship => "a dropship",
+                    Logos => "a logos",
+                    _ when (int)obj.DynamicObjectType != 0 => $"a {obj.DynamicObjectType}",
+                    _ when map.ControlPoints.ContainsValue(obj) || map.FootLockers.ContainsValue(obj) ||
+                           map.Teleporters.ContainsValue(obj) || map.Kraftwerks.ContainsValue(obj) => "kept by its map",
+                    _ => null
+                };
+
+                if (kind != null)
+                    return $"Object {entityId} is {kind}, which its own system keeps; .removeobj takes only creatures and plain objects.";
+
+                map.DynamicObjects.Remove(obj);
+                CellManager.Instance.RemoveFromWorld(map, obj);
+                return $"Removed object {entityId}.";
+            }
+
+            return entities.GetEntityType(entityId) switch
+            {
+                EntityType.Character => $"{entityId} is a player; .removeobj takes only creatures and plain objects.",
+                EntityType.Item => $"{entityId} is an item; .removeobj takes only creatures and plain objects.",
+                _ => $"Nothing has entity id {entityId}."
+            };
         }
 
         /// <summary>
@@ -3753,23 +4259,39 @@ namespace Rasa.Managers
                 SendCommandUsage(".creatureappearance");
                 return;
             }
-            if (parts.Length == 5)
+            if (parts.Length != 5 || !ulong.TryParse(parts[1], out var entityId) || !uint.TryParse(parts[2], out var slotId) ||
+                !uint.TryParse(parts[3], out var classId) || !uint.TryParse(parts[4], out var color))
             {
-                if (ulong.TryParse(parts[1], out var entityId))
-                    if (uint.TryParse(parts[2], out uint slotId))
-                        if (uint.TryParse(parts[3], out uint classId))
-                            if (uint.TryParse(parts[4], out uint color))
-                            {
-                                // get creature from entityId
-                                var creature = EntityManager.Instance.GetCreature(entityId);
-                                var appearanceData = new AppearanceData(new Structures.Char.CharacterAppearanceEntry(slotId, classId,color));
-                                CreatureManager.Instance.CreateOrUpdateAppearance(creature, appearanceData);
-
-                                Logger.WriteLog(LogType.Debug, "Creature Look updated");
-                            }
+                SendCommandUsage(".creatureappearance");
+                return;
             }
 
-            return;
+            // GetCreature threw KeyNotFoundException for an id that is not a creature.
+            if (!EntityManager.Instance.Creatures.TryGetValue(entityId, out var creature))
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, $"{entityId} is not a creature.");
+                return;
+            }
+
+            if (!Enum.IsDefined(typeof(EquipmentData), slotId))
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, $"{slotId} is not an appearance slot.");
+                return;
+            }
+
+            var appearanceData = new AppearanceData(new Structures.Char.CharacterAppearanceEntry(slotId, classId, color));
+
+            try
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, CreatureManager.Instance.CreateOrUpdateAppearance(creature, appearanceData)
+                    ? $"Slot {slotId} of creature {creature.DbId} set, for every one of it, and saved."
+                    : $"Slot {slotId} of creature {entityId} set. It has no creature row, so it is not saved.");
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, $".creatureappearance {entityId} {slotId}: {e}");
+                CommunicatorManager.Instance.SystemMessage(_client, $"Slot {slotId} set, but it could not be saved: {e.GetBaseException().Message}");
+            }
         }
 
         private void SetCreatureLocation(string[] parts)
@@ -4836,6 +5358,13 @@ namespace Rasa.Managers
                 return;
             }
 
+            if (SkyClock.TryGetHeld(map, out var held))
+            {
+                CommunicatorManager.Instance.SystemMessage(client,
+                    $"{ran}. Its sky does not run: it is held at {SkyClock.ClockText(held)} (.setskytime holds it at another time on this copy of the map).");
+                return;
+            }
+
             CommunicatorManager.Instance.SystemMessage(client,
                 $"{ran}. Its day lasts {day.Length / 60} min and its sky starts at {SkyClock.ClockText((double)(day.Start % day.Length) / day.Length)}: it is {SkyClock.ClockText(timeOfDay)} there now.");
         }
@@ -4862,6 +5391,14 @@ namespace Rasa.Managers
             }
 
             SkyClock.TryGetTimeOfDay(map, out var timeOfDay, out _);
+
+            if (SkyClock.TryGetHeld(map, out var held))
+            {
+                CommunicatorManager.Instance.SystemMessage(client,
+                    $"This map's sky is held at {SkyClock.ClockText(held)} for everyone on this copy of it, until the copy closes.");
+                return;
+            }
+
             CommunicatorManager.Instance.SystemMessage(client,
                 $"This map's sky is at {SkyClock.ClockText(timeOfDay)} for everyone on it, and runs on from there ({SkyClock.RunningSeconds(map)} s).");
         }
@@ -5260,7 +5797,9 @@ namespace Rasa.Managers
         /// <summary>
         /// A slash command the client has no handler of its own for: client/communicator.py's
         /// ProcessSlashCommand sends whatever is not a local command as (command, arg), and the
-        /// client's GM pickers send their picks the same way. The ones the server knows are in
+        /// client's GM pickers send their picks the same way. The client's guild commands come
+        /// this way too, and are a player's clan commands (<see cref="GuildCommands"/>). The ones
+        /// the server knows are in
         /// <see cref="PrivilegedCommands"/>, each with the level it takes; anything else, or one
         /// above the account's level, is answered as the dot commands answer it, and goes on
         /// the audit log as they do.
@@ -5272,6 +5811,10 @@ namespace Rasa.Managers
 
             var command = packet.Command.Trim();
             var entered = $"/{command} {packet.Args}".TrimEnd();
+
+            // The client's guild commands are a player's clan commands, not a game master's.
+            if (GuildCommands.TryRun(client, command, packet.Args))
+                return;
 
             if (!PrivilegedCommands.TryGetValue(command, out var registered))
             {

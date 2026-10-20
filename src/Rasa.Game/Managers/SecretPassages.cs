@@ -14,9 +14,10 @@ namespace Rasa.Managers
     /// enters it somewhere else on the map, with no loading screen. Checked on every accepted
     /// Move (Client), against the step the player just took, so a fall fast enough to pass
     /// through a thin box between two Moves still counts. Ours: the client has no such thing,
-    /// and nothing in its data says where the original ones were. Torden Abyss's are hidden,
-    /// with nothing on screen to give them away; Alia Caverns's are an Eloh alcove one walks
-    /// up to, and take the player as a teleporter does (<see cref="Passage.WithEffect"/>).
+    /// and nothing in its data says where the original ones were. The leap into Torden Abyss's
+    /// chamber is hidden, with nothing on screen to give it away; the others are an Eloh
+    /// alcove one walks up to, and take the player as a teleporter does
+    /// (<see cref="Passage.WithEffect"/>).
     ///
     /// Torden Abyss, Jump and Believe. Two Eloh obelisks stand on the lip of the Abyssal Shelf
     /// (adv_arieki_torden_abyss, around -348, 523, -535), their glyphs reading "Jump" and
@@ -25,9 +26,9 @@ namespace Rasa.Managers
     /// a ramp and a short hall that ends in solid rock, with no door and no way in on foot. The
     /// leap of faith is the way in. A pane about 28 m under the lip, across the stretch of the
     /// drop below the obelisks, catches the jumper before they land anywhere and puts them in
-    /// the chamber, facing the logos; the end of the chamber's hall puts them back on the shelf
-    /// between the obelisks, facing the drop. A teleport ends the descent (PlaceAt), so the
-    /// fall costs nothing.
+    /// the chamber, facing the logos; the alcove at the end of the chamber's hall (below) puts
+    /// them back on the shelf between the obelisks, facing the drop. A teleport ends the
+    /// descent (PlaceAt), so the fall costs nothing.
     ///
     /// Concordia Wilderness, Alia Caverns (Receptive Reception, "acquire the Logos information
     /// from the shrine within"). The tunnels behind the waterfall end in sixteen metres of Eloh
@@ -57,6 +58,22 @@ namespace Rasa.Managers
     /// facing the logos, 7 m out from the shrine's own alcove; and that alcove takes them back
     /// to the cave's corridor, facing the tunnels. The alcove is the client's to collide with:
     /// its wall stops anyone short of where the corridor's floor ends.
+    ///
+    /// The other corridor ends the maps leave open. Of the 77 maps' Eloh corridor pieces, each
+    /// end joined to another piece, a door jamb, an endcap or an alcove is closed; what is
+    /// left, besides the Alia Caverns pair and the nine empty rooms stacked with the Enhance
+    /// shrine (which nothing reaches), is four, and each is given the same alcove at the
+    /// end's own origin, turned to open down its corridor:
+    ///  - Torden Abyss, the end of the Growth chamber's hall (-315, 199, -339), which is the
+    ///    way back to the obelisks: lit, with that passage before it.
+    ///  - Concordia Wilderness, a 16 m corridor off the cave that also holds the Earth logos
+    ///    chamber (-837, 141, -684): cave, door jamb, corridor and nothing, as at Alia Caverns.
+    ///  - Howling Maw, 32 m of corridor behind the room of the Few logos (-482, 123, -557).
+    ///  - Caves of Donn, both maps of it, 16 m of corridor behind a door locked by three
+    ///    logos (-328, 25, -359).
+    /// Nothing says where the last three led: no shrine without a way in is left over on
+    /// their maps. Their alcoves stand unlit (the state with no effect) and take nobody
+    /// anywhere, which closes the corridor without inventing a destination.
     /// </summary>
     public static class SecretPassages
     {
@@ -143,15 +160,6 @@ namespace Rasa.Managers
             new Vector3(-375f, 300f, -575f), new Vector3(-320f, 495f, -539f),
             new Vector3(-315f, 183.2f, -412f), 0f);
 
-        /// <summary>The end of the Growth chamber's hall, where it runs into the rock: back to the obelisks.</summary>
-        public static readonly Passage GrowthHallEnd = new Passage(
-            "Torden Abyss: the end of the Growth chamber's hall, back up to the Jump and Believe obelisks",
-            TordenAbyss,
-            new Vector3(-325f, 150f, -344f), new Vector3(-305f, 212f, -330f),
-            new Vector3(-347.8f, 523.5f, -531f), 0f);
-
-        public const uint ConcordiaWilderness = 1220;
-
         /// <summary>UsableTwoStateElohTemplesSpawner: the Eloh alcove that closes a corridor's end.</summary>
         public const EntityClasses ElohAlcove = (EntityClasses)22954;
 
@@ -163,6 +171,18 @@ namespace Rasa.Managers
 
         /// <summary>How far behind an alcove's wall its passage reaches: the niche is 1.4 m deep.</summary>
         public const float AlcoveDepth = 2f;
+
+        /// <summary>Before the alcove at the north end of the Growth chamber's hall (-315, 199, -339; floor y 199.0): back to the obelisks.</summary>
+        public static readonly Passage GrowthHallEnd = new Passage(
+            "Torden Abyss: the alcove at the end of the Growth chamber's hall, back up to the Jump and Believe obelisks",
+            TordenAbyss,
+            new Vector3(-315f - AlcoveHalfWidth, 193f, -339f - AlcoveReach), new Vector3(-315f + AlcoveHalfWidth, 209f, -339f + AlcoveDepth),
+            new Vector3(-347.8f, 523.5f, -531f), 0f, withEffect: true);
+
+        public const uint ConcordiaWilderness = 1220;
+        public const uint HowlingMaw = 2051;
+        public const uint CavesOfDonn = 1506;
+        public const uint CavesOfDonnEpic = 2368;
 
         /// <summary>Before the alcove at the north end of the Alia Caverns corridor (835, 286, 739; floor y 286.0, ceiling 291.5).</summary>
         public static readonly Passage AliaCavernsDoor = new Passage(
@@ -183,9 +203,10 @@ namespace Rasa.Managers
         /// <summary>The piece that closes the open end of a corridor a passage is at, so that it does not open on nothing.</summary>
         public sealed class Doorway
         {
-            public Doorway(string name, Passage passage, EntityClasses classId, UseObjectState state, Vector3 position, float yaw, Vector3 seenFrom)
+            public Doorway(string name, uint mapContextId, Passage passage, EntityClasses classId, UseObjectState state, Vector3 position, float yaw, Vector3 seenFrom)
             {
                 Name = name;
+                MapContextId = mapContextId;
                 Passage = passage;
                 ClassId = classId;
                 State = state;
@@ -196,10 +217,10 @@ namespace Rasa.Managers
 
             public string Name { get; }
 
-            /// <summary>The passage that is before this piece.</summary>
-            public Passage Passage { get; }
+            public uint MapContextId { get; }
 
-            public uint MapContextId => Passage.MapContextId;
+            /// <summary>The passage that is before this piece; null for one that takes nobody anywhere.</summary>
+            public Passage Passage { get; }
             public EntityClasses ClassId { get; }
 
             /// <summary>The state the piece stands in, which is what puts that state's effect on it.</summary>
@@ -226,7 +247,7 @@ namespace Rasa.Managers
         /// <summary>At the open north end of the Alia Caverns corridor (its straight's origin; the end is at z 739.14).</summary>
         public static readonly Doorway AliaCavernsDoorway = new Doorway(
             "Concordia Wilderness: the alcove at the end of the Alia Caverns corridor",
-            AliaCavernsDoor, ElohAlcove, UseObjectState.TsState1,
+            ConcordiaWilderness, AliaCavernsDoor, ElohAlcove, UseObjectState.TsState1,
             new Vector3(835f, 286f, 739f), 0f,
             // The tunnel runs straight at the corridor from z 647: in the cell of z 691..717, the piece is there from z 640 on.
             new Vector3(835f, 286f, 705f));
@@ -234,12 +255,61 @@ namespace Rasa.Managers
         /// <summary>At the open south end of the Enhance shrine's corridor (its straight's origin; the end is at z 919.86): the same, turned about.</summary>
         public static readonly Doorway EnhanceShrineDoorway = new Doorway(
             "Concordia Wilderness: the alcove at the end of the Enhance shrine's corridor",
-            EnhanceShrineExit, ElohAlcove, UseObjectState.TsState1,
+            ConcordiaWilderness, EnhanceShrineExit, ElohAlcove, UseObjectState.TsState1,
             new Vector3(832f, 159.93f, 920f), MathF.PI,
             // The room ends at z 985: in the cell of z 947..973, the piece is there throughout the shrine.
             new Vector3(832f, 160f, 960f));
 
-        public static readonly Doorway[] Doorways = { AliaCavernsDoorway, EnhanceShrineDoorway };
+        /// <summary>At the open north end of the Growth chamber's hall (its straight's origin): lit, the way back to the obelisks.</summary>
+        public static readonly Doorway GrowthHallDoorway = new Doorway(
+            "Torden Abyss: the alcove at the end of the Growth chamber's hall",
+            TordenAbyss, GrowthHallEnd, ElohAlcove, UseObjectState.TsState1,
+            new Vector3(-315f, 199f, -339f), 0f,
+            // The hall is 16 m of corridor and 48 m of ramp down to the room: on the ramp, the piece is there from the room's door.
+            new Vector3(-315f, 191f, -379f));
+
+        /// <summary>
+        /// At the open end of the corridor off the Earth logos cave (its straight's origin; the
+        /// straight runs south-west from it to a door jamb at -848.3, 141, -695.8). Unlit.
+        /// </summary>
+        public static readonly Doorway EarthCaveDoorway = new Doorway(
+            "Concordia Wilderness: the alcove at the end of the corridor off the Earth logos cave",
+            ConcordiaWilderness, null, ElohAlcove, UseObjectState.TsState0,
+            new Vector3(-837.03f, 141f, -684.48f), MathF.PI / 4f,
+            new Vector3(-848.34f, 141f, -695.79f));
+
+        /// <summary>
+        /// At the open south end of the corridor behind the room of the Few logos (the far end
+        /// of its 32 m straight, whose origin is at z -525): turned about. Unlit.
+        /// </summary>
+        public static readonly Doorway FewRoomDoorway = new Doorway(
+            "Howling Maw: the alcove at the end of the corridor behind the room of the Few logos",
+            HowlingMaw, null, ElohAlcove, UseObjectState.TsState0,
+            new Vector3(-482f, 123f, -557f), MathF.PI,
+            // The corridor is seen down its length from the room: in the cell of z -512..-538, the piece is there from the room's far door.
+            new Vector3(-482f, 123f, -517f));
+
+        /// <summary>
+        /// At the open west end of the corridor behind the door of Feeling, Trap and Heal (its
+        /// straight's origin; the straight runs east from it to the door at -312, 25, -359). Unlit.
+        /// </summary>
+        public static readonly Doorway DonnDoorway = new Doorway(
+            "Caves of Donn: the alcove at the end of the corridor behind the three-logos door",
+            CavesOfDonn, null, ElohAlcove, UseObjectState.TsState0,
+            new Vector3(-328f, 25f, -359f), -MathF.PI / 2f,
+            new Vector3(-312f, 25f, -359f));
+
+        /// <summary>The same corridor in the other map of the Caves of Donn, whose pieces stand where the first's do.</summary>
+        public static readonly Doorway DonnEpicDoorway = new Doorway(
+            "Caves of Donn (epic): the alcove at the end of the corridor behind the three-logos door",
+            CavesOfDonnEpic, null, ElohAlcove, UseObjectState.TsState0,
+            new Vector3(-328f, 25f, -359f), -MathF.PI / 2f,
+            new Vector3(-312f, 25f, -359f));
+
+        public static readonly Doorway[] Doorways =
+        {
+            AliaCavernsDoorway, EnhanceShrineDoorway, GrowthHallDoorway, EarthCaveDoorway, FewRoomDoorway, DonnDoorway, DonnEpicDoorway
+        };
 
         /// <summary>Puts the doorways on every loaded map that has any. Runs after MapChannelInit.</summary>
         public static void DoorwayInit()

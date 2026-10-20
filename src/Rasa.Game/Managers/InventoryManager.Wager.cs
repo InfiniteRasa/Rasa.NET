@@ -777,7 +777,7 @@ namespace Rasa.Managers
                         wager.Result = (byte)PvpWagerResult.PickUpBox;
                         wager.RecipientCharacterId = recipient;
 
-                        var recipientClient = clients.FirstOrDefault(c => c.Player.Id == recipient && c.State == ClientState.Ingame);
+                        var recipientClient = InWorld(clients, recipient);
 
                         if (item != null)
                             TakeWager(owner, ownerClient, item);
@@ -787,7 +787,17 @@ namespace Rasa.Managers
                             item ??= CreateLoadedItem(itemData, template, recipient, inboxSlot);
                             item.OwnerId = recipient;
                             item.OwnerSlotId = inboxSlot;
-                            PublishInboxDelivery(recipientClient, item);
+
+                            // On a loading screen between maps: in their inbox now, and shown with
+                            // the rest of it as they arrive (ResendForMap, ShowInbox). Anywhere
+                            // else in the world, shown at once.
+                            if (recipientClient.AwaitingMapLoaded)
+                            {
+                                if (!recipientClient.Player.Inventory.InboxItems.Contains(item.EntityId))
+                                    recipientClient.Player.Inventory.InboxItems.Add(item.EntityId);
+                            }
+                            else
+                                PublishInboxDelivery(recipientClient, item);
                         }
                         else if (item != null)
                         {
@@ -843,7 +853,7 @@ namespace Rasa.Managers
 
                 if (result.Mailed > 0)
                 {
-                    var recipientClient = clients.FirstOrDefault(c => c.Player.Id == recipient && c.State == ClientState.Ingame);
+                    var recipientClient = InWorld(clients, recipient);
 
                     if (recipientClient != null)
                         CommunicatorManager.Instance.SystemMessage(recipientClient,
@@ -869,6 +879,16 @@ namespace Rasa.Managers
 
             SyncWagerLock(owner);
         }
+
+        /// <summary>
+        /// The character's connection if they are in the world: on a map, or on their way between
+        /// two (Teleporting), when their inventory stays in memory and is sent again on arrival.
+        /// Anyone else - logging in, at character select, offline - has a forfeit as rows only, read
+        /// with the rest of their inventory when they next load. A recipient between maps used to
+        /// be taken for offline, and saw what was mailed to them only at their next login.
+        /// </summary>
+        private static Client InWorld(List<Client> clients, uint characterId) =>
+            clients.FirstOrDefault(c => c.Player.Id == characterId && (c.State == ClientState.Ingame || c.State == ClientState.Teleporting));
 
         /// <summary>Every connection with a character loaded.</summary>
         private static List<Client> ConnectedPlayers()

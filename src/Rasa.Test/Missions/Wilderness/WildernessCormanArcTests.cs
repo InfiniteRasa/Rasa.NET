@@ -613,6 +613,59 @@ namespace Rasa.Test.Missions.Wilderness
 
         [TestMethod]
         [TestCategory("WildernessG2")]
+        public void TheBloodAnalyzerInViewCanBeTalkedToAsSoonAsDuncanHasBeenSpokenTo()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            harness.SpawnWorld(218, 203);
+            using (var unit = harness.CreateChar())
+                unit.ExecuteTransaction(() => unit.CharacterFlags.Set(harness.Client.Player.Id, CharacterFlagIds.BootcampComplete, 1));
+            harness.Client.Player.StartingExperienceCompleted = true;
+            var victor = harness.Npc(218);
+            var duncan = harness.Npc(203);
+
+            // The analyzer is put at the infirmary desk with the mission, before its objective is
+            // open: a client that meets it there is given it with no conversation.
+            Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, victor.EntityId, 442));
+            harness.MoveTo(new Vector3(-124.8f, 220.91783f, -477.2f));
+            var analyzer = harness.Map.DynamicObjects.SingleOrDefault(obj =>
+                obj.SceneMissionId == 442 && obj.SceneActorRole == "blood-analyzer" &&
+                obj.SceneOwnerCharacterId == harness.Client.Player.Id && obj.IsInWorld);
+            Assert.IsNotNull(analyzer, "put at the desk with the mission");
+            Assert.AreEqual(ConversationStatus.None, harness.Manager.ObjectConversations.Status(harness.Client, analyzer).ConvoStatusId);
+            AnalyzerStatuses(harness, analyzer);
+
+            // Duncan, a few metres from it, done: the analyzer's status is sent again, with no
+            // need to leave and come back.
+            Assert.IsTrue(harness.Manager.CompleteOfferedObjective(harness.Client, duncan.EntityId, 442, 1, 1));
+
+            var status = AnalyzerStatuses(harness, analyzer).LastOrDefault();
+            Assert.IsNotNull(status, "the analyzer's status, sent again");
+            Assert.AreEqual(ConversationStatus.ObjectivComplete, status.ConvoStatusId);
+            CollectionAssert.AreEqual(new[] { 442U }, status.Data);
+
+            // And once it has been talked through, none.
+            var npcs = new NpcManager(harness, harness.Manager);
+            harness.MoveTo(new Vector3(-124.8f, 220.91783f, -477.2f));   // talking to Duncan stood the player at him
+            Open(harness, npcs, analyzer.EntityId);
+            npcs.CompleteNPCObjective(harness.Client, new CompleteNPCObjectivePacket
+            {
+                EntityId = analyzer.EntityId, MissionId = 442, ObjectiveId = 2, PlayerFlagId = 1
+            });
+            Assert.AreEqual(MissionObjectiveState.Completed, harness.Client.Player.Missions[442].Objectives[2].State);
+            Assert.AreEqual(ConversationStatus.None, AnalyzerStatuses(harness, analyzer).Last().ConvoStatusId);
+        }
+
+        private static List<NPCConversationStatusPacket> AnalyzerStatuses(WildernessRuntimeTestHarness harness, DynamicObject analyzer) =>
+            Rasa.Test.World.WorldTestContext.Drain(harness.Client)
+                .Select(packet => packet.Message)
+                .OfType<Rasa.Packets.Protocol.CallMethodMessage>()
+                .Where(message => message.EntityId == analyzer.EntityId)
+                .Select(message => message.Packet)
+                .OfType<NPCConversationStatusPacket>()
+                .ToList();
+
+        [TestMethod]
+        [TestCategory("WildernessG2")]
         public void CormanArcRunsFromQuarantineThroughTheOutdoorCouncilChainToBeacham()
         {
             using var harness = WildernessRuntimeTestHarness.Create();

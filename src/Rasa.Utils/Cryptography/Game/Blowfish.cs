@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Runtime.CompilerServices;
 
 namespace Rasa.Cryptography.Game
 {
@@ -128,6 +129,50 @@ namespace Rasa.Cryptography.Game
             t += key.S[768 + (r & 0xFFU)];
 
             ll ^= t;
+        }
+
+        /// <summary>The round function, on the key's S-boxes.</summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static uint F(uint[] s, uint x) =>
+            ((s[x >> 24] + s[256 + ((x >> 16) & 0xFFU)]) ^ s[512 + ((x >> 8) & 0xFFU)]) + s[768 + (x & 0xFFU)];
+
+        /// <summary>
+        /// <see cref="Encrypt(uint[], int, BlowfishData)"/> on one block held in two words, in
+        /// place: first and second in, and out in the order Encrypt stores them.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static void EncryptBlock(ref uint first, ref uint second, uint[] p, uint[] s)
+        {
+            var l = first ^ p[0];
+            var r = second;
+
+            r ^= p[1] ^ F(s, l);
+            l ^= p[2] ^ F(s, r);
+            r ^= p[3] ^ F(s, l);
+            l ^= p[4] ^ F(s, r);
+
+            r ^= p[BfRounds + 1];
+
+            first = r;
+            second = l;
+        }
+
+        /// <summary><see cref="Decrypt(uint[], int, BlowfishData)"/> on one block held in two words, in place.</summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static void DecryptBlock(ref uint first, ref uint second, uint[] p, uint[] s)
+        {
+            var l = first ^ p[BfRounds + 1];
+            var r = second;
+
+            r ^= p[4] ^ F(s, l);
+            l ^= p[3] ^ F(s, r);
+            r ^= p[2] ^ F(s, l);
+            l ^= p[1] ^ F(s, r);
+
+            r ^= p[0];
+
+            first = r;
+            second = l;
         }
 
         public static void Encrypt(uint[] data, int offset, BlowfishData key)

@@ -280,6 +280,8 @@ namespace Rasa.Test.Missions
             using var harness = CreateEscorts();
             var escort = Escorts(harness).First();
             var owner = Ground(harness, new Vector3(380, 120, 158));
+            // The others out of the way: one closer than Spacing.Crowded would have it step off.
+            SendCompanionsAway(harness, escort);
             harness.MovePlayerTo(owner);
             foreach (var (gap, running) in new[] { (9, false), (11, true), (7, true), (5, false), (3, false) })
             {
@@ -538,6 +540,8 @@ namespace Rasa.Test.Missions
             var actor = role == "youngblood" ? ReachYoungblood(harness) : Escorts(harness).First();
             foreach (var enemy in Actors(harness).Where(Rasa.Game.Missions.World.CreatureGameplayRules.TracksParticipation))
                 CellManager.Instance.RemoveCreatureFromWorld(harness.BootcampMap, enemy);
+            // The others out of the way: one closer than Spacing.Crowded would have it step off.
+            SendCompanionsAway(harness, actor);
             if (role == "ownerless")
                 actor.SpawnPool.FollowOwnerCharacterId = 999;
             harness.MovePlayerTo(actor);
@@ -572,6 +576,8 @@ namespace Rasa.Test.Missions
             var escort = Escorts(harness).First();
             foreach (var companion in Escorts(harness))
                 companion.AggroRange = 0;
+            // The others out of the way: one closer than Spacing.Crowded would have it step off.
+            SendCompanionsAway(harness, escort);
             harness.MovePlayerTo(Ground(harness, escort.Position + new Vector3(gap, 0, 0)));
             CellManager.Instance.UpdateVisibility(harness.Client);
             WorldTestContext.Drain(harness.Client);
@@ -740,6 +746,16 @@ namespace Rasa.Test.Missions
             CellManager.Instance.UpdateVisibility(harness.Client);
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, deSimone.EntityId, 1994));
             return harness;
+        }
+
+        /// <summary>The escort's companions follow someone else, from 40 m off.</summary>
+        private static void SendCompanionsAway(BootcampRuntimeTestHarness.Harness harness, Creature escort)
+        {
+            foreach (var companion in Escorts(harness).Where(companion => companion != escort))
+            {
+                companion.SpawnPool.FollowOwnerCharacterId = 999;
+                Place(harness, companion, escort.Position + new Vector3(0, 0, -40));
+            }
         }
 
         private static Creature[] Actors(BootcampRuntimeTestHarness.Harness harness) =>

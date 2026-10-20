@@ -396,13 +396,19 @@ namespace Rasa.Test.Missions.Wilderness
             Grant(harness, 747, 50);
             var loot = Kill(harness, 3, 580019);
             var before = harness.Context.ReadRewardTotals();
+            var credits = loot.Credits;
 
             Take(harness, loot);
 
-            Assert.AreEqual(before, harness.Context.ReadRewardTotals());
+            // The blood stays; whatever else dropped and has room is taken, and Loot All pays the
+            // corpse's credits all the same.
+            var taken = harness.Context.ReadRewardTotals();
+            var blood = loot.LootItems.Single(item => item.ItemTemplateId == 2524);
+            Assert.IsFalse(blood.Taken);
+            Assert.AreEqual(before.ItemCount + loot.LootItems.Where(item => item.Taken).Sum(item => (long)item.ItemQuantity), taken.ItemCount);
+            Assert.AreEqual(before.Credits + credits, taken.Credits);
             Assert.AreEqual(0U, HeldQuantity(harness, 2524));
             Assert.AreEqual(0U, harness.Client.Player.Missions[776].Objectives[2].ItemCounters[11150]);
-            Assert.IsTrue(loot.LootItems.All(item => !item.Taken));
             var filler = harness.Client.Player.Inventory.PersonalInventory.Where(id => id != 0)
                 .Select(EntityManager.Instance.GetItem).First(item => item.ItemTemplate.ItemTemplateId == 747);
             InventoryManager.Instance.PersonalInventory_DestroyItem(harness.Client,
@@ -665,12 +671,12 @@ namespace Rasa.Test.Missions.Wilderness
 
             Assert.AreEqual(MissionState.Completed, harness.Client.Player.Missions[549].State);
             Assert.AreEqual(49U, HeldQuantity(harness, 747), "Wagner must not consume an unrelated catalyzer.");
-            Assert.AreEqual(1U, HeldQuantity(harness, 44918));
-            Assert.AreEqual(0U, HeldQuantity(harness, 44917));
+            Assert.AreEqual(1U, HeldQuantity(harness, 45125));   // the Class I Fragmentation Grenade chosen
+            Assert.AreEqual(0U, HeldQuantity(harness, 47593));   // not the Res Trauma Kit
             npcs.CompleteNPCMission(harness.Client,
                 new CompleteNPCMissionPacket { EntityId = wagner.EntityId, MissionId = 549, SelectionIdx = 1 });
             Assert.AreEqual(49U, HeldQuantity(harness, 747));
-            Assert.AreEqual(1U, HeldQuantity(harness, 44918));
+            Assert.AreEqual(1U, HeldQuantity(harness, 45125));
         }
 
         [TestMethod]
@@ -722,7 +728,7 @@ namespace Rasa.Test.Missions.Wilderness
                 new CompleteNPCMissionPacket { EntityId = duncan.EntityId, MissionId = 441, SelectionIdx = 1 });
             Assert.AreEqual(MissionState.Completed, harness.Client.Player.Missions[441].State);
             Assert.AreEqual(1U, HeldQuantity(harness, 44917));
-            Assert.AreEqual(0U, HeldQuantity(harness, 44918));
+            Assert.AreEqual(0U, HeldQuantity(harness, 45125));
         }
 
         [TestMethod]
@@ -736,10 +742,11 @@ namespace Rasa.Test.Missions.Wilderness
             var npcs = new NpcManager(harness, harness.Manager);
             CompleteObjective(harness, npcs, duncan, 441);
             var fillerTemplate = ItemManager.Instance.GetItemTemplateById(44917);
-            var selectedTemplate = ItemManager.Instance.GetItemTemplateById(44918);
+            var selectedTemplate = ItemManager.Instance.GetItemTemplateById(45125);   // the Class I Fragmentation Grenade
             Assert.AreEqual(selectedTemplate.InventoryCategory, fillerTemplate.InventoryCategory);
             var stackSize = EntityClassManager.Instance.GetClassInfo(fillerTemplate.Class).ItemClassInfo.StackSize;
             Grant(harness, 44917, checked(50U * stackSize));
+            harness.FillInbox();
             var before = harness.Context.ReadRewardTotals();
             npcs.RequestNpcConverse(harness.Client, new RequestNPCConversePacket { EntityId = duncan.EntityId });
             harness.Drain();
@@ -759,13 +766,44 @@ namespace Rasa.Test.Missions.Wilderness
             npcs.CompleteNPCMission(harness.Client,
                 new CompleteNPCMissionPacket { EntityId = duncan.EntityId, MissionId = 441, SelectionIdx = 0 });
             Assert.AreEqual(MissionState.Completed, harness.Client.Player.Missions[441].State);
-            Assert.AreEqual(1U, HeldQuantity(harness, 44918));
+            Assert.AreEqual(1U, HeldQuantity(harness, 45125));
             Assert.AreEqual(49U * stackSize, HeldQuantity(harness, 44917));
         }
 
+        // Since 71d0ef6a a reward that does not fit the backpack goes to the inbox: a full backpack
+        // with room in the inbox completes the turn-in.
         [TestMethod]
-        [DataRow(549U, 181U, 430U, 44917U, 44918U)]
-        [DataRow(441U, 208U, 549U, 44918U, 44917U)]
+        public void AFullRewardBagSendsDuncansRewardToTheInbox()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            CompleteHistory(harness, 549);
+            Accept(harness, 208, 441);
+            harness.SpawnWorld(203);
+            var duncan = harness.Npc(203);
+            var npcs = new NpcManager(harness, harness.Manager);
+            CompleteObjective(harness, npcs, duncan, 441);
+            var fillerTemplate = ItemManager.Instance.GetItemTemplateById(44917);
+            var stackSize = EntityClassManager.Instance.GetClassInfo(fillerTemplate.Class).ItemClassInfo.StackSize;
+            Grant(harness, 44917, checked(50U * stackSize));
+            npcs.RequestNpcConverse(harness.Client, new RequestNPCConversePacket { EntityId = duncan.EntityId });
+            harness.Drain();
+
+            npcs.CompleteNPCMission(harness.Client,
+                new CompleteNPCMissionPacket { EntityId = duncan.EntityId, MissionId = 441, SelectionIdx = 0 });
+
+            Assert.AreEqual(MissionState.Completed, harness.Client.Player.Missions[441].State);
+            Assert.AreEqual(50U * stackSize, HeldQuantity(harness, 44917), "the backpack as it was");
+            using var unit = harness.CreateChar();
+            var inbox = unit.CharacterInventories.GetItems(harness.Client.AccountEntry.Id)
+                .Where(row => row.CharacterId == harness.Client.Player.Id && row.InventoryType == (uint)InventoryType.InboxInventory)
+                .Select(row => unit.Items.GetItem(row.ItemId).ItemTemplateId)
+                .ToList();
+            CollectionAssert.AreEqual(new uint[] { 45125 }, inbox, "the selected reward, in the inbox");
+        }
+
+        [TestMethod]
+        [DataRow(549U, 181U, 430U, 47593U, 45125U)]
+        [DataRow(441U, 208U, 549U, 45125U, 44917U)]
         [DataRow(665U, 172U, 0U, 13744U, 28692U)]
         [DataRow(430U, 181U, 0U, 26940U, 13739U)]
         public void NativeOffersAdvertiseTheSameItemChoicesThatAreGranted(
@@ -785,7 +823,7 @@ namespace Rasa.Test.Missions.Wilderness
             var rewards = offers[missionId].MissionConstantData.RewardInfo.SelectableReward;
             CollectionAssert.AreEqual(new[] { firstTemplate, secondTemplate },
                 rewards.Select(item => item.ItemTemplateId).ToArray());
-            Assert.IsTrue(rewards.All(item => item.Quantity == 1 && item.ModuleIds.Count == 0));
+            Assert.IsTrue(rewards.All(item => item.Quantity == 1 && WildernessRewardModulesTests.OfferedAsAuthored(missionId, item)));
         }
 
         private static void CompleteObjective(WildernessRuntimeTestHarness harness, NpcManager npcs,

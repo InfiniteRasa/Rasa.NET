@@ -105,6 +105,9 @@ namespace Rasa.Game.Missions
             _experiences.Add(experience.MapContextId, experience);
         }
 
+        private static bool IsOwnPrivateMap(uint characterId, MapChannel map) =>
+            map != null && map.IsPrivateInstance && map.OwnerCharacterId == characterId;
+
         internal void StageExperience(uint characterId, MapChannel map)
         {
             if (!_experiences.TryGetValue(map.MapInfo.MapContextId, out var experience))
@@ -148,7 +151,11 @@ namespace Rasa.Game.Missions
             var map = client.Player.MapChannel;
             if (_resumed.TryGetValue((client.Player.Id, map), out var attached) && ReferenceEquals(attached, client))
                 return;
-            StageExperience(client.Player.Id, map);
+            // A private experience runs on its character's own copy of the map. Someone on the
+            // map's shared channel - a game master's .teleport, /gotomap or a map link - or on
+            // another character's copy is there without it.
+            if (IsOwnPrivateMap(client.Player.Id, map))
+                StageExperience(client.Player.Id, map);
             foreach (var resident in _runs.Values.Where(run => run.Run.OwnerCharacterId == client.Player.Id && run.Map == map))
             {
                 resident.Owner = client;
@@ -223,7 +230,8 @@ namespace Rasa.Game.Missions
                 }
             }
             if (client?.Player?.MapChannel == null ||
-                !_experiences.TryGetValue(client.Player.MapContextId, out var experience))
+                !_experiences.TryGetValue(client.Player.MapContextId, out var experience) ||
+                !IsOwnPrivateMap(client.Player.Id, client.Player.MapChannel))
                 return;
             Resume(client);
             var root = _runs.Values.Single(run => run.Run.OwnerCharacterId == client.Player.Id &&
@@ -925,8 +933,17 @@ namespace Rasa.Game.Missions
             if (bindings.Release != run.Release || !_runtime.Supports(run.ScriptKey, run.StateVersion))
                 throw new GameplayRejectionException(
                     $"Scene run {runId} cannot load release {run.Release}, script {run.ScriptKey}/{run.StateVersion}.");
+            // A private instance is made again on every login, under a new instance id, and the
+            // run goes on in the new one: its row names the map it is in now. The conversation,
+            // offer and lease checks compare the row's map with the player's, and on the old key
+            // refused every actor of the run - a corpse that offered its dialogue and answered
+            // nothing.
+            var mapKey = PublicActorLeaseService.MapKey(map);
             unit.ExecuteTransaction(() =>
             {
+                if (map.IsPrivateInstance && row.MapKey != mapKey)
+                    row.MapKey = mapKey;
+
                 foreach (var timer in unit.CharacterMissions.Runtime.Timers(runId)
                     .Where(timer => timer.ClockPolicy == "ActiveScene" && timer.Disposition == "Paused"))
                 {

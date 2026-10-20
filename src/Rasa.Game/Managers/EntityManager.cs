@@ -178,9 +178,60 @@ namespace Rasa.Managers
                 return;
             }
 
+            // Nor while an object, creature, item or player is still filed under it: the next
+            // one to draw the id would be refused by that dictionary's Add.
+            var holder = HolderOf(id);
+
+            if (holder != null)
+            {
+                Logger.WriteLog(LogType.Error, $"Entity {id} was freed while still held by a {holder}; the id is not reused.");
+                return;
+            }
+
             lock (_entityIdLock)
                 if (_freeEntityIdSet.Add(id))
                     _freeEntityIds.Enqueue(id);
+        }
+
+        /// <summary>Which of the entity dictionaries still has this id, or null.</summary>
+        private string HolderOf(ulong id)
+        {
+            if (DynamicObjects.ContainsKey(id))
+                return "dynamic object";
+            if (Creatures.ContainsKey(id))
+                return "creature";
+            if (Items.ContainsKey(id))
+                return "item";
+            if (Players.ContainsKey(id))
+                return "player";
+
+            return null;
+        }
+
+        /// <summary>
+        /// Takes an id back out of the free pool when an entity is registered under it again. An
+        /// object or creature taken out of the world (CellManager.RemoveFromWorld, ReleaseEntity)
+        /// has its id freed but keeps it, and one put back keeps using it: left in the pool, the
+        /// id would be drawn by the next entity made while the first still had it, and that one's
+        /// registration would be refused.
+        /// </summary>
+        private void Reclaim(ulong id)
+        {
+            lock (_entityIdLock)
+            {
+                if (!_freeEntityIdSet.Remove(id))
+                    return;
+
+                var count = _freeEntityIds.Count;
+
+                for (var i = 0; i < count; i++)
+                {
+                    var queued = _freeEntityIds.Dequeue();
+
+                    if (queued != id)
+                        _freeEntityIds.Enqueue(queued);
+                }
+            }
         }
 
         public void RegisterEntity(ulong entityId, EntityType type)
@@ -193,6 +244,7 @@ namespace Rasa.Managers
                 Logger.WriteLog(LogType.Error, $"Entity {entityId} registered as {type} while already registered as {existing}; the new registration wins.");
 
             RegisteredEntities[entityId] = type;
+            Reclaim(entityId);
         }
 
         public void UnregisterEntity(ulong entityId)
@@ -245,6 +297,7 @@ namespace Rasa.Managers
 
         public void RegisterItem(ulong entityId, Item item)
         {
+            Reclaim(entityId);
             Items.Add(entityId, item);
         }
 
@@ -268,6 +321,7 @@ namespace Rasa.Managers
 
         public void RegisterDynamicObject(DynamicObject dynamicObject)
         {
+            Reclaim(dynamicObject.EntityId);
             DynamicObjects.Add(dynamicObject.EntityId, dynamicObject);
         }
 
@@ -285,6 +339,7 @@ namespace Rasa.Managers
 
         public void RegisterPlayer(ulong entityId, Manifestation player)
         {
+            Reclaim(entityId);
             Players.Add(entityId, player);
         }
 
@@ -308,6 +363,7 @@ namespace Rasa.Managers
 
         public void RegisterCreature(Creature creature)
         {
+            Reclaim(creature.EntityId);
             Creatures.Add(creature.EntityId, creature);
         }
 
@@ -323,9 +379,17 @@ namespace Rasa.Managers
             VendorItems.Add(vendorEntityId, itemEntityIds);
         }
 
-        public void UnRegisterVendorItem(ulong clientEntityId)
+        /// <summary>
+        /// Forgets the counter a vendor was given (NpcManager.RequestNPCVending), as the vendor is
+        /// taken away (CellManager.RemoveCreatureFromWorld). The table is keyed by the vendor's
+        /// entity id, which is freed for the next creature: kept, a later creature given the same
+        /// id - another vendor, or a Resupply Bot - was shown the old one's counter. The items on
+        /// it stay registered: every client that opened the window was sent them and is not told
+        /// to let go of them, and an id it still holds should not come back as something else.
+        /// </summary>
+        public void UnRegisterVendorItem(ulong vendorEntityId)
         {
-            // ToDO
+            VendorItems.Remove(vendorEntityId);
         }
     }
 }

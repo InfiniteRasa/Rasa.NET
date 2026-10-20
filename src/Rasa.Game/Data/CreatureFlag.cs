@@ -7,11 +7,18 @@ namespace Rasa.Data
     ///
     /// Three of them decide what a tool may be used on. harvest.py refuses a BIOLOGICAL creature
     /// to Salvage and a MECHANICAL one to Tissue Extraction, and healdisc.py will only heal a
-    /// creature that is BIOLOGICAL or MACHINA. The SPECIES_* entries name the forty-six families
-    /// the game recognises, which is how the other two are worked out.
+    /// creature that is BIOLOGICAL or MACHINA. The three are one each: a Machina is MACHINA,
+    /// not MECHANICAL as well. The SPECIES_* entries name the forty-six families the game
+    /// recognises.
     ///
-    /// The rest are here because this is the client's table and transcribing half of it invites
-    /// someone to add the other half twice; nothing reads them yet.
+    /// Each class's flags are the monster flag editor's (CreatureFlagEdits). The server acts on
+    /// the substances, the species, the experience modifiers, POWERLEVEL_0_AMBIENT, _6_BOSS and
+    /// _7_SUPERBOSS, the damage and control resistances, immunities and vulnerabilities,
+    /// IMMOBILIZE_IMMUNITY, REAR_POSITION_BONUS_IMMUNITY, NO_CRIT_KILL, CAN_WALK_BACKWARDS and
+    /// the ALT_MESH flags; the client draws the target frame's borders from the UI_INDICATOR_
+    /// ones. The rest - kingdom, sentience, origin, IS_BANE and its like, the other power,
+    /// armour and chitin levels, CAN_CROUCH, CAN_BE_REVIVED - go to the client in CreatureInfo
+    /// and nothing on the server reads them yet.
     /// </summary>
     public enum CreatureFlag
     {

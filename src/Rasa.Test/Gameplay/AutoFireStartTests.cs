@@ -284,8 +284,10 @@ namespace Rasa.Test.Gameplay
             Assert.AreEqual(7u, context.Weapon.CurrentAmmo);
         }
 
+        // With nothing in hand a player has their fists (Unarmed, UnarmedTests), whose class this
+        // fixture does not load: nothing to fire with at all.
         [TestMethod]
-        public void WithNothingInHandNoFireIsStarted()
+        public void WithNothingToFireWithNoFireIsStarted()
         {
             using var context = new WeaponAmmoContext();
             var manager = new ManifestationManager(context);

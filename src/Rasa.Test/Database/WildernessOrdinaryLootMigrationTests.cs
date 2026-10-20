@@ -239,8 +239,9 @@ namespace Rasa.Test.Database
             var error = Assert.ThrowsExactly<LootContentException>(() => OrdinaryLootCatalog.Load(world));
             var missing = error.Diagnostics.Where(message => message.Contains("required ordinary loot profile binding is missing"))
                 .Select(message => uint.Parse(message.Split("creature ")[1].Split(':')[0])).Distinct().OrderBy(id => id).ToArray();
-            // And this fork's Wilderness Bane turret, which Bind_control_point_turret_loot binds.
-            CollectionAssert.AreEqual(RequiredCreatures.Append(ControlPointTurretLoot.Creature).OrderBy(id => id).ToArray(), missing);
+            // And this fork's Wilderness Bane turret, which Bind_control_point_turret_loot binds,
+            // and its Wilderness Bane mortar, which Bane_mortars binds.
+            CollectionAssert.AreEqual(RequiredCreatures.Append(ControlPointTurretLoot.Creature).Append(BaneMortars.LootCreature).OrderBy(id => id).ToArray(), missing);
             StringAssert.Contains(error.Message, "mission 682@");
             StringAssert.Contains(error.Message, "actor xanx-1, map 1220, creature 87");
             StringAssert.Contains(error.Message, "control point 3");
@@ -424,9 +425,11 @@ namespace Rasa.Test.Database
             rows.Profiles.Where(row => row.ProfileKey.StartsWith("wilderness_v1_", StringComparison.Ordinal)),
             rows.Groups.Where(row => row.ProfileKey.StartsWith("wilderness_v1_", StringComparison.Ordinal)),
             rows.Items.Where(row => row.ProfileKey.StartsWith("wilderness_v1_", StringComparison.Ordinal)),
-            // The v1 content's own: not the bindings this fork adds after it (Bind_control_point_turret_loot).
+            // The v1 content's own: not the bindings this fork adds after it (Bind_control_point_turret_loot,
+            // Bane_mortars).
             rows.Bindings.Where(row => row.MapContextId == 1220 &&
-                !(row.MapContextId == ControlPointTurretLoot.Map && row.CreatureId == ControlPointTurretLoot.Creature)),
+                !(row.MapContextId == ControlPointTurretLoot.Map && row.CreatureId == ControlPointTurretLoot.Creature) &&
+                !(row.MapContextId == BaneMortars.LootMap && row.CreatureId == BaneMortars.LootCreature)),
             rows.MapPolicies.Where(row => row.MapContextId == 1220));
 
         private static string Serialize(OrdinaryLootContentSnapshot rows) => JsonSerializer.Serialize(rows);

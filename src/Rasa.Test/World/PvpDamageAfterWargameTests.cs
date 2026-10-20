@@ -116,6 +116,56 @@ namespace Rasa.Test.World
             Assert.IsTrue(ActorManager.Instance.Damage(world.Map, blue.Player, 100, wild, out _) > 0);
         }
 
+        // Another player's creature is theirs as much as their health is: what does not land on
+        // them does not land on it. It used to be checked only when the target was the player.
+        [TestMethod]
+        public void AHitOnTheCreatureOfAPlayerWhoIsNoEnemyTakesNothing()
+        {
+            using var world = new WorldTestContext();
+            var (red, blue) = Fighters(world);
+            var bluesPet = Summon(world, blue);
+            var redsPet = new Creature { MasterEntityId = red.Player.EntityId, MapContextId = world.Map.MapInfo.MapContextId, Level = 1 };
+
+            try
+            {
+                Assert.AreEqual(0, ActorManager.Instance.Damage(world.Map, bluesPet, 100, red.Player, out var outcome), "the player's");
+                Assert.IsTrue(outcome.Immune, "shown as Immune, as on the player");
+                Assert.AreEqual(0, ActorManager.Instance.Damage(world.Map, bluesPet, 100, redsPet, out _), "their creature's");
+
+                // A shot: HOSTILE, as a creature turned by Traitor stays, so only the owner stops it.
+                Shoot(world, red.Player, bluesPet);
+                Assert.AreEqual(1000, bluesPet.Attributes[Attributes.Health].Current);
+
+                Assert.IsTrue(ActorManager.Instance.Damage(world.Map, bluesPet, 100, blue.Player, out _) > 0, "its owner's own hit is theirs to land");
+            }
+            finally
+            {
+                CellManager.Instance.RemoveCreatureFromWorld(world.Map, bluesPet);
+            }
+        }
+
+        [TestMethod]
+        public void AHitOnAnEnemysCreatureStillLands()
+        {
+            using var world = new WorldTestContext();
+            var (red, blue) = Fighters(world);
+            var bluesPet = Summon(world, blue);
+
+            try
+            {
+                AtFeud(world, red, blue, feud =>
+                {
+                    Shoot(world, red.Player, bluesPet);
+                    Assert.IsTrue(bluesPet.Attributes[Attributes.Health].Current < 1000, "the shot");
+                    Assert.IsTrue(ActorManager.Instance.Damage(world.Map, bluesPet, 100, red.Player, out _) > 0, "any hit");
+                });
+            }
+            finally
+            {
+                CellManager.Instance.RemoveCreatureFromWorld(world.Map, bluesPet);
+            }
+        }
+
         #endregion
 
         #region A turret
@@ -217,6 +267,44 @@ namespace Rasa.Test.World
         }
 
         private static int Health(Client client) => client.Player.Attributes[Attributes.Health].Current;
+
+        /// <summary>A HOSTILE creature of the owner's - one turned by Traitor - in the world beside them.</summary>
+        private static Creature Summon(WorldTestContext world, Client owner)
+        {
+            var creature = new Creature
+            {
+                Name = "Turned",
+                MasterEntityId = owner.Player.EntityId,
+                TargetCategory = TargetCategory.Hostile,
+                MapContextId = world.Map.MapInfo.MapContextId,
+                RuntimeMapChannel = world.Map,
+                Position = owner.Player.Position,
+                EntityClass = EntityClasses.HumanBaseMale,
+                State = CharacterState.Idle,
+                Level = 1,
+                AppearanceData = new System.Collections.Generic.Dictionary<EquipmentData, AppearanceData>()
+            };
+            creature.Attributes[Attributes.Health] = new ActorAttributes(Attributes.Health, 1000, 1000, 1000, 0, 0);
+            creature.Attributes[Attributes.Armor] = new ActorAttributes(Attributes.Armor, 0, 0, 0, 0, 0);
+            CellManager.Instance.AddToWorld(world.Map, creature);
+            return creature;
+        }
+
+        /// <summary>A shot that lands now (MissileManager.MissileTrigger).</summary>
+        private static void Shoot(WorldTestContext world, Actor source, Creature target)
+        {
+            MissileManager.Instance.MissileTrigger(world.Map, new Missile
+            {
+                Source = source,
+                TargetEntityId = target.EntityId,
+                TargetActor = target,
+                DamageA = 100,
+                DamageType = DamageType.Physical,
+                ActionId = ActionId.WeaponAttack,
+                ActionArgId = 1,
+                CritChance = 0
+            });
+        }
 
         /// <summary>The Red clan and the Blue at feud for as long as the body runs, the two online.</summary>
         private static void AtFeud(WorldTestContext world, Client red, Client blue, Action<ClanFeuds.Feud> body)

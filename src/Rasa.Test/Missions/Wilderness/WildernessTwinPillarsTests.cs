@@ -352,8 +352,22 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.IsFalse(harness.Manager.TryGetOperationalMission(593, out _));
         }
 
+        /// <summary>A blow of exactly its health and armour, from the harness's player, through the real damage path.</summary>
+        private static void KillOutright(WildernessRuntimeTestHarness harness, Creature creature)
+        {
+            var lethalDamage = checked(creature.Attributes[Attributes.Health].Current +
+                Math.Max(0, creature.Attributes[Attributes.Armor].Current));
+            Assert.IsTrue(lethalDamage > 0);
+            Assert.AreEqual(lethalDamage,
+                ActorManager.Instance.Damage(harness.Map, creature, lethalDamage, harness.Client.Player));
+        }
+
         private static void CollectMachinaRemains(WildernessRuntimeTestHarness harness)
         {
+            // The action data, as a server has it: the Machina's revive (CR_MACHINA_REVIVE 429)
+            // gets it up with what its level gives, and without its level it never gets up.
+            harness.LoadAbilities();
+
             var drop = harness.Manager.LoadedMissions[574].Items["machina-remains"].Drop;
             var creatureId = drop.CreatureIds.Single();
             Assert.AreEqual(630100U, creatureId);
@@ -370,11 +384,16 @@ namespace Rasa.Test.Missions.Wilderness
                 harness.MoveTo(creature.Position);
                 Assert.AreEqual(Race.Human, harness.Client.Player.Race);
                 Assert.IsTrue(harness.Client.Player.Attributes[Attributes.Health].Current > 0);
-                var lethalDamage = checked(creature.Attributes[Attributes.Health].Current +
-                    Math.Max(0, creature.Attributes[Attributes.Armor].Current));
-                Assert.IsTrue(lethalDamage > 0);
-                Assert.AreEqual(lethalDamage,
-                    ActorManager.Instance.Damage(harness.Map, creature, lethalDamage, harness.Client.Player));
+                // The Forean Machina has its kin's self revive (Family_abilities): the first blow
+                // that kills it in a life puts it down, leaving nothing to loot, and it gets up
+                // again. The second leaves the remains.
+                KillOutright(harness, creature);
+                Assert.AreEqual(CharacterState.Dead, creature.State, "down");
+                Assert.AreEqual(0UL, creature.CorpseLootEntityId, "a Machina's first death is not its end");
+                CreatureSupport.Worker(harness.Map, Environment.TickCount64 + 60000);
+                Assert.AreNotEqual(CharacterState.Dead, creature.State, "back up");
+                Assert.IsTrue(creature.Attributes[Attributes.Health].Current > 0);
+                KillOutright(harness, creature);
                 Assert.AreEqual(CharacterState.Dead, creature.State);
                 Assert.AreEqual(0, creature.Attributes[Attributes.Health].Current,
                     "The real damage path must produce a zero-HP corpse before a loot claim is valid.");
@@ -480,6 +499,13 @@ namespace Rasa.Test.Missions.Wilderness
             var capacity = harness.Client.Player.Attributes[Attributes.Armor].CurrentMax;
             Assert.IsTrue(capacity > baseline, "Equipping the actual reward must increase server armor capacity.");
             AssertEquippedPersistence(harness, itemId, slot);
+
+            // Mission 574's reward is earned by killing (EarnArmorReward), and a kill is a fight:
+            // armour does not regenerate in combat. The fight is over once its time has run out.
+            harness.Client.Player.CombatExpiresAt = Environment.TickCount64;
+            ManifestationManager.Instance.CombatWorker(harness.Map);
+            Assert.IsFalse(harness.Client.Player.InCombat);
+
             for (var tick = 0; tick < 100 && harness.Client.Player.Attributes[Attributes.Armor].Current < 10; tick++)
                 ActorManager.Instance.Regenerate(harness.Map);
             var armorBeforeHit = harness.Client.Player.Attributes[Attributes.Armor].Current;

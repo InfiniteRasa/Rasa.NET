@@ -170,6 +170,10 @@ namespace Rasa.Managers
                 if (leader == null)
                     continue;
 
+                // An invisible GM's ad, to anyone who is not a GM: an ad up is someone online.
+                if (Detection.IsGmHiddenFrom(leader.Player, client))
+                    continue;
+
                 if (!Matches(ad, filter))
                     continue;
 

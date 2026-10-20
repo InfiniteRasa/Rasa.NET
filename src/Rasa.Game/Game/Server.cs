@@ -75,6 +75,9 @@ namespace Rasa.Game
 
         private readonly List<Client> _clientsToRemove = new List<Client>();
 
+        /// <summary>The clients whose input this tick has read, to be sent their queues; the main loop's alone.</summary>
+        private readonly List<Client> _readThisTick = new List<Client>();
+
         /// <summary>
         /// Accounts Auth has reported as banned while this process was connected to it. Auth refuses
         /// a locked account at login, so this only has to cover players who were already past that
@@ -260,6 +263,66 @@ namespace Rasa.Game
         }
         #endregion
 
+        /// <summary>
+        /// Every client's input, and then every client's queue (Client.ReadInput): what a client
+        /// does reaches the others in the tick it was done, whichever of them comes first in the
+        /// list. A client whose transfer has run out is dropped, and neither read nor sent to.
+        /// </summary>
+        internal static void ServiceClients(List<Client> clients, List<Client> readThisTick, long delta)
+        {
+            readThisTick.Clear();
+
+            foreach (var client in clients)
+            {
+                if (client.PendingTransfer != null &&
+                    MapChannelManager.Instance.CheckTransferTimeout(client))
+                    continue;
+
+                // Client.ReadInput and SendQueued guard their own work and disconnect the client
+                // that threw. This is for the rest of it - Close(), the socket, the packet queue -
+                // so a fault in one connection cannot leave every client after it in the list
+                // frozen for the tick.
+                try
+                {
+                    if (client.ReadInput(delta))
+                        readThisTick.Add(client);
+                }
+                catch (Exception e)
+                {
+                    CloseFaulted(client, e);
+                }
+            }
+
+            foreach (var client in readThisTick)
+            {
+                try
+                {
+                    client.SendQueued();
+                }
+                catch (Exception e)
+                {
+                    CloseFaulted(client, e);
+                }
+            }
+
+            readThisTick.Clear();
+        }
+
+        /// <summary>A client whose servicing threw past its own guards: logged and closed, and the tick goes on to the next.</summary>
+        private static void CloseFaulted(Client client, Exception e)
+        {
+            Logger.WriteLog(LogType.Error, $"Error updating client {client.Socket?.RemoteAddress}, disconnecting it: {e}");
+
+            try
+            {
+                client.Close(false);
+            }
+            catch (Exception inner)
+            {
+                Logger.WriteLog(LogType.Error, $"And closing it threw as well: {inner}");
+            }
+        }
+
         public void Disconnect(Client client)
         {
             lock (_clientsToRemove)
@@ -337,34 +400,7 @@ namespace Rasa.Game
                     Logger.WriteLog(LogType.Error, $"Error in the map channel worker: {e}");
                 }
 
-                foreach (var client in Clients)
-                {
-                    if (client.PendingTransfer != null &&
-                        MapChannelManager.Instance.CheckTransferTimeout(client))
-                        continue;
-
-                    // Client.Update guards its own handlers and disconnects the client that
-                    // threw. This is for the rest of it - Close(), the socket, the packet
-                    // queue - so a fault in one connection cannot leave every client after it
-                    // in the list frozen for the tick.
-                    try
-                    {
-                        client.Update(delta);
-                    }
-                    catch (Exception e)
-                    {
-                        Logger.WriteLog(LogType.Error, $"Error updating client {client.Socket?.RemoteAddress}, disconnecting it: {e}");
-
-                        try
-                        {
-                            client.Close(false);
-                        }
-                        catch (Exception inner)
-                        {
-                            Logger.WriteLog(LogType.Error, $"And closing it threw as well: {inner}");
-                        }
-                    }
-                }
+                ServiceClients(Clients, _readThisTick, delta);
 
                 if (_clientsToRemove.Count > 0)
                 {
@@ -520,6 +556,13 @@ namespace Rasa.Game
             // POST /kickuser kicks on the world loop and waits for it; every request the API is
             // sent goes on its log, in the character database.
             api.KickUser.Kick = order => RunOnLoopAndWait("kickuser", () => Api.KickUserEndpoint.Perform(order), Api.KickUserEndpoint.WaitMs);
+
+            // The petitions are read from the character database where the request is; an answer
+            // or a close tells the player, so it is done on the world loop.
+            api.OpenPetitions.Read = status => PetitionManager.Instance.ListRecords(status);
+            api.AllPetitions.Read = status => PetitionManager.Instance.ListRecords(status);
+            api.RespondPetition.Perform = order => RunOnLoopAndWait("respondpetition", () => Api.PetitionActionEndpoint.Act(order), Api.PetitionActionEndpoint.WaitMs);
+            api.ClosePetition.Perform = order => RunOnLoopAndWait("closepetition", () => Api.PetitionActionEndpoint.Act(order), Api.PetitionActionEndpoint.WaitMs);
             api.Audit.Load(new Api.ApiAudit.ServerStore(GameUnitOfWorkFactory));
             api.Status.Started();
             _apiApplied = true;
@@ -605,6 +648,7 @@ namespace Rasa.Game
             // After the spawn pools and the creatures: a spawner's creature is the one its map's pools use.
             PlacedDestructibles.Init(GameUnitOfWorkFactory);
             PlacedUsables.Init(GameUnitOfWorkFactory);
+            WorldContainers.Init(GameUnitOfWorkFactory);
             MapMarkerManager.Instance.MapMarkerInit();
             SpawnPoolManager.Instance.ValidatePools();
             RecipeManager.Instance.RecipeInit();
@@ -668,6 +712,13 @@ namespace Rasa.Game
         private static readonly TimeSpan PreLoginTimeout = TimeSpan.FromSeconds(30);
 
         /// <summary>
+        /// How long a connection may sit logged in, or at character selection, without the player
+        /// doing anything (Client.LastActionTick) before it is closed: as long as a character in
+        /// the world may stand idle before being sent back to it (ManifestationManager.InactiveLogoutMs).
+        /// </summary>
+        internal static readonly TimeSpan CharacterSelectionTimeout = TimeSpan.FromMilliseconds(ManifestationManager.InactiveLogoutMs);
+
+        /// <summary>
         /// World connections from one address that may be short of a login at once. Logged-in
         /// connections are limited by accounts; these were limited by nothing, and each holds a
         /// receive buffer from the pool the whole process shares.
@@ -723,24 +774,46 @@ namespace Rasa.Game
 
         /// <summary>
         /// Closes world connections that have sat in the key exchange, or after it without logging
-        /// in, for longer than PreLoginTimeout. Neither stage had any timeout.
+        /// in, for longer than PreLoginTimeout; and ones logged in, or at character selection,
+        /// where the player has done nothing for CharacterSelectionTimeout. Only the first two
+        /// had a timeout: a connection that went quiet after its login held its place - and a
+        /// slot of ServerInfoConfig.MaxPlayers - for as long as the server ran.
         /// </summary>
         private void ExpirePreLogin()
         {
             var exchanges = LoginManager.ExpireStalled(PreLoginTimeout);
 
-            List<Client> stalled;
-            var cutoff = DateTime.UtcNow - PreLoginTimeout;
+            List<Client> stalled, idle;
 
             lock (Clients)
-                stalled = Clients.Where(c => c.State == ClientState.Connected && c.ConnectedTime < cutoff).ToList();
+            {
+                stalled = NotLoggedIn(Clients, DateTime.UtcNow);
+                idle = IdleBeforeTheWorld(Clients, Environment.TickCount64);
+            }
 
-            foreach (var client in stalled)
+            foreach (var client in stalled.Concat(idle))
                 client.Close(false);
 
             if (exchanges + stalled.Count > 0)
                 Logger.WriteLog(LogType.Network, $"Closed {exchanges + stalled.Count} world connection(s) that did not log in within {PreLoginTimeout.TotalSeconds:F0} s.");
+
+            foreach (var client in idle)
+                Logger.WriteLog(LogType.Network,
+                    $"Closed the connection of account {client.AccountEntry?.Id}, idle {(client.State == ClientState.CharacterSelection ? "at character selection" : "after its login")} for {CharacterSelectionTimeout.TotalMinutes:F0} minutes.");
         }
+
+        /// <summary>Connections past the key exchange that have not logged in within PreLoginTimeout.</summary>
+        internal static List<Client> NotLoggedIn(IEnumerable<Client> clients, DateTime utcNow) =>
+            clients.Where(c => c != null && c.State == ClientState.Connected && c.ConnectedTime < utcNow - PreLoginTimeout).ToList();
+
+        /// <summary>
+        /// Connections logged in or at character selection whose player has done nothing for
+        /// CharacterSelectionTimeout. Loading, in the world and between maps are the world's to
+        /// time out (ManifestationManager.CheckInactivity, the transfers' own deadlines).
+        /// </summary>
+        internal static List<Client> IdleBeforeTheWorld(IEnumerable<Client> clients, long nowTick) =>
+            clients.Where(c => c != null && (c.State == ClientState.LoggedIn || c.State == ClientState.CharacterSelection)
+                               && nowTick - c.LastActionTick >= (long)CharacterSelectionTimeout.TotalMilliseconds).ToList();
 
         public LoginAccountEntry AuthenticateClient(Client client, uint accountId, uint oneTimeKey)
         {

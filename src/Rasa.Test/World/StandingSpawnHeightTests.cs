@@ -142,7 +142,9 @@ namespace Rasa.Test.World
             Assert.AreEqual(200, StandingHeights.WorldUp.Length);
             Assert.AreEqual(200, StandingHeights.WorldDown.Length);
 
-            // Moved since by a later migration: Corporal DeSimone (Place_bootcamp_base_npcs).
+            // Moved since by a later migration: Corporal DeSimone (Place_bootcamp_base_npcs), the
+            // Alia Das NPCs moved or taken away by Alia_das_npcs, and the Wilderness ones moved or
+            // taken away by Wilderness_post_npcs.
             void AssertCorrected(bool expected, params uint[] movedSince)
             {
                 harness.World.ChangeTracker.Clear();
@@ -165,13 +167,16 @@ namespace Rasa.Test.World
             }
 
             // The migrated world.
-            AssertCorrected(true, Rasa.Services.Preloader.BootcampBaseNpcs.DeSimonePoolId);
+            AssertCorrected(true, AliaDasNpcs.Moves.Select(move => move.Pool).Concat(AliaDasNpcs.Removed.Select(removed => removed.Id))
+                .Concat(WildernessPostNpcs.Moves.Select(move => move.Pool)).Concat(WildernessPostNpcs.Removed.Select(removed => removed.Id))
+                .Append(Rasa.Services.Preloader.BootcampBaseNpcs.DeSimonePoolId).ToArray());
 
             // The vendor of Torcastra Prison was 5.69 m over the floor of the hall; Private
-            // Parsons a metre in the ground; General Beacham in the sandbags beside Cimoch.
+            // Parsons a metre in the ground. General Beacham, in the sandbags beside Cimoch, has
+            // since gone to the command tent.
             Assert.AreEqual(13.61, Row(harness, 500171).PosY, 0.000001);
             Assert.AreEqual(238.56, Row(harness, 510071).PosY, 0.000001);
-            Assert.AreEqual((813.4, 294.52, 387.95), (Row(harness, 510002).PosX, Row(harness, 510002).PosY, Row(harness, 510002).PosZ));
+            Assert.AreEqual((871.082, 294.2109, 390.6562), (Row(harness, 510002).PosX, Row(harness, 510002).PosY, Row(harness, 510002).PosZ));
 
             var migrator = harness.World.GetService<IMigrator>();
 
@@ -200,6 +205,10 @@ namespace Rasa.Test.World
 
             foreach (var (id, _, _, _) in StandingHeights.Corrected())
             {
+                // The Alia Das class trainers Alia_das_npcs took away.
+                if (!pools.ContainsKey(id) && AliaDasNpcs.Removed.Any(removed => removed.Id == id))
+                    continue;
+
                 var pool = pools[id];
 
                 Assert.AreEqual(0.0, pool.Radius, 0.000001, $"spawnpool {id}");
@@ -213,9 +222,9 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
-        [DataRow(501004U)]   // Ranger Trainer: Alia Das, who was entered in a cot
-        [DataRow(510002U)]   // Brigadier General Beacham, who was entered in the sandbags
-        [DataRow(501005U)]   // Sapper Trainer: Alia Das, who is where he was
+        [DataRow(501011U)]   // Sapper Trainer: Twin Pillars, who was entered on the barracks' ledge
+        [DataRow(510002U)]   // Brigadier General Beacham, at his post in the command tent
+        [DataRow(501007U)]   // Soldier Trainer: Twin Pillars, who is where he was
         public void AStandingNpcSpawnsWhereItsPoolIs(uint pool)
         {
             using var harness = WildernessRuntimeTestHarness.Create();

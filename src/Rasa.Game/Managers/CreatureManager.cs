@@ -89,6 +89,26 @@ namespace Rasa.Managers
             return flags;
         }
 
+        /// <summary>
+        /// Whether the creature carries the flag, on its class or on itself (ExtraFlags): one flag
+        /// of <see cref="CreatureFlagsOf"/>, asked without building the list.
+        /// </summary>
+        public static bool HasFlag(Creature creature, CreatureFlag flag)
+        {
+            if (creature == null)
+                return false;
+
+            if (creature.ExtraFlags != null && creature.ExtraFlags.Contains(flag))
+                return true;
+
+            var classes = EntityClassManager.Instance?.LoadedEntityClasses;
+
+            return classes != null
+                && classes.TryGetValue(creature.EntityClass, out var entityClass)
+                && entityClass?.CreatureFlags != null
+                && entityClass.CreatureFlags.Contains(flag);
+        }
+
         // 1 creature to n client's
         public void CellIntroduceCreatureToClients(MapChannel mapChannel, Creature creature, List<Client> clientList)
         {
@@ -222,7 +242,10 @@ namespace Rasa.Managers
 
             var policy = Game.Missions.World.CreatureGameplayRules.Policy(creature);
             var participant = creature.CombatParticipant;
-            var canReward = creature.TargetCategory != TargetCategory.Friendly &&
+            // An ambient creature is nobody's kill (AmbientCreatures): no experience, adrenaline,
+            // streak, loot, harvest or mission credit.
+            var ambient = AmbientCreatures.IsAmbient(creature);
+            var canReward = creature.TargetCategory != TargetCategory.Friendly && !ambient &&
                 Game.Missions.World.CreatureGameplayRules.RewardsKills(creature);
 
             // kill creature
@@ -250,6 +273,11 @@ namespace Rasa.Managers
             // A debuff does not outlive what it was on: a Ruin still ticking on a corpse would
             // try to damage it every second until it expired.
             GameEffectManager.Instance.ClearEffects(mapChannel, creature);
+
+            // Who last hit it, if they are still in the fight - on its hate table, which a leash
+            // or a fight given up clears - before the grudges go.
+            var lastHitter = creature.LastPlayerHit is { } hitter && creature.Hate.Contains(hitter.EntityId) ? hitter : null;
+            creature.LastPlayerHit = null;
 
             // Nor does a grudge.
             creature.Hate.Clear();
@@ -291,6 +319,13 @@ namespace Rasa.Managers
                 Game.Missions.World.CreatureGameplayRules.IsDefender(defender) && policy.TrackParticipation &&
                 defender.TargetCategory != creature.TargetCategory && IsLivingOnMap(mapChannel, defender))
                 client = FindCombatPlayer(mapChannel, participant);
+
+            // Anything else on the player's side - a friendly NPC, a control point turret - lands
+            // the last blow for nobody: the kill is the last player's to hit it, if they are still
+            // in the fight and on the map. Nothing credited it before, not even the player who
+            // did most of the work.
+            if (client == null && killedBy is Creature ally && ally.TargetCategory != creature.TargetCategory && lastHitter != null)
+                client = FindCombatPlayer(mapChannel, lastHitter);
             creature.CombatParticipant = null;
             canReward &= client != null &&
                 (!mapChannel.IsPrivateInstance || mapChannel.OwnerCharacterId == client.Player.Id);
@@ -304,17 +339,22 @@ namespace Rasa.Managers
 
                 // todo: Depending on level difference reduce experience
 
+                // Scaled by the creature's XP_MODIFIER flag (CreatureExperience): none at all for
+                // XP_MODIFIER_0_NONE, four times as much for XP_MODIFIER_5_QUADRUPLE.
+                experience = CreatureExperience.Apply(creature, experience);
+
                 // Split evenly with the squad in range of the corpse (KillShares).
                 var sharers = KillShares.SharersFor(client, creature.Position);
 
-                KillShares.AwardExperience(_manifestationManager, sharers, client, experience);
+                if (experience > 0)
+                    KillShares.AwardExperience(_manifestationManager, sharers, client, experience);
 
                 // A finishing move pays the kill over again: "You get full experience for killing
                 // the enemy, and you get full experience again at the end of the Finishing Move.
                 // This means you get double the experience and Adrenaline for the kill" (the
                 // strategy guide). Paid as a second award flagged as the crit kill, so the client
                 // prints the ordinary line and then its "by Crit Killing" line, one for each.
-                if (critKill != CritKill.None)
+                if (critKill != CritKill.None && experience > 0)
                     KillShares.AwardExperience(_manifestationManager, sharers, client, experience, critKill);
 
                 // Adrenaline is earned here and nowhere else: it does not regenerate. See
@@ -324,8 +364,10 @@ namespace Rasa.Managers
                 KillShares.AwardAdrenaline(_manifestationManager, sharers, critKill != CritKill.None);
 
                 // And the kill counts towards the kill streak of each of them: after its
-                // experience, which is paid at the streak they had before it (KillStreaks).
-                KillStreaks.KillCounted(sharers);
+                // experience, which is paid at the streak they had before it (KillStreaks). A kill
+                // worth no experience is no part of a streak, which is all experience.
+                if (experience > 0)
+                    KillStreaks.KillCounted(sharers);
 
                 // One of a control point's Bane garrison is worth prestige as well (ControlPoints).
                 ControlPoints.Instance.CreatureKilled(creature, client);
@@ -363,7 +405,7 @@ namespace Rasa.Managers
                 }
             }
 
-            var progressClient = client;
+            var progressClient = ambient ? null : client;
             var missions = _missionManager ?? MissionApplication.Instance;
             if (creature.SpawnPool?.SceneRunId != null)
             {
@@ -471,6 +513,9 @@ namespace Rasa.Managers
 
         internal static void RecordCombatDamage(MapChannel map, Creature target, Actor source, int damage)
         {
+            if (damage > 0 && Pvp.Controller(source) is Manifestation hitter)
+                target.LastPlayerHit = hitter;
+
             if (damage <= 0 || !Game.Missions.World.CreatureGameplayRules.TracksParticipation(target) || !IsHostileTarget(map, source, target))
                 return;
             var client = source is Manifestation player
@@ -581,6 +626,9 @@ namespace Rasa.Managers
                 creature.Attributes.Add(Attributes.Speed, new ActorAttributes(Attributes.Speed, 1, 1, 1, 0, 0));
                 creature.Attributes.Add(Attributes.Regen, new ActorAttributes(Attributes.Regen, 0, 0, 0, 0, 0));
             }
+
+            // Ambient wildlife (AmbientCreatures): NEUTRAL, one hit of health, no armour.
+            AmbientCreatures.Apply(creature);
 
             BehaviorManager.StartWandering(creature, true);
 
@@ -720,6 +768,7 @@ namespace Rasa.Managers
             creature.Name = entityClass.ClassName;
             creature.TintAtSpawn();
             EnsureScenarioAttributes(creature);
+            AmbientCreatures.Apply(creature);
             SetLocation(creature, position, rotation, spawnPool?.MapContextId ?? creature.MapContextId);
             creature.Controller.CurrentAction = BehaviorManager.BehaviorActionWander;
             creature.Controller.ActionWander.State = BehaviorManager.WanderIdle;
@@ -807,6 +856,12 @@ namespace Rasa.Managers
             var creatureList = unitOfWork.Creatures.Get();
             var creatureActions = unitOfWork.Creatures.GetCreatureActions();
 
+            // Every creature's look in one query, not one a creature: 1047 creature rows were
+            // 1047 queries, 0.4 s of startup on SQLite and a round trip each on MySQL.
+            var appearances = unitOfWork.Creatures.GetAllCreatureAppearances()
+                .GroupBy(entry => entry.Id)
+                .ToDictionary(group => group.Key, group => group.ToList());
+
             var vendorsList = unitOfWork.Creatures.GetVendors();
             var vendorItemList = unitOfWork.Creatures.GetVendorItems();
             var vendorPrices = new Dictionary<uint, int>();
@@ -822,6 +877,10 @@ namespace Rasa.Managers
             // The battle cry package of each class and creature row that has one (Battlecries).
             var battlecries = Battlecries.Load(unitOfWork.Creatures.GetBattlecries());
             Logger.WriteLog(LogType.Initialize, $"Loaded {battlecries} creature battle cry packages");
+
+            // The barks of each NPC that has any (NpcBarks).
+            var barks = NpcBarks.Load(unitOfWork.Creatures.GetNpcBarks());
+            Logger.WriteLog(LogType.Initialize, $"Loaded {barks} NPC barks");
 
             // An escort's human voice, once rolled, is kept for its creature row - written off
             // the map's thread, as the map goes on with it at once.
@@ -839,16 +898,21 @@ namespace Rasa.Managers
                 }
             });
 
+            // Read into a table of its own, which takes the place of the old one only once every
+            // row is in it: a reload that fails part way (.reloadcreatures) leaves the creatures
+            // that were loaded before as they were, rather than an empty or half-filled table.
+            var loaded = new Dictionary<uint, Creature>();
+
             foreach (var data in creatureList)
             {
-                var appearanceData = unitOfWork.Creatures.GetCreatureAppearances(data.Id);
+                appearances.TryGetValue(data.Id, out var appearanceData);
                 var tempAppearanceData = new Dictionary<EquipmentData, AppearanceData>();
                 var augmentationsList = EntityClassManager.Instance.LoadedEntityClasses[(EntityClasses)data.ClassId].Augmentations;
                 var actions = new List<CreatureAction>();
                 Npc isNpc = null;
                 var isVendor = false;
                 var isAuctioneer = false;
-                var isClanManager = data.NameId == 8838 ? true : false;
+                var isClanManager = IsClanMaster(data.NameId);
 
                 foreach (var aug in augmentationsList)
                 {
@@ -971,19 +1035,19 @@ namespace Rasa.Managers
                         }
                     }
                 }
-                LoadedCreatures.Add(creature.DbId, creature);
+                loaded.Add(creature.DbId, creature);
             }
 
             var npcPackages = unitOfWork.NpcPackages.Get();
             foreach (var package in npcPackages)
             {
-                if (LoadedCreatures.ContainsKey(package.Id))
+                if (loaded.TryGetValue(package.Id, out var packaged))
                 {
-                    foreach (var aug in EntityClassManager.Instance.LoadedEntityClasses[LoadedCreatures[package.Id].EntityClass].Augmentations)
+                    foreach (var aug in EntityClassManager.Instance.LoadedEntityClasses[packaged.EntityClass].Augmentations)
                     {
                         if (aug == AugmentationType.NPC)
                         {
-                            LoadedCreatures[package.Id].Npc.NpcPackageId = package.PackageId;
+                            packaged.Npc.NpcPackageId = package.PackageId;
                             break;
                         }
                     }
@@ -996,6 +1060,8 @@ namespace Rasa.Managers
                         $"NPC package {package.PackageId} names creature {package.Id}, which is not in the database.");
                 }
             }
+
+            LoadedCreatures = loaded;
         }
 
         /// <summary>
@@ -1070,6 +1136,14 @@ namespace Rasa.Managers
             //creature->lastresttime = GetTickCount();
         }
 
+        /// <summary>
+        /// Whether an NPC of this name keeps the clan window: the generic "Clan Master" (8838) or
+        /// one of the client's eight Clan Registrars (8993-9000: Ferris, Faris, Orsen,
+        /// Saint-Pierre, Kolchak, Levin, Yonkers, Danvers). Nothing else in the world data marks
+        /// one; the name is what says it.
+        /// </summary>
+        public static bool IsClanMaster(uint nameId) => nameId == 8838 || (nameId >= 8993 && nameId <= 9000);
+
         public void UpdateCreatureAppearance(Creature creature)
         {
             var mapChannel = creature?.RuntimeMapChannel;
@@ -1078,25 +1152,46 @@ namespace Rasa.Managers
             CellManager.Instance.CellCallMethod(mapChannel, creature, new AppearanceDataPacket(creature.AppearanceData));
         }
 
-        internal void CreateOrUpdateAppearance(Creature creature, AppearanceData appearanceData)
+        /// <summary>
+        /// .creatureappearance: one slot of a creature's look, a class (0 keeps the one there) and
+        /// a colour. A creature's look is its kind's: the creatures of one creature row share the
+        /// loaded creature's AppearanceData (Creature(Creature)), so every one of them takes it,
+        /// and every one in the world is shown it; the row's creature_appearance is saved for the
+        /// next load. A creature of no row - a summons, a scenario's own - changes for now only.
+        /// </summary>
+        /// <returns>Whether it was saved.</returns>
+        internal bool CreateOrUpdateAppearance(Creature creature, AppearanceData appearanceData)
         {
+            var looks = new List<Dictionary<EquipmentData, AppearanceData>> { creature.AppearanceData };
+
+            if (creature.DbId != 0 && LoadedCreatures.TryGetValue(creature.DbId, out var loaded) &&
+                loaded?.AppearanceData != null && !ReferenceEquals(loaded.AppearanceData, creature.AppearanceData))
+                looks.Add(loaded.AppearanceData);
+
+            foreach (var look in looks)
+            {
+                if (!look.TryGetValue(appearanceData.SlotId, out var slot))
+                    look[appearanceData.SlotId] = slot = new AppearanceData { SlotId = appearanceData.SlotId, Hue2 = appearanceData.Hue2 };
+
+                slot.Color = appearanceData.Color;
+
+                if (appearanceData.Class > 0)
+                    slot.Class = appearanceData.Class;
+            }
+
+            // Everyone who can see one of its kind is shown the new look.
+            foreach (var shown in EntityManager.Instance.Creatures.Values.Where(other =>
+                         ReferenceEquals(other, creature) || creature.DbId != 0 && other.DbId == creature.DbId).ToList())
+                UpdateCreatureAppearance(shown);
+
+            if (creature.DbId == 0)
+                return false;
+
             using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
+            var saved = creature.AppearanceData[appearanceData.SlotId];
 
-            if (!creature.AppearanceData.ContainsKey(appearanceData.SlotId))
-                creature.AppearanceData.Add(appearanceData.SlotId, appearanceData);
-
-            creature.AppearanceData[appearanceData.SlotId].Color = appearanceData.Color;
-
-            if (appearanceData.Class > 0)
-                creature.AppearanceData[appearanceData.SlotId].Class = appearanceData.Class;
-
-            // update creature appearance on client's
-            CellManager.Instance.CellCallMethod(creature, new AppearanceDataPacket(creature.AppearanceData));
-
-            // update creature in database
-            unitOfWork.Creatures.CreateOrUpdateAppearance(creature.DbId, (uint)appearanceData.SlotId, appearanceData.Class, appearanceData.Color.Hue);
-
-            Logger.WriteLog(LogType.Debug, "Creature Look updated");
+            unitOfWork.Creatures.CreateOrUpdateAppearance(creature.DbId, (uint)appearanceData.SlotId, saved.Class, saved.Color.Hue);
+            return true;
         }
     }
 }

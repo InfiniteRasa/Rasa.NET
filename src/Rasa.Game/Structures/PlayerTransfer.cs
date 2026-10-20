@@ -17,8 +17,22 @@ namespace Rasa.Structures
         internal ulong DropshipId { get; set; }
         internal uint ReleaseOwnedPrivateInstancesForCharacterId { get; init; }
 
-        /// <summary>A secret passage's teleport (DynamicObjectManager.TakePassage): the arrival is shown to everyone at the far end too.</summary>
+        /// <summary>A secret passage's teleport (DynamicObjectManager.TakePassage).</summary>
         internal bool IsPassage { get; init; }
+
+        /// <summary>
+        /// The local teleporter a passage lands the player on (DynamicObjectManager
+        /// .LocalTeleporterWorker): they are put on its list as they arrive, so it does not take
+        /// them straight back.
+        /// </summary>
+        internal DynamicObject ArrivalPad { get; init; }
+
+        /// <summary>
+        /// Held in its teleport-out effect before it left (a passage, or a waypoint's teleport
+        /// with DynamicObjectManager.WaypointHoldMs): the arrival is shown to everyone at the far
+        /// end too, as the departure was to everyone where they stood.
+        /// </summary>
+        internal bool IsHeld { get; init; }
 
         /// <summary>
         /// When a teleport held for its effect leaves (DynamicObjectManager.PassagesWorker), on

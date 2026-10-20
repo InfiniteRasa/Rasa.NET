@@ -17,6 +17,8 @@ namespace Rasa.Managers
     /// <summary>
     /// The toys: account reward and holiday items used like abilities.
     ///
+    /// (The Resupply Beacon, ACCOUNTREWARD_RESUPPLY 510, is one too: ResupplyBots.)
+    ///
     ///  - Emote items, ACCOUNTREWARD_EMOTE_ITEM (464, abilities.accountrewardemoteitem). Each level
     ///    is one emote. Its SET_PLAYER_FLAG_ID is the player flag the emote's gesture row needs
     ///    (actiondata playerFlagReqs, (2, argId)). The item is its own requirement, so it is used
@@ -40,6 +42,17 @@ namespace Rasa.Managers
     ///    recovery's hit, so the client's OnServerResolution announces the effect on it. After
     ///    DURATION seconds the effect is detached and the proxy taken away once the client's
     ///    fxFadeoutMs has played. Used up.
+    ///  - The Smoke Grenade (CONSUMABLE_SMOKE_GRENADE 404, abilities.smokegrenade): the same, with
+    ///    its effect named by the class rather than the level - SmokeGrenadeAbility's
+    ///    targetGameEffect is SMOKE_GRENADE_EFFECT 182, and its one level has DURATION 15 and no
+    ///    GAME_EFFECT_ID. The smoke is all there is to it: neither the client's data nor its code
+    ///    gives it anything to do to anyone (the effect has no tooltip, no attributes, and a class
+    ///    with nothing in it but its FX fade). Used up.
+    ///
+    ///    Each of these is shown to a client that comes into view of it while it is going - one
+    ///    walking up, arriving on the map, or turning back to it - with its effect announced, as
+    ///    no recovery is coming to announce it for them (ShowLocationEffectTo). They were sent the
+    ///    invisible proxy and nothing on it.
     ///  - Snowball (ABILITY_NULL 528, abilities.nullability): TARGET_FRIENDLY with doBlindShots and
     ///    nothing to resolve; the target is the recovery's hit, so the throw and the splash
     ///    (actorActionFXFamily 2040 / 2039) play on them, or the client splats it on the ground.
@@ -66,6 +79,10 @@ namespace Rasa.Managers
         public const string FlareGunModule = "abilities.flaregun";
         public const string SnowballModule = "abilities.nullability";
         public const string CompanionModule = "abilities.companion";
+        public const string SmokeGrenadeModule = "abilities.smokegrenade";
+
+        /// <summary>SMOKE_GRENADE_EFFECT: SmokeGrenadeAbility's targetGameEffect.</summary>
+        public const int SmokeGrenadeEffectTypeId = 182;
 
         /// <summary>ParticleLocationProxy: firework.py and flaregun.py's splatClassId.</summary>
         public const EntityClasses LocationProxyClass = (EntityClasses)1400;
@@ -136,6 +153,11 @@ namespace Rasa.Managers
             public int EffectId;
             public long DetachAt;
             public long RemoveAt;
+
+            /// <summary>A firework, a flare or smoke: the effect on the proxy, to show whoever comes into view of it.</summary>
+            public int EffectTypeId;
+            public uint EffectLevel;
+            public ulong SourceId;
         }
 
         private sealed class Pet
@@ -171,9 +193,18 @@ namespace Rasa.Managers
                    && FxPackages.Names.ContainsKey(packageId);
         }
 
-        private static bool IsLocationEffect(ActionInfo action, ActionLevelInfo info)
+        private static bool IsLocationEffect(ActionInfo action, ActionLevelInfo info) => LocationEffectTypeOf(action, info) > 0;
+
+        /// <summary>
+        /// The effect a firework, a flare or a smoke grenade puts at the aimed spot: the level's
+        /// GAME_EFFECT_ID, or for smoke the class's own; 0 for anything else.
+        /// </summary>
+        private static int LocationEffectTypeOf(ActionInfo action, ActionLevelInfo info)
         {
-            return (action.Module == FireworkModule || action.Module == FlareGunModule) && info.Get(AbilityProperty.GameEffectId) > 0;
+            if (action.Module == SmokeGrenadeModule)
+                return SmokeGrenadeEffectTypeId;
+
+            return action.Module == FireworkModule || action.Module == FlareGunModule ? Math.Max(0, info.Get(AbilityProperty.GameEffectId)) : 0;
         }
 
         private static bool IsSnowball(ActionInfo action) => action.Module == SnowballModule;
@@ -187,12 +218,27 @@ namespace Rasa.Managers
         {
             return IsEmoteItem(action, info) || IsTitleItem(action, info) || IsModelRocket(action, info)
                    || IsLocationEffect(action, info) || IsSnowball(action) || IsPet(action, info)
-                   || DropshipBeacons.Is(action, info);
+                   || DropshipBeacons.Is(action, info) || ResupplyBots.Is(action, info);
         }
 
-        /// <summary>A rocket, a pet or a dropship beacon is kept when used; everything else used from an item is used up.</summary>
-        private static bool KeepsSourceItem(ActionInfo action) =>
-            action.Module == FixedVisualModule || action.Module == CompanionModule || action.Module == DropshipBeacons.PortalModule;
+        /// <summary>
+        /// A rocket, a pet, a dropship beacon or a resupply beacon is kept when used, and so is a piece of equipment
+        /// that performs an ability: the MotorAssist boots' Rage (130392, worn in the shoes slot)
+        /// and the PAU AFS Mech Sprint (130498, a mech ability slot), the only two items with
+        /// both an item_template_action and an equipableclass row. They were used up like a
+        /// medpack - boots that cost 750 credits gone after one Rage. Everything else used from an
+        /// item is used up.
+        /// </summary>
+        private static bool KeepsSourceItem(ActionInfo action, Item item) =>
+            action.Module == FixedVisualModule || action.Module == CompanionModule || action.Module == DropshipBeacons.PortalModule
+            || action.Module == ResupplyBots.ResupplyModule
+            || IsEquipment(item);
+
+        /// <summary>Whether the item's class has an equipment slot (equipableclass).</summary>
+        private static bool IsEquipment(Item item) =>
+            item?.ItemTemplate != null
+            && EntityClassManager.Instance.LoadedEntityClasses.TryGetValue(item.ItemTemplate.Class, out var entityClass)
+            && entityClass.EquipableClassInfo != null;
 
         #endregion
 
@@ -275,13 +321,15 @@ namespace Rasa.Managers
             else if (IsModelRocket(actionInfo, info))
                 LaunchModelRocket(mapChannel, player, info);
             else if (IsLocationEffect(actionInfo, info))
-                SetOffAtLocation(mapChannel, player, info, action, recovery);
+                SetOffAtLocation(mapChannel, player, actionInfo, info, action, recovery);
             else if (IsSnowball(actionInfo))
                 ThrowSnowball(mapChannel, action, recovery);
             else if (IsPet(actionInfo, info))
                 SummonPet(mapChannel, player, info, action, recovery);
             else if (DropshipBeacons.Is(actionInfo, info))
                 DropshipBeacons.Deploy(mapChannel, player, info);
+            else if (ResupplyBots.Is(actionInfo, info) && ResupplyBots.Deploy(mapChannel, player, info) is { } bot)
+                recovery.Hits.Add(new AbilityHit { EntityId = bot.EntityId });
 
             CellManager.Instance.CellCallMethod(mapChannel, player, recovery);
         }
@@ -339,8 +387,8 @@ namespace Rasa.Managers
             Keep(mapChannel, new WorldToy { Owner = player, Emitter = emitter, RemoveAt = Environment.TickCount64 + seconds * 1000L });
         }
 
-        /// <summary>A firework or a flare: a proxy at the aimed spot carrying the level's effect, which the recovery announces.</summary>
-        private static void SetOffAtLocation(MapChannel mapChannel, Manifestation player, ActionLevelInfo info, ActionData action, AbilityRecoveryPacket recovery)
+        /// <summary>A firework, a flare or smoke: a proxy at the aimed spot carrying the effect, which the recovery announces.</summary>
+        private static void SetOffAtLocation(MapChannel mapChannel, Manifestation player, ActionInfo actionInfo, ActionLevelInfo info, ActionData action, AbilityRecoveryPacket recovery)
         {
             var aimed = action.TargetLocation ?? player.Position + FacingOf(player) * 10f;
             var seconds = Math.Max(1, info.Get(AbilityProperty.Duration, LocationEffectDefaultSeconds));
@@ -355,17 +403,38 @@ namespace Rasa.Managers
 
             CellManager.Instance.AddToWorld(mapChannel, proxy);
 
-            var effectId = GameEffectManager.Instance.NextEffectId(mapChannel);
-
-            // Not announced here: the recovery's hit is what announces it, as the client's own
-            // OnServerResolution does for a targetGameEffect.
-            CellManager.Instance.CellCallMethod(proxy, new GameEffectAttachedPacket
+            var detachAt = Environment.TickCount64 + seconds * 1000L;
+            var toy = new WorldToy
             {
-                EffectTypeId = info.Get(AbilityProperty.GameEffectId),
-                EffectId = effectId,
+                Owner = player,
+                Proxy = proxy,
+                EffectId = GameEffectManager.Instance.NextEffectId(mapChannel),
+                EffectTypeId = LocationEffectTypeOf(actionInfo, info),
                 EffectLevel = (uint)Math.Max(1, info.Get(AbilityProperty.GameEffectLevel, 1)),
                 SourceId = player.EntityId,
-                Announced = false,
+                DetachAt = detachAt,
+                RemoveAt = detachAt + LocationEffectFadeMs
+            };
+
+            // Not announced here: the recovery's hit is what announces it, as the client's own
+            // OnServerResolution does for a targetGameEffect. A client that does not have the
+            // thrower, and so gets no recovery, announces it itself (Recv_GameEffectAttached).
+            CellManager.Instance.CellCallMethod(proxy, LocationEffectAttached(toy, false));
+
+            recovery.Hits.Add(new AbilityHit { EntityId = proxy.EntityId });
+
+            Keep(mapChannel, toy);
+        }
+
+        private static GameEffectAttachedPacket LocationEffectAttached(WorldToy toy, bool announced)
+        {
+            return new GameEffectAttachedPacket
+            {
+                EffectTypeId = toy.EffectTypeId,
+                EffectId = toy.EffectId,
+                EffectLevel = toy.EffectLevel,
+                SourceId = toy.SourceId,
+                Announced = announced,
                 Duration = null,
                 DamageType = 0,
                 AttrId = 1,
@@ -375,13 +444,28 @@ namespace Rasa.Managers
                 IsNegativeEffect = false,
                 Extras = new Dictionary<string, object>(),
                 Args = new List<object>()
-            });
+            };
+        }
 
-            recovery.Hits.Add(new AbilityHit { EntityId = proxy.EntityId });
+        /// <summary>
+        /// A client has just been sent this object (DynamicObjectManager.CreateDynamicObjectOnClient):
+        /// if it is the proxy of a firework, a flare or smoke that is still going, the effect goes
+        /// with it, announced - the recovery that announces it for those who saw it thrown is long
+        /// gone. One whose effect has been detached is only waiting out its fade, and is not shown.
+        /// </summary>
+        internal static void ShowLocationEffectTo(Client client, DynamicObject proxy)
+        {
+            if (client == null || proxy?.EntityClassId != LocationProxyClass || proxy.RuntimeMapChannel == null
+                || !WorldToys.TryGetValue(proxy.RuntimeMapChannel, out var toys))
+                return;
 
-            var detachAt = Environment.TickCount64 + seconds * 1000L;
+            WorldToy going;
 
-            Keep(mapChannel, new WorldToy { Owner = player, Proxy = proxy, EffectId = effectId, DetachAt = detachAt, RemoveAt = detachAt + LocationEffectFadeMs });
+            lock (toys)
+                going = toys.FirstOrDefault(toy => toy.Proxy == proxy && toy.DetachAt != 0);
+
+            if (going != null)
+                client.CallMethod(proxy.EntityId, LocationEffectAttached(going, true));
         }
 
         #endregion

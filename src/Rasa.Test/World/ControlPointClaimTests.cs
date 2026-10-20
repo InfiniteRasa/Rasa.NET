@@ -120,6 +120,51 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void AnotherClaimantInsideTheGapIsAnnounced()
+        {
+            using var world = new WorldTestContext();
+            var f = new Fixture(world);
+            var now = 5_000_000L;
+            var clock = ControlPoints.Instance.Now;
+            var clanName = ControlPoints.Instance.ClanName;
+
+            ControlPoints.Instance.Now = () => now;
+            ControlPoints.Instance.ClanName = id => id == 77 ? "Red Company" : null;
+
+            try
+            {
+                // The AFS with no clan starts and breaks off; a clan starts 3 s later. The gap
+                // was the point's, so nobody was told, and the last message still named the AFS.
+                f.Request();
+                Drain(f.Onlooker);
+                f.Finish(interrupted: true);
+
+                f.Onlooker.Player.ClanId = 77;
+                now += 3_000;
+                f.Request(f.Onlooker);
+                var told = Drain(f.Claimant).OfType<DisplayClientMessagePacket>().Single(m => m.MsgId == PlayerMessage.PmControlpointClaiming);
+                Assert.IsTrue(told.Args.Values.Contains("Red Company"), "another claimant: announced, by name");
+                f.Finish(interrupted: true);
+
+                // Back to the first, still inside their own gap: that is news too.
+                now += 3_000;
+                f.Request();
+                Assert.AreEqual(1, Drain(f.Onlooker).OfType<DisplayClientMessagePacket>().Count(m => m.MsgId == PlayerMessage.PmControlpointClaiming), "the claimant changed again");
+                f.Finish(interrupted: true);
+
+                now += 3_000;
+                f.Request();
+                Assert.AreEqual(0, Drain(f.Onlooker).OfType<DisplayClientMessagePacket>().Count(m => m.MsgId == PlayerMessage.PmControlpointClaiming), "the same claimant again: held back");
+            }
+            finally
+            {
+                ControlPoints.Instance.Now = clock;
+                ControlPoints.Instance.ClanName = clanName;
+                f.Remove();
+            }
+        }
+
+        [TestMethod]
         public void AClaimRunToItsEndIsRecoveredLetGoAndChangedOnce()
         {
             using var world = new WorldTestContext();
@@ -459,9 +504,9 @@ namespace Rasa.Test.World
                 Onlooker = PlayerDeathTests.Player(world, 14, 10);
             }
 
-            public void Request()
+            public void Request(Client by = null)
             {
-                DynamicObjectManager.Instance.RequestUseObjectPacket(Claimant, new RequestUseObjectPacket
+                DynamicObjectManager.Instance.RequestUseObjectPacket(by ?? Claimant, new RequestUseObjectPacket
                 {
                     ActionId = ActionId.UseObject,
                     ActionArgId = DynamicObjectManager.ControlPointUseArgId,

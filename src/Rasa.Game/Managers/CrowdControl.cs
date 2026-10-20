@@ -75,8 +75,6 @@ namespace Rasa.Managers
         /// <summary>How long a net gun hit holds a creature. Not in the server's weapon data.</summary>
         public const int NetGunRootMs = 3000;
 
-        /// <summary>How far a knockback path may stray from the straight line onto the navmesh before it stops there.</summary>
-        private const float PathTolerance = 1.0f;
         private const float PathStep = 0.5f;
 
         public static bool IsRooted(Actor actor)
@@ -114,9 +112,15 @@ namespace Rasa.Managers
 
         /// <summary>
         /// Where a knockback of <paramref name="distance"/> along <paramref name="dir"/> ends: the
-        /// straight line, walked in half-metre steps and stopped at the last one still on the
-        /// navmesh, so a creature is not driven into a wall or off a cliff. With no navmesh, the
-        /// full distance.
+        /// straight line, walked in half-metre steps over the navmesh and stopped at the last step
+        /// the walk reaches, so a creature is not driven into a wall or off a cliff. With no
+        /// navmesh, the full distance.
+        ///
+        /// Over the navmesh: each step is walked from the one before (NavMeshQuery.WalkTo) and
+        /// lands on the floor that walk ends on. It used to land on whatever walkable point lay
+        /// nearest the line, up to 8 m above or below it, and at a cliff edge that was the mesh
+        /// built inside the hill under it - in Lower Eloh Creek, layers of it 8 m under the ground,
+        /// joined to nothing. A player thrown there was inside the hill.
         /// </summary>
         public static Vector3 KnockbackDestination(MapChannel mapChannel, Vector3 from, Vector3 dir, float distance)
         {
@@ -129,15 +133,9 @@ namespace Rasa.Managers
 
             for (var d = PathStep; d <= distance + 0.001f; d += PathStep)
             {
-                var probe = from + dir * d;
-                var ground = navMesh.Nearest(probe);
+                var ground = navMesh.WalkTo(end, from + dir * d);
 
                 if (ground == null)
-                    break;
-
-                var gap = new Vector2(ground.Value.X - probe.X, ground.Value.Z - probe.Z).Length();
-
-                if (gap > PathTolerance)
                     break;
 
                 end = ground.Value;
@@ -154,6 +152,22 @@ namespace Rasa.Managers
         /// </summary>
         public static Vector3 BeforeFields(MapChannel mapChannel, Creature creature, Vector3 from, Vector3 to)
         {
+            return Before(mapChannel, from, to, (at, next) => ForceFields.Stops(mapChannel, creature, at, next));
+        }
+
+        /// <summary>
+        /// The same for a player carried in a straight line - a knockback, a Vortex pull, a
+        /// Rushing Blow's charge: stopped before a field that stops players (a Bane one,
+        /// ForceFields.StopsPlayer). The clients fly the player to wherever the server says, so a
+        /// carry that ended past the field put them through it.
+        /// </summary>
+        public static Vector3 BeforeFields(MapChannel mapChannel, Manifestation player, Vector3 from, Vector3 to)
+        {
+            return player == null ? to : Before(mapChannel, from, to, (at, next) => ForceFields.StopsPlayer(mapChannel, at, next));
+        }
+
+        private static Vector3 Before(MapChannel mapChannel, Vector3 from, Vector3 to, Func<Vector3, Vector3, bool> stops)
+        {
             var line = to - from;
             var length = line.Length();
 
@@ -167,7 +181,7 @@ namespace Rasa.Managers
             {
                 var next = d >= length ? to : from + dir * d;
 
-                if (ForceFields.Stops(mapChannel, creature, at, next))
+                if (stops(at, next))
                     return at;
 
                 if (d >= length)
@@ -236,8 +250,8 @@ namespace Rasa.Managers
             var landed = target.ActiveEffects.ContainsKey(knock.EffectId);
 
             // A knockback is a stun: it may open the Critical Death window. A creature held in it
-            // stays where it stands.
-            var held = CritDeathManager.Instance.TryEnterPreDeath(mapChannel, target, source, damageType);
+            // stays where it stands. One that refused it (IMMUNE_KNOCKBACK) was not stunned.
+            var held = landed && CritDeathManager.Instance.TryEnterPreDeath(mapChannel, target, source, damageType);
 
             if (landed && thrown && !held && travelled > 0.1f)
                 BehaviorManager.Instance.Throw(mapChannel, target, destination, dir);
@@ -262,8 +276,9 @@ namespace Rasa.Managers
             if (!target.Attributes.TryGetValue(Attributes.Health, out var health) || health.Current <= 0)
                 return false;
 
-            // Nothing drags an emplacement off its mount.
-            if (Emplacements.Is(target))
+            // Nothing drags an emplacement off its mount, nor a creature immune to knockbacks
+            // (CreatureImmunities): a pull is one the other way.
+            if (Emplacements.Is(target) || CreatureImmunities.IsImmune(target, DamageType.KnockBack))
                 return false;
 
             var (destination, speed) = PullPath(mapChannel, target.Position, puller.Position, flailMs);
@@ -355,6 +370,11 @@ namespace Rasa.Managers
             };
 
             GameEffectManager.Instance.Attach(mapChannel, target, root);
+
+            // Refused (IMMUNE_ROOT, Cure, running home): it goes on as it was.
+            if (!target.ActiveEffects.ContainsKey(root.EffectId))
+                return false;
+
             BehaviorManager.Instance.StopMoving(target);
 
             return true;

@@ -108,22 +108,19 @@ namespace Rasa.Test.Missions.Wilderness
         {
             using var harness = WildernessRuntimeTestHarness.Create();
             var rows = RewardRows(harness).Where(row => row.Revision == WildernessMissionDataV1.Revision).ToArray();
-            var unsupported = new uint[] { 111247, 111227, 111022, 45125, 45441, 111136, 47593, 47594, 123023 };
-            Assert.IsFalse(rows.Any(row => unsupported.Contains(row.Template)),
-                "An enabled reward must not advertise an unimplemented effect or module.");
+            // Wilderness_reward_consumables gave the corrected rows their sources' consumables back.
             foreach (var correction in Corrections)
-                Assert.AreEqual(correction.Value.After, rows.Single(row => row.Mission == correction.Key.Mission &&
+                Assert.AreEqual(correction.Value.Before, rows.Single(row => row.Mission == correction.Key.Mission &&
                     row.Reward == 1 && row.Item == correction.Key.Item).Template);
-            foreach (var mission in new uint[] { 422, 434 })
-                CollectionAssert.AreEqual(new[] { (44918U, 1U), (44918U, 1U) },
-                    rows.Where(row => row.Mission == mission).Select(row => (row.Template, row.Quantity)).ToArray());
             foreach (var (mission, bundle) in new[]
             {
-                (623U, new[] { (44919U, 1U) }),
-                (791U, new[] { (44918U, 1U), (44917U, 1U) }),
-                (758U, new[] { (44920U, 2U), (45047U, 4U) }),
-                (787U, new[] { (44919U, 2U), (44920U, 6U) }),
-                (769U, new[] { (44921U, 6U), (44920U, 2U) })
+                (422U, new[] { (111247U, 1U), (44918U, 1U) }),
+                (434U, new[] { (44918U, 1U), (111247U, 1U) }),
+                (623U, new[] { (44919U, 1U) }),     // its Fire Resistance modification is a module, not a consumable
+                (791U, new[] { (111247U, 1U), (111136U, 1U) }),
+                (758U, new[] { (111227U, 2U), (45047U, 4U) }),
+                (787U, new[] { (47594U, 2U), (45441U, 6U) }),
+                (769U, new[] { (44921U, 6U), (111227U, 2U) })
             })
                 CollectionAssert.AreEqual(bundle,
                     rows.Where(row => row.Mission == mission).Select(row => (row.Template, row.Quantity)).ToArray(),
@@ -234,8 +231,11 @@ namespace Rasa.Test.Missions.Wilderness
             return request;
         }
 
+        // Only the columns compared: the World is stopped before the reward items had modules.
         private static RewardRow[] RewardRows(WildernessRuntimeTestHarness harness) =>
-            harness.World.MissionRewardItemEntries.AsNoTracking().AsEnumerable()
+            harness.World.MissionRewardItemEntries.AsNoTracking()
+                .Select(row => new { row.MissionId, row.ContentRevision, row.RewardId, row.ItemId, row.Kind, row.ItemTemplateId, row.Quantity })
+                .AsEnumerable()
                 .OrderBy(row => row.MissionId).ThenBy(row => row.ContentRevision)
                 .ThenBy(row => row.RewardId).ThenBy(row => row.ItemId)
                 .Select(row => new RewardRow(row.MissionId, row.ContentRevision, row.RewardId, row.ItemId,

@@ -151,6 +151,15 @@ namespace Rasa.Test.Missions.Wilderness
             }
         }
 
+        /// <summary>
+        /// The Wilderness migrations leave the PR105 rows as they found them, going up and coming
+        /// back down. What the rows are compared with is what they were when the Wilderness
+        /// migrations were done (WildernessWorldBoundary), not the latest migration: a migration
+        /// dated after them may change a PR105 row as content of its own - Family_abilities gives
+        /// the Divide's Thrax Commander (530005) its thrax_kick in Action2 - and its Down puts the
+        /// row back, so the row at the latest migration is not the one a rollback to PR105 comes
+        /// back to.
+        /// </summary>
         [TestMethod]
         [DataRow(false)]
         [DataRow(true)]
@@ -167,21 +176,25 @@ namespace Rasa.Test.Missions.Wilderness
                     existingRows = Pr105SeedRows(context);
                 }
 
+                migrator.Migrate(WildernessWorldBoundary);
+                Assert.AreEqual(WildernessWorldBoundary, context.Database.GetAppliedMigrations().Last());
+                var wildernessRows = Pr105SeedRows(context);
+                if (existingRows != null)
+                    Assert.AreEqual(existingRows, wildernessRows, "Wilderness must preserve PR105-owned World rows.");
+
                 migrator.Migrate();
                 AssertMergedWorld(context);
-                var upstreamRows = Pr105SeedRows(context);
-                if (existingRows != null)
-                    Assert.AreEqual(existingRows, upstreamRows, "Wilderness must preserve PR105-owned World rows.");
+                var latestRows = Pr105SeedRows(context);
 
                 migrator.Migrate(Pr105WorldBoundary);
-                Assert.AreEqual(upstreamRows, Pr105SeedRows(context),
+                Assert.AreEqual(wildernessRows, Pr105SeedRows(context),
                     "Removing Wilderness must not delete or revert PR105 armor, Divide, or boss rows.");
                 Assert.IsFalse(context.CreatureEntries.Any(row => row.Id >= 630001 && row.Id <= 630199));
                 Assert.IsFalse(context.SpawnPoolEntries.Any(row => row.Id >= 630001 && row.Id <= 630199));
 
                 migrator.Migrate();
                 AssertMergedWorld(context);
-                Assert.AreEqual(upstreamRows, Pr105SeedRows(context));
+                Assert.AreEqual(latestRows, Pr105SeedRows(context));
             });
         }
 
@@ -570,6 +583,10 @@ namespace Rasa.Test.Missions.Wilderness
         private static string[] EvidenceRows(WildernessRuntimeTestHarness harness) =>
             harness.World.MissionEvidenceEntries.AsNoTracking().AsEnumerable()
                 .Where(entry => entry.ContentRevision != TargetsOfOpportunitySeed.Revision)
+                // Wilderness_reward_consumables and Wilderness_reward_modules, dated after the
+                // Wilderness migrations, add their own.
+                .Where(entry => entry.SourceUri != "repository:WildernessRewardConsumables" &&
+                    entry.SourceUri != "repository:WildernessRewardModules")
                 .OrderBy(entry => entry.MissionId).ThenBy(entry => entry.ContentRevision).ThenBy(entry => entry.EvidenceId)
                 .Select(entry => JsonSerializer.Serialize(new
                 {

@@ -1,3 +1,5 @@
+extern alias RasaGame;
+
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -6,11 +8,13 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Rasa.Test.Gameplay
 {
+    using ClientState = RasaGame::Rasa.Data.ClientState;
     using Rasa.Data;
     using Rasa.Managers;
     using Rasa.Memory;
     using Rasa.Packets.MapChannel.Client;
     using Rasa.Structures;
+    using Rasa.Structures.Char;
 
     [TestClass]
     [DoNotParallelize]
@@ -55,6 +59,26 @@ namespace Rasa.Test.Gameplay
             Assert.IsFalse(saved.ContainsKey(6), "ArmAbility1 is back to its default: the client leaves it out");
             Assert.AreEqual("keyboard.e", saved[7]);
             Assert.IsFalse(context.Client.UserOptions.Any(o => o.OptionId == ArmAbility1));
+        }
+
+        [TestMethod]
+        public void EachVisitToCharacterSelectionLoadsTheOptionsOnceOver()
+        {
+            using var context = new WeaponAmmoContext();
+            new ManifestationManager(context).SaveUserOptions(context.Client, ReadUserOptions((6, "keyboard.q"), (7, "keyboard.e")));
+            var characters = new CharacterManager(context);
+            context.Client.AccountEntry.Characters = new List<CharacterEntry>();
+
+            // A logout comes back to the pods on the same connection, as often as the player likes.
+            for (var visit = 1; visit <= 3; visit++)
+            {
+                context.Client.State = ClientState.LoggedIn;
+                characters.StartCharacterSelection(context.Client);
+
+                Assert.AreEqual(ClientState.CharacterSelection, context.Client.State);
+                Assert.HasCount(2, context.Client.UserOptions, $"visit {visit}: the saved options, once each");
+                Assert.AreEqual("keyboard.q", context.Client.UserOptions.Single(o => o.OptionId == ArmAbility1).Value);
+            }
         }
 
         [TestMethod]

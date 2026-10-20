@@ -173,7 +173,8 @@ namespace Rasa.Managers
                 creatureClasses,
                 (unitOfWork?.MapInfos?.Get() ?? new List<MapInfoEntry>()).Select(entry => entry.Id),
                 objectPackages, typedScenarios,
-                (unitOfWork?.Creatures?.GetClassFlags() ?? new List<CreatureClassFlagEntry>()).Select(entry => entry.FlagId));
+                (unitOfWork?.Creatures?.GetClassFlags() ?? new List<CreatureClassFlagEntry>()).Select(entry => entry.FlagId))
+                .WithModules(() => (unitOfWork?.ItemModules?.GetModuleClasses(), unitOfWork?.ItemModules?.GetModifiableClasses()));
         }
 
         private static void ValidateMission(
@@ -808,6 +809,66 @@ namespace Rasa.Managers
             return false;
         }
 
+        /// <summary>
+        /// A reward item's modules, by the crafting station's rules for putting one into an item
+        /// (Managers.ItemModules.CanIntegrate): each is a module (module_class); the item's class
+        /// takes modules (modifiable_class); each is for the class set the item's class is in -
+        /// no armor module in a weapon; no two are of one variant. And they fill the slots from
+        /// the first: the client names an item by its modules only while the first slot holds one
+        /// (gameuiutil.GetItemName), and the station fills the first empty slot.
+        /// </summary>
+        private static void ValidateRewardModules(
+            MissionContentDefinition definition,
+            MissionAuthoringRewardItemDefinition item,
+            uint itemClassId,
+            MissionContentReferenceSet references,
+            ICollection<MissionValidationDiagnostic> diagnostics)
+        {
+            var modules = item.ModuleIds ?? Array.Empty<uint>();
+
+            if (modules.All(moduleId => moduleId == 0))
+                return;
+
+            void Add(string code, string message) =>
+                diagnostics.Add(new MissionValidationDiagnostic(code, $"reward item {item.ItemId}: {message}",
+                    definition.MissionId, definition.ContentRevision));
+
+            var lastFull = -1;
+            for (var slot = 0; slot < modules.Count; slot++)
+                if (modules[slot] != 0)
+                    lastFull = slot;
+
+            for (var slot = 0; slot < lastFull; slot++)
+                if (modules[slot] == 0)
+                {
+                    Add("reward-module-slot-gap", $"module slot {slot + 1} is empty before a full one; fill the slots from module_1.");
+                    break;
+                }
+
+            if (!references.ModifiableClasses.TryGetValue(itemClassId, out var classSetId) || classSetId == 0)
+            {
+                Add("reward-item-takes-no-modules", $"item template {item.ItemTemplateId} (class {itemClassId}) takes no modules.");
+                return;
+            }
+
+            var variants = new HashSet<uint>();
+
+            foreach (var moduleId in modules.Where(moduleId => moduleId != 0))
+            {
+                if (!references.ModuleClasses.TryGetValue(moduleId, out var module))
+                {
+                    Add("missing-reward-module", $"module {moduleId} is not in module_class.");
+                    continue;
+                }
+
+                if (module.ClassSetId != classSetId)
+                    Add("wrong-reward-module-kind", $"module {moduleId} is for class set {module.ClassSetId}, not item template {item.ItemTemplateId}'s {classSetId}.");
+
+                if (module.VariantId != 0 && !variants.Add(module.VariantId))
+                    Add("duplicate-reward-module-variant", $"module {moduleId} is a second module of variant {module.VariantId}.");
+            }
+        }
+
         private static void ValidateRewards(
             MissionContentDefinition definition,
             MissionContentReferenceSet references,
@@ -844,6 +905,8 @@ namespace Rasa.Managers
                             definition.MissionId,
                             definition.ContentRevision));
                     }
+
+                    ValidateRewardModules(definition, item, entityClassId, references, diagnostics);
                 }
 
                 var hasSelectable = reward.SelectableItems.Count > 0;
@@ -1697,6 +1760,44 @@ namespace Rasa.Managers
 
             /// <summary>Every creature flag some creature class carries.</summary>
             public HashSet<uint> CreatureFlagIds { get; }
+
+            /// <summary>The modules (module_class): each one's class set and variant.</summary>
+            public IReadOnlyDictionary<uint, (uint ClassSetId, uint VariantId)> ModuleClasses => LoadModules().Modules;
+
+            /// <summary>The item classes that take modules (modifiable_class), to their class set.</summary>
+            public IReadOnlyDictionary<uint, uint> ModifiableClasses => LoadModules().Modifiable;
+
+            private Func<(IEnumerable<ModuleClassEntry>, IEnumerable<ModifiableClassEntry>)> _moduleSource;
+            private (IReadOnlyDictionary<uint, (uint ClassSetId, uint VariantId)> Modules, IReadOnlyDictionary<uint, uint> Modifiable)? _modules;
+
+            /// <summary>
+            /// Where the module tables are read from, the first time a reward item has a module:
+            /// content with none never reads them.
+            /// </summary>
+            public MissionContentReferenceSet WithModules(Func<(IEnumerable<ModuleClassEntry>, IEnumerable<ModifiableClassEntry>)> source)
+            {
+                _moduleSource = source;
+                _modules = null;
+                return this;
+            }
+
+            private (IReadOnlyDictionary<uint, (uint ClassSetId, uint VariantId)> Modules, IReadOnlyDictionary<uint, uint> Modifiable) LoadModules()
+            {
+                if (_modules is { } loaded)
+                    return loaded;
+
+                var (modules, modifiable) = _moduleSource?.Invoke() ?? (null, null);
+
+                _modules = (
+                    (modules ?? Array.Empty<ModuleClassEntry>())
+                        .GroupBy(entry => entry.Id)
+                        .ToDictionary(group => group.Key, group => (group.First().ClassSetId, group.First().VariantId)),
+                    (modifiable ?? Array.Empty<ModifiableClassEntry>())
+                        .GroupBy(entry => entry.Id)
+                        .ToDictionary(group => group.Key, group => group.First().ClassSetId));
+
+                return _modules.Value;
+            }
 
             public MissionContentReferenceSet(
                 IEnumerable<uint> npcPackageIds,

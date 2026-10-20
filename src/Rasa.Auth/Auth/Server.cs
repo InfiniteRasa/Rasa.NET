@@ -477,8 +477,29 @@ namespace Rasa.Auth
             return CryptographicOperations.FixedTimeEquals(expectedHash, offeredHash);
         }
 
+        /// <summary>
+        /// A game server's answer to the info request sent at its login and every 30 seconds
+        /// after ("ServerInfoUpdate"): what the server list says of it. All of it used to be
+        /// dropped, and the list built from fields nothing set:
+        ///
+        /// - the player count and cap, from which the client's server select draws Low, Medium,
+        ///   High or Full (serverselectwindow.py) - every world read as empty, never as full;
+        /// - the queue port, which the client connects to after a redirect. Sent as 0, the client
+        ///   fell back to 8001 (login.py, AuthRecvServerListEx), so a world whose queue listened
+        ///   on any other port could not be reached. It is QueueConfig.Port: a game server behind
+        ///   a port mapping has to publish its queue port on the same number (compose.yml does);
+        /// - the game port, kept with the rest but not in the list the client is sent;
+        /// - the age limit and the PK flag, which the client takes from the list and does not use.
+        /// </summary>
         public void UpdateServerInfo(CommunicatorClient client, ServerInfoResponsePacket packet)
         {
+            client.QueuePort = packet.QueuePort;
+            client.GamePort = packet.GamePort;
+            client.AgeLimit = packet.AgeLimit;
+            client.PKFlag = packet.PKFlag;
+            client.CurrentPlayers = packet.CurrentPlayers;
+            client.MaxPlayers = packet.MaxPlayers;
+
             GenerateServerList();
             BroadcastServerList();
         }

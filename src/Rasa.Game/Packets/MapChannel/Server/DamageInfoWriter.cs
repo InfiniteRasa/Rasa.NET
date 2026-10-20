@@ -28,7 +28,7 @@ namespace Rasa.Packets.MapChannel.Server
             pw.WriteUInt(0);                    // reflected
             pw.WriteUInt(0);                    // filtered
             pw.WriteUInt((uint)Math.Max(0, absorbed));  // absorbed
-            pw.WriteUInt((uint)resisted);       // resisted
+            pw.WriteUInt((uint)Math.Max(0, resisted));  // resisted: none for a hit a vulnerability made bigger
             pw.WriteLong(finalAmount);          // finalAmt
             pw.WriteInt(isCritical ? 1 : 0);    // isCrit
             pw.WriteInt(deathBlow ? 1 : 0);     // deathBlow

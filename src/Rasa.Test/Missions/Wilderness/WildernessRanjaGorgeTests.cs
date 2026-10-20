@@ -46,7 +46,7 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.IsFalse(harness.Manager.AcceptOfferedMission(harness.Client, eleanor.EntityId, 425));
             SeedCompleted(harness, 444);
             var sampleReward = Offer(harness, eleanor, 425);
-            AssertSelectable(sampleReward, (12827, 13483), (12855, 13511));
+            AssertSelectable(sampleReward, 425, (12827, 13483), (12855, 13511));
             Assert.AreEqual(1350U, sampleReward.FixedReward.Credits[CurencyType.Credits]);
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, eleanor.EntityId, 425));
             Assert.AreEqual(0U, Held(harness, 620));
@@ -88,7 +88,7 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.IsTrue(harness.Manager.CompleteOfferedObjective(harness.Client, nula.EntityId, 679, 1, 1));
             CompleteAndCheckReward(harness, nula, 679, null, 4500, 900);
             var councilReward = Offer(harness, nula, 451);
-            AssertSelectable(councilReward, (631, 7615), (97037, 25830));
+            AssertSelectable(councilReward, 451, (631, 7615), (97037, 25830));
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, nula.EntityId, 451));
 
             harness.MoveTo(todae.Position);
@@ -135,7 +135,7 @@ namespace Rasa.Test.Missions.Wilderness
             using var harness = CreateMigrated(771);
             harness.SpawnWorld(189);
             var soji = RequireNpc(harness, 189, 111);
-            AssertFixed(Offer(harness, soji, 758), (44920, 2), (45047, 4));
+            AssertFixed(Offer(harness, soji, 758), (111227, 2), (45047, 4));
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, soji.EntityId, 758));
             for (uint count = 1; count <= 10; count++)
             {
@@ -146,10 +146,10 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.AreEqual(10U, Held(harness, 2533));
             CompleteAndCheckReward(harness, soji, 758, null, 4000, 600);
             Assert.AreEqual(0U, Held(harness, 2533));
-            Assert.AreEqual(2U, Held(harness, 44920));
+            Assert.AreEqual(2U, Held(harness, 111227));   // Class II EMP Bombs
             Assert.AreEqual(4U, Held(harness, 45047));
 
-            AssertFixed(Offer(harness, soji, 787), (44919, 2), (44920, 6));
+            AssertFixed(Offer(harness, soji, 787), (47594, 2), (45441, 6));
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, soji.EntityId, 787));
             for (uint count = 1; count <= 4; count++)
             {
@@ -158,18 +158,16 @@ namespace Rasa.Test.Missions.Wilderness
             }
             CompleteAndCheckReward(harness, soji, 787, null, 4000, 600);
             Assert.AreEqual(0U, Held(harness, 2532));
-            Assert.AreEqual(2U, Held(harness, 44919));
-            Assert.AreEqual(8U, Held(harness, 44920));
+            Assert.AreEqual(2U, Held(harness, 47594));    // Class II Res Trauma Kits
+            Assert.AreEqual(6U, Held(harness, 45441));    // Class II Fragmentation Grenades
         }
 
         [TestMethod]
         [TestCategory("W6Rewards")]
-        [DataRow(758U, 44920U, 4, 2U)]
+        // The med packs these rewards still give; their EMP Bombs, Res Trauma Kits and grenades
+        // (Wilderness_reward_consumables) are each tested where they resolve.
         [DataRow(758U, 45047U, 6, 4U)]
-        [DataRow(787U, 44919U, 3, 2U)]
-        [DataRow(787U, 44920U, 4, 6U)]
         [DataRow(769U, 44921U, 5, 6U)]
-        [DataRow(769U, 44920U, 4, 2U)]
         public void AwardedMedicalRewardsHealOnlyAfterCommittedNativeConsumptionAndRejectReplay(
             uint missionId, uint templateId, int actionLevel, uint expectedQuantity)
         {
@@ -207,9 +205,8 @@ namespace Rasa.Test.Missions.Wilderness
             health.Current = 1;
             harness.Drain();
             // A level no medpack in the pack performs, including level-1 ordinary corpse drops.
-            // Each reward is two medpacks of different levels (787's are levels 3 and 4), and a request the named item does not
-            // perform is carried out with a pack item that does (AbilityManager.PackItemPerforming):
-            // asking for the other one's level is not a refusal.
+            // A request the named item does not perform is carried out with a pack item that does
+            // (AbilityManager.PackItemPerforming).
             abilities.RequestPerformAbility(harness.Client,
                 NativeMedpackRequest(item.EntityId, 99));
             Assert.IsFalse(harness.Map.PerformRecovery.Any(action => action.ActionId == (ActionId)419));
@@ -295,19 +292,20 @@ namespace Rasa.Test.Missions.Wilderness
             for (var count = 0; count < 10; count++)
                 LootOne(harness, 580052, 1, 2533);
             var fillers = FillConsumableBag(harness);
+            harness.FillInbox();
             harness.MoveTo(soji.Position);
             var before = harness.Context.ReadRewardTotals();
             Assert.IsFalse(harness.Manager.CompleteOfferedMission(harness.Client, soji.EntityId, 758, null));
             Assert.AreEqual(before, harness.Context.ReadRewardTotals());
             Assert.AreEqual(10U, Held(harness, 2533));
-            Assert.AreEqual(0U, Held(harness, 44920));
+            Assert.AreEqual(0U, Held(harness, 111227));
             foreach (var filler in fillers.Take(6))
                 InventoryManager.Instance.PersonalInventory_DestroyItem(harness.Client,
                     new PersonalInventory_DestroyItemPacket { EntityId = filler.EntityId, Quantity = 1 });
             Reload(harness);
             CompleteAndCheckReward(harness, soji, 758, null, 4000, 600);
             Assert.AreEqual(0U, Held(harness, 2533));
-            Assert.AreEqual(2U, Held(harness, 44920));
+            Assert.AreEqual(2U, Held(harness, 111227));
             Assert.AreEqual(4U, Held(harness, 45047));
         }
 
@@ -557,7 +555,7 @@ namespace Rasa.Test.Missions.Wilderness
                 Assert.IsNull(unit.CharacterMissions.GetByCharacterAndMission(harness.Client.Player.Id, 787),
                     "A completed prerequisite must not be an incomplete current assignment.");
             }
-            AssertFixed(Offer(harness, soji, 769), (44921, 6), (44920, 2));
+            AssertFixed(Offer(harness, soji, 769), (44921, 6), (111227, 2));
             Assert.AreEqual(MissionState.Completed, harness.Client.Player.MissionHistory[787],
                 "Opening Soji must retain the authoritative prerequisite history.");
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, soji.EntityId, 769));
@@ -591,7 +589,7 @@ namespace Rasa.Test.Missions.Wilderness
             CompleteAndCheckReward(harness, soji, 769, null, 4000, 600);
             Assert.AreEqual(0U, Held(harness, 2531));
             Assert.AreEqual(6U, Held(harness, 44921));
-            Assert.AreEqual(2U, Held(harness, 44920));
+            Assert.AreEqual(2U, Held(harness, 111227));   // Class II EMP Bombs
         }
 
         [TestMethod]
@@ -748,7 +746,7 @@ namespace Rasa.Test.Missions.Wilderness
             harness.SpawnWorld(206, 202);
             var sten = RequireNpc(harness, 206, 128);
             var quincy = RequireNpc(harness, 202, 124);
-            AssertSelectable(Offer(harness, sten, 860), (3315, 12147), (11568, 6498));
+            AssertSelectable(Offer(harness, sten, 860), 860, (3315, 12147), (11568, 6498));
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, sten.EntityId, 860));
             var clusters = harness.Map.DynamicObjects.Where(obj => obj.SceneMissionId == 860 &&
                     obj.SceneOwnerCharacterId == harness.Client.Player.Id)
@@ -990,13 +988,13 @@ namespace Rasa.Test.Missions.Wilderness
             return offers[missionId].MissionConstantData.RewardInfo;
         }
 
-        internal static void AssertSelectable(RewardInfo preview, params (uint Template, uint Class)[] expected)
+        internal static void AssertSelectable(RewardInfo preview, uint missionId, params (uint Template, uint Class)[] expected)
         {
             CollectionAssert.AreEqual(expected.Select(item => item.Template).ToArray(),
                 preview.SelectableReward.Select(item => item.ItemTemplateId).ToArray());
             CollectionAssert.AreEqual(expected.Select(item => item.Class).ToArray(),
                 preview.SelectableReward.Select(item => (uint)item.Class).ToArray());
-            Assert.IsTrue(preview.SelectableReward.All(item => item.Quantity == 1 && item.ModuleIds.Count == 0));
+            Assert.IsTrue(preview.SelectableReward.All(item => item.Quantity == 1 && WildernessRewardModulesTests.OfferedAsAuthored(missionId, item)));
         }
 
         private static void AssertFixed(RewardInfo preview, params (uint Template, uint Quantity)[] expected)

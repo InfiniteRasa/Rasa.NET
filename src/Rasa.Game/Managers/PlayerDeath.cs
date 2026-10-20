@@ -210,13 +210,14 @@ namespace Rasa.Managers
 
         /// <summary>
         /// Whether an effect stays on a player through their death: Rez Trauma, the skill
-        /// passives, an aura's effect (its owner's aura takes it off), and a Hominis Machina's
-        /// morph while its Self Revive is unspent - the button is in the morph's drawer
+        /// passives, an Experience Booster's boost (ExperienceBoost), an aura's effect (its
+        /// owner's aura takes it off), and a Hominis Machina's morph while its Self Revive is
+        /// unspent - the button is in the morph's drawer
         /// (<paramref name="keepMorph"/>, AbilityManager.CanSelfRevive). The map's effect worker
         /// holds a dead player to the same (GameEffectManager.DoWork).
         /// </summary>
         internal static bool KeptInDeath(GameEffect effect, bool keepMorph) =>
-            effect.IsSkillPassive || effect.TypeId == RezSicknessTypeId || effect.Parent != null
+            effect.IsSkillPassive || effect.TypeId == RezSicknessTypeId || effect.TypeId == ExperienceBoost.TypeId || effect.Parent != null
             || (keepMorph && effect.TypeId == AbilityManager.PolymorphTypeId);
 
         /// <summary>
@@ -402,11 +403,40 @@ namespace Rasa.Managers
             Logger.WriteLog(LogType.Debug, $"{player.FamilyName} ({player.Id}) is back{(atHospital ? " at a hospital" : $", revived by {reviver?.EntityId}")}.");
         }
 
+        /// <summary>The Rez Trauma on a player that has not yet run out, or null.</summary>
+        public static GameEffect CurrentRezTrauma(Actor actor) =>
+            actor?.ActiveEffects.Values.FirstOrDefault(e => e.TypeId == RezSicknessTypeId && !e.IsExpired);
+
+        /// <summary>
+        /// A Rez Trauma Kit (CONSUMABLE_RES_TRAUMA_KIT) used: one death's worth off - a stack and
+        /// its REZ_SICKNESS_PENALTY - for the time the Rez Trauma had left. The last stack takes it
+        /// off. False when there is none on the player.
+        /// </summary>
+        public static bool RemoveRezTraumaStack(MapChannel mapChannel, Manifestation player)
+        {
+            var current = CurrentRezTrauma(player);
+
+            if (mapChannel == null || current == null)
+                return false;
+
+            if (current.Stacks <= 1)
+            {
+                GameEffectManager.Instance.DettachEffect(mapChannel, player, current);
+                return true;
+            }
+
+            var leftMs = Math.Max(1, current.ExpiresTick - Environment.TickCount64);
+
+            // Attach replaces the one before.
+            AttachRezTrauma(mapChannel, player, current.Stacks - 1, leftMs);
+            return true;
+        }
+
         /// <summary>Rez Trauma: one more death's worth, to three, and two minutes more, to six.</summary>
         private static void AddRezTrauma(MapChannel mapChannel, Manifestation player)
         {
             var now = Environment.TickCount64;
-            var current = player.ActiveEffects.Values.FirstOrDefault(e => e.TypeId == RezSicknessTypeId && !e.IsExpired);
+            var current = CurrentRezTrauma(player);
             var stacks = Math.Min(RezSicknessMaxStack, (current?.Stacks ?? 0) + 1);
             var leftMs = current != null ? Math.Max(0, current.ExpiresTick - now) : 0;
             var durationMs = Math.Min(RezSicknessMaxSeconds * 1000L, leftMs + RezSicknessSeconds * 1000L);

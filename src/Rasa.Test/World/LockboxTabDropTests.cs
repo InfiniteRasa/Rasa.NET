@@ -349,7 +349,7 @@ namespace Rasa.Test.World
             /// <summary>The lockbox item in that slot, dropped on a tab button by the leader.</summary>
             internal void DropOnATabButton(int slot)
             {
-                Inventory.ClanLockbox_MoveItem(Taker, new ClanLockbox_MoveItemPacket { SrcSlot = (uint)slot, NoSlotNamed = true, Quantity = 1 });
+                Inventory.ClanLockbox_MoveItem(Taker, new ClanLockbox_MoveItemPacket { SrcSlot = (uint)slot, NoSlotNamed = true, Quantity = (int)(EntityManager.Instance.GetItem(Taker.Player.Inventory.ClanInventory[slot])?.StackSize ?? 1) });
             }
 
             internal List<PythonPacket> Sent(Client client) => WorldTestContext.Drain(client)

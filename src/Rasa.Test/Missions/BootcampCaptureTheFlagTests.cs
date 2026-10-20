@@ -23,15 +23,24 @@ namespace Rasa.Test.Missions
     {
         private const uint CaptureTheFlagMissionId = 1994;
         private const uint CaveInAreaId = 439;
-        private const uint PromotionRewardExperience = 43000;
+        private const uint PromotionRewardExperience = 1750;
+
+        /// <summary>What Initiation (1990, 100) and Gearing Up (1992, 1250) pay before Capture the Flag.</summary>
+        private const uint EarnedBeforePromotion = 1350;
         private const uint YoungbloodRewardExperience = 5000;
         private static readonly System.TimeSpan YoungbloodDelay = System.TimeSpan.FromSeconds(7);
 
         [TestMethod]
-        public void CaptureTheFlagPromotionKeepsRecruitAndUsesNormalPointFormulas()
+        public void CaptureTheFlagPromotionKeepsRecruitAndTakesThemToLevelTwo()
         {
             using var harness = BootcampRuntimeTestHarness.Create();
             SeedCaptureTheFlagPrerequisites(harness, seedLightning: true);
+
+            // The recruit comes to DeSimone with what the missions before paid.
+            using (var unit = harness.Context.CreateChar())
+                unit.Characters.UpdateCharacterProgression(harness.Client.Player.Id, EarnedBeforePromotion, 1);
+            harness.Client.Player.Experience = EarnedBeforePromotion;
+
             var deSimone = harness.AddNpc(
                 BootcampRuntimeTestHarness.CorporalDeSimoneCreatureId,
                 BootcampRuntimeTestHarness.CorporalDeSimonePackageId);
@@ -43,6 +52,7 @@ namespace Rasa.Test.Missions
             harness.Context.Drain();
             var before = harness.Context.ReadRewardTotals();
             var previousCloneCredits = harness.Client.Player.CloneCredits;
+            var previousLevel = harness.Client.Player.Level;
 
             Assert.IsTrue(harness.Manager.CompleteOfferedObjective(
                 harness.Client,
@@ -58,11 +68,17 @@ namespace Rasa.Test.Missions
                 (1U, MissionObjectiveState.Inactive),
                 (3U, MissionObjectiveState.Inactive));
             Assert.AreEqual((uint)CharacterClass.Recruit, harness.Client.Player.Class);
-            Assert.AreEqual((byte)5, harness.Client.Player.Level);
-            Assert.AreEqual(previousCloneCredits + 1, harness.Client.Player.CloneCredits);
+            // 1750 experience on the 1350 before it: 3100, level 2 (3000) - one level, not four.
+            Assert.AreEqual((byte)1, previousLevel);
+            Assert.AreEqual((byte)2, harness.Client.Player.Level);
+            Assert.AreEqual(EarnedBeforePromotion + PromotionRewardExperience, harness.Client.Player.Experience);
             using (var unit = harness.Context.CreateChar())
-                Assert.AreEqual(harness.Client.Player.CloneCredits,
-                    unit.Characters.Get(harness.Client.Player.Id).CloneCredits);
+            {
+                var character = unit.Characters.Get(harness.Client.Player.Id);
+                Assert.AreEqual((byte)2, character.Level, "level 2 kept");
+                Assert.AreEqual(EarnedBeforePromotion + PromotionRewardExperience, character.Experience);
+                Assert.AreEqual(harness.Client.Player.CloneCredits, character.CloneCredits);
+            }
             Assert.AreEqual(
                 before.Experience + PromotionRewardExperience,
                 harness.Context.ReadRewardTotals().Experience);
@@ -70,19 +86,9 @@ namespace Rasa.Test.Missions
             Assert.AreEqual(0, CountScenarioCreatures(harness.BootcampMap, 1994, 2));
 
             var packets = harness.Context.Drain();
-            Assert.AreEqual(0, packets.OfType<CharacterClassPacket>().Count());
-            CollectionAssert.AreEqual(
-                new byte[] { 2, 3, 4, 5 },
-                packets.OfType<LevelUpPacket>().Select(packet => packet.Level).ToArray());
-
-            var available = packets.OfType<AvailableAllocationPointsPacket>().Last();
-            var manifestation = new ManifestationManager(harness.Context);
-            Assert.AreEqual(
-                manifestation.GetAvailableAttributePoints(harness.Client.Player),
-                available.AvailableAttributePoints);
-            Assert.AreEqual(
-                manifestation.GetSkillPointsAvailable(harness.Client.Player),
-                available.AvailableSkillPoints);
+            Assert.AreEqual(0, packets.OfType<CharacterClassPacket>().Count(), "still a Recruit");
+            Assert.AreEqual((byte)2, packets.OfType<LevelUpPacket>().Single().Level, "the client is told level 2");
+            Assert.AreEqual(PromotionRewardExperience, packets.OfType<ExperienceChangedPacket>().Single().XPInfo.Gained, "the client is told 1750");
         }
 
         [TestMethod]
@@ -346,6 +352,10 @@ namespace Rasa.Test.Missions
             Assert.IsTrue(harness.Manager.RecordProgress(
                 harness.Client,
                 MissionProgressEvent.Area(CaptureTheFlagMissionId, CaveInAreaId)));
+            // Reaching the doorwell blows the cave-in, and its Thrax come two seconds after
+            // (BootcampCaveInAnyRouteV13): let them come before the clock is watched.
+            harness.UtcNow += System.TimeSpan.FromSeconds(2.5);
+            harness.Manager.TickScenarios(harness.Client);
             harness.Context.Drain();
         }
 

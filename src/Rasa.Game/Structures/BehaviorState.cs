@@ -57,6 +57,19 @@ namespace Rasa.Structures
 
         /// <summary>Milliseconds of this fight the creature has stood free to act and neither struck nor gained ground (BehaviorManager.Stalled).</summary>
         public long StalledMs { get; set; }
+
+        /// <summary>
+        /// The last route built to the target does not reach it: the target is where no route
+        /// goes, and the path only takes the creature as near as it gets. A new one is not looked
+        /// for each time this one runs out, only once the path update lock is up (BehaviorManager).
+        /// </summary>
+        public bool RouteIncomplete { get; set; }
+
+        /// <summary>The place round its target it is stepping off to, out of a crowd of its side (Spacing); null when it is not.</summary>
+        public Vector3? SpreadingTo { get; set; }
+
+        /// <summary>Milliseconds before it looks to step off again, so a crowd settles (Spacing.SettleMs).</summary>
+        public long SettleMs { get; set; }
     }
 
     /// <summary>
@@ -106,6 +119,9 @@ namespace Rasa.Structures
         public long PathUpdateTime { get; set; }
         internal bool CatchUpRunning { get; set; }
         internal Creature OwnerAttackTarget { get; set; }
+
+        /// <summary>A mission escort's place round its owner, from the owner (BehaviorManager.EscortPlace); null until it takes one.</summary>
+        internal Vector3? PlaceOffset { get; set; }
     }
 
     /// <summary>

@@ -127,7 +127,7 @@ namespace Rasa.Managers
                 return;
 
             var name = packet.PlayerName ?? string.Empty;
-            var target = FindIngame(name);
+            var target = FindIngame(name, client);
 
             if (!Eligible(client, target, name, summoning: true))
                 return;
@@ -157,7 +157,7 @@ namespace Rasa.Managers
                 return;
 
             var name = packet.PlayerName ?? string.Empty;
-            var target = FindIngame(name);
+            var target = FindIngame(name, client);
 
             if (!Eligible(client, target, name, summoning: false))
                 return;
@@ -466,6 +466,14 @@ namespace Rasa.Managers
         private static Client FindIngame(uint accountId) =>
             Server.Clients.Find(c => c.State == ClientState.Ingame && c.Player != null
                                      && c.AccountEntry != null && c.AccountEntry.Id == accountId);
+
+        /// <summary>By family name, as the asker may find them: an invisible GM is not in game to anyone who is not a GM.</summary>
+        private static Client FindIngame(string familyName, Client asker)
+        {
+            var found = FindIngame(familyName);
+
+            return Detection.IsGmHiddenFrom(found?.Player, asker) ? null : found;
+        }
 
         private static Client FindIngame(string familyName) =>
             string.IsNullOrEmpty(familyName)

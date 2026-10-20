@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Numerics;
+using System.Threading;
 
 namespace Rasa.Structures
 {
@@ -9,10 +10,46 @@ namespace Rasa.Structures
 
     public class Actor : IHasPosition
     {
-        public ulong EntityId = EntityManager.Instance.GetEntityId;
+        /// <summary>
+        /// The actor's entity id, taken from the pool (EntityManager.GetEntityId) the first time it
+        /// is read, unless one was given first. It used to be taken in a field initialiser, so every
+        /// Actor built took one - each creature definition loaded, each clone's source, each
+        /// throwaway - and one given afterwards left the first taken for good.
+        /// </summary>
+        public ulong EntityId
+        {
+            get
+            {
+                var id = Volatile.Read(ref _entityId);
+
+                if (id != NotTaken)
+                    return id;
+
+                // Two first reads at once: one id is kept and the other goes back to the pool.
+                var taken = EntityManager.Instance.GetEntityId;
+                var kept = Interlocked.CompareExchange(ref _entityId, taken, NotTaken);
+
+                if (kept == NotTaken)
+                    return taken;
+
+                EntityManager.Instance.FreeEntity(taken);
+                return kept;
+            }
+            set => Volatile.Write(ref _entityId, value);
+        }
+
+        /// <summary>No id taken or given yet: the pool hands out ids counting up from 1000, never this.</summary>
+        private const ulong NotTaken = ulong.MaxValue;
+        private ulong _entityId = NotTaken;
+
+        /// <summary>Whether the actor has an entity id yet (read or given), without taking one.</summary>
+        internal bool HasEntityId => Volatile.Read(ref _entityId) != NotTaken;
         public Vector3 Position { get; set; }
         public double Rotation { get; set; }
         public bool IsCrouching { get; set; }
+
+        /// <summary>Where the actor was when it last crouched (ManifestationManager.StandIfMoved).</summary>
+        public Vector3 CrouchedAt { get; set; }
         public EntityClasses EntityClass { get; set; }
         public string Name { get; set; }
         public string FamilyName { get; set; }

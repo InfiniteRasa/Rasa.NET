@@ -54,12 +54,59 @@ namespace Rasa.Test.Gameplay
 
             Assert.IsNull(client.PendingTransfer,
                 "An availability change must not count as the player's decision to enter the beam.");
+            Assert.AreEqual(1, ReadyNotices(client), "told once how to board");
+
+            triggers.TriggersProximityWorker(client.Player.MapChannel);
+            Assert.AreEqual(0, ReadyNotices(client), "and not again while they stay");
+
             client.Player.Position += new System.Numerics.Vector3(10, 0, 0);
             triggers.TriggersProximityWorker(client.Player.MapChannel);
             client.Player.Position -= new System.Numerics.Vector3(10, 0, 0);
             triggers.TriggersProximityWorker(client.Player.MapChannel);
             Assert.IsNotNull(client.PendingTransfer);
+            Assert.AreEqual(0, ReadyNotices(client), "stepping in boards them; nothing to tell");
         }
+
+        [TestMethod]
+        public void ABeamThatOpensWhileNobodyIsInItTellsNobody()
+        {
+            using var context = new BootcampSelectionTestContext();
+            context.SeedAccount(6193);
+            var characterId = context.SeedCharacter(6193, 1, "Elsewhere",
+                mapContextId: BootcampSelectionTestContext.BootcampMapContextId,
+                x: -225, y: 101.12099, z: -71);
+            context.SeedStartingExperience(characterId, CharacterStartingExperienceState.Bootcamp);
+            context.SeedMission(characterId, BootcampSelectionTestContext.MissionFinale,
+                MissionState.Active, completeable: true);
+            var client = context.CreateSelectionClient(6193);
+            context.Characters.RequestSwitchToCharacterInSlot(client,
+                new Packets.Game.Client.RequestSwitchToCharacterInSlotPacket { SlotNum = 1 });
+            context.MaterializeLoadedClient(client);
+            var triggers = new MapTriggerManager(context.Objects);
+            var mission = client.Player.Missions[BootcampSelectionTestContext.MissionFinale];
+
+            // In the beam while it is shut, then off it before it opens.
+            mission.Completeable = false;
+            triggers.TriggersProximityWorker(client.Player.MapChannel);
+            client.Player.Position += new System.Numerics.Vector3(10, 0, 0);
+            triggers.TriggersProximityWorker(client.Player.MapChannel);
+            mission.Completeable = true;
+            triggers.TriggersProximityWorker(client.Player.MapChannel);
+
+            Assert.AreEqual(0, ReadyNotices(client));
+            Assert.IsNull(client.PendingTransfer);
+
+            // Back in while it is open: boarded, not told.
+            client.Player.Position -= new System.Numerics.Vector3(10, 0, 0);
+            triggers.TriggersProximityWorker(client.Player.MapChannel);
+
+            Assert.IsNotNull(client.PendingTransfer);
+            Assert.AreEqual(0, ReadyNotices(client));
+        }
+
+        private static int ReadyNotices(Client client) =>
+            MissionTestContext.Drain(client).OfType<Packets.Communicator.Server.SystemMessagePacket>()
+                .Count(message => message.TextMessage == MapTriggerManager.ExitReadyMessage);
 
         [TestMethod]
         public void EnteringReadyBootcampBeamBoardsDirectlyWithoutDiscoveringWaypoint()
@@ -427,7 +474,7 @@ namespace Rasa.Test.Gameplay
                 });
             context.CompletePendingDeparture(departedClient);
 
-            context.SeedAccount(612, canSkipBootcamp: true);
+            context.SeedAccount(612, canSkipBootcamp: true, familyName: "Skipper");
             var skippedCharacterId = context.SeedCharacter(612, 1, "Skipped");
             context.SeedStartingExperience(skippedCharacterId, CharacterStartingExperienceState.Pending);
             var skippedClient = context.CreateSelectionClient(612);

@@ -167,6 +167,53 @@ namespace Rasa.Test.Missions
             }
         }
 
+        /// <summary>
+        /// The client lets a grenade be thrown at an object that can take damage
+        /// (GrenadeAbility.CheckAction); the server took a grenade's target for a creature or a
+        /// player alone and refused it as no target.
+        /// </summary>
+        [TestMethod]
+        public void AGrenadeThrownAtTheDestructibleObjectDestroysIt()
+        {
+            using var harness = Create(destructible: true);
+            var abilities = harness.LoadAbilities();
+            using (var grant = new InventoryManager.InventoryGrant())
+            {
+                using (var unit = harness.CreateChar())
+                    unit.ExecuteTransaction(() => grant.PlanAndSave(harness.Client,
+                        new[] { new InventoryManager.InventoryItemGrant(45125, 1) }, unit));
+                grant.Publish(harness.Client);
+            }
+            var grenade = harness.Client.Player.Inventory.PersonalInventory.Where(id => id != 0)
+                .Select(EntityManager.Instance.GetItem).Single(item => item.ItemTemplateId == 45125);
+            var target = Target(harness);
+            harness.MoveTo(target.Position + new Vector3(10, 0, 0));
+
+            lock (Server.Clients)
+                Server.Clients.Add(harness.Client);
+            try
+            {
+                abilities.RequestPerformAbility(harness.Client, ToyTests.Request(420, 1, grenade.EntityId, targetId: target.EntityId));
+                var action = harness.Map.PerformRecovery.SingleOrDefault(entry => entry.ActionId == ActionId.ConsumableGrenade);
+                Assert.IsNotNull(action, "thrown");
+                harness.Map.PerformRecovery.Remove(action);
+
+                abilities.PerformRecovery(harness.Map, action);
+
+                // 100 hit points; level 1 rolls 100-300.
+                Assert.IsFalse(target.IsEnabled);
+                Assert.AreEqual(UseObjectState.StateDestroyed, target.StateId);
+                Assert.AreEqual(MissionObjectiveState.Completed,
+                    harness.Client.Player.Missions[MissionId].Objectives[1].State);
+                Assert.IsFalse(harness.Client.Player.Inventory.PersonalInventory.Contains(grenade.EntityId), "used up");
+            }
+            finally
+            {
+                lock (Server.Clients)
+                    Server.Clients.Remove(harness.Client);
+            }
+        }
+
         [TestMethod]
         public void NativeAlternateMeleeCannotDestroyAnObjectOutsideItsAuthoredRange()
         {

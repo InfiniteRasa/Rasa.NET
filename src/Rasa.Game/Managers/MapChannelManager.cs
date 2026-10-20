@@ -459,6 +459,9 @@ namespace Rasa.Managers
                     // Fithik egg clusters someone has walked onto hatch, and grow back.
                     Guard("FithikEggClusters.Worker", mapChannel, () => FithikEggClusters.Worker(mapChannel));
 
+                    // Maws come up at whoever comes near, and the ones gone back down are taken off.
+                    Guard("MawLurk.Worker", mapChannel, () => MawLurk.Worker(mapChannel));
+
                     // Bane tunnel doors open as a player comes up to one, and close behind them.
                     Guard("TunnelDoors.Worker", mapChannel, () => TunnelDoors.Worker(mapChannel));
 
@@ -471,6 +474,12 @@ namespace Rasa.Managers
 
                     // The usable objects the server put down: back when due, bombs going off, random explosions.
                     Guard("PlacedUsables.Worker", mapChannel, () => PlacedUsables.Worker(mapChannel));
+
+                    // The lootable containers the server put down: openings due to reset closed again.
+                    Guard("WorldContainers.Worker", mapChannel, () => WorldContainers.Worker(mapChannel));
+
+                    // A sky held at one time of day (the Proving Grounds' noon): its time sent again.
+                    Guard("SkyClock.Worker", mapChannel, () => SkyClock.Worker(mapChannel));
 
                     // Crab Mines: seeking, running, going off.
                     Guard("AbilityManager.CrabMineWorker", mapChannel, () => AbilityManager.Instance.CrabMineWorker(mapChannel));
@@ -546,6 +555,12 @@ namespace Rasa.Managers
                         // Fire Support's beacons: their blasts and napalm pools.
                         Guard("AbilityManager.FireSupportWorker", mapChannel, () => AbilityManager.Instance.FireSupportWorker(mapChannel));
 
+                        // EMP bombs: their blasts, and the spent ones taken away.
+                        Guard("AbilityManager.PlacedBombWorker", mapChannel, () => AbilityManager.Instance.PlacedBombWorker(mapChannel));
+
+                        // Mag flash grenades: their flashes, and the spent ones taken away.
+                        Guard("AbilityManager.FlashGrenadeWorker", mapChannel, () => AbilityManager.Instance.FlashGrenadeWorker(mapChannel));
+
                         // The pools propellant guns leave: their ticks and their burning out.
                         Guard("PropellantPools.Worker", mapChannel, () => PropellantPools.Worker(mapChannel));
 
@@ -554,6 +569,9 @@ namespace Rasa.Managers
 
                         // Dropship beacons: settled, sent away, and the travel window for the squad in reach.
                         Guard("DropshipBeacons.Worker", mapChannel, () => DropshipBeacons.Worker(mapChannel));
+
+                        // Resupply bots: taken away in their time, or when their owner has gone.
+                        Guard("ResupplyBots.Worker", mapChannel, () => ResupplyBots.Worker(mapChannel));
 
                         // Personal Waypoints: taken away in their time, and the waypoint window for whoever they are for.
                         Guard("PersonalWaypoints.Worker", mapChannel, () => PersonalWaypoints.Worker(mapChannel));
@@ -1192,32 +1210,7 @@ namespace Rasa.Managers
                 };
 
                 client.State = ClientState.Teleporting;
-                client.Player.Target = 0;
-                LootDispenserManager.Instance.RemoveForOwner(origin, client);
-                ManifestationManager.Instance.RemovePlayerCharacter(client);
-                ActorActionManager.Instance.RemoveActor(client.Player);
-
-                // The timed buffs go aside, clocks stopped, to go on again on arrival (EffectCarry).
-                EffectCarry.Stash(client.Player);
-                GameEffectManager.Instance.ClearEffects(origin, client.Player);
-
-                // Out of weapon, stance and follow, as RemovePlayer does: the client arrives at peace.
-                client.Player.WeaponReady = false;
-                client.Player.InCombatMode = false;
-                client.Player.RequestedCombatMode = false;
-                client.Player.AutoFireCombatMode = false;
-                client.Player.TrackingTargetEntityId = 0;
-                MinionManager.Instance.DismissAll(client);
-                AbilityManager.DismissPet(client.Player);
-                KillStreaks.End(client);
-                WeaponClips.SaveFor(client);
-                DynamicObjectManager.Instance.ForgetPlayer(origin, client);
-                MapLinkManager.Instance.RemovePlayer(client);
-                RegionManager.Instance.RemovePlayer(client);
-                CommunicatorManager.Instance.LeaveMapChannels(client);
-                CellManager.Instance.RemoveFromWorld(client);
-                origin.ClientList.RemoveAll(member => member == client);
-                DetachMissionScenes(client, origin);
+                LeaveForTransfer(client, origin);
 
                 client.Player.MapChannel = destinationMap;
                 client.Player.MapContextId = destinationMap.MapInfo.MapContextId;
@@ -1234,6 +1227,54 @@ namespace Rasa.Managers
                 client.AwaitingMapLoaded = true;
                 return true;
             }
+        }
+
+        /// <summary>
+        /// Takes a player who is changing maps off the map they leave, by map link (ChangeMap) or
+        /// by dropship (DynamicObjectManager, when the departure ship has flown): the steps of
+        /// <see cref="RemovePlayer"/> that belong to the map rather than to the world. The
+        /// dropship had a copy of its own that had fallen behind - queued actions, weapon and
+        /// stance, minions, the pet, the kill streak, weapon clips and the map link and region
+        /// rosters all stayed with the player as they flew.
+        ///
+        /// - The target is an entity of this map, and is dropped.
+        /// - The character leaves first: a dead one is taken to their hospital (PlayerDeath), and
+        ///   only then are the timed buffs put aside, clocks stopped, to go on again on arrival
+        ///   (EffectCarry); every effect then ends with the map, since nobody on the next one was
+        ///   told of it and a sprint left running would drain adrenaline unseen.
+        /// - Out of weapon, stance and follow: the client arrives at peace.
+        /// - Minions and the pet are dismissed while they can still be told to go, the kill
+        ///   streak ends, and the clips of the weapons fired are saved.
+        /// - Off every waypoint, pad, map link and region roster, the map's chat channels, the
+        ///   cells, the map's client list and its mission scenes.
+        /// </summary>
+        /// <param name="objects">The waypoints and pads to leave; DynamicObjectManager.Instance if not given.</param>
+        internal void LeaveForTransfer(Client client, MapChannel origin, DynamicObjectManager objects = null)
+        {
+            client.Player.Target = 0;
+            LootDispenserManager.Instance.RemoveForOwner(origin, client);
+            ManifestationManager.Instance.RemovePlayerCharacter(client);
+            ActorActionManager.Instance.RemoveActor(client.Player);
+
+            EffectCarry.Stash(client.Player);
+            GameEffectManager.Instance.ClearEffects(origin, client.Player);
+
+            client.Player.WeaponReady = false;
+            client.Player.InCombatMode = false;
+            client.Player.RequestedCombatMode = false;
+            client.Player.AutoFireCombatMode = false;
+            client.Player.TrackingTargetEntityId = 0;
+            MinionManager.Instance.DismissAll(client);
+            AbilityManager.DismissPet(client.Player);
+            KillStreaks.End(client);
+            WeaponClips.SaveFor(client);
+            (objects ?? DynamicObjectManager.Instance).ForgetPlayer(origin, client);
+            MapLinkManager.Instance.RemovePlayer(client);
+            RegionManager.Instance.RemovePlayer(client);
+            CommunicatorManager.Instance.LeaveMapChannels(client);
+            CellManager.Instance.RemoveFromWorld(client);
+            origin.ClientList.RemoveAll(member => member == client);
+            DetachMissionScenes(client, origin);
         }
 
         public void Ping(Client client, double ping)
@@ -1599,6 +1640,7 @@ namespace Rasa.Managers
 
             foreach (var creature in map.MapCellInfo.Cells.Values
                          .SelectMany(cell => cell.CreatureList)
+                         .Concat(MawLurk.BuriedOn(map))
                          .Distinct()
                          .ToArray())
                 CellManager.Instance.RemoveCreatureFromWorld(map, creature);
@@ -1608,6 +1650,7 @@ namespace Rasa.Managers
             // What was placed on it (PlacedDestructibles), its force fields out of ForceFields' list too.
             PlacedDestructibles.Forget(map);
             PlacedUsables.Forget(map);
+            WorldContainers.Forget(map);
 
             var dynamicObjects = map.MapCellInfo.Cells.Values
                 .SelectMany(cell => cell.DynamicObjectList)
@@ -1659,6 +1702,9 @@ namespace Rasa.Managers
 
             // And the usable ones (world_usable).
             PlacedUsables.Place(map);
+
+            // And the lootable containers (world_container).
+            WorldContainers.Place(map);
         }
     }
 }

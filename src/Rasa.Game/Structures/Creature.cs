@@ -166,6 +166,9 @@ namespace Rasa.Structures
         /// <summary>What Battlecries keeps about it between thinks; null until its first, and not copied from a template.</summary>
         public Managers.BattlecryState Cries;
 
+        /// <summary>When it next barks (NpcBarks), on NpcBarks.Now's clock; null until it is first seen, and not copied from a template.</summary>
+        public long? NextBarkAt;
+
         /// <summary>The pose it takes at its post (NpcPoses); None for a creature with none.</summary>
         public NpcPose Pose { get; set; }
 
@@ -219,6 +222,13 @@ namespace Rasa.Structures
         /// </summary>
         public int HarvestAttemptsLeft { get; set; }
         internal Manifestation CombatParticipant { get; set; }
+
+        /// <summary>
+        /// The last player whose damage - their own, or a creature's of theirs - landed on this
+        /// creature (CreatureManager.RecordCombatDamage). A kill whose last blow is nobody's -
+        /// a friendly NPC's, a control point turret's - is theirs, if they are still in the fight.
+        /// </summary>
+        internal Manifestation LastPlayerHit { get; set; }
         internal Game.Missions.World.ActorGameplayBinding GameplayBinding { get; set; }
 
         /// <summary>

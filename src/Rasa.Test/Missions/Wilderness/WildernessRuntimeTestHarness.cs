@@ -212,6 +212,31 @@ namespace Rasa.Test.Missions.Wilderness
 
         internal IReadOnlyList<PythonPacket> Drain() => MissionTestContext.Drain(Client);
 
+        /// <summary>A consumable no Wilderness reward or turn-in involves, to fill an inbox with.</summary>
+        internal const uint InboxFillerTemplateId = 44921;
+
+        /// <summary>
+        /// Every inbox slot taken, as rows (an inbox filled while the player was away): a reward
+        /// that does not fit the backpack has nowhere else to go, and is refused whole. Since
+        /// 71d0ef6a a mission reward that does not fit the backpack goes to the inbox
+        /// (InventoryManager.Inbox), so a full backpack alone no longer refuses a turn-in.
+        /// </summary>
+        internal void FillInbox()
+        {
+            var template = ItemManager.Instance.GetItemTemplateById(InboxFillerTemplateId);
+            using var unit = CreateChar();
+
+            for (uint slot = 0; slot < Inventory.MaxInboxItems; slot++)
+            {
+                var item = ItemManager.StageItem(template, 1, "");
+                item.OwnerId = Client.Player.Id;
+                item.OwnerSlotId = slot;
+                item.Id = unit.Items.CreateItem(item);
+                unit.CharacterInventories.AddInvItem(Client.AccountEntry.Id, Client.Player.Id,
+                    (uint)InventoryType.InboxInventory, slot, item.Id);
+            }
+        }
+
         internal AbilityManager LoadAbilities()
         {
             var abilities = CreateService<AbilityManager>();
@@ -232,9 +257,10 @@ namespace Rasa.Test.Missions.Wilderness
                 new MapRegionRepository(context), new MapMarkerRepository(context),
                 new MapEmitterRepository(context), new SpawnPoolArrivalRepository(context), new RecipeRepository(context),
                 new NpcMissionRepository(context), new NpcMissionRewardRepository(context),
-                new MissionContentRepository(context), new OrdinaryLootRepository(context), new NpcPackageRepository(context),
+                new Rasa.Test.Missions.MissionContentOfThisWorld(context), new OrdinaryLootRepository(context), new NpcPackageRepository(context),
                 new PlayerRandomNameRepository(context), new SpawnpoolsOfThisWorld(context), new TeleporterRepository(context));
         }
+
 
         /// <summary>
         /// The creature rows of this harness's World, which a test can stop at an earlier
@@ -270,6 +296,11 @@ namespace Rasa.Test.Missions.Wilderness
                     ? GetBattlecries()
                     : new List<Rasa.Structures.World.CreatureBattlecryEntry>();
 
+            List<Rasa.Structures.World.NpcBarkEntry> ICreatureRepository.GetNpcBarks() =>
+                HasTable(Rasa.Structures.World.NpcBarkEntry.TableName)
+                    ? GetNpcBarks()
+                    : new List<Rasa.Structures.World.NpcBarkEntry>();
+
             private bool HasTable(string name) => _context.Database
                 .SqlQueryRaw<int>("SELECT COUNT(*) AS Value FROM sqlite_master WHERE type = 'table' AND name = {0}", name)
                 .AsEnumerable().Single() > 0;
@@ -281,7 +312,8 @@ namespace Rasa.Test.Missions.Wilderness
 
         /// <summary>
         /// The same for the pools' poses, the table of which is Add_npc_poses': a World stopped
-        /// before that migration has no pool with a pose. And for their patrols, Add_npc_patrols'.
+        /// before that migration has no pool with a pose. And for their patrols, Add_npc_patrols', and
+        /// their draws, Proving_grounds_front_squads'.
         /// </summary>
         private sealed class SpawnpoolsOfThisWorld : SpawnpoolRepository, ISpawnpoolRepository
         {
@@ -293,6 +325,11 @@ namespace Rasa.Test.Missions.Wilderness
                 HasTable(Rasa.Structures.World.SpawnPoolPoseEntry.TableName)
                     ? GetPoses()
                     : new List<Rasa.Structures.World.SpawnPoolPoseEntry>();
+
+            List<Rasa.Structures.World.SpawnPoolDrawEntry> ISpawnpoolRepository.GetDraws() =>
+                HasTable(Rasa.Structures.World.SpawnPoolDrawEntry.TableName)
+                    ? GetDraws()
+                    : new List<Rasa.Structures.World.SpawnPoolDrawEntry>();
 
             List<Rasa.Structures.World.SpawnPoolPatrolEntry> ISpawnpoolRepository.GetPatrols() =>
                 HasTable(Rasa.Structures.World.SpawnPoolPatrolEntry.TableName)

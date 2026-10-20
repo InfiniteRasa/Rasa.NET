@@ -8,6 +8,7 @@ namespace Rasa.Managers
     using Game;
     using Models;
     using Packets.MapChannel.Server;
+    using Packets.Protocol;
     using Structures;
 
     /// <summary>
@@ -253,14 +254,14 @@ namespace Rasa.Managers
         /// A creature's move that went to its cells (CellManager.CellMoveObject), to the clients
         /// that hold it from afar: the marker is drawn where the client has the NPC standing.
         /// </summary>
-        public static void Relay(MapChannel mapChannel, Creature creature, Movement movement)
+        public static void Relay(MapChannel mapChannel, Creature creature, MoveObjectMessage move)
         {
             if (mapChannel == null || creature?.Npc == null)
                 return;
 
             foreach (var client in mapChannel.ClientList)
                 if (client?.Player != null && client.FarContacts.Contains(creature.EntityId) && !InView(client.Player, creature))
-                    client.MoveObject(creature.EntityId, movement);
+                    client.MoveObject(move);
         }
 
         /// <summary>The client is off the map: it has dropped every entity of it, and is checked afresh on the next.</summary>

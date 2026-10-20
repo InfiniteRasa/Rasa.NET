@@ -54,7 +54,11 @@ namespace Rasa.Structures.Char
         [Required]
         public uint Price { get; set; }
 
-        /// <summary>What the seller paid to list it. Not refunded when the auction is cancelled.</summary>
+        /// <summary>
+        /// What the seller paid to list it: a listing fee, kept by the auction house whether the
+        /// item sells, is cancelled or runs out. It leaves the seller on the economy log as the
+        /// listing is made (AuctionListed); this is what the listing cost, kept with it.
+        /// </summary>
         [Column("deposit")]
         [Required]
         public uint Deposit { get; set; }
@@ -74,15 +78,22 @@ namespace Rasa.Structures.Char
         /// </summary>
         public uint RemainingHours(DateTime now)
         {
+            if (HasRunOut(now))
+                return 0;
+
             var elapsed = (now - CreatedAt).TotalHours;
 
             if (elapsed <= 0)
                 return DurationHours;
 
-            if (elapsed >= DurationHours)
-                return 0;
-
             return DurationHours - (uint)elapsed;
         }
+
+        /// <summary>
+        /// Its duration is over: it is to go back to its seller, and is no longer for sale. The
+        /// sweep that sends it back (AuctionHouseManager.ExpireAuctions) runs every five minutes
+        /// and at the seller's login, so a listing can be past this for a while before it goes.
+        /// </summary>
+        public bool HasRunOut(DateTime now) => (now - CreatedAt).TotalHours >= DurationHours;
     }
 }

@@ -503,6 +503,12 @@ namespace Rasa.Managers
                       c.State == ClientState.Ingame &&
                       string.Equals(c.Player.FamilyName, name, StringComparison.OrdinalIgnoreCase));
 
+            // An invisible GM is not in game to a player who is not a GM - unless the GM has
+            // whispered them since going invisible, and this is their answer.
+            if (target != null && Detection.IsGmHiddenFrom(target.Player, sender)
+                && !target.Player.GmInvisibleWhispered.Contains(sender.AccountEntry.Id))
+                target = null;
+
             if (target == null)
             {
                 sender.CallMethod(SysEntity.CommunicatorId,
@@ -526,6 +532,10 @@ namespace Rasa.Managers
                 Log(sender, ChatLogKind.Whisper, message, ChatLogResult.Ignored, 0, 0, null, target);
                 return;
             }
+
+            // The one an invisible GM whispers can whisper back.
+            if (sender.Player.GmInvisible)
+                sender.Player.GmInvisibleWhispered.Add(target.AccountEntry.Id);
 
             target.CallMethod(SysEntity.CommunicatorId, new WhisperPacket
             {
@@ -557,6 +567,10 @@ namespace Rasa.Managers
             foreach (var candidate in Server.Clients)
             {
                 if (candidate.State != ClientState.Ingame || candidate.Player == null)
+                    continue;
+
+                // An invisible GM, to anyone who is not a GM.
+                if (Detection.IsGmHiddenFrom(candidate.Player, client))
                     continue;
 
                 // No argument lists everyone online; otherwise match either name, since
@@ -725,6 +739,10 @@ namespace Rasa.Managers
                 MessageOfTheDay.SendOnLogin(client);
                 Moderation.OnEnteredWorld(client);
             }
+
+            // What a game master answered or closed of their petitions while they were away - or
+            // in a dropship, which is why it is every arrival and not only the first.
+            PetitionManager.Instance.DeliverNotices(client);
         }
 
         /// <summary>
@@ -738,6 +756,8 @@ namespace Rasa.Managers
         {
             foreach (var channelId in GlobalChannels)
                 JoinGlobalChannel(client, channelId);
+
+            NewPlayerChannel(client);
 
             foreach (var channelId in MapChannels)
                 JoinDefaultLocalChannel(client, channelId);
@@ -783,6 +803,54 @@ namespace Rasa.Managers
 
             client.Player.JoinedChannels = 0;
         }
+
+        #region The New Player channel
+
+        /// <summary>The level at which a character is no longer in the New Player channel.</summary>
+        public const byte NewPlayerLevelLimit = 10;
+
+        /// <summary>
+        /// Puts a character below <see cref="NewPlayerLevelLimit"/> in the New Player channel
+        /// (ChatChannelId.NewPlayer: /2, /np, /newplayer), and one at it or above out of it.
+        /// It is a channel of the whole world, as General is. Run on arriving on a map and
+        /// whenever the level changes (a level up, .setlevel); the one who leaves it is told with
+        /// ChatChannelLeft, as the client holds a channel until then.
+        /// </summary>
+        public void NewPlayerChannel(Client client)
+        {
+            var player = client?.Player;
+
+            if (player == null)
+                return;
+
+            var seed = GenerateDefaultChannelHash((int)ChatChannelId.NewPlayer, 0, 0);
+            var index = Array.IndexOf(player.ChannelHashes, seed, 0, player.JoinedChannels);
+            var isNew = player.Level < NewPlayerLevelLimit;
+
+            if (isNew && index < 0)
+            {
+                JoinGlobalChannel(client, ChatChannelId.NewPlayer);
+                return;
+            }
+
+            if (isNew || index < 0)
+                return;
+
+            if (ChannelsBySeed.TryGetValue(seed, out var channel))
+            {
+                channel.Players.Remove(player.EntityId);
+                DropIfEmpty(seed, channel);
+            }
+
+            // The channels after it move up: ChannelOf reads the first JoinedChannels of them.
+            Array.Copy(player.ChannelHashes, index + 1, player.ChannelHashes, index, player.JoinedChannels - index - 1);
+            player.JoinedChannels--;
+
+            if (client.State != ClientState.Disconnected)
+                client.CallMethod(SysEntity.CommunicatorId, new ChatChannelLeftPacket(ChatChannelId.NewPlayer));
+        }
+
+        #endregion
 
         #region The team channel
 

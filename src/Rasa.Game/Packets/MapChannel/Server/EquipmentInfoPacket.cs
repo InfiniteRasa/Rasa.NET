@@ -12,6 +12,12 @@ namespace Rasa.Packets.MapChannel.Server
         public List<ulong> EquipmentInfo { get; set; }
         public Dictionary<uint, ulong> ActualEquipment = new Dictionary<uint, ulong>();
 
+        /// <summary>
+        /// The player's fists, in the HANDTOHAND slot (10000001), which the slot list cannot hold:
+        /// only in what their own client is sent (Managers.Unarmed); 0 for none.
+        /// </summary>
+        public ulong HandToHand { get; set; }
+
         public EquipmentInfoPacket(List<ulong> equipmentInfo)
         {
             EquipmentInfo = equipmentInfo;
@@ -38,6 +44,9 @@ namespace Rasa.Packets.MapChannel.Server
 
                 count++;
             }
+
+            if (HandToHand != 0)
+                ActualEquipment[(uint)EquipmentData.HandToHand] = HandToHand;
 
             pw.WriteTuple(1);
             pw.WriteList(ActualEquipment.Count);

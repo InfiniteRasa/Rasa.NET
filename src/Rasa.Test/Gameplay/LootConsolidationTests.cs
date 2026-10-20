@@ -323,21 +323,106 @@ namespace Rasa.Test.Gameplay
         }
 
         [TestMethod]
-        public void FullInventoryCategoryRejectsItemsAndCreditsAsOneBatch()
+        public void AFullCategoryLeavesTheItemOnTheCorpseAndLootAllStillPaysTheCredits()
         {
             using var context = new LootFixture();
-            EntityClassManager.Instance.GetItemClassInfo(context.Item).StackSize = 1;
+            EntityClassManager.Instance.GetItemClassInfo(context.Item).StackSize = 5;
             for (uint slot = 50; slot < 100; slot++)
-                context.Storage.AddAmmo(1, slot);
+                context.Storage.AddAmmo(5, slot);
 
             context.Manager.RequestLootAllFromCorpse(context.Client,
                 new RequestLootAllFromCorpsePacket { EntityId = context.Loot.EntityId });
 
+            Assert.IsFalse(context.Loot.LootItems[0].Taken, "the item stays on the corpse");
             Assert.IsFalse(context.Loot.FullyLooted);
-            Assert.AreEqual(100, context.Client.Player.Credits[CurencyType.Credits]);
-            Assert.AreEqual(7, context.Loot.Credits);
-            Assert.AreEqual(0, context.Drain().Count);
+            Assert.IsNull(context.Storage.ReadInventory().SingleOrDefault(row => row.ItemId == context.Item.Id));
+            Assert.AreEqual(107, context.Client.Player.Credits[CurencyType.Credits], "a corpse of the player's own pays on Loot All");
+            Assert.AreEqual(0, context.Loot.Credits);
+            using (var verify = context.Storage.Open())
+                Assert.AreEqual(107, verify.CharacterEntries.AsNoTracking().Single().Credit);
+            Assert.AreEqual(1, InventoryFull(context.Drain()), "and the player is told");
+
+            // Room made: the item comes, and the credits are not paid twice.
+            context.Client.Player.Inventory.PersonalInventory[99] = 0;
+            using (var database = context.Storage.Open())
+            {
+                database.CharacterInventoryEntries.Remove(database.CharacterInventoryEntries.Single(row => row.SlotId == 99 && row.InventoryType == (uint)InventoryType.Personal));
+                database.SaveChanges();
+            }
+
+            context.Manager.RequestLootAllFromCorpse(context.Client,
+                new RequestLootAllFromCorpsePacket { EntityId = context.Loot.EntityId });
+
+            Assert.IsTrue(context.Loot.FullyLooted);
+            Assert.AreEqual(context.Item.EntityId, context.Client.Player.Inventory.PersonalInventory[99]);
+            Assert.AreEqual(107, context.Client.Player.Credits[CurencyType.Credits]);
+            Assert.AreEqual(0, InventoryFull(context.Drain()));
         }
+
+        [TestMethod]
+        public void TakingOneItemWithNoRoomWritesNothingAndSaysSo()
+        {
+            using var context = new LootFixture();
+            EntityClassManager.Instance.GetItemClassInfo(context.Item).StackSize = 5;
+            for (uint slot = 50; slot < 100; slot++)
+                context.Storage.AddAmmo(5, slot);
+
+            context.Manager.RequestLootItemFromCorpse(context.Client,
+                new RequestLootItemFromCorpsePacket { EntityId = context.Loot.EntityId, ItemId = context.Loot.LootItems[0].EntityId });
+
+            Assert.IsFalse(context.Loot.LootItems[0].Taken);
+            Assert.AreEqual(100, context.Client.Player.Credits[CurencyType.Credits]);
+            Assert.AreEqual(7, context.Loot.Credits, "the credits wait for the last item or a Loot All");
+            Assert.AreEqual(1, InventoryFull(context.Drain()));
+        }
+
+        [TestMethod]
+        public void WalkingPastWithAFullBagSaysNothing()
+        {
+            using var context = new LootFixture();
+            context.Item.ItemTemplate.QualityId = (int)LootQuality.Junk;
+            EntityClassManager.Instance.GetItemClassInfo(context.Item).StackSize = 5;
+            for (uint slot = 50; slot < 100; slot++)
+                context.Storage.AddAmmo(5, slot);
+
+            context.Manager.RequestLootAllFromCorpse(context.Client,
+                new RequestLootAllFromCorpsePacket { EntityId = context.Loot.EntityId, AutoLootOnly = true });
+
+            Assert.IsFalse(context.Loot.LootItems[0].Taken);
+            Assert.AreEqual(107, context.Client.Player.Credits[CurencyType.Credits]);
+            Assert.AreEqual(0, InventoryFull(context.Drain()), "auto-loot is sent again and again in reach");
+        }
+
+        [TestMethod]
+        public void WhatFitsIsTakenAndWhatDoesNotStaysWhole()
+        {
+            using var context = new LootFixture();
+            EntityClassManager.Instance.GetItemClassInfo(context.Item).StackSize = 5;
+            var small = context.Storage.AddUnownedLoot(1);
+            context.Loot.LootItems.Add(new LootItem(small, context.Client.Player.EntityId, 0));
+            for (uint slot = 50; slot < 99; slot++)
+                context.Storage.AddAmmo(5, slot);
+            var partial = context.Storage.AddAmmo(4, 99);
+
+            context.Manager.RequestLootAllFromCorpse(context.Client,
+                new RequestLootAllFromCorpsePacket { EntityId = context.Loot.EntityId });
+
+            // The three do not fit the one place left; the one does, into the stack of four.
+            Assert.IsFalse(context.Loot.LootItems[0].Taken);
+            Assert.AreEqual(3u, context.Item.StackSize, "not split");
+            Assert.IsTrue(context.Loot.LootItems[1].Taken);
+            Assert.AreEqual(5u, partial.StackSize);
+            Assert.AreEqual(5u, context.Storage.Read(partial).StackSize);
+            Assert.IsNull(context.Storage.Read(small), "merged away");
+            Assert.IsFalse(context.Loot.FullyLooted);
+            Assert.AreEqual(107, context.Client.Player.Credits[CurencyType.Credits]);
+            var sent = context.Drain();
+            Assert.IsTrue(sent.OfType<GotLootPacket>().Any());
+            Assert.AreEqual(1, InventoryFull(sent));
+        }
+
+        private static int InventoryFull(List<Rasa.Packets.PythonPacket> sent) =>
+            sent.OfType<Rasa.Packets.Communicator.Server.DisplayClientMessagePacket>().Count(message => message.MsgId == PlayerMessage.PmInventoryFull);
 
         [TestMethod]
         [DataRow(50U)]

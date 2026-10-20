@@ -56,25 +56,8 @@ namespace Rasa.Managers
         private static bool IsOnMap(MapChannel mapChannel, Actor actor)
             => MapInstanceScope.Contains(mapChannel, actor);
 
-        /// <summary>
-        /// Marks an actor as being in a fight, if it is a player. Creatures have their own notion
-        /// of it in BehaviorManager and are not touched here.
-        ///
-        /// Looked up through the actor's own map rather than Server.Clients: damage is a hot path
-        /// and one map's client list is a great deal shorter than every client on the server.
-        /// </summary>
-        private static void EnterCombat(Actor actor)
-        {
-            if (!(actor is Manifestation player) || player.MapChannel == null)
-                return;
-
-            foreach (var client in player.MapChannel.ClientList)
-                if (client.Player == player)
-                {
-                    ManifestationManager.Instance.EnterCombat(client);
-                    return;
-                }
-        }
+        /// <summary>Marks an actor as being in a fight, if it is a player (ManifestationManager.EnterCombatOf).</summary>
+        private static void EnterCombat(Actor actor) => ManifestationManager.EnterCombatOf(actor);
 
         /// <summary>
         /// Applies the victim's resistance (from the effects on them; see
@@ -160,8 +143,10 @@ namespace Rasa.Managers
                 return;
             }
 
-            // A player under an enemy's Traitor may not hurt the creatures of the caster's side (Pvp.Restrained).
-            if (Pvp.Restrained(missile.Source, creature))
+            // Another player's creature, its owner no enemy of the shooter's (Pvp.SparesSummon); and
+            // a player under an enemy's Traitor may not hurt the creatures of the caster's side
+            // (Pvp.Restrained).
+            if (Pvp.SparesSummon(missile.Source, creature) || Pvp.Restrained(missile.Source, creature))
             {
                 Immune(missile, creature);
                 return;
@@ -240,6 +225,10 @@ namespace Rasa.Managers
             // projected shields, oftentimes resulting in death to the attackers".
             if (armorDecrease + healthDecrease > 0)
                 ShieldDrone.Reflect(mapChannel, creature, missile.Source, armorDecrease + healthDecrease, missile.DamageType);
+
+            // A Hunter's shield sends a third of it back at an attacker in front of it (HunterShield).
+            if (armorDecrease + healthDecrease > 0)
+                HunterShield.Reflect(mapChannel, creature, missile.Source, armorDecrease + healthDecrease, missile.DamageType);
         }
 
         private readonly Random _random = new Random();
@@ -313,6 +302,10 @@ namespace Rasa.Managers
                 // Net guns hold what they hit where it stands.
                 if (creature.State != CharacterState.Dying && missile.RootMs > 0)
                     CrowdControl.Root(mapChannel, creature, missile.Source, CrowdControl.NetGunRootTypeId, missile.RootMs);
+
+                // An injection gun's dose, a net gun's burn: the rest of the shot's damage, over time.
+                if (creature.State != CharacterState.Dying)
+                    WeaponDots.Apply(mapChannel, creature, missile);
 
                 // Firearms' shotguns and Hand to Hand knock it back: the client's default
                 // distance, since the weapons' own knockback numbers are not in anything we have.
@@ -527,12 +520,16 @@ namespace Rasa.Managers
             {
                 PlayerCrowdControl.CreatureActionHit(mapChannel, striker, struck, missile.ActionId, missile.ActionArgId);
                 CreatureEffectAttacks.OnHit(mapChannel, striker, struck, missile);
+
+                // A Maw's bite may leave them in its vines (MawVines).
+                MawVines.OnHit(mapChannel, striker, struck, missile.ActionId);
             }
 
             // An enemy player's weapon does to a player what it does to a creature, for
             // PVP_EFFECT_DURATION_MODIFIER of the time (Pvp.ScaleDuration): a crit's side effect,
             // Shredder Ammo's extra damage, a grenade's stun, a net gun's hold, a shotgun's or Hand to
-            // Hand's knockback. Not on a player just defeated, who is back on their feet under PvP
+            // Hand's knockback, an injection or net gun's damage over time (all its ticks in that
+            // time, each already PvP damage). Not on a player just defeated, who is back on their feet under PvP
             // Safety; and a creature of theirs carries none of it.
             if (pvp && !defeated && missile.DamageA > 0 && actor is Manifestation enemy && missile.Source is Manifestation)
             {
@@ -554,6 +551,10 @@ namespace Rasa.Managers
 
                 if (missile.RootMs > 0)
                     PlayerCrowdControl.Root(mapChannel, enemy, missile.Source, CrowdControl.NetGunRootTypeId, missile.RootMs);
+
+                if (missile.Dot != null)
+                    using (HitEffects.On(enemy, missile.Source, HitOf(missile, enemy)?.TargetEffectIds, StrikeMsOf(missile, enemy)))
+                        WeaponDots.Apply(mapChannel, enemy, missile);
 
                 if (missile.KnockbackChance > 0 && Stuns.Roll(missile.KnockbackChance))
                     PlayerCrowdControl.Knockback(mapChannel, enemy, missile.Source, CrowdControl.DefaultKnockbackDistance,
@@ -692,6 +693,7 @@ namespace Rasa.Managers
         /// <param name="melee">A melee swing, for the crouching crit modifiers.</param>
         /// <param name="stunChance">Chance in percent the hit stuns a creature for stunMs (Hand to Hand, grenades).</param>
         /// <param name="rootMs">How long the hit holds a creature where it stands (net guns).</param>
+        /// <param name="dot">The damage over time the hit leaves, which takes its share of the damage (injection and net guns, WeaponDots); null for none.</param>
         /// <param name="splashRadius">Metres around the target a launcher's splash reaches (Splash); 0 for none.</param>
         /// <param name="coneHalfAngle">Degrees either side of the shooter's facing a cone weapon hits (ConeWeapons); 0 for a single target.</param>
         /// <param name="knockbackStunMs">How much longer a creature the knockback lands on stays down (Hand to Hand).</param>
@@ -699,7 +701,7 @@ namespace Rasa.Managers
         /// <param name="optimalRange">A player's weapon shot: the weapon's optimal range, past which its damage drops (RangeFalloff); 0 for no drop.</param>
         /// <param name="flightVelocity">A player's weapon shot: the weapon class's velocity, which their client flies it at (ShotFlight). Null for anything the server does not hold for a flight - a swing, a creature's attack.</param>
         /// <param name="refireMs">A player's weapon shot: how soon the weapon can be fired again; a shot is held for its flight only if it lands before that (ShotFlight).</param>
-        public void MissileLaunch(MapChannel mapChannel, ActionData action, int damage, int armorBypassPercent = 0, DamageType damageType = 0, double critBonus = 0, bool melee = false, int stunChance = 0, int stunMs = 0, int rootMs = 0, int knockbackChance = 0, float splashRadius = 0, float coneHalfAngle = 0, int knockbackStunMs = 0, CreatureAction creatureAction = null, int? landsInMs = null, float optimalRange = 0, int? flightVelocity = null, long refireMs = 0)
+        public void MissileLaunch(MapChannel mapChannel, ActionData action, int damage, int armorBypassPercent = 0, DamageType damageType = 0, double critBonus = 0, bool melee = false, int stunChance = 0, int stunMs = 0, int rootMs = 0, int knockbackChance = 0, float splashRadius = 0, float coneHalfAngle = 0, int knockbackStunMs = 0, CreatureAction creatureAction = null, int? landsInMs = null, float optimalRange = 0, int? flightVelocity = null, long refireMs = 0, WeaponDots.Spec dot = null)
         {
             // How long before it lands, from how far it has to go. A player's shot is held for
             // its flight where their client can still show it land (ShotFlight); anything else
@@ -723,6 +725,9 @@ namespace Rasa.Managers
             if (!melee && action.Actor is Manifestation rangedShooter)
                 damage = GameEffectManager.ApplyRangedDamage(rangedShooter, damage);
 
+            // An injection or net gun's shot: its damage over time's share comes off the hit.
+            var dotDamage = WeaponDots.Split(ref damage, dot);
+
             // A player's weapon attack, shot or swing: the modules in what they wear and hold
             // pierce armor too, and the weapon's may steal or debuff where it lands
             // (ItemModuleBonuses).
@@ -744,6 +749,8 @@ namespace Rasa.Managers
                 StunChance = stunChance,
                 StunMs = stunMs,
                 RootMs = rootMs,
+                Dot = dotDamage > 0 ? dot : null,
+                DotDamage = dotDamage,
                 KnockbackChance = Math.Max(0, knockbackChance),
                 KnockbackStunMs = Math.Max(0, knockbackStunMs),
                 // Launchers: the share each splashed creature takes is of the damage before the
@@ -1298,7 +1305,13 @@ namespace Rasa.Managers
 
                 // A weapon shot past its optimal range does less, before the crit multiplies what is left (RangeFalloff).
                 if (missile.OptimalRange > 0 && missile.Source != null)
+                {
                     amount = RangeFalloff.Scale(amount, missile.OptimalRange, missile.Source.Position, missile.TargetActor.Position);
+
+                    // and so does what it leaves behind.
+                    if (missile.DotDamage > 0)
+                        missile.DotDamage = RangeFalloff.Scale(missile.DotDamage, missile.OptimalRange, missile.Source.Position, missile.TargetActor.Position);
+                }
 
                 missile.IsCritical = CriticalHits.Resolve(missile.Source, missile.TargetActor, missile.IsMelee, missile.CritChance, ref amount);
 

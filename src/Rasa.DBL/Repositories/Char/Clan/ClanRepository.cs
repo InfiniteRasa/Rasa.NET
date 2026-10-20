@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.EntityFrameworkCore;
 
 namespace Rasa.Repositories.Char.Clan
 {
@@ -40,7 +41,21 @@ namespace Rasa.Repositories.Char.Clan
             };
 
             _charContext.ClanEntries.Add(entry);
-            _charContext.SaveChanges();
+
+            // The name's unique index (Clan_name_unique) refuses a name another clan has, in any
+            // case: one created in the moment between the caller's check and this, by another
+            // server on the same database. Nothing is created, and the caller is told so.
+            try
+            {
+                _charContext.SaveChanges();
+            }
+            catch (DbUpdateException ex)
+            {
+                _charContext.Entry(entry).State = EntityState.Detached;
+                Logger.WriteLog(LogType.Error, $"Could not create clan '{clanName}': {ex.GetBaseException().Message}");
+
+                return null;
+            }
 
             return entry;
         }
@@ -82,12 +97,22 @@ namespace Rasa.Repositories.Char.Clan
             return entry;
         }
 
+        /// <summary>
+        /// The clan with this name, in any case. MySQL's collation compared clan names case-blind
+        /// and SQLite's did not, so "Wolves" and "wolves" were two clans on one and the same clan
+        /// on the other; both now go by the unique index (Clan_name_unique), which is case-blind
+        /// on both. SQLite's lower() folds only A-Z, as its NOCASE does, so the exact name is
+        /// matched as well for a name with other capitals.
+        /// </summary>
         public ClanEntry GetClanByName(string clanName)
         {
-            var query = _charContext.CreateNoTrackingQuery(_charContext.ClanEntries);
-            var entry = query.Where(e => e.Name == clanName).FirstOrDefault();
+            if (clanName == null)
+                return null;
 
-            return entry;
+            var lowered = clanName.ToLowerInvariant();
+            var query = _charContext.CreateNoTrackingQuery(_charContext.ClanEntries);
+
+            return query.FirstOrDefault(e => e.Name == clanName || e.Name.ToLower() == lowered);
         }
 
         public List<ClanEntry> GetClans()
@@ -116,8 +141,22 @@ namespace Rasa.Repositories.Char.Clan
             if (entry == null)
                 return false;
 
+            var oldName = entry.Name;
             entry.Name = clanName;
-            _charContext.SaveChanges();
+
+            // Refused by the name's unique index when another clan has the name (CreateClan).
+            try
+            {
+                _charContext.SaveChanges();
+            }
+            catch (DbUpdateException ex)
+            {
+                entry.Name = oldName;
+                _charContext.Entry(entry).State = EntityState.Unchanged;
+                Logger.WriteLog(LogType.Error, $"Could not rename clan {clanId} to '{clanName}': {ex.GetBaseException().Message}");
+
+                return false;
+            }
 
             return true;
         }

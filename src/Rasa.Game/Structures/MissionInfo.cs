@@ -173,7 +173,15 @@ namespace Rasa.Structures
         public EntityClasses Class { get; set; }
         public uint Quantity { get; set; }
         // public int Hue { get; set; }    // not used by client
-        public List<int> ModuleIds = new List<int>();
+
+        /// <summary>
+        /// The item's module slots, as an ItemInfo's lootModuleIds are: the client names the
+        /// offered item by them and draws their lines in its tooltip (currentmissionswindow.py,
+        /// gameuiutil.GetItemName), as it does an item in a pack.
+        /// </summary>
+        public List<uint> ModuleIds = new List<uint>();
+
+        /// <summary>The item template's quality, which the offer's tooltip and name are drawn in.</summary>
         public int QualityId { get; set; }
 
         public void Read(PythonReader pr)
@@ -187,9 +195,7 @@ namespace Rasa.Structures
             pw.WriteUInt((uint)Class);
             pw.WriteUInt(Quantity);
             pw.WriteNoneStruct();                  // hue      (not used by client)
-            pw.WriteList(ModuleIds.Count);
-            foreach (var module in ModuleIds)
-                pw.WriteInt(module);
+            Packets.MapChannel.Server.ItemInfoPacket.WriteLootModuleIds(pw, ModuleIds);
             pw.WriteInt(QualityId);
         }
     }

@@ -30,7 +30,7 @@ namespace Rasa.Managers
     /// the player's weapon skills with it. So is the price of a death, Rez Trauma and the
     /// no-healing after it (PlayerDeath.IsDeathPenalty): a cleanse is not a way out of it, as a
     /// map link and a relog are not. The game has its own item for Rez Trauma, the Rez Trauma Kit
-    /// (CONSUMABLE_RES_TRAUMA_KIT), which asks for the sickness to be on its user.
+    /// (CONSUMABLE_RES_TRAUMA_KIT), which takes one stack of it off its user (AbilityManager.RezTraumaKit).
     /// </summary>
     public partial class AbilityManager
     {

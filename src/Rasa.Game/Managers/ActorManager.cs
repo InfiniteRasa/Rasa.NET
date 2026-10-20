@@ -38,7 +38,7 @@ namespace Rasa.Managers
          *  - ActionFailed(self, actionId, actionArgId)                        => implemented, RefuseRequest
          *  - PreTeleport(self, teleportType = None)
          *  - TeleportFailed(self)
-         *  - PostTeleport(self)
+         *  - PostTeleport(self)                                              => implemented, DynamicObjectManager.ShowDeparture
          *  - TeleportArrival(self, delayMs = 0, delayEffectMs = 0, doFade = 0)
          *  - Teleport(self, position, yaw, teleportType = None, delay = 0, doCancel = 1)
          *  - SetTrackingTarget(self, targetId)
@@ -273,6 +273,29 @@ namespace Rasa.Managers
         }
 
         /// <summary>
+        /// Restores armour or power, up to the bar's maximum, as a charger's tick does
+        /// (AbilityManager.AttachRestoreKit); nothing for the dead. Returns what was added. No
+        /// update goes out: the tick carries the amount, and the client's RestoreOverTime adds it
+        /// to the bar itself (DelayedAttributeChange), so an update as well would count it twice.
+        /// </summary>
+        public static int Restore(Actor target, Attributes attribute, int amount)
+        {
+            if (target == null || amount <= 0 || target.State == CharacterState.Dead)
+                return 0;
+
+            if (!target.Attributes.TryGetValue(attribute, out var bar))
+                return 0;
+
+            var applied = Math.Min(amount, bar.CurrentMax - bar.Current);
+
+            if (applied <= 0)
+                return 0;
+
+            bar.Current += applied;
+            return applied;
+        }
+
+        /// <summary>
         /// "Immune" over the target for everyone around (GameEffectAttachFailed, IMMUNE, which the
         /// client turns into COMBAT_IMMUNE_ANNOUNCED): a hit it does not take, for a caller with no
         /// hit record of its own to carry wasImmune.
@@ -327,6 +350,11 @@ namespace Rasa.Managers
             if (target == null || amount <= 0 || target.State == CharacterState.Dead || target.State == CharacterState.Dying)
                 return 0;
 
+            // No creature's hit lands on an ambient creature, a blast or a splash included, and an
+            // ambient creature's lands on nothing (AmbientCreatures). A player's is all it takes.
+            if (AmbientCreatures.Spares(source, target))
+                return 0;
+
             if (source is Creature companion &&
                 (companion.SpawnPool?.FollowOwnerCharacterId > 0 || Game.Missions.World.CreatureGameplayRules.IsDefender(companion)) &&
                 target is Creature enemy && !CreatureManager.IsHostileTarget(mapChannel, companion, enemy))
@@ -340,8 +368,9 @@ namespace Rasa.Managers
             // battleground left behind used to go on landing after it ended - a damage-over-time
             // effect ticking on, a turret on its old aim, a shot in flight - and could kill, with
             // Rez Trauma and equipment wear as any death. It lands as Immune, as a hit PvP Safety
-            // stops.
-            if (Pvp.IsPvp(source, target) && !Pvp.AreEnemies(Pvp.Controller(source), (Manifestation)target))
+            // stops. The same for a hit on another player's creature (Pvp.SparesSummon).
+            if (Pvp.IsPvp(source, target) && !Pvp.AreEnemies(Pvp.Controller(source), (Manifestation)target)
+                || Pvp.SparesSummon(source, target))
             {
                 outcome = new DamageOutcome { Immune = true };
                 return 0;
@@ -370,6 +399,18 @@ namespace Rasa.Managers
 
             if (!isPeriodic && target is Creature attackedCreature)
                 CreatureManager.RecordOwnerAttack(mapChannel, source, attackedCreature);
+
+            // A hit from someone is a fight at both ends, as a missile's is (MissileManager): the
+            // player struck, and the player who struck, are in combat, or stay in it. Every kind of
+            // damage comes through here - a bomb, a miasma, lightning, a damage-over-time tick,
+            // constant fire - and only the attacker used to be marked, by the ability's own code.
+            // Damage with no source - lava, a tesla coil, a placed blast - is the world's, not a
+            // fight, and marks nobody. A shield taking all of it does not stop it being a fight.
+            if (source != null)
+            {
+                ManifestationManager.EnterCombatOf(target);
+                ManifestationManager.EnterCombatOf(source);
+            }
 
             // A shield takes its share first; a hit it takes all of goes no further.
             amount = GameEffectManager.Instance.ApplyAbsorb(mapChannel, target, amount, out var absorbed);
@@ -601,7 +642,10 @@ namespace Rasa.Managers
                 return;
 
             if (list.Contains(CharacterState.Crouched))
+            {
                 actor.IsCrouching = true;
+                actor.CrouchedAt = actor.Position;
+            }
             else if (list.Contains(CharacterState.Standing))
                 actor.IsCrouching = false;
 

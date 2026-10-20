@@ -953,15 +953,16 @@ namespace Rasa.Managers
             if (Stuns.IsStunned(client.Player) || Pvp.MayNotAttack(client.Player) || client.Player.State == CharacterState.Dead)
                 return FireResult.NotFired;
 
-            // Polymorphed: the creature's weapon, whatever is in the player's own hands.
-            var weapon = client.Player.MorphWeapon ?? InventoryManager.Instance.CurrentWeapon(client);
+            // Polymorphed: the creature's weapon, whatever is in the player's own hands. Otherwise
+            // the weapon in hand - or their fists, with nothing in hand or a broken weapon, as
+            // their client fights with them then (Unarmed).
+            var weapon = client.Player.MorphWeapon ?? Unarmed.Wielded(client);
 
-            // Nothing in hand fires nothing. Tested before the draw below, because an empty
-            // hand and a stowed weapon look the same from WeaponReady: arming an empty drawer
-            // slot clears both the weapon and WeaponReady, so a player still holding the
-            // trigger reached the draw with no weapon to describe it, and the auto-fire list
-            // is walked at the top of the map channel worker - the dereference took the whole
-            // tick with it, on every map, for as long as the client kept the fire alive.
+            // Nothing to fire with fires nothing. Tested before the draw below: a player still
+            // holding the trigger once reached the draw with no weapon to describe it, and the
+            // auto-fire list is walked at the top of the map channel worker - the dereference
+            // took the whole tick with it, on every map, for as long as the client kept the
+            // fire alive. An empty hand has its fists now (Unarmed).
             if (weapon == null)
                 return FireResult.NotFired;
 
@@ -1071,7 +1072,10 @@ namespace Rasa.Managers
             // that did not happen does not heat anything, and before the missile, so a shot that
             // reaches capacity is still fired - the jam stops the next one, not this one.
             // A polymorphed player's creature weapon does not heat: creatures' weapons never jam.
-            if (weapon != client.Player.MorphWeapon)
+            // Nor do fists, which do not wear either.
+            var ownWeapon = weapon != client.Player.MorphWeapon && !Unarmed.Is(weapon);
+
+            if (ownWeapon)
                 AddWeaponHeat(client, weapon);
 
             // let's calculate damage
@@ -1083,7 +1087,7 @@ namespace Rasa.Managers
             // went with the barrel at or above MIN_HEAT_FOR_DURABILITY_LOSS. The heat is the
             // barrel's with this shot's own added (AddWeaponHeat, above): the shot that takes it
             // over the line is fired hot.
-            if (weapon != client.Player.MorphWeapon)
+            if (ownWeapon)
             {
                 damage = Durability.ScaleDamage(weapon, damage);
                 Durability.WearWeapon(client, weapon, Math.Max(MinRefire, weapon.ItemTemplate.WeaponInfo.Refire), weapon.Heat);
@@ -1108,6 +1112,13 @@ namespace Rasa.Managers
             damage = GameEffectManager.ApplyDamageDealt(client.Player, damage, WeaponSkills.DamagePercent(skillId, pump) + backstab);
             var action = new ActionData(client.Player, weaponClassInfo.WeaponAttackActionId, weaponClassInfo.WeaponAttackArgId, client.Player.Target, 0);
             // launch correct missile type depending on weapon type
+            // A blade's attack is a swing (itemtemplate_weapon.attack_type Melee, which only the
+            // 120 blade rows have): it was fired as a shot, so it could miss a moving target, was
+            // cut by cover and smoke, took the ranged crit rules, and hit for the bead - 82% of
+            // itself standing. A swing has none of those, and does the melee bonus on a crouched
+            // target (MissileManager).
+            var melee = weapon.ItemTemplate.WeaponInfo.AttackType == AttackType.Melee;
+
             // Where the bead was when the trigger was pulled, before this shot's recoil opens it.
             var aimRate = weapon.ItemTemplate.WeaponInfo.AimRate;
 
@@ -1119,8 +1130,8 @@ namespace Rasa.Managers
             // How well it was aimed decides how hard it hits: a tenth with no bead, all of it at
             // a crouched full bead, 82% at the most a standing bead reaches (Accuracy). A cone
             // weapon has no bead and hits as a full one from its stance would. A polymorphed
-            // player's creature weapon is not beaded.
-            if (weapon != client.Player.MorphWeapon)
+            // player's creature weapon is not beaded, and nor is a swing.
+            if (weapon != client.Player.MorphWeapon && !melee)
             {
                 var factor = ConeWeapons.IsCone(weapon.ItemTemplate.WeaponInfo, weaponClassInfo)
                     ? Accuracy.ConeDamageFactor(client.Player)
@@ -1129,7 +1140,8 @@ namespace Rasa.Managers
                 damage = Math.Max(1, (int)Math.Round(damage * factor));
             }
 
-            Accuracy.Recoil(client.Player, weapon.ItemTemplate.WeaponInfo.RecoilAmount, aimRate, now);
+            if (!melee)
+                Accuracy.Recoil(client.Player, weapon.ItemTemplate.WeaponInfo.RecoilAmount, aimRate, now);
 
             // Firearms on a rifle adds to the crit chance: "Rifles: +3% Crit Hit (+5% with full
             // bead)" from pump 3, the full-bead figure in place of the other.
@@ -1139,8 +1151,13 @@ namespace Rasa.Managers
                 ? (fullBead ? CriticalHits.FirearmsRifleFullBeadChance(pump) : CriticalHits.FirearmsRifleChance(pump))
                 : 0;
 
-            // Firearms on a shotgun: "Shotguns: +15% Knockback chance" from pump 3.
-            var knockbackChance = firearms && toolType == ToolType.Shotgun ? WeaponSkills.FirearmsShotgunKnockbackChance(pump) : 0;
+            // Firearms on a shotgun: "Shotguns: +15% Knockback chance" from pump 3. Hand to Hand
+            // on a punch, as on a swing (TryMeleeAttack): "+25% Knockback chance" from pump 3,
+            // and from pump 4 the knockback stuns.
+            var handToHand = skillId == WeaponSkills.HandToHand;
+            var knockbackChance = firearms && toolType == ToolType.Shotgun ? WeaponSkills.FirearmsShotgunKnockbackChance(pump)
+                : handToHand ? Stuns.HandToHandKnockbackChance(pump)
+                : 0;
 
             // Launchers on a grenade launcher: a chance to stun ("Grenades: +25% Stun Chance" from pump 3).
             var grenades = skillId == WeaponSkills.Launchers && weapon.ItemTemplate.WeaponInfo.ToolType == ToolType.GrenadeLauncher;
@@ -1157,9 +1174,12 @@ namespace Rasa.Managers
 
             MissileManager.Instance.MissileLaunch(client.Player.MapChannel, action, damage, WeaponSkills.ArmorBypassPercent(skillId, pump),
                 WeaponDamageType(client.Player, (DamageType)weaponClassInfo.DamageType), critBonus,
+                melee: melee,
                 stunChance: grenades ? Stuns.GrenadeChance(pump) : 0, stunMs: grenades ? Stuns.GrenadeStunMs : 0,
                 rootMs: skillId == WeaponSkills.NetGuns ? CrowdControl.NetGunRootMs : 0,
+                dot: weapon != client.Player.MorphWeapon ? WeaponDots.Of(skillId, WeaponDamageType(client.Player, (DamageType)weaponClassInfo.DamageType)) : null,
                 knockbackChance: knockbackChance,
+                knockbackStunMs: handToHand ? Stuns.HandToHandMs(pump) : 0,
                 splashRadius: Splash.RadiusOf(weapon.ItemTemplate.WeaponInfo),
                 coneHalfAngle: ConeWeapons.IsCone(weapon.ItemTemplate.WeaponInfo, weaponClassInfo) ? ConeWeapons.HalfAngleOf(weapon.ItemTemplate.WeaponInfo) : 0,
                 optimalRange: weapon.ItemTemplate.WeaponInfo.Range,
@@ -1344,6 +1364,25 @@ namespace Rasa.Managers
             client.CallMethod(client.Player.EntityId, new AttributeInfoPacket(client.Player));
         }
 
+        /// <summary>
+        /// EnterCombat for an actor that is a player in the world on a map, through that map's
+        /// clients; nothing for a creature, which has its own notion of a fight (BehaviorManager).
+        /// Damage is a hot path, and one map's client list is a great deal shorter than every
+        /// client on the server.
+        /// </summary>
+        public static void EnterCombatOf(Actor actor)
+        {
+            if (!(actor is Manifestation player) || player.MapChannel == null)
+                return;
+
+            foreach (var client in player.MapChannel.ClientList)
+                if (client.Player == player)
+                {
+                    Instance.EnterCombat(client);
+                    return;
+                }
+        }
+
         /// <summary>Takes the player out of combat and restores their regeneration.</summary>
         public void ExitCombat(Client client)
         {
@@ -1401,14 +1440,16 @@ namespace Rasa.Managers
             if (player == null)
                 return;
 
-            player.Attributes[Attributes.Health].RefreshPeriod = player.InCombat
-                ? CombatRegen.InCombatRegenPeriodSeconds
-                : CombatRegen.RegenPeriodSeconds;
+            if (player.Attributes.TryGetValue(Attributes.Health, out var health))
+                health.RefreshPeriod = player.InCombat
+                    ? CombatRegen.InCombatRegenPeriodSeconds
+                    : CombatRegen.RegenPeriodSeconds;
 
-            var armor = player.Attributes[Attributes.Armor];
-
-            armor.RefreshAmount = player.InCombat && !CombatRegen.ArmorRegeneratesInCombat ? 0 : player.ArmorRegenRate;
-            armor.RefreshPeriod = CombatRegen.RegenPeriodSeconds;
+            if (player.Attributes.TryGetValue(Attributes.Armor, out var armor))
+            {
+                armor.RefreshAmount = player.InCombat && !CombatRegen.ArmorRegeneratesInCombat ? 0 : player.ArmorRegenRate;
+                armor.RefreshPeriod = CombatRegen.RegenPeriodSeconds;
+            }
 
             if (player.Attributes.TryGetValue(Attributes.Power, out var power))
                 power.RefreshPeriod = CombatRegen.RegenPeriodSeconds;
@@ -2249,15 +2290,15 @@ namespace Rasa.Managers
                 // we dont want to server keep fireing if client crash 
                 timer.MaxAliveTime -= delta;
 
-                // Nothing in hand ends the fire here rather than in each of the several places
-                // that can empty it - arming an empty drawer slot, moving the weapon out of the
-                // armed slot, dropping or selling it. The trigger is still held, but there is no
-                // longer a weapon to pull it on, and a timer kept for one cannot be fired
-                // without asking what it is.
+                // Nothing to fire with ends the fire here rather than in each of the several
+                // places that can take it away. An empty hand is not that any more - it punches
+                // (Unarmed), and the client stops its fire itself when the weapon changes - but a
+                // player who has gone is, and a timer kept for them cannot be fired without
+                // asking what it is.
                 if (timer.MaxAliveTime <= 0
                     || timer.Client.Player == null
                     || timer.Client.State != ClientState.Ingame
-                    || InventoryManager.Instance.CurrentWeapon(timer.Client) == null)
+                    || Unarmed.Wielded(timer.Client) == null)
                 {
                     AutoFire.RemoveAt(i);
                     ConstantFire.Stop(timer.Client);
@@ -2376,6 +2417,7 @@ namespace Rasa.Managers
                 if (Detection.IsHiddenFrom(player, tempClient))
                     continue;
 
+                ClanManager.Instance.ShowClanTo(tempClient, player);
                 tempClient.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(player.EntityId, player.EntityClass, CreatePlayerEntityData(client, tempClient)));
 
                 // A squad mate's: whose it is goes with it, every time it is made (PartyManager).
@@ -2396,6 +2438,10 @@ namespace Rasa.Managers
             lock (client.SyncRoot)
             {
                 var player = client.Player;
+
+                // Their fists first: the manifestation's EquipmentInfo names them (Unarmed).
+                Unarmed.Show(client);
+
                 var entityData = CreatePlayerEntityData(client, client);
                 client.CallMethod(SysEntity.ClientMethodId,
                     new CreatePhysicalEntityPacket(player.EntityId, player.EntityClass, entityData));
@@ -2418,6 +2464,7 @@ namespace Rasa.Managers
                 if (Detection.IsHiddenFrom(tempClient.Player, client))
                     continue;
 
+                ClanManager.Instance.ShowClanTo(client, tempClient.Player);
                 client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(tempClient.Player.EntityId, tempClient.Player.EntityClass, CreatePlayerEntityData(tempClient, client)));
                 PartyManager.ManifestationMade(client, tempClient);
 
@@ -2467,7 +2514,8 @@ namespace Rasa.Managers
                     ? CharacterFlagProjection.ToNativeIds(player.PlayerFlags)
                     : Array.Empty<uint>()),
                 new IsTrialAccountPacket(player.IsTrialAccount),
-                new EquipmentInfoPacket(client.Player.Inventory.EquippedInventory),
+                // Their own client is told about their fists as well (Unarmed).
+                forSelf ? Unarmed.EquipmentFor(player) : new EquipmentInfoPacket(client.Player.Inventory.EquippedInventory),
                 // "Received because the manifestation was loaded on the server", and only ever
                 // for the player's own. It is what fills the advancement tracker; it offers
                 // nothing, so it goes out whether the list is empty or not.
@@ -2499,6 +2547,18 @@ namespace Rasa.Managers
             // manifestation starts with none.
             if (player.CurrentTitle != 0)
                 entityData.Add(new TitleChangedPacket(player.CurrentTitle));
+
+            // Their clan, to their own client and everyone who meets them. Every manifestation
+            // starts in none (manifestation.py Recv_ClanId), and a map change - a dropship's or a
+            // map link's - makes the player's own entity again: it was sent once, at login
+            // (ClanManager.InitializePlayerClanData), and was gone after the first. With it went
+            // the clan name over their head, the clan lockbox window's clan, and which clan
+            // control points and force fields their client takes for their own. The clan's own
+            // data (clan.py g_clans) is the client's, not the entity's, and outlives the change.
+            // Another client is sent the clan's data beside it (ClanManager.ShowClanTo), for the
+            // tag over the name.
+            if (player.ClanId != 0)
+                entityData.Add(new ClanIdPacket(player.ClanId));
 
             // The clan feuds and duel they are in, to their own client and everyone who meets them:
             // the client tells ally from enemy by it. Every actor starts in none.
@@ -2651,6 +2711,7 @@ namespace Rasa.Managers
                 SocialManager.Instance.FriendStatusUpdate(client);
                 InventoryManager.WagerLevelChanged(client, grant.PreviousLevel);
                 MissionGiversAfterLevel(client);
+                CommunicatorManager.Instance.NewPlayerChannel(client);
             }
         }
 
@@ -2672,7 +2733,13 @@ namespace Rasa.Managers
         /// client adds " (+100% Kill Streak Bonus)" for 2, and shows the experience over it as
         /// the base.
         /// </param>
-        internal void GainExperience(Client client, uint experience, CritKill critKill = CritKill.None, int streakMod = 1)
+        /// <summary>
+        /// Experience gained. streakMod, groupMod and boosterMod are what it has been multiplied
+        /// by, and baseGained what it was before them (by default experience over the streak):
+        /// the client says each multiplier above 1 after the amount.
+        /// </summary>
+        internal void GainExperience(Client client, uint experience, CritKill critKill = CritKill.None, int streakMod = 1,
+            double groupMod = 1, double boosterMod = 1, uint? baseGained = null)
         {
             var player = client?.Player;
             if (player == null || experience == 0 || client.State != ClientState.Ingame ||
@@ -2744,9 +2811,12 @@ namespace Rasa.Managers
 
             player.Experience = experienceAfter;
             client.CallMethod(player.EntityId,
-                new ExperienceChangedPacket(new XPInfo(experienceAfter, experience, streakMod > 1 ? experience / (uint)streakMod : experience)
+                new ExperienceChangedPacket(new XPInfo(experienceAfter, experience,
+                    baseGained ?? (streakMod > 1 ? experience / (uint)streakMod : experience))
                 {
                     StreakMod = Math.Max(1, streakMod),
+                    GroupMod = Math.Max(1, groupMod),
+                    BoosterMod = Math.Max(1, boosterMod),
                     WasCritKill = critKill == CritKill.Own,
                     WasTeamCritKill = critKill == CritKill.Team
                 }));
@@ -2797,6 +2867,7 @@ namespace Rasa.Managers
                 SocialManager.Instance.FriendStatusUpdate(client);
                 InventoryManager.WagerLevelChanged(client, levelBefore);
                 MissionGiversAfterLevel(client);
+                CommunicatorManager.Instance.NewPlayerChannel(client);
             }
         }
 
@@ -3186,10 +3257,69 @@ namespace Rasa.Managers
             SocialManager.Instance.FriendStatusUpdate(client);
             InventoryManager.WagerLevelChanged(client, from);
             MissionGiversAfterLevel(client);
+            CommunicatorManager.Instance.NewPlayerChannel(client);
 
             Logger.WriteLog(LogType.Command, $"{player.FamilyName} set from level {from} to {level}" + (notes.Count > 0 ? $": {string.Join(", ", notes)}" : ""));
 
             return $"{player.FamilyName} lowered from level {from} to {level}" + (notes.Count > 0 ? $" ({string.Join(", ", notes)})." : ".");
+        }
+
+        /// <summary>
+        /// What a character's skills are after the Respec Skills token (Respec): the Recruit
+        /// skills they have (CharacterManager.StartingSkills) at rank 1 - which a new character
+        /// starts with, and whose five points every budget includes - and nothing else. Every
+        /// other point comes back to spend again.
+        /// </summary>
+        public static Dictionary<SkillId, SkillsData> SkillsAfterRespec(Manifestation player) =>
+            player.Skills.Values
+                .Where(skill => CharacterManager.StartingSkills.Contains(skill.SkillId))
+                .ToDictionary(skill => skill.SkillId, skill => new SkillsData(skill.SkillId, skill.AbilityId, Math.Min(1, skill.SkillLevel)));
+
+        /// <summary>Whether the Respec Skills token would change anything: a skill beyond the Recruit ones, or one above rank 1.</summary>
+        public static bool HasSkillsToRespec(Manifestation player)
+        {
+            var after = SkillsAfterRespec(player);
+
+            return player.Skills.Values.Any(skill => !after.TryGetValue(skill.SkillId, out var kept) || kept.SkillLevel != skill.SkillLevel);
+        }
+
+        /// <summary>Whether the Respec Attributes token would change anything: a point spent on Body, Mind or Spirit.</summary>
+        public static bool HasAttributesToRespec(Manifestation player) =>
+            player.SpentBody + player.SpentMind + player.SpentSpirit > 0;
+
+        /// <summary>
+        /// A respec token has landed and its write is saved (AbilityManager.Respec): the player as
+        /// they now are, and their client told. Skills: what SkillsAfterRespec leaves, with the
+        /// abilities, blocks and weapon-skill passives that follow from them. Attributes: nothing
+        /// spent on Body, Mind or Spirit, and the stats worked out again from that. Either way the
+        /// points to spend again.
+        /// </summary>
+        public void ApplyRespec(Client client, bool skills, bool attributes)
+        {
+            var player = client?.Player;
+
+            if (player == null)
+                return;
+
+            if (skills)
+            {
+                player.Skills = SkillsAfterRespec(player);
+
+                client.CallMethod(player.EntityId, new SkillsPacket(player.Skills));
+                client.CallMethod(player.EntityId, new AbilitiesPacket(player.Skills));
+                AbilityManager.Instance.RefreshUnimplementedBlocks(client);
+                SyncSkillPassives(client);
+            }
+
+            if (attributes)
+            {
+                player.SpentBody = player.SpentMind = player.SpentSpirit = 0;
+
+                UpdateStatsValues(client, false);
+                client.CallMethod(player.EntityId, new AttributeInfoPacket(player));
+            }
+
+            SendAvailableAllocationPoints(client);
         }
 
         /// <summary>The skill points a level gives, before any are spent: GetSkillPointsAvailable without the spending or the floor at 0.</summary>
@@ -3459,16 +3589,19 @@ namespace Rasa.Managers
 
         public void NotifyEquipmentUpdate(Client client)
         {
-            client.CallMethod(client.Player.EntityId, new EquipmentInfoPacket(client.Player.Inventory.EquippedInventory));
+            client.CallMethod(client.Player.EntityId, Unarmed.EquipmentFor(client.Player));
         }
 
         /// <param name="delay">Milliseconds until the timer's first shot; a whole refire when left out.</param>
         /// <returns>false when there is no weapon in hand to fire, and no timer was started.</returns>
         public bool RegisterAutoFire(Client client, long delay = -1)
         {
-            var weapon = InventoryManager.Instance.CurrentWeapon(client);
+            var weapon = client.Player?.MorphWeapon ?? Unarmed.Wielded(client);
 
-            if (weapon?.ItemTemplate?.WeaponInfo == null)
+            // Nor with one that has no weapon class to fire it by - fists whose class is not loaded.
+            if (weapon?.ItemTemplate?.WeaponInfo == null
+                || !EntityClassManager.Instance.LoadedEntityClasses.TryGetValue(weapon.ItemTemplate.Class, out var weaponClass)
+                || weaponClass.WeaponClassInfo == null)
                 return false;
 
             // One timer per client: a second StartAutoFire used to add a second timer and
@@ -3659,12 +3792,33 @@ namespace Rasa.Managers
                 return false;
 
             // Stunned or knocked down: the fire and ability paths already refuse, and moving is
-            // refused the same way, with the client put back where the server has them.
+            // refused the same way, with the client put back where the server has them - but not
+            // what a stunned client sends without going anywhere (JudgeStunnedMove).
             if (Stuns.IsStunned(player))
             {
-                RefuseMove(client, movement, "while stunned");
-                return false;
+                // Thrown by a knockback (PlayerCrowdControl.Knockback): the server has them where
+                // it ends from the start, and the client flies them there. What it says on the
+                // way, and where it lands, is set aside as a charge's is: neither applied nor
+                // corrected, and nothing to report.
+                if (IsKnockedBack(player))
+                    return false;
+
+                var anchor = player.StunAnchor ??= player.Position;
+
+                switch (JudgeStunnedMove(anchor, movement.Position))
+                {
+                    case StunnedMove.Settles:
+                        return true;
+                    case StunnedMove.PutBack:
+                        RefuseMove(client, movement, "while stunned", report: false);
+                        return false;
+                    default:
+                        RefuseMove(client, movement, "while stunned");
+                        return false;
+                }
             }
+
+            player.StunAnchor = null;
 
             // Dead (PlayerDeath): nowhere until they are back.
             if (player.State == CharacterState.Dead)
@@ -3683,6 +3837,61 @@ namespace Rasa.Managers
                 return true;
 
             RefuseMove(client, movement, verdict.Refusal);
+            return false;
+        }
+
+        /// <summary>
+        /// How far from where a stun found them a stunned player's client may have them: across
+        /// the ground, and up. Within it a Move is the client settling them where they stand -
+        /// onto the ground under them (the server's height for a spot and the client's differ by
+        /// tenths of a metre), a turn of the head - and it is taken.
+        /// </summary>
+        public const float StunnedDrift = 0.5f;
+
+        /// <summary>
+        /// Beyond this from where a stun found them, across the ground, a stunned player's Move is
+        /// worth a line in the log. Nearer, it is a step their client took before it heard of the
+        /// stun - running at 6.5 m/s, a few tenths of a second of it - and they are put back
+        /// without one.
+        /// </summary>
+        public const float StunnedReportDistance = 3f;
+
+        /// <summary>What a stunned player's Move is (JudgeStunnedMove).</summary>
+        public enum StunnedMove
+        {
+            /// <summary>Their client settling them where they stand: taken.</summary>
+            Settles,
+
+            /// <summary>A step they took before their client heard of the stun: put back, not reported.</summary>
+            PutBack,
+
+            /// <summary>Walking off while stunned: put back and reported.</summary>
+            Reported
+        }
+
+        /// <summary>
+        /// What a Move to <paramref name="to"/> is for a player stunned at <paramref name="anchor"/>,
+        /// measured from where the stun found them, not from their last Move, so that settling a
+        /// little at a time cannot walk them anywhere. A fall is no movement of theirs.
+        /// </summary>
+        public static StunnedMove JudgeStunnedMove(Vector3 anchor, Vector3 to)
+        {
+            var across = Math.Sqrt((to.X - anchor.X) * (to.X - anchor.X) + (to.Z - anchor.Z) * (to.Z - anchor.Z));
+            var rise = to.Y - anchor.Y;
+
+            if (across <= StunnedDrift && rise <= StunnedDrift)
+                return StunnedMove.Settles;
+
+            return across > StunnedReportDistance ? StunnedMove.Reported : StunnedMove.PutBack;
+        }
+
+        /// <summary>Whether a knockback (KNOCKBACK 8) is on the player: thrown, or down after it.</summary>
+        private static bool IsKnockedBack(Manifestation player)
+        {
+            foreach (var effect in player.ActiveEffects.Values)
+                if (effect.TypeId == CrowdControl.KnockbackTypeId && effect.IsStun && !effect.IsExpired)
+                    return true;
+
             return false;
         }
 
@@ -3752,7 +3961,8 @@ namespace Rasa.Managers
         /// and answering every one would be a packet out per packet in and a log line per packet,
         /// which is a worse thing to be on the end of than the movement was.
         /// </summary>
-        private static void RefuseMove(Client client, Movement movement, string what)
+        /// <param name="report">False for a refusal that is no sign of anything - a stunned client's step from before it knew - which is corrected without a log line.</param>
+        private static void RefuseMove(Client client, Movement movement, string what, bool report = true)
         {
             var player = client.Player;
             var now = Environment.TickCount64;
@@ -3764,8 +3974,9 @@ namespace Rasa.Managers
 
             var repeat = player.RefusedMoves > 1 ? $" ({player.RefusedMoves} refused since the last of these)" : "";
 
-            Logger.WriteLog(LogType.Security,
-                $"{player.FamilyName} tried to move {what} on map {player.MapContextId}, from {player.Position} to {movement.Position}{repeat}; put back.");
+            if (report)
+                Logger.WriteLog(LogType.Security,
+                    $"{player.FamilyName} tried to move {what} on map {player.MapContextId}, from {player.Position} to {movement.Position}{repeat}; put back.");
 
             player.LastMoveCorrectionTick = now;
             player.RefusedMoves = 0;
@@ -3792,58 +4003,10 @@ namespace Rasa.Managers
 
         #endregion
 
-        /// <summary>
-        /// /stuck. Moves a player who has become wedged in the world to the nearest place they
-        /// can stand.
-        ///
-        /// The position in the packet is the client's, and is not used: a client is free to claim
-        /// it is stuck anywhere, and acting on that would turn this into a teleport. The server
-        /// works from the position it holds, and the navmesh decides where they end up, so the
-        /// destination is always somewhere they could have walked to.
-        ///
-        /// A dead player is left alone - they have a respawn for that, and moving a corpse would
-        /// take the body away from anyone about to revive it.
-        /// </summary>
+        /// <summary>/stuck: Unstick, an action with a windup like any other.</summary>
         public void RequestUnstick(Client client, RequestUnstickPacket packet)
         {
-            if (client.Player == null)
-                return;
-
-            if (client.Player.Attributes[Attributes.Health].Current <= 0 || client.Player.State == CharacterState.Dead)
-            {
-                // "You cannot do that while dead." PmAboutToRespawn was sent here, whose text
-                // takes a %(reason)s nothing supplied, so the client printed "Invalid
-                // substitutions" in place of the message.
-                Unhelpful(client, PlayerMessage.PmCannotDoThatWhileDead);
-                return;
-            }
-
-            var from = client.Player.Position;
-            var destination = NavMeshManager.NearestWalkable(client.Player.MapChannel, from);
-
-            if (destination == null)
-            {
-                // No navmesh for this map, or the player is further from walkable ground than the
-                // search reaches. Moving them somewhere arbitrary would be worse than saying so.
-                Unhelpful(client, PlayerMessage.PmCannotPerformActionNow);
-                Logger.WriteLog(LogType.Debug, $"Character {client.Player.Id} used /stuck at {from} on map {client.Player.MapChannel?.MapInfo?.MapContextId}, where nothing walkable was found.");
-                return;
-            }
-
-            client.Player.PlaceAt(destination.Value);
-            client.MoveObject(client.Player.EntityId, new Movement(destination.Value, client.Movement.ViewDirection));
-
-            // The message the live game showed for this command.
-            client.CallMethod(SysEntity.CommunicatorId,
-                new DisplayClientMessagePacket(PlayerMessage.PmStuckBugReportSent, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
-
-            Logger.WriteLog(LogType.Debug, $"Character {client.Player.Id} unstuck from {from} to {destination.Value} ({Vector3.Distance(from, destination.Value):F1} m).");
-        }
-
-        private static void Unhelpful(Client client, PlayerMessage reason)
-        {
-            client.CallMethod(SysEntity.CommunicatorId,
-                new DisplayClientMessagePacket(reason, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+            Unstick.Request(client);
         }
 
         /// <summary>
@@ -3885,13 +4048,16 @@ namespace Rasa.Managers
             GameOpcode.TeleportAcknowledge  // automatic reply to a server-initiated teleport
         };
 
+        /// <summary>A call the client makes by itself, which is not the player doing anything.</summary>
+        public static bool IsAutomatic(GameOpcode opcode) => AutomaticOpcodes.Contains(opcode);
+
         /// <summary>
         /// Called for every inbound client method call. Resets the inactivity timer and clears
         /// AFK (telling everyone in range) the first time the player actually does something.
         /// </summary>
         public void NotifyPlayerActivity(Client client, GameOpcode opcode)
         {
-            if (AutomaticOpcodes.Contains(opcode))
+            if (IsAutomatic(opcode))
                 return;
 
             ResetInactivity(client);
@@ -4002,7 +4168,8 @@ namespace Rasa.Managers
             if (mapChannel == null)
                 return;
 
-            var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(InventoryManager.Instance.CurrentWeapon(client));
+            // Fists with nothing in hand (Unarmed): the client draws them with their own 8/8.
+            var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(Unarmed.Wielded(client));
 
             if (weaponClassInfo == null)
                 return;
@@ -4161,7 +4328,7 @@ namespace Rasa.Managers
                 return;
 
             var weapon = InventoryManager.Instance.CurrentWeapon(client);
-            var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(weapon);
+            var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(Unarmed.Wielded(client));
 
             // Put away: its clip is written (WeaponClips).
             WeaponClips.Save(weapon);
@@ -4353,11 +4520,57 @@ namespace Rasa.Managers
 
             player.IsCrouching = state == CharacterState.Crouched;
 
+            if (player.IsCrouching)
+                player.CrouchedAt = player.Position;
+
             // Crouching lifts the bead's ceiling to full and doubles its rate; standing drops it.
             Accuracy.UpdateRates(player, AimRateOf(client), Environment.TickCount64);
 
             if (player.MapChannel != null)
                 client.CellIgnoreSelfCallMethod(client, new SetDesiredCrouchStatePacket(state));
+        }
+
+        /// <summary>
+        /// How far a crouched player may be from where they crouched, across the ground, before a
+        /// Move stands them up (StandIfMoved): room for the body settling and a turn on the spot,
+        /// and less than a step.
+        /// </summary>
+        public const float CrouchedDriftMetres = 0.5f;
+
+        /// <summary>
+        /// A Move that has taken a crouched player away from where they crouched stands them up.
+        ///
+        /// There is no walking crouched: the client stands its own actor up before it moves it
+        /// (playermovementmgr._Move: ToggleCrouched while crouched, which sends
+        /// SetDesiredCrouchState STANDING ahead of the Move), so its posture message comes first.
+        /// Only the posture message ever cleared IsCrouching here, so a client that moved without
+        /// it - a stand-up its state machine refused, a modified client - went on with the
+        /// crouched bonuses everywhere it went: the ranged crit bonus, the bead's full ceiling and
+        /// double rate (Accuracy), the shorter target with fewer sample points (Cover) and the
+        /// melee damage taken (CriticalHits). Now the server stands them as the client would have:
+        /// everyone else is told as by SetDesiredCrouchState, and their own client is put back
+        /// standing (StateCorrection), as when a crouch is refused. A turn on the spot is not a
+        /// move, and nor is a fall or a lift straight down: only the ground covered counts.
+        /// </summary>
+        public void StandIfMoved(Client client)
+        {
+            var player = client?.Player;
+
+            if (player == null || !player.IsCrouching)
+                return;
+
+            var moved = new Vector2(player.Position.X - player.CrouchedAt.X, player.Position.Z - player.CrouchedAt.Z);
+
+            if (!(moved.Length() > CrouchedDriftMetres))
+                return;
+
+            player.IsCrouching = false;
+            Accuracy.UpdateRates(player, AimRateOf(client), Environment.TickCount64);
+
+            client.CallMethod(player.EntityId, new StateCorrectionPacket(new List<CharacterState> { CharacterState.Standing }));
+
+            if (player.MapChannel != null)
+                client.CellIgnoreSelfCallMethod(client, new SetDesiredCrouchStatePacket(CharacterState.Standing));
         }
 
         /// <summary>Whether the player can crouch now: alive, not stunned, not watching a camera script.</summary>

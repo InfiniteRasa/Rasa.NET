@@ -26,6 +26,7 @@ namespace Rasa.Test.Missions
     using Rasa.Packets.Protocol;
     using Rasa.Repositories.Char;
     using Rasa.Repositories.Char.Auction;
+    using Rasa.Repositories.Char.CensorWord;
     using Rasa.Repositories.Char.Character;
     using Rasa.Repositories.Char.CharacterAppearance;
     using Rasa.Repositories.Char.CharacterAbilityDrawer;
@@ -237,9 +238,10 @@ namespace Rasa.Test.Missions
 
         internal static MissionTestContext WithCompletableMission(
             uint missionId,
-            Action<Item> beforeRewardItemPublication = null)
+            Action<Item> beforeRewardItemPublication = null,
+            MissionRewardDefinition customReward = null)
         {
-            var reward = new MissionRewardDefinition(
+            var reward = customReward ?? new MissionRewardDefinition(
                 experience: 100,
                 currencies: new Dictionary<CurencyType, int>
                 {
@@ -890,7 +892,7 @@ namespace Rasa.Test.Missions
             };
             context.SavedChanges += (_, _) => AfterSave?.Invoke(context);
             return new CharUnitOfWork(context,
-                gameAccounts: new GameAccountRepository(context), censoredWords: null,
+                gameAccounts: new GameAccountRepository(context), censoredWords: new CensoredWordRepository(context),
                 characters: new CharacterRepository(context),
                 characterAbilityDrawers: new CharacterAbilityDrawerRepository(context),
                 characterAppearances: new CharacterAppearanceRepository(context),
@@ -912,7 +914,7 @@ namespace Rasa.Test.Missions
                 clanLockboxLogs: new ClanLockboxLogRepository(context),
                 friends: new FriendRepository(context),
                 ignoreds: new IgnoredRepository(context),
-                items: new ItemRepository(context), petitions: null, userOptions: null);
+                items: new ItemRepository(context), petitions: new Rasa.Repositories.Char.Petition.PetitionRepository(context), userOptions: null);
         }
 
         internal void ResetCharUnitCount() => _charUnitsCreated = 0;

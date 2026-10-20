@@ -27,13 +27,14 @@ namespace Rasa.Test.Missions.Wilderness
         {
             using var harness = CreateHarness();
             SetProfile(harness, characterClass, level);
-            harness.SpawnWorld(100, 510006, 501001, 501002);
+            harness.SpawnWorld(100, 510006);
             var npcs = new NpcManager(harness, harness.Manager);
             var rogers = harness.Npc(100);
             harness.MoveTo(rogers.Position);
             Assert.AreEqual(eligible, Offers(Open(harness, npcs, rogers.EntityId), 1526));
 
-            foreach (var trainerId in new uint[] { 501001, 501002 })
+            // Training Officer Kincaid trains every class at Alia Das (its class trainers are gone).
+            foreach (var trainerId in new uint[] { 510006 })
             {
                 var trainer = harness.Npc(trainerId);
                 Assert.IsNotNull(trainer);
@@ -68,8 +69,8 @@ namespace Rasa.Test.Missions.Wilderness
         }
 
         [TestMethod]
-        [DataRow(CharacterClass.Soldier, 501001U, 2010U, 2011U, 4019U, 35486U)]
-        [DataRow(CharacterClass.Specialist, 501002U, 2011U, 2010U, 3869U, 20250U)]
+        [DataRow(CharacterClass.Soldier, 510006U, 2010U, 2011U, 4019U, 35486U)]
+        [DataRow(CharacterClass.Specialist, 510006U, 2011U, 2010U, 3869U, 20250U)]
         public void NativeClassTrainingOffersOnlyItsGearBranchAndGrantsThePreviewOnce(
             CharacterClass selectedClass, uint trainerSpawn, uint missionId, uint excludedId,
             uint tool, uint boots)
@@ -173,6 +174,7 @@ namespace Rasa.Test.Missions.Wilderness
             var npcs = new NpcManager(harness, harness.Manager);
             CompleteObjective(harness, npcs, 210, 2010, 1);
             FillCategory(harness, 3869, 49);
+            harness.FillInbox();
             var caufield = harness.Npc(210);
             Open(harness, npcs, caufield.EntityId);
             var request = new CompleteNPCMissionPacket { EntityId = caufield.EntityId, MissionId = 2010 };

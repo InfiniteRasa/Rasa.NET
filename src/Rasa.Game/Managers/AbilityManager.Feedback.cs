@@ -78,7 +78,7 @@ namespace Rasa.Managers
         /// </summary>
         private static readonly HashSet<string> CombatActionModules = new HashSet<string>
         {
-            TurretModule, TrapModule, CrabMinesModule, RealityRipperModule,
+            TurretModule, TrapModule, CrabMinesModule, RealityRipperModule, PlaceBombModule, FlashGrenadeModule,
             "abilities.firesupport", "abilities.scatterbombs", "abilities.scourge", "abilities.selfdestruct",
             "abilities.calledshot", "abilities.feedback", "abilities.corpseexplode", "abilities.reconstruction"
         };

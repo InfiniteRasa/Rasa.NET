@@ -14,11 +14,7 @@
         {
             pr.ReadTuple();
             CreditsType = pr.ReadUInt();
-
-            if (pr.PeekType() == PythonType.Long)
-                Ammount = pr.ReadLong();
-            else
-                Ammount = pr.ReadInt();
+            Ammount = pr.ReadInteger();
         }
     }
 }

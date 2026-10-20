@@ -22,7 +22,8 @@ namespace Rasa.Test.Missions.Wilderness
                 "Canonical Witherspoon pool 101 must introduce a real NPC, not remain a zero-count pool.");
             Assert.AreEqual(101U, witherspoon.DbId);
             Assert.AreEqual(208U, witherspoon.Npc.NpcPackageId);
-            AssertSpawnPose(harness, 101, witherspoon, (505d, 238.4, 223d), 0.8);
+            // Where a GM put him from gameplay video (WildernessPostNpcs).
+            AssertSpawnPose(harness, 101, witherspoon, (502.2109, 238.3398, 214d), 2.3292);
             Assert.AreEqual(1, harness.Map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList)
                 .Count(creature => creature.DbId == 101));
             var surface = harness.Map.NavMesh.GroundHeight(witherspoon.Position);
@@ -67,7 +68,9 @@ namespace Rasa.Test.Missions.Wilderness
                 Assert.AreEqual(package, npc.Npc.NpcPackageId);
                 AssertGrounded(harness, npc.Position);
             }
-            AssertSpawnPose(harness, 100, harness.Npc(100), (870d, 294.21, 385.5), 0.8);
+            // Rogers at his post in the command tent (Alia_das_npcs).
+            var rogers = Rasa.Services.Preloader.AliaDasNpcs.Moves.Single(move => move.Pool == 100);
+            AssertSpawnPose(harness, 100, harness.Npc(100), (rogers.ToX, rogers.ToY, rogers.ToZ), rogers.ToRotation);
             foreach (var (from, to) in new[]
             {
                 (101U, 216U), (216U, 217U), (217U, 199U), (199U, 101U),

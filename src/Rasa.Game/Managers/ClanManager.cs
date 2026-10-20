@@ -127,6 +127,22 @@ namespace Rasa.Managers
             public string InviterName;
         }
 
+        /// <summary>
+        /// Tells whoever sent an invitation how it was answered: "%(playername)s accepted your
+        /// clan invitation." or "... declined ...". The invitee's name is given as the
+        /// invitation gives the inviter's, first and family. An inviter who is not in the world
+        /// is told nothing; the clan list shows a new member when they are next in.
+        /// </summary>
+        private static void TellInviter(PendingClanInvite invite, Client invitee, bool accepted)
+        {
+            var inviter = Server.Clients.Find(c => c?.Player != null && c.Player.Id == invite.InviterCharacterId
+                && c.State == ClientState.Ingame);
+
+            inviter?.CallMethod(SysEntity.ClientClanManagerId, new DisplayClanMessagePacket(
+                (int)(accepted ? PlayerMessage.PmClanInvitationAccepted : PlayerMessage.PmClanInvitationRefused),
+                new Dictionary<string, string> { { "playername", $"{invitee.Player.Name} {invitee.Player.FamilyName}" } }));
+        }
+
         #endregion
 
         internal void ClansInit()
@@ -296,7 +312,8 @@ namespace Rasa.Managers
 
             var newName = packet.ClanName?.Trim();
 
-            if (!IsClanNameAcceptable(client, newName))
+            // Its own name in other capitals is not taken.
+            if (!IsClanNameAcceptable(client, newName, clanId))
                 return;
 
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
@@ -308,13 +325,19 @@ namespace Rasa.Managers
             var oldName = clan.Name;
 
             // Renaming to the name it already has is not worth an announcement, but it is not an
-            // error either - the uniqueness check would have refused it as taken, by itself.
+            // error either.
             if (string.Equals(oldName, newName, StringComparison.Ordinal))
                 return;
 
             if (!unitOfWork.Clans.UpdateClanName(clanId, newName))
             {
-                Logger.WriteLog(LogType.Error, $"ChangeClanName: could not rename clan {clanId} to '{newName}'.");
+                // Refused by the name's unique index: another server on the database took it
+                // since the check.
+                if (ClanNameExists(newName, clanId))
+                    TellNameNotAvailable(client, newName);
+                else
+                    Logger.WriteLog(LogType.Error, $"ChangeClanName: could not rename clan {clanId} to '{newName}'.");
+
                 return;
             }
 
@@ -330,6 +353,9 @@ namespace Rasa.Managers
             // window and beside members' names. SetClanData is what refreshes it without a relog.
             SetClanDataForOnlineMembers(clanId);
 
+            // And the tag over the members' heads, to the others who have them.
+            ShowClanDataAround(clanId);
+
             CallMethodForOnlineMembers(clanId, (ulong)SysEntity.ClientClanManagerId,
                 new DisplayClanMessagePacket((int)PlayerMessage.PmClanClannameChanged,
                     new Dictionary<string, string> { { "oldname", oldName }, { "newname", newName } }));
@@ -339,9 +365,10 @@ namespace Rasa.Managers
 
         /// <summary>
         /// The name rules shared by creating a clan and renaming one, each answering with the
-        /// client's own message for that refusal.
+        /// client's own message for that refusal. A name is taken whatever its case
+        /// (ClanRepository.GetClanByName) - except by the clan being renamed, <paramref name="ownClanId"/>.
         /// </summary>
-        private bool IsClanNameAcceptable(Client client, string clanName)
+        private bool IsClanNameAcceptable(Client client, string clanName, uint ownClanId = 0)
         {
             if (string.IsNullOrWhiteSpace(clanName) || clanName.Length < _minClanNameLength)
             {
@@ -355,10 +382,9 @@ namespace Rasa.Managers
                 return false;
             }
 
-            if (ClanNameExists(clanName))
+            if (ClanNameExists(clanName, ownClanId))
             {
-                client.CallMethod(SysEntity.ClientClanManagerId, new DisplayClanMessagePacket((int)PlayerMessage.PmClanNameNotAvailable,
-                    new Dictionary<string, string> { { "clanname", clanName } }));
+                TellNameNotAvailable(client, clanName);
                 return false;
             }
 
@@ -395,14 +421,18 @@ namespace Rasa.Managers
                 return;
             }
 
-            if (!CanCreateClan(client, packet, client.Player.Id))
+            // Trimmed, as a rename trims it: " Wolves" was a clan of its own beside "Wolves", and
+            // spaces counted toward the length rules.
+            var clanName = packet.ClanName?.Trim();
+
+            if (!CanCreateClan(client, clanName, packet.IsPvP, client.Player.Id))
                 return;
 
             if (!_currencyManager.LossCredits(
                     client, _requiredCreditsForClanCreation))
                 return;
 
-            ClanEntry clan = unitOfWork.Clans.CreateClan(packet.ClanName, packet.IsPvP);
+            ClanEntry clan = unitOfWork.Clans.CreateClan(clanName, packet.IsPvP);
 
             if (clan == null)
             {
@@ -410,6 +440,12 @@ namespace Rasa.Managers
                         client, _requiredCreditsForClanCreation))
                     Logger.WriteLog(LogType.Error,
                         $"CreateClan: could not refund creation fee to character {client.Player.Id}.");
+
+                // Refused by the name's unique index: another server on the database took it
+                // since the check.
+                if (ClanNameExists(clanName))
+                    TellNameNotAvailable(client, clanName);
+
                 return;
             }
 
@@ -428,7 +464,7 @@ namespace Rasa.Managers
             }
             catch (Exception e)
             {
-                Logger.WriteLog(LogType.Error, $"CreateClan: could not add character {client.Player.Id} as leader of new clan {clan.Id} ({packet.ClanName}); removing the clan: {e}");
+                Logger.WriteLog(LogType.Error, $"CreateClan: could not add character {client.Player.Id} as leader of new clan {clan.Id} ({clanName}); removing the clan: {e}");
                 unitOfWork.Clans.DeleteClan(clan.Id);
                 if (!_currencyManager.GainCredits(
                         client, _requiredCreditsForClanCreation))
@@ -448,6 +484,7 @@ namespace Rasa.Managers
 
             // Cache the newly created clan
             RegisterClan(clan);
+            ShowClanAround(client);
 
             EconomyAudit.Instance.Record(EconomyLogKind.ClanCreation, clan.Id,
                 EconomyAudit.MoneyLine(client, CurencyType.Credits, -_requiredCreditsForClanCreation));
@@ -598,8 +635,12 @@ namespace Rasa.Managers
                 return;
             }
 
-            // We don't do anything right now when the invitation is declined
-            if (!packet.Accepted) return;
+            // Declined: the invitation is spent, and its sender is told.
+            if (!packet.Accepted)
+            {
+                TellInviter(invite, client, false);
+                return;
+            }
 
             // The clan they were invited to, not the one the packet names.
             if (invite.ClanId != packet.ClanId)
@@ -686,15 +727,24 @@ namespace Rasa.Managers
             SetClanMemberData(client, clanData);
 
             client.Player.ClanId = clanData.Id;
+            ShowClanAround(client);
 
             //update clan inventory from db
             InventoryManager.Instance.SetupLocalClanInventory(client);
 
             // Into the clan's feuds, if it is in any.
             ClanFeuds.Instance.MemberJoined(client);
+
+            // The members are told "%(playername)s has joined the clan" (PlayerJoinedClan); the
+            // one who asked them is told their invitation was taken up.
+            TellInviter(invite, client, true);
         }
 
-        internal void CleanupClan(Client client)
+        /// <param name="leftClan">
+        /// Out of the clan - a kick, a leave or a disband - rather than out of the world, when
+        /// there is no one left to tell.
+        /// </param>
+        internal void CleanupClan(Client client, bool leftClan = true)
         {
             // Rebuilt rather than zeroed slot by slot. A member on the loading screen of their login
             // has no clan lockbox list yet - InitClanInventory builds it at MapLoaded - and a kick or
@@ -705,6 +755,9 @@ namespace Rasa.Managers
             var oldClanId = client.Player.ClanId;
 
             client.Player.ClanId = 0;
+
+            if (leftClan)
+                ShowClanAround(client);
 
             // Out of the clan's feuds: a kick, a leave or a disband all come through here.
             ClanFeuds.Instance.MemberLeft(client, oldClanId);
@@ -728,9 +781,11 @@ namespace Rasa.Managers
             List<ClanMemberEntry> members = unitOfWork.ClanMembers.GetAllClanMembersByClanId(inviterClan.Id);
             GameAccountEntry inviteeAccount = unitOfWork.GameAccounts.Get(packet.FamilyName);
 
+            // "There is nobody named %(name)s."
             if (inviteeAccount == null)
             {
-                CommunicatorManager.Instance.SystemMessage(client, $"{packet.FamilyName} do not exist");
+                client.CallMethod(SysEntity.ClientClanManagerId, new DisplayClanMessagePacket((int)PlayerMessage.PmNoSuchUser,
+                    CreatePlayerMessageArgs("name", packet.FamilyName)));
                 return;
             }
 
@@ -763,31 +818,52 @@ namespace Rasa.Managers
                     return;
                 }
 
-                if (inviteeCharacter != null)
-                {
-                    // Make sure the invitee is online
-                    var invitee = Server.Clients.Find(c => c.Player.Id == inviteeCharacter.Id);
+                // Only someone in the world (or loading into it) can be asked: "%(name)s is not
+                // online." It was silent; so was a character back at character selection.
+                Client invitee;
 
-                    if (invitee != null)
-                    {
-                        SendInviteToCharacter(client, invitee.Player.EntityId, inviterClan);
-                    }
+                lock (Server.Clients)
+                    invitee = Server.Clients.Find(c => c != null && CountsAsOnline(c) && c.Player.Id == inviteeCharacter.Id);
+
+                // An invisible GM is not online, to anyone who is not a GM.
+                if (Detection.IsGmHiddenFrom(invitee?.Player, client))
+                    invitee = null;
+
+                if (invitee == null)
+                {
+                    client.CallMethod(SysEntity.ClientClanManagerId, new DisplayClanMessagePacket((int)PlayerMessage.PmUserNotOnline,
+                        CreatePlayerMessageArgs("name", $"{inviteeCharacter.Name} {inviteeAccount.FamilyName}")));
+                    return;
                 }
+
+                SendInviteToCharacter(client, invitee.Player.EntityId, inviterClan);
             }
-        }        
+        }
 
         internal void InviteToClanById(Client client, InviteToClanByIdPacket packet)
         {
-            var invitee = Server.Clients.Find(c => c.Player.EntityId == packet.CharacterEntityId);
-
             if (client == null)
                 throw new ArgumentNullException(nameof(client));
 
             if (packet == null)
                 throw new ArgumentNullException(nameof(packet));
 
+            Client invitee;
+
+            lock (Server.Clients)
+                invitee = Server.Clients.Find(c => c != null && CountsAsOnline(c) && c.Player.EntityId == packet.CharacterEntityId);
+
+            if (Detection.IsGmHiddenFrom(invitee?.Player, client))
+                invitee = null;
+
+            // An entity id that is no player in the world (gone since it was targeted, or never
+            // one): "Target user is not online or does not exist." It was silent.
             if (invitee == null)
+            {
+                client.CallMethod(SysEntity.ClientClanManagerId, new DisplayClanMessagePacket((int)PlayerMessage.PmNoTargetUser,
+                    new Dictionary<string, string>()));
                 return;
+            }
             
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
 
@@ -983,7 +1059,11 @@ namespace Rasa.Managers
             UnregisterClan(clan);
             UnregisterClanMembers(clan.Id);
 
-            //TODO: Clear clan lockbox db inventory?
+            // The lockbox is kept: its clan_inventory rows, under the id of a clan that no longer
+            // exists, and the items rows they name, so what was in it can be given back by hand.
+            // Nothing reads them - the lockboxes are loaded for the clans there are
+            // (InitCurrentClanInventories) - and a clan id is never handed out again (AUTOINCREMENT
+            // on SQLite, a persisted auto_increment on MySQL 8), so no new clan opens onto them.
         }
 
         /// <summary>
@@ -1001,8 +1081,8 @@ namespace Rasa.Managers
         /// highest ranked member left (the longest serving of them, by character id, when ranks
         /// tie), as if MakePlayerClanLeader had been used. A leader who was the clan's only member
         /// takes the clan with them, as DisbandClan would - its feuds lost, its control points the
-        /// AFS's, its rows deleted. The PvP-clan cooldown is not stamped: there is no character
-        /// left to serve it.
+        /// AFS's, its clan and member rows deleted and its lockbox kept. The PvP-clan cooldown is
+        /// not stamped: there is no character left to serve it.
         /// </summary>
         internal Action RemoveDeletedCharacter(ICharUnitOfWork unitOfWork, CharacterEntry character, string familyName)
         {
@@ -1027,6 +1107,7 @@ namespace Rasa.Managers
 
             if (member.Rank == ClanRank.Leader && others.Count == 0)
             {
+                // Its lockbox is kept, as DisbandClan keeps it.
                 unitOfWork.ClanMembers.DeleteClanMembers(clanId);
                 unitOfWork.Clans.DeleteClan(clanId);
 
@@ -1098,6 +1179,23 @@ namespace Rasa.Managers
             };
         }
 
+        /// <summary>
+        /// A GM has gone invisible or visible again (Detection.SetGmInvisible): their line, to the
+        /// rest of the clan online - offline or online again to those who are not GMs.
+        /// </summary>
+        internal void GmVisibilityChanged(Client gm)
+        {
+            var player = gm?.Player;
+
+            if (player == null || player.ClanId == 0)
+                return;
+
+            var member = GetClanMember(player.ClanId, player.Id);
+
+            if (member != null)
+                SendMemberData(MemberDataFor(gm, member, true), player.Id);
+        }
+
         internal void RemovePlayer(Client client)
         {
             // An invitation they never answered goes with them, so it cannot be answered by
@@ -1112,7 +1210,7 @@ namespace Rasa.Managers
             if (client.State == ClientState.Loading)
                 return;
 
-            CleanupClan(client);
+            CleanupClan(client, leftClan: false);
             if (ClanMembers.TryGetValue(clanId, out var cachedMembers) && cachedMembers.IsValueCreated)
                 cachedMembers.Value?.RemoveAll(member => member.CharacterId == client.Player.Id);
 
@@ -1375,6 +1473,89 @@ namespace Rasa.Managers
             client.CallMethod(player.EntityId, new ClanIdPacket(clanData.Id));
         }
 
+        /// <summary>
+        /// The clan a player is in, to another client that is about to be given them: the tag over
+        /// a name is the clan's name, which the client looks up by the ClanId on the manifestation
+        /// in the clans it has been sent (client/clan.py GetClanByClanId) and shows as "clan name
+        /// not available" when it has none. Its own clan was the only one it was ever sent. Sent
+        /// with every introduction: the client keeps what it is given for as long as it runs, but
+        /// takes a clan out again when its own player leaves it, so what it holds is not tracked
+        /// here. The clan's manifestations redraw the tag when it arrives
+        /// (manifestation.py HandleUpdateClanData), so the order does not matter.
+        /// </summary>
+        internal void ShowClanTo(Client viewer, Manifestation player)
+        {
+            if (viewer == null || player == null || player.ClanId == 0)
+                return;
+
+            var clan = Clans.GetValueOrDefault(player.ClanId)?.Value;
+
+            if (clan != null)
+                viewer.CallMethod(SysEntity.ClientClanManagerId, new SetClanDataPacket(SetClanDataPacket.NameKey, new ClanData(clan)));
+        }
+
+        /// <summary>
+        /// A member's clan has changed - joined, made, left, kicked from or disbanded: the new
+        /// ClanId to everyone who has them, with the clan's name for a tag. Only their own client
+        /// was told; everyone else kept the old tag until they met the player again.
+        /// </summary>
+        private void ShowClanAround(Client member)
+        {
+            var player = member?.Player;
+
+            if (player == null)
+                return;
+
+            var packet = new ClanIdPacket(player.ClanId);
+
+            foreach (var viewer in Onlookers(member))
+            {
+                ShowClanTo(viewer, player);
+                viewer.CallMethod(player.EntityId, packet);
+            }
+        }
+
+        /// <summary>A clan's name has changed: to everyone outside it who has one of its members online in view.</summary>
+        private void ShowClanDataAround(uint clanId)
+        {
+            var clan = Clans.GetValueOrDefault(clanId)?.Value;
+
+            if (clan == null)
+                return;
+
+            var told = new HashSet<Client>();
+
+            foreach (var member in GetClanMembers(clanId))
+            {
+                var memberClient = Server.Clients.Find(c => c.Player.Id == member.CharacterId);
+
+                if (memberClient == null)
+                    continue;
+
+                // The members have had it with the clan window's (SetClanDataForOnlineMembers).
+                foreach (var viewer in Onlookers(memberClient))
+                    if (viewer.Player?.ClanId != clanId && told.Add(viewer))
+                        viewer.CallMethod(SysEntity.ClientClanManagerId, new SetClanDataPacket(SetClanDataPacket.NameKey, new ClanData(clan)));
+            }
+        }
+
+        /// <summary>The clients that have this player: the ones in their cells, and the team mates who hold them from afar (FarAllies).</summary>
+        private static HashSet<Client> Onlookers(Client member)
+        {
+            var player = member.Player;
+            var onlookers = new HashSet<Client>();
+            var mapChannel = player.MapChannel;
+
+            if (mapChannel != null && player.Cells != null)
+                onlookers.UnionWith(CellManager.Instance.GetClientsInCells(mapChannel, player.Cells, member));
+
+            foreach (var watcher in player.FarWatchers)
+                if (watcher != member && watcher.State == ClientState.Ingame)
+                    onlookers.Add(watcher);
+
+            return onlookers;
+        }
+
         private void AddMemberToClan(ClanMemberData clanMember)
         {
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
@@ -1434,14 +1615,22 @@ namespace Rasa.Managers
             };
 
             inviteeClient.CallMethod(SysEntity.ClientClanManagerId, new InviteToClanPacket(InviteToClanPacket.NameKey, inviteData));
+
+            // "You have invited %(playername)s to join %(clanname)s"
+            client.CallMethod(SysEntity.ClientClanManagerId, new DisplayClanMessagePacket((int)PlayerMessage.PmClanPlayerInvited,
+                new Dictionary<string, string>
+                {
+                    { "playername", $"{inviteeClient.Player.Name} {inviteeClient.Player.FamilyName}" },
+                    { "clanname", clan.Name }
+                }));
         }
 
-        private bool CanCreateClan(Client client, CreateClanPacket packet, uint characterId)
+        private bool CanCreateClan(Client client, string clanName, bool isPvP, uint characterId)
         {
             // Length, uniqueness and the censor are the same rules a rename is held to, so they
             // live in one place - a name that cannot be created must not be reachable by
             // renaming into it either.
-            if (!IsClanNameAcceptable(client, packet.ClanName))
+            if (!IsClanNameAcceptable(client, clanName))
                 return false;
 
             if(client.Player.Credits[CurencyType.Credits] < _requiredCreditsForClanCreation)
@@ -1452,7 +1641,7 @@ namespace Rasa.Managers
 
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
 
-            if (packet.IsPvP)
+            if (isPvP)
             {
                 CharacterEntry character = unitOfWork.Characters.Get(characterId);
 
@@ -1473,14 +1662,23 @@ namespace Rasa.Managers
             return true;
         }        
 
-        private bool ClanNameExists(string clanName)
+        /// <summary>Whether a clan other than <paramref name="ownClanId"/> has the name, in any case.</summary>
+        private bool ClanNameExists(string clanName, uint ownClanId = 0)
         {
             if (string.IsNullOrEmpty(clanName))
                 throw new ArgumentNullException(nameof(clanName));
 
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+            var clan = unitOfWork.Clans.GetClanByName(clanName);
 
-            return unitOfWork.Clans.GetClanByName(clanName) != null;
+            return clan != null && clan.Id != ownClanId;
+        }
+
+        /// <summary>The client's PM_CLAN_NAME_NOT_AVAILABLE, with the name.</summary>
+        private static void TellNameNotAvailable(Client client, string clanName)
+        {
+            client.CallMethod(SysEntity.ClientClanManagerId, new DisplayClanMessagePacket((int)PlayerMessage.PmClanNameNotAvailable,
+                new Dictionary<string, string> { { "clanname", clanName } }));
         }
 
         /// <summary>
@@ -1515,10 +1713,12 @@ namespace Rasa.Managers
         /// A member's line for one reader. Their own line carries their manifestation's entity id and
         /// everyone else's the character id (<see cref="ClanMemberData.Write"/>). A copy per reader
         /// rather than one line changed in place: packets are written when they are sent, which is
-        /// after every reader's has been queued.
+        /// after every reader's has been queued. An invisible GM is offline to a reader who is not a GM.
         /// </summary>
         private static ClanMemberData ForReader(ClanMemberData member, Client reader)
         {
+            var hidden = member.InvisibleGm && reader.Player.Id != member.CharacterId && !Detection.SeesInvisibleGms(reader);
+
             return new ClanMemberData
             {
                 UserId = member.UserId,
@@ -1530,8 +1730,8 @@ namespace Rasa.Managers
                 Level = member.Level,
                 ContextId = member.ContextId,
                 Rank = member.Rank,
-                IsOnline = member.IsOnline,
-                IsAfk = member.IsAfk,
+                IsOnline = member.IsOnline && !hidden,
+                IsAfk = member.IsAfk && !hidden,
                 Note = member.Note
             };
         }
@@ -1550,7 +1750,8 @@ namespace Rasa.Managers
                 ContextId = client.Player.MapContextId,
                 Rank = member.Rank,
                 Note = member.Note,
-                IsOnline = isOnline
+                IsOnline = isOnline,
+                InvisibleGm = isOnline && client.Player.GmInvisible
             };
         }
 
@@ -1579,7 +1780,8 @@ namespace Rasa.Managers
                 ContextId = inWorld?.Player.MapContextId ?? entry.MapContextId,
                 Rank = entry.Rank,
                 Note = entry.Note,
-                IsOnline = inWorld != null
+                IsOnline = inWorld != null,
+                InvisibleGm = inWorld?.Player.GmInvisible == true
             };
         }
 
@@ -1918,7 +2120,7 @@ namespace Rasa.Managers
             {
                 try
                 {
-                    matches = FindWarfareMatches(player.ClanId, packet.NameContains?.Trim() ?? "", packet.MinLevel, packet.MaxLevel);
+                    matches = FindWarfareMatches(client, player.ClanId, packet.NameContains?.Trim() ?? "", packet.MinLevel, packet.MaxLevel);
                 }
                 catch (Exception e)
                 {
@@ -1930,7 +2132,7 @@ namespace Rasa.Managers
             client.CallMethod(SysEntity.ClientWargameManagerId, new ClanWarfareSearchResultsPacket(packet.RequestId, matches));
         }
 
-        private List<ClanWarfareSearchResultsPacket.Match> FindWarfareMatches(uint ownClanId, string nameContains, int minLevel, int maxLevel)
+        private List<ClanWarfareSearchResultsPacket.Match> FindWarfareMatches(Client searcher, uint ownClanId, string nameContains, int minLevel, int maxLevel)
         {
             var candidates = Clans.Values
                 .Select(c => c.Value)
@@ -1957,7 +2159,8 @@ namespace Rasa.Managers
                     ClanName = candidates[g.Key].Name,
                     MemberCount = g.Count(),
                     AverageLevel = (int)Math.Round(g.Average(r => (double)r.Level), MidpointRounding.AwayFromZero),
-                    IsOnline = g.Any(r => online.ContainsKey(r.CharacterId))
+                    // Not for an invisible GM in it, unless a GM is asking.
+                    IsOnline = g.Any(r => online.TryGetValue(r.CharacterId, out var inWorld) && !Detection.IsGmHiddenFrom(inWorld.Player, searcher))
                 })
                 .Where(m => (minLevel <= 0 || m.AverageLevel >= minLevel) && (maxLevel <= 0 || m.AverageLevel <= maxLevel))
                 .OrderByDescending(m => m.IsOnline)

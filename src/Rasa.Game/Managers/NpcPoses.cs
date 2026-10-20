@@ -180,8 +180,10 @@ namespace Rasa.Managers
                 creature.Rotation = yaw;
                 creature.LastYaw = yaw;
 
+                // Standing, facing its way: recorded as its last movement (StopMoving), or the walk
+                // back's last step still says it is moving (ToHit.IsMoving).
                 if (mapChannel != null)
-                    CellManager.Instance.CellMoveObject(creature, new Movement(creature.Position, 0f, 0x08, new Vector2(yaw, 0f)));
+                    BehaviorManager.Instance.StopMoving(creature);
             }
 
             Show(mapChannel, creature);

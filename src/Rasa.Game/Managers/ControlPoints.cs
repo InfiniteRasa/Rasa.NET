@@ -174,6 +174,9 @@ namespace Rasa.Managers
             /// <summary>When "claiming" was last announced for the point (<see cref="Now"/>); 0 if it never was. See <see cref="ClaimAnnounceGapMs"/>.</summary>
             public long ClaimAnnouncedAt { get; set; }
 
+            /// <summary>The clan that announcement named, 0 for the AFS with no clan.</summary>
+            public uint ClaimAnnouncedFor { get; set; }
+
             /// <summary>The footlocker row of the point's clan lockbox, or 0 while it has none.</summary>
             public uint LockboxId { get; set; }
 
@@ -728,29 +731,50 @@ namespace Rasa.Managers
         /// clan it would be for if it is for one.
         /// </summary>
         /// <summary>
-        /// The least time between two "claiming" announcements for one point, in ms. Every use
-        /// of a point that was begun announced it to the whole map, and a use can be begun as
-        /// often as the player likes - start, step away to break it, start again - so one player
-        /// could fill everyone's chat with it.
+        /// The least time between two "claiming" announcements for one point by the same side, in
+        /// ms. Every use of a point that was begun announced it to the whole map, and a use can be
+        /// begun as often as the player likes - start, step away to break it, start again - so one
+        /// player could fill everyone's chat with it.
         /// </summary>
         public const long ClaimAnnounceGapMs = 10_000;
 
-        /// <summary>Whether a "claiming" of the point may be announced now, and marks it announced if so.</summary>
-        internal static bool MayAnnounceClaim(Point point, long now)
+        /// <summary>
+        /// Whether a "claiming" of the point by <paramref name="claimant"/> may be announced now,
+        /// and marks it announced if so. The gap holds back a claimant announced already: one
+        /// side starting and breaking off over and over. Another claimant is always announced -
+        /// the gap used to be per point, so when one clan broke off and another started inside
+        /// it, nobody was told, and the last message on screen named the first.
+        /// </summary>
+        internal static bool MayAnnounceClaim(ref long announcedAt, ref uint announcedFor, uint claimant, long now)
         {
-            if (point.ClaimAnnouncedAt != 0 && now - point.ClaimAnnouncedAt < ClaimAnnounceGapMs)
+            if (announcedAt != 0 && announcedFor == claimant && now - announcedAt < ClaimAnnounceGapMs)
                 return false;
 
-            point.ClaimAnnouncedAt = now;
+            announcedAt = now;
+            announcedFor = claimant;
+            return true;
+        }
+
+        /// <summary>Whether a "claiming" of the point by the clan (0: the AFS, with no clan) may be announced now; see the overload.</summary>
+        internal static bool MayAnnounceClaim(Point point, uint clanId, long now)
+        {
+            var at = point.ClaimAnnouncedAt;
+            var by = point.ClaimAnnouncedFor;
+
+            if (!MayAnnounceClaim(ref at, ref by, clanId, now))
+                return false;
+
+            point.ClaimAnnouncedAt = at;
+            point.ClaimAnnouncedFor = by;
             return true;
         }
 
         public void Claiming(MapChannel mapChannel, Point point, Client by = null)
         {
-            if (!MayAnnounceClaim(point, Now()))
-                return;
-
             var clanId = ClanFor(by);
+
+            if (!MayAnnounceClaim(point, clanId, Now()))
+                return;
 
             Announce(mapChannel, PlayerMessage.PmControlpointClaiming, point, clanId != 0 ? ClanName(clanId) ?? FactionName(Afs) : FactionName(Afs));
         }

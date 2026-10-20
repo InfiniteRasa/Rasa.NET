@@ -10,17 +10,17 @@ namespace Rasa.Managers
 
     /// <summary>
     /// What a kill is worth to those who made it, shared with the squad: its experience and its
-    /// adrenaline are split evenly between the player with the kill and every member of their
+    /// adrenaline are shared between the player with the kill and every member of their
     /// squad who shares in it - on the killer's map, within PartyManager.LootShareRange (200 m)
     /// of the corpse. That is PartyManager.SharersOf, the rule a kill's loot, its boss titles
     /// and a garrison's prestige already go by; a player in no squad shares with nobody and is
     /// paid the whole of it.
     ///
-    /// The split is ours: the client has no part in it and nothing we have says how the
-    /// original server divided a kill. What it is:
-    ///  - even, whatever the levels of the squad: the amount / those it is split between,
-    ///    rounded down, and never less than 1 for a kill that was worth anything. What does
-    ///    not divide is lost;
+    /// Nothing we have says how the original server divided a kill's adrenaline, or whose
+    /// levels counted; the experience's percent is the client's (below). What the split is:
+    ///  - for adrenaline, even, whatever the levels of the squad: the amount / those it is split
+    ///    between, rounded down, and never less than 1 for a kill that was worth anything. What
+    ///    does not divide is lost. For experience, a group part, whatever the levels too;
     ///  - between those who can be paid, so nobody's part goes to waste:
     ///     - experience, between the sharers below the level cap. One at the cap gains none
     ///       (ManifestationManager.GainExperience) and takes no share from the rest; a killer
@@ -38,8 +38,19 @@ namespace Rasa.Managers
     /// AdrenalinePerKillPercent of it, scaled by their Regen), so what is split is each
     /// sharer's own figure for the kill, doubled for a finish, and not the killer's.
     ///
-    /// No group bonus is added: XPInfo's groupMod stays 1. Each sharer's part is multiplied by
-    /// their own kill streak (KillStreaks), which their line says, and by nothing else.
+    /// The experience is not split evenly but by the client's rule for a squad
+    /// (shared/gameconstants.py XP_MOD_PER_PARTY_MEMBER, 0.08): each of n sharers is paid
+    /// 100% - 8% x (n - 1) of the kill - 92% each for two, 60% each for six - rounded down,
+    /// and never less than 1. The client's experience bar says the same in its tooltip
+    /// (experiencebarwindow.py OnXPEntered: "Group Bonus: +84%" for two), against an even split;
+    /// so each sharer's line says it as XPInfo's groupMod, the part over an even split,
+    /// n x (1 - 0.08 x (n - 1)), and an even split as its Base XP: "(50 Base XP) (+84% Group
+    /// Bonus)". n is the sharers who can be paid, as above. The client's tooltip
+    /// counts the whole squad, wherever it is; a kill counts those who share in it.
+    ///
+    /// Each sharer's part is then multiplied by their item modules' bonus, their Experience
+    /// Booster (XPInfo's boosterMod: " (+50% Booster Bonus)") and their own kill streak
+    /// (KillStreaks, streakMod).
     /// </summary>
     public static class KillShares
     {
@@ -97,10 +108,28 @@ namespace Rasa.Managers
         public static bool GainsAdrenaline(Client client) =>
             client?.Player != null && client.Player.State != CharacterState.Dead;
 
+        /// <summary>The client's XP_MOD_PER_PARTY_MEMBER: what each sharer past the first takes off every sharer's part, in percent.</summary>
+        public const int GroupPercentPerMember = 8;
+
+        /// <summary>The percent of a kill each of this many sharers is paid: 100 for one, 92 each for two.</summary>
+        public static int GroupPercentOf(int sharers) => Math.Max(0, 100 - GroupPercentPerMember * Math.Max(0, sharers - 1));
+
+        /// <summary>A sharer's part over an even split: sharers x their percent, 1 for one.</summary>
+        public static double GroupModOf(int sharers) => sharers <= 1 ? 1 : sharers * GroupPercentOf(sharers) / 100.0;
+
+        /// <summary>A sharer's part of a kill's experience: its group percent, rounded down, at least 1.</summary>
+        public static uint GroupPartOf(uint experience, int sharers)
+        {
+            if (experience == 0)
+                return 0;
+
+            return sharers <= 1 ? experience : (uint)Math.Max(1UL, (ulong)experience * (ulong)GroupPercentOf(sharers) / 100);
+        }
+
         /// <summary>
-        /// Pays one award of a kill's experience to those of the sharers who can gain it, in
-        /// equal parts, and returns the part. critKill is the killer's: the others are told of
-        /// a finish as their team's.
+        /// Pays one award of a kill's experience to those of the sharers who can gain it, each
+        /// their group part (GroupPartOf), and returns the part. critKill is the killer's: the
+        /// others are told of a finish as their team's.
         /// </summary>
         public static uint AwardExperience(ManifestationManager manifestations, IReadOnlyList<Client> sharers, Client killer, uint experience, CritKill critKill = CritKill.None)
         {
@@ -112,21 +141,27 @@ namespace Rasa.Managers
             if (paid.Count == 0)
                 return 0;
 
-            var share = ShareOf(experience, paid.Count);
+            var even = ShareOf(experience, paid.Count);
+            var share = GroupPartOf(experience, paid.Count);
+            var groupMod = GroupModOf(paid.Count);
 
             if (share == 0)
                 return 0;
 
             // Each their part, with what their own item modules add to it: "3% experience from
-            // kills." (ItemModuleBonuses) - and that, times their own kill streak (KillStreaks).
-            // The part returned is the part before either.
+            // kills." (ItemModuleBonuses); that raised by their own Experience Booster, if they
+            // have one on (ExperienceBoost) - another's does nothing for them; and that, times
+            // their own kill streak (KillStreaks). The part returned is the part before any. Each
+            // line's Base XP is an even split, which the group, booster and streak bonuses are of.
             foreach (var sharer in paid)
             {
                 var streak = KillStreaks.MultiplierOf(sharer);
-                var part = ItemModuleBonuses.WithExperience(sharer.Player, share);
+                var boost = ExperienceBoost.PercentOf(sharer.Player);
+                var part = ExperienceBoost.Boosted(sharer.Player, ItemModuleBonuses.WithExperience(sharer.Player, share));
 
                 manifestations.GainExperience(sharer, (uint)Math.Min(uint.MaxValue, (ulong)part * (ulong)streak),
-                    sharer == killer || critKill == CritKill.None ? critKill : CritKill.Team, streak);
+                    sharer == killer || critKill == CritKill.None ? critKill : CritKill.Team, streak,
+                    groupMod, (100.0 + boost) / 100.0, even);
             }
 
             return share;

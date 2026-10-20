@@ -103,6 +103,16 @@ namespace Rasa.Managers
         /// <summary>Whether the player's morph still has its Self Revive to use (Hominis Machina).</summary>
         public static bool CanSelfRevive(Manifestation player) => IsMorphAbility(player, ActionId.PolySelfRes, 1);
 
+        /// <summary>
+        /// Self Revive is for the dead (SelfResAction.CheckAction: PM_ACTION_FAILED_TARGET_NOT_DEAD).
+        /// Asked at the request and again as it lands: someone else can revive the Machina in the
+        /// windup, and Self Revive had then taken its cost and cooldown and failed at the end.
+        /// </summary>
+        private static PlayerMessage? SelfReviveRefusal(Manifestation player, ActionInfo action) =>
+            action?.Module == SelfResModule && player.State != CharacterState.Dead
+                ? PlayerMessage.PmActionFailedTargetNotDead
+                : null;
+
         /// <summary>The Self Revive is spent: "useable once".</summary>
         public static void SpendSelfRevive(Manifestation player)
         {

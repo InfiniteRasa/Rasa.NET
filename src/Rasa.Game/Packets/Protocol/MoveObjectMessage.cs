@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 
 namespace Rasa.Packets.Protocol
 {
@@ -6,7 +7,7 @@ namespace Rasa.Packets.Protocol
     using Memory;
     using Models;
 
-    public class MoveObjectMessage : IClientMessage
+    public class MoveObjectMessage : IClientMessage, IBroadcastMessage
     {
         public ClientMessageOpcode Type { get; set; } = ClientMessageOpcode.MoveObject;
         public byte RawSubtype { get; set; }
@@ -23,6 +24,19 @@ namespace Rasa.Packets.Protocol
         public byte UnkByte { get; set; }
         public ulong EntityId { get; set; }
         public Movement Movement { get; set; }
+
+        private int _recipients;
+        private byte[] _encoded;
+
+        int IBroadcastMessage.Recipients => Volatile.Read(ref _recipients);
+
+        void IBroadcastMessage.AddRecipient() => Interlocked.Increment(ref _recipients);
+
+        byte[] IBroadcastMessage.Encoded
+        {
+            get => Volatile.Read(ref _encoded);
+            set => Volatile.Write(ref _encoded, value);
+        }
 
         public MoveObjectMessage(Movement movementData)
         {

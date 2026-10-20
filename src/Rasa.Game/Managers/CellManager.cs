@@ -1,7 +1,9 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.InteropServices;
 
 namespace Rasa.Managers
 {
@@ -10,6 +12,7 @@ namespace Rasa.Managers
     using Models;
     using Packets;
     using Packets.MapChannel.Server;
+    using Packets.Protocol;
     using Repositories.UnitOfWork;
     using Structures;
 
@@ -289,8 +292,11 @@ namespace Rasa.Managers
             // Its entries in the per-creature tables keyed by entity id, before the id is freed
             // for the next creature.
             CreatureHabits.Forget(creature);
+            WardenBotTurtle.Forget(creature);
+            MawLurk.Forget(creature);
             CreatureBuffs.Forget(creature);
             AlternateMesh.Forget(creature);
+            EntityManager.Instance.UnRegisterVendorItem(creature.EntityId);
 
             // A mission's receiver given to clients beyond its cells goes for them too.
             MissionContacts.Removed(mapChannel, creature);
@@ -315,6 +321,9 @@ namespace Rasa.Managers
 
             // And each player's squad and team mates elsewhere on the map.
             FarAllies.Worker(mapChannel, System.Environment.TickCount64);
+
+            // And the objects that are part of the view, to those within sight of them.
+            Landmarks.Worker(mapChannel);
             // mob work
 
             // events etc...
@@ -370,18 +379,11 @@ namespace Rasa.Managers
 
             DynamicObjectManager.Instance.CellDiscardDynamicObjectToClients(dynObject.EntityId, ListOfClients);
 
+            // And off the clients holding it from beyond its cells (Landmarks).
+            Landmarks.Removed(dynObject);
+
             // remove object from cell
             mapChannel.MapCellInfo.Cells[cellMatrix[2, 2]].DynamicObjectList.Remove(dynObject);
-        }
-
-        public void RemoveFromWorld(MapChannel mapChannel, ulong entityId)
-        {
-            if (entityId == 0)
-                return;
-
-            DynamicObjectManager.Instance.CellDiscardDynamicObjectToClients(entityId,
-                mapChannel.ClientList.Where(client => client?.Player?.MapChannel == mapChannel &&
-                    client.State != ClientState.Disconnected).Distinct().ToList());
         }
 
         public uint GetCellSeed(Vector3 position)
@@ -409,6 +411,7 @@ namespace Rasa.Managers
                 client.MissionConversation = null;
             MissionContacts.Forget(client);
             FarAllies.Forget(client);
+            Landmarks.Forget(client);
             client.PlacedView = null;
             var memberships = map.MapCellInfo.Cells.Values.Where(cell => cell.ClientList.Contains(client)).ToArray();
             if (memberships.Length == 0)
@@ -488,8 +491,9 @@ namespace Rasa.Managers
             // walks away from it: it is what the map marker is drawn from (MissionContacts).
             CreatureManager.Instance.CellDiscardCreaturesToClient(client,
                 MissionContacts.Keep(client, removedCells.SelectMany(cell => cell.CreatureList).Distinct().ToList()));
+            // As does an object that is part of the view, while the player can see it (Landmarks).
             DynamicObjectManager.Instance.CellDiscardDynamicObjectsToClient(client,
-                removedCells.SelectMany(cell => cell.DynamicObjectList).Distinct().ToList());
+                Landmarks.Keep(client, removedCells.SelectMany(cell => cell.DynamicObjectList).Distinct().ToList()));
 
             var entering = GetClientsInCells(map, added, client);
             var addedCells = GetCells(map, added).ToList();
@@ -528,18 +532,59 @@ namespace Rasa.Managers
                 cell.ClientList.Contains(client);
         }
 
+        /// <summary>
+        /// The clients in the world in the given cells, once each, in the order the cells and
+        /// their lists have them; without the excluded one.
+        ///
+        /// Every broadcast to the players around something starts here. It was a chain of LINQ
+        /// over the matrix - each of its 25 seeds boxed on the way through Cast, a set to make the
+        /// seeds distinct and another the clients, an iterator for each step - for every move,
+        /// shot, hit and effect.
+        /// </summary>
         internal List<Client> GetClientsInCells(MapChannel map, uint[,] cells, Client excluded = null)
         {
-            return GetClientsInCells(map, cells.Cast<uint>(), excluded);
+            Span<uint> seeds = cells.Length <= 64 ? stackalloc uint[cells.Length] : new uint[cells.Length];
+            var i = 0;
+
+            foreach (var seed in cells)
+                seeds[i++] = seed;
+
+            return CollectClients(map, seeds, excluded);
         }
 
-        private static List<Client> GetClientsInCells(MapChannel map, IEnumerable<uint> cells, Client excluded)
+        private static List<Client> GetClientsInCells(MapChannel map, List<uint> cells, Client excluded) =>
+            CollectClients(map, CollectionsMarshal.AsSpan(cells), excluded);
+
+        /// <summary>Which clients have been taken already, in CollectClients; emptied before it returns.</summary>
+        [ThreadStatic]
+        private static HashSet<Client> _collected;
+
+        private static List<Client> CollectClients(MapChannel map, ReadOnlySpan<uint> seeds, Client excluded)
         {
-            return GetCells(map, cells).SelectMany(cell => cell.ClientList)
-                .Where(client => client != null && client != excluded &&
-                    client.State == ClientState.Ingame && client.Player?.MapChannel == map &&
-                    !client.Player.Disconected)
-                .Distinct().ToList();
+            var found = new List<Client>();
+            var collected = _collected ??= new HashSet<Client>();
+
+            try
+            {
+                for (var i = 0; i < seeds.Length; i++)
+                {
+                    // A cell named twice is looked in once.
+                    if (seeds.Slice(0, i).Contains(seeds[i]) || !map.MapCellInfo.Cells.TryGetValue(seeds[i], out var cell))
+                        continue;
+
+                    foreach (var client in cell.ClientList)
+                        if (client != null && client != excluded &&
+                            client.State == ClientState.Ingame && client.Player?.MapChannel == map &&
+                            !client.Player.Disconected && collected.Add(client))
+                            found.Add(client);
+                }
+            }
+            finally
+            {
+                collected.Clear();
+            }
+
+            return found;
         }
 
         private static IEnumerable<MapCell> GetCells(MapChannel map, IEnumerable<uint> seeds)
@@ -643,13 +688,16 @@ namespace Rasa.Managers
             if (mapChannel == null)
                 return;
 
+            // One message for everyone it goes to, encoded once (IBroadcastMessage).
+            var move = new MoveObjectMessage(creature.EntityId, movementData);
+
             foreach (var cell in CellsIn(mapChannel, creature.Cells))
                 foreach (var client in cell.ClientList)
-                    client.MoveObject(creature.EntityId, movementData);
+                    client.MoveObject(move);
 
             // And the clients a mission has given this NPC to from across the map.
             if (creature.Npc != null)
-                MissionContacts.Relay(mapChannel, creature, movementData);
+                MissionContacts.Relay(mapChannel, creature, move);
         }
 
         /// <summary>The clients that have been given an object: those in the cells around where it stands.</summary>
@@ -677,6 +725,9 @@ namespace Rasa.Managers
 
             foreach (var client in GetClientsInCells(mapChannel, cellMatrix))
                 client.CallMethod(obj.EntityId, packet);
+
+            // And whoever holds it from beyond its cells (Landmarks).
+            Landmarks.Relay(obj, packet);
         }
 
         /// <summary>

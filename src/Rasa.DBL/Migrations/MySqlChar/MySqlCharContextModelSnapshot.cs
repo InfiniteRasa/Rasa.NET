@@ -402,6 +402,18 @@ namespace Rasa.Migrations.MySqlChar
                         .HasColumnType("tinyint(1)")
                         .HasColumnName("wager_locked");
 
+                    b.Property<uint>("XpBoostLevel")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("xp_boost_level");
+
+                    b.Property<uint>("XpBoostPercent")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("xp_boost_percent");
+
+                    b.Property<long>("XpBoostRemainingMs")
+                        .HasColumnType("bigint")
+                        .HasColumnName("xp_boost_remaining_ms");
+
                     b.HasKey("Id");
 
                     b.HasIndex(new[] { "AccountId" }, "character_index_account");
@@ -481,6 +493,10 @@ namespace Rasa.Migrations.MySqlChar
                         .HasColumnName("slot_id");
 
                     b.HasKey("ItemId");
+
+                    b.HasIndex(new[] { "AccountId", "CharacterId" }, "character_inventory_index_account_character");
+
+                    b.HasIndex(new[] { "CharacterId", "InventoryType" }, "character_inventory_index_character_type");
 
                     b.ToTable("character_inventory");
                 });
@@ -1337,6 +1353,8 @@ namespace Rasa.Migrations.MySqlChar
 
                     b.HasKey("ItemId");
 
+                    b.HasIndex(new[] { "ClanId" }, "clan_inventory_index_clan_id");
+
                     b.ToTable("clan_inventory");
                 });
 
@@ -2091,6 +2109,8 @@ namespace Rasa.Migrations.MySqlChar
                     b.HasIndex("OwnerCharacterId", "MissionId", "ScriptKey", "AssignmentId")
                         .IsUnique();
 
+                    b.HasIndex(new[] { "AssignmentId" }, "mission_scene_index_assignment");
+
                     b.ToTable("mission_scene");
                 });
 
@@ -2162,6 +2182,8 @@ namespace Rasa.Migrations.MySqlChar
                         .HasColumnName("assignment_id");
 
                     b.HasKey("RunId", "CharacterId");
+
+                    b.HasIndex(new[] { "AssignmentId" }, "mission_scene_participant_index_assignment");
 
                     b.ToTable("mission_scene_participant");
                 });
@@ -2306,6 +2328,12 @@ namespace Rasa.Migrations.MySqlChar
                         .HasColumnType("int(11) unsigned")
                         .HasColumnName("map_context_id");
 
+                    b.Property<bool>("NoticePending")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("notice_pending");
+
                     b.Property<double>("PosX")
                         .HasColumnType("double")
                         .HasColumnName("pos_x");
@@ -2343,6 +2371,8 @@ namespace Rasa.Migrations.MySqlChar
                         .HasColumnName("type");
 
                     b.HasKey("Id");
+
+                    b.HasIndex(new[] { "AccountId", "NoticePending" }, "petition_index_account_notice");
 
                     b.ToTable("petition");
                 });
@@ -2428,6 +2458,8 @@ namespace Rasa.Migrations.MySqlChar
                         .HasColumnName("winner_side");
 
                     b.HasKey("Id");
+
+                    b.HasIndex(new[] { "Kind", "EndedAt" }, "pvp_match_index_kind_ended");
 
                     b.ToTable("pvp_match");
                 });
@@ -2569,6 +2601,8 @@ namespace Rasa.Migrations.MySqlChar
 
                     b.HasKey("Id");
 
+                    b.HasIndex(new[] { "OwnerCharacterId", "MapContextId" }, "squad_instance_index_owner_map");
+
                     b.ToTable("squad_instance");
                 });
 
@@ -2602,6 +2636,8 @@ namespace Rasa.Migrations.MySqlChar
                         .HasColumnName("instance_id");
 
                     b.HasKey("CharacterId");
+
+                    b.HasIndex(new[] { "InstanceId" }, "squad_instance_visitor_index_instance");
 
                     b.ToTable("squad_instance_visitor");
                 });

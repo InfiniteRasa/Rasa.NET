@@ -453,7 +453,7 @@ namespace Rasa.Test.Missions
         {
             using var context = new BootcampSelectionTestContext();
             context.SeedAccount(714);
-            context.SeedAccount(715);
+            context.SeedAccount(715, familyName: "Second");
             var firstCharacterId = context.SeedCharacter(714, 1, "FirstPending");
             var secondCharacterId = context.SeedCharacter(715, 1, "SecondPending");
             context.SeedStartingExperience(firstCharacterId, CharacterStartingExperienceState.Pending);

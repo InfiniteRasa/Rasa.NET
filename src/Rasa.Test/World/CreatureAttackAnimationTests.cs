@@ -39,6 +39,7 @@ namespace Rasa.Test.World
             (24085, 451),   // Bane_Thrax_Machina_Boss: CR_THRAX_FORCE_BLAST
             (24085, 458),   // Bane_Thrax_Machina_Boss: CR_THRAX_TECTONIC_STRIKE
             (21882, 488),   // Bane_Thrax_Grenadier_Boss: CR_THRAX_NECROMITE
+            (10612, 488),   // NPC_Bane_Thrax_Grenadier_Boss: CR_THRAX_NECROMITE (Family_abilities)
         };
 
         /// <summary>
@@ -52,6 +53,12 @@ namespace Rasa.Test.World
             [510227] = (27220, 1, 134),
             [43] = (10530, 1, 116),
         };
+
+        /// <summary>
+        /// Warrior Apirka as the whole migrated world has him: Alia_das_npcs made him a spearman
+        /// (NPC_Forean_Spearman) again, with the spear and its thrust, which that model animates.
+        /// </summary>
+        private static readonly (uint Weapon, uint Action, uint Arg) ApirkaAsASpearman = (10532, 174, 11);
 
         [TestMethod]
         public void EveryCreaturesAttacksAnimateOnItsModelAndDownPutsTheOldOnesBack()
@@ -69,7 +76,7 @@ namespace Rasa.Test.World
                 using var world = (WorldContext)PersistenceIntegrationTests.CreateContext(typeof(SqliteWorldContext), database);
 
                 AssertEveryAttackAnimates(world);
-                AssertEachFiresTheWeaponItHolds(world);
+                AssertEachFiresTheWeaponItHolds(world, ApirkaAsASpearman);
 
                 var migrator = world.GetService<IMigrator>();
                 migrator.Migrate(Before);
@@ -92,7 +99,7 @@ namespace Rasa.Test.World
                 migrator.Migrate(Migration);
 
                 AssertEveryAttackAnimates(world);
-                AssertEachFiresTheWeaponItHolds(world);
+                AssertEachFiresTheWeaponItHolds(world, HeldWeapons[43]);
             }
             finally
             {
@@ -146,12 +153,13 @@ namespace Rasa.Test.World
             Assert.IsEmpty(problems, string.Join(Environment.NewLine, problems));
         }
 
-        private static void AssertEachFiresTheWeaponItHolds(WorldContext world)
+        private static void AssertEachFiresTheWeaponItHolds(WorldContext world, (uint Weapon, uint Action, uint Arg) apirka)
         {
             var actions = world.CreatureActionEntries.AsNoTracking().ToDictionary(row => row.Id);
 
-            foreach (var (id, expected) in HeldWeapons)
+            foreach (var (id, held) in HeldWeapons)
             {
+                var expected = id == 43 ? apirka : held;
                 var creature = world.CreatureEntries.AsNoTracking().Single(row => row.Id == id);
                 var weapon = world.CreatureAppearanceEntries.AsNoTracking().Single(row => row.Id == id && row.SlotId == 13).ClassId;
                 var action = actions[creature.Action1];

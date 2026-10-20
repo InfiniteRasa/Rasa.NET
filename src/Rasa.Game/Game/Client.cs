@@ -81,9 +81,22 @@ namespace Rasa.Game
             {
                 if (value != ClientState.Ingame)
                     InvalidateMissionSession();
+
+                // A new screen starts a new wait: what was done before it does not count against it.
+                if (value != _state)
+                    LastActionTick = Environment.TickCount64;
+
                 _state = value;
             }
         }
+
+        /// <summary>
+        /// Environment.TickCount64 of the player's last call - anything but the client's own
+        /// keep-alives (ManifestationManager.IsAutomatic) - or of the last change of
+        /// <see cref="State"/>, whichever was later. A connection at login or character
+        /// selection that has done nothing for Server.CharacterSelectionTimeout is closed.
+        /// </summary>
+        internal long LastActionTick { get; set; } = Environment.TickCount64;
         private Manifestation _player = new();
         public Manifestation Player
         {
@@ -235,7 +248,7 @@ namespace Rasa.Game
         /// backlog passes MaxPendingBytes, is disconnected. The real client sends a handful of
         /// packets a tick - movement at most every one - so this is far above anything it does.
         /// </summary>
-        private const int MaxPacketsPerTick = 64;
+        internal const int MaxPacketsPerTick = 64;
 
 
         private static PacketRouter<ClientPacketHandler, GameOpcode> PacketRouter { get; } = new PacketRouter<ClientPacketHandler, GameOpcode>();
@@ -281,11 +294,28 @@ namespace Rasa.Game
             Logger.WriteLog(LogType.Network, "*** Client connected from {0}", Socket.RemoteAddress);
         }
 
+        /// <summary>Reads the client's input, then sends what is queued for it.</summary>
         public void Update(long delta)
         {
-            // Nothing in this method may throw: Update() is driven by the single MainLoop
-            // thread that services every client and every manager. An escaping exception
-            // takes the whole world down, not just this connection.
+            if (ReadInput(delta))
+                SendQueued();
+        }
+
+        /// <summary>
+        /// Handles what the client has sent since the last tick. False when that closed the
+        /// connection, and there is nothing to send it.
+        ///
+        /// The main loop reads every client's input before it sends anyone anything
+        /// (Server.ServiceClients). One pass that read a client and then sent its queue
+        /// sent it before the clients after it in the list had been read: whatever those did to
+        /// it - a move, a shot, a hit, a chat line - waited for the next tick, 100 ms, every
+        /// time, for every pair of players one way round.
+        /// </summary>
+        internal bool ReadInput(long delta)
+        {
+            // Nothing in this method may throw: it is driven by the single MainLoop thread that
+            // services every client and every manager. An escaping exception takes the whole
+            // world down, not just this connection.
             try
             {
                 DrainPendingChunks();
@@ -295,43 +325,50 @@ namespace Rasa.Game
                 {
                     Logger.WriteLog(LogType.Security, $"Client {Socket.RemoteAddress} has {_incomingDataQueue.Length} bytes of unread input (limit {MaxPendingBytes}), disconnecting.");
                     Close();
-                    return;
+                    return false;
                 }
 
-                var handled = 0;
+                var closed = false;
 
-                foreach (var protocolPacket in DecodeIncomingPackets())
+                ReadIncomingPackets(protocolPacket =>
                 {
-                    // Stopping the enumeration leaves everything after this packet in the stream.
-                    if (++handled > MaxPacketsPerTick)
-                        break;
-
                     try
                     {
                         HandleProtocolPacket(protocolPacket);
+                        return true;
                     }
                     catch (InvalidClientMessageException)
                     {
                         Close();
-                        return;
                     }
                     catch (Exception e)
                     {
                         Logger.WriteLog(LogType.Error, $"Error handling {protocolPacket.Type} from {Socket.RemoteAddress}, disconnecting client: {e}");
                         Close();
-                        return;
                     }
-                }
+
+                    closed = true;
+                    return false;
+                });
+
+                if (closed)
+                    return false;
             }
             catch (Exception e)
             {
-                // DecodeIncomingPackets() can throw while advancing the iterator (desynced
-                // or malformed stream), which the inner try above would never see.
+                // Decoding can throw (a desynced or malformed stream), which the handler's own
+                // try above never sees.
                 Logger.WriteLog(LogType.Error, $"Error decoding packet stream from {Socket.RemoteAddress}, disconnecting client: {e}");
                 Close();
-                return;
+                return false;
             }
 
+            return true;
+        }
+
+        /// <summary>Everything queued for the client, to its socket. Like ReadInput, it does not throw.</summary>
+        internal void SendQueued()
+        {
             try
             {
                 IBasePacket packet;
@@ -424,17 +461,23 @@ namespace Rasa.Game
 
         public void CallMethod(ulong entityId, PythonPacket packet)
         {
-            SendMessage(new CallMethodMessage(entityId, packet));
+            SendMessage(packet.MessageFor(entityId));
         }
 
         public void CallMethod(SysEntity entityId, PythonPacket packet)
         {
-            SendMessage(new CallMethodMessage((ulong)entityId, packet));
+            SendMessage(packet.MessageFor((ulong)entityId));
         }
 
         internal void MoveObject(ulong entityId, Movement movement)
         {
             SendMessage(new MoveObjectMessage(entityId, movement), false, 1);
+        }
+
+        /// <summary>A move that goes to several clients, on the movement channel.</summary>
+        internal void MoveObject(MoveObjectMessage move)
+        {
+            SendMessage(move, false, 1);
         }
 
         // Cell Domain
@@ -487,6 +530,10 @@ namespace Rasa.Game
 
         public void SendMessage(IClientMessage message, bool compress = false, byte channel = 0, bool delay = true)
         {
+            // Counted, so a message handed to more than one client is encoded once for them all.
+            if (message is IBroadcastMessage broadcast)
+                broadcast.AddRecipient();
+
             var protocolPacket = new ProtocolPacket(message, message.Type, compress, channel);
 
             if (!delay)
@@ -666,6 +713,9 @@ namespace Rasa.Game
                     // MethodId, not Packet.Opcode: an opcode with no handler leaves Packet null.
                     ManifestationManager.Instance.NotifyPlayerActivity(this, csmPacket.MethodId);
 
+                    if (!ManifestationManager.IsAutomatic(csmPacket.MethodId))
+                        LastActionTick = Environment.TickCount64;
+
                     PacketRouter.RoutePacket(_handler, csmPacket.Packet);
                     break;
 
@@ -760,6 +810,9 @@ namespace Rasa.Game
                 MissionInteractionPolicy.InvalidateIfUnavailable(this);
                 Player.Rotation = movement.ViewDirection.X;
                 Movement = movement;
+
+                // Gone from where they crouched: standing, before anyone sees them move.
+                ManifestationManager.Instance.StandIfMoved(this);
 
                 // On the move or not, for whoever shoots at them (ToHit): a Move that says so
                 // and has taken them somewhere.
@@ -1263,16 +1316,34 @@ namespace Rasa.Game
             _incomingDataQueue.Dispose();
         }
 
-        private IEnumerable<ProtocolPacket> DecodeIncomingPackets()
+        /// <summary>
+        /// Takes this tick's packets off the inbound stream and hands each to
+        /// <paramref name="handle"/>, at most MaxPacketsPerTick of them, until the stream holds
+        /// no complete frame or the handler returns false. What is left waits in the stream.
+        ///
+        /// The limit is checked before a frame is taken. It used to be checked after: the
+        /// 65th packet had been read out of the stream, and its sequence accepted, when the
+        /// loop stopped, so it was lost - not handled this tick and not there for the next.
+        /// A StopAutoFire lost that way left the server firing.
+        ///
+        /// A frame dropped as it is read (out of order, or the untyped send-timeout check) is
+        /// not counted and does not stop the loop: it used to come back as "no more data", and
+        /// everything behind it waited for the next tick.
+        /// </summary>
+        internal void ReadIncomingPackets(Func<ProtocolPacket, bool> handle)
         {
-            // A skipped packet (out of order, or the untyped send-timeout check) used to come
-            // back as null too, which read as "no more data" and ended the loop for the tick;
-            // everything queued behind it waited for the next one, 100 ms later, and a stream
-            // with a skipped packet in every tick fell further behind on each. Skips now
-            // continue and only an incomplete frame stops.
-            while (TryDecodeNextPacket(out var packet))
-                if (packet != null)
-                    yield return packet;
+            var handled = 0;
+
+            while (handled < MaxPacketsPerTick && TryDecodeNextPacket(out var packet))
+            {
+                if (packet == null)
+                    continue;
+
+                handled++;
+
+                if (!handle(packet))
+                    return;
+            }
         }
 
         /// <returns>
