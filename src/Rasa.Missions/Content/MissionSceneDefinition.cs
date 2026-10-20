@@ -47,6 +47,14 @@ namespace Rasa.Missions.Content
         public List<MissionItemBinding> Items { get; set; }
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public List<CharacterIntent> AcceptanceItems { get; set; }
+        /// <summary>
+        /// The item classes the character has to carry, in the personal inventory, to take the
+        /// mission: the offer's itemsRequired. The client lists them under "Item Requirements"
+        /// on the offer and greys Accept until it holds one of each
+        /// (_UpdateItemRequirements); the acceptance is refused without them. None are taken.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public List<uint> ItemsRequired { get; set; }
 
         public SceneBindings Bindings(string revision) => new(revision, Actors, Routes,
             Sequences.ToDictionary(entry => entry.Key, entry => new SceneSequence(
