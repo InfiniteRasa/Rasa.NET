@@ -14,6 +14,12 @@ namespace Rasa.Managers
 
     public class ItemManager
     {
+        /// <summary>
+        /// The colour every new item is made with - looted, granted, a GM's, bought (0x7F7F7F80).
+        /// A painted item has its own (Customization).
+        /// </summary>
+        public const uint DefaultItemColor = 2139062144;
+
         /*      Item Packets:
          *  - SetConsumable(self, isConsumable)
          *  - SetStackCount(self, count)
@@ -82,7 +88,7 @@ namespace Rasa.Managers
                 ItemTemplateId = itemTemplate.ItemTemplateId,
                 StackSize = stackSize,
                 Crafter = crafter,
-                Color = 2139062144,     // ToDo we will have to find color in game client files
+                Color = DefaultItemColor,
                 CurrentHitPoints = classInfo.ItemClassInfo.MaxHitPoints
             };
             //create item in db
@@ -106,7 +112,7 @@ namespace Rasa.Managers
             ItemTemplateId = template.ItemTemplateId,
             StackSize = stackSize,
             Crafter = crafter,
-            Color = 2139062144,
+            Color = DefaultItemColor,
             CurrentHitPoints = EntityClassManager.Instance
                 .GetClassInfo(template.Class).ItemClassInfo.MaxHitPoints
         };
@@ -132,11 +138,15 @@ namespace Rasa.Managers
             // One of each: SendItemDataToClient sends StackSize as the stack count, and left at
             // 0 every item on every vendor's counter drew "had SetStackCount called to 0 but its
             // not stackable" on the client, and a stackable one showed a stack of nothing.
+            //
+            // The colour every new item has: left at 0, the counter's items were (0, 0, 0, 0), which
+            // the client applies as it is, and DuplicateItem copied it onto every item bought.
             var item = new Item
             {
                 ItemTemplate = itemTemplate,
                 CurrentHitPoints = classInfo.ItemClassInfo.MaxHitPoints,
-                StackSize = 1
+                StackSize = 1,
+                Color = DefaultItemColor
             };
 
             // register item
@@ -151,8 +161,11 @@ namespace Rasa.Managers
             var vendorItem = EntityManager.Instance.GetItem(packet.ItemEntityId);
             var item = CreateFromTemplateId(vendorItem.ItemTemplate.ItemTemplateId, packet.Quantity, "");
 
+            // Its colour is the one it was made with, which its row has: the counter's was 0, and
+            // copying it left a bought piece drawn (0, 0, 0, 0) beside the same piece looted, and
+            // kept a bought stack from joining a looted one (InventoryPlan.MayJoin) while its row
+            // said otherwise.
             item.CurrentHitPoints = vendorItem.CurrentHitPoints;
-            item.Color = vendorItem.Color;
 
             SendItemDataToClient(client, item, false);
 
