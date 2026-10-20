@@ -42,7 +42,8 @@ namespace Rasa.Managers
     ///    leaves out an effect it has no icon for.
     ///  - P5, the delayed teleport: the spot is flagged (TACTICAL_EVASION_LOCATION_EFFECT 10000079
     ///    there) and TACTICAL_EVASION_TELEPORT_EFFECT 10000078, "Tactical Retreat", runs on the
-    ///    performer for EFFECT_DURATION_MS (60 s); when it runs out they are put back on the
+    ///    performer for EFFECT_DURATION_MS (60 s), both at level 1 where the client has their FX
+    ///    (<see cref="RetreatFxLevel"/>); when it runs out they are put back on the
     ///    flagged spot - "they flag a safe location for future teleportation, they can then
     ///    assault a target, and if timed well they will escape the engagement". Right-clicking
     ///    the effect off calls the retreat off, since a detach is not an expiry.
@@ -55,6 +56,13 @@ namespace Rasa.Managers
         private const int SmokeAuraTypeId = 10000077;           // TACTICAL_EVASION_SMOKE_SCREEN_AURA_EFFECT
         private const int TacticalRetreatTypeId = 10000078;     // TACTICAL_EVASION_TELEPORT_EFFECT
         private const int RetreatMarkTypeId = 10000079;         // TACTICAL_EVASION_LOCATION_EFFECT
+
+        /// <summary>
+        /// The level P5's two effects are sent at: their only specialFX rows are (10000078, 1) and
+        /// (10000079, 1), and the client looks the pair up exactly, so at the pump's level 5 neither
+        /// the retreat's FX nor the flag on the ground was drawn.
+        /// </summary>
+        private const uint RetreatFxLevel = 1;
 
         /// <summary>Sys_GameEffect_Proxy, the empty entity an effect is put on to hold it at a spot.</summary>
         private const EntityClasses SmokeClass = (EntityClasses)10000043;
@@ -120,6 +128,11 @@ namespace Rasa.Managers
             {
                 var retreat = NewEffect(mapChannel, player, info, TacticalRetreatTypeId, null);
 
+                // Level 1, where the client has its FX (gameeffectdata.specialFX), and announced:
+                // TacticalEvasionAction.DoAbility only announces the mag flash, so an effect left to
+                // the recovery never had its "Tactical Retreat" icon on the buff bar.
+                retreat.EffectLevel = RetreatFxLevel;
+                retreat.AnnounceOnAttach = true;
                 retreat.IsBuff = true;
                 retreat.AllowDetach = true;
                 retreat.ReturnTo = player.Position;
@@ -175,7 +188,7 @@ namespace Rasa.Managers
 
             var effectId = GameEffectManager.Instance.NextEffectId(mapChannel);
 
-            CellManager.Instance.CellCallMethod(mark, MarkerEffect(RetreatMarkTypeId, effectId, info, player));
+            CellManager.Instance.CellCallMethod(mark, MarkerEffect(RetreatMarkTypeId, effectId, info, player, RetreatFxLevel));
 
             lock (SmokeScreensLock)
                 SmokeScreens.Add(new SmokeScreen
@@ -225,13 +238,13 @@ namespace Rasa.Managers
                 });
         }
 
-        private static GameEffectAttachedPacket MarkerEffect(int typeId, int effectId, ActionLevelInfo info, Manifestation player)
+        private static GameEffectAttachedPacket MarkerEffect(int typeId, int effectId, ActionLevelInfo info, Manifestation player, uint? level = null)
         {
             return new GameEffectAttachedPacket
             {
                 EffectTypeId = typeId,
                 EffectId = effectId,
-                EffectLevel = Math.Max(1u, info.Level),
+                EffectLevel = level ?? Math.Max(1u, info.Level),
                 SourceId = player.EntityId,
                 Announced = true,
                 Duration = null,
