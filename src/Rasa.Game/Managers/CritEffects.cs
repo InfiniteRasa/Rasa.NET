@@ -20,11 +20,12 @@ namespace Rasa.Managers
     ///    nothing: every hit goes straight to its health (GameEffect.SuppressesArmor).
     ///  - Laser: CRIT_LIGHT 6, "Ranged Damage: %(dmgMod)s%%" - the creature's ranged attacks do
     ///    LaserRangedDamagePercent less for LaserMs.
-    ///  - Electric: CRIT_ELECTRIC 418, whose OnTick(target, arcTargets) draws its arcs from the
-    ///    creature to the ids it is given. Up to ElectricArcTargets other hostile creatures within
-    ///    ElectricArcRadius metres of it take ElectricArcPercent of the crit's damage as
+    ///  - Electric: CRIT_ELECTRIC 418. Up to ElectricArcTargets other hostile creatures within
+    ///    ElectricArcRadius metres of the creature take ElectricArcPercent of the crit's damage as
     ///    electrical, floated through the effect's AnnounceDamage - once the hit that set it off
-    ///    has been played, where the hit announces the effect (Arc).
+    ///    has been played, where the hit announces the effect (Arc). Each arc is drawn by
+    ///    VISUAL_ARC_EFFECT 127 on the creature it reaches, from the critted one: 418's own
+    ///    OnTick(target, arcTargets) only steps an FX package it has none of.
     ///  - Physical: CRIT_PHYSICAL 131's client class is an empty DamageEffect - no tooltip, no
     ///    icon, no behaviour - so a Physical crit is its extra damage and nothing more.
     ///
@@ -56,6 +57,16 @@ namespace Rasa.Managers
 
         /// <summary>How long the CRIT_ELECTRIC effect stays on for its arc FX to play out.</summary>
         private const int ElectricEffectMs = 1500;
+
+        /// <summary>
+        /// VISUAL_ARC_EFFECT: the client's VisualArcEffect, whose announce draws its FX
+        /// (specialFX (127, 1), CRIT_ARCH_EFFECT 1863, vfx_crit_arch_effect.pkg) from the
+        /// effect's source entity to its holder (client/gameeffects/visualeffects.py).
+        /// </summary>
+        public const int VisualArcTypeId = 127;
+
+        /// <summary>How long an arc stays drawn.</summary>
+        public const int ArcDrawnMs = ElectricEffectMs;
 
         /// <summary>An arc's damage: ElectricArcPercent of the crit's, at least 1.</summary>
         public static int ArcDamage(int critDamage) => Math.Max(1, critDamage * ElectricArcPercent / 100);
@@ -165,14 +176,14 @@ namespace Rasa.Managers
         /// <summary>
         /// Electric: arcs from the creature to the nearest ElectricArcTargets other hostiles
         /// within ElectricArcRadius, each taking ArcDamage(damage) as electrical damage (resisted,
-        /// not a crit, a kill for the player). The effect goes on, then one tick draws the arcs
-        /// from its FX and an AnnounceDamage floats the numbers.
+        /// not a crit, a kill for the player). The effect goes on, then its one tick draws the
+        /// arcs (DrawArcs) and an AnnounceDamage floats the numbers.
         ///
-        /// The FX is only there once the effect has been announced. Announced by its attach, the
-        /// arcs go at once. Named in the hit that set it off (HitEffects), it is announced when
-        /// the client plays that hit - up to the hit's strike time after it arrives - so the arcs,
-        /// and their damage, wait that long and <see cref="ArcMarginMs"/> more, as the effect's
-        /// tick; the effect stays on for ElectricEffectMs after them.
+        /// Announced by its attach, the arcs go at once. Named in the hit that set it off
+        /// (HitEffects), it is announced when the client plays that hit - up to the hit's strike
+        /// time after it arrives - so the arcs, and their damage, wait that long and
+        /// <see cref="ArcMarginMs"/> more, as the effect's tick, and land after the hit; the
+        /// effect stays on for ElectricEffectMs after them.
         /// </summary>
         public static void Arc(MapChannel mapChannel, Actor target, Actor source, int damage)
         {
@@ -211,7 +222,10 @@ namespace Rasa.Managers
 
         /// <summary>
         /// The arcs of an Electric crit on <paramref name="target"/>: chosen around it as they go,
-        /// drawn from the effect's FX by its tick, and floated by its AnnounceDamage.
+        /// drawn by an arc effect on each creature they reach (<see cref="DrawArc"/>), and floated
+        /// by the crit effect's AnnounceDamage. The crit effect's tick, naming those creatures, is
+        /// sent too: it is what the client's CritElectricEffect is made for, though it has no FX
+        /// of its own to draw with.
         /// </summary>
         private static void DrawArcs(MapChannel mapChannel, Actor target, GameEffect arc, int damage)
         {
@@ -238,6 +252,9 @@ namespace Rasa.Managers
             CellManager.Instance.CellCallMethod(mapChannel, target, draw);
 
             foreach (var other in arcTo)
+                DrawArc(mapChannel, target, other);
+
+            foreach (var other in arcTo)
             {
                 var amount = GameEffectManager.ApplyResist(other, perArc, out var resisted, DamageType.Electrical);
                 var taken = ActorManager.Instance.Damage(mapChannel, other, amount, player, out var outcome, DamageType.Electrical);
@@ -255,6 +272,34 @@ namespace Rasa.Managers
             }
 
             CellManager.Instance.CellCallMethod(mapChannel, target, announce);
+        }
+
+        /// <summary>
+        /// One arc, drawn from <paramref name="from"/> to <paramref name="to"/>: VISUAL_ARC_EFFECT
+        /// on the creature it reaches, its source the creature it leaves, announced as it goes on
+        /// and taken off after ArcDrawnMs.
+        ///
+        /// A drawing, not a debuff: nothing that turns a debuff away - a leashed creature going
+        /// home, Cure, an IMMUNE_ flag - has any business with it, and none of them floats
+        /// "Immune" over a creature the arc's damage reaches all the same. A latecomer is not
+        /// shown it: the arc is long gone by the time they would see it.
+        /// </summary>
+        private static void DrawArc(MapChannel mapChannel, Actor from, Actor to)
+        {
+            GameEffectManager.Instance.Attach(mapChannel, to, new GameEffect
+            {
+                TypeId = VisualArcTypeId,
+                EffectId = GameEffectManager.Instance.NextEffectId(mapChannel),
+                EffectLevel = 1,
+                SourceId = from.EntityId,
+                Source = from,
+                SourceLevel = 1,
+                IsBuff = true,
+                AnnounceOnAttach = true,
+                AnnounceWithHit = false,
+                AnnounceToNewcomers = false,
+                ExpiresTick = Environment.TickCount64 + ArcDrawnMs
+            });
         }
 
         /// <summary>Laser: the creature's ranged attacks do LaserRangedDamagePercent less for LaserMs.</summary>

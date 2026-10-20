@@ -271,8 +271,9 @@ namespace Rasa.Test.World
             CollectionAssert.AreEqual(new[] { (uint)CritEffects.CritElectricTypeId },
                 sent.OfType<WeaponAttackRecovery>().Single().Missile.Args.HitData.Single().TargetEffectIds);
 
-            // Its FX is not there until the hit is played: nothing is drawn, nobody else is hurt.
+            // Not until the hit is played: nothing is drawn, nobody else is hurt.
             Assert.IsEmpty(sent.OfType<GameEffectTickPacket>().ToArray());
+            Assert.IsFalse(sent.OfType<GameEffectAttachedPacket>().Any(packet => packet.EffectTypeId == CritEffects.VisualArcTypeId));
             Assert.IsEmpty(sent.OfType<GameEffectAnnounceDamagePacket>().ToArray());
             Assert.AreEqual(10000, bystander.Attributes[Attributes.Health].Current);
 
@@ -287,6 +288,8 @@ namespace Rasa.Test.World
             sent = Sent(shooter);
             Assert.AreEqual(bystander.EntityId, sent.OfType<GameEffectTickPacket>().Single().Entries.Single().EntityId);
             Assert.AreEqual(bystander.EntityId, sent.OfType<GameEffectAnnounceDamagePacket>().Single().Hits.Single().EntityId);
+            Assert.IsTrue(sent.OfType<GameEffectAttachedPacket>().Single(packet => packet.EffectTypeId == CritEffects.VisualArcTypeId).Announced,
+                "the arc drawn with them");
             Assert.IsLessThan(10000, bystander.Attributes[Attributes.Health].Current);
 
             GameEffectManager.Instance.DoWork(world.Map, 100);
@@ -305,8 +308,65 @@ namespace Rasa.Test.World
             CritEffects.Arc(world.Map, creature, shooter.Player, 100);
 
             sent = Sent(shooter);
-            Assert.IsTrue(sent.OfType<GameEffectAttachedPacket>().Single().Announced);
+            Assert.IsTrue(sent.OfType<GameEffectAttachedPacket>().Single(packet => packet.EffectTypeId == CritEffects.CritElectricTypeId).Announced);
             Assert.AreEqual(bystander.EntityId, sent.OfType<GameEffectTickPacket>().Single().Entries.Single().EntityId);
+            Assert.AreEqual(creature.EntityId, sent.OfType<GameEffectAttachedPacket>().Single(packet => packet.EffectTypeId == CritEffects.VisualArcTypeId).SourceId,
+                "and its arc drawn");
+        }
+
+        /// <summary>
+        /// Each arc is drawn by VISUAL_ARC_EFFECT on the creature it reaches, from the critted
+        /// creature: announced as it goes on, for nobody who comes later, gone once it has played.
+        /// </summary>
+        [TestMethod]
+        public void AnElectricCritsArcIsDrawnFromTheCrittedCreatureToTheOneItReaches()
+        {
+            using var world = new WorldTestContext();
+            var shooter = Watch(world, 0);
+            var creature = Spawn(world, new Vector3(0, 0, -5));
+            var bystander = Spawn(world, new Vector3(3, 0, -5));
+            var far = Spawn(world, new Vector3(0, 0, -25));
+
+            CritEffects.Arc(world.Map, creature, shooter.Player, 100);
+
+            var messages = WorldTestContext.Drain(shooter).Select(packet => packet.Message).OfType<CallMethodMessage>().ToList();
+            var drawn = messages.Where(message => message.Packet is GameEffectAttachedPacket attached && attached.EffectTypeId == CritEffects.VisualArcTypeId).ToList();
+
+            Assert.HasCount(1, drawn, "one arc, to the one creature in reach");
+            Assert.AreEqual(bystander.EntityId, drawn[0].EntityId, "on the creature it reaches");
+            var packet = (GameEffectAttachedPacket)drawn[0].Packet;
+            Assert.AreEqual(creature.EntityId, packet.SourceId, "from the critted one");
+            Assert.AreEqual(1u, packet.EffectLevel, "the level its FX is at");
+            Assert.IsTrue(packet.Announced, "announced as it goes on: its announce is the drawing");
+            Assert.IsFalse(messages.Any(message => message.Packet is GameEffectAttachFailedPacket), "nothing turns it away");
+
+            var arc = bystander.ActiveEffects.Values.Single(effect => effect.TypeId == CritEffects.VisualArcTypeId);
+            Assert.IsFalse(arc.AnnounceToNewcomers, "long gone for anyone who would meet it");
+            Assert.IsFalse(far.ActiveEffects.Values.Any(effect => effect.TypeId == CritEffects.VisualArcTypeId), "out of reach, not drawn to");
+            Assert.IsLessThan(10000, bystander.Attributes[Attributes.Health].Current, "and the arc's damage taken");
+
+            arc.ExpiresTick = Environment.TickCount64 - 1;
+            GameEffectManager.Instance.DoWork(world.Map, 100);
+
+            Assert.IsFalse(bystander.ActiveEffects.Values.Any(effect => effect.TypeId == CritEffects.VisualArcTypeId), "gone once it has played");
+        }
+
+        /// <summary>A creature that turns debuffs away (Cure P4's ward) is drawn to all the same, with no "Immune" over it.</summary>
+        [TestMethod]
+        public void AnArcIsDrawnToACreatureThatTurnsDebuffsAway()
+        {
+            using var world = new WorldTestContext();
+            var shooter = Watch(world, 0);
+            var creature = Spawn(world, new Vector3(0, 0, -5));
+            var bystander = Spawn(world, new Vector3(3, 0, -5));
+            var ward = new GameEffect { TypeId = 999, EffectId = GameEffectManager.Instance.NextEffectId(world.Map), BlocksDebuffs = true, ExpiresTick = long.MaxValue };
+            bystander.ActiveEffects[ward.EffectId] = ward;
+            Assert.IsTrue(GameEffectManager.DebuffsBlocked(bystander));
+
+            CritEffects.Arc(world.Map, creature, shooter.Player, 100);
+
+            Assert.IsTrue(bystander.ActiveEffects.Values.Any(effect => effect.TypeId == CritEffects.VisualArcTypeId));
+            Assert.IsFalse(Sent(shooter).OfType<GameEffectAttachFailedPacket>().Any());
         }
 
         [TestMethod]
