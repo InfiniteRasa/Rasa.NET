@@ -376,7 +376,8 @@ namespace Rasa.Managers
         /// creature or player the #entityId names, to everyone who can see it
         /// (ActorManager.CorrectState). States by the client's name (standing, sitting,
         /// lying_down, flailing, crouched, dead, stunned, combat_engaged ...) or id. What it looks
-        /// like, not what it is: see CorrectState. .speed sets the movement speed this used to.
+        /// like, not what it is: see CorrectState. A player's crouched or standing is left to their
+        /// own client, and the reply says so. .speed sets the movement speed this used to.
         /// </summary>
         private void ActorStateCommand(string[] parts)
         {
@@ -423,8 +424,16 @@ namespace Rasa.Managers
                 }
             }
 
-            ActorManager.CorrectState(_client.Player.MapChannel, actor, states);
-            CommunicatorManager.Instance.SystemMessage(_client, $"{actor.EntityId}: {string.Join(", ", states)}.");
+            var sent = ActorManager.CorrectState(_client.Player.MapChannel, actor, states);
+            var left = states.Where(state => !sent.Contains(state)).Distinct().ToList();
+
+            CommunicatorManager.Instance.SystemMessage(_client, sent.Count > 0
+                ? $"{actor.EntityId}: {string.Join(", ", sent)}."
+                : $"{actor.EntityId}: nothing sent.");
+
+            if (left.Count > 0)
+                CommunicatorManager.Instance.SystemMessage(_client,
+                    $"Left out: {string.Join(", ", left)} - a player crouches and stands from their own client; the server cannot change it there.");
         }
 
         /// <summary>

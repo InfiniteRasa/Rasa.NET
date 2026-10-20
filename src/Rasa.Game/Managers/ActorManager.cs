@@ -630,26 +630,47 @@ namespace Rasa.Managers
         /// IsCrouching - since that is all a correction on its own can mean to the rules. Alive
         /// or dead is the business of whoever brings an actor back or kills it, with its health;
         /// a DEAD or NORMAL sent through this changes how the actor looks, not what it is.
+        ///
+        /// A posture does not stay on a client from a StateCorrection alone: the client shows the
+        /// actor's desired posture (CharacterStateMgr.UpdatePostureState), and puts it back a
+        /// frame after the transition. So a creature's crouch or stand also goes out as the
+        /// desired posture (SetDesiredCrouchState), as NpcPoses sends it. A player's posture is
+        /// their own client's: nothing the server sends changes the desired posture there
+        /// (ManifestationManager.SetDesiredCrouchState), so a CROUCHED or STANDING for a player
+        /// is left out - neither IsCrouching nor anyone's copy of them would match their own
+        /// screen - and the states actually sent are returned.
         /// </summary>
-        public static void CorrectState(MapChannel mapChannel, Actor actor, IEnumerable<CharacterState> states)
+        public static List<CharacterState> CorrectState(MapChannel mapChannel, Actor actor, IEnumerable<CharacterState> states)
         {
-            if (mapChannel == null || actor == null)
-                return;
-
             var list = states?.Distinct().ToList() ?? new List<CharacterState>();
 
-            if (list.Count == 0)
-                return;
+            if (mapChannel == null || actor == null)
+                return new List<CharacterState>();
 
-            if (list.Contains(CharacterState.Crouched))
+            if (actor is Manifestation)
+                list.RemoveAll(state => state == CharacterState.Crouched || state == CharacterState.Standing);
+
+            if (list.Count == 0)
+                return list;
+
+            CharacterState? posture = list.Contains(CharacterState.Crouched) ? CharacterState.Crouched
+                : list.Contains(CharacterState.Standing) ? CharacterState.Standing
+                : null;
+
+            if (posture == CharacterState.Crouched)
             {
                 actor.IsCrouching = true;
                 actor.CrouchedAt = actor.Position;
             }
-            else if (list.Contains(CharacterState.Standing))
+            else if (posture == CharacterState.Standing)
                 actor.IsCrouching = false;
 
             CellManager.Instance.CellCallMethod(mapChannel, actor, new StateCorrectionPacket(list));
+
+            if (posture != null)
+                CellManager.Instance.CellCallMethod(mapChannel, actor, new SetDesiredCrouchStatePacket(posture.Value));
+
+            return list;
         }
 
         /// <summary>

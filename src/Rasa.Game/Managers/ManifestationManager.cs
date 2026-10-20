@@ -4528,6 +4528,21 @@ namespace Rasa.Managers
         /// Not the player's own client: Recv_SetDesiredCrouchState raises AssertionError for its own
         /// manifestation, and for any state that is not crouched or standing - so anything else is
         /// refused here rather than passed on.
+        ///
+        /// What the message carries is the client's desired posture (CharacterStateMgr
+        /// SetDesiredPosture), and it is taken as it comes, whatever state the server has the
+        /// player in. The client shows a posture from its control state: crouched or standing as
+        /// desired while normal, lying down while stunned or dead (__resultPosture). A crouch
+        /// sent dead, stunned or under a camera script - the server ahead of the client by a
+        /// packet, since the client blocks the crouch key in those states itself - is shown lying
+        /// down, or behind the cut, on every client, and crouched on every client once it is
+        /// over. The server used to refuse it and send the player's own client a
+        /// StateCorrection([STANDING]), which cannot stand that client up: the transition is
+        /// undone a frame later, when UpdateStateDrivenSystems puts the desired posture back, and
+        /// nothing the server can send sets it (Recv_SetDesiredCrouchState asserts on the own
+        /// manifestation, and Recv_ActorInfo only ever sets crouched). So the player stayed
+        /// crouched on their own screen, standing on everyone else's, and without the crouched
+        /// bead and target the server thought they did not have, until their next move.
         /// </summary>
         public void SetDesiredCrouchState(Client client, CharacterState state)
         {
@@ -4539,15 +4554,6 @@ namespace Rasa.Managers
             if (state != CharacterState.Crouched && state != CharacterState.Standing)
             {
                 Logger.WriteLog(LogType.Security, $"{player.FamilyName} sent SetDesiredCrouchState {(int)state}, which is not crouched or standing. Ignored.");
-                return;
-            }
-
-            // No crouching for someone dead, stunned or watching a camera script: their client has
-            // crouched already, so it is put back standing (StateCorrection), and nobody else hears.
-            if (state == CharacterState.Crouched && !MayCrouch(player))
-            {
-                player.IsCrouching = false;
-                client.CallMethod(player.EntityId, new StateCorrectionPacket(new List<CharacterState> { CharacterState.Standing }));
                 return;
             }
 
@@ -4580,10 +4586,13 @@ namespace Rasa.Managers
         /// it - a stand-up its state machine refused, a modified client - went on with the
         /// crouched bonuses everywhere it went: the ranged crit bonus, the bead's full ceiling and
         /// double rate (Accuracy), the shorter target with fewer sample points (Cover) and the
-        /// melee damage taken (CriticalHits). Now the server stands them as the client would have:
-        /// everyone else is told as by SetDesiredCrouchState, and their own client is put back
-        /// standing (StateCorrection), as when a crouch is refused. A turn on the spot is not a
-        /// move, and nor is a fall or a lift straight down: only the ground covered counts.
+        /// melee damage taken (CriticalHits). Now the server stands them as the client would have,
+        /// and everyone else is told as by SetDesiredCrouchState. Their own client is not sent
+        /// anything: nothing the server can send changes its desired posture (see
+        /// SetDesiredCrouchState), and a StateCorrection([STANDING]) is undone by it a frame
+        /// later. A client that stood itself up, which is every client that is not modified, has
+        /// already said so. A turn on the spot is not a move, and nor is a fall or a lift straight
+        /// down: only the ground covered counts.
         /// </summary>
         public void StandIfMoved(Client client)
         {
@@ -4600,17 +4609,9 @@ namespace Rasa.Managers
             player.IsCrouching = false;
             Accuracy.UpdateRates(player, AimRateOf(client), Environment.TickCount64);
 
-            client.CallMethod(player.EntityId, new StateCorrectionPacket(new List<CharacterState> { CharacterState.Standing }));
-
             if (player.MapChannel != null)
                 client.CellIgnoreSelfCallMethod(client, new SetDesiredCrouchStatePacket(CharacterState.Standing));
         }
-
-        /// <summary>Whether the player can crouch now: alive, not stunned, not watching a camera script.</summary>
-        public static bool MayCrouch(Manifestation player) =>
-            player != null && player.State != CharacterState.Dead && player.State != CharacterState.Dying
-            && (!player.Attributes.TryGetValue(Attributes.Health, out var health) || health.Current > 0)
-            && !Stuns.IsStunned(player) && !CameraScripts.IsWatching(player);
 
         public void SetTargetId(Client client, ulong entityId)
         {
