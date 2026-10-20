@@ -45,50 +45,29 @@ namespace Rasa.Managers
             _utcNow = clock; _beforeMissionPacketPublication = beforePublication;
             _canShare = canShare;
         }
-        /// <summary>Every published mission as it stands, objectives and all: for GM and internal callers.</summary>
+        // Internal/GM callers can inspect completed assignments, but the client mission journal
+        // must only receive missions that have not actually been turned in and rewarded.
+        // A completable Active mission (or a Success mission) still requires turn-in.
         public IReadOnlyDictionary<uint, MissionInfo> BuildStatusSnapshot(Manifestation player) =>
-            BuildStatusSnapshot(player, forClient: false);
+            BuildStatusSnapshot(player, includeCompleted: true);
 
-        /// <summary>
-        /// What the client's mission log is given (MissionStatusInfo, which REPLACES it): the
-        /// missions in hand, and each turned-in one as the client keeps it itself.
-        ///
-        /// When a mission is rewarded the client stores it as (MISSION_COMPLETED, not completeable,
-        /// no objectives) (missionlog.py Recv_MissionRewarded), and HasCompletedMission reads that
-        /// entry - a usable lock's mission requirement (usable.py CanUnlock, which useobject.py
-        /// checks before it sends the use at all) among others. Leaving turned-in missions out of
-        /// the snapshot meant a relog, or any refresh after a reward, emptied that knowledge, and
-        /// a lock opened by a completed mission would be refused by the client itself. They go in
-        /// the client's own shape: no objectives, so the radar and map (which draw the indicators
-        /// of every objective not completed or failed, whatever the mission's state) show nothing
-        /// for them. The journal, the tracker and its saved list keep only active and successful
-        /// missions (currentmissionswindow, missiontracker, gameui.FilterMissionTrackingData), so
-        /// none of them shows a turned-in mission.
-        /// </summary>
         private IReadOnlyDictionary<uint, MissionInfo> BuildClientStatusSnapshot(Manifestation player) =>
-            BuildStatusSnapshot(player, forClient: true);
+            BuildStatusSnapshot(player, includeCompleted: false);
 
-        private IReadOnlyDictionary<uint, MissionInfo> BuildStatusSnapshot(Manifestation player, bool forClient)
+        private IReadOnlyDictionary<uint, MissionInfo> BuildStatusSnapshot(Manifestation player, bool includeCompleted)
         {
             var snapshot = new Dictionary<uint, MissionInfo>();
             foreach (var entry in player.Missions)
             {
-                if (!_catalog.TryGetOperational(entry.Key, out var definition) ||
+                if ((!includeCompleted && entry.Value.State == MissionState.Completed) ||
+                    !_catalog.TryGetOperational(entry.Key, out var definition) ||
                     !MissionApplication.IsPublishedState(entry.Value.State))
                     continue;
 
-                var info = BuildPublishedMissionInfo(
+                snapshot.Add(entry.Key, BuildPublishedMissionInfo(
                     player,
                     definition,
-                    entry.Value);
-
-                if (forClient && entry.Value.State == MissionState.Completed)
-                {
-                    info.Completeable = false;
-                    info.ObjectivesList = new List<MissionObjective>();
-                }
-
-                snapshot.Add(entry.Key, info);
+                    entry.Value));
             }
 
             return snapshot;

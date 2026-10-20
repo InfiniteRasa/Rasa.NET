@@ -66,23 +66,23 @@ namespace Rasa.Test.Missions
         /// <summary>
         /// A status refresh carries every mission the client is shown, not only the one that
         /// changed: the client replaces its whole mission log with what MissionStatusInfo holds.
-        /// A turned-in mission is in it as the client keeps one itself: completed, with no
-        /// objectives, which the journal and tracker leave out.
+        /// Finalized, turned-in missions stay in server history and must not be sent to the client.
         /// </summary>
         private static void AssertWholeJournal(Client client, MissionStatusInfoPacket status)
         {
             var shown = client.Player.Missions
-                .Where(mission => MissionApplication.IsPublishedState(mission.Value.State))
+                .Where(mission => MissionApplication.IsPublishedState(mission.Value.State) &&
+                    mission.Value.State != MissionState.Completed)
                 .Select(mission => mission.Key).ToArray();
 
             CollectionAssert.Contains(shown, MissionCallingForReinforcements);
             CollectionAssert.AreEquivalent(shown, status.MissionStatusDict.Keys.ToArray());
 
-            // Capture the Flag was turned in before this scenario began: completed, nothing to draw.
+            // Capture the Flag was finalized before this scenario began. Its durable state
+            // remains on the player, but it must not reappear in the client mission journal.
             Assert.AreEqual(MissionState.Completed, client.Player.Missions[MissionCaptureTheFlag].State);
-            Assert.AreEqual(MissionState.Completed, status.MissionStatusDict[MissionCaptureTheFlag].MissionState);
-            Assert.IsFalse(status.MissionStatusDict[MissionCaptureTheFlag].Completeable);
-            Assert.IsEmpty(status.MissionStatusDict[MissionCaptureTheFlag].ObjectivesList);
+            Assert.IsFalse(status.MissionStatusDict.ContainsKey(MissionCaptureTheFlag),
+                "A finalized mission must not be included in MissionStatusInfo.");
         }
 
         [TestMethod]
