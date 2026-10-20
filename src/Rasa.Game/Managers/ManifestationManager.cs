@@ -2111,6 +2111,10 @@ namespace Rasa.Managers
             MissionArrival(client);
         }
 
+        /// <summary>The class of the item in the player's hand (EquippedInventory[13]), or 0 for an empty hand.</summary>
+        internal static uint HeldWeaponClassId(Manifestation player) =>
+            EntityManager.Instance.GetItem(player.Inventory.EquippedInventory[13]) is { } held ? (uint)held.ItemTemplate.Class : 0;
+
         /// <summary>
         /// The player has come onto a map and is in the world: the missions offered by radio
         /// to whoever arrives there (MissionApplication.OfferArrivalMissions), and the areas
@@ -2497,7 +2501,8 @@ namespace Rasa.Managers
                 // Item race requirements are checked against it (Item.CanActorUse, the tooltip).
                 new RaceIdPacket(player.Race),
                 new AttributeInfoPacket(player),
-                new PreloadDataPacket(client.Player.Inventory.EquippedInventory[13], player.Abilities),
+                // The weapon in hand by its class, which is what the client loads assets for.
+                new PreloadDataPacket(HeldWeaponClassId(player), player.Abilities),
                 new AppearanceDataPacket(player.AppearanceData, ofPlayer: true),
                 // With the appearance: a client that meets the player later has had no
                 // ShowHelmetChanged, and every actor starts with the helmet shown.
