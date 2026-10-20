@@ -1148,6 +1148,26 @@ namespace Rasa.Managers
         }
 
         /// <summary>
+        /// A player message across the middle of the screen as well as on a chat line: one of
+        /// those the client's bigtexttype table has a banner row for that the client does not
+        /// raise itself - CONTROL_POINT_CLAIMING (79) and CONTROL_POINT_OWNED (80), the open
+        /// world's points and a battleground's alike. (The mission and objective banners, the
+        /// counters and the wargame results the client raises on its own, from MissionGained,
+        /// ObjectiveCompleted, UpdateObjectiveCounter, WargameVictory and the rest.)
+        /// DisplayPlayerNotification(Big) is shown in the banner's colour, BigTextMission, which
+        /// is every such row's.
+        /// </summary>
+        public static void ShowBanner(Client client, PlayerMessage message, Dictionary<string, string> args = null)
+        {
+            if (client == null)
+                return;
+
+            args ??= new Dictionary<string, string>();
+            client.CallMethod(SysEntity.ClientMethodId, new DisplayPlayerNotificationPacket(PlayerNotificationType.Big, message, args));
+            client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(message, args, MsgFilterId.GeneralSystemMessages));
+        }
+
+        /// <summary>
         /// A player message put somewhere specific: Big across the middle of the screen,
         /// Destination on the sub-region strip.
         /// </summary>

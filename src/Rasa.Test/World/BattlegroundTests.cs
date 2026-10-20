@@ -1062,10 +1062,18 @@ namespace Rasa.Test.World
 
             Drain(red);
             f.Grounds.Claiming(red, point);
-            var claiming = Packets(red).OfType<DisplayClientMessagePacket>().Single();
+            var told = Packets(red);
+            var claiming = told.OfType<DisplayClientMessagePacket>().Single();
             Assert.AreEqual(PlayerMessage.PmControlpointClaiming, claiming.MsgId);
             Assert.AreEqual("Red Team", claiming.Args["faction"]);
             Assert.AreEqual("Whiskey", claiming.Args["cpName"]);
+
+            // Across the middle of the screen too, as the open world's points are (bigtexttype
+            // CONTROL_POINT_CLAIMING).
+            var banner = told.OfType<DisplayPlayerNotificationPacket>().Single();
+            Assert.AreEqual((PlayerNotificationType.Big, PlayerMessage.PmControlpointClaiming), (banner.NotificationType, banner.MsgId));
+            Assert.AreEqual("Red Team", banner.Args["faction"]);
+            Assert.AreEqual("Whiskey", banner.Args["cpName"]);
 
             // Begun again within ControlPoints.ClaimAnnounceGapMs: the match is not told again;
             // past it, it is.
@@ -1099,6 +1107,9 @@ namespace Rasa.Test.World
             Assert.AreEqual(0u, score.ControlPoints[10]);
             Assert.AreEqual(0u, score.ControlPoints[11]);
             CollectionAssert.IsSubsetOf(new[] { PlayerMessage.PmBattlegroundCpTaken, PlayerMessage.PmControlpointOwned }, Messages(packets));
+            var taken = packets.OfType<DisplayPlayerNotificationPacket>().Single(p => p.MsgId == PlayerMessage.PmControlpointOwned);
+            Assert.AreEqual(PlayerNotificationType.Big, taken.NotificationType, "bigtexttype CONTROL_POINT_OWNED");
+            Assert.AreEqual("Red Team", taken.Args["faction"]);
 
             var marker = packets.OfType<UpdateMapMarkerPacket>().First(p => p.MarkerEntityId == 9101);
             Assert.IsTrue(marker.State.TeamOwned);

@@ -1555,10 +1555,7 @@ namespace Rasa.Managers
 
             foreach (var client in mapChannel.ClientList.ToArray())
                 if (client?.Player != null && client.State == ClientState.Ingame)
-                {
-                    client.CallMethod(SysEntity.ClientMethodId, new DisplayPlayerNotificationPacket(PlayerNotificationType.Big, message, args));
-                    client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(message, args, MsgFilterId.GeneralSystemMessages));
-                }
+                    CommunicatorManager.ShowBanner(client, message, args);
         }
 
         public static string FactionName(byte owner) => owner == Afs ? "AFS" : "Bane";

@@ -1232,7 +1232,7 @@ namespace Rasa.Managers
             point.ClaimAnnouncedAt = at;
             point.ClaimAnnouncedFor = by;
 
-            Tell(match, PlayerMessage.PmControlpointClaiming, ("faction", TeamName(member.Team)), ("cpName", point.Name));
+            Banner(match, PlayerMessage.PmControlpointClaiming, ("faction", TeamName(member.Team)), ("cpName", point.Name));
         }
 
         /// <summary>
@@ -1278,7 +1278,7 @@ namespace Rasa.Managers
             if (team != 0)
             {
                 Tell(match, PlayerMessage.PmBattlegroundCpTaken);
-                Tell(match, PlayerMessage.PmControlpointOwned, ("faction", TeamName(team)), ("cpName", point.Name));
+                Banner(match, PlayerMessage.PmControlpointOwned, ("faction", TeamName(team)), ("cpName", point.Name));
             }
 
             SendGameScore(match);
@@ -2056,6 +2056,18 @@ namespace Rasa.Managers
 
             foreach (var client in Present(match))
                 CommunicatorManager.ShowPlayerMessage(client, message, dictionary);
+        }
+
+        /// <summary>
+        /// A point being claimed or taken: across the middle of the screen and on a chat line, as
+        /// the open world's points are announced (ControlPoints.Announce, CommunicatorManager.ShowBanner).
+        /// </summary>
+        private static void Banner(Match match, PlayerMessage message, params (string Key, string Value)[] args)
+        {
+            var dictionary = args.ToDictionary(a => a.Key, a => a.Value);
+
+            foreach (var client in Present(match))
+                CommunicatorManager.ShowBanner(client, message, dictionary);
         }
 
         private static void Say(Match match, string text)
