@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 
 namespace Rasa.Managers
@@ -18,7 +19,8 @@ namespace Rasa.Managers
     ///
     /// The client side (gameeffects/deatheffects.py, actions/critdeathfinish.py) runs on three
     /// effects, each at a level that is the damage type the creature was brought down with -
-    /// critdeathdata keys its animations by damage type:
+    /// critdeathdata keys its animations by damage type, and where the creature's skeleton has no
+    /// animations for that type, one it has (LevelFor, CritDeathAnimations):
     ///
     ///  - CRIT_PREDEATH_EFFECT 116, announced on attach: the creature goes to its dying state and
     ///    stagger animation, stops being targetable, and shows the skull to whoever the effect's
@@ -104,6 +106,34 @@ namespace Rasa.Managers
             return DeathAnimationMs.ContainsKey((int)damageType) ? (uint)damageType : (uint)DamageType.Physical;
         }
 
+        /// <summary>
+        /// The effect level for a damage type on this creature: the type itself where its skeleton
+        /// has Critical Death animations for it (CritDeathAnimations), or else Physical where it has
+        /// those, or else the first type it has. The client plays nothing for a type the skeleton
+        /// has no animations for - an EMP finish on a Thrax or a Virulent one on a Machina left it
+        /// standing idle. A skeleton with none at all, or a mesh the client's table does not know,
+        /// keeps <see cref="LevelFor(DamageType)"/>.
+        /// </summary>
+        public static uint LevelFor(DamageType damageType, Creature creature)
+        {
+            var level = LevelFor(damageType);
+            var types = MeshOf(creature) is int mesh ? CritDeathAnimations.For(mesh) : null;
+
+            if (types == null || types.Count == 0 || types.Contains((DamageType)level))
+                return level;
+
+            return types.Contains(DamageType.Physical) ? (uint)DamageType.Physical : (uint)types[0];
+        }
+
+        private static int? MeshOf(Creature creature)
+        {
+            var classes = EntityClassManager.Instance?.LoadedEntityClasses;
+
+            return creature != null && classes != null && classes.TryGetValue(creature.EntityClass, out var entityClass) && entityClass != null
+                ? entityClass.MeshId
+                : null;
+        }
+
         public static int DeathAnimationFor(uint level) => DeathAnimationMs.TryGetValue((int)level, out var ms) ? ms : 3000;
 
         /// <summary>Alive, and at or below the threshold.</summary>
@@ -179,7 +209,7 @@ namespace Rasa.Managers
             {
                 TypeId = PreDeathTypeId,
                 EffectId = GameEffectManager.Instance.NextEffectId(mapChannel),
-                EffectLevel = LevelFor(damageType),
+                EffectLevel = LevelFor(damageType, creature),
                 SourceId = player.EntityId,
                 Source = player,
                 SourceLevel = player.Level,
