@@ -300,6 +300,7 @@ namespace Rasa.Managers
             // Admin: hands out progression, changes who a player is, reloads server data.
             // A restart does not undo these.
             RegisterCommand(".addtitle", GmLevel.Admin, AddTitleCommand, "titleId");
+            RegisterCommand(".memory", GmLevel.Admin, MemoryCommand, "map|full");
             RegisterCommand(".chg_class", GmLevel.Admin, ChangeClassCommand, "className");
             RegisterCommand(".flag", GmLevel.Admin, FlagCommand, "action", "nameOrId");
             RegisterCommand(".givecredits", GmLevel.Admin, GiveCreditsCommand, "amount", "familyName");
@@ -5745,6 +5746,35 @@ namespace Rasa.Managers
                 }
             }
             return;
+        }
+
+        /// <summary>
+        /// .memory [map|full]: what the server holds. "map" (the default) is the totals and the map
+        /// you're on; "full" is the totals and the largest maps here, with every map in the console.
+        /// There's no text mail to send it by, so it goes to chat and the console.
+        /// </summary>
+        private void MemoryCommand(string[] parts)
+        {
+            var mode = parts.Length > 1 ? parts[1].ToLowerInvariant() : "map";
+
+            if (mode != "map" && mode != "full")
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "Usage: .memory [map|full]");
+                return;
+            }
+
+            // The console gets the report in full; chat gets a few short lines.
+            var full = mode == "full";
+            var report = full ? MemoryReport.Lines() : MemoryReport.ForMap(_client.Player.MapContextId);
+
+            foreach (var line in report.Where(line => line.Length > 0))
+                Logger.WriteLog(LogType.Command, $"[.memory] {line}");
+
+            var chat = MemoryReport.Chat(_client.Player.MapContextId, full ? 5 : 0);
+            chat.Add(full ? "Every map: server console" : "More: .memory full");
+            CommunicatorManager.Instance.SystemMessage(_client, string.Join("\n", chat));
+
+            Logger.WriteLog(LogType.Command, $"[.memory] run by {_client.Player.FamilyName} ({mode})");
         }
 
         private void WhereCommand(string[] parts)
