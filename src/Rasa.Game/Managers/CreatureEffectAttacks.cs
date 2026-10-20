@@ -351,7 +351,9 @@ namespace Rasa.Managers
             {
                 TypeId = typeId,
                 EffectId = mapChannel != null ? GameEffectManager.Instance.NextEffectId(mapChannel) : 0,
-                EffectLevel = info.Level,
+                // The ability row's level, as far as the client has visuals for it: a Hunter
+                // Lieutenant's level 3 net is drawn at 1.
+                EffectLevel = GameEffectFx.LevelFor(typeId, info.Level),
                 ActionId = info.ActionId,
                 SourceId = attacker.EntityId,
                 Source = attacker,

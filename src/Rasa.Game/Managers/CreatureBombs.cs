@@ -612,7 +612,7 @@ namespace Rasa.Managers
             {
                 TypeId = typeId,
                 EffectId = GameEffectManager.Instance.NextEffectId(mapChannel),
-                EffectLevel = typeId == HowlerDeathTypeId ? HowlerDeathFxLevel : info.Level,
+                EffectLevel = typeId == HowlerDeathTypeId ? HowlerDeathFxLevel : GameEffectFx.LevelFor(typeId, info.Level),
                 ActionId = info.ActionId,
                 SourceId = source.EntityId,
                 Source = source,

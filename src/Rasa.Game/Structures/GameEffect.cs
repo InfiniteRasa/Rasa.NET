@@ -9,7 +9,9 @@ namespace Rasa.Structures
     /// A buff, debuff or looping gesture on an actor. TypeId is the client's gameeffectdata id
     /// (which picks the client-side effect class and its visuals), EffectId identifies this
     /// instance to the client the way an entity id identifies an entity, and EffectLevel is the
-    /// pump level it was applied at. Timing is in Environment.TickCount64 so it does not depend
+    /// level the client is told, which picks its FX, icon and tooltip: the pump level it was
+    /// applied at, or for an effect the client draws at fewer levels than it has pumps, the
+    /// level it is drawn at (Data.GameEffectFx.LevelFor). Timing is in Environment.TickCount64 so it does not depend
     /// on how often the effect worker happens to run.
     ///
     /// What an effect does is the sum of the fields below that are set. While it is on, the

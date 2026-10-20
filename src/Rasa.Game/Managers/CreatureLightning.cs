@@ -145,7 +145,7 @@ namespace Rasa.Managers
             {
                 TypeId = AbilityManager.LightningStormTypeId,
                 EffectId = GameEffectManager.Instance.NextEffectId(mapChannel),
-                EffectLevel = info.Level,
+                EffectLevel = GameEffectFx.LevelFor(AbilityManager.LightningStormTypeId, info.Level),
                 ActionId = info.ActionId,
                 SourceId = attacker.EntityId,
                 Source = attacker,

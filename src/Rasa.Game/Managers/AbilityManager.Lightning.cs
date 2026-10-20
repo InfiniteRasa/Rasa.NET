@@ -107,6 +107,8 @@ namespace Rasa.Managers
             var intervalMs = Math.Max(500, info.Get(AbilityProperty.EffectIntervalMs, 2000));
             var storm = NewEffect(mapChannel, player, info, LightningStormTypeId, null);
 
+            // The storm cloud is the client's at level 1 alone, whatever the pump.
+            storm.EffectLevel = GameEffectFx.LevelFor(LightningStormTypeId, info.Level);
             storm.IsBuff = false;
             storm.AnnounceOnAttach = true;
             storm.ExpiresTick = Environment.TickCount64 + info.Get(AbilityProperty.EffectDurationMs);
