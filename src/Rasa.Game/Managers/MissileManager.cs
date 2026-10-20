@@ -1269,10 +1269,12 @@ namespace Rasa.Managers
             // nearby allies harder to hit" - and a creature ability's is made now, for the Chaff alone.
             // A shot that goes wide is a plain miss (misstype 1); what it would have done around
             // its target still happens, as a deflected one's does.
+            // A creature with the animations sidesteps it, when it can, and the miss is a dodge (CreatureDodges).
             if ((targetType == EntityType.Character || targetType == EntityType.Creature) && (missile.Missed ?? ToHit.Misses(missile)))
             {
                 missile.Args.MisstEntities.Add(missile.TargetEntityId);
-                missile.Args.Missdata.Add(MissTypeMiss);
+                missile.Args.Missdata.Add(targetType == EntityType.Creature && missile.TargetActor is Creature dodger
+                    && CreatureDodges.TryDodge(mapChannel, dodger) ? MissTypeDodge : MissTypeMiss);
 
                 SplashAround(mapChannel, missile);
                 ConeHits(mapChannel, missile);
