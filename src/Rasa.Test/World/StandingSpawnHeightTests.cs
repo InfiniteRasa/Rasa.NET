@@ -143,8 +143,8 @@ namespace Rasa.Test.World
             Assert.AreEqual(200, StandingHeights.WorldDown.Length);
 
             // Moved since by a later migration: Corporal DeSimone (Place_bootcamp_base_npcs), the
-            // Alia Das NPCs moved or taken away by Alia_das_npcs, and the Wilderness ones moved or
-            // taken away by Wilderness_post_npcs.
+            // Alia Das NPCs moved or taken away by Alia_das_npcs, the Wilderness ones moved or
+            // taken away by Wilderness_post_npcs, and the two on tent roofs (Tent_floor_npcs).
             void AssertCorrected(bool expected, params uint[] movedSince)
             {
                 harness.World.ChangeTracker.Clear();
@@ -169,6 +169,7 @@ namespace Rasa.Test.World
             // The migrated world.
             AssertCorrected(true, AliaDasNpcs.Moves.Select(move => move.Pool).Concat(AliaDasNpcs.Removed.Select(removed => removed.Id))
                 .Concat(WildernessPostNpcs.Moves.Select(move => move.Pool)).Concat(WildernessPostNpcs.Removed.Select(removed => removed.Id))
+                .Concat(TentFloors.Pools)
                 .Append(Rasa.Services.Preloader.BootcampBaseNpcs.DeSimonePoolId).ToArray());
 
             // The vendor of Torcastra Prison was 5.69 m over the floor of the hall; Private
