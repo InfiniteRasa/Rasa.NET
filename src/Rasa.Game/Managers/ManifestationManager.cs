@@ -2742,6 +2742,7 @@ namespace Rasa.Managers
             {
                 PartyManager.Instance.MemberInfoChanged(client);
                 SocialManager.Instance.FriendStatusUpdate(client);
+                ClanManager.Instance.MemberChanged(client);
                 InventoryManager.WagerLevelChanged(client, grant.PreviousLevel);
                 MissionGiversAfterLevel(client);
                 CommunicatorManager.Instance.NewPlayerChannel(client);
@@ -2898,6 +2899,7 @@ namespace Rasa.Managers
             {
                 PartyManager.Instance.MemberInfoChanged(client);
                 SocialManager.Instance.FriendStatusUpdate(client);
+                ClanManager.Instance.MemberChanged(client);
                 InventoryManager.WagerLevelChanged(client, levelBefore);
                 MissionGiversAfterLevel(client);
                 CommunicatorManager.Instance.NewPlayerChannel(client);
@@ -4187,6 +4189,9 @@ namespace Rasa.Managers
             // manifestation. A squadmate on another map is not in visibility range at all, so
             // without this they never learn the member went away.
             PartyManager.Instance.MemberInfoChanged(client);
+
+            // Nor does the clan roster, which has its own line for them.
+            ClanManager.Instance.MemberChanged(client);
         }
 
         /// <summary>
