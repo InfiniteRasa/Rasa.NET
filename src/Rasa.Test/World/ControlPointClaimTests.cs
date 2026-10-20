@@ -10,6 +10,7 @@ namespace Rasa.Test.World
     using Rasa.Game;
     using Rasa.Managers;
     using Rasa.Packets;
+    using Rasa.Packets.ClientMethod.Server;
     using Rasa.Packets.Communicator.Server;
     using Rasa.Packets.Game.Server;
     using Rasa.Packets.MapChannel.Client;
@@ -68,6 +69,9 @@ namespace Rasa.Test.World
                 Assert.AreEqual(PerformType.TwoArgs, own.OfType<PerformWindupPacket>().Single().PerformType, "their client plays its own");
                 Assert.AreEqual(0, own.OfType<UsePacket>().Count(), "no transition from the state to itself");
                 Assert.AreEqual(PlayerMessage.PmControlpointClaiming, own.OfType<DisplayClientMessagePacket>().Single().MsgId);
+                var banner = own.OfType<DisplayPlayerNotificationPacket>().Single();
+                Assert.AreEqual((PlayerNotificationType.Big, PlayerMessage.PmControlpointClaiming), (banner.NotificationType, banner.MsgId),
+                    "across the middle of the screen too, as bigtexttype CONTROL_POINT_CLAIMING has it");
 
                 var seen = Drain(f.Onlooker);
                 Assert.AreEqual(f.Claimant.Player.EntityId, seen.OfType<LockToActorPacket>().Single().ActorId);

@@ -8,6 +8,7 @@ namespace Rasa.Managers
     using Config;
     using Data;
     using Game;
+    using Packets.ClientMethod.Server;
     using Packets.Communicator.Server;
     using Packets.MapChannel.Server;
     using Repositories.UnitOfWork;
@@ -1539,7 +1540,12 @@ namespace Rasa.Managers
         private static bool Stands(SpawnPool pool) =>
             !pool.HasSpawned || pool.AliveCreatures + pool.QueuedCreatures + pool.DropshipQueue > 0;
 
-        /// <summary>"%(faction)s claiming / took Control Point %(cpName)s", to everyone on the map: the faction is "AFS", "Bane" or a clan's name.</summary>
+        /// <summary>
+        /// "%(faction)s claiming / took Control Point %(cpName)s", to everyone on the map: the
+        /// faction is "AFS", "Bane" or a clan's name. Across the middle of the screen, as the
+        /// client's bigtexttype rows CONTROL_POINT_CLAIMING (79) and CONTROL_POINT_OWNED (80) have
+        /// these two messages, and as a chat line, which is kept.
+        /// </summary>
         private static void Announce(MapChannel mapChannel, PlayerMessage message, Point point, string faction)
         {
             if (mapChannel?.ClientList == null)
@@ -1549,7 +1555,10 @@ namespace Rasa.Managers
 
             foreach (var client in mapChannel.ClientList.ToArray())
                 if (client?.Player != null && client.State == ClientState.Ingame)
+                {
+                    client.CallMethod(SysEntity.ClientMethodId, new DisplayPlayerNotificationPacket(PlayerNotificationType.Big, message, args));
                     client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(message, args, MsgFilterId.GeneralSystemMessages));
+                }
         }
 
         public static string FactionName(byte owner) => owner == Afs ? "AFS" : "Bane";

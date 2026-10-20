@@ -11,6 +11,7 @@ namespace Rasa.Test.World
     using Rasa.Game;
     using Rasa.Managers;
     using Rasa.Packets;
+    using Rasa.Packets.ClientMethod.Server;
     using Rasa.Packets.Communicator.Server;
     using Rasa.Packets.MapChannel.Server;
     using Rasa.Services.Preloader;
@@ -219,6 +220,9 @@ namespace Rasa.Test.World
             var owned = packets.OfType<DisplayClientMessagePacket>().Single(m => m.MsgId == PlayerMessage.PmControlpointOwned);
             Assert.AreEqual("AFS", owned.Args["faction"]);
             Assert.AreEqual("Retread Outpost", owned.Args["cpName"]);
+            var banner = packets.OfType<DisplayPlayerNotificationPacket>().Single(m => m.MsgId == PlayerMessage.PmControlpointOwned);
+            Assert.AreEqual(PlayerNotificationType.Big, banner.NotificationType, "across the middle of the screen, as bigtexttype CONTROL_POINT_OWNED has it");
+            CollectionAssert.AreEquivalent(owned.Args, banner.Args);
 
             var marker = packets.OfType<UpdateMapMarkerPacket>().Single(m => m.MarkerEntityId == MarkerId);
             CollectionAssert.AreEqual(new byte[] { 0x82, 0x16, 0x01 }, Encode(marker.State), "(FACTION_OWNED, True)");
