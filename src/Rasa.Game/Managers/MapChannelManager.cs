@@ -490,6 +490,9 @@ namespace Rasa.Managers
                     // The usable objects the server put down: back when due, bombs going off, random explosions.
                     Guard("PlacedUsables.Worker", mapChannel, () => PlacedUsables.Worker(mapChannel));
 
+                    // A Bane base's cameras looking, and the alarm's reinforcements.
+                    Guard("BaneAlarms.Worker", mapChannel, () => BaneAlarms.Worker(mapChannel));
+
                     // The lootable containers the server put down: openings due to reset closed again.
                     Guard("WorldContainers.Worker", mapChannel, () => WorldContainers.Worker(mapChannel));
 

@@ -13,6 +13,7 @@ namespace Rasa.Managers
     using Repositories.UnitOfWork;
     using Structures;
     using Structures.World;
+    using global::Rasa.Missions.Runtime;
 
     /// <summary>
     /// Destructible world objects the server puts on maps: rows of world_destructible, put down on
@@ -329,6 +330,11 @@ namespace Rasa.Managers
 
         /// <summary>The clock; a test's to replace.</summary>
         internal static Func<long> Now { get; set; } = () => Environment.TickCount64;
+
+        /// <summary>The missions a destruction is recorded with; a test's to replace. Null records none.</summary>
+        internal static Func<MissionApplication> MissionsOf { get; set; } = () => MissionApplication.Instance;
+
+        private static MissionApplication Missions => MissionsOf?.Invoke();
 
         /// <summary>The wait before one comes back, from the least to the most inclusive; a test's to replace.</summary>
         internal static Func<long, long, long> Roll { get; set; } = (min, max) => Random.Shared.NextInt64(min, max + 1);
@@ -817,7 +823,7 @@ namespace Rasa.Managers
 
             live.Stage = Stage.Idle;
             live.NextAt = 0;
-            live.RespawnAt = Now() + Math.Clamp(Roll(RespawnMinMs, RespawnMaxMs), RespawnMinMs, RespawnMaxMs);
+            live.RespawnAt = RespawnAtFor(map, Now());
 
             if (live.Placement.Kind == Kind.DestroyedSpawner)
                 Release(live, by as Manifestation);
@@ -826,7 +832,31 @@ namespace Rasa.Managers
             if (!live.Placement.IsPutDown)
                 CavesOfDonn.Destroyed(map, live.Placement.Id);
 
+            // A Bane base's databank: its alarm (BaneAlarms).
+            BaneAlarms.Destroyed(map, live, by);
+
+            // A mission's count of what the player destroys - "Destroy 8 warnet nests" - shared
+            // with their squad as a kill is (GroupCreditService).
+            if (by is Manifestation destroyer && GameEffectManager.ClientOf(map, destroyer) is { } client)
+                Missions?.Credit.RecordKill(client,
+                    new[] { MissionProgressEvent.ObjectDestroyed((uint)obj.EntityClassId) }, obj.Position);
+
             return 0;
+        }
+
+        /// <summary>
+        /// When something destroyed now is back: RespawnMinMs to RespawnMaxMs on, on an ordinary
+        /// map. In a squad's instance, the instance's own respawn (SquadInstanceState): what has
+        /// been destroyed stays destroyed as long as what has been killed stays killed, and for
+        /// good, until the instance is closed, where that respawn is off - a camera shot out or a
+        /// nest smashed on the way in is not back a minute later, as it was.
+        /// </summary>
+        public static long RespawnAtFor(MapChannel map, long now)
+        {
+            if (map?.SquadState is { } squad)
+                return squad.RespawnMs > 0 ? now + squad.RespawnMs : long.MaxValue;
+
+            return now + Math.Clamp(Roll(RespawnMinMs, RespawnMaxMs), RespawnMinMs, RespawnMaxMs);
         }
 
         /// <summary>Takes it down at once, as if shot down by <paramref name="by"/> (.destructible kill). False if it is down already.</summary>
@@ -871,7 +901,7 @@ namespace Rasa.Managers
                 {
                     // A force field ForceFields took down: when it is due back.
                     if (live.RespawnAt == 0)
-                        live.RespawnAt = now + Math.Clamp(Roll(RespawnMinMs, RespawnMaxMs), RespawnMinMs, RespawnMaxMs);
+                        live.RespawnAt = RespawnAtFor(map, now);
                     else if (now >= live.RespawnAt)
                         Respawn(live);
 

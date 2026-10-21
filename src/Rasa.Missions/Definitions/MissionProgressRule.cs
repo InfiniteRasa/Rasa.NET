@@ -228,7 +228,8 @@ namespace Rasa.Structures
         public static bool IsKill(MissionProgressEventKind kind) =>
             kind == MissionProgressEventKind.CreatureKilled ||
             kind == MissionProgressEventKind.CreatureFlagKilled ||
-            kind == MissionProgressEventKind.CreatureClassKilled;
+            kind == MissionProgressEventKind.CreatureClassKilled ||
+            kind == MissionProgressEventKind.ObjectDestroyed;
 
         public static MissionProgressRule IncrementItemCounterOnExactSubject(
             MissionProgressEventKind kind,

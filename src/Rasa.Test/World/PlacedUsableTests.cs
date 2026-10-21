@@ -335,6 +335,64 @@ namespace Rasa.Test.World
             Assert.AreEqual(UseObjectState.BombStateDisarmed, bomb.StateId);
         }
 
+        /// <summary>
+        /// A charge set beside a door that players cannot use blows it open (PlacedUsables.BlowOpen):
+        /// the charge takes its item to arm, the blast opens every door within reach, a door with no
+        /// reset stays open, and a door out of reach, or already open, is left alone.
+        /// </summary>
+        [TestMethod]
+        public void AChargeThatTakesADetonatorBlowsTheDoorBesideItOpen()
+        {
+            AddFixtureClasses();
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var map = harness.Map;
+            var client = harness.Client;
+            var at = client.Player.Position;
+            var charge = Row(1, Bomb, at.X + 1.5f, at.Z, map: map.MapInfo.MapContextId, usable: true, itemClass: (uint)CartridgeClass, count: 1, damageMin: 1, damageMax: 1);
+            var door = Row(2, Door, at.X + 4f, at.Z, map: map.MapInfo.MapContextId, usable: false);
+            var farDoor = Row(3, Door, at.X + 12f, at.Z, map: map.MapInfo.MapContextId, usable: false);
+            var shutAgain = Row(4, Door, at.X + 1.5f, at.Z + 3f, map: map.MapInfo.MapContextId, usable: false, reset: 20);
+            foreach (var row in new[] { charge, door, farDoor, shutAgain }) row.PosY = at.Y;
+
+            using var placed = Put(map, charge, door, farDoor, shutAgain);
+            var bomb = ObjectOf(map, 1);
+            var held = InventoryManager.Instance.CountItemsByClass(client, CartridgeClass);
+
+            if (held > 0)
+                InventoryManager.Instance.RemoveItemsByClass(client, CartridgeClass, held);
+
+            // The door is no use to a player, and the charge wants its detonator.
+            harness.Drain();
+            UseAndRecover(map, client, ObjectOf(map, 2));
+            Assert.AreEqual(PlayerMessage.PmUseObjectNotUsable, harness.Drain().OfType<UserActionFailedPacket>().Single().MsgId);
+            UseAndRecover(map, client, bomb);
+            Assert.AreEqual(PlayerMessage.PmMissingReqItem, harness.Drain().OfType<UserActionFailedPacket>().Single().MsgId);
+            Assert.AreEqual(UseObjectState.BombStateDisarmed, bomb.StateId);
+
+            Assert.IsNotNull(InventoryManager.Instance.GrantItemToInventory(client, ItemManager.Instance.CreateFromTemplateId(Cartridges, 3)));
+            UseAndRecover(map, client, bomb);
+            Assert.AreEqual(UseObjectState.BombStateArmed, bomb.StateId);
+            Assert.AreEqual(2u, InventoryManager.Instance.CountItemsByClass(client, CartridgeClass), "one detonator spent");
+
+            client.Player.Position = at + new Vector3(0, 0, 30);
+            _now += 5_000;
+            PlacedUsables.Worker(map);
+
+            Assert.AreEqual(UseObjectState.BombStateDetonated, bomb.StateId);
+            Assert.AreEqual(UseObjectState.DoorStateOpen, ObjectOf(map, 2).StateId, "2.5 m away: blown open");
+            Assert.AreEqual(UseObjectState.DoorStateOpen, ObjectOf(map, 4).StateId, "3 m away: blown open");
+            Assert.AreEqual(UseObjectState.DoorStateClosed, ObjectOf(map, 3).StateId, "10.5 m away: out of the charge's reach");
+
+            // The door with a reset shuts again after it; the other stays open, through the charge's own reset.
+            _now += 20_000;
+            PlacedUsables.Worker(map);
+            Assert.AreEqual(UseObjectState.DoorStateClosed, ObjectOf(map, 4).StateId);
+            _now += 30_000;
+            PlacedUsables.Worker(map);
+            Assert.AreEqual(UseObjectState.BombStateDisarmed, bomb.StateId);
+            Assert.AreEqual(UseObjectState.DoorStateOpen, ObjectOf(map, 2).StateId);
+        }
+
         [TestMethod]
         public void ARandomExplosionGoesOffWithinItsIntervalsAndItsEffectIsPutBack()
         {

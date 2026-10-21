@@ -82,6 +82,10 @@ namespace Rasa.Structures
                 actionId,
                 detailId: targetCreatureId);
 
+        /// <summary>A placed destructible of this entity class was destroyed.</summary>
+        public static MissionProgressEvent ObjectDestroyed(uint entityClassId) =>
+            new(MissionProgressEventKind.ObjectDestroyed, entityClassId);
+
         public static MissionProgressEvent ObjectHit(uint entityClassId, uint actionId) =>
             new(MissionProgressEventKind.ObjectHit, entityClassId, detailId: actionId);
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 
 namespace Rasa.Managers
@@ -48,6 +49,12 @@ namespace Rasa.Managers
             public int Queued;
             public long ElapsedMs;
             public bool Spawned;
+
+            /// <summary>What comes through, when it is not the pool's own list: an alarm's wave (BaneAlarms).</summary>
+            public List<Creature> Creatures;
+
+            /// <summary>Told the creatures once they are through.</summary>
+            public Action<List<Creature>> Arrived;
         }
 
         private static readonly List<Teleport> Teleports = new List<Teleport>();
@@ -74,6 +81,23 @@ namespace Rasa.Managers
             Teleports.Add(new Teleport { MapChannel = mapChannel, Pool = pool, Arrival = arrival, Queued = creatureCount });
         }
 
+        /// <summary>
+        /// As above, with the creatures given rather than drawn from the pool - an alarm's wave
+        /// (BaneAlarms) - and <paramref name="arrived"/> told them once they are through.
+        /// </summary>
+        public static void BeginTeleport(MapChannel mapChannel, SpawnPool pool, SpawnPoolArrivalEntry arrival, List<Creature> creatures, Action<List<Creature>> arrived = null)
+        {
+            SpawnPoolManager.Instance.IncreaseQueueCount(pool);
+            SpawnPoolManager.Instance.IncreaseQueuedCreatureCount(pool, creatures.Count);
+
+            CellManager.Instance.CellCallMethod(mapChannel, arrival.Position, arrival.EntityId, new ForceStatePacket(UseObjectState.TsState1, 0));
+
+            Teleports.Add(new Teleport { MapChannel = mapChannel, Pool = pool, Arrival = arrival, Queued = creatures.Count, Creatures = creatures, Arrived = arrived });
+        }
+
+        /// <summary>How many teleports are on their way on a map channel.</summary>
+        public static int Pending(MapChannel mapChannel) => Teleports.Count(t => t.MapChannel == mapChannel);
+
         /// <summary>Runs this map's teleporters: the creatures through, then the teleporter off.</summary>
         public static void TeleportWorker(MapChannel mapChannel, long timePassed)
         {
@@ -90,10 +114,11 @@ namespace Rasa.Managers
                 {
                     teleport.Spawned = true;
 
-                    var creatures = SpawnPoolManager.Instance.CreateListOfCreatures(teleport.Pool);
+                    var creatures = teleport.Creatures ?? SpawnPoolManager.Instance.CreateListOfCreatures(teleport.Pool);
 
-                    SpawnPoolManager.Instance.SpawnCreatures(teleport.Pool, creatures, teleport.Arrival);
+                    var spawned = SpawnPoolManager.Instance.SpawnCreatures(teleport.Pool, creatures, teleport.Arrival);
                     SpawnPoolManager.Instance.DecreaseQueuedCreatureCount(teleport.Pool, teleport.Queued);
+                    teleport.Arrived?.Invoke(spawned);
                 }
 
                 if (teleport.ElapsedMs < TeleportHoldMs)

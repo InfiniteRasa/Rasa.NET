@@ -585,10 +585,12 @@ namespace Rasa.Managers
         }
 
         /// <param name="arrival">Where they arrive, when they come by an arrival point: they step out there and walk to the pool's ground.</param>
-        internal void SpawnCreatures(SpawnPool spawnPool, List<Creature> creatureList, SpawnPoolArrivalEntry arrival = null)
+        /// <summary>Returns the creatures made, in the world.</summary>
+        internal List<Creature> SpawnCreatures(SpawnPool spawnPool, List<Creature> creatureList, SpawnPoolArrivalEntry arrival = null)
         {
             var mapChannel = spawnPool.RuntimeMapChannel ??
                 MapChannelManager.Instance.FindByContextId(spawnPool.MapContextId);
+            var spawned = new List<Creature>();
 
             foreach (var spawnSlot in creatureList)
             {
@@ -636,6 +638,7 @@ namespace Rasa.Managers
                     }
 
                     MissionApplication.Instance.Scenes.ActorAvailable(mapChannel, spawnPool.DbId);
+                    spawned.Add(creature);
                 }
                 catch
                 {
@@ -643,6 +646,8 @@ namespace Rasa.Managers
                     throw;
                 }
             }
+
+            return spawned;
         }
 
         private void RollBackSpawn(MapChannel mapChannel, Creature creature)
