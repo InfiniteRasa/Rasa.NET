@@ -3941,6 +3941,9 @@ namespace Rasa.Managers
                     if (creature.Patrol != null)
                         msg += $"Patrol = {Patrols.Describe(creature)}\n";
 
+                    if (PatrolGroups.Describe(creature.RuntimeMapChannel ?? MapChannelManager.Instance.FindByContextId(creature.MapContextId), creature) is string group)
+                        msg += $"Patrol group = {group}\n";
+
                     if (Battlecries.VoiceOf(creature) is var voice && voice != 0)
                         msg += $"Battlecry = package {voice}\n";
 

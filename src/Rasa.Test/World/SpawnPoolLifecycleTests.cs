@@ -176,6 +176,80 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void InAPoolWithAPatrolTheFirstSlotLeadsOnThePoolsPointAndTheRestFallInBehindIt()
+        {
+            using var world = new WorldTestContext();
+            using var runtime = new SpawnRuntime(world.Map, new SpawnData());
+            var kaelClass = unchecked((Data.EntityClasses)(-2));
+            world.AddClass(kaelClass);
+            EntityClassManager.Instance.LoadedEntityClasses[kaelClass].Augmentations.Add(Data.AugmentationType.Creature);
+
+            runtime.Creatures.LoadedCreatures[3] = new Creature { DbId = 3, EntityClass = kaelClass, WalkSpeed = 1, AppearanceData = new() };
+            runtime.Creatures.LoadedCreatures[4] = new Creature { DbId = 4, EntityClass = kaelClass, WalkSpeed = 1, AppearanceData = new() };
+
+            var beat = new[] { new PatrolStep(new Vector3(10, 0, 10)), new PatrolStep(new Vector3(14, 0, 10)) };
+            var pool = CreatePool();
+            pool.UpdateTimer = pool.RespawnTime;
+            pool.Position = new Vector3(10, 0, 10);
+            pool.Rotation = 1.5;
+            pool.Patrol = beat;
+            pool.SpawnSlot.Add(new SpawnPoolSlot(3, 1, 1));
+            pool.SpawnSlot.Add(new SpawnPoolSlot(4, 2, 2));
+            var manager = new SpawnPoolManager(null);
+            manager.LoadedSpawnPools.Add(pool.DbId, pool);
+
+            manager.SpawnPoolWorker(world.Map, 0);
+
+            var spawned = EntityManager.Instance.Creatures.Values.Where(creature => creature.SpawnPool?.DbId == pool.DbId).ToList();
+            var leader = spawned.Single(creature => creature.DbId == 3);
+            var guards = spawned.Where(creature => creature.DbId == 4).ToList();
+
+            Assert.HasCount(2, guards);
+            Assert.AreSame(beat, leader.Patrol);
+            Assert.AreEqual(new Vector3(10, 0, 10), leader.Position, "The leader starts its beat on the pool's point.");
+            Assert.AreEqual(1.5f, leader.LastYaw);
+            Assert.AreSame(leader, leader.SpawnPool.Leader);
+            Assert.IsTrue(PatrolGroups.IsGroup(leader.SpawnPool));
+
+            foreach (var guard in guards)
+            {
+                Assert.IsNull(guard.Patrol, "One walks the beat; the rest follow it.");
+                Assert.IsTrue(PatrolGroups.Follows(guard));
+                Assert.AreEqual(BehaviorManager.BehaviorActionFollow, guard.Controller.CurrentAction);
+                Assert.AreEqual(leader.EntityId, guard.Controller.ActionFollow.FollowTargetId);
+                Assert.AreEqual(0UL, guard.MasterEntityId, "No one's minion.");
+                Assert.AreNotEqual(leader.Position, guard.Position);
+            }
+
+            CollectionAssert.AreEquivalent(new[] { 0, 1 }, guards.Select(guard => guard.Controller.ActionFollow.FormationSlot).ToArray());
+        }
+
+        [TestMethod]
+        public void LoaderGivesNoPatrolToAPoolWhoseLeaderIsNotOneCreature()
+        {
+            var data = new SpawnData();
+            // 60: a leader and two guards. 61: two of the first slot. 62: drawn at random. 63: the leader's creature in a later slot too.
+            data.Pools.Add(new SpawnPoolEntry { Id = 60, MapContextId = 1220, Creature1Id = 3, Creature1MinCount = 1, Creature1MaxCount = 1, Creature2Id = 4, Creature2MinCount = 2, Creature2MaxCount = 4 });
+            data.Pools.Add(new SpawnPoolEntry { Id = 61, MapContextId = 1220, Creature1Id = 3, Creature1MinCount = 1, Creature1MaxCount = 2 });
+            data.Pools.Add(new SpawnPoolEntry { Id = 62, MapContextId = 1220, Creature1Id = 3, Creature1MinCount = 1, Creature1MaxCount = 1, Creature2Id = 4, Creature2MinCount = 1, Creature2MaxCount = 1 });
+            data.Pools.Add(new SpawnPoolEntry { Id = 63, MapContextId = 1220, Creature1Id = 3, Creature1MinCount = 1, Creature1MaxCount = 1, Creature2Id = 3, Creature2MinCount = 1, Creature2MaxCount = 1 });
+            data.Draws.Add(new SpawnPoolDrawEntry { Id = 62, Count = 1 });
+
+            foreach (var poolId in new uint[] { 60, 61, 62, 63 })
+                data.Patrols.Add(new SpawnPoolPatrolEntry { PoolId = poolId, Step = 0, PosX = 5, PosY = 1, PosZ = 3 });
+
+            var manager = new SpawnPoolManager(data);
+
+            manager.SpawnPoolInit();
+
+            Assert.IsNotNull(manager.LoadedSpawnPools[60].Patrol);
+            Assert.IsTrue(PatrolGroups.IsGroup(manager.LoadedSpawnPools[60]));
+            Assert.IsNull(manager.LoadedSpawnPools[61].Patrol);
+            Assert.IsNull(manager.LoadedSpawnPools[62].Patrol);
+            Assert.IsNull(manager.LoadedSpawnPools[63].Patrol);
+        }
+
+        [TestMethod]
         [DataRow(Data.NpcPose.WeaponOut)]
         [DataRow(Data.NpcPose.Sitting)]
         public void ACreatureOfAPosedPoolIsMadeInItsPoseFacingThePoolsWay(Data.NpcPose pose)

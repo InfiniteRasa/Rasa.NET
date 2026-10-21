@@ -120,8 +120,11 @@ namespace Rasa.Structures
         internal bool CatchUpRunning { get; set; }
         internal Creature OwnerAttackTarget { get; set; }
 
-        /// <summary>A mission escort's place round its owner, from the owner (BehaviorManager.EscortPlace); null until it takes one.</summary>
+        /// <summary>A mission escort's place round its owner (BehaviorManager.EscortPlace), or a patrol group follower's round its leader (Managers.PatrolGroups), from them; null until it takes one.</summary>
         internal Vector3? PlaceOffset { get; set; }
+
+        /// <summary>A patrol group follower's place in the formation round its leader (Managers.PatrolGroups); -1 when it has none.</summary>
+        internal int FormationSlot { get; set; } = -1;
     }
 
     /// <summary>
