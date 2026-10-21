@@ -95,6 +95,30 @@ namespace Rasa.Managers
         /// <summary>While the leader walks, a follower's place is put on the navmesh again at least this often.</summary>
         public const long ReplaceMs = 500;
 
+        /// <summary>A follower further above or below its place than this does not step straight onto it: it would float up or down a bank. Up a step, not a ledge.</summary>
+        public const float DirectClimb = 2f;
+
+        /// <summary>
+        /// Whether the follower may step straight onto its place: level enough with it
+        /// (<see cref="DirectClimb"/>), and a straight walk there over the navmesh meets no wall,
+        /// fence or drop. The walk is looked at once each time the place is put on the navmesh
+        /// (<see cref="PlaceFor"/>), not each think. With no navmesh, any ground is walkable.
+        /// </summary>
+        public static bool StraightTo(MapChannel map, Creature follower, Vector3 place)
+        {
+            if (MathF.Abs(follower.Position.Y - place.Y) > DirectClimb)
+                return false;
+
+            var follow = follower.Controller.ActionFollow;
+
+            if (map?.NavMesh == null)
+                return true;
+
+            follow.StraightClear ??= map.NavMesh.IsWalkClear(follower.Position, place);
+
+            return follow.StraightClear.Value;
+        }
+
         /// <summary>
         /// Whether the pool has a leader of its own: the creature of its first slot. Not a pool
         /// with an acting leader and an empty first slot (spawnpool_patrol_group), which one of
@@ -385,6 +409,7 @@ namespace Rasa.Managers
             follow.PlacedLeaderYaw = yaw;
             follow.PlacedOnMesh = placed;
             follow.PlacedMs = 0;
+            follow.StraightClear = null;
 
             return place;
         }
