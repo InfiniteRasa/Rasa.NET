@@ -3246,6 +3246,10 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnType("INTEGER")
                         .HasColumnName("acting_leader");
 
+                    b.Property<bool>("LeaderTopUp")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("leader_top_up");
+
                     b.HasKey("Id");
 
                     b.ToTable("spawnpool_patrol_group");

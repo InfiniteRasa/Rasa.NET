@@ -253,6 +253,7 @@ namespace Rasa.Managers
                 }
 
                 pool.ActingLeader = row.ActingLeader;
+                pool.LeaderTopUp = row.LeaderTopUp;
             }
 
             // The beat a pool's creature walks (spawnpool_patrol; Patrols).
@@ -340,6 +341,8 @@ namespace Rasa.Managers
                         && !(spawnPool.Mode == ModeScripted && spawnPool.Woken)
                     || spawnPool.AnimType < 0 || spawnPool.AnimType > 2)
                     continue;
+
+                CountLeaderDown(mapChannel, spawnPool, timePassed);
 
                 if (spawnPool.QueuedCreatures > 0 || spawnPool.DropshipQueue > 0)
                     continue; // on its way
@@ -458,8 +461,31 @@ namespace Rasa.Managers
 
             var missing = Missing(spawnPool.Complement, standing, shortBy, CreatureManager.Instance.LoadedCreatures);
 
+            // A group's own leader without its top-up waits out its respawn time from its own
+            // death; the pool looks again when that is up, not every tick until then.
+            if (!spawnPool.LeaderTopUp && spawnPool.LeaderDownMs < spawnPool.RespawnTime
+                && PatrolGroups.IsGroup(spawnPool) && PatrolGroups.HasLeaderSlot(spawnPool)
+                && missing.RemoveAll(creature => creature.DbId == spawnPool.SpawnSlot[0].CreatureId) > 0)
+                spawnPool.UpdateTimer = spawnPool.LeaderDownMs;
+
             if (missing.Count > 0)
                 Dispatch(mapChannel, spawnPool, missing);
+        }
+
+        /// <summary>
+        /// For a group whose own leader does not come back by the top-up (LeaderTopUp): how long
+        /// its leader has been down - dead, gone, or acted for - counted every tick it is not
+        /// standing, and back to 0 once it is.
+        /// </summary>
+        private static void CountLeaderDown(MapChannel mapChannel, SpawnPool spawnPool, long timePassed)
+        {
+            if (spawnPool.LeaderTopUp || spawnPool.Patrol == null || !PatrolGroups.HasLeaderSlot(spawnPool))
+                return;
+
+            if (PatrolGroups.StandingLeader(mapChannel, spawnPool) is Creature leader && PatrolGroups.Leads(spawnPool, leader))
+                spawnPool.LeaderDownMs = 0;
+            else if (spawnPool.LeaderDownMs < spawnPool.RespawnTime)
+                spawnPool.LeaderDownMs += Math.Min(Math.Max(0, timePassed), spawnPool.RespawnTime - spawnPool.LeaderDownMs);
         }
 
         /// <summary>
@@ -1182,6 +1208,7 @@ namespace Rasa.Managers
                 Patrol = template.Patrol,
                 ActingLeader = template.ActingLeader,
                 FirstSlotEmpty = template.FirstSlotEmpty,
+                LeaderTopUp = template.LeaderTopUp,
                 DrawCount = template.DrawCount,
                 SpawnSlot = template.SpawnSlot?.Select(slot =>
                     new SpawnPoolSlot(slot.CreatureId, slot.CountMin, slot.CountMax)).ToList() ?? new List<SpawnPoolSlot>(),
