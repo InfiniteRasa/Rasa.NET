@@ -465,6 +465,9 @@ namespace Rasa.Managers
                     // The Caves of Donn's story, in each copy of them.
                     Guard("CavesOfDonn.Worker", mapChannel, () => CavesOfDonn.Worker(mapChannel));
 
+                    // The Devil's Den's teleporters, bombs, door, howitzers, Fransisco and counted machinery, in each copy of it.
+                    Guard("DevilsDen.Worker", mapChannel, () => DevilsDen.Worker(mapChannel));
+
                     // Maws come up at whoever comes near, and the ones gone back down are taken off.
                     Guard("MawLurk.Worker", mapChannel, () => MawLurk.Worker(mapChannel));
 

@@ -51,7 +51,7 @@ namespace Rasa.Test.World
 
                 using var world = (WorldContext)PersistenceIntegrationTests.CreateContext(typeof(SqliteWorldContext), database);
 
-                AssertEveryFithikBites(world);
+                AssertEveryFithikBites(world, 16);
 
                 var rows = world.CreatureActionEntries.AsNoTracking().ToDictionary(row => row.Id);
                 foreach (var bite in FithikBites.Bites)
@@ -66,7 +66,7 @@ namespace Rasa.Test.World
                     world.Database.ExecuteSqlRaw(statement);
 
                 Assert.AreEqual(FithikBites.Bites.Length, world.CreatureActionEntries.AsNoTracking().Count(row => row.Id >= FithikBites.IdMin && row.Id <= FithikBites.IdMax));
-                AssertEveryFithikBites(world);
+                AssertEveryFithikBites(world, 16);
 
                 var migrator = world.GetService<IMigrator>();
                 migrator.Migrate(Previous);
@@ -79,7 +79,7 @@ namespace Rasa.Test.World
 
                 migrator.Migrate(Migration);
 
-                AssertEveryFithikBites(world);
+                AssertEveryFithikBites(world, 9);
             }
             finally
             {
@@ -185,14 +185,18 @@ namespace Rasa.Test.World
             return bitFrom;
         }
 
-        private static void AssertEveryFithikBites(WorldContext world)
+        /// <summary>
+        /// Every Fithik row bites, and there are <paramref name="count"/> of them: nine, and with
+        /// the later migrations the Caves of Donn's one and the Devil's Den's six (DevilsDenContent).
+        /// </summary>
+        private static void AssertEveryFithikBites(WorldContext world, int count)
         {
             var actions = world.CreatureActionEntries.AsNoTracking().ToDictionary(row => row.Id);
 
             var fithiks = world.CreatureEntries.AsNoTracking().ToList()
                 .Where(row => FithikClasses.Contains(row.ClassId)).ToList();
 
-            Assert.HasCount(9, fithiks, "the Fithiks the world has");
+            Assert.HasCount(count, fithiks, "the Fithiks the world has");
 
             foreach (var creature in fithiks)
             {

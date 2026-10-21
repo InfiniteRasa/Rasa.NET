@@ -560,7 +560,7 @@ namespace Rasa.Test.World
                 using (var context = (WorldContext)PersistenceIntegrationTests.CreateContext(typeof(SqliteWorldContext), database))
                 {
                     MigratedDatabaseTemplates.Migrate(context, () => context.Database.Migrate());
-                    Assert.IsTrue(new WorldUsableRepository(context).Get().All(Seeded), "only the Arieki vents' eruptions, the Lightning Fields' strikes, the Wilderness terminals and fire pits and the Omega Missile are seeded");
+                    Assert.IsTrue(new WorldUsableRepository(context).Get().All(Seeded), "only the Arieki vents' eruptions, the Lightning Fields' strikes, the Wilderness terminals and fire pits, the Omega Missile and the Devil's Den's objects are seeded");
                     Assert.IsFalse(context.Database.HasPendingModelChanges());
                 }
 
@@ -620,12 +620,13 @@ namespace Rasa.Test.World
 
         private static bool Vent(WorldUsableEntry row) => row.Id is >= AriekiVentEruptions.FirstId and <= AriekiVentEruptions.LastId;
 
-        /// <summary>A row a migration seeds: an Arieki vent's eruption, or a Wilderness terminal of Wilderness_post_npcs.</summary>
+        /// <summary>A row a migration seeds: an Arieki vent's eruption, a Wilderness terminal of Wilderness_post_npcs, or a Devil's Den object of Devils_den.</summary>
         private static bool Seeded(WorldUsableEntry row) => Vent(row) ||
             row.Id is >= LightningFieldsStrikes.FirstId and <= LightningFieldsStrikes.LastId ||
             row.Id >= WildernessPostNpcs.FirstUsable && row.Id < WildernessPostNpcs.FirstUsable + WildernessPostNpcs.Usables.Length ||
             row.Id >= TwinPillarsNpcs.FirstUsable && row.Id < TwinPillarsNpcs.FirstUsable + TwinPillarsNpcs.Usables.Length ||
-            row.Id == OmegaLabsMissile.Id;
+            row.Id == OmegaLabsMissile.Id ||
+            DevilsDenContent.Usables.Any(usable => usable.Id == row.Id);
 
         private static void Run(WorldContext context, MigrationBuilder builder)
         {

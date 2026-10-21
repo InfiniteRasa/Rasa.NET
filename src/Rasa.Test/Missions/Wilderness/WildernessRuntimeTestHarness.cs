@@ -52,7 +52,8 @@ namespace Rasa.Test.Missions.Wilderness
         private static readonly Dictionary<uint, (string Name, uint Version, Vector3 Start)> OtherMaps = new()
         {
             [1865] = ("adv_arieki_torden_incline_ojasaattahive", 222, new Vector3(553.7f, 88.6f, 146.5f)),
-            [1506] = ("adv_foreas_concordia_wilderness_cavesofdonn02", 535, new Vector3(-275.6f, 24.08f, -360f))
+            [1506] = ("adv_foreas_concordia_wilderness_cavesofdonn02", 535, new Vector3(-275.6f, 24.08f, -360f)),
+            [1394] = ("adv_foreas_concordia_palisades_devilsden", 327, new Vector3(16.7733f, 122.6238f, -398.1859f))
         };
 
         private uint _mapContextId = 1220;
