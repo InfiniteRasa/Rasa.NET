@@ -5,7 +5,7 @@ Generated 2026-10-18, extended 2026-10-20 (Wayback round 2: official site + patc
 | Source | Label in entries | Missions |
 | --- | --- | ---: |
 | Client tables (title, log summary, objectives) | **Client** | 1168 |
-| This server, `data/rasaworld.db` enabled `mission_content_definition` rows | **Local server** | 110 |
+| This server, `data/rasaworld.db` enabled `mission_content_definition` rows | **Local server** | 113 |
 | [TaRapedia (Fandom)](https://tabularasa.fandom.com/wiki/Category:Missions) | **TaRapedia** | 941 |
 | [Ellatha / DaOpa mission DB](https://www.ellatha.com/tr/missionslist.asp) | **Ellatha** | 93 |
 | [tabularasawiki.org (Wayback 2007-08)](https://web.archive.org/web/20080511080212/http://www.tabularasawiki.org/action/view/Main_Page) | **TRWiki archive** | 7 |
@@ -37,9 +37,11 @@ Generated 2026-10-18, extended 2026-10-20 (Wayback round 2: official site + patc
 | [TR MMO DB (tr.mmodb.com, Wayback)](https://web.archive.org/web/2008/http://tr.mmodb.com/quests/) quest pages (level / start NPC / zone / mobs / objectives) + bestiary | **TR MMO DB** | 317 |
 | Web search by research agents (mostly TaRapedia patch notes, NPC lists, alternate titles) | **Web** | 88 |
 
-**Implemented** (enabled on the local server, `data/rasaworld.db`; marked `[implemented]` in the entry heading): 110 missions. Per zone: Wilderness 64, Plateau 28, Bootcamp 5, Abyss 1, Ashen Desert 1, Crucible 1, Descent 1, Divide 1, Howling Maw 1, Incline 1, Marshes 1, Mires 1, Palisades 1, Plains 1, Pools 1, Thunderhead 1. Search for `[implemented]` to find them; entries without the mark are not implemented yet.
+**Implemented** (enabled on the local server, `data/rasaworld.db`; marked `[implemented]` in the entry heading): 113 missions. Per zone: Wilderness 64, Plateau 31, Bootcamp 5, Abyss 1, Ashen Desert 1, Crucible 1, Descent 1, Divide 1, Howling Maw 1, Incline 1, Marshes 1, Mires 1, Palisades 1, Plains 1, Pools 1, Thunderhead 1. Search for `[implemented]` to find them; entries without the mark are not implemented yet.
 
-**Needs playtest** (implemented, not yet played through in the game client; marked `[needs playtest]`, list in `tools/mission-crossref/NOTES-playtest.md`): 25 missions.
+**Missing mechanic** (cannot be built or completed as in the original game until the server has the mechanic; marked `[missing mechanic]`, list in `tools/mission-crossref/NOTES-missing-mechanics.md`): 34 missions.
+
+**Needs playtest** (implemented, not yet played through in the game client; marked `[needs playtest]`, list in `tools/mission-crossref/NOTES-playtest.md`): 28 missions.
 
 
 **Instance** (the mission takes place in a client instance map, a "mission context" in gamecontext.pyo; marked `[instance]` in the entry heading): from an objective NPC package that spawns in an instance (local DB), a TaRapedia NPC page in an instance, or client objective text placing it there. "Instance mentioned" lines only name an instance (ESTIMATE). Refresh with instance_export.py.
@@ -559,8 +561,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **RGTR official site** [rgtr.com:80/news/patch_notes/bugfix_patch_notes_1018.html](https://web.archive.org/web/20071021093415/http://rgtr.com:80/news/patch_notes/bugfix_patch_notes_1018.html): “on not dropping Communicators off of Shield Drones / Completing counter for Neobot kills will now complete the kill count objective for Abyss mission “Twisted Metal.” / Treelurker ability changed from virulent to Sonic damage”
 - **RGTR official site** [www.rgtr.com/news/patch_notes_public_test/deployment_104_7172008.html](https://web.archive.org/web/20081117082053/http://www.rgtr.com/news/patch_notes_public_test/deployment_104_7172008.html): “anged logout timer from 30 to 10 seconds. Mission: Climbing the Corporate Ladder briefing no longer references the wrong NPC for completion. Mission: Twisted Metal: players now receive credit for both Neobot Wardens and Neobot Reconstructors. Mission: Missing Merchandise: Player flags now removed on when abandoning or failing a mission. Fixed an issue in the CELLAR Arena that allowed players to jump into the arena. Fixed an issue in the PvP …”
 
-### 1457 — Creature Strike
+### 1457 — Creature Strike [missing mechanic]
 
+- **Missing mechanic:** radio offer after turn-in - Headquarters calls after Consensus — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Instance mentioned:** Magma Caverns — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
 - **Rebuild summary:**
   - level ESTIMATE from zone: the Abyss zone level range is 44-46 — source: [Ellatha map: Abyss](https://www.ellatha.com/tr/mapsview.asp?key=Torden+Abyss) (a zone range, not this mission's own level)
@@ -578,8 +581,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Chain** (explicit prerequisite links): Big Meanies chain (7 missions), step 2
   - Requires: Consensus (id 1942) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Creature_Strike)
 - **Requires an instance mission:** Consensus (1942) — source: the chain links above
-### 1474 — Lava Beast [instance]
+### 1474 — Lava Beast [missing mechanic] [instance]
 
+- **Missing mechanic:** radio offer after turn-in - Headquarters calls after Consensus — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Instance:** Magma Caverns — client objective/log text: "Search for the lava beast called "Ember" located somewhere in the center of Magma Caverns. Some of the Magmonix in …"
 - **Rebuild summary:**
   - level ESTIMATE from zone: the Abyss zone level range is 44-46 — source: [Ellatha map: Abyss](https://www.ellatha.com/tr/mapsview.asp?key=Torden+Abyss) (a zone range, not this mission's own level)
@@ -1257,8 +1261,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **PlayTR EU** [eu.playtr.com/en/news_article/deployment_11_patchnotes_known_issues](https://web.archive.org/web/20081120082001/http://eu.playtr.com/en/news_article/deployment_11_patchnotes_known_issues): “el 5 Clearance are the Section 4 missions “Giants of the Abyss,” “Hyper Links” and “Pathogen.” The instance contains 5 new missions: “Bad Medicine,” “The Omega Files,” “Ways and Means,” “The Doctor Is In” and “The Final Countdown.””
 - **PlayTR EU** [eu.playtr.com:80/en/news_article/deployment_12_patchnotes_known_issues …](https://web.archive.org/web/20090109081646/http://eu.playtr.com:80/en/news_article/deployment_12_patchnotes_known_issues_18_september_2008): “l 5 Clearance are the Section 4 missions “Giants of the Abyss,” “Hyper Links” and “Pathogen.” The instance contains 5 new missions: “Bad Medicine,” “The Omega Files,” “Ways and Means,” “The Doctor Is In” and “The Final Countdown.””
 
-### 1944 — Executioner
+### 1944 — Executioner [missing mechanic]
 
+- **Missing mechanic:** radio offer after turn-in - Headquarters calls after Consensus — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Instance mentioned:** Magma Caverns — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
 - **Rebuild summary:**
   - level ESTIMATE from zone: the Abyss zone level range is 44-46 — source: [Ellatha map: Abyss](https://www.ellatha.com/tr/mapsview.asp?key=Torden+Abyss) (a zone range, not this mission's own level)
@@ -1286,8 +1291,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Chain** (explicit prerequisite links): Big Meanies chain (7 missions), step 2
   - Requires: Consensus (id 1942) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Executioner)
 - **Requires an instance mission:** Consensus (1942) — source: the chain links above
-### 1945 — Final Chance
+### 1945 — Final Chance [missing mechanic]
 
+- **Missing mechanic:** radio offer after turn-in - Headquarters calls after Consensus — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Instance mentioned:** Magma Caverns — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
 - **Rebuild summary:**
   - level ESTIMATE from zone: the Abyss zone level range is 44-46 — source: [Ellatha map: Abyss](https://www.ellatha.com/tr/mapsview.asp?key=Torden+Abyss) (a zone range, not this mission's own level)
@@ -1326,8 +1332,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **PlayTR EU** [eu.playtr.com/en/news_article/deployment_11_patchnotes_known_issues](https://web.archive.org/web/20081120082001/http://eu.playtr.com/en/news_article/deployment_11_patchnotes_known_issues): “ions “Giants of the Abyss,” “Hyper Links” and “Pathogen.” The instance contains 5 new missions: “Bad Medicine,” “The Omega Files,” “Ways and Means,” “The Doctor Is In” and “The Final Countdown.””
 - **PlayTR EU** [eu.playtr.com:80/en/news_article/deployment_12_patchnotes_known_issues …](https://web.archive.org/web/20090109081646/http://eu.playtr.com:80/en/news_article/deployment_12_patchnotes_known_issues_18_september_2008): “ons “Giants of the Abyss,” “Hyper Links” and “Pathogen.” The instance contains 5 new missions: “Bad Medicine,” “The Omega Files,” “Ways and Means,” “The Doctor Is In” and “The Final Countdown.””
 
-### 1987 — The Drug War
+### 1987 — The Drug War [missing mechanic]
 
+- **Missing mechanic:** radio offer after turn-in - Headquarters calls after The Dybukkar Investigation — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Instance mentioned:** Dybukkar — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
 - **Rebuild summary:**
   - level ESTIMATE from zone: the Abyss zone level range is 44-46 — source: [Ellatha map: Abyss](https://www.ellatha.com/tr/mapsview.asp?key=Torden+Abyss) (a zone range, not this mission's own level)
@@ -2202,8 +2209,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Chain** (explicit prerequisite links): Fallen Soldiers chain (9 missions), step 2
   - Requires: Xanxless Job (id 1262) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Turning_Out_the_Lights)
   - Requires: Fallen Soldiers (id 1263) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Turning_Out_the_Lights)
-### 1355 — The Strongest Link
+### 1355 — The Strongest Link [missing mechanic]
 
+- **Missing mechanic:** radio offer after turn-in - Headquarters calls after Look Before You Sabotage (Mires; name also on 1307, check which) — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Rebuild summary:**
   - level: guide mentions “ers, too, for that matter). The boss and the caretakers are level 30 while the other linkers are level 29. A” (context only; may be a creature or item level) — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/tabula-rasa-energy-center-guide)
   - level ESTIMATE from zone: the Ashen Desert zone level range is 40-42 — source: [Ellatha map: Ashen Desert](https://www.ellatha.com/tr/mapsview.asp?key=Ligo+Ashen+Desert) (a zone range, not this mission's own level)
@@ -2428,8 +2436,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Chain** (explicit prerequisite links): Lockdown the Conscription Facility chain (6 missions), step 4
   - Requires: Blast the Biolab (id 1498) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Blast_the_Biolab), [TaRapedia](https://tabularasa.fandom.com/wiki/Into_the_Lion%27s_Den)
   - Leads to: Save the Queen (id 1501) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Into_the_Lion%27s_Den), [TaRapedia](https://tabularasa.fandom.com/wiki/Save_the_Queen)
-### 1501 — Save the Queen
+### 1501 — Save the Queen [missing mechanic]
 
+- **Missing mechanic:** radio offer after turn-in - Headquarters calls after Into the Lion's Den — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Instance mentioned:** Bane Conscription Facility — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
 - **Rebuild summary:**
   - level ESTIMATE from zone: the Ashen Desert zone level range is 40-42 — source: [Ellatha map: Ashen Desert](https://www.ellatha.com/tr/mapsview.asp?key=Ligo+Ashen+Desert) (a zone range, not this mission's own level)
@@ -2467,8 +2476,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 
 - **Chain** (explicit prerequisite links): Meet Sergeant Drof chain (2 missions), step 1
   - Leads to: Subversion (id 1451) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Meet_Sergeant_Drof), [TaRapedia](https://tabularasa.fandom.com/wiki/Subversion)
-### 1551 — What Makes Them Tick [instance]
+### 1551 — What Makes Them Tick [missing mechanic] [instance]
 
+- **Missing mechanic:** radio offer after turn-in - Headquarters calls after Blast the Biolab — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Instance:** Bane Conscription Facility — client objective/log text: "Eliminate Enraged Atta and their Queen in the Bane Conscription Facility and return them to Cpt. Yamamoto in the …"
 - **Rebuild summary:**
   - level ESTIMATE from zone: the Ashen Desert zone level range is 40-42 — source: [Ellatha map: Ashen Desert](https://www.ellatha.com/tr/mapsview.asp?key=Ligo+Ashen+Desert) (a zone range, not this mission's own level)
@@ -2999,8 +3009,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Requires: Body Count (id 691) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Body_Count), [TaRapedia](https://tabularasa.fandom.com/wiki/What_Evil_Lurks)
   - Leads to: The Reason Why (id 693) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Reason_Why), [TaRapedia](https://tabularasa.fandom.com/wiki/What_Evil_Lurks)
 - **Requires an instance mission:** Body Count (691) — source: the chain links above
-### 693 — The Reason Why [instance]
+### 693 — The Reason Why [missing mechanic] [instance]
 
+- **Missing mechanic:** radio offer after turn-in - Headquarters calls after What Evil Lurks — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Instance:** Caves of Donn — client objective/log text: "Elder Nekala has asked you to preserve the legacy of the Foreans and the Eloh within the Caves of Donn. As a reward, …"
 - **Rebuild summary:**
   - level ESTIMATE (lower bound): reward items require min level 10 — derived from the reward item requirements on [Ellatha](https://www.ellatha.com/tr/missionsview.asp?key=The+Reason+Why&id=75)
@@ -3031,8 +3042,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Requires an instance mission:** What Evil Lurks (692) — source: the chain links above
 ## Crater Lake Research Facility
 
-### 711 — Return to Sender [instance]
+### 711 — Return to Sender [missing mechanic] [instance]
 
+- **Missing mechanic:** radio offer after turn-in - Headquarters calls after Reclaiming What's Ours — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Instance:** Crater Lake Research Facility — NPC Captain Velns (named as giver/receiver) is in Crater Lake Research Facility — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Captain_Velns)
 - **Rebuild summary:**
   - level ESTIMATE from zone: the Crater Lake Research Facility zone level range is 10-12 — source: [Ellatha map: Crater Lake Research Facility](https://www.ellatha.com/tr/CraterLakeResearch_Maps_Logos.asp) (a zone range, not this mission's own level)
@@ -3090,8 +3102,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Requires: The Dead Live (id 450) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Dead_Live), [TaRapedia](https://tabularasa.fandom.com/wiki/We_Be_Jammin%27)
   - Leads to: Ghost in the Machine (id 1059) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/We_Be_Jammin%27)
 - **Requires an instance mission:** The Dead Live (450) — source: the chain links above
-### 1056 — Reclaiming What's Ours [instance]
+### 1056 — Reclaiming What's Ours [missing mechanic] [instance]
 
+- **Missing mechanic:** radio offer after turn-in - Headquarters calls after Destroying the Evidence — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Instance:** Crater Lake Research Facility — NPC Daniel Corman (named as giver/receiver) is in Crater Lake Research Facility — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Daniel_Corman)
 - **Rebuild summary:**
   - level ESTIMATE (lower bound): reward items require min level 6 — derived from the reward item requirements on [Ellatha](https://www.ellatha.com/tr/missionsview.asp?key=Reclaiming+What%27s+Ours&id=95)
@@ -3127,8 +3140,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Leads to: Return to Sender (id 711) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Reclaiming_What%27s_Ours), [TaRapedia](https://tabularasa.fandom.com/wiki/Return_to_Sender)
   - Leads to: Bending the Rules (id 1065) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bending_the_Rules), [TaRapedia](https://tabularasa.fandom.com/wiki/Reclaiming_What%27s_Ours)
 - **Requires an instance mission:** Destroying the Evidence (1055) — source: the chain links above
-### 1059 — Ghost in the Machine
+### 1059 — Ghost in the Machine [missing mechanic]
 
+- **Missing mechanic:** radio offer after turn-in - Headquarters calls after The Dead Live — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Instance mentioned:** Crater Lake Research Facility — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
 - **Rebuild summary:**
   - level ESTIMATE (lower bound): reward items require min level 8 — derived from the reward item requirements on [Ellatha](https://www.ellatha.com/tr/missionsview.asp?key=Ghost+in+the+Machine&id=94)
@@ -4799,8 +4813,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Requires: Take it or Leave it (id 1470) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Seismic_Situation)
   - Leads to: Operation Wolves Den (id 1489) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Operation_Wolves_Den), [TaRapedia](https://tabularasa.fandom.com/wiki/Seismic_Situation)
   - Leads to: Operation Wolves Den (id 1490) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Operation_Wolves_Den), [TaRapedia](https://tabularasa.fandom.com/wiki/Seismic_Situation)
-### 1489 — Operation Wolves Den
+### 1489 — Operation Wolves Den [missing mechanic]
 
+- **Missing mechanic:** radio offer after turn-in - radio call after Seismic Situation (two client ids, 1489 and 1490) — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Rebuild summary:**
   - level ESTIMATE from zone: the Descent zone level range is 46-48 — source: [Ellatha map: Descent](https://www.ellatha.com/tr/mapsview.asp?key=Valverde+Descent) (a zone range, not this mission's own level)
   - level ESTIMATE from zone: most Descent missions are level 45–50 (median 45, 10th–90th percentile) — derived from 15 missions in this file with a sourced level
@@ -4818,8 +4833,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Chain** (explicit prerequisite links): Take it or Leave it chain (5 missions), step 3
   - Requires: Seismic Situation (id 1488) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Operation_Wolves_Den), [TaRapedia](https://tabularasa.fandom.com/wiki/Seismic_Situation)
   - Requires: Seismic Situation (id 1550) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Operation_Wolves_Den), [TaRapedia](https://tabularasa.fandom.com/wiki/Seismic_Situation)
-### 1490 — Operation Wolves Den
+### 1490 — Operation Wolves Den [missing mechanic]
 
+- **Missing mechanic:** radio offer after turn-in - radio call after Seismic Situation (two client ids, 1489 and 1490) — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Rebuild summary:**
   - level ESTIMATE from zone: the Descent zone level range is 46-48 — source: [Ellatha map: Descent](https://www.ellatha.com/tr/mapsview.asp?key=Valverde+Descent) (a zone range, not this mission's own level)
   - level ESTIMATE from zone: most Descent missions are level 45–50 (median 45, 10th–90th percentile) — derived from 15 missions in this file with a sourced level
@@ -5912,8 +5928,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - A New Plan of Attack will update when you get close around 160, 73,130. — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/tabula-rasa-purgas-station-guide)
   - Another terminal at 158,73,133 will release the force field holding that AFS squad trapped, updating A New Plan of Attack again. — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/tabula-rasa-purgas-station-guide)
 
-### 705 — Off Grid
+### 705 — Off Grid [missing mechanic]
 
+- **Missing mechanic:** radio offer after turn-in - radio call after A New Plan of Attack — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Instance mentioned:** Purgas Station — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
 - **Rebuild summary:**
   - level ESTIMATE from zone: the Divide zone level range is 12-18 — source: [TaRapedia: Divide](https://tabularasa.fandom.com/wiki/Divide) (a zone range, not this mission's own level)
@@ -7099,8 +7116,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Leads to: Prison Riot (id 399) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Information_Sabotage), [TaRapedia](https://tabularasa.fandom.com/wiki/Prison_Riot)
 - **TR MMO DB quest series:** "In Prison: In Terror", row 2 of 3 ([list](https://web.archive.org/web/20120731163351/http://tr.mmodb.com/quests/seriesname-in_prison:_in_terror/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 - **Requires an instance mission:** In Prison: In Terror (397) — source: the chain links above
-### 399 — Prison Riot
+### 399 — Prison Riot [missing mechanic]
 
+- **Missing mechanic:** radio offer after turn-in - Headquarters calls after Information Sabotage — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Instance mentioned:** Torcastra Prison — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
 - **Rebuild summary:**
   - level ESTIMATE from zone: most Foreas missions are level 10–15 (median 15) — derived from 9 missions in this file with a sourced level
@@ -10925,8 +10943,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - Relics can be found on Forean corpses — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Picking_up_the_Pieces)
 
-### 893 — Needle in a Bane Camp
+### 893 — Needle in a Bane Camp [missing mechanic]
 
+- **Missing mechanic:** radio offer after turn-in - Headquarters calls after The Lost Ones — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Instance mentioned:** P'reo Das — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
 - **Rebuild summary:**
   - level: 35 — source: [TR MMO DB](https://web.archive.org/web/20080413105138/http://tr.mmodb.com:80/quests/needle-in-a-bane-camp-330.php)
@@ -11409,8 +11428,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - walkthrough: So far this mission is still bugged if you miss killing Myrquar. (6/25/08) Resetting the map wil not give you the missions back that were failed earlier so obtaining the key is not possible. This is the work around (7/06/08) Leave instance (mission will fail) and let it reset. Return to instance and proceed to the hidden Fornean Village to get mission. Travel to the chamber where the force fields will now open for you. Beware of the transporter to the right - every few minutes Bane will drop in on you. The objective is to the left and is guarded by a boss. Retrieve logos and new mission will …
 - **TaRapedia mission list** [P'reo Das mission list](https://tabularasa.fandom.com/wiki/P%27reo_Das_mission_list): zone Marshes, given by Forean Elder Qunle
 
-### 1078 — The Choices We Make
+### 1078 — The Choices We Make [missing mechanic]
 
+- **Missing mechanic:** radio offer after turn-in - Headquarters calls after The Lost Ones — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Instance mentioned:** P'reo Das — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
 - **Rebuild summary:**
   - level: 33 — source: [TR MMO DB quest list](https://web.archive.org/web/20080407025711/http://tr.mmodb.com:80/quests/startingzone-marshes/)
@@ -13303,8 +13323,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Chain** (explicit prerequisite links): Break on Through chain (3 missions), step 2
   - Requires: Break on Through (id 1192) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Break_on_Through), [TaRapedia](https://tabularasa.fandom.com/wiki/Bringing_the_House_Down)
   - Leads to: What Goes Around ... (id 1196) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bringing_the_House_Down), [TaRapedia](https://tabularasa.fandom.com/wiki/What_Goes_Around...)
-### 1196 — What Goes Around ...
+### 1196 — What Goes Around ... [missing mechanic]
 
+- **Missing mechanic:** radio offer after turn-in - Headquarters calls after Bringing the House Down — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Instance mentioned:** Tahrendra Base — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
 - **Rebuild summary:**
   - level: 33 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731174547/http://tr.mmodb.com/quests/startingzone-tahrendra_base/)
@@ -13409,8 +13430,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 
 - **Chain** (explicit prerequisite links): Fallen Soldiers chain (9 missions), step 1
   - Leads to: Tesla Inversion (id 1260) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/It%27s_All_In_the_Timing), [TaRapedia](https://tabularasa.fandom.com/wiki/Tesla_Inversion)
-### 1260 — Tesla Inversion
+### 1260 — Tesla Inversion [missing mechanic]
 
+- **Missing mechanic:** radio offer after turn-in - Headquarters calls after It's All In the Timing — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Rebuild summary:**
   - level: 33 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731173831/http://tr.mmodb.com/quests/startingzone-energy_weapon_center/); guide mentions “, but it doesnt seem to any benefit to destroy the gear. A level 30 silver Thrax soldier named Overseer Xir” (context only; may be a creature or item level) — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/tabula-rasa-energy-center-guide)
   - level ESTIMATE from zone: the Mires zone level range is 27-30 — source: [Ellatha map: Mires](https://www.ellatha.com/tr/Mires_Maps_Logos.asp) (a zone range, not this mission's own level)
@@ -13456,8 +13478,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **PlayTR EU** [eu.rgtr.com:80/en/news_article/patch_notes_and_known_issues_17th_janua …](https://web.archive.org/web/20080122184400/http://eu.rgtr.com:80/en/news_article/patch_notes_and_known_issues_17th_january_2008_test_server): “New mission: Taking the Pills / New mission: Arming the Brann / New mission: Incursion Investigation / Powers/Abilities: / The skill ‘Training: Tools’ now has the same icon for the pump points as the primary icon.”
 - **RGTR official site** [www.rgtr.com/news/patch_notes/patch_notes_and_known_issues_0.html](https://web.archive.org/web/20081117172617/http://www.rgtr.com/news/patch_notes/patch_notes_and_known_issues_0.html): “New mission: Taking the Pills / New mission: Arming the Brann / New mission: Incursion Investigation / Reflective Armor tooltip has been changed. RA now reflects all damage types. / Powers/Abilities:”
 
-### 1296 — Look Before You Sabotage
+### 1296 — Look Before You Sabotage [missing mechanic]
 
+- **Missing mechanic:** radio offer after turn-in - Headquarters calls after Tesla Inversion — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Rebuild summary:**
   - level: 33 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731173831/http://tr.mmodb.com/quests/startingzone-energy_weapon_center/); guide mentions “raised walkway drawing fire from two directions. There is a level 30 caretaker named Sergeant Zixno and some” (context only; may be a creature or item level) — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/tabula-rasa-energy-center-guide)
   - level ESTIMATE from zone: the Mires zone level range is 27-30 — source: [Ellatha map: Mires](https://www.ellatha.com/tr/Mires_Maps_Logos.asp) (a zone range, not this mission's own level)
@@ -13481,8 +13504,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Leads to: The Strongest Link (id 1355) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Look_Before_You_Sabotage)
   - Leads to: The Strongest Link (id 1307) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Look_Before_You_Sabotage), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Strongest_Link_%28Mires%29)
 - **TR MMO DB quest series:** "Tesla Invasion", row 1 of 3 ([list](https://web.archive.org/web/20120731162011/http://tr.mmodb.com/quests/seriesname-tesla_invasion/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
-### 1307 — The Strongest Link
+### 1307 — The Strongest Link [missing mechanic]
 
+- **Missing mechanic:** radio offer after turn-in - Headquarters calls after Look Before You Sabotage (Mires; name also on 1355, check which) — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Rebuild summary:**
   - level: guide mentions “ers, too, for that matter). The boss and the caretakers are level 30 while the other linkers are level 29. A” (context only; may be a creature or item level) — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/tabula-rasa-energy-center-guide)
   - level ESTIMATE from zone: the Mires zone level range is 27-30 — source: [Ellatha map: Mires](https://www.ellatha.com/tr/Mires_Maps_Logos.asp) (a zone range, not this mission's own level)
@@ -13634,8 +13658,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Chain** (explicit prerequisite links): Making a Run For It chain (2 missions), step 2
   - Requires: Making a Run For It (id 1384) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Flashback), [TaRapedia](https://tabularasa.fandom.com/wiki/Making_a_Run_For_It)
 - **TR MMO DB quest series:** "Making A Run For It", row 1 of 2 ([list](https://web.archive.org/web/20120731161140/http://tr.mmodb.com/quests/seriesname-making_a_run_for_it/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
-### 1386 — Capturing Supply Lines
+### 1386 — Capturing Supply Lines [missing mechanic]
 
+- **Missing mechanic:** radio offer after turn-in - Headquarters calls after A State of Flux — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Rebuild summary:**
   - level: 33 — source: [TR MMO DB](https://web.archive.org/web/20120731173258/http://tr.mmodb.com/quests/capturing-supply-lines-556.php)
   - level ESTIMATE from zone: the Mires zone level range is 27-30 — source: [Ellatha map: Mires](https://www.ellatha.com/tr/Mires_Maps_Logos.asp) (a zone range, not this mission's own level)
@@ -14096,8 +14121,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 
 - **Chain** (explicit prerequisite links): Shipping and Handling chain (2 missions), step 1
   - Leads to: Deadly Vapors (id 1908) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Deadly_Vapors), [TaRapedia](https://tabularasa.fandom.com/wiki/Shipping_and_Handling)
-### 1908 — Deadly Vapors
+### 1908 — Deadly Vapors [missing mechanic]
 
+- **Missing mechanic:** radio offer after turn-in - Headquarters calls after Shipping and Handling — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Instance mentioned:** Bane Fluxite Mines — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
 - **Rebuild summary:**
   - level ESTIMATE from zone: the Mires zone level range is 27-30 — source: [Ellatha map: Mires](https://www.ellatha.com/tr/Mires_Maps_Logos.asp) (a zone range, not this mission's own level)
@@ -15992,8 +16018,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Chain** (explicit prerequisite links): Kill the Light chain (2 missions), step 1
   - Leads to: Kill the Light part II (id 1792) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Kill_the_Light), [TaRapedia](https://tabularasa.fandom.com/wiki/Kill_the_Light_part_II)
 - **TR MMO DB quest series:** "Kill The Light", row 1 of 2 ([list](https://web.archive.org/web/20120731165156/http://tr.mmodb.com/quests/seriesname-kill_the_light/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
-### 1792 — Kill the Light part II
+### 1792 — Kill the Light part II [missing mechanic]
 
+- **Missing mechanic:** radio offer after turn-in - radio call after Kill the Light — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Instance mentioned:** Warnet Caverns — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
 - **Rebuild summary:**
   - level: 20 — source: [TR MMO DB quest list](https://web.archive.org/web/20080217035742/http://tr.mmodb.com:80/quests/startingzone-palisades/)
@@ -16264,8 +16291,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Chain** (explicit prerequisite links): Big Risk chain (2 missions), step 1
   - Leads to: Supporting Your Local Strike Team (id 1802) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Big_Risk), [TaRapedia](https://tabularasa.fandom.com/wiki/Supporting_Your_Local_Strike_Team)
 - **TR MMO DB quest series:** "Big Risk", row 1 of 2 ([list](https://web.archive.org/web/20120731165302/http://tr.mmodb.com/quests/seriesname-big_risk/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
-### 1802 — Supporting Your Local Strike Team
+### 1802 — Supporting Your Local Strike Team [missing mechanic]
 
+- **Missing mechanic:** radio offer after turn-in - radio call after Big Risk — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Instance mentioned:** Treeback Camp — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
 - **Rebuild summary:**
   - level: 20 — source: [TR MMO DB quest list](https://web.archive.org/web/20080217035742/http://tr.mmodb.com:80/quests/startingzone-palisades/)
@@ -17854,8 +17882,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Requires: We Need Backup! (id 1166) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Flanks_for_Nothing), [TaRapedia](https://tabularasa.fandom.com/wiki/We_Need_Backup%21)
   - Leads to: Hostile Overtaking (id 1176) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Flanks_for_Nothing), [TaRapedia](https://tabularasa.fandom.com/wiki/Hostile_Overtaking)
 - **TR MMO DB quest series:** "We Need Backup", row 3 of 5 ([list](https://web.archive.org/web/20120731170300/http://tr.mmodb.com/quests/seriesname-we_need_backup/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
-### 1176 — Hostile Overtaking
+### 1176 — Hostile Overtaking [missing mechanic]
 
+- **Missing mechanic:** radio offer after turn-in - Headquarters calls after Flanks for Nothing — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Instance mentioned:** Brann Water Refinery — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
 - **Rebuild summary:**
   - level: 20 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170300/http://tr.mmodb.com/quests/seriesname-we_need_backup/)
@@ -18424,8 +18453,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Requires an instance mission:** Bug Hugger (1939) — source: the chain links above
 ## Plateau
 
-### 555 — Behind Enemy Lines
+### 555 — Behind Enemy Lines [missing mechanic]
 
+- **Missing mechanic:** radio offer after turn-in - Headquarters calls after The Stainless Steel Bloodhound (867) — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Rebuild summary:**
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
   - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 51 missions in this file with a sourced level
@@ -18630,12 +18660,15 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Chain** (explicit prerequisite links): The Defiant Ones chain (8 missions), step 3
   - Requires: A Bridge Too Far (id 713) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Bridge_Too_Far), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Beer_Hunter), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 - **TR MMO DB quest series:** "The Defiant Ones", row 2 of 3 ([list](https://web.archive.org/web/20120731160614/http://tr.mmodb.com/quests/seriesname-the_defiant_ones/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
-### 867 — The Stainless Steel Bloodhound
+### 867 — The Stainless Steel Bloodhound [implemented] [needs playtest]
 
+- **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Rebuild summary:**
-  - level: 30 — source: [TR MMO DB](https://web.archive.org/web/20081204222709/http://tr.mmodb.com/quests/the-stainless-steel-bloodhound-246.php)
+  - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 30 — source: [TR MMO DB](https://web.archive.org/web/20081204222709/http://tr.mmodb.com/quests/the-stainless-steel-bloodhound-246.php)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
   - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 51 missions in this file with a sourced level
+  - reward: 40000 XP; 4650 credits; choose 1 of: Virulent Injector Gun, Pulse Chaingun, Pulse Pistol, Laser Cannon — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 40,000 XP; 4650 credits; AccuMax Virulent Injector Gun rarity=green level=32; ChiTech Pulse Chaingun rarity=green level=33; Teleract Pulse Pistol rarity=green level=30; Vitalius Laser Cannon rarity=green level=29 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Stainless_Steel_Bloodhound)
   - reward: 4650 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20081204222709/http://tr.mmodb.com/quests/the-stainless-steel-bloodhound-246.php)
   - drops / mission items: not found (not critical, or not a collect mission)
@@ -18643,6 +18676,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - location: The bot floats for quite a long way, crosses the stream and eventually finds a cave entrance at -459.6, 273.1, 135.7. — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Stainless_Steel_Bloodhound)
 - **Client:** Rendezvous with Field Sergeant Garde at the teleporter platform deep inside Valverde Chasm.
   - objectives (client): Escort the Sentinel. — Follow the Modified Sentinel on its pre-programmed path to find out how the Bane are infiltrating Valverde Chasm; Tell Garde you're ready. — When you are ready, tell Ranger Garde to activate the Modified Bane Sentinel.
+- **Local server:** revision `plateau_1_16_5`, level 30, solo, category 10000056 (Battlefield (Plateau)), giver Field Sgt. Garde
+  - reward: 40000 XP; 4650 credits; choose 1 of: Virulent Injector Gun, Pulse Chaingun, Pulse Pistol, Laser Cannon
+  - prerequisites: Requires completed mission 970
 - **TaRapedia** [The Stainless Steel Bloodhound](https://tabularasa.fandom.com/wiki/The_Stainless_Steel_Bloodhound): giver: Field Sgt. Garde; at: Valverde Chasm; zone: Plateau; requires: Lookout Down Below; follow-up: Behind Enemy Lines; XP: 40,000; credits: 4650; items: AccuMax Virulent Injector Gun rarity=green level=32; ChiTech Pulse Chaingun rarity=green level=33; Teleract Pulse Pistol rarity=green level=30; Vitalius Laser Cannon rarity=green level=29; reward from: Radio Mission
   - overview: Rendezvous with Field Sergeant Garde at the telporter platform deep inside Valverde Chasm.
   - objectives: • Tell Garde you're ready. • Escort the Sentinel
@@ -18659,7 +18695,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Field Sgt. Garde](https://tabularasa.fandom.com/wiki/Field_Sgt._Garde): Plateau, Valverde Chasm, /loc -103, 269, 183 (named as giver/receiver)
 
 - **Chain** (explicit prerequisite links): Lookout Down Below chain (3 missions), step 2
-  - Requires: Lookout Down Below (id 970) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Stainless_Steel_Bloodhound)
+  - Requires: Lookout Down Below (id 970) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Stainless_Steel_Bloodhound), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - Leads to: Behind Enemy Lines (id 555) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Behind_Enemy_Lines), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Stainless_Steel_Bloodhound)
 ### 877 — One Way Trip [instance]
 
@@ -18874,18 +18910,23 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Luminary Sampei](https://tabularasa.fandom.com/wiki/Luminary_Sampei): Plateau, New Velon Village, /loc 259, 352, 619 (named as giver/receiver)
 
-### 931 — Bomb Voyage
+### 931 — Bomb Voyage [implemented] [needs playtest]
 
+- **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Rebuild summary:**
-  - level: 32 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bomb_Voyage); 30 — source: [TR MMO DB](https://web.archive.org/web/20080310011543/http://tr.mmodb.com:80/quests/bomb-voyage-248.php)
+  - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 32 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bomb_Voyage); 30 — source: [TR MMO DB](https://web.archive.org/web/20080310011543/http://tr.mmodb.com:80/quests/bomb-voyage-248.php)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
   - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 51 missions in this file with a sourced level
+  - reward: 45000 XP; 4800 credits; choose 1 of: Bio Armor Vest, Graviton Armor Vest, Mech Armor Vest, Stealth Armor Vest — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 45,000 XP; 4,800 credits; Equipment — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bomb_Voyage)
   - reward: 4800 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20080310011543/http://tr.mmodb.com:80/quests/bomb-voyage-248.php)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: NPC Outpost Cmdr. Russ: Plateau, Wedge Rock Outpost, /loc 449, 378, 367 — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Outpost_Cmdr._Russ)
 - **Client:** Plant an Altitude Bomb in six outgoing cargo crates near the landing pad at the bottom of Desolation Quarry. When you have planted all six bombs, return to Outpost Commander Russ at Wedge Rock Outpost.
   - objectives (client): Plant 6 Altitude Bombs. — Plant Altitude Bombs in six outgoing Bane cargo containers at Desolation Quarry.; Return to Commander Russ. — Report back to Outpost Commander Russ at Wedge Rock Outpost.
+- **Local server:** revision `plateau_1_16_5`, level 30, solo, category 10000056 (Battlefield (Plateau)), giver Outpost Cmdr. Russ
+  - reward: 45000 XP; 4800 credits; choose 1 of: Bio Armor Vest, Graviton Armor Vest, Mech Armor Vest, Stealth Armor Vest
 - **TaRapedia** [Bomb Voyage](https://tabularasa.fandom.com/wiki/Bomb_Voyage): giver: Outpost Cmdr. Russ; at: Wedge Rock Outpost; zone: Plateau; level: 32 (possibly less); requires: None; follow-up: None; XP: 45,000; credits: 4,800; items: Equipment; reward from: Outpost Cmdr. Russ
   - overview: Plant an Altitude Bomb in six outgoing cargo crates near the landing pad at the bottom of Desolation Quarry. When you have planted all six bombs, return to Outpost Commander Russ at Wedge Rock Outpost.
   - objectives: Plant 6 Altitude Bombs. • Plant Altitude Bombs in six outgoing Bane cargo containers at Desolation Quarry. • Altitude Bombs Planted 0/6
@@ -19099,18 +19140,23 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [General Thaddeus T. Bailey](https://tabularasa.fandom.com/wiki/General_Thaddeus_T._Bailey): Plateau, Fort Defiance, /loc -68, 404, 949 (NPC page lists this mission)
 
-### 970 — Lookout Down Below
+### 970 — Lookout Down Below [implemented] [needs playtest]
 
+- **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Instance mentioned:** Maligo Base — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
 - **Rebuild summary:**
-  - level: 30 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
+  - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 30 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
   - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 51 missions in this file with a sourced level
+  - reward: 20000 XP; 3100 credits; Class VI Advanced Med Pack, Class VI Armor Charger, Class VI Incendiary Grenade, Class VI EMP Grenade — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 20000 XP; 3100 credits; Class VI Advanced Med Pack (2); Class VI Armor Charger (2); Class VI Incendiary Grenade (4); Class VI EMP Grenade (4) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Lookout_Down_Below)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: NPC Outpost Cmdr. Russ: Plateau, Wedge Rock Outpost, /loc 449, 378, 367 — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Outpost_Cmdr._Russ)
 - **Client:** Rendezvous with Field Sergeant Garde near the teleporter platform in Valverde Chasm.
   - objectives (client): Rendezvous with Sgt. Garde. — Rendezvous with Field Sergeant Garde at the teleporter pad in Valverde Chasm.
+- **Local server:** revision `plateau_1_16_5`, level 30, solo, category 10000056 (Battlefield (Plateau)), giver Outpost Cmdr. Russ → Field Sgt. Garde
+  - reward: 20000 XP; 3100 credits; items: Class VI Advanced Med Pack ×2, Class VI Armor Charger ×2, Class VI Incendiary Grenade ×4, Class VI EMP Grenade ×4
 - **TaRapedia** [Lookout Down Below](https://tabularasa.fandom.com/wiki/Lookout_Down_Below): giver: Outpost Cmdr. Russ; at: Wedge Rock Outpost; zone: Plateau; follow-up: The Stainless Steel Blodhound; XP: 20000; credits: 3100; items: Class VI Advanced Med Pack (2); Class VI Armor Charger (2); Class VI Incendiary Grenade (4); Class VI EMP Grenade (4); reward from: Field Sgt. Garde
   - overview: Rendezvous with Field Sergeant Gard near the teleporter platform in valverde Chasm.
   - objectives: • Rendezvous with Sgt. Garde
@@ -19121,7 +19167,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Field Sgt. Garde](https://tabularasa.fandom.com/wiki/Field_Sgt._Garde): Plateau, Valverde Chasm, /loc -103, 269, 183 (named as giver/receiver)
 
 - **Chain** (explicit prerequisite links): Lookout Down Below chain (3 missions), step 1
-  - Leads to: The Stainless Steel Bloodhound (id 867) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Stainless_Steel_Bloodhound)
+  - Leads to: The Stainless Steel Bloodhound (id 867) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Stainless_Steel_Bloodhound), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 1014 — Blue Flu
 
 - **Rebuild summary:**
@@ -21459,8 +21505,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Chain** (explicit prerequisite links): Death Patrol chain (17 missions), step 4
   - Requires: A Cult Divided (id 560) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Cult_Divided), [TaRapedia](https://tabularasa.fandom.com/wiki/One_Man%27s_Trash)
   - Leads to: Retread Planning (id 563) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/One_Man%27s_Trash), [TaRapedia](https://tabularasa.fandom.com/wiki/Retread_Planning)
-### 563 — Retread Planning
+### 563 — Retread Planning [missing mechanic]
 
+- **Missing mechanic:** radio offer after turn-in - Headquarters calls after One Man's Trash — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Rebuild summary:**
   - level: 33 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731172517/http://tr.mmodb.com/quests/startingzone-pools/)
   - level ESTIMATE from zone: most Retread Camp missions are level 32–33 (median 33) — derived from 5 missions in this file with a sourced level
@@ -21873,8 +21920,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - objectives (client): Scrambled — (Static) Thal,en.. augnn a.uhgp.
 - **Web:** zone: Arieki / Ligo / Thunderhead (Quasso Station); giver: Headquarters (radio) — Listed under Headquarters in the Quasso Station mission list as 'Scrambled (radio message, no idea what it does...)'. Sources: [Quasso Station mission list - TaRapedia](https://tabularasa.fandom.com/wiki/Quasso_Station_mission_list)
 
-### 1411 — Explosive Reinforcements
+### 1411 — Explosive Reinforcements [missing mechanic]
 
+- **Missing mechanic:** radio offer after turn-in - Headquarters calls after Bug Em — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Instance mentioned:** Quasso Station — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
 - **Rebuild summary:**
   - level ESTIMATE from zone: the Thunderhead zone level range is 42-44 — source: [Ellatha map: Thunderhead](https://www.ellatha.com/tr/mapsview.asp?key=Ligo+Thunderhead) (a zone range, not this mission's own level)
@@ -21894,8 +21942,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Requires: Help Bug Em (id 1578) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bug_Em)
   - Leads to: Stopping the Unstoppable (id 1412) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Explosive_Reinforcements), [TaRapedia](https://tabularasa.fandom.com/wiki/Stopping_the_Unstoppable)
 - **Requires an instance mission:** Bug Em (1391), Help Bug Em (1578) — source: the chain links above
-### 1412 — Stopping the Unstoppable
+### 1412 — Stopping the Unstoppable [missing mechanic]
 
+- **Missing mechanic:** radio offer after turn-in - Headquarters calls after Explosive Reinforcements — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Instance mentioned:** Quasso Station — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
 - **Rebuild summary:**
   - level ESTIMATE from zone: the Thunderhead zone level range is 42-44 — source: [Ellatha map: Thunderhead](https://www.ellatha.com/tr/mapsview.asp?key=Ligo+Thunderhead) (a zone range, not this mission's own level)
@@ -21913,8 +21962,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Chain** (explicit prerequisite links): Bug Em chain (7 missions), step 3
   - Requires: Explosive Reinforcements (id 1411) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Explosive_Reinforcements), [TaRapedia](https://tabularasa.fandom.com/wiki/Stopping_the_Unstoppable)
   - Leads to: Barracks Sweep (id 1413) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Barracks_Sweep), [TaRapedia](https://tabularasa.fandom.com/wiki/Stopping_the_Unstoppable)
-### 1413 — Barracks Sweep
+### 1413 — Barracks Sweep [missing mechanic]
 
+- **Missing mechanic:** radio offer after turn-in - Headquarters calls after Stopping the Unstoppable — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Instance mentioned:** Quasso Station — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
 - **Rebuild summary:**
   - level ESTIMATE from zone: the Thunderhead zone level range is 42-44 — source: [Ellatha map: Thunderhead](https://www.ellatha.com/tr/mapsview.asp?key=Ligo+Thunderhead) (a zone range, not this mission's own level)
@@ -21933,8 +21983,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Chain** (explicit prerequisite links): Bug Em chain (7 missions), step 4
   - Requires: Stopping the Unstoppable (id 1412) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Barracks_Sweep), [TaRapedia](https://tabularasa.fandom.com/wiki/Stopping_the_Unstoppable)
   - Leads to: Missing Troops (id 1414) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Barracks_Sweep), [TaRapedia](https://tabularasa.fandom.com/wiki/Missing_Troops)
-### 1414 — Missing Troops [instance]
+### 1414 — Missing Troops [missing mechanic] [instance]
 
+- **Missing mechanic:** radio offer after turn-in - Headquarters calls after Barracks Sweep — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Instance:** Quasso Station — client objective/log text: "Find the missing troops in Quasso Station, then radio HQ."
 - **Rebuild summary:**
   - level ESTIMATE from zone: the Thunderhead zone level range is 42-44 — source: [Ellatha map: Thunderhead](https://www.ellatha.com/tr/mapsview.asp?key=Ligo+Thunderhead) (a zone range, not this mission's own level)
@@ -22375,8 +22426,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [X-ray Key](https://tabularasa.fandom.com/wiki/X-ray_Key): no description
 
 - **Requires (name not matched to a mission):** Level 47 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Process_of_Elimination)
-### 1766 — Proof of Assurance
+### 1766 — Proof of Assurance [missing mechanic]
 
+- **Missing mechanic:** radio offer after turn-in - radio call after Wrench in the Gears — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Instance mentioned:** Fault Lever — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
 - **Rebuild summary:**
   - level ESTIMATE from zone: the Thunderhead zone level range is 42-44 — source: [Ellatha map: Thunderhead](https://www.ellatha.com/tr/mapsview.asp?key=Ligo+Thunderhead) (a zone range, not this mission's own level)
