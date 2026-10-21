@@ -19,7 +19,7 @@ namespace Rasa.Test.World
     public class IrendasPenalColonyRegionsTests
     {
         private const string Migration = "20270218000000_Irendas_penal_colony_regions";
-        private const string Previous = "20270217000000_Logos_shrine_heights";
+        private const string Previous = "20270217000000_Caves_of_donn";
 
         private const int Sky = 1, Env = 2, Ambient = 4, Music = 8, Name = 16;
 

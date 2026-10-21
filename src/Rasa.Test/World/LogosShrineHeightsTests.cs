@@ -20,8 +20,8 @@ namespace Rasa.Test.World
     [DoNotParallelize]
     public class LogosShrineHeightsTests
     {
-        private const string Migration = "20270217000000_Logos_shrine_heights";
-        private const string Previous = "20270216000000_Ojasa_hive";
+        private const string Migration = "20270224000000_Logos_shrine_heights";
+        private const string Previous = "20270223000000_Foreas_base_wormhole_region";
 
         /// <summary>Each shrine's pedestal (ArchElohLogosDispenserBase), from its map's .map.</summary>
         private static readonly (uint Id, string Map, double X, double Y, double Z)[] Pedestals =

@@ -17,7 +17,7 @@ namespace Rasa.Migrations.MySqlWorld
     // ReSharper disable once InconsistentNaming
     [UsedImplicitly]
     [DbContext(typeof(MySqlWorldContext))]
-    [Migration("20270217000000_Logos_shrine_heights")]
+    [Migration("20270224000000_Logos_shrine_heights")]
     public class Logos_shrine_heights : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
