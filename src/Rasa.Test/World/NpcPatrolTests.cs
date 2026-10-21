@@ -942,7 +942,8 @@ namespace Rasa.Test.World
             Record(world, watcher, leader, 6);
             Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(leader, watcher.Player.EntityId));
 
-            // Its own fight given up, the guard is back to following.
+            // Its own fight given up, the guard is back to following - with the target by its leader.
+            watcher.Player.Position = leader.Position + new Vector3(0, 0, 10);
             BehaviorManager.Instance.GiveUp(guards[0]);
             Assert.AreEqual(BehaviorManager.BehaviorActionFollow, guards[0].Controller.CurrentAction);
 
@@ -1138,7 +1139,7 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
-        public void AGuardDropsAFightTooFarFromItsLeaderAsItIsAndGoesBackIntoItOnceTheTargetIsNearItsLeader()
+        public void AGuardHoldsEvadingAtItsTethersEndForATargetBeyondItAndGoesBackToItsPlaceAfterAWhile()
         {
             using var world = new WorldTestContext();
             var watcher = Watch(world, x: 40);
@@ -1146,24 +1147,41 @@ namespace Rasa.Test.World
             var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0), pauseMs: 600000), new PatrolStep(new Vector3(30, 0, 0)) });
 
             Record(world, watcher, leader, 4);
+
+            // The leader cannot move - rooted, stunned - and is shot at from 70 m.
+            leader.WalkSpeed = 0;
+            leader.RunSpeed = 0;
             Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(leader, far.Player.EntityId));
             Assert.AreEqual(BehaviorManager.BehaviorActionFighting, guards[0].Controller.CurrentAction);
             guards[0].Attributes[Attributes.Health].Current = 50;
 
-            Record(world, watcher, leader, 1);
+            // It chases as far as its tether, and holds there, in the fight.
+            for (var tick = 0; tick < 80 && !PatrolGroups.Evades(guards[0]); tick++)
+                Record(world, watcher, leader, 1);
 
-            // 70 m from its leader: dropped, as it is - not run home and made whole.
+            Assert.AreEqual(BehaviorManager.BehaviorActionFighting, guards[0].Controller.CurrentAction, "It does not drop the fight.");
+            Assert.IsTrue(PatrolGroups.Evades(guards[0]));
+            Assert.IsLessThanOrEqualTo(PatrolGroups.TetherDistance + 0.5f, Spacing.AcrossGround(guards[0].Position, leader.Position), "By its leader.");
+            Assert.IsGreaterThanOrEqualTo(PatrolGroups.TetherDistance - PatrolGroups.TetherSlack, Spacing.AcrossGround(guards[0].Position, leader.Position));
+
+            // Holding where it cannot answer, it is not shot down.
+            Assert.IsTrue(DamageImmunity.IsImmune(guards[0], DamageType.Physical));
+
+            // Held too long: back to its place, as it is - not run home and made whole.
+            for (var tick = 0; tick < 60 && guards[0].Controller.CurrentAction == BehaviorManager.BehaviorActionFighting; tick++)
+                Record(world, watcher, leader, 1);
+
             Assert.AreEqual(BehaviorManager.BehaviorActionFollow, guards[0].Controller.CurrentAction);
-            Assert.AreEqual(0ul, guards[0].Controller.ActionFollow.DroppedTargetId, "Too far is no bar for good.");
+            Assert.IsFalse(PatrolGroups.Evades(guards[0]));
+            Assert.AreEqual(0ul, guards[0].Controller.ActionFollow.DroppedTargetId, "Beyond its tether is no bar for good.");
             Assert.AreEqual(50, guards[0].Attributes[Attributes.Health].Current);
 
             Record(world, watcher, leader, 4);
 
             Assert.AreEqual(BehaviorManager.BehaviorActionFighting, leader.Controller.CurrentAction, "Its leader fights on.");
-            Assert.AreNotEqual(BehaviorManager.BehaviorActionFighting, guards[0].Controller.CurrentAction, "Not drawn back in while the target is far off.");
-            Assert.IsFalse(BehaviorManager.IsReturning(guards[0]));
+            Assert.AreNotEqual(BehaviorManager.BehaviorActionFighting, guards[0].Controller.CurrentAction, "Not drawn back in while the target is beyond its tether.");
 
-            // The target comes in close to the leader - a ranged player shooting it: the guard is not left standing.
+            // The target comes in close to the leader: the guard is not left standing.
             far.Player.Position = leader.Position + new Vector3(0, 0, 20);
             Record(world, watcher, leader, 2);
 
