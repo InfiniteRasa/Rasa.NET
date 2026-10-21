@@ -315,6 +315,7 @@ namespace Rasa.Managers
             RegisterCommand(".failmission", GmLevel.Admin, FailMissionCommand, "missionId");
             RegisterCommand(".failobjective", GmLevel.Admin, FailObjectiveCommand, "missionId", "objectiveId");
             RegisterCommand(".reloadcreatures", GmLevel.Admin, ReloadCreaturesCommand);
+            RegisterCommand(".memory", GmLevel.Admin, MemoryCommand, "map|full");
         }
 
         #region RegularUser
@@ -5745,6 +5746,35 @@ namespace Rasa.Managers
                 }
             }
             return;
+        }
+
+        /// <summary>
+        /// .memory [map|full]: what the server holds now, briefly in chat. "map" (the default) adds
+        /// the map you're on; "full" adds the busiest maps here and every map to the console.
+        /// Navigation is left out: it's measured once, in the startup report, as that takes a walk
+        /// over millions of navmesh objects. There's no text mail to send it by.
+        /// </summary>
+        private void MemoryCommand(string[] parts)
+        {
+            var mode = parts.Length > 1 ? parts[1].ToLowerInvariant() : "map";
+
+            if (mode != "map" && mode != "full")
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "Usage: .memory [map|full]");
+                return;
+            }
+
+            var full = mode == "full";
+            var chat = MemoryReport.Chat(_client.Player.MapContextId, full ? 5 : 0);
+            var console = full ? MemoryReport.Lines(navigation: false) : chat;
+
+            foreach (var line in console.Where(line => line.Length > 0))
+                Logger.WriteLog(LogType.Command, $"[.memory] {line}");
+
+            chat.Add(full ? "Every map: server console" : "More: .memory full");
+            CommunicatorManager.Instance.SystemMessage(_client, string.Join("\n", chat));
+
+            Logger.WriteLog(LogType.Command, $"[.memory] run by {_client.Player.FamilyName} ({mode})");
         }
 
         private void WhereCommand(string[] parts)

@@ -674,6 +674,9 @@ namespace Rasa.Game
 
             // And only now does the health check say so.
             Api.ApiHost.Instance.Status.Ready();
+
+            // What the server holds now it's up: memory, each map's navigation and objects.
+            Managers.MemoryReport.Log();
         }
 
         internal static bool LogMissionValidationAndCheckReadiness(

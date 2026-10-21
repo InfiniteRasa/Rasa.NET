@@ -53,6 +53,20 @@ namespace Rasa.Navigation
         public int NodeCount => _nodes.Length;
         public bool HasTerrain => _terrain.Length > 0;
 
+        /// <summary>Terrain heights held: one per grid point.</summary>
+        public int TerrainCells => _terrain.Length;
+
+        /// <summary>
+        /// Managed bytes this cover holds: its triangles (nine floats each), its tree's nodes
+        /// (two Vector3s and two ints, 32 bytes) and its terrain grid. See <see cref="MemoryFootprint"/>.
+        /// </summary>
+        public long MemoryBytes =>
+            MemoryFootprint.ArrayBytes(_triangles.Length, sizeof(float))
+            + MemoryFootprint.ArrayBytes(_nodes.Length, NodeBytes)
+            + MemoryFootprint.ArrayBytes(_terrain.Length, sizeof(float));
+
+        private const int NodeBytes = 32;
+
         public static string PathFor(string directory, string mapName)
         {
             return Path.Combine(directory, mapName.ToLowerInvariant() + Extension);
