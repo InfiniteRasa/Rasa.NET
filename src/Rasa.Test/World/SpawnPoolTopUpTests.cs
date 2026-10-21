@@ -168,6 +168,30 @@ namespace Rasa.Test.World
             Assert.AreEqual(3, pool.AliveCreatures);
         }
 
+        [TestMethod]
+        public void AGuardToppedUpWhileItsLeaderIsUnderMindControlDoesNotTakeTheBeat()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var pool = PoolOf(harness);
+
+            pool.SpawnSlot = new List<SpawnPoolSlot> { new SpawnPoolSlot(First, 1, 1), new SpawnPoolSlot(Second, 2, 2) };
+            pool.Patrol = new[] { new PatrolStep(pool.Position), new PatrolStep(pool.Position + new Vector3(10, 0, 0)) };
+            pool.ActingLeader = true;
+
+            harness.SpawnWorld(Pool);
+            var boss = Standing(harness, pool).Single(creature => creature.DbId == First);
+
+            boss.ActiveEffects[1] = new GameEffect { TypeId = AbilityManager.MindControlTypeId, EffectId = 1, MindControlPump = AbilityManager.MindControlEnslavement };
+            Kill(harness, pool, Second, 1);
+            harness.SpawnWorldAfter(pool.RespawnTime, Pool);
+
+            var guards = Standing(harness, pool).Where(creature => creature.DbId == Second).ToList();
+
+            Assert.HasCount(2, guards);
+            Assert.AreSame(boss, pool.Leader, "Held for a time, it is still the leader.");
+            Assert.IsTrue(guards.All(guard => guard.Patrol == null), "No second patroller.");
+        }
+
         private static void Kill(WildernessRuntimeTestHarness harness, SpawnPool pool, uint creatureId, int count)
         {
             foreach (var creature in Standing(harness, pool).Where(creature => creature.DbId == creatureId).Take(count).ToList())

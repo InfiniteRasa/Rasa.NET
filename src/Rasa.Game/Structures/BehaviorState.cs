@@ -131,6 +131,20 @@ namespace Rasa.Structures
 
         /// <summary>A target a patrol group follower dropped, too far off or out of its reach: it is not drawn back into its leader's fight with it (Managers.PatrolGroups.DropFight); 0 for none.</summary>
         internal ulong DroppedTargetId { get; set; }
+
+        /// <summary>
+        /// A patrol group follower's place as last put on the navmesh, and where its leader stood
+        /// and faced then (Managers.PatrolGroups.PlaceFor): moved with the leader until it is put
+        /// again. Whether it was its formation place on the navmesh, and how long ago it was put.
+        /// </summary>
+        internal Vector3? PlacedAt { get; set; }
+        internal Vector3 PlacedLeaderAt { get; set; }
+        internal float PlacedLeaderYaw { get; set; }
+        internal bool PlacedOnMesh { get; set; }
+        internal long PlacedMs { get; set; }
+
+        /// <summary>A patrol group follower stepping straight onto its place, not along a route (BehaviorManager.AdvanceGroupFollower).</summary>
+        internal bool SteppingDirect { get; set; }
     }
 
     /// <summary>

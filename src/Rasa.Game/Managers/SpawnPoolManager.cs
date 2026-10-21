@@ -648,7 +648,7 @@ namespace Rasa.Managers
                     // Its beat (Patrols), for the one of the pool that walks it (PatrolGroups):
                     // given before it is placed, as it starts on the pool's own point. With an
                     // acting leader, the first of a group set down with no leader standing leads it.
-                    var acting = PatrolGroups.LeaderOf(mapChannel, spawnPool);
+                    var acting = PatrolGroups.StandingLeader(mapChannel, spawnPool);
                     var leads = PatrolGroups.Leads(spawnPool, creature)
                         || spawnPool.ActingLeader && acting == null && PatrolGroups.IsGroup(spawnPool);
 

@@ -964,15 +964,14 @@ namespace Rasa.Managers
                         return;
                     }
                 }
-                else if (PatrolGroups.Follows(creature))
+                else if (PatrolGroups.Follows(creature) && PatrolGroups.LeaderOf(mapChannel, creature.SpawnPool) is Creature groupLeader)
                 {
                     // One of a group on a beat is leashed to its leader as a minion is to its
                     // master, by where its target is: a fight that far from the group it drops,
                     // as it is, and goes back to its place. Its leader runs home for the group.
-                    var leader = PatrolGroups.LeaderOf(mapChannel, creature.SpawnPool);
-                    var centre = leader?.Position ?? creature.HomePos.Position;
-                    var leaderDistX = centre.X - targetPosition.X;
-                    var leaderDistZ = centre.Z - targetPosition.Z;
+                    // With no leader to go back to, it is leashed as any creature (ChasedTooFar).
+                    var leaderDistX = groupLeader.Position.X - targetPosition.X;
+                    var leaderDistZ = groupLeader.Position.Z - targetPosition.Z;
 
                     if (leaderDistX * leaderDistX + leaderDistZ * leaderDistZ >= MaxChaseDistance * MaxChaseDistance)
                     {
@@ -993,10 +992,11 @@ namespace Rasa.Managers
                 // Free to act, yet for StallEvadeMs it has neither struck nor gained ground - its
                 // target where the navmesh gives no route, or inside the reach of every attack it
                 // has - it gives the fight up and goes home whole (Stalled). One of a group drops
-                // it as it is and goes back to its place: it would only be drawn back into it.
+                // it as it is and goes back to its place, while it has a leader to go back to:
+                // it would only be drawn back into it.
                 if (Stalled(creature, delta))
                 {
-                    if (PatrolGroups.Follows(creature))
+                    if (PatrolGroups.Follows(creature) && PatrolGroups.LeaderOf(mapChannel, creature.SpawnPool) != null)
                         PatrolGroups.DropFight(creature, outOfReach: true);
                     else
                         Leash(mapChannel, creature);
@@ -1809,7 +1809,7 @@ namespace Rasa.Managers
             else
                 follow.DroppedTargetId = 0;
 
-            var place = PatrolGroups.PlaceOf(map, creature, leader);
+            var place = PatrolGroups.PlaceFor(map, creature, leader, delta, out var placed);
             var gap = Spacing.AcrossGround(creature.Position, place);
             var leaderWalks = leader.Controller.LastMovement?.Velocity > 0f;
 
@@ -1857,10 +1857,27 @@ namespace Rasa.Managers
             // At the leader's pace at least: at its own slower walk it would drop out of its place.
             var speed = follow.CatchUpRunning ? Math.Max(creature.RunSpeed, leader.WalkSpeed) : Math.Max(creature.WalkSpeed, leader.WalkSpeed);
 
-            // A route is to where the place was. While the leader walks the place moves on every
-            // think, and a route kept for longer leaves the follower a think or two behind it.
-            if (leaderWalks || creature.Controller.PathIndex >= creature.Controller.Path.Count)
-                follow.PathUpdateTime = 0;
+            // Near its place, and that on the navmesh, it steps straight onto it: the ground
+            // beside its leader is walked as the leader walks its own, with no route built each
+            // think. Further off - fallen behind, round a corner - it takes a route across the
+            // navmesh, built again at the chase's pace, and at once when it leaves the straight step.
+            var controller = creature.Controller;
+
+            if (placed && gap <= PatrolGroups.DirectDistance)
+            {
+                controller.Path.Clear();
+                controller.Path.Add(place);
+                controller.PathIndex = 0;
+                follow.PathUpdateTime = ChasePathUpdateMs;
+                follow.SteppingDirect = true;
+            }
+            else
+            {
+                if (follow.SteppingDirect || controller.PathIndex >= controller.Path.Count)
+                    follow.PathUpdateTime = 0;
+
+                follow.SteppingDirect = false;
+            }
 
             FollowGrounded(map, creature, place, speed, delta, leaderWalks ? 0f : PatrolGroups.PlaceReached / 2, follow.CatchUpRunning);
         }

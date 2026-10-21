@@ -83,6 +83,18 @@ namespace Rasa.Managers
         /// </summary>
         public const float RejoinFightDistance = 45f;
 
+        /// <summary>Within this of its place, on the navmesh, a follower steps straight onto it rather than along a route. Two of Abreast: the width of the formation.</summary>
+        public const float DirectDistance = 2 * Abreast;
+
+        /// <summary>A leader this far from where the follower's place was last put on the navmesh has the place put on it again; nearer, the place is moved with it.</summary>
+        public const float ReplaceDistance = 1f;
+
+        /// <summary>A leader turned this far from where the follower's place was last put has it put again. A twentieth of a turn.</summary>
+        public const float ReplaceTurn = MathF.PI / 10f;
+
+        /// <summary>While the leader walks, a follower's place is put on the navmesh again at least this often.</summary>
+        public const long ReplaceMs = 500;
+
         /// <summary>
         /// Whether the pool has a leader of its own: the creature of its first slot. Not a pool
         /// with an acting leader and an empty first slot (spawnpool_patrol_group), which one of
@@ -214,7 +226,7 @@ namespace Rasa.Managers
                 return null;
 
             var next = MembersOf(map, pool)
-                .Where(creature => creature.Patrol == null)
+                .Where(creature => creature.Patrol == null && creature.Controller.CurrentAction != BehaviorManager.BehaviorActionScriptedMove)
                 .OrderBy(creature => creature.Controller.ActionFollow.FormationSlot < 0 ? int.MaxValue : creature.Controller.ActionFollow.FormationSlot)
                 .ThenBy(creature => creature.EntityId)
                 .FirstOrDefault();
@@ -338,7 +350,46 @@ namespace Rasa.Managers
         /// leader; that off the mesh too, a point <see cref="TrailDistance"/> straight behind
         /// it; and that too, the leader's own ground.
         /// </summary>
-        public static Vector3 PlaceOf(MapChannel map, Creature follower, Creature leader)
+        public static Vector3 PlaceOf(MapChannel map, Creature follower, Creature leader) =>
+            PlaceOf(map, follower, leader, out _);
+
+        /// <summary>
+        /// <see cref="PlaceOf"/> for the follower's think, without a navmesh query each think:
+        /// the place last put on the navmesh moves with the leader, and is put on it again only
+        /// once the leader is <see cref="ReplaceDistance"/> from where it was then, or turned
+        /// <see cref="ReplaceTurn"/>, or walking <see cref="ReplaceMs"/> later - or the follower
+        /// has a new place (PlaceOffset cleared). <paramref name="placed"/>: the place is its own
+        /// formation place, or the one across, on the navmesh - not a fallback behind the leader.
+        /// </summary>
+        public static Vector3 PlaceFor(MapChannel map, Creature follower, Creature leader, long delta, out bool placed)
+        {
+            var follow = follower.Controller.ActionFollow;
+            var walking = leader.Controller.LastMovement?.Velocity > 0f;
+            var yaw = (float)leader.Rotation;
+
+            follow.PlacedMs += delta;
+
+            if (follow.PlaceOffset != null && follow.PlacedAt is Vector3 last
+                && Spacing.AcrossGround(leader.Position, follow.PlacedLeaderAt) < ReplaceDistance
+                && MathF.Abs(Patrols.Turn(follow.PlacedLeaderYaw, yaw)) < ReplaceTurn
+                && (!walking || follow.PlacedMs < ReplaceMs))
+            {
+                placed = follow.PlacedOnMesh;
+                return last + (leader.Position - follow.PlacedLeaderAt);
+            }
+
+            var place = PlaceOf(map, follower, leader, out placed);
+
+            follow.PlacedAt = place;
+            follow.PlacedLeaderAt = leader.Position;
+            follow.PlacedLeaderYaw = yaw;
+            follow.PlacedOnMesh = placed;
+            follow.PlacedMs = 0;
+
+            return place;
+        }
+
+        private static Vector3 PlaceOf(MapChannel map, Creature follower, Creature leader, out bool placed)
         {
             var follow = follower.Controller.ActionFollow;
             var walking = leader.Controller.LastMovement?.Velocity > 0f;
@@ -348,11 +399,15 @@ namespace Rasa.Managers
             if (walking || follow.PlaceOffset == null)
                 follow.PlaceOffset = Offset(slot, yaw, SideOf(leader));
 
+            placed = true;
+
             if (Spacing.Placed(map, leader.Position + follow.PlaceOffset.Value) is Vector3 place)
                 return place;
 
             if (Spacing.Placed(map, leader.Position + Offset(slot, yaw, !leader.SpawnPool.FormationMirrored)) is Vector3 across)
                 return across;
+
+            placed = false;
 
             var behind = new Vector3(MathF.Sin(yaw), 0, MathF.Cos(yaw)) * TrailDistance;
 
@@ -417,7 +472,8 @@ namespace Rasa.Managers
                 foreach (var other in MembersOf(map, creature.SpawnPool).Where(other => other != creature).ToList())
                 {
                     if (other.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting
-                        || other.Controller.CurrentAction == BehaviorManager.BehaviorActionScriptedMove)
+                        || other.Controller.CurrentAction == BehaviorManager.BehaviorActionScriptedMove
+                        || other.Controller.ActionFollow.DroppedTargetId == targetEntityId)
                         continue;
 
                     foreach (var grudge in grudges)
