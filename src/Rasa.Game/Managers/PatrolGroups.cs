@@ -77,6 +77,13 @@ namespace Rasa.Managers
         public const float PlaceReached = 0.5f;
 
         /// <summary>
+        /// A follower goes back into its leader's fight only with a target this near the leader:
+        /// well inside BehaviorManager.MaxChaseDistance, where it drops one, so a target at the
+        /// edge does not draw it in and out of the fight each think.
+        /// </summary>
+        public const float RejoinFightDistance = 45f;
+
+        /// <summary>
         /// Whether the pool has a leader of its own: the creature of its first slot. Not a pool
         /// with an acting leader and an empty first slot (spawnpool_patrol_group), which one of
         /// its creatures always leads.
@@ -131,8 +138,23 @@ namespace Rasa.Managers
             return null;
         }
 
-        /// <summary>The pool's leader, its own or acting, while it stands on the map; null when it is dead, gone, or was never set down.</summary>
+        /// <summary>
+        /// The pool's leader, its own or acting, to follow: null when it is dead, gone, was never
+        /// set down, or is under a player's Mind Control (AbilityManager.MindControl) - the group
+        /// does not trail it to the player, and strolls where it is until it is free.
+        /// </summary>
         public static Creature LeaderOf(MapChannel map, SpawnPool pool)
+        {
+            var leader = StandingLeader(map, pool);
+
+            return leader != null && AbilityManager.MindControlPumpOf(leader) == 0 ? leader : null;
+        }
+
+        /// <summary>
+        /// The pool's leader while it stands on the map, under Mind Control or not: a group whose
+        /// leader is only held for a time has no other leader set down, nor one acting for it.
+        /// </summary>
+        public static Creature StandingLeader(MapChannel map, SpawnPool pool)
         {
             var leader = pool?.Leader;
 
@@ -160,6 +182,7 @@ namespace Rasa.Managers
             BehaviorManager.Instance.SetActionFollow(follower, leader.EntityId);
             follower.Controller.ActionFollow.FormationSlot = slot;
             follower.Controller.ActionFollow.PlaceOffset = null;
+            follower.Controller.ActionFollow.DroppedTargetId = 0;
         }
 
         /// <summary>The first place of the leader's formation no other follower of it holds.</summary>
@@ -181,11 +204,13 @@ namespace Rasa.Managers
         /// <summary>
         /// A group with an acting leader and no leader standing: the follower with the first
         /// place of the formation leads it on the beat, from the step the last leader was
-        /// walking to. Null for a pool with no acting leader, or nobody left to lead.
+        /// walking to, and the rest fall in behind it - those in a fight too, so they give it up
+        /// with it when it is drawn too far (LeashFollowers). Null for a pool with no acting
+        /// leader, a leader still standing, or nobody left to lead.
         /// </summary>
         public static Creature Succeed(MapChannel map, SpawnPool pool)
         {
-            if (pool == null || !pool.ActingLeader || !IsGroup(pool) || map == null || LeaderOf(map, pool) != null)
+            if (pool == null || !pool.ActingLeader || !IsGroup(pool) || map == null || StandingLeader(map, pool) != null)
                 return null;
 
             var next = MembersOf(map, pool)
@@ -211,6 +236,14 @@ namespace Rasa.Managers
             next.Controller.ActionPatrol.Step = step;
             SetLeader(pool, next);
 
+            // In their old order of places, so each keeps near where it walked.
+            foreach (var other in MembersOf(map, pool)
+                         .Where(creature => creature != next && creature.Patrol == null)
+                         .OrderBy(creature => creature.Controller.ActionFollow.FormationSlot < 0 ? int.MaxValue : creature.Controller.ActionFollow.FormationSlot)
+                         .ThenBy(creature => creature.EntityId)
+                         .ToList())
+                Reattach(map, other, next);
+
             // Idle, it sets off on the beat at its next think; in a fight, once that is over.
             if (next.Controller.CurrentAction != BehaviorManager.BehaviorActionFighting && !BehaviorManager.IsReturning(next))
                 BehaviorManager.StartWandering(next, false);
@@ -231,12 +264,14 @@ namespace Rasa.Managers
 
         /// <summary>
         /// The follower drops its fight as it is - the target too far from its group, or out of
-        /// its reach - and goes back to its place. Unlike a leash it is not made whole, and it is
-        /// not drawn back into its leader's fight with that target.
+        /// its reach - and goes back to its place. Unlike a leash it is not made whole. A target
+        /// too far off it goes for again once it is back within <see cref="RejoinFightDistance"/>
+        /// of the leader; one out of its reach it is not drawn back into its leader's fight with
+        /// (<paramref name="outOfReach"/>): it would only stand stalled again.
         /// </summary>
-        public static void DropFight(Creature follower)
+        public static void DropFight(Creature follower, bool outOfReach)
         {
-            follower.Controller.ActionFollow.DroppedTargetId = follower.Controller.ActionFighting.TargetEntityId;
+            follower.Controller.ActionFollow.DroppedTargetId = outOfReach ? follower.Controller.ActionFighting.TargetEntityId : 0;
             follower.LastRestTime = 0;
             BehaviorManager.Instance.GiveUp(follower);
         }
@@ -259,10 +294,16 @@ namespace Rasa.Managers
                 Reattach(map, follower, leader);
         }
 
-        /// <summary>Puts the follower in behind the leader; one in a fight, or running home, only once it is over.</summary>
+        /// <summary>
+        /// Puts the follower in behind the leader; one in a fight, running home, or moved by a
+        /// mission scene only once that is over, though it counts as the leader's from now.
+        /// </summary>
         private static void Reattach(MapChannel map, Creature follower, Creature leader)
         {
-            if (follower.Controller.CurrentAction != BehaviorManager.BehaviorActionFighting && !BehaviorManager.IsReturning(follower))
+            var action = follower.Controller.CurrentAction;
+
+            if (action != BehaviorManager.BehaviorActionFighting && action != BehaviorManager.BehaviorActionScriptedMove
+                && !BehaviorManager.IsReturning(follower))
             {
                 Attach(map, follower, leader);
                 return;
@@ -271,6 +312,7 @@ namespace Rasa.Managers
             follower.Controller.ActionFollow.FormationSlot = FreeSlot(map, follower, leader);
             follower.Controller.ActionFollow.FollowTargetId = leader.EntityId;
             follower.Controller.ActionFollow.PlaceOffset = null;
+            follower.Controller.ActionFollow.DroppedTargetId = 0;
         }
 
         /// <summary>
@@ -412,9 +454,11 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// The leader is home again after a leash, put there if it took too long: its followers
-        /// not in a fight and further than <see cref="StrayDistance"/> from it are put on their
-        /// places, rather than left to find their own way back.
+        /// The leader is home again after a leash, put there if it took too long, and whole: so
+        /// is the group. Its followers not in a fight are made whole and forget whom they hated,
+        /// as those that ran home with it are - one that had dropped its fight is not left hurt.
+        /// Those further than <see cref="StrayDistance"/> from it are put on their places, rather
+        /// than left to find their own way back.
         /// </summary>
         public static void Regroup(MapChannel map, Creature leader)
         {
@@ -424,10 +468,16 @@ namespace Rasa.Managers
             foreach (var follower in FollowersOf(map, leader).ToList())
             {
                 if (follower.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting || BehaviorManager.IsReturning(follower)
-                    || Spacing.AcrossGround(follower.Position, leader.Position) <= StrayDistance)
+                    || follower.Controller.CurrentAction == BehaviorManager.BehaviorActionScriptedMove)
                     continue;
 
-                BehaviorManager.Instance.PutAtPlace(map, follower, PlaceOf(map, follower, leader));
+                BehaviorManager.Restore(map, follower);
+                follower.Hate.Clear();
+                follower.LastRestTime = 0;
+                follower.Controller.ActionFollow.DroppedTargetId = 0;
+
+                if (Spacing.AcrossGround(follower.Position, leader.Position) > StrayDistance)
+                    BehaviorManager.Instance.PutAtPlace(map, follower, PlaceOf(map, follower, leader));
             }
         }
 
@@ -441,6 +491,14 @@ namespace Rasa.Managers
                 if (follower.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting)
                     BehaviorManager.Instance.Leash(map, follower);
         }
+
+        /// <summary>
+        /// Whether the creature leads a group along its beat: other creatures it bumps into are
+        /// not pushed apart from it (BehaviorManager), as its followers would push it off the beat
+        /// at every step. A lone patroller is pushed as any creature, and rejoins its beat.
+        /// </summary>
+        public static bool LeadsOnBeat(Creature creature) =>
+            creature.Controller.CurrentAction == BehaviorManager.BehaviorActionPatrol && IsGroup(creature.SpawnPool);
 
         /// <summary>A follower's part in its group, for a GM: .npcinfo.</summary>
         public static string Describe(MapChannel map, Creature creature)

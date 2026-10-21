@@ -1138,7 +1138,7 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
-        public void AGuardDropsAFightTooFarFromItsLeaderAsItIsAndIsNotDrawnBackIntoIt()
+        public void AGuardDropsAFightTooFarFromItsLeaderAsItIsAndGoesBackIntoItOnceTheTargetIsNearItsLeader()
         {
             using var world = new WorldTestContext();
             var watcher = Watch(world, x: 40);
@@ -1154,14 +1154,43 @@ namespace Rasa.Test.World
 
             // 70 m from its leader: dropped, as it is - not run home and made whole.
             Assert.AreEqual(BehaviorManager.BehaviorActionFollow, guards[0].Controller.CurrentAction);
-            Assert.AreEqual(far.Player.EntityId, guards[0].Controller.ActionFollow.DroppedTargetId);
+            Assert.AreEqual(0ul, guards[0].Controller.ActionFollow.DroppedTargetId, "Too far is no bar for good.");
             Assert.AreEqual(50, guards[0].Attributes[Attributes.Health].Current);
 
             Record(world, watcher, leader, 4);
 
             Assert.AreEqual(BehaviorManager.BehaviorActionFighting, leader.Controller.CurrentAction, "Its leader fights on.");
-            Assert.AreNotEqual(BehaviorManager.BehaviorActionFighting, guards[0].Controller.CurrentAction, "Not drawn back into it with that target.");
+            Assert.AreNotEqual(BehaviorManager.BehaviorActionFighting, guards[0].Controller.CurrentAction, "Not drawn back in while the target is far off.");
             Assert.IsFalse(BehaviorManager.IsReturning(guards[0]));
+
+            // The target comes in close to the leader - a ranged player shooting it: the guard is not left standing.
+            far.Player.Position = leader.Position + new Vector3(0, 0, 20);
+            Record(world, watcher, leader, 2);
+
+            Assert.AreEqual(BehaviorManager.BehaviorActionFighting, guards[0].Controller.CurrentAction, "Back into its leader's fight.");
+            Assert.AreEqual(far.Player.EntityId, guards[0].Controller.ActionFighting.TargetEntityId);
+        }
+
+        [TestMethod]
+        public void AGuardThatDroppedATargetOutOfItsReachIsNotDrawnBackIntoItsLeadersFightWithItUntilItHasANewLeader()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0), pauseMs: 600000), new PatrolStep(new Vector3(30, 0, 0)) });
+
+            Record(world, watcher, leader, 4);
+            Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(leader, watcher.Player.EntityId));
+            Assert.AreEqual(BehaviorManager.BehaviorActionFighting, guards[0].Controller.CurrentAction);
+
+            PatrolGroups.DropFight(guards[0], outOfReach: true);
+            Record(world, watcher, leader, 2);
+
+            Assert.AreEqual(watcher.Player.EntityId, guards[0].Controller.ActionFollow.DroppedTargetId);
+            Assert.AreNotEqual(BehaviorManager.BehaviorActionFighting, guards[0].Controller.CurrentAction, "It would only stand stalled again.");
+
+            // A new leader: the bar does not go with it.
+            PatrolGroups.Attach(world.Map, guards[0], leader);
+            Assert.AreEqual(0ul, guards[0].Controller.ActionFollow.DroppedTargetId);
         }
 
         [TestMethod]
@@ -1305,6 +1334,106 @@ namespace Rasa.Test.World
 
             Assert.IsFalse(BehaviorManager.IsReturning(leader));
             Assert.IsLessThan(PatrolGroups.StrayDistance, Spacing.AcrossGround(guards[0].Position, leader.Position));
+        }
+
+        [TestMethod]
+        public void AnActingLeaderTakesTheGuardsStillFightingAndTheyGiveTheFightUpWithItWhenItIsLeashed()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0), pauseMs: 600000), new PatrolStep(new Vector3(30, 0, 0)) });
+            var pool = leader.SpawnPool;
+
+            pool.ActingLeader = true;
+            Record(world, watcher, leader, 4);
+            Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(leader, watcher.Player.EntityId));
+            Assert.IsTrue(guards.All(guard => guard.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting));
+
+            leader.State = CharacterState.Dead;
+            leader.Attributes[Attributes.Health].Current = 0;
+
+            var acting = PatrolGroups.Succeed(world.Map, pool);
+            var other = guards.Single(guard => guard != acting);
+
+            Assert.AreSame(guards[0], acting);
+            Assert.AreEqual(BehaviorManager.BehaviorActionFighting, other.Controller.CurrentAction, "It stays in its fight.");
+            Assert.AreEqual(acting.EntityId, other.Controller.ActionFollow.FollowTargetId, "But it is the acting leader's now.");
+            Assert.AreEqual(0, other.Controller.ActionFollow.FormationSlot);
+
+            BehaviorManager.Instance.Leash(world.Map, acting);
+
+            Assert.IsTrue(BehaviorManager.IsReturning(other), "It gives the fight up with its acting leader.");
+        }
+
+        [TestMethod]
+        public void GuardsDoNotTrailALeaderUnderMindControlAndNoneActsForIt()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0), pauseMs: 600000), new PatrolStep(new Vector3(30, 0, 0)) });
+            var pool = leader.SpawnPool;
+
+            pool.ActingLeader = true;
+            Record(world, watcher, leader, 4);
+
+            leader.ActiveEffects[1] = new GameEffect { TypeId = AbilityManager.MindControlTypeId, EffectId = 1, MindControlPump = AbilityManager.MindControlEnslavement };
+            BehaviorManager.Instance.SetActionFollow(leader, watcher.Player.EntityId);
+
+            Assert.IsNull(PatrolGroups.LeaderOf(world.Map, pool));
+            Assert.AreSame(leader, PatrolGroups.StandingLeader(world.Map, pool));
+
+            Record(world, watcher, leader, 3);
+
+            Assert.AreSame(leader, pool.Leader, "Held for a time, it is still the leader.");
+
+            foreach (var guard in guards)
+            {
+                Assert.IsNull(guard.Patrol, "None takes the beat on in its place.");
+                Assert.AreNotEqual(leader.EntityId, guard.Controller.ActionFollow.FollowTargetId, "Not trailed to the player.");
+            }
+
+            leader.ActiveEffects.Remove(1);
+
+            Assert.AreSame(leader, PatrolGroups.LeaderOf(world.Map, pool), "Free again, it leads.");
+        }
+
+        [TestMethod]
+        public void OnlyAGroupsLeaderOnItsBeatIsKeptFromBeingPushedApart()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0)), new PatrolStep(new Vector3(30, 0, 0)) });
+            var lone = Spawn(world, x: 20, walkSpeed: 2, facing: East);
+
+            lone.Patrol = new[] { new PatrolStep(new Vector3(20, 0, 0)), new PatrolStep(new Vector3(20, 0, 20)) };
+            Record(world, watcher, leader, 2);
+
+            Assert.AreEqual(BehaviorManager.BehaviorActionPatrol, leader.Controller.CurrentAction);
+            Assert.AreEqual(BehaviorManager.BehaviorActionPatrol, lone.Controller.CurrentAction);
+            Assert.IsTrue(PatrolGroups.LeadsOnBeat(leader));
+            Assert.IsFalse(PatrolGroups.LeadsOnBeat(lone), "A lone patroller is pushed as any creature, and rejoins its beat.");
+            Assert.IsFalse(PatrolGroups.LeadsOnBeat(guards[0]));
+        }
+
+        [TestMethod]
+        public void TheLeaderHomeAfterALeashMakesItsGuardsOutOfTheFightWholeToo()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0), pauseMs: 600000), new PatrolStep(new Vector3(30, 0, 0)) });
+
+            Record(world, watcher, leader, 4);
+
+            // One dropped its fight as it was, hurt, and is back at its place.
+            guards[1].Attributes[Attributes.Health].Current = 40;
+            guards[1].Hate.Ensure(watcher.Player.EntityId, Threat.NoticedThreat);
+
+            BehaviorManager.Instance.Leash(world.Map, leader);
+            Record(world, watcher, leader, 1);
+
+            Assert.IsFalse(BehaviorManager.IsReturning(leader));
+            Assert.AreEqual(100, guards[1].Attributes[Attributes.Health].Current, "The pack resets together.");
+            Assert.IsEmpty(guards[1].Hate.Ranked());
         }
 
         [TestMethod]

@@ -487,13 +487,12 @@ namespace Rasa.Managers
                 // is it a different alive creature?
                 // An emplacement is bolted down: it neither pushes nor is pushed.
                 // Scripted actors keep their authored path and final pose.
-                // A creature on its beat keeps to it (Patrols): pushed off, it would turn back to rejoin it.
+                // A group's leader on its beat keeps to it (PatrolGroups.LeadsOnBeat).
                 if (creature != tCreature && tCreature.Attributes[Attributes.Health].Current > 0
                     && !Emplacements.Is(creature) && !Emplacements.Is(tCreature)
                     && !IsMissionEscort(creature) && !Game.Missions.World.CreatureGameplayRules.IsDefender(creature)
                     && tCreature.Controller.CurrentAction != BehaviorActionScriptedMove
-                    && creature.Controller.CurrentAction != BehaviorActionPatrol
-                    && tCreature.Controller.CurrentAction != BehaviorActionPatrol
+                    && !PatrolGroups.LeadsOnBeat(creature) && !PatrolGroups.LeadsOnBeat(tCreature)
                     && !IsMissionEscort(tCreature) && !Game.Missions.World.CreatureGameplayRules.IsDefender(tCreature))
                 {
                     var difX = creature.Position.X - tCreature.Position.X;
@@ -977,7 +976,7 @@ namespace Rasa.Managers
 
                     if (leaderDistX * leaderDistX + leaderDistZ * leaderDistZ >= MaxChaseDistance * MaxChaseDistance)
                     {
-                        PatrolGroups.DropFight(creature);
+                        PatrolGroups.DropFight(creature, outOfReach: false);
                         return;
                     }
                 }
@@ -998,7 +997,7 @@ namespace Rasa.Managers
                 if (Stalled(creature, delta))
                 {
                     if (PatrolGroups.Follows(creature))
-                        PatrolGroups.DropFight(creature);
+                        PatrolGroups.DropFight(creature, outOfReach: true);
                     else
                         Leash(mapChannel, creature);
 
@@ -1796,12 +1795,15 @@ namespace Rasa.Managers
             // ends in the formation.
             creature.HomePos.Position = leader.Position;
 
-            // Out of a fight its leader is still in, it goes back into it - unless it dropped
-            // that target, too far off or out of its reach (PatrolGroups.DropFight).
+            // Out of a fight its leader is still in, it goes back into it: with a target near
+            // enough the leader, and not one it dropped as out of its reach (PatrolGroups.DropFight).
             if (leader.Controller.CurrentAction == BehaviorActionFighting
                 && leader.Controller.ActionFighting.TargetEntityId is var leaderTarget && leaderTarget != 0)
             {
-                if (leaderTarget != follow.DroppedTargetId && TrySetActionFighting(creature, leaderTarget))
+                if (leaderTarget != follow.DroppedTargetId
+                    && EntityManager.Instance.GetActor(leaderTarget) is Actor target
+                    && Spacing.AcrossGround(target.Position, leader.Position) < PatrolGroups.RejoinFightDistance
+                    && TrySetActionFighting(creature, leaderTarget))
                     return;
             }
             else
