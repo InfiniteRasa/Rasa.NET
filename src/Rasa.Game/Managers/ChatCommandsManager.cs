@@ -5749,9 +5749,10 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// .memory [map|full]: what the server holds. "map" (the default) is the totals and the map
-        /// you're on; "full" is the totals and the largest maps here, with every map in the console.
-        /// There's no text mail to send it by, so it goes to chat and the console.
+        /// .memory [map|full]: what the server holds now, briefly in chat. "map" (the default) adds
+        /// the map you're on; "full" adds the busiest maps here and every map to the console.
+        /// Navigation is left out: it's measured once, in the startup report, as that takes a walk
+        /// over millions of navmesh objects. There's no text mail to send it by.
         /// </summary>
         private void MemoryCommand(string[] parts)
         {
@@ -5763,14 +5764,13 @@ namespace Rasa.Managers
                 return;
             }
 
-            // The console gets the report in full; chat gets a few short lines.
             var full = mode == "full";
-            var report = full ? MemoryReport.Lines() : MemoryReport.ForMap(_client.Player.MapContextId);
+            var chat = MemoryReport.Chat(_client.Player.MapContextId, full ? 5 : 0);
+            var console = full ? MemoryReport.Lines(navigation: false) : chat;
 
-            foreach (var line in report.Where(line => line.Length > 0))
+            foreach (var line in console.Where(line => line.Length > 0))
                 Logger.WriteLog(LogType.Command, $"[.memory] {line}");
 
-            var chat = MemoryReport.Chat(_client.Player.MapContextId, full ? 5 : 0);
             chat.Add(full ? "Every map: server console" : "More: .memory full");
             CommunicatorManager.Instance.SystemMessage(_client, string.Join("\n", chat));
 
