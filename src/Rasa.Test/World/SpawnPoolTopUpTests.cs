@@ -130,6 +130,44 @@ namespace Rasa.Test.World
             CollectionAssert.AreEquivalent(new[] { 0, 1 }, guards.Select(guard => guard.Controller.ActionFollow.FormationSlot).ToArray());
         }
 
+        [TestMethod]
+        public void AGroupWithoutItsLeadersTopUpGetsItsLeaderBackItsRespawnTimeAfterItsOwnDeath()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var pool = PoolOf(harness);
+
+            pool.SpawnSlot = new List<SpawnPoolSlot> { new SpawnPoolSlot(First, 1, 1), new SpawnPoolSlot(Second, 2, 2) };
+            pool.Patrol = new[] { new PatrolStep(pool.Position), new PatrolStep(pool.Position + new Vector3(10, 0, 0)) };
+            pool.LeaderTopUp = false;
+
+            harness.SpawnWorld(Pool);
+            Assert.AreEqual(3, pool.AliveCreatures);
+
+            // A guard first, then - late in the fight - its leader.
+            Kill(harness, pool, Second, 1);
+            harness.SpawnWorldAfter(1500, Pool);
+            Kill(harness, pool, First, 1);
+            Assert.AreEqual(1, pool.AliveCreatures);
+
+            // The pool's time from its first loss is up: the guard comes back, its leader does not.
+            harness.SpawnWorldAfter(1000, Pool);
+            Assert.AreEqual((0, 2), Rows(Standing(harness, pool)));
+
+            harness.SpawnWorldAfter(1499, Pool);
+            Assert.AreEqual((0, 2), Rows(Standing(harness, pool)), "not yet: its own death was only 2.499 s ago");
+
+            harness.SpawnWorldAfter(1, Pool);
+            var boss = Standing(harness, pool).Single(creature => creature.DbId == First);
+
+            Assert.AreSame(boss, pool.Leader);
+            Assert.AreSame(pool.Patrol, boss.Patrol);
+            Assert.AreEqual(3, pool.AliveCreatures);
+
+            // Whole again: nothing more comes.
+            harness.SpawnWorldAfter(10_000, Pool);
+            Assert.AreEqual(3, pool.AliveCreatures);
+        }
+
         private static void Kill(WildernessRuntimeTestHarness harness, SpawnPool pool, uint creatureId, int count)
         {
             foreach (var creature in Standing(harness, pool).Where(creature => creature.DbId == creatureId).Take(count).ToList())

@@ -11,8 +11,9 @@ namespace Rasa.Migrations.SqliteWorld
     /// <summary>
     /// spawnpool_patrol_group: the pools whose group walks its patrol with an acting leader -
     /// one of its followers leads while it has no leader of its own, and a pool with an empty
-    /// first slot is always led by one of them (SpawnPoolPatrolGroupEntry). No rows: no pool
-    /// has one yet.
+    /// first slot is always led by one of them - and whether its leader comes back by the
+    /// pool's top-up or by its own respawn time after its death (SpawnPoolPatrolGroupEntry).
+    /// No rows: no pool has one yet.
     ///
     /// Down drops the table.
     /// </summary>
@@ -29,7 +30,8 @@ namespace Rasa.Migrations.SqliteWorld
                 columns: table => new
                 {
                     id = table.Column<uint>(type: "INTEGER", nullable: false),
-                    acting_leader = table.Column<bool>(type: "INTEGER", nullable: false)
+                    acting_leader = table.Column<bool>(type: "INTEGER", nullable: false),
+                    leader_top_up = table.Column<bool>(type: "INTEGER", nullable: false, defaultValue: true)
                 },
                 constraints: table =>
                 {

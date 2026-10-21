@@ -15,6 +15,11 @@ namespace Rasa.Structures.World
     /// the creatures of its other slots always leads, a patrol of equals. Once the first slot's
     /// creature is back, it leads again.
     ///
+    /// Without its leader's top-up, the leader killed while some of its pool stands is not
+    /// brought back with the rest of what the pool lost, by the clock the pool's first loss
+    /// started (the game server's SpawnPoolManager.TopUp), but its respawn time after its own
+    /// death: a boss killed late in a long fight does not stand again moments after.
+    ///
     /// A table of its own rather than a column on spawnpool, as spawnpool_pose is: the preloaders
     /// of earlier migrations insert spawnpool by its entity's columns.
     /// </summary>
@@ -34,5 +39,13 @@ namespace Rasa.Structures.World
         [Column("acting_leader")]
         [Required]
         public bool ActingLeader { get; set; }
+
+        /// <summary>
+        /// Whether its leader comes back by the pool's top-up, as the rest of it does; if not, its
+        /// respawn time after its own death. The column defaults to true for rows inserted without it.
+        /// </summary>
+        [Column("leader_top_up")]
+        [Required]
+        public bool LeaderTopUp { get; set; } = true;
     }
 }

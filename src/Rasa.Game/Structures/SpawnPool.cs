@@ -41,6 +41,16 @@ namespace Rasa.Structures
         /// </summary>
         public bool FirstSlotEmpty { get; set; }
 
+        /// <summary>
+        /// Whether its group's own leader comes back by its top-up with the rest of what it lost
+        /// (Managers.SpawnPoolManager.TopUp); if not, its respawn time after its own death
+        /// (spawnpool_patrol_group.leader_top_up).
+        /// </summary>
+        public bool LeaderTopUp { get; set; } = true;
+
+        /// <summary>How long its group's own leader has been down, up to its respawn time, for a pool without its leader's top-up. Not copied to a clone.</summary>
+        internal long LeaderDownMs { get; set; }
+
         /// <summary>The way its leader last walked, and whether its formation is mirrored for it (Managers.PatrolGroups.SideOf). Not copied to a clone.</summary>
         internal float? FormationYaw { get; set; }
         internal bool FormationMirrored { get; set; }
