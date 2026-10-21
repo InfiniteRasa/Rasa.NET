@@ -242,7 +242,7 @@ namespace Rasa.Managers
         /// <summary>misstype 2, a dodge: the player a creature's area ability was wound up at had left its area when it landed (CreatureWindups).</summary>
         public const uint MissTypeDodge = 2;
 
-        /// <summary>misstype 1, a plain miss: a shot that went wide (ToHit).</summary>
+        /// <summary>misstype 1, a plain miss: a shot that went wide (ToHit), or a charged shot whose target went out of its shooter's sight while it charged.</summary>
         public const uint MissTypeMiss = 1;
 
         /// <summary>
@@ -1293,6 +1293,20 @@ namespace Rasa.Managers
                 missile.Args.Missdata.Add(MissTypeDodge);
 
                 CreatureAreaHits(mapChannel, missile);
+
+                CellManager.Instance.CellCallMethod(mapChannel, missile.Source, CreatureAttacks.RecoveryFor(missile));
+                return;
+            }
+
+            // A charged shot (CreatureWindups.IsChargedShot) was aimed at a target its shooter
+            // could see; one who has gone behind something - a hill, a wall - while it charged is
+            // not hit through it, and the shot goes wide.
+            if (targetType == EntityType.Character && missile.AfterWindup && missile.Source is Creature charger
+                && CreatureWindups.IsChargedShot(missile.ActionId, missile.ActionArgId)
+                && !BehaviorManager.Sees(mapChannel.Cover, charger, missile.TargetActor))
+            {
+                missile.Args.MisstEntities.Add(missile.TargetEntityId);
+                missile.Args.Missdata.Add(MissTypeMiss);
 
                 CellManager.Instance.CellCallMethod(mapChannel, missile.Source, CreatureAttacks.RecoveryFor(missile));
                 return;
