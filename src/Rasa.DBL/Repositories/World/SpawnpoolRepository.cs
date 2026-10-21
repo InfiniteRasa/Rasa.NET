@@ -18,6 +18,9 @@ namespace Rasa.Repositories.World
 
         /// <summary>Every step of every pool's patrol (spawnpool_patrol), each pool's in the order they are walked.</summary>
         List<SpawnPoolPatrolEntry> GetPatrols();
+
+        /// <summary>The pools whose group walks its patrol otherwise than led by its first slot (spawnpool_patrol_group).</summary>
+        List<SpawnPoolPatrolGroupEntry> GetPatrolGroups();
     }
     public class SpawnpoolRepository : ISpawnpoolRepository
     {
@@ -52,6 +55,11 @@ namespace Rasa.Repositories.World
                 .OrderBy(step => step.PoolId)
                 .ThenBy(step => step.Step)
                 .ToList();
+        }
+
+        public List<SpawnPoolPatrolGroupEntry> GetPatrolGroups()
+        {
+            return _worldContext.CreateNoTrackingQuery(_worldContext.SpawnPoolPatrolGroupEntries).ToList();
         }
     }
 }

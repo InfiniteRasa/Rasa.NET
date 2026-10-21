@@ -341,6 +341,11 @@ namespace Rasa.Test.Missions.Wilderness
                     ? GetPatrols()
                     : new List<Rasa.Structures.World.SpawnPoolPatrolEntry>();
 
+            List<Rasa.Structures.World.SpawnPoolPatrolGroupEntry> ISpawnpoolRepository.GetPatrolGroups() =>
+                HasTable(Rasa.Structures.World.SpawnPoolPatrolGroupEntry.TableName)
+                    ? GetPatrolGroups()
+                    : new List<Rasa.Structures.World.SpawnPoolPatrolGroupEntry>();
+
             private bool HasTable(string name) => _context.Database
                 .SqlQueryRaw<int>("SELECT COUNT(*) AS Value FROM sqlite_master WHERE type = 'table' AND name = {0}", name)
                 .AsEnumerable().Single() > 0;

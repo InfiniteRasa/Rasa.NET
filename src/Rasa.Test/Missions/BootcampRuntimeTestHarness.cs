@@ -1377,6 +1377,14 @@ namespace Rasa.Test.Missions
                     .AsEnumerable().Single() > 0
                     ? GetDraws()
                     : new List<Rasa.Structures.World.SpawnPoolDrawEntry>();
+
+            List<Rasa.Structures.World.SpawnPoolPatrolGroupEntry> ISpawnpoolRepository.GetPatrolGroups() =>
+                _context.Database
+                    .SqlQueryRaw<int>("SELECT COUNT(*) AS Value FROM sqlite_master WHERE type = 'table' AND name = {0}",
+                        Rasa.Structures.World.SpawnPoolPatrolGroupEntry.TableName)
+                    .AsEnumerable().Single() > 0
+                    ? GetPatrolGroups()
+                    : new List<Rasa.Structures.World.SpawnPoolPatrolGroupEntry>();
         }
 
         private sealed class RepositoryBackedWorldUnitOfWork : IWorldUnitOfWork

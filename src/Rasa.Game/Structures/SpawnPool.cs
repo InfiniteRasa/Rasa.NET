@@ -29,6 +29,18 @@ namespace Rasa.Structures
         /// </summary>
         internal Creature Leader { get; set; }
 
+        /// <summary>
+        /// Whether one of its followers leads its group on the beat while it has no leader of its
+        /// own (spawnpool_patrol_group; Managers.PatrolGroups).
+        /// </summary>
+        public bool ActingLeader { get; set; }
+
+        /// <summary>
+        /// Whether its first slot (spawnpool.creature_1_id) is empty. With an acting leader, it
+        /// then has no leader of its own: one of its creatures always leads.
+        /// </summary>
+        public bool FirstSlotEmpty { get; set; }
+
         /// <summary>The way its leader last walked, and whether its formation is mirrored for it (Managers.PatrolGroups.SideOf). Not copied to a clone.</summary>
         internal float? FormationYaw { get; set; }
         internal bool FormationMirrored { get; set; }
