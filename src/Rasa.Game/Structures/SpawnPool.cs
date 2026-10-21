@@ -24,6 +24,12 @@ namespace Rasa.Structures
         public IReadOnlyList<PatrolStep> Patrol { get; set; }
 
         /// <summary>
+        /// The creature walking its beat with the rest of the pool round it (Managers.PatrolGroups),
+        /// as last set down on its map channel; it may since have died. Not copied to a clone.
+        /// </summary>
+        internal Creature Leader { get; set; }
+
+        /// <summary>
         /// How many it sends at a time, each drawn from its slots at random, weighted by the slot's
         /// max count (spawnpool_draw); 0 for a pool that sends each slot's own count.
         /// </summary>

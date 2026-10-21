@@ -818,6 +818,158 @@ namespace Rasa.Test.World
 
         #endregion
 
+        #region A group on the beat
+
+        [TestMethod]
+        public void ItsGuardsWalkTheirPlacesBehindTheLeaderAndStandWhenItStands()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[]
+            {
+                new PatrolStep(new Vector3(10, 0, 0)),
+                new PatrolStep(new Vector3(30, 0, 0), pauseMs: 60000)
+            });
+
+            Record(world, watcher, leader, 30);
+
+            Assert.AreEqual(BehaviorManager.BehaviorActionPatrol, leader.Controller.CurrentAction);
+            Assert.IsGreaterThan(20f, leader.Position.X);
+
+            // Walking east: the two of the first rank 1.5 m behind it, 3 m to each side.
+            AtPlace(leader, guards[0], new Vector3(-1.5f, 0, -3));
+            AtPlace(leader, guards[1], new Vector3(-1.5f, 0, 3));
+            Assert.AreEqual(leader.Position, leader.HomePos.Position, "Its home goes along the beat with it.");
+            Assert.IsLessThan(0.51f, Vector3.Distance(leader.Position, guards[0].HomePos.Position), "A guard's home is its leader, as of its last think.");
+
+            Record(world, watcher, leader, 30);
+
+            Assert.AreEqual(new Vector3(30, 0, 0), leader.Position);
+            Assert.IsTrue(leader.Controller.ActionPatrol.Arrived);
+
+            foreach (var guard in guards)
+            {
+                Assert.AreEqual(BehaviorManager.BehaviorActionFollow, guard.Controller.CurrentAction);
+                Assert.AreEqual(0f, guard.Controller.LastMovement.Velocity, "It stands when its leader does.");
+            }
+
+            AtPlace(leader, guards[0], new Vector3(-1.5f, 0, -3));
+            AtPlace(leader, guards[1], new Vector3(-1.5f, 0, 3));
+        }
+
+        [TestMethod]
+        public void ItsGuardsHoldTheirPlacesWhileTheLeaderTurnsAboutAndFallInBehindItWhenItWalksBack()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[]
+            {
+                new PatrolStep(new Vector3(10, 0, 0), pauseMs: 60000),
+                new PatrolStep(new Vector3(20, 0, 0), pauseMs: 5000)
+            });
+
+            // Start it on its way to the far end.
+            leader.Controller.ActionPatrol.Step = 1;
+
+            Record(world, watcher, leader, 30);
+
+            // On the far step, sitting out its pause: its guards where they were, behind it to the west.
+            Assert.AreEqual(new Vector3(20, 0, 0), leader.Position);
+            AtPlace(leader, guards[0], new Vector3(-1.5f, 0, -3));
+
+            Record(world, watcher, leader, 25);
+
+            // Turned about and walking back west: they are behind it again, on its east side.
+            Assert.AreEqual(West, leader.LastYaw, 0.0001f);
+            Assert.IsLessThan(20f, leader.Position.X);
+            Assert.IsGreaterThan(10f, leader.Position.X);
+            Assert.IsGreaterThan(0f, leader.Controller.LastMovement.Velocity);
+
+            foreach (var guard in guards)
+                Assert.IsGreaterThan(leader.Position.X, guard.Position.X);
+
+            AtPlace(leader, guards[0], PatrolGroups.Offset(0, West));
+            AtPlace(leader, guards[1], PatrolGroups.Offset(1, West));
+        }
+
+        [TestMethod]
+        public void GuardsOfADeadLeaderStrollWhereTheyAreAndFallInBehindTheNextOne()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var beat = new[] { new PatrolStep(new Vector3(10, 0, 0)), new PatrolStep(new Vector3(30, 0, 0)) };
+            var (leader, guards) = Group(world, beat);
+
+            Record(world, watcher, leader, 4);
+
+            leader.State = CharacterState.Dead;
+            leader.Attributes[Attributes.Health].Current = 0;
+            Record(world, watcher, leader, 1);
+
+            foreach (var guard in guards)
+            {
+                Assert.AreEqual(BehaviorManager.BehaviorActionWander, guard.Controller.CurrentAction);
+                Assert.AreEqual(0UL, guard.Controller.ActionFollow.FollowTargetId);
+                Assert.AreEqual(guard.Position, guard.HomePos.Position, "It strolls where it stands.");
+            }
+
+            // The pool tops its leader back up.
+            var next = Spawn(world, x: 10, walkSpeed: 2, facing: East);
+            next.DbId = leader.DbId;
+            next.SpawnPool = leader.SpawnPool;
+            next.Patrol = beat;
+            leader.SpawnPool.Leader = next;
+
+            Record(world, watcher, next, 2);
+
+            foreach (var guard in guards)
+            {
+                Assert.AreEqual(BehaviorManager.BehaviorActionFollow, guard.Controller.CurrentAction);
+                Assert.AreEqual(next.EntityId, guard.Controller.ActionFollow.FollowTargetId);
+            }
+
+            CollectionAssert.AreEquivalent(new[] { 0, 1 }, guards.Select(guard => guard.Controller.ActionFollow.FormationSlot).ToArray());
+        }
+
+        /// <summary>A leader on <paramref name="beat"/> at x 10 facing east, walking 2 m/s, and two guards of its pool behind it, put in behind it as its pool does.</summary>
+        private static (Creature Leader, Creature[] Guards) Group(WorldTestContext world, PatrolStep[] beat)
+        {
+            var pool = new SpawnPool
+            {
+                DbId = 77,
+                MapContextId = world.Map.MapInfo.MapContextId,
+                Patrol = beat,
+                SpawnSlot = new List<SpawnPoolSlot> { new SpawnPoolSlot(1, 1, 1), new SpawnPoolSlot(2, 2, 2) }
+            };
+
+            var leader = Spawn(world, x: 10, walkSpeed: 2, facing: East);
+            leader.DbId = 1;
+            leader.SpawnPool = pool;
+            leader.Patrol = beat;
+            pool.Leader = leader;
+
+            var guards = new[] { Spawn(world, x: 8, walkSpeed: 2, facing: East), Spawn(world, x: 6, walkSpeed: 2, facing: East) };
+
+            foreach (var guard in guards)
+            {
+                guard.DbId = 2;
+                guard.SpawnPool = pool;
+                PatrolGroups.Attach(world.Map, guard, leader);
+            }
+
+            return (leader, guards);
+        }
+
+        /// <summary>The guard stands within a metre of its place: <paramref name="offset"/> from its leader.</summary>
+        private static void AtPlace(Creature leader, Creature guard, Vector3 offset)
+        {
+            var place = leader.Position + offset;
+
+            Assert.IsLessThan(1f, Spacing.AcrossGround(guard.Position, place), $"guard at {guard.Position}, place {place}");
+        }
+
+        #endregion
+
         #region Fixture
 
         /// <summary>The same place, to a millimetre: a step of a walk is summed in floats, a stop is put exactly on its step.</summary>

@@ -487,10 +487,13 @@ namespace Rasa.Managers
                 // is it a different alive creature?
                 // An emplacement is bolted down: it neither pushes nor is pushed.
                 // Scripted actors keep their authored path and final pose.
+                // A creature on its beat keeps to it (Patrols): pushed off, it would turn back to rejoin it.
                 if (creature != tCreature && tCreature.Attributes[Attributes.Health].Current > 0
                     && !Emplacements.Is(creature) && !Emplacements.Is(tCreature)
                     && !IsMissionEscort(creature) && !Game.Missions.World.CreatureGameplayRules.IsDefender(creature)
                     && tCreature.Controller.CurrentAction != BehaviorActionScriptedMove
+                    && creature.Controller.CurrentAction != BehaviorActionPatrol
+                    && tCreature.Controller.CurrentAction != BehaviorActionPatrol
                     && !IsMissionEscort(tCreature) && !Game.Missions.World.CreatureGameplayRules.IsDefender(tCreature))
                 {
                     var difX = creature.Position.X - tCreature.Position.X;
@@ -562,6 +565,13 @@ namespace Rasa.Managers
                     if (Patrols.Has(creature))
                     {
                         SetActionPatrol(creature);
+                        return;
+                    }
+
+                    // The rest of a group falls in behind its leader once there is one standing (PatrolGroups).
+                    if (PatrolGroups.Follows(creature) && PatrolGroups.LeaderOf(mapChannel, creature.SpawnPool) is Creature leader)
+                    {
+                        PatrolGroups.Attach(mapChannel, creature, leader);
                         return;
                     }
 
@@ -681,6 +691,13 @@ namespace Rasa.Managers
 
                     if (creature.Controller.CurrentAction == BehaviorActionFighting)
                         return;
+                }
+
+                // One of a group on a beat keeps its place round the leader (PatrolGroups).
+                if (PatrolGroups.Follows(creature))
+                {
+                    AdvanceGroupFollower(mapChannel, creature, delta);
+                    return;
                 }
 
                 var destination = creature.Controller.ActionFollow.Anchor;
@@ -1711,6 +1728,63 @@ namespace Rasa.Managers
             // (ChasedTooFar), and it is where it runs back to (ReturnHome) - not the pool's point
             // a beat may lead it far from.
             creature.HomePos.Position = creature.Position;
+        }
+
+        /// <summary>
+        /// One think of a patrol group's follower (PatrolGroups): to its place round the leader
+        /// across the ground, walking, or running when it has fallen behind; standing once it is
+        /// there. With no leader standing, it strolls where it is until its pool has one again.
+        /// </summary>
+        private void AdvanceGroupFollower(MapChannel map, Creature creature, long delta)
+        {
+            var follow = creature.Controller.ActionFollow;
+            var leader = PatrolGroups.LeaderOf(map, creature.SpawnPool);
+
+            if (leader == null)
+            {
+                follow.FollowTargetId = 0;
+                follow.FormationSlot = -1;
+                follow.PlaceOffset = null;
+                follow.CatchUpRunning = false;
+                StopFollowing(map, creature);
+                creature.HomePos.Position = creature.Position;
+                SetActionWander(creature);
+                return;
+            }
+
+            follow.FollowTargetId = leader.EntityId;
+
+            // Its home goes with the leader: a fight is measured from the group, and a run home
+            // ends in the formation.
+            creature.HomePos.Position = leader.Position;
+
+            var place = PatrolGroups.PlaceOf(map, creature, leader);
+            var gap = Spacing.AcrossGround(creature.Position, place);
+            var leaderWalks = leader.Controller.LastMovement?.Velocity > 0f;
+
+            // Standing: once at its place it stands too. Walking: it keeps pace onto a place
+            // that moves on as fast, rather than stopping each time it reaches it.
+            if (!leaderWalks && gap <= PatrolGroups.PlaceReached)
+            {
+                follow.CatchUpRunning = false;
+                StopFollowing(map, creature);
+                return;
+            }
+
+            if (gap > PatrolGroups.RunDistance)
+                follow.CatchUpRunning = true;
+            else if (gap <= PatrolGroups.WalkDistance)
+                follow.CatchUpRunning = false;
+
+            // At the leader's pace at least: at its own slower walk it would drop out of its place.
+            var speed = follow.CatchUpRunning ? Math.Max(creature.RunSpeed, leader.WalkSpeed) : Math.Max(creature.WalkSpeed, leader.WalkSpeed);
+
+            // A route is to where the place was. While the leader walks the place moves on every
+            // think, and a route kept for longer leaves the follower a think or two behind it.
+            if (leaderWalks || creature.Controller.PathIndex >= creature.Controller.Path.Count)
+                follow.PathUpdateTime = 0;
+
+            FollowGrounded(map, creature, place, speed, delta, leaderWalks ? 0f : PatrolGroups.PlaceReached / 2);
         }
 
         /// <summary>
