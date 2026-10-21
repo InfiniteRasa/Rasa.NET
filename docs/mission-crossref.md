@@ -5,7 +5,7 @@ Generated 2026-10-18, extended 2026-10-20 (Wayback round 2: official site + patc
 | Source | Label in entries | Missions |
 | --- | --- | ---: |
 | Client tables (title, log summary, objectives) | **Client** | 1168 |
-| This server, `data/rasaworld.db` enabled `mission_content_definition` rows | **Local server** | 105 |
+| This server, `data/rasaworld.db` enabled `mission_content_definition` rows | **Local server** | 110 |
 | [TaRapedia (Fandom)](https://tabularasa.fandom.com/wiki/Category:Missions) | **TaRapedia** | 941 |
 | [Ellatha / DaOpa mission DB](https://www.ellatha.com/tr/missionslist.asp) | **Ellatha** | 93 |
 | [tabularasawiki.org (Wayback 2007-08)](https://web.archive.org/web/20080511080212/http://www.tabularasawiki.org/action/view/Main_Page) | **TRWiki archive** | 7 |
@@ -37,9 +37,9 @@ Generated 2026-10-18, extended 2026-10-20 (Wayback round 2: official site + patc
 | [TR MMO DB (tr.mmodb.com, Wayback)](https://web.archive.org/web/2008/http://tr.mmodb.com/quests/) quest pages (level / start NPC / zone / mobs / objectives) + bestiary | **TR MMO DB** | 317 |
 | Web search by research agents (mostly TaRapedia patch notes, NPC lists, alternate titles) | **Web** | 88 |
 
-**Implemented** (enabled on the local server, `data/rasaworld.db`; marked `[implemented]` in the entry heading): 105 missions. Per zone: Wilderness 64, Plateau 23, Bootcamp 5, Abyss 1, Ashen Desert 1, Crucible 1, Descent 1, Divide 1, Howling Maw 1, Incline 1, Marshes 1, Mires 1, Palisades 1, Plains 1, Pools 1, Thunderhead 1. Search for `[implemented]` to find them; entries without the mark are not implemented yet.
+**Implemented** (enabled on the local server, `data/rasaworld.db`; marked `[implemented]` in the entry heading): 110 missions. Per zone: Wilderness 64, Plateau 28, Bootcamp 5, Abyss 1, Ashen Desert 1, Crucible 1, Descent 1, Divide 1, Howling Maw 1, Incline 1, Marshes 1, Mires 1, Palisades 1, Plains 1, Pools 1, Thunderhead 1. Search for `[implemented]` to find them; entries without the mark are not implemented yet.
 
-**Needs playtest** (implemented, not yet played through in the game client; marked `[needs playtest]`, list in `tools/mission-crossref/NOTES-playtest.md`): 20 missions.
+**Needs playtest** (implemented, not yet played through in the game client; marked `[needs playtest]`, list in `tools/mission-crossref/NOTES-playtest.md`): 25 missions.
 
 
 **Instance** (the mission takes place in a client instance map, a "mission context" in gamecontext.pyo; marked `[instance]` in the entry heading): from an objective NPC package that spawns in an instance (local DB), a TaRapedia NPC page in an instance, or client objective text placing it there. "Instance mentioned" lines only name an instance (ESTIMATE). Refresh with instance_export.py.
@@ -18558,12 +18558,15 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Chain** (explicit prerequisite links): Clean Slate chain (6 missions), step 1
   - Leads to: Mind Bender (id 905) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Clean_Slate), [TaRapedia](https://tabularasa.fandom.com/wiki/Mind_Bender)
 - **TR MMO DB quest series:** "Clean Slate", row 1 of 3 ([list](https://web.archive.org/web/20120731165006/http://tr.mmodb.com/quests/seriesname-clean_slate/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
-### 719 — Mind Slayer
+### 719 — Mind Slayer [implemented] [needs playtest]
 
+- **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Rebuild summary:**
-  - level: 32 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mind_Slayer); 30 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
+  - level: 32 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 32 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mind_Slayer); 30 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
   - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 51 missions in this file with a sourced level
+  - reward: 100000 XP; 6600 credits; choose 1 of: Cryogenic Blade, Cryogenic Disperser, Virulent Injector Gun, Virulent Leech Gun — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 100,000 XP; 6,600 credits; Equipment — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mind_Slayer)
   - reward: 6600 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB quest series list](https://web.archive.org/web/20120731165006/http://tr.mmodb.com/quests/seriesname-clean_slate/)
   - drops / mission items: not found (not critical, or not a collect mission)
@@ -18571,6 +18574,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - location: Inquisitor Krakatus (Technician), zone Plateau — Inside Derak Prison — source: [Ellatha boss NPC](https://www.ellatha.com/tr/bossnpcview.asp?key=Inquisitor+Krakatus&id=95)
 - **Client:** Infilitrate the Derak Prison Facilty in Desolation Quarry and assassinate Thrax Inquisitor Krakatus. Retrieve his datapad with the schematics for the Bane Mind Control Implants and bring it to Special Agent Perdu at Fort Defiance.
   - objectives (client): Kill Inquisitor Krakatus. — Assassinate Inquisitor Krakatus at the Derak Prison Facility inside Desolation Quarry and retrieve his datapad.
+- **Local server:** revision `plateau_1_16_5`, level 32, solo, category 10000056 (Battlefield (Plateau)), giver Special Agent Perdu
+  - reward: 100000 XP; 6600 credits; choose 1 of: Cryogenic Blade, Cryogenic Disperser, Virulent Injector Gun, Virulent Leech Gun
+  - prerequisites: Requires completed mission 936
 - **TaRapedia** [Mind Slayer](https://tabularasa.fandom.com/wiki/Mind_Slayer) [stub]: giver: Agent Perdu; at: Fort Defiance; zone: Plateau; level: 32 (possibly less); requires: Mind Bender; XP: 100,000; credits: 6,600; items: Equipment; reward from: Agent Perdu
   - overview: Infilitrate the Derak Prison Facilty in Desolation Quarry and assassinate Thrax Inquisitor Krakatus. Retrieve his datapad with the schematics for the Bane Mind Control Implants and bring it to Agent Perdu at Fort Defiance.
   - objectives: Kill Inquisitor Krakatus. • Assassinate Inquisitor Krakatus at the Derak Prison Facility inside Desolation Quarry and retreive his datapad. • 0/1
@@ -18586,7 +18592,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 
 - **Chain** (explicit prerequisite links): Clean Slate chain (6 missions), step 5
   - Requires: Mind Bender (id 905) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mind_Slayer)
-  - Requires: The Results Are In (id 936) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Results_Are_In)
+  - Requires: The Results Are In (id 936) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Results_Are_In), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 - **TR MMO DB quest series:** "Clean Slate", row 3 of 3 ([list](https://web.archive.org/web/20120731165006/http://tr.mmodb.com/quests/seriesname-clean_slate/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 855 — The Beer Hunter [implemented] [needs playtest]
 
@@ -18750,18 +18756,24 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Chain** (explicit prerequisite links): The Defiant Ones chain (8 missions), step 3
   - Requires: Blue Flu (id 1014) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Blue_Flu), [TaRapedia](https://tabularasa.fandom.com/wiki/Murder_Most_Foul)
   - Leads to: Looking For Clues (id 928) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Looking_For_Clues), [TaRapedia](https://tabularasa.fandom.com/wiki/Murder_Most_Foul)
-### 905 — Mind Bender
+### 905 — Mind Bender [implemented] [needs playtest]
 
+- **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Rebuild summary:**
-  - level: 32 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mind_Bender); 30 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
+  - level: 32 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 32 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mind_Bender); 30 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
   - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 51 missions in this file with a sourced level
+  - reward: 45000 XP; 4800 credits; choose 1 of: Bio Armor Gloves, Graviton Armor Gloves, Mech Armor Gloves, Stealth Armor Gloves — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 45,000 XP; 4,800 credits; Equipment — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mind_Bender)
   - reward: 4800 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB quest series list](https://web.archive.org/web/20120731165006/http://tr.mmodb.com/quests/seriesname-clean_slate/)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: NPC Agent Perdu: Plateau, Fort Defiance — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Agent_Perdu)
 - **Client:** Locate four mind controlled soldiers wandering the battlefield between Fort Defiance and Trinity Bridge: Lieutenant Jackson, Major Hoyle, Private Tillman and Sergeant Harris. Use the Mind Control Chip Extraction Device to remove their implants and return them to Special Agent Perdu at Fort Defiance.
   - objectives (client): Extract Jackson's implant. — Extract the Mind Control Implant from Lieutenant Jackson.; Extract Hoyle's Implant. — Extract the Mind Control Implant from Major Hoyle.; Extract Tillman's Implant. — Extract the Mind Control Implant from Private Tillman.; Extract Harris' Implant. — Extract the fifth Mind Control Implant from Sergeant Harris.; Find Lt. Jackson. — Locate Lieutenant Jackson on the battlefield.; Find Major Hoyle. — Locate Major Hoyle on the battlefield.; Find Private Tillman. — Locate Private Tillman on the battlefield.; Find Sergeant Harris. — Locate Sergeant Harris on the battlefield.
+- **Local server:** revision `plateau_1_16_5`, level 32, solo, category 10000056 (Battlefield (Plateau)), giver Special Agent Perdu
+  - reward: 45000 XP; 4800 credits; choose 1 of: Bio Armor Gloves, Graviton Armor Gloves, Mech Armor Gloves, Stealth Armor Gloves
+  - prerequisites: Requires completed mission 1983
 - **TaRapedia** [Mind Bender](https://tabularasa.fandom.com/wiki/Mind_Bender) [stub]: giver: Agent Perdu; at: Fort Defiance; zone: Plateau; level: 32 (possibly less); requires: Clean Slate; follow-up: Photo Ops; XP: 45,000; credits: 4,800; items: Equipment; reward from: Agent Perdu
   - overview: Locate four mind controlled soldiers wandering the battlefield between Fort Defiance and Trinity Bridge: Lieutenant Jackson, Major Hoyle, Private Tillman and Sergeant Harris. Use the Mind Control Chip Extraction Device to remove their implants and return them to Agent Perdu at Fort Defiance.
   - objectives: Find Lt. Jackson. • Extract Jackson's implant. • Extract the Mind Control Implant from Lieutenant Jackson. • 0/1; Find Major Hoyle.; Extract Hoyle's Implant. • Extract the Mind Control Implant from Major Hoyle. • 0/1; Find Private Tillman.; Extract Tillman's Implant. • Extract the Mind Control Implant from Private Tillman. • 0/1; Find Sergeant Harris.; Extract Harris' Implant. • Extract Mind …
@@ -18775,9 +18787,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 
 - **Chain** (explicit prerequisite links): Clean Slate chain (6 missions), step 2
   - Requires: Clean Slate (id 714) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Clean_Slate), [TaRapedia](https://tabularasa.fandom.com/wiki/Mind_Bender)
-  - Requires: Clean Slate (id 1983) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Clean_Slate), [TaRapedia](https://tabularasa.fandom.com/wiki/Mind_Bender)
+  - Requires: Clean Slate (id 1983) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Clean_Slate), [TaRapedia](https://tabularasa.fandom.com/wiki/Mind_Bender), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - Leads to: Mind Slayer (id 719) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mind_Slayer)
-  - Leads to: Photo Ops (id 929) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mind_Bender), [TaRapedia](https://tabularasa.fandom.com/wiki/Photo_Ops)
+  - Leads to: Photo Ops (id 929) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mind_Bender), [TaRapedia](https://tabularasa.fandom.com/wiki/Photo_Ops), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 - **TR MMO DB quest series:** "Clean Slate", row 2 of 3 ([list](https://web.archive.org/web/20120731165006/http://tr.mmodb.com/quests/seriesname-clean_slate/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 928 — Looking For Clues
 
@@ -18804,17 +18816,23 @@ Notes: client text is shipped presentation only; it does not prove availability,
 
 - **Chain** (explicit prerequisite links): The Defiant Ones chain (8 missions), step 4
   - Requires: Murder Most Foul (id 895) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Looking_For_Clues), [TaRapedia](https://tabularasa.fandom.com/wiki/Murder_Most_Foul)
-### 929 — Photo Ops
+### 929 — Photo Ops [implemented] [needs playtest]
 
+- **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Rebuild summary:**
-  - level: 32 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Photo_Ops); 30 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
+  - level: 32 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 32 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Photo_Ops); 30 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
   - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 51 missions in this file with a sourced level
+  - reward: 45000 XP; 4800 credits; choose 1 of: Bio Armor Boots, Graviton Armor Boots, Mech Armor Boots, Stealth Armor Boots — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 45,000 XP; 4,800 credits; Equipment — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Photo_Ops)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: NPC Outpost Cmdr. Russ: Plateau, Wedge Rock Outpost, /loc 449, 378, 367 — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Outpost_Cmdr._Russ)
 - **Client:** Locate the Surveillance Camera Hub at the bottom of Desolation Quarry and retrieve the Bane Datablade from the central console. Bring the Datablade to Science Officer Clark at Wedge Rock Outpost for analysis.
   - objectives (client): Get survellance data #1. — Destroy the first Bane Surveillance Sentinel and obtain its surveillance data.; Get surveillance data #2. — Destroy the second Bane Surveillance Sentinel and obtain its surveillance data.; Get surveillance data #3. — Destroy the third Bane Surveillance Sentinel and obtain its surveillance data.; Get surveillance data #4. — Destroy the fourth Bane Surveillance Sentinel and obtain its surveillance data.; Get surveillance data #5. — Destroy the fifth Bane Surveillance Sentinel and obtain its surveillance data.
+- **Local server:** revision `plateau_1_16_5`, level 32, solo, category 10000056 (Battlefield (Plateau)), giver Outpost Cmdr. Russ → Science Officer Clark
+  - reward: 45000 XP; 4800 credits; choose 1 of: Bio Armor Boots, Graviton Armor Boots, Mech Armor Boots, Stealth Armor Boots
+  - prerequisites: Requires completed mission 905
 - **TaRapedia** [Photo Ops](https://tabularasa.fandom.com/wiki/Photo_Ops): giver: Outpost Cmdr. Russ; at: Wedge Rock Outpost; zone: Plateau; level: 32 (possibly less); requires: Mind Bender; follow-up: The Results Are In; XP: 45,000; credits: 4,800; items: Equipment; reward from: Science Officer Clark
   - overview: Locate the Surveillance Camera Hub at the bottom of Desolation Quarry and retrieve the Bane Datablade from the central console. Bring the Datablade to Science Officer Clark at Wedge Rock Outpost for analysis.
   - objectives: Get surveillance data #1. • Destroy the first Bane Surveillance Sentinel and obtain its surveillance data. • 0/1; Get surveillance data #2. • Destroy the second Bane Surveillance Sentinel and obtain its surveillance data. • 0/1; Get surveillance data #3. • Destroy the third Bane Surveillance Sentinel and obtain its surveillance data. • 0/1; Get surveillance data #4. • Destroy the fourth Bane …
@@ -18826,8 +18844,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Science Officer Clark](https://tabularasa.fandom.com/wiki/Science_Officer_Clark): Plateau, Wedge Rock Outpost, /loc 464, 378, 366 (named as giver/receiver)
 
 - **Chain** (explicit prerequisite links): Clean Slate chain (6 missions), step 3
-  - Requires: Mind Bender (id 905) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mind_Bender), [TaRapedia](https://tabularasa.fandom.com/wiki/Photo_Ops)
-  - Leads to: The Results Are In (id 936) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Photo_Ops), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Results_Are_In)
+  - Requires: Mind Bender (id 905) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mind_Bender), [TaRapedia](https://tabularasa.fandom.com/wiki/Photo_Ops), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: The Results Are In (id 936) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Photo_Ops), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Results_Are_In), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 930 — The Book Of Velonar [implemented] [needs playtest]
 
 - **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -18960,17 +18978,23 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Requires: Trinity Bridge Logos: Distance (id 1057) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Array_of_Hope)
   - Leads to: Future Sacrifice (id 1171) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Array_of_Hope), [TaRapedia](https://tabularasa.fandom.com/wiki/Future_Sacrifice)
 - **TR MMO DB quest series:** "Array Of Hope", row 1 of 5 ([list](https://web.archive.org/web/20120731161907/http://tr.mmodb.com/quests/seriesname-array_of_hope/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
-### 936 — The Results Are In
+### 936 — The Results Are In [implemented] [needs playtest]
 
+- **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Rebuild summary:**
-  - level: 30 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
+  - level: 32 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 30 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
   - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 51 missions in this file with a sourced level
+  - reward: 22500 XP; 3200 credits; Class VI Standard Med Pack, Class VI Res Trauma Kit — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 22,500 XP; 3,200 credits; Consumables — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Results_Are_In)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: NPC Science Officer Clark: Plateau, Wedge Rock Outpost, /loc 464, 378, 366 — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Science_Officer_Clark)
 - **Client:** Special Agent Perdu needs to speak with you regarding the surveillance data you acquired from Desolation Quarry. Report to him immediately outside the Fort Defiance gates.
   - objectives (client): Meet with Special Agent Perdu. — Meet Special Agent Perdu outside the Fort Defiance gates.
+- **Local server:** revision `plateau_1_16_5`, level 32, solo, category 10000056 (Battlefield (Plateau)), giver Science Officer Clark → Special Agent Perdu
+  - reward: 22500 XP; 3200 credits; items: Class VI Standard Med Pack ×2, Class VI Res Trauma Kit
+  - prerequisites: Requires completed mission 929
 - **TaRapedia** [The Results Are In](https://tabularasa.fandom.com/wiki/The_Results_Are_In): giver: Science Officer Clark; at: Wedge Rock Outpost; zone: Plateau; requires: Photo Ops; follow-up: Mind Slayer; XP: 22,500; credits: 3,200; items: Consumables; reward from: Agent Perdu
   - overview: Penumbra Agent Perdu needs to speak with you regarding the surveillance data you acquired from Desolation Quarry. Report to him immediately outside the Fort Defiance gates.
   - objectives: Meet with Agent Perdu. • Meet Agent Perdu outside the Fort Defiance gates.
@@ -18982,8 +19006,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Agent Perdu](https://tabularasa.fandom.com/wiki/Agent_Perdu): Plateau, Fort Defiance (named as giver/receiver)
 
 - **Chain** (explicit prerequisite links): Clean Slate chain (6 missions), step 4
-  - Requires: Photo Ops (id 929) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Photo_Ops), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Results_Are_In)
-  - Leads to: Mind Slayer (id 719) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Results_Are_In)
+  - Requires: Photo Ops (id 929) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Photo_Ops), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Results_Are_In), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Mind Slayer (id 719) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Results_Are_In), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 939 — Giant Killer [implemented]
 
 - **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -20135,18 +20159,23 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Luminary Sampei](https://tabularasa.fandom.com/wiki/Luminary_Sampei): Plateau, New Velon Village, /loc 259, 352, 619 (named in client text)
 
-### 1983 — Clean Slate
+### 1983 — Clean Slate [implemented] [needs playtest]
 
+- **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Rebuild summary:**
-  - level: 29 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Clean_Slate); 30 — source: [TR MMO DB](https://web.archive.org/web/20120731174215/http://tr.mmodb.com/quests/clean-slate-233.php)
+  - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 29 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Clean_Slate); 30 — source: [TR MMO DB](https://web.archive.org/web/20120731174215/http://tr.mmodb.com/quests/clean-slate-233.php)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
   - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 51 missions in this file with a sourced level
+  - reward: 40000 XP; 4650 credits; choose 1 of: Bio Armor Helmet, Graviton Armor Helmet, Mech Armor Helmet, Stealth Armor Helmet — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 40,000 XP; 4,650 credits; Equipment — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Clean_Slate)
   - reward: 0 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB quest series list](https://web.archive.org/web/20120731165006/http://tr.mmodb.com/quests/seriesname-clean_slate/)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: NPC Corporal Wainwright: Plateau, New Velon Village, /loc 194, 354, 519 — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Corporal_Wainwright)
 - **Client:** This soldier appears to be suffering from amnesia. Escort him to Fort Defiance and speak to Special Agent Perdu.
   - objectives (client): Escort the soldier to Agent Perdu. — Escort the amnesiac soldier to Special Agent Perdu at Fort Defiance.; Kill the soldier! — The soldier has gone bersek! Take him down!; Special Agent Perdu wants to talk to you. — Special Agent Perdu wants to talk to you about the soldier.
+- **Local server:** revision `plateau_1_16_5`, level 30, solo, category 10000056 (Battlefield (Plateau)), giver Corporal Wainwright → Special Agent Perdu
+  - reward: 40000 XP; 4650 credits; choose 1 of: Bio Armor Helmet, Graviton Armor Helmet, Mech Armor Helmet, Stealth Armor Helmet
 - **TaRapedia** [Clean Slate](https://tabularasa.fandom.com/wiki/Clean_Slate): giver: Corporal Wainwright; at: Plateau; zone: Plateau; level: 29 (possibly less); requires: None; follow-up: Mind Bender; XP: 40,000; credits: 4,650; items: Equipment; reward from: Agent Perdu
   - overview: This soldier appears to be suffering from amnesia. Escort him to Fort Defiance and find him the help he needs. NOTE: THIS IS A TIMED MISSION. Note: Only the escort part is timed. You have as much time as you want for killing him.
   - objectives: Escort the soldier to Fort Defiance. • Escort the shell-shocked soldier to Fort Defiance and try to discover his true identity. • Time remaining: 04:00:00; Kill the soldier! • The soldier had gone berserk! Take him down!; Speak to Agent Perdu. • Agent Perdu wants to talk to you.
@@ -20166,7 +20195,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Agent Perdu](https://tabularasa.fandom.com/wiki/Agent_Perdu): Plateau, Fort Defiance (named as giver/receiver)
 
 - **Chain** (explicit prerequisite links): Clean Slate chain (6 missions), step 1
-  - Leads to: Mind Bender (id 905) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Clean_Slate), [TaRapedia](https://tabularasa.fandom.com/wiki/Mind_Bender)
+  - Leads to: Mind Bender (id 905) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Clean_Slate), [TaRapedia](https://tabularasa.fandom.com/wiki/Mind_Bender), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 - **TR MMO DB quest series:** "Clean Slate", row 1 of 3 ([list](https://web.archive.org/web/20120731165006/http://tr.mmodb.com/quests/seriesname-clean_slate/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 2007 — Soyuz Salvage: Plateau [implemented] [needs playtest]
 
