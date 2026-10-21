@@ -5,7 +5,7 @@ Generated 2026-10-18, extended 2026-10-20 (Wayback round 2: official site + patc
 | Source | Label in entries | Missions |
 | --- | --- | ---: |
 | Client tables (title, log summary, objectives) | **Client** | 1168 |
-| This server, `data/rasaworld.db` enabled `mission_content_definition` rows | **Local server** | 98 |
+| This server, `data/rasaworld.db` enabled `mission_content_definition` rows | **Local server** | 103 |
 | [TaRapedia (Fandom)](https://tabularasa.fandom.com/wiki/Category:Missions) | **TaRapedia** | 941 |
 | [Ellatha / DaOpa mission DB](https://www.ellatha.com/tr/missionslist.asp) | **Ellatha** | 93 |
 | [tabularasawiki.org (Wayback 2007-08)](https://web.archive.org/web/20080511080212/http://www.tabularasawiki.org/action/view/Main_Page) | **TRWiki archive** | 7 |
@@ -37,9 +37,9 @@ Generated 2026-10-18, extended 2026-10-20 (Wayback round 2: official site + patc
 | [TR MMO DB (tr.mmodb.com, Wayback)](https://web.archive.org/web/2008/http://tr.mmodb.com/quests/) quest pages (level / start NPC / zone / mobs / objectives) + bestiary | **TR MMO DB** | 317 |
 | Web search by research agents (mostly TaRapedia patch notes, NPC lists, alternate titles) | **Web** | 88 |
 
-**Implemented** (enabled on the local server, `data/rasaworld.db`; marked `[implemented]` in the entry heading): 98 missions. Per zone: Wilderness 64, Plateau 16, Bootcamp 5, Abyss 1, Ashen Desert 1, Crucible 1, Descent 1, Divide 1, Howling Maw 1, Incline 1, Marshes 1, Mires 1, Palisades 1, Plains 1, Pools 1, Thunderhead 1. Search for `[implemented]` to find them; entries without the mark are not implemented yet.
+**Implemented** (enabled on the local server, `data/rasaworld.db`; marked `[implemented]` in the entry heading): 103 missions. Per zone: Wilderness 64, Plateau 21, Bootcamp 5, Abyss 1, Ashen Desert 1, Crucible 1, Descent 1, Divide 1, Howling Maw 1, Incline 1, Marshes 1, Mires 1, Palisades 1, Plains 1, Pools 1, Thunderhead 1. Search for `[implemented]` to find them; entries without the mark are not implemented yet.
 
-**Needs playtest** (implemented, not yet played through in the game client; marked `[needs playtest]`, list in `tools/mission-crossref/NOTES-playtest.md`): 13 missions.
+**Needs playtest** (implemented, not yet played through in the game client; marked `[needs playtest]`, list in `tools/mission-crossref/NOTES-playtest.md`): 18 missions.
 
 
 **Instance** (the mission takes place in a client instance map, a "mission context" in gamecontext.pyo; marked `[instance]` in the entry heading): from an objective NPC package that spawns in an instance (local DB), a TaRapedia NPC page in an instance, or client objective text placing it there. "Instance mentioned" lines only name an instance (ESTIMATE). Refresh with instance_export.py.
@@ -18477,13 +18477,16 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Comm Officer Devinchy](https://tabularasa.fandom.com/wiki/Comm_Officer_Devinchy): Plateau, Wedge Rock Outpost, /loc 363, 369, 360 (named as giver/receiver)
 - **Ellatha boss NPC** [Preceptor Vorvaak](https://www.ellatha.com/tr/bossnpcview.asp?key=Preceptor+Vorvaak&id=97): Thrax Soldier; zone Plateau; North of the central Trinity Bridge; needed for: Cryptic Messages Plateau Targets of Opportunity (Ellatha lists this mission under "Needed for Quests")
 
-### 713 — A Bridge Too Far
+### 713 — A Bridge Too Far [implemented] [needs playtest]
 
+- **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Instance mentioned:** Maligo Base — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
 - **Rebuild summary:**
-  - level: 30 — source: [TR MMO DB](https://web.archive.org/web/20120731174048/http://tr.mmodb.com/quests/a-bridge-too-far-238.php)
+  - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 30 — source: [TR MMO DB](https://web.archive.org/web/20120731174048/http://tr.mmodb.com/quests/a-bridge-too-far-238.php)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
   - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 51 missions in this file with a sourced level
+  - reward: 45000 XP; 6200 credits; choose 1 of: Bio Armor Legs, Mech Armor Vest, Stealth Armor Boots, Reflective Armor Gloves — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 45,000 XP; 6,200 credits; or; or; or — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Bridge_Too_Far)
   - reward: 6200 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20120731174048/http://tr.mmodb.com/quests/a-bridge-too-far-238.php)
   - reward: “The Juggernaut patrols the northern end of the Eloh Bridge around -170, 374, 322 and once you've retrieved your CPU head back to Peterson who will reward you with 6200 credits and your choice of Cryogen Bio Armor Legs, …” — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/fort-defiance-part-1)
@@ -18494,6 +18497,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - location: Peterson at -66, 401, 928. — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/fort-defiance-part-1)
 - **Client:** Join the battle at Trinity Bridge and recover the CPU from the latest model of Bane Juggernauts. When you retrive it, deliver it to Field Lt. Peterson at Fort Defiance. Peterson also recommends grouping with other soldiers before making the attempt.
   - objectives (client): Retrieve a Prototype Juggernaut CPU. — Retrieve the CPU from the remains of a Prototype Bane Juggernaut.
+- **Local server:** revision `plateau_1_16_5`, level 30, solo, category 10000056 (Battlefield (Plateau)), giver Field Lt. Peterson
+  - reward: 45000 XP; 6200 credits; choose 1 of: Bio Armor Legs, Mech Armor Vest, Stealth Armor Boots, Reflective Armor Gloves
+  - prerequisites: Requires completed mission 887
 - **TaRapedia** [A Bridge Too Far](https://tabularasa.fandom.com/wiki/A_Bridge_Too_Far): giver: Field Lt. Peterson; at: Fort Defiance; zone: Plateau; requires: The Defiant Ones; follow-up: The Beer Hunter; XP: 45,000; credits: 6,200; items: or; or; or; reward from: Field Lt. Peterson
   - overview: • Join the battle at Trinity Bridge and recover the CPU from the latest model of Bane Juggernaut Prototype. When you retrieve it, deliver it to Field Lt. Peterson at Fort Defiance.
   - objectives: • Retrieve a .
@@ -18516,8 +18522,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - TIP: THe Prototype Juggernaut CPU can be found on the north side of Trinity Bridge — source: [TR MMO DB](https://web.archive.org/web/20120731174048/http://tr.mmodb.com/quests/a-bridge-too-far-238.php)
 
 - **Chain** (explicit prerequisite links): The Defiant Ones chain (8 missions), step 2
-  - Requires: The Defiant Ones (id 887) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Bridge_Too_Far), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Defiant_Ones)
-  - Leads to: The Beer Hunter (id 855) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Bridge_Too_Far), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Beer_Hunter)
+  - Requires: The Defiant Ones (id 887) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Bridge_Too_Far), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Defiant_Ones), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: The Beer Hunter (id 855) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Bridge_Too_Far), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Beer_Hunter), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 - **TR MMO DB quest series:** "The Defiant Ones", row 1 of 3 ([list](https://web.archive.org/web/20120731160614/http://tr.mmodb.com/quests/seriesname-the_defiant_ones/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 714 — Clean Slate
 
@@ -18582,12 +18588,15 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Requires: Mind Bender (id 905) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mind_Slayer)
   - Requires: The Results Are In (id 936) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Results_Are_In)
 - **TR MMO DB quest series:** "Clean Slate", row 3 of 3 ([list](https://web.archive.org/web/20120731165006/http://tr.mmodb.com/quests/seriesname-clean_slate/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
-### 855 — The Beer Hunter
+### 855 — The Beer Hunter [implemented] [needs playtest]
 
+- **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Rebuild summary:**
-  - level: 30 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
+  - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 30 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
   - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 51 missions in this file with a sourced level
+  - reward: 40000 XP; 4650 credits; choose 1 of: Pulse Disperser, Cryogenic Injector Gun, Incendiary Leech Gun, Incendiary Shotgun — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 40,000 XP; 4,650 credits; lvl 30 Vextronics Pulse Disperser or; lvl 27 ChiTech Cryogenic Injector Gun or; lvl 29 Vextronics Incendiary Leech Gun or; lvl 27 Animatics Incendiary Shotgun — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Beer_Hunter)
   - reward: 4650 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB quest series list](https://web.archive.org/web/20120731160614/http://tr.mmodb.com/quests/seriesname-the_defiant_ones/)
   - reward: “You'll be rewarded with 4650 credits and your choice of a Vextronics Pulse Disperser, ChiTech Cryogenic Injector Gun, Vextronics Incendiary Leech Gun, or Animatics Incendiary Shotgun.” — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/fort-defiance-part-1)
@@ -18596,6 +18605,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - location: I found all mine near -136, 373, 436 and while you may not see many, they do respawn quickly. — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/fort-defiance-part-1)
 - **Client:** Go to the Fort Defiance Tavern and speak to Bartender McLaughlin about Lieutenant Peterson's bachelor party arrangements.
   - objectives (client): Speak to Bartender McLaughlin. — Speak to Bartender McLaughlin at the Fort Defiance Tavern.; Gather Saccharo Roots. — Gather ten Saccharo Roots from the plants growing around the perimeter of the Eloh Forum near Trinity Bridge.; Return to Bartender McLaughlin. — Bring the Saccharo Roots to Bartender McLaughlin at the Fort Defiance Tavern.; Inform Lt. Peterson. — Inform Lt. Peterson that the party arrangements have been made.
+- **Local server:** revision `plateau_1_16_5`, level 30, solo, category 10000056 (Battlefield (Plateau)), giver Field Lt. Peterson
+  - reward: 40000 XP; 4650 credits; choose 1 of: Pulse Disperser, Cryogenic Injector Gun, Incendiary Leech Gun, Incendiary Shotgun
+  - prerequisites: Requires completed mission 713
 - **TaRapedia** [The Beer Hunter](https://tabularasa.fandom.com/wiki/The_Beer_Hunter) [stub]: giver: Field Lt. Peterson; at: Fort Defiance; zone: Plateau; requires: A Bridge Too Far; XP: 40,000; credits: 4,650; items: lvl 30 Vextronics Pulse Disperser or; lvl 27 ChiTech Cryogenic Injector Gun or; lvl 29 Vextronics Incendiary Leech Gun or; lvl 27 Animatics Incendiary Shotgun; reward from: Field Lt. Peterson
   - overview: • Go to the Fort Defiance Tavern and speak to Bartender McLaughlin about Field Lt. Peterson's bachelor party arrangements.
   - objectives: • Speak to Bartender McLaughlin • Gather s • Return to Bartender McLaughlin • Inform Field Lt. Peterson
@@ -18610,7 +18622,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Bartender McLaughlin](https://tabularasa.fandom.com/wiki/Bartender_McLaughlin): Plateau, Fort Defiance, /loc 19, 399, 925 (named in client text)
 
 - **Chain** (explicit prerequisite links): The Defiant Ones chain (8 missions), step 3
-  - Requires: A Bridge Too Far (id 713) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Bridge_Too_Far), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Beer_Hunter)
+  - Requires: A Bridge Too Far (id 713) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Bridge_Too_Far), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Beer_Hunter), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 - **TR MMO DB quest series:** "The Defiant Ones", row 2 of 3 ([list](https://web.archive.org/web/20120731160614/http://tr.mmodb.com/quests/seriesname-the_defiant_ones/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 867 — The Stainless Steel Bloodhound
 
@@ -18675,12 +18687,15 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Requires: Blueprint For Victory (id 1046) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Blueprint_For_Victory), [TaRapedia](https://tabularasa.fandom.com/wiki/One_Way_Trip)
   - Leads to: South Of The Border (id 1068) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/One_Way_Trip), [TaRapedia](https://tabularasa.fandom.com/wiki/South_Of_The_Border)
   - Leads to: New Orders From The General (id 1541) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/New_Orders_From_The_General), [TaRapedia](https://tabularasa.fandom.com/wiki/One_Way_Trip)
-### 887 — The Defiant Ones
+### 887 — The Defiant Ones [implemented] [needs playtest]
 
+- **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Rebuild summary:**
-  - level: 30 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Defiant_Ones); 30 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
+  - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 30 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Defiant_Ones); 30 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
   - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 51 missions in this file with a sourced level
+  - reward: 22500 XP; 3200 credits; Class VI Standard Med Pack, Class VI Res Trauma Kit — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 22,500 XP; 3,200 credits; Consumables — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Defiant_Ones)
   - reward: 0 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB quest series list](https://web.archive.org/web/20120731160614/http://tr.mmodb.com/quests/seriesname-the_defiant_ones/)
   - reward: “You'll get 3200 credits and a bit of experience for this cakewalk.” — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/fort-defiance-part-1)
@@ -18690,6 +18705,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - location: Pearson in the command center around -66, 401, 928. — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/fort-defiance-part-1)
 - **Client:** Report to Field Lieutenant Peterson at Fort Defiance High Command.
   - objectives (client): Report to Field Lt. Peterson. — Report to Field Lt. Peterson at Fort Defiance High Command.
+- **Local server:** revision `plateau_1_16_5`, level 30, solo, category 10000056 (Battlefield (Plateau)), giver Transportation Officer Mamede → Field Lt. Peterson
+  - reward: 22500 XP; 3200 credits; items: Class VI Standard Med Pack ×2, Class VI Res Trauma Kit
 - **TaRapedia** [The Defiant Ones](https://tabularasa.fandom.com/wiki/The_Defiant_Ones) [stub]: giver: Transportation Officer Mamede; at: Fort Defiance; zone: Plateau; level: 30 (possibly less); requires: None; follow-up: A Bridge Too Far; Blue Flu; Crystal Blue Persuasion; XP: 22,500; credits: 3,200; items: Consumables; reward from: Field Lt. Peterson
   - overview: Report to Field Lieutenant Peterson at Fort Defiance High Command.
   - objectives: Report to Field Lt. Peterson. • Report to Field Lt. Peterson at Fort Defiance High Command.
@@ -18705,8 +18722,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Field Lt. Peterson](https://tabularasa.fandom.com/wiki/Field_Lt._Peterson): Plateau, Fort Defiance, /loc -66, 401, 931 (named as giver/receiver)
 
 - **Chain** (explicit prerequisite links): The Defiant Ones chain (8 missions), step 1
-  - Leads to: A Bridge Too Far (id 713) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Bridge_Too_Far), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Defiant_Ones)
-  - Leads to: Crystal Blue Persuasion (id 954) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Crystal_Blue_Persuasion), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Defiant_Ones)
+  - Leads to: A Bridge Too Far (id 713) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Bridge_Too_Far), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Defiant_Ones), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Crystal Blue Persuasion (id 954) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Crystal_Blue_Persuasion), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Defiant_Ones), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - Leads to: Blue Flu (id 1014) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Blue_Flu), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Defiant_Ones)
 - **TR MMO DB quest series:** "The Defiant Ones", row 3 of 3 ([list](https://web.archive.org/web/20120731160614/http://tr.mmodb.com/quests/seriesname-the_defiant_ones/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 895 — Murder Most Foul
@@ -18998,18 +19015,24 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Chain** (explicit prerequisite links): Giant Killer chain (11 missions), step 1
   - Leads to: Incommunicado (id 1040) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Giant_Killer), [TaRapedia](https://tabularasa.fandom.com/wiki/Incommunicado), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 - **TR MMO DB quest series:** "Giant Killer", row 1 of 2 ([list](https://web.archive.org/web/20120731163753/http://tr.mmodb.com/quests/seriesname-giant_killer/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
-### 954 — Crystal Blue Persuasion
+### 954 — Crystal Blue Persuasion [implemented] [needs playtest]
 
+- **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Rebuild summary:**
-  - level: 30 — source: [TR MMO DB](https://web.archive.org/web/20081202022733/http://tr.mmodb.com/quests/crystal-blue-persuasion-241.php)
+  - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 30 — source: [TR MMO DB](https://web.archive.org/web/20081202022733/http://tr.mmodb.com/quests/crystal-blue-persuasion-241.php)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
   - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 51 missions in this file with a sourced level
+  - reward: 40000 XP; choose 1 of: High Grade Cartridges, High Grade Power Cells, High Grade Canister Ammunition, High Grade Rockets — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 40,000 XP; 100 Cartridges or; 100 Cartridges or; 100 Cartridges or; 100 Cartridges — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Crystal_Blue_Persuasion)
   - reward: 0 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB quest series list](https://web.archive.org/web/20120731160528/http://tr.mmodb.com/quests/seriesname-crystal_blue_persuasion/)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: NPC Senior Engineer Mauer: Plateau, Fort Defiance, /loc -61, 402, 940 — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Senior_Engineer_Mauer)
 - **Client:** Collect 12 Mox Crystals by hunting Mox in the Mox Lair to the west of Fort Defiance. Deliver the crystals Senior Engineer Mauer at Fort Defiance High Command.
   - objectives (client): Collect 12 Mox Crystals. — Collect 12 Mox Crystals by hunting Mox in their lair near the Fort Defiance perimeter.
+- **Local server:** revision `plateau_1_16_5`, level 30, solo, category 10000056 (Battlefield (Plateau)), giver Senior Engineer Mauer
+  - reward: 40000 XP; choose 1 of: High Grade Cartridges ×100, High Grade Power Cells ×100, High Grade Canister Ammunition ×100, High Grade Rockets ×100
+  - prerequisites: Requires completed mission 887
 - **TaRapedia** [Crystal Blue Persuasion](https://tabularasa.fandom.com/wiki/Crystal_Blue_Persuasion) [stub]: giver: Senior Engineer Mauer; at: Fort Defiance; zone: Plateau; requires: The Defiant Ones; follow-up: Alpha Mox; XP: 40,000; items: 100 Cartridges or; 100 Cartridges or; 100 Cartridges or; 100 Cartridges
   - overview: Collect 12 Mox Crystals by hunting Mox in the Mox Lair to the west of Fort Defiance. Deliver the crystals to Senior Engineer Mauer at Fort Defiance High Command.
   - objectives: • Collect 12 Mox Crystals.
@@ -19022,8 +19045,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Senior Engineer Mauer](https://tabularasa.fandom.com/wiki/Senior_Engineer_Mauer): Plateau, Fort Defiance, /loc -61, 402, 940 (named as giver/receiver)
 
 - **Chain** (explicit prerequisite links): The Defiant Ones chain (8 missions), step 2
-  - Requires: The Defiant Ones (id 887) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Crystal_Blue_Persuasion), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Defiant_Ones)
-  - Leads to: Alpha Mox (id 1027) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Alpha_Mox), [TaRapedia](https://tabularasa.fandom.com/wiki/Crystal_Blue_Persuasion)
+  - Requires: The Defiant Ones (id 887) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Crystal_Blue_Persuasion), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Defiant_Ones), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Alpha Mox (id 1027) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Alpha_Mox), [TaRapedia](https://tabularasa.fandom.com/wiki/Crystal_Blue_Persuasion), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 - **TR MMO DB quest series:** "Crystal Blue Persuasion", row 2 of 2 ([list](https://web.archive.org/web/20120731160528/http://tr.mmodb.com/quests/seriesname-crystal_blue_persuasion/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 965 — Mislaid Plans
 
@@ -19160,12 +19183,15 @@ Notes: client text is shipped presentation only; it does not prove availability,
 
 - **Chain** (explicit prerequisite links): Comic Relief chain (3 missions), step 3
   - Requires: Scavenger Hunt (id 1015) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Scavenger_Hunt), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Stalk_Market), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
-### 1027 — Alpha Mox
+### 1027 — Alpha Mox [implemented] [needs playtest]
 
+- **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Rebuild summary:**
-  - level: 31 — source: [TR MMO DB](https://web.archive.org/web/20120731170930/http://tr.mmodb.com/quests/alpha-mox-242.php)
+  - level: 31 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 31 — source: [TR MMO DB](https://web.archive.org/web/20120731170930/http://tr.mmodb.com/quests/alpha-mox-242.php)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
   - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 51 missions in this file with a sourced level
+  - reward: 45000 XP; 4800 credits — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 45,000 XP; 4,800 credits — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Alpha_Mox)
   - reward: 4800 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20120731170930/http://tr.mmodb.com/quests/alpha-mox-242.php)
   - drops / mission items: not found (not critical, or not a collect mission)
@@ -19173,6 +19199,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - location: Mox Alpha Male (Mox), zone Plateau — In a cave before Empower logos (-443,1080) — source: [Ellatha boss NPC](https://www.ellatha.com/tr/bossnpcview.asp?key=Mox+Alpha+Male&id=96)
 - **Client:** Kill the Mox Alpha Male in the Mox Lair west of Fort Defiance and retrieve his crystal. Return the crystal to Senior Engineer Mauer at Fort Defiance High Command.
   - objectives (client): Acquire the Alpha Mox's crystal. — Kill the Mox Alpha Male and retrieve his crystal.
+- **Local server:** revision `plateau_1_16_5`, level 31, solo, category 10000056 (Battlefield (Plateau)), giver Senior Engineer Mauer
+  - reward: 45000 XP; 4800 credits
+  - prerequisites: Requires completed mission 954
 - **TaRapedia** [Alpha Mox](https://tabularasa.fandom.com/wiki/Alpha_Mox): giver: Senior Engineer Mauer; at: Fort Defiance; zone: Plateau; requires: Crystal Blue Persuasion; XP: 45,000; credits: 4,800; reward from: Senior Engineer Mauer
   - overview: Kill the Mox Alpha Male in the Mox Lair west of Fort Defiance and retrieve his crystal. Return the crystal to Senior Engineer Mauer at Fort Defiance High Command.
   - objectives: • Acquire the Alpha Mox's crystal.
@@ -19189,7 +19218,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha boss NPC** [Mox Alpha Male](https://www.ellatha.com/tr/bossnpcview.asp?key=Mox+Alpha+Male&id=96): Mox; zone Plateau; In a cave before Empower logos (-443,1080); needed for: Alpha Mox Plateau Targets of Opportunity (Ellatha lists this mission under "Needed for Quests")
 
 - **Chain** (explicit prerequisite links): The Defiant Ones chain (8 missions), step 3
-  - Requires: Crystal Blue Persuasion (id 954) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Alpha_Mox), [TaRapedia](https://tabularasa.fandom.com/wiki/Crystal_Blue_Persuasion)
+  - Requires: Crystal Blue Persuasion (id 954) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Alpha_Mox), [TaRapedia](https://tabularasa.fandom.com/wiki/Crystal_Blue_Persuasion), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 - **TR MMO DB quest series:** "Crystal Blue Persuasion", row 1 of 2 ([list](https://web.archive.org/web/20120731160528/http://tr.mmodb.com/quests/seriesname-crystal_blue_persuasion/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1034 — Going Postal [implemented] [needs playtest]
 
