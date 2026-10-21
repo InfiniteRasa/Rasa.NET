@@ -379,7 +379,7 @@ namespace Rasa.Managers
         /// is read now rather than when the summon was raised, so the destination player having
         /// walked on does not matter.
         /// </summary>
-        private static void MoveTo(Client traveller, Client destination)
+        internal static void MoveTo(Client traveller, Client destination)
         {
             // Not into a copy of a battleground other than the one whose match they left.
             if (Battlegrounds.Instance.BarredFrom(traveller, destination.Player.MapChannel, out var lockout))

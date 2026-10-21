@@ -3358,6 +3358,11 @@ namespace Rasa.Managers
         {
             if (IsProtected(itemToEquip))
                 return false;
+
+            // A GM's Equip Anything (GmAbilities): no level, race or skill stands in the way.
+            if (itemToEquip != null && client.Player.GmEquipAnything && GmAbilities.IsGm(client))
+                return true;
+
             var canEquip = true;
             // min level criteria met?
             if (itemToEquip != null)

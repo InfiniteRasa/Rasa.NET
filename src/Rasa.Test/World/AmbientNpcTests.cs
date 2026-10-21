@@ -331,7 +331,7 @@ namespace Rasa.Test.World
                 CollectionAssert.AreEqual(new[] { "25583 MaleSittingTalkingV01" }, Say(".ambients sitting talk").Skip(1).ToArray());
                 StringAssert.Contains(Say(".ambients welding").Single(), "No ambient figure matches");
 
-                StringAssert.Contains(Say(".ambient").Single(), "usage: .ambient class | clear");
+                StringAssert.Contains(Say(".ambient").Single(), "usage: .ambient class / clear");
                 StringAssert.Contains(Say(".ambient 29365").Single(), "Class 29365 is not an ambient figure");
                 StringAssert.Contains(Say(".ambient 123456").Single(), "is not an ambient figure");
                 StringAssert.Contains(Say(".ambient welding").Single(), "No ambient figure is named 'welding'");

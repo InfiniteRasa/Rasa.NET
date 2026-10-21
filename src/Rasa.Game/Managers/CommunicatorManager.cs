@@ -224,7 +224,7 @@ namespace Rasa.Managers
             foreach(var member in clanMembers)
                 if (!Ignores(member, client))
                 {
-                    member.CallMethod(SysEntity.CommunicatorId, new ClanChatPacket(client.Player.FamilyName, packet.Message));
+                    member.CallMethod(SysEntity.CommunicatorId, new ClanChatPacket(client.Player.FamilyName, ChatMarkup.Outgoing(client, packet.Message)));
 
                     if (member != client)
                         heard++;
@@ -286,7 +286,7 @@ namespace Rasa.Managers
                 if (listener == null || listener.Rank < ClanRank.MinRankToSpeakInLeadersChannel || Ignores(member, client))
                     continue;
 
-                member.CallMethod(SysEntity.CommunicatorId, new ClanLeadersChatPacket(client.Player.FamilyName, packet.Message));
+                member.CallMethod(SysEntity.CommunicatorId, new ClanLeadersChatPacket(client.Player.FamilyName, ChatMarkup.Outgoing(client, packet.Message)));
 
                 if (member != client)
                     heard++;
@@ -329,7 +329,7 @@ namespace Rasa.Managers
             }
 
             var outgoing = new ChannelChatPacket(client.Player.FamilyName, chatChannel.ChannelId,
-                client.Player.EntityId, chatChannel.MapContextId, packet.Message);
+                client.Player.EntityId, chatChannel.MapContextId, ChatMarkup.Outgoing(client, packet.Message));
             var heard = 0u;
 
             foreach (var entityId in chatChannel.Players)
@@ -396,7 +396,7 @@ namespace Rasa.Managers
 
                 if (Vector3.Distance(client.Player.Position, tempClient.Player.Position) <= RadialRange)
                 {
-                    tempClient.CallMethod(SysEntity.CommunicatorId, new EmotePacket(client.Player.FamilyName, packet.Emote));
+                    tempClient.CallMethod(SysEntity.CommunicatorId, new EmotePacket(client.Player.FamilyName, ChatMarkup.Neutralize(packet.Emote)));
 
                     if (tempClient != client)
                         heard++;
@@ -453,7 +453,7 @@ namespace Rasa.Managers
                 tempClient.CallMethod(SysEntity.CommunicatorId, new PartyChatPacket
                 {
                     Sender = client.Player.FamilyName,
-                    Message = packet.Message,
+                    Message = ChatMarkup.OutgoingWithBubble(client, packet.Message),
                     SenderUserId = client.AccountEntry.Id,
                     SenderEntityId = client.Player.EntityId
                 });
@@ -486,7 +486,7 @@ namespace Rasa.Managers
 
             if (name.Length > 0 && string.Equals(name, sender.Player.FamilyName, StringComparison.OrdinalIgnoreCase))
             {
-                sender.CallMethod(SysEntity.CommunicatorId, new WhisperSelfPacket(message));
+                sender.CallMethod(SysEntity.CommunicatorId, new WhisperSelfPacket(ChatMarkup.OutgoingWithBubble(sender, message)));
                 Log(sender, ChatLogKind.Whisper, message, ChatLogResult.Delivered, 0, 0, null, sender);
                 return;
             }
@@ -540,14 +540,14 @@ namespace Rasa.Managers
             target.CallMethod(SysEntity.CommunicatorId, new WhisperPacket
             {
                 Sender = sender.Player.FamilyName,
-                Message = message,
+                Message = ChatMarkup.OutgoingWithBubble(sender, message),
                 SenderEntityId = sender.Player.EntityId
             });
 
             // The target's canonical family name, not what was typed, so the sender sees the
             // name the way the target's family is actually spelled.
             sender.CallMethod(SysEntity.CommunicatorId,
-                new WhisperAckPacket(target.Player.FamilyName, message, target.Player.IsAFK));
+                new WhisperAckPacket(target.Player.FamilyName, ChatMarkup.OutgoingWithBubble(sender, message), target.Player.IsAFK));
 
             Log(sender, ChatLogKind.Whisper, message, ChatLogResult.Delivered, 1, 0, null, target);
         }
@@ -1007,7 +1007,7 @@ namespace Rasa.Managers
                         tempClient.CallMethod(SysEntity.CommunicatorId, new RadialChatPacket
                         {
                             FamilyName = client.Player.FamilyName,
-                            TextMsg = textMsg,
+                            TextMsg = ChatMarkup.OutgoingWithBubble(client, textMsg),
                             EntityId = client.Player.EntityId
                         });
 
@@ -1064,7 +1064,7 @@ namespace Rasa.Managers
                     tempClient.CallMethod(SysEntity.CommunicatorId, new ShoutPacket
                     {
                         FamilyName = client.Player.FamilyName,
-                        TextMsg = textMsg
+                        TextMsg = ChatMarkup.Outgoing(client, textMsg)
                     });
 
                     if (tempClient != client)
@@ -1075,9 +1075,23 @@ namespace Rasa.Managers
             Log(client, ChatLogKind.Shout, textMsg, ChatLogResult.Delivered, heard);
         }
 
+        /// <summary>
+        /// Recv_AdminMessage: the client puts "ADMIN MESSAGE: " in front and, on the GameMaster
+        /// filter, shows it in yellow on a filter no player can turn off (clientmessagefilter
+        /// requiredFilters). For what the server itself has to say to everyone.
+        /// </summary>
+        public void AdminMessage(Client client, string textMsg)
+        {
+            client.CallMethod(SysEntity.CommunicatorId, new AdminMessagePacket(textMsg, (uint)MsgFilterId.GameMaster));
+        }
+
+        /// <summary>
+        /// A line in the player's chat. The chat font has no "|" - it draws "ffl" in its place -
+        /// so every one becomes "/": usage lines read "on/off" rather than "onffloff".
+        /// </summary>
         public void SystemMessage(Client client, string textMsg)
         {
-            client.CallMethod(SysEntity.CommunicatorId, new SystemMessagePacket(textMsg));
+            client.CallMethod(SysEntity.CommunicatorId, new SystemMessagePacket(textMsg?.Replace('|', '/')));
         }
 
         #region Player messages and notifications

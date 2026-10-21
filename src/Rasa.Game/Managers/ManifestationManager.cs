@@ -1831,7 +1831,8 @@ namespace Rasa.Managers
                 (packet.AbilityId <= 0 || packet.AbilityId > int.MaxValue ||
                  packet.AbilityLevel <= 0 || packet.AbilityLevel > MaxSkillLevel ||
                  !client.Player.Skills.Values.Any(skill =>
-                     skill.AbilityId == packet.AbilityId && skill.SkillLevel >= packet.AbilityLevel)))
+                     skill.AbilityId == packet.AbilityId && skill.SkillLevel >= packet.AbilityLevel) &&
+                 !GmAbilities.Grants(client, packet.AbilityId, packet.AbilityLevel)))
             {
                 Logger.WriteLog(LogType.Security, $"{client.Player.Name} asked to put action {packet.AbilityId} at level {packet.AbilityLevel} in drawer slot {packet.SlotId}, which none of their skills grants. Refused.");
                 return;
@@ -2220,7 +2221,7 @@ namespace Rasa.Managers
 
             client.CallMethod(player.EntityId, new SkillsPacket(player.Skills));
 
-            client.CallMethod(player.EntityId, new AbilitiesPacket(player.Skills));
+            client.CallMethod(player.EntityId, GmAbilities.AbilitiesFor(client));
 
             // The client's manifestation is new, with no blocked actions: work out the ones this
             // character's skills need and send every block it has.
@@ -3242,7 +3243,7 @@ namespace Rasa.Managers
             if (untrain.Count > 0)
             {
                 client.CallMethod(player.EntityId, new SkillsPacket(player.Skills));
-                client.CallMethod(player.EntityId, new AbilitiesPacket(player.Skills));
+                client.CallMethod(player.EntityId, GmAbilities.AbilitiesFor(client));
                 AbilityManager.Instance.RefreshUnimplementedBlocks(client);
                 SyncSkillPassives(client);
             }
@@ -3306,7 +3307,7 @@ namespace Rasa.Managers
                 player.Skills = SkillsAfterRespec(player);
 
                 client.CallMethod(player.EntityId, new SkillsPacket(player.Skills));
-                client.CallMethod(player.EntityId, new AbilitiesPacket(player.Skills));
+                client.CallMethod(player.EntityId, GmAbilities.AbilitiesFor(client));
                 AbilityManager.Instance.RefreshUnimplementedBlocks(client);
                 SyncSkillPassives(client);
             }
@@ -3819,6 +3820,17 @@ namespace Rasa.Managers
             }
 
             player.StunAnchor = null;
+
+            // Frozen by a GM (.freeze): held where they were, as a stun holds them, quietly -
+            // the client is blocked from moving too (the net gun's immobilize effect).
+            if (player.GmFrozenAt is System.Numerics.Vector3 frozenAt)
+            {
+                if (JudgeStunnedMove(frozenAt, movement.Position) == StunnedMove.Settles)
+                    return true;
+
+                RefuseMove(client, movement, "while frozen by a GM", report: false);
+                return false;
+            }
 
             // Dead (PlayerDeath): nowhere until they are back.
             if (player.State == CharacterState.Dead)

@@ -42,7 +42,8 @@ namespace Rasa.Managers
                 (Game.Missions.World.CreatureGameplayRules.IsInvulnerable(creature) || BehaviorManager.IsReturning(creature)))
                 return true;
 
-            if (target.ImmuneToAllDamage || target.DamageImmunities.Contains(type) || CreatureImmunities.IsImmune(target, type))
+            if (target.ImmuneToAllDamage || target is Manifestation { GmUntargetable: true } ||
+                target.DamageImmunities.Contains(type) || CreatureImmunities.IsImmune(target, type))
                 return true;
 
             return target.ActiveEffects.Values.Any(effect => effect.ImmuneToAllDamage || effect.ImmuneDamageTypes.Contains(type));

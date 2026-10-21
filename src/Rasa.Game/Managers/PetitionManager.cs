@@ -346,7 +346,10 @@ namespace Rasa.Managers
         /// petition's resolution, which it replaces, and told to the player. The petition stays
         /// open. Only an open petition is answered.
         /// </summary>
-        public PetitionResult Respond(uint id, string response) => Settle(id, Clamp(response, MaxResponseLength), close: false);
+        /// <param name="close">Closes it too, in the same step: the player is told once.</param>
+        /// <param name="important">A player in the world gets the modal dialog in place of the AFS Message.</param>
+        public PetitionResult Respond(uint id, string response, bool close = false, bool important = false) =>
+            Settle(id, Clamp(response, MaxResponseLength), close, important);
 
         /// <summary>
         /// Marks a petition resolved, through the REST API (closepetition), keeping the answer it
@@ -358,7 +361,7 @@ namespace Rasa.Managers
         /// Writes the answer when there is one, the close when asked for, and tells the player.
         /// A petition that is not open - resolved, or withdrawn - is left as it is.
         /// </summary>
-        private PetitionResult Settle(uint id, string response, bool close)
+        private PetitionResult Settle(uint id, string response, bool close, bool important = false)
         {
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
 
@@ -386,7 +389,7 @@ namespace Rasa.Managers
                 petition.Status = (byte)PetitionStatus.Resolved;
             }
 
-            return new PetitionResult(PetitionAnswer.Done, (PetitionStatus)petition.Status, Tell(unitOfWork, petition));
+            return new PetitionResult(PetitionAnswer.Done, (PetitionStatus)petition.Status, Tell(unitOfWork, petition, important));
         }
 
         /// <summary>
@@ -394,7 +397,7 @@ namespace Rasa.Managers
         /// in the world, and otherwise when they next arrive in it (<see cref="DeliverNotices"/>),
         /// by petition.notice_pending. True when they were told now.
         /// </summary>
-        private static bool Tell(ICharUnitOfWork unitOfWork, PetitionEntry petition)
+        private static bool Tell(ICharUnitOfWork unitOfWork, PetitionEntry petition, bool important = false)
         {
             // The console's resolve runs on its own thread, and the main loop adds to and takes
             // from the client list every tick: it is walked under its lock, as every other walk
@@ -411,7 +414,23 @@ namespace Rasa.Managers
                 // under it leaves the player to be told when they next arrive.
                 try
                 {
-                    CommunicatorManager.Instance.SystemMessage(author, NoticeOf(petition));
+                    // In yellow, and as an AFS Message they can open later: the client has no
+                    // window of its own for a petition's answer (it ignores RetrievePetitionAck).
+                    // Important: the modal dialog in place of the AFS Message. A player away gets the
+                    // AFS Message when they arrive, as for any notice: the dialog is for now.
+                    var notice = NoticeOf(petition);
+
+                    if (important)
+                    {
+                        CommunicatorManager.Instance.AdminMessage(author, notice);
+                        // Titled as the player filed it: "Bug Report #12" or "GM Help #12".
+                        var kind = (PetitionType)petition.Type == PetitionType.BugReport ? "Bug Report" : "GM Help";
+                        GmMessages.Dialog(author, $"{kind} #{petition.Id}", petition.Resolution?.Trim() ?? notice);
+                    }
+                    else
+                    {
+                        GmMessages.Send(author, notice, notice);
+                    }
 
                     if (petition.NoticePending)
                         unitOfWork.Petitions.SetNoticePending(petition.Id, false);
@@ -459,15 +478,20 @@ namespace Rasa.Managers
             {
                 using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
 
+                var notices = new List<string>();
+
                 foreach (var petition in unitOfWork.Petitions.ListNoticesPending(accountId.Value))
                 {
                     var notice = NoticeOf(petition);
 
                     if (notice != null)
-                        CommunicatorManager.Instance.SystemMessage(client, notice);
+                        notices.Add(notice);
 
                     unitOfWork.Petitions.SetNoticePending(petition.Id, false);
                 }
+
+                // One yellow line each, and one AFS Message with them all: it has the one slot.
+                GmMessages.SendAll(client, notices);
             }
             catch (Exception e)
             {

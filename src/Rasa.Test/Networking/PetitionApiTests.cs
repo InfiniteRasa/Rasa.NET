@@ -173,7 +173,12 @@ namespace Rasa.Test.Networking
                 Assert.AreEqual("The quest is fixed; try it again.", petition.Resolution);
                 Assert.AreEqual((byte)PetitionStatus.Open, petition.Status);
                 Assert.IsFalse(petition.NoticePending);
-                Assert.AreEqual($"A game master has answered your petition #{id}: The quest is fixed; try it again.", Told(player).Single());
+                // In yellow, and as an AFS Message they can open later (GmMessages).
+                var told = MissionTestContext.Drain(player);
+                var notice = $"A game master has answered your petition #{id}: The quest is fixed; try it again.";
+                Assert.AreEqual(notice, told.OfType<AdminMessagePacket>().Single().Message);
+                Assert.AreEqual((uint)MsgFilterId.GameMaster, told.OfType<AdminMessagePacket>().Single().FilterId);
+                Assert.AreEqual(notice, told.OfType<PreviewMOTDPacket>().Single().Motd);
 
                 // A second answer takes the place of the first.
                 petitions.Respond(id, "Second thoughts.");
@@ -397,8 +402,9 @@ namespace Rasa.Test.Networking
             return unit.Petitions.AddPetition(new PetitionEntry(accountId, characterId, (byte)type, "Stuck", "Under the bridge.", 1220, 1.5, 2, -3.25));
         }
 
+        /// <summary>The yellow ADMIN MESSAGE lines a petition's notices go out as (GmMessages).</summary>
         private static List<string> Told(Client client) =>
-            MissionTestContext.Drain(client).OfType<SystemMessagePacket>().Select(message => message.TextMessage).ToList();
+            MissionTestContext.Drain(client).OfType<AdminMessagePacket>().Select(message => message.Message).ToList();
 
         /// <summary>A petition manager over the context's database, in place of the instance.</summary>
         private static void WithPetitions(MissionTestContext context, Action<PetitionManager> body)
