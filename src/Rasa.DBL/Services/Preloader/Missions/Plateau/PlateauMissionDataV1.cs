@@ -100,19 +100,23 @@ namespace Rasa.Services.Preloader.Missions.Plateau
                 ("from_state", (byte)MissionObjectiveState.Incomplete), ("to_state", (byte)MissionObjectiveState.Completed),
                 ("comment", $"Objective {objective} transition 1"));
 
+        /// <summary>Completes <paramref name="objective"/> once objective <paramref name="related"/> reaches <paramref name="state"/>.</summary>
+        public void ObjectiveState(uint objective, uint related, MissionObjectiveState state) =>
+            Trigger(objective, MissionTriggerKind.ObjectiveState, ("related_objective_id", related), ("related_state", (byte)state));
+
         public void Conversation(uint objective, uint package, uint flag = 1) =>
             Trigger(objective, MissionTriggerKind.Conversation, ("npc_package_id", package), ("player_flag_id", flag));
 
         /// <summary>
         /// A progress rule. Rules that name the same <paramref name="counter"/> add to one count,
         /// counter 0 for a kill count, 1 for a scene result set (MissionProgressRuleAuthoring); each
-        /// rule needs a trigger id of its own.
+        /// rule needs a trigger id of its own. No target for a one-off event (a mission completed).
         /// </summary>
-        public void Progress(uint objective, MissionProgressEventKind kind, uint subject, uint target,
+        public void Progress(uint objective, MissionProgressEventKind kind, uint subject, uint? target,
             uint? counter = null, uint trigger = 1) =>
             Trigger(objective, MissionTriggerKind.ProgressEvent, trigger,
                 ("event_kind", (byte)kind), ("subject_id", subject),
-                ("counter_id", counter), ("initial_value", 0U), ("target_value", target));
+                ("counter_id", counter), ("initial_value", target.HasValue ? 0U : null), ("target_value", target));
 
         public void Action(uint objective, uint id, MissionActionKind kind, uint? targetObjective = null,
             uint? reward = null, MissionObjectiveState? state = null, CharacterIntent itemIntent = null,

@@ -24,9 +24,10 @@ namespace Rasa.Services.Preloader.Missions.Plateau
     ///
     /// Reconstructed (ESTIMATE): level 31, as Comic Relief; offered once the player talked to the
     /// Scrounger in Comic Relief (flag <see cref="PlateauComicReliefV1.ScroungerFlag"/>), the "one
-    /// objective"; personal drops from every Thrax kind the server has on the Plateau (Thrax Soldier,
-    /// Grenadier, Technician, Commander, Preceptor Vorvaak; not the Maligo Elite Guards, Thrax in
-    /// look only), a patch at 30% and the dagger at 10% a kill, picked up from the corpse; the
+    /// objective"; personal drops from every creature in a Plateau pool whose client class is a Bane
+    /// Thrax (Thrax Soldier, Grenadier, Technician, Commander, Preceptor Vorvaak, Inquisitor
+    /// Krakatus, the Maligo Elite Guard), a patch at 30% and the dagger at 10% a kill, picked up
+    /// from the corpse; the
     /// Scrounger keeps them at turn-in; the reward is the carton itself, no item to choose. No
     /// indicator: any Thrax counts.
     /// </summary>
@@ -41,8 +42,11 @@ namespace Rasa.Services.Preloader.Missions.Plateau
         public const string PatchKey = "thrax-insignia-patch", DaggerKey = "thrax-ceremonial-dagger";
         public const int PatchChance = 30, DaggerChance = 10;
 
-        /// <summary>The Plateau's Thrax: Preceptor Vorvaak, Soldier, Grenadier, Technician, Commander.</summary>
-        public static readonly uint[] Thrax = { 520054, 531082, 531083, 531084, 531086 };
+        /// <summary>
+        /// The Plateau's Thrax (client class Bane_Thrax_*): Inquisitor Krakatus, Preceptor Vorvaak, Soldier,
+        /// Grenadier, Technician, Commander, Maligo Elite Guard.
+        /// </summary>
+        public static readonly uint[] Thrax = { 520052, 520054, 531082, 531083, 531084, 531086, PlateauMaligoGuardsV1.Guard };
 
         public const uint Experience = 50000;
         public const uint Credits = 0;
@@ -71,8 +75,8 @@ namespace Rasa.Services.Preloader.Missions.Plateau
                 "requirement 'Comic Relief (one objective)'; follow-up The Stalk Market; drops from any type of Thrax in Plateau. " +
                 "Stub page.", 0.4);
             mission.Evidence(3, MissionEvidenceSourceKind.Reconstruction, "repository:PlateauScavengerHuntV1",
-                "Level31. Offered after Comic Relief objective10 (flag1251001). Personal drops from Thrax 520054, 531082-531084, " +
-                "531086 on map1497: patch 30%, dagger 10% (rates estimated). Turn-in takes 5 patches and the dagger; reward the " +
+                "Level31. Offered after Comic Relief objective10 (flag1251001). Personal drops from the Plateau's Bane_Thrax_* " +
+                "creatures 520052, 520054, 531082-531084, 531086, 650012 on map1497: patch 30%, dagger 10% (rates estimated). Turn-in takes 5 patches and the dagger; reward the " +
                 "carton44880 (fixed), no choice.", 0.3);
 
             mission.Enable(new MissionSceneDefinition

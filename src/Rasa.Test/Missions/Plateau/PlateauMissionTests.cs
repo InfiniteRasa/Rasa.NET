@@ -42,6 +42,9 @@ namespace Rasa.Test.Missions.Plateau
         private const string Incommunicado = "20270126000000_Plateau_incommunicado";
         private const string CanyonSweep = "20270127000000_Plateau_canyon_sweep";
         private const string BlueprintForVictory = "20270128000000_Plateau_blueprint_for_victory";
+        private const string ToxicDetox = "20270129000000_Plateau_toxic_detox";
+        private const string ComicRelief = "20270130000000_Plateau_comic_relief";
+        private const string ScavengerHunt = "20270131000000_Plateau_scavenger_hunt";
 
         [TestMethod]
         public void TheMissionsAreEnabledAndOperationalAtTheirGiversAndReceiversAndLevels()
@@ -91,7 +94,14 @@ namespace Rasa.Test.Missions.Plateau
                 (1040, 5823, new (uint, uint, uint, uint?)[] { (1, 5832, 6368, null), (2, 5833, 6369, null), (3, 5834, 6370, null) }),
                 (1045, 5875, new (uint, uint, uint, uint?)[] { (1, 5879, 6333, 5880) }),
                 (1046, 5881, new (uint, uint, uint, uint?)[] { (1, 5922, 6311, null), (3, 6024, 6312, null) }),
-                (1053, 5916, new (uint, uint, uint, uint?)[] { (1, 5920, 6474, 5921) })
+                (1053, 5916, new (uint, uint, uint, uint?)[] { (1, 5920, 6474, 5921) }),
+                (1251, 10008, new (uint, uint, uint, uint?)[]
+                {
+                    (1, 10015, 10016, null), (7, 10033, 10034, null), (8, 10013, 10014, null), (9, 10018, 10019, null),
+                    (10, 10020, 10021, null)
+                }),
+                (1015, 5555, new (uint, uint, uint, uint?)[] { (3, 5563, 6445, null), (4, 5564, 6446, null) }),
+                (1017, 5587, new (uint, uint, uint, uint?)[] { (1, 5605, 6458, null), (2, 5606, 6459, null), (3, 5607, 6460, null) })
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             foreach (var (mission, title, objectives) in expected)
@@ -117,7 +127,9 @@ namespace Rasa.Test.Missions.Plateau
 
         /// <summary>
         /// Incommunicado follows Giant Killer; each commander's mission follows his own delivery: the
-        /// flag that Incommunicado's delivery objective sets (action 3, SetPlayerFlag to 1).
+        /// flag that Incommunicado's delivery objective sets (action 3, SetPlayerFlag to 1). Scavenger
+        /// Hunt follows the Scrounger's talk in Comic Relief (objective 10, action 1, the same way);
+        /// The Stalk Market follows Scavenger Hunt.
         /// </summary>
         [TestMethod]
         public void EachMissionRequiresTheMissionOrDeliveryBeforeIt()
@@ -125,7 +137,7 @@ namespace Rasa.Test.Missions.Plateau
             using var harness = WildernessRuntimeTestHarness.Create();
             var prerequisites = harness.World.MissionPrerequisiteEntries.AsNoTracking()
                 .Where(entry => entry.ContentRevision == PlateauMissionDataV1.Revision).ToArray();
-            Assert.HasCount(4, prerequisites);
+            Assert.HasCount(6, prerequisites);
             var incommunicado = prerequisites.Single(entry => entry.MissionId == PlateauIncommunicadoV1.MissionId);
             Assert.AreEqual(MissionPrerequisiteKind.MissionCompleted, incommunicado.Kind);
             Assert.AreEqual<uint?>(PlateauGiantKillerV1.MissionId, incommunicado.RequiredMissionId);
@@ -148,12 +160,25 @@ namespace Rasa.Test.Missions.Plateau
                     $"Incommunicado delivery {objective}");
             }
             Assert.HasCount(3, deliveries);
+
+            var scavengerHunt = prerequisites.Single(entry => entry.MissionId == PlateauScavengerHuntV1.MissionId);
+            Assert.AreEqual((MissionPrerequisiteKind.PlayerFlagValue, (uint?)1251001, (uint?)1),
+                (scavengerHunt.Kind, scavengerHunt.PlayerFlagId, scavengerHunt.PlayerFlagValue));
+            var scrounger = harness.World.MissionActionEntries.AsNoTracking().Single(entry =>
+                entry.ContentRevision == PlateauMissionDataV1.Revision && entry.MissionId == PlateauComicReliefV1.MissionId &&
+                entry.Kind == MissionActionKind.SetPlayerFlag);
+            Assert.AreEqual((10U, 1U, (uint?)1251001, (uint?)1),
+                (scrounger.ObjectiveId, scrounger.ActionId, scrounger.PlayerFlagId, scrounger.PlayerFlagValue));
+            var stalkMarket = prerequisites.Single(entry => entry.MissionId == PlateauStalkMarketV1.MissionId);
+            Assert.AreEqual((MissionPrerequisiteKind.MissionCompleted, (uint?)1015),
+                (stalkMarket.Kind, stalkMarket.RequiredMissionId));
         }
 
         /// <summary>
         /// The missions' sources and how far each is trusted: the client's tables 1.0, TaRapedia 0.5
-        /// (0.4 for Blueprint For Victory, whose page gives no drop rate), and what this repository
-        /// reconstructed for the commanders' missions 0.3 (the guards, the drop rate, the pumps).
+        /// (0.4 for Blueprint For Victory, whose page gives no drop rate, and for Scavenger Hunt, a stub
+        /// page with no rate), and what this repository reconstructed 0.3 (the guards, the drop rates,
+        /// the pumps, the NPCs' looks and Lonigan's place, the Stalkers).
         /// </summary>
         [TestMethod]
         public void TheCommandersMissionsTrustWhatIsReconstructedLeast()
@@ -168,6 +193,12 @@ namespace Rasa.Test.Missions.Plateau
                 (1046, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.4),
                     (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
                 (1053, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                (1251, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                (1015, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.4),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                (1017, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
                     (MissionEvidenceSourceKind.Reconstruction, 0.3) })
             })
                 CollectionAssert.AreEqual(confidences, evidence.Where(entry => entry.MissionId == mission)
@@ -264,6 +295,49 @@ namespace Rasa.Test.Missions.Plateau
             Assert.IsTrue(Has(PlateauIncommunicadoV1.MissionId));
             Assert.AreEqual(2, world.MissionActionEntries.AsNoTracking().Count(entry =>
                 entry.MissionId == PlateauIncommunicadoV1.MissionId && entry.ObjectiveId == 1), "Incommunicado's own actions stay");
+        }
+
+        /// <summary>
+        /// The Scrounger's chain rolls back a migration at a time: The Stalk Market with its Stalker
+        /// (creature, stats, three actions, four pools); Scavenger Hunt; Comic Relief with O'Brien,
+        /// Lonigan and the Scrounger (creatures, looks, pools, packages 999 and 1000). Toxic Detox stays.
+        /// </summary>
+        [TestMethod]
+        public void TheScroungersChainItsNpcsAndTheStalkersRollBack()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            int Count(string sql) => world.Database.SqlQueryRaw<int>(sql).AsEnumerable().Single();
+            string Ids(string table, uint first, uint last) =>
+                $"SELECT COUNT(*) AS Value FROM {table} WHERE id BETWEEN {first} AND {last}";
+            var npcs = Ids("creature", PlateauScroungerNpcsV1.First, PlateauScroungerNpcsV1.Last);
+            var looks = Ids("creature_appearance", PlateauScroungerNpcsV1.First, PlateauScroungerNpcsV1.Last);
+            var npcPools = Ids("spawnpool", PlateauScroungerNpcsV1.First, PlateauScroungerNpcsV1.Last);
+            var packages = $"SELECT COUNT(*) AS Value FROM npc_package WHERE package_id IN (999, 1000)";
+            var stalker = Ids("creature", PlateauBaneStalkersV1.Stalker, PlateauBaneStalkersV1.Stalker);
+            var stalkerStat = Ids("creature_stat", PlateauBaneStalkersV1.Stalker, PlateauBaneStalkersV1.Stalker);
+            var stalkerActions = Ids("creature_action", PlateauBaneStalkersV1.FirstAction, PlateauBaneStalkersV1.LastAction);
+            var stalkerPools = Ids("spawnpool", PlateauBaneStalkersV1.FirstPool, PlateauBaneStalkersV1.LastPool) +
+                $" AND map_context_id = {PlateauMissionDataV1.MapContextId} AND creature_1_Id = {PlateauBaneStalkersV1.Stalker}";
+            bool Has(uint mission) => world.MissionContentDefinitionEntries.AsNoTracking().Any(entry => entry.MissionId == mission);
+
+            Assert.AreEqual((3, 19, 3, 2), (Count(npcs), Count(looks), Count(npcPools), Count(packages)));
+            Assert.AreEqual((1, 1, 3, 4), (Count(stalker), Count(stalkerStat), Count(stalkerActions), Count(stalkerPools)));
+
+            world.GetService<IMigrator>().Migrate(ScavengerHunt);
+            Assert.IsFalse(Has(PlateauStalkMarketV1.MissionId));
+            Assert.AreEqual((0, 0, 0, 0), (Count(stalker), Count(stalkerStat), Count(stalkerActions), Count(stalkerPools)));
+            Assert.IsTrue(Has(PlateauScavengerHuntV1.MissionId));
+
+            world.GetService<IMigrator>().Migrate(ComicRelief);
+            Assert.IsFalse(Has(PlateauScavengerHuntV1.MissionId));
+            Assert.IsTrue(Has(PlateauComicReliefV1.MissionId));
+            Assert.AreEqual(3, Count(npcs), "the NPCs stay with Comic Relief");
+
+            world.GetService<IMigrator>().Migrate(ToxicDetox);
+            Assert.IsFalse(Has(PlateauComicReliefV1.MissionId));
+            Assert.AreEqual((0, 0, 0, 0), (Count(npcs), Count(looks), Count(npcPools), Count(packages)));
+            Assert.IsTrue(Has(PlateauToxicDetoxV1.MissionId));
         }
     }
 }

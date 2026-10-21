@@ -26,13 +26,14 @@ namespace Rasa.Services.Preloader.Missions.Plateau
     /// obtain the cigarettes you have to complete Scavenger Hunt." Scavenger Hunt's requirement is
     /// "Comic Relief (one objective)".
     ///
-    /// Reconstructed (ESTIMATE): order 8 and 1 open, then 10, 9, 7. Talking to the Scrounger
+    /// Reconstructed (ESTIMATE): 8, 1 and 9 open; 1 opens 10, 9 opens 7. Talking to the Scrounger
     /// (objective 10) sets flag <see cref="ScroungerFlag"/>, which offers Scavenger Hunt - the "one
-    /// objective". Objective 9 completes when the player holds the carton (Scavenger Hunt's fixed
-    /// reward), also one held before. At Lonigan (7) the carton is taken and the comic issued, which
-    /// completes 8; O'Brien keeps the comic at turn-in. "Equipment" read as the four Uncommon V04
-    /// vests of the 30-34 band, one of each armor type, no module. Indicators on Lonigan and the
-    /// Scrounger.
+    /// objective". Objective 9 completes with Scavenger Hunt, whose fixed reward is the carton - also
+    /// one completed before acceptance (the server counts history only for objectives open then, so
+    /// 9 is open from the start; a held item counts only for an item that drops). At Lonigan (7) the carton is taken and the comic issued; 8
+    /// completes when 7 does (ObjectiveState trigger); O'Brien keeps the comic at turn-in.
+    /// "Equipment" read as the four Uncommon V04 vests of the 30-34 band, one of each armor type,
+    /// no module. Indicators on Lonigan and the Scrounger.
     /// </summary>
     public static class PlateauComicReliefV1
     {
@@ -42,6 +43,8 @@ namespace Rasa.Services.Preloader.Missions.Plateau
         public const uint Lonigan = PlateauScroungerNpcsV1.Lonigan;
         public const uint Scarpelo = PlateauScroungerNpcsV1.Scarpelo;
         public const uint ScroungerFlag = 1251001;
+        /// <summary>Scavenger Hunt (PlateauScavengerHuntV1), whose reward is the carton.</summary>
+        public const uint PlateauScavengerHuntMissionId = 1015;
 
         public const uint ComicTemplate = 44879, ComicClass = 21885;
         public const uint CartonTemplate = 44880, CartonClass = 21886;
@@ -62,7 +65,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
             mission.Objective(8, 10013, 10014, 0, MissionObjectiveState.Incomplete);
             mission.Objective(1, 10015, 10016, 1, MissionObjectiveState.Incomplete);
             mission.Objective(10, 10020, 10021, 2, MissionObjectiveState.Inactive);
-            mission.Objective(9, 10018, 10019, 3, MissionObjectiveState.Inactive);
+            mission.Objective(9, 10018, 10019, 3, MissionObjectiveState.Incomplete);
             mission.Objective(7, 10033, 10034, 4, MissionObjectiveState.Inactive);
 
             // 1: Lonigan names her price; on to the Scrounger.
@@ -75,14 +78,14 @@ namespace Rasa.Services.Preloader.Missions.Plateau
             mission.Conversation(10, PlateauScroungerNpcsV1.ScarpeloPackage);
             mission.Action(10, 1, MissionActionKind.SetPlayerFlag, playerFlag: ScroungerFlag, playerFlagValue: 1,
                 comment: "The Scrounger offers Scavenger Hunt");
-            Open(mission, 10, 2, 9);
 
-            // 9: the carton in the bag.
+            // 9: the carton from the Scrounger - Scavenger Hunt completed; open from the start, so one completed
+            // before acceptance counts too (from the mission history).
             mission.Transition(9);
-            mission.Progress(9, MissionProgressEventKind.ItemAcquired, CartonClass, 1);
+            mission.Progress(9, MissionProgressEventKind.MissionCompleted, PlateauScavengerHuntMissionId, null);
             Open(mission, 9, 1, 7);
 
-            // 7: Lonigan takes the carton and hands over the comic, which is objective 8.
+            // 7: Lonigan takes the carton and hands over the comic.
             mission.Transition(7);
             mission.Conversation(7, PlateauScroungerNpcsV1.LoniganPackage);
             mission.Action(7, 1, MissionActionKind.ConsumeMissionItem,
@@ -90,9 +93,11 @@ namespace Rasa.Services.Preloader.Missions.Plateau
                     MissionItemScope.CharacterOwned));
             mission.Action(7, 2, MissionActionKind.IssueMissionItem,
                 itemIntent: new IssueMissionItemIntent("lonigan-returns-comic", MissionId, ComicKey, ComicTemplate, 1));
-            mission.Action(7, 3, MissionActionKind.CompleteObjective, targetObjective: 8,
-                state: MissionObjectiveState.Completed);
-            mission.Action(7, 4, MissionActionKind.GrantReward, reward: 1);
+            mission.Action(7, 3, MissionActionKind.GrantReward, reward: 1);
+
+            // 8: the comic back - the trade at Lonigan completes it (a transition completes only its own objective).
+            mission.Transition(8);
+            mission.ObjectiveState(8, 7, MissionObjectiveState.Completed);
 
             mission.Indicator(1, 1, -618, 441.87, -237);       // Lonigan
             mission.Indicator(10, 2, -622, 442.37, -227);      // the Scrounger
@@ -106,8 +111,8 @@ namespace Rasa.Services.Preloader.Missions.Plateau
                 "Giver/receiver Corporal 'Relay' O'Brien, Camp Resistance; level31; 50000XP, 4950 credits, 'Equipment'; talking " +
                 "only, the cigarettes need Scavenger Hunt. NPC pages: O'Brien -621,441,-234; Lonigan female 33 (same /loc).");
             mission.Evidence(3, MissionEvidenceSourceKind.Reconstruction, "repository:PlateauComicReliefV1",
-                "Order 8+1, 10, 9, 7. Objective10 sets flag1251001 (offers 1015). 9 = carton held. 7 consumes the carton, issues " +
-                "the comic, completes 8; O'Brien keeps the comic. Equipment read as Uncommon V04 vests 30-34: 46035, 25337, " +
+                "8, 1, 9 open; 1 opens 10, 9 opens 7. Objective10 sets flag1251001 (offers 1015). 9 = Scavenger Hunt completed (its reward is the carton). 7 consumes the carton, issues " +
+                "the comic; 8 completes on 7 (ObjectiveState); O'Brien keeps the comic. Equipment read as Uncommon V04 vests 30-34: 46035, 25337, " +
                 "34463, 40591. NPC looks and Lonigan's place are estimates (PlateauScroungerNpcsV1).", 0.3);
 
             mission.Enable(new MissionSceneDefinition
