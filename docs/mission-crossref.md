@@ -5,7 +5,7 @@ Generated 2026-10-18, extended 2026-10-20 (Wayback round 2: official site + patc
 | Source | Label in entries | Missions |
 | --- | --- | ---: |
 | Client tables (title, log summary, objectives) | **Client** | 1168 |
-| This server, `data/rasaworld.db` enabled `mission_content_definition` rows | **Local server** | 103 |
+| This server, `data/rasaworld.db` enabled `mission_content_definition` rows | **Local server** | 105 |
 | [TaRapedia (Fandom)](https://tabularasa.fandom.com/wiki/Category:Missions) | **TaRapedia** | 941 |
 | [Ellatha / DaOpa mission DB](https://www.ellatha.com/tr/missionslist.asp) | **Ellatha** | 93 |
 | [tabularasawiki.org (Wayback 2007-08)](https://web.archive.org/web/20080511080212/http://www.tabularasawiki.org/action/view/Main_Page) | **TRWiki archive** | 7 |
@@ -37,9 +37,9 @@ Generated 2026-10-18, extended 2026-10-20 (Wayback round 2: official site + patc
 | [TR MMO DB (tr.mmodb.com, Wayback)](https://web.archive.org/web/2008/http://tr.mmodb.com/quests/) quest pages (level / start NPC / zone / mobs / objectives) + bestiary | **TR MMO DB** | 317 |
 | Web search by research agents (mostly TaRapedia patch notes, NPC lists, alternate titles) | **Web** | 88 |
 
-**Implemented** (enabled on the local server, `data/rasaworld.db`; marked `[implemented]` in the entry heading): 103 missions. Per zone: Wilderness 64, Plateau 21, Bootcamp 5, Abyss 1, Ashen Desert 1, Crucible 1, Descent 1, Divide 1, Howling Maw 1, Incline 1, Marshes 1, Mires 1, Palisades 1, Plains 1, Pools 1, Thunderhead 1. Search for `[implemented]` to find them; entries without the mark are not implemented yet.
+**Implemented** (enabled on the local server, `data/rasaworld.db`; marked `[implemented]` in the entry heading): 105 missions. Per zone: Wilderness 64, Plateau 23, Bootcamp 5, Abyss 1, Ashen Desert 1, Crucible 1, Descent 1, Divide 1, Howling Maw 1, Incline 1, Marshes 1, Mires 1, Palisades 1, Plains 1, Pools 1, Thunderhead 1. Search for `[implemented]` to find them; entries without the mark are not implemented yet.
 
-**Needs playtest** (implemented, not yet played through in the game client; marked `[needs playtest]`, list in `tools/mission-crossref/NOTES-playtest.md`): 18 missions.
+**Needs playtest** (implemented, not yet played through in the game client; marked `[needs playtest]`, list in `tools/mission-crossref/NOTES-playtest.md`): 20 missions.
 
 
 **Instance** (the mission takes place in a client instance map, a "mission context" in gamecontext.pyo; marked `[instance]` in the entry heading): from an objective NPC package that spawns in an instance (local DB), a TaRapedia NPC page in an instance, or client objective text placing it there. "Instance mentioned" lines only name an instance (ESTIMATE). Refresh with instance_export.py.
@@ -18901,17 +18901,22 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Loremaster Talisen](https://tabularasa.fandom.com/wiki/Loremaster_Talisen): Plateau, New Velon Village, /loc 292, 349, 563 (named as giver/receiver)
 
-### 934 — A Voice From The Past
+### 934 — A Voice From The Past [implemented] [needs playtest]
 
+- **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Rebuild summary:**
-  - level: 32 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Voice_From_The_Past)
+  - level: 32 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 32 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Voice_From_The_Past)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
   - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 51 missions in this file with a sourced level
+  - reward: 22500 XP; 3200 credits; Class VI Standard Med Pack, Class VI Res Trauma Kit — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 22,500 XP; 3,200 credits; Consumables — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Voice_From_The_Past)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: NPC Caretaker Tendahl: Plateau, Mount Reverance, /loc -781, 442.6, 431.7 — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Caretaker_Tendahl)
 - **Client:** The Caretaker of Mount Reverence asks that you enter Vogren's Tomb and pay your respects to the architect of Trinity Bridge.
   - objectives (client): Investigate Vogren's Tomb. — Investigate Vogren's Tomb on Mount Reverence.
+- **Local server:** revision `plateau_1_16_5`, level 32, solo, category 10000056 (Battlefield (Plateau))
+  - reward: 22500 XP; 3200 credits; items: Class VI Standard Med Pack ×2, Class VI Res Trauma Kit
 - **TaRapedia** [A Voice From The Past](https://tabularasa.fandom.com/wiki/A_Voice_From_The_Past) [stub]: giver: Caretaker Tendahi; at: Mount Reverence; zone: Plateau; level: 32 (possibly less); requires: None; follow-up: Trinity Bridge Logos: Past; XP: 22,500; credits: 3,200; items: Consumables; reward from: Holographic Projection Device
   - overview: The Caretaker of Mount Reverance asks that you enter Vogren's Tomb and pay your respects to the architect of Trinity Bridge.
   - objectives: Investigate Vogren's Tomb. • Investigate Vogren's Tomb on Mount Reverance.
@@ -18920,7 +18925,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Caretaker Tendahl](https://tabularasa.fandom.com/wiki/Caretaker_Tendahl): Plateau, Mount Reverance, /loc -781, 442.6, 431.7 (NPC page lists this mission)
 
 - **Chain** (explicit prerequisite links): A Voice From The Past chain (12 missions), step 1
-  - Leads to: Trinity Bridge Logos: Past (id 1044) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Voice_From_The_Past), [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Past)
+  - Leads to: Trinity Bridge Logos: Past (id 1044) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Voice_From_The_Past), [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Past), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 935 — Array Of Hope [instance]
 
 - **Instance:** Temporal Chamber — client log 5031: open the portal on Trinity Bridge, enter it and investigate what lies beyond; the hand-in (package 1199) is beyond it (ESTIMATE) — checked by hand
@@ -19281,18 +19286,24 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Leads to: Blueprint For Victory (id 1046) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Blueprint_For_Victory)
   - Leads to: Toxic Detox (id 1053) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Toxic_Detox)
 - **TR MMO DB quest series:** "Giant Killer", row 2 of 2 ([list](https://web.archive.org/web/20120731163753/http://tr.mmodb.com/quests/seriesname-giant_killer/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
-### 1044 — Trinity Bridge Logos: Past
+### 1044 — Trinity Bridge Logos: Past [implemented] [needs playtest]
 
+- **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Instance mentioned:** Maligo Base — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
 - **Rebuild summary:**
-  - level: 31 (unconfirmed) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Past)
+  - level: 31 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 31 (unconfirmed) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Past)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
   - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 51 missions in this file with a sourced level
+  - reward: 50000 XP; 4950 credits — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 50,000 XP; 4,950 credits — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Past)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: NPC Vogren's Hologram: Plateau, Vogren's Tomb, /loc -673, 466, 539 — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Vogren%27s_Hologram)
 - **Client:** Retrieve the Logos known as "Past" from a subterranean vault in Martyr's Canyon, south of Maligo Base. When you have acquired it, return to Vogren's Tomb on Mount Reverence.
   - objectives (client): Acquire "Past." — Acquire the Logos Element "Past."
+- **Local server:** revision `plateau_1_16_5`, level 31, solo, category 10000056 (Battlefield (Plateau))
+  - reward: 50000 XP; 4950 credits
+  - prerequisites: Requires completed mission 934
 - **TaRapedia** [Trinity Bridge Logos: Past](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Past): giver: Holographic Projection Device; at: Vogren's Tomb; zone: Plateau; level: 31 (unconfirmed); requires: A Voice From The Past; follow-up: Trinity Bridge Logos: Disperse; Trinity Bridge Logos: Future; Trinity Bridge Logos: Logos; Trinity Bridge Logos: Far; Trinity Bridge Logos: Distance; XP: 50,000; credits: 4,950; reward from: Holographic Projection Device
   - overview: Retrieve the Logos known as "Past" from a subterranean vault in Martyr's Canyon, south of Maligo Base. When you have acquired it, return to Vogren's Tomb on Mount Reverance.
   - objectives: Acquire "Past." • Acquire the Logos element Past.
@@ -19302,7 +19313,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Vogren's Hologram](https://tabularasa.fandom.com/wiki/Vogren%27s_Hologram): Plateau, Vogren's Tomb, /loc -673, 466, 539 (listed under this NPC on a TaRapedia mission list)
 
 - **Chain** (explicit prerequisite links): A Voice From The Past chain (12 missions), step 2
-  - Requires: A Voice From The Past (id 934) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Voice_From_The_Past), [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Past)
+  - Requires: A Voice From The Past (id 934) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Voice_From_The_Past), [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Past), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - Leads to: Array Of Hope (id 935) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Array_of_Hope)
   - Leads to: Trinity Bridge Logos: Future (id 1047) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Future), [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Past)
   - Leads to: Trinity Bridge Logos: Disperse (id 1048) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Disperse), [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Past)
