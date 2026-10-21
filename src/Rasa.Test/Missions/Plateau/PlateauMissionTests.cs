@@ -20,7 +20,9 @@ namespace Rasa.Test.Missions.Plateau
     /// Blueprint For Victory (1046, Plateau_blueprint_for_victory) and Toxic Detox (1053,
     /// Plateau_toxic_detox); the Scrounger's chain (1251, 1015, 1017); New Velon Village's Graveyard Shift
     /// (933, Plateau_graveyard_shift), Village Of The Damned (1981, Plateau_village_of_the_damned), The
-    /// Book Of Velonar (930, Plateau_book_of_velonar) and Going Postal (1034, Plateau_going_postal).
+    /// Book Of Velonar (930, Plateau_book_of_velonar) and Going Postal (1034, Plateau_going_postal);
+    /// Wedge Rock's All Along The Watchtowers (1825, Plateau_watchtowers) and Cryptic Messages (557,
+    /// Plateau_cryptic_messages); Fort Defiance's Soyuz Salvage: Plateau (2007, Plateau_soyuz_salvage).
     /// </summary>
     [TestClass]
     [DoNotParallelize]
@@ -32,15 +34,17 @@ namespace Rasa.Test.Missions.Plateau
             PlateauGiantKillerV1.MissionId, PlateauIncommunicadoV1.MissionId, PlateauCanyonSweepV1.MissionId,
             PlateauBlueprintForVictoryV1.MissionId, PlateauToxicDetoxV1.MissionId, PlateauComicReliefV1.MissionId,
             PlateauScavengerHuntV1.MissionId, PlateauStalkMarketV1.MissionId, PlateauGraveyardShiftV1.MissionId,
-            PlateauVillageOfTheDamnedV1.MissionId, PlateauBookOfVelonarV1.MissionId, PlateauGoingPostalV1.MissionId
+            PlateauVillageOfTheDamnedV1.MissionId, PlateauBookOfVelonarV1.MissionId, PlateauGoingPostalV1.MissionId,
+            PlateauWatchtowersV1.MissionId, PlateauCrypticMessagesV1.MissionId, PlateauSoyuzSalvageV1.MissionId
         };
 
         /// <summary>
         /// Giant Killer's two indicators, Incommunicado's three, Canyon Sweep's one, Blueprint For Victory's two,
         /// Toxic Detox's one, Comic Relief's three, The Stalk Market's three; Scavenger Hunt has none.
         /// Graveyard Shift's two, Village Of The Damned's, The Book Of Velonar's and Going Postal's one each.
+        /// All Along The Watchtowers', Cryptic Messages' and Soyuz Salvage's three each.
         /// </summary>
-        internal const int Indicators = 20;
+        internal const int Indicators = 29;
 
         private const string Before = "20270123000000_Thunderhead_base_teleporters";
         private const string GiantKiller = "20270125000000_Plateau_giant_killer";
@@ -54,11 +58,14 @@ namespace Rasa.Test.Missions.Plateau
         private const string GraveyardShift = "20270202000000_Plateau_graveyard_shift";
         private const string VillageOfTheDamned = "20270203000000_Plateau_village_of_the_damned";
         private const string BookOfVelonar = "20270204000000_Plateau_book_of_velonar";
+        private const string GoingPostal = "20270205000000_Plateau_going_postal";
+        private const string Watchtowers = "20270206000000_Plateau_watchtowers";
+        private const string CrypticMessages = "20270207000000_Plateau_cryptic_messages";
 
         [TestMethod]
         public void TheMissionsAreEnabledAndOperationalAtTheirGiversAndReceiversAndLevels()
         {
-            var expected = new (uint Mission, uint Giver, uint Receiver)[]
+            var expected = new (uint Mission, uint Giver, uint? Receiver)[]
             {
                 (PlateauGiantKillerV1.MissionId, PlateauGiantKillerV1.Bosley, PlateauGiantKillerV1.Bosley),
                 (PlateauIncommunicadoV1.MissionId, PlateauGiantKillerV1.Bosley, PlateauGiantKillerV1.Bosley),
@@ -71,7 +78,10 @@ namespace Rasa.Test.Missions.Plateau
                 (PlateauGraveyardShiftV1.MissionId, PlateauGraveyardShiftV1.Talisen, PlateauGraveyardShiftV1.Talisen),
                 (PlateauVillageOfTheDamnedV1.MissionId, PlateauVillageOfTheDamnedV1.Sampei, PlateauVillageOfTheDamnedV1.Sampei),
                 (PlateauBookOfVelonarV1.MissionId, PlateauVillageOfTheDamnedV1.Sampei, PlateauVillageOfTheDamnedV1.Sampei),
-                (PlateauGoingPostalV1.MissionId, PlateauGoingPostalV1.Kaely, PlateauGoingPostalV1.Kaely)
+                (PlateauGoingPostalV1.MissionId, PlateauGoingPostalV1.Kaely, PlateauGoingPostalV1.Kaely),
+                (PlateauWatchtowersV1.MissionId, PlateauWatchtowersV1.Thibodeau, PlateauWatchtowersV1.Thibodeau),
+                (PlateauCrypticMessagesV1.MissionId, PlateauCrypticMessagesV1.Devinchy, null),
+                (PlateauSoyuzSalvageV1.MissionId, PlateauSoyuzSalvageV1.Grissom, PlateauSoyuzSalvageV1.Grissom)
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             var enabled = harness.World.MissionContentDefinitionEntries.AsNoTracking()
@@ -82,7 +92,8 @@ namespace Rasa.Test.Missions.Plateau
                 var entry = enabled.Single(row => row.MissionId == mission);
                 Assert.AreEqual<uint?>(giver, entry.GiverId, $"{mission} giver");
                 Assert.AreEqual<uint?>(receiver, entry.ReceiverId, $"{mission} receiver");
-                Assert.AreEqual<uint?>(mission switch { 1251 or 1015 or 1017 => 31U, 930 => 32U, _ => 30U }, entry.Level,
+                Assert.AreEqual<uint?>(mission switch { 1251 or 1015 or 1017 => 31U, 930 or 1825 or 557 => 32U, 2007 => 34U, _ => 30U },
+                    entry.Level,
                     $"{mission} level");
                 Assert.AreEqual<uint?>(PlateauMissionDataV1.CategoryId, entry.CategoryId);
             }
@@ -119,7 +130,10 @@ namespace Rasa.Test.Missions.Plateau
                 (933, 5016, new (uint, uint, uint, uint?)[] { (1, 5021, 6365, 5022), (2, 5023, 6366, 5024) }),
                 (1981, 20858, new (uint, uint, uint, uint?)[] { (1, 20863, 20864, 20865) }),
                 (930, 4983, new (uint, uint, uint, uint?)[] { (1, 4987, 6330, null) }),
-                (1034, 5776, new (uint, uint, uint, uint?)[] { (1, 5785, 6363, null), (2, 8093, 8094, null) })
+                (1034, 5776, new (uint, uint, uint, uint?)[] { (1, 5785, 6363, null), (2, 8093, 8094, null) }),
+                (1825, 18540, new (uint, uint, uint, uint?)[] { (1, 18545, 18546, null), (2, 18548, 18549, null), (3, 18551, 18552, null) }),
+                (557, 1580, new (uint, uint, uint, uint?)[] { (1, 3415, 6350, null), (2, 3419, 6351, null), (3, 3420, 6352, null) }),
+                (2007, 21579, new (uint, uint, uint, uint?)[] { (1, 21604, 21605, null) })
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             foreach (var (mission, title, objectives) in expected)
@@ -147,7 +161,8 @@ namespace Rasa.Test.Missions.Plateau
         /// Incommunicado follows Giant Killer; each commander's mission follows his own delivery: the
         /// flag that Incommunicado's delivery objective sets (action 3, SetPlayerFlag to 1). Scavenger
         /// Hunt follows the Scrounger's talk in Comic Relief (objective 10, action 1, the same way);
-        /// The Stalk Market follows Scavenger Hunt. New Velon Village's four have no requirement.
+        /// The Stalk Market follows Scavenger Hunt. New Velon Village's four, Wedge Rock's two and Soyuz
+        /// Salvage have no requirement.
         /// </summary>
         [TestMethod]
         public void EachMissionRequiresTheMissionOrDeliveryBeforeIt()
@@ -190,16 +205,17 @@ namespace Rasa.Test.Missions.Plateau
             var stalkMarket = prerequisites.Single(entry => entry.MissionId == PlateauStalkMarketV1.MissionId);
             Assert.AreEqual((MissionPrerequisiteKind.MissionCompleted, (uint?)1015),
                 (stalkMarket.Kind, stalkMarket.RequiredMissionId));
-            foreach (var mission in new uint[] { 933, 1981, 930, 1034 })
+            foreach (var mission in new uint[] { 933, 1981, 930, 1034, 1825, 557, 2007 })
                 Assert.IsFalse(prerequisites.Any(entry => entry.MissionId == mission), $"{mission}");
         }
 
         /// <summary>
         /// The missions' sources and how far each is trusted: the client's tables 1.0, TaRapedia 0.5
         /// (0.4 for Blueprint For Victory, whose page gives no drop rate, and for Scavenger Hunt and Going
-        /// Postal, stub pages), and what this repository reconstructed 0.3 (the guards, the drop rates,
-        /// the pumps, the NPCs' looks and Lonigan's place, the Stalkers, the miasmas, the Infected
-        /// Foreans, the book's place, Porthus's place).
+        /// Postal, Cryptic Messages and Soyuz Salvage, stub pages), and what this repository
+        /// reconstructed 0.3 (the guards, the drop rates, the pumps, the NPCs' looks and Lonigan's place,
+        /// the Stalkers, the miasmas, the Infected Foreans, the book's place, Porthus's place, the
+        /// towers, Vorvaak's drop) - 0.2 for Soyuz Salvage, whose places, XP and credits no source gives.
         /// </summary>
         [TestMethod]
         public void TheCommandersMissionsTrustWhatIsReconstructedLeast()
@@ -228,7 +244,13 @@ namespace Rasa.Test.Missions.Plateau
                 (930, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
                     (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
                 (1034, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.4),
-                    (MissionEvidenceSourceKind.Reconstruction, 0.3) })
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                (1825, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                (557, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.4),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                (2007, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.4),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.2) })
             })
                 CollectionAssert.AreEqual(confidences, evidence.Where(entry => entry.MissionId == mission)
                     .OrderBy(entry => entry.EvidenceId).Select(entry => (entry.SourceKind, entry.Confidence)).ToArray(),
@@ -427,6 +449,38 @@ namespace Rasa.Test.Missions.Plateau
             Assert.IsFalse(Has(PlateauGraveyardShiftV1.MissionId));
             Assert.AreEqual((0, 0, 0, 0), Miasmas());
             Assert.IsTrue(Has(PlateauStalkMarketV1.MissionId));
+        }
+
+        /// <summary>
+        /// Wedge Rock's missions and Soyuz Salvage roll back a migration at a time: Soyuz Salvage; Cryptic
+        /// Messages with its radio channel; All Along The Watchtowers. Going Postal stays.
+        /// </summary>
+        [TestMethod]
+        public void WedgeRocksMissionsAndSoyuzSalvageRollBack()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            bool Has(uint mission) => world.MissionContentDefinitionEntries.AsNoTracking().Any(entry => entry.MissionId == mission);
+            int Channels() => world.Database.SqlQueryRaw<int>(
+                $"SELECT COUNT(*) AS Value FROM mission_channel_policy WHERE mission_id = {PlateauCrypticMessagesV1.MissionId} " +
+                $"AND content_revision = '{PlateauMissionDataV1.Revision}'").AsEnumerable().Single();
+
+            Assert.AreEqual(1, Channels());
+            Assert.IsTrue(world.MissionContentDefinitionEntries.AsNoTracking()
+                .Single(entry => entry.MissionId == PlateauCrypticMessagesV1.MissionId).RadioCompleteable);
+
+            world.GetService<IMigrator>().Migrate(CrypticMessages);
+            Assert.IsFalse(Has(PlateauSoyuzSalvageV1.MissionId));
+            Assert.IsTrue(Has(PlateauCrypticMessagesV1.MissionId));
+
+            world.GetService<IMigrator>().Migrate(Watchtowers);
+            Assert.IsFalse(Has(PlateauCrypticMessagesV1.MissionId));
+            Assert.AreEqual(0, Channels());
+            Assert.IsTrue(Has(PlateauWatchtowersV1.MissionId));
+
+            world.GetService<IMigrator>().Migrate(GoingPostal);
+            Assert.IsFalse(Has(PlateauWatchtowersV1.MissionId));
+            Assert.IsTrue(Has(PlateauGoingPostalV1.MissionId));
         }
     }
 }

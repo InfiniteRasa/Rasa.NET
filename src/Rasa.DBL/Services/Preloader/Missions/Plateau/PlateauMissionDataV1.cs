@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Rasa.Data;
 using Rasa.Missions.Content;
+using Rasa.Missions.Definitions;
 using Rasa.Missions.Scenes;
 using Rasa.Structures;
 using Rasa.Structures.World;
@@ -43,7 +44,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
         public static PlateauMissionDataV1 Existing(MigrationBuilder migration, uint missionId) => new(migration, missionId);
 
         public PlateauMissionDataV1(MigrationBuilder migration, uint missionId, string name,
-            uint nameTextId, uint giverId, uint receiverId, uint level, bool shareable = false)
+            uint nameTextId, uint giverId, uint? receiverId, uint level, bool shareable = false)
             : this(migration, missionId)
         {
             Insert("mission_content_definition",
@@ -69,6 +70,19 @@ namespace Rasa.Services.Preloader.Missions.Plateau
                 _migration.InsertData("mission_reward_item",
                     new[] { "mission_id", "content_revision", "reward_id", "item_id", "kind", "item_template_id", "quantity" },
                     new object[] { _missionId, Revision, 1U, (uint)i + 1, (byte)items[i].Item1, items[i].template, 1U });
+        }
+
+        /// <summary>
+        /// Turned in by radio, not at an NPC: accepted at the giver (channel Npc), completed from the
+        /// mission log (channel Radio, mission_channel_policy). Construct the mission with no receiver.
+        /// </summary>
+        public void RadioCompletion()
+        {
+            _migration.UpdateData("mission_content_definition", new[] { "mission_id", "content_revision" },
+                new object[] { _missionId, Revision }, "radio_completeable", true);
+            _migration.InsertData("mission_channel_policy",
+                new[] { "mission_id", "content_revision", "acceptance_channel", "completion_channel", "radio_sources" },
+                new object[] { _missionId, Revision, (int)MissionChannel.Npc, (int)MissionChannel.Radio, "[]" });
         }
 
         public void Prerequisite(uint mission, uint id = 1) =>
