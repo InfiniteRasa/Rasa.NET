@@ -140,12 +140,12 @@ namespace Rasa.Services.Preloader.Missions.Plateau
 
         public void Action(uint objective, uint id, MissionActionKind kind, uint? targetObjective = null,
             uint? reward = null, MissionObjectiveState? state = null, CharacterIntent itemIntent = null,
-            uint? playerFlag = null, uint? playerFlagValue = null, string comment = null) =>
+            uint? playerFlag = null, uint? playerFlagValue = null, string comment = null, uint? scenario = null) =>
             Insert("mission_action",
                 ("objective_id", objective), ("transition_id", 1U), ("action_id", id),
                 ("kind", (byte)kind), ("sequence", id), ("target_objective_id", targetObjective),
                 ("objective_state", state.HasValue ? (byte)state.Value : null), ("reward_id", reward),
-                ("spawn_group_id", null), ("scenario_id", null), ("indicator_id", null),
+                ("spawn_group_id", null), ("scenario_id", scenario), ("indicator_id", null),
                 ("player_flag_id", playerFlag), ("player_flag_value", playerFlagValue), ("npc_package_id", null),
                 ("item_intent", itemIntent == null ? null : JsonSerializer.Serialize(itemIntent, MissionContentCodec.Options)),
                 ("comment", comment ?? $"Objective {objective} action {id}"));

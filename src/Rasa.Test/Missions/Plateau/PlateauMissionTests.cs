@@ -46,7 +46,8 @@ namespace Rasa.Test.Missions.Plateau
             PlateauDefiantOnesV1.MissionId, PlateauBridgeTooFarV1.MissionId, PlateauBeerHunterV1.MissionId,
             PlateauCrystalBluePersuasionV1.MissionId, PlateauAlphaMoxV1.MissionId, PlateauVoiceFromThePastV1.MissionId,
             PlateauTrinityLogosPastV1.MissionId, PlateauCleanSlateV1.MissionId, PlateauMindBenderV1.MissionId,
-            PlateauPhotoOpsV1.MissionId, PlateauResultsAreInV1.MissionId, PlateauMindSlayerV1.MissionId
+            PlateauPhotoOpsV1.MissionId, PlateauResultsAreInV1.MissionId, PlateauMindSlayerV1.MissionId,
+            PlateauBombVoyageV1.MissionId, PlateauLookoutDownBelowV1.MissionId, PlateauBloodhoundV1.MissionId
         };
 
         /// <summary>
@@ -58,7 +59,7 @@ namespace Rasa.Test.Missions.Plateau
         /// A Voice From The Past's and Trinity Bridge Logos: Past's one each. Clean Slate's three, Mind Bender's
         /// eight, Photo Ops' five, The Results Are In's and Mind Slayer's one each.
         /// </summary>
-        internal const int Indicators = 57;
+        internal const int Indicators = 62;
 
         private const string Before = "20270123000000_Thunderhead_base_teleporters";
         private const string GiantKiller = "20270125000000_Plateau_giant_killer";
@@ -92,6 +93,10 @@ namespace Rasa.Test.Missions.Plateau
         private const string PhotoOps = "20270222000000_Plateau_photo_ops";
         private const string ResultsAreIn = "20270223000000_Plateau_results_are_in";
         private const string MindSlayer = "20270224000000_Plateau_mind_slayer";
+        private const string WedgeRockNpcs = "20270225000000_Plateau_wedge_rock_npcs";
+        private const string ChasmNpcs = "20270226000000_Plateau_chasm_npcs";
+        private const string BombVoyage = "20270227000000_Plateau_bomb_voyage";
+        private const string LookoutDownBelow = "20270228000000_Plateau_lookout_down_below";
 
         [TestMethod]
         public void TheMissionsAreEnabledAndOperationalAtTheirGiversAndReceiversAndLevels()
@@ -124,7 +129,10 @@ namespace Rasa.Test.Missions.Plateau
                 (PlateauMindBenderV1.MissionId, PlateauPerduNpcsV1.Perdu, PlateauPerduNpcsV1.Perdu),
                 (PlateauPhotoOpsV1.MissionId, PlateauPerduNpcsV1.Russ, PlateauPerduNpcsV1.Clark),
                 (PlateauResultsAreInV1.MissionId, PlateauPerduNpcsV1.Clark, PlateauPerduNpcsV1.Perdu),
-                (PlateauMindSlayerV1.MissionId, PlateauPerduNpcsV1.Perdu, PlateauPerduNpcsV1.Perdu)
+                (PlateauMindSlayerV1.MissionId, PlateauPerduNpcsV1.Perdu, PlateauPerduNpcsV1.Perdu),
+                (PlateauBombVoyageV1.MissionId, PlateauPerduNpcsV1.Russ, PlateauPerduNpcsV1.Russ),
+                (PlateauLookoutDownBelowV1.MissionId, PlateauPerduNpcsV1.Russ, PlateauBloodhoundV1.Garde),
+                (PlateauBloodhoundV1.MissionId, PlateauBloodhoundV1.Garde, null)
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             var enabled = harness.World.MissionContentDefinitionEntries.AsNoTracking()
@@ -199,7 +207,10 @@ namespace Rasa.Test.Missions.Plateau
                     (5, 4993, 6428, null), (6, 5729, 6429, null), (7, 5730, 6430, null), (8, 5731, 6431, null), (9, 5732, 6432, null)
                 }),
                 (936, 5037, new (uint, uint, uint, uint?)[] { (1, 5772, 6434, null) }),
-                (719, 3438, new (uint, uint, uint, uint?)[] { (1, 5774, 6405, null) })
+                (719, 3438, new (uint, uint, uint, uint?)[] { (1, 5774, 6405, null) }),
+                (931, 4998, new (uint, uint, uint, uint?)[] { (2, 5007, 6314, 5008), (8, 5014, 6321, null) }),
+                (970, 5305, new (uint, uint, uint, uint?)[] { (1, 5610, 6394, null) }),
+                (867, 4534, new (uint, uint, uint, uint?)[] { (3, 4539, 6471, null), (2, 4540, 6472, null) })
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             foreach (var (mission, title, objectives) in expected)
@@ -231,7 +242,8 @@ namespace Rasa.Test.Missions.Plateau
         /// and The Defiant Ones have no requirement; Fort Defiance's others follow The Defiant Ones: A Bridge Too
         /// Far, then The Beer Hunter; Crystal Blue Persuasion, then Alpha Mox. A Voice From The Past has none;
         /// Trinity Bridge Logos: Past follows it. Clean Slate has none; Perdu's line follows it: Mind Bender, Photo
-        /// Ops, The Results Are In, Mind Slayer.
+        /// Ops, The Results Are In, Mind Slayer. Bomb Voyage and Lookout Down Below have none; The Stainless Steel
+        /// Bloodhound follows Lookout Down Below.
         /// </summary>
         [TestMethod]
         public void EachMissionRequiresTheMissionOrDeliveryBeforeIt()
@@ -239,7 +251,7 @@ namespace Rasa.Test.Missions.Plateau
             using var harness = WildernessRuntimeTestHarness.Create();
             var prerequisites = harness.World.MissionPrerequisiteEntries.AsNoTracking()
                 .Where(entry => entry.ContentRevision == PlateauMissionDataV1.Revision).ToArray();
-            Assert.HasCount(15, prerequisites);
+            Assert.HasCount(16, prerequisites);
             var incommunicado = prerequisites.Single(entry => entry.MissionId == PlateauIncommunicadoV1.MissionId);
             Assert.AreEqual(MissionPrerequisiteKind.MissionCompleted, incommunicado.Kind);
             Assert.AreEqual<uint?>(PlateauGiantKillerV1.MissionId, incommunicado.RequiredMissionId);
@@ -274,9 +286,9 @@ namespace Rasa.Test.Missions.Plateau
             var stalkMarket = prerequisites.Single(entry => entry.MissionId == PlateauStalkMarketV1.MissionId);
             Assert.AreEqual((MissionPrerequisiteKind.MissionCompleted, (uint?)1015),
                 (stalkMarket.Kind, stalkMarket.RequiredMissionId));
-            foreach (var mission in new uint[] { 933, 1981, 930, 1034, 1825, 557, 2007, 887, 934, 1983 })
+            foreach (var mission in new uint[] { 933, 1981, 930, 1034, 1825, 557, 2007, 887, 934, 1983, 931, 970 })
                 Assert.IsFalse(prerequisites.Any(entry => entry.MissionId == mission), $"{mission}");
-            foreach (var (mission, required) in new (uint, uint)[] { (713, 887), (954, 887), (855, 713), (1027, 954), (1044, 934), (905, 1983), (929, 905), (936, 929), (719, 936) })
+            foreach (var (mission, required) in new (uint, uint)[] { (713, 887), (954, 887), (855, 713), (1027, 954), (1044, 934), (905, 1983), (929, 905), (936, 929), (719, 936), (867, 970) })
             {
                 var prerequisite = prerequisites.Single(entry => entry.MissionId == mission);
                 Assert.AreEqual((MissionPrerequisiteKind.MissionCompleted, (uint?)required),
@@ -352,6 +364,12 @@ namespace Rasa.Test.Missions.Plateau
                 (936, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
                     (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
                 (719, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.4),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                (931, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                (970, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                (867, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
                     (MissionEvidenceSourceKind.Reconstruction, 0.3) })
             })
                 CollectionAssert.AreEqual(confidences, evidence.Where(entry => entry.MissionId == mission)
@@ -762,6 +780,41 @@ namespace Rasa.Test.Missions.Plateau
             foreach (var move in PlateauPerduNpcsV1.Moves)
                 Assert.AreEqual(move.Before, At(move.Pool), $"{move.Pool} back where the NPC seed had it");
             Assert.IsTrue(Has(PlateauTrinityLogosPastV1.MissionId));
+        }
+
+        /// <summary>
+        /// Russ's and Garde's missions roll back a migration at a time: The Stainless Steel Bloodhound; Lookout Down
+        /// Below; Bomb Voyage; then the Bloodhound's sentinel (creature, stat). The Wedge Rock move stays.
+        /// </summary>
+        [TestMethod]
+        public void RusssAndGardesMissionsAndTheSentinelRollBack()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            int Count(string sql) => world.Database.SqlQueryRaw<int>(sql).AsEnumerable().Single();
+            (int, int) Sentinel() => (
+                Count($"SELECT COUNT(*) AS Value FROM creature WHERE id = {PlateauChasmNpcsV1.Sentinel}"),
+                Count($"SELECT COUNT(*) AS Value FROM creature_stat WHERE id = {PlateauChasmNpcsV1.Sentinel}"));
+            bool Has(uint mission) => world.MissionContentDefinitionEntries.AsNoTracking().Any(entry => entry.MissionId == mission);
+
+            Assert.AreEqual((1, 1), Sentinel());
+            foreach (var (target, gone, stays) in new (string, uint, uint)[]
+            {
+                (LookoutDownBelow, PlateauBloodhoundV1.MissionId, PlateauLookoutDownBelowV1.MissionId),
+                (BombVoyage, PlateauLookoutDownBelowV1.MissionId, PlateauBombVoyageV1.MissionId),
+                (ChasmNpcs, PlateauBombVoyageV1.MissionId, PlateauMindSlayerV1.MissionId)
+            })
+            {
+                world.GetService<IMigrator>().Migrate(target);
+                Assert.IsFalse(Has(gone), $"{gone} rolled back");
+                Assert.IsTrue(Has(stays), $"{stays} stays");
+                Assert.AreEqual((1, 1), Sentinel(), $"the sentinel stays with its own migration ({target})");
+            }
+
+            world.GetService<IMigrator>().Migrate(WedgeRockNpcs);
+            Assert.AreEqual((0, 0), Sentinel());
+            var thibodeau = world.SpawnPoolEntries.AsNoTracking().Single(entry => entry.Id == PlateauWedgeRockNpcsV1.Thibodeau);
+            Assert.AreEqual(PlateauWedgeRockNpcsV1.Moves[0].At.X, Math.Round(thibodeau.PosX, 2), "the Wedge Rock move stays");
         }
 
         /// <summary>
