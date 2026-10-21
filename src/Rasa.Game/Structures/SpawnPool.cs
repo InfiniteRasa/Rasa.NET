@@ -29,6 +29,10 @@ namespace Rasa.Structures
         /// </summary>
         internal Creature Leader { get; set; }
 
+        /// <summary>The way its leader last walked, and whether its formation is mirrored for it (Managers.PatrolGroups.SideOf). Not copied to a clone.</summary>
+        internal float? FormationYaw { get; set; }
+        internal bool FormationMirrored { get; set; }
+
         /// <summary>
         /// How many it sends at a time, each drawn from its slots at random, weighted by the slot's
         /// max count (spawnpool_draw); 0 for a pool that sends each slot's own count.

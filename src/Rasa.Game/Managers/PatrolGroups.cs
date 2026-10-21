@@ -26,11 +26,27 @@ namespace Rasa.Managers
     ///    the leader's steps are floor heights it walks between in straight lines, the
     ///    followers walk the ground beside it. A place off the mesh is given up for a point
     ///    behind the leader, <see cref="TrailDistance"/> from it.
+    ///  - Each keeps its side of the beat: when the leader turns about, the two of a rank do
+    ///    not cross behind it to the other side (<see cref="SideOf"/>).
+    ///  - Standing at its place while the leader stands on its beat, a follower faces the way
+    ///    the leader does.
     ///  - A follower whose leader is dead or gone strolls where it stands, and falls in behind
     ///    the next leader its pool sets down (BehaviorManager, the wander think).
+    ///  - It fights as one: one of the group that starts a fight - the scan, a hit - takes the
+    ///    rest of the group into it (<see cref="Assist"/>), and a follower out of a fight its
+    ///    leader is still in goes back into it. When the leader is drawn too far off its beat
+    ///    and runs back (BehaviorManager.Leash), its followers give the fight up with it.
+    ///  - A follower that cannot get to its place - no route there - is put on it after
+    ///    as long as a run there would take twice over (<see cref="StrayDistance"/>).
     /// </summary>
     public static class PatrolGroups
     {
+        /// <summary>Further than this from its place for too long, a follower is put on it.</summary>
+        public const float StrayDistance = 40f;
+
+        /// <summary>Set while one of a group takes the rest into its fight: their own fights starting do not do it over again.</summary>
+        private static bool _assisting;
+
         /// <summary>How far to each side of the leader the two of a rank walk. Spacing.Distance.</summary>
         public const float Abreast = 3f;
 
@@ -129,10 +145,13 @@ namespace Rasa.Managers
             follower.Controller.ActionFollow.PlaceOffset = null;
         }
 
-        /// <summary>A formation place, from the leader, as it faces <paramref name="yaw"/>: slot 0 behind on one side, 1 on the other, then the next rank back.</summary>
-        public static Vector3 Offset(int slot, float yaw)
+        /// <summary>
+        /// A formation place, from the leader, as it faces <paramref name="yaw"/>: slot 0 behind
+        /// on one side, 1 on the other, then the next rank back. Mirrored, each on the other side.
+        /// </summary>
+        public static Vector3 Offset(int slot, float yaw, bool mirrored = false)
         {
-            var right = slot % 2 == 0 ? -Abreast : Abreast;
+            var right = (slot % 2 == 0) != mirrored ? -Abreast : Abreast;
             var back = FirstRank + RankSpacing * (slot / 2);
 
             // A walk along (dx, dz) has the yaw atan2(-dx, -dz): ahead is (-sin, -cos).
@@ -154,7 +173,7 @@ namespace Rasa.Managers
             var walking = leader.Controller.LastMovement?.Velocity > 0f;
 
             if (walking || follow.PlaceOffset == null)
-                follow.PlaceOffset = Offset(Math.Max(0, follow.FormationSlot), (float)leader.Rotation);
+                follow.PlaceOffset = Offset(Math.Max(0, follow.FormationSlot), (float)leader.Rotation, SideOf(leader.SpawnPool, (float)leader.Rotation));
 
             if (Spacing.Placed(map, leader.Position + follow.PlaceOffset.Value) is Vector3 place)
                 return place;
@@ -165,6 +184,63 @@ namespace Rasa.Managers
                 return follower.Position;
 
             return Spacing.Placed(map, leader.Position + Vector3.Normalize(away) * TrailDistance) ?? follower.Position;
+        }
+
+        /// <summary>
+        /// Whether the formation is mirrored as the leader faces <paramref name="yaw"/>. Each
+        /// time the leader is seen walking more than a quarter turn from the way it last walked
+        /// - the about-turn at the end of a beat walked there and back - the formation is
+        /// mirrored over, so each follower stays on the side of the beat it was on. A corner of a
+        /// circuit, taken a step at a time, turns it with the leader.
+        /// </summary>
+        public static bool SideOf(SpawnPool pool, float yaw)
+        {
+            if (pool.FormationYaw is float last && MathF.Abs(Patrols.Turn(last, yaw)) > MathF.PI / 2f)
+                pool.FormationMirrored = !pool.FormationMirrored;
+
+            pool.FormationYaw = yaw;
+
+            return pool.FormationMirrored;
+        }
+
+        /// <summary>The living creatures of the pool on the map: its leader and its followers.</summary>
+        public static IEnumerable<Creature> MembersOf(MapChannel map, SpawnPool pool) =>
+            EntityManager.Instance.Creatures.Values.Where(creature =>
+                ReferenceEquals(creature.SpawnPool, pool) && creature.MasterEntityId == 0 && CreatureManager.IsLivingOnMap(map, creature));
+
+        /// <summary>
+        /// One of a group has started a fight with <paramref name="targetEntityId"/>: the rest of
+        /// the group not in one go into it too. One running home after a leash does not
+        /// (BehaviorManager.CanSetActionFighting).
+        /// </summary>
+        public static void Assist(MapChannel map, Creature creature, ulong targetEntityId)
+        {
+            if (_assisting || creature.MasterEntityId != 0 || !IsGroup(creature.SpawnPool) || map == null)
+                return;
+
+            _assisting = true;
+
+            try
+            {
+                foreach (var other in MembersOf(map, creature.SpawnPool).Where(other => other != creature).ToList())
+                    if (other.Controller.CurrentAction != BehaviorManager.BehaviorActionFighting)
+                        BehaviorManager.Instance.TrySetActionFighting(other, targetEntityId);
+            }
+            finally
+            {
+                _assisting = false;
+            }
+        }
+
+        /// <summary>The leader runs back to its beat after a leash: its followers still fighting give the fight up and run back with it.</summary>
+        public static void LeashFollowers(MapChannel map, Creature leader)
+        {
+            if (map == null || leader.Patrol == null || !IsGroup(leader.SpawnPool))
+                return;
+
+            foreach (var follower in FollowersOf(map, leader).ToList())
+                if (follower.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting)
+                    BehaviorManager.Instance.Leash(map, follower);
         }
 
         /// <summary>A follower's part in its group, for a GM: .npcinfo.</summary>

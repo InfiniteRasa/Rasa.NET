@@ -1731,9 +1731,10 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// One think of a patrol group's follower (PatrolGroups): to its place round the leader
-        /// across the ground, walking, or running when it has fallen behind; standing once it is
-        /// there. With no leader standing, it strolls where it is until its pool has one again.
+        /// One think of a patrol group's follower (PatrolGroups): back into a fight its leader is
+        /// in; otherwise to its place round the leader across the ground, walking, or running
+        /// when it has fallen behind, and put there when it cannot get there; standing once it
+        /// is there. With no leader standing, it strolls where it is until its pool has one again.
         /// </summary>
         private void AdvanceGroupFollower(MapChannel map, Creature creature, long delta)
         {
@@ -1758,15 +1759,50 @@ namespace Rasa.Managers
             // ends in the formation.
             creature.HomePos.Position = leader.Position;
 
+            // Out of a fight its leader is still in, it goes back into it.
+            if (leader.Controller.CurrentAction == BehaviorActionFighting
+                && leader.Controller.ActionFighting.TargetEntityId is var leaderTarget && leaderTarget != 0
+                && TrySetActionFighting(creature, leaderTarget))
+                return;
+
             var place = PatrolGroups.PlaceOf(map, creature, leader);
             var gap = Spacing.AcrossGround(creature.Position, place);
             var leaderWalks = leader.Controller.LastMovement?.Velocity > 0f;
 
-            // Standing: once at its place it stands too. Walking: it keeps pace onto a place
-            // that moves on as fast, rather than stopping each time it reaches it.
+            // No way to its place - no route, the ground between cut off: after as long as a
+            // run there would take twice over, it is put on it, as a creature running home is.
+            if (gap > PatrolGroups.StrayDistance)
+            {
+                follow.StrayMs += delta;
+
+                if (follow.StrayMs >= ReturnTimeoutFor(gap, creature.RunSpeed))
+                {
+                    follow.StrayMs = 0;
+                    follow.CatchUpRunning = false;
+                    creature.Controller.Path.Clear();
+                    creature.Controller.PathIndex = 0;
+                    creature.Position = NavMeshManager.SnapToGround(map, place);
+                    SynchronizeMovementCell(map, creature);
+                    StopMoving(creature);
+                    return;
+                }
+            }
+            else
+                follow.StrayMs = 0;
+
+            // Standing: once at its place it stands too, facing the way the leader stands on
+            // its beat. Walking: it keeps pace onto a place that moves on as fast, rather than
+            // stopping each time it reaches it.
             if (!leaderWalks && gap <= PatrolGroups.PlaceReached)
             {
                 follow.CatchUpRunning = false;
+
+                if (leader.Controller.CurrentAction == BehaviorActionPatrol)
+                {
+                    creature.Rotation = leader.Rotation;
+                    creature.LastYaw = (float)leader.Rotation;
+                }
+
                 StopFollowing(map, creature);
                 return;
             }
@@ -2711,8 +2747,10 @@ namespace Rasa.Managers
             if (!CanSetActionFighting(creature, targetEntityId))
                 return false;
 
+            var starting = creature.Controller.CurrentAction != BehaviorActionFighting;
+
             // A fight starting, not a change of target within one: its first attack is rolled for again (OpensNow).
-            if (creature.Controller.CurrentAction != BehaviorActionFighting)
+            if (starting)
             {
                 creature.Controller.ActionFighting.Opened = false;
                 creature.Controller.ActionFighting.OpeningRolls = 0;
@@ -2749,6 +2787,11 @@ namespace Rasa.Managers
 
             // Its target, to everyone who can see it: the guns that aim, aim (Targets).
             Targets.Sync(creature.RuntimeMapChannel ?? MapChannelManager.Instance.FindByContextId(creature.MapContextId), creature);
+
+            // One of a group on a beat takes the rest of it into the fight (PatrolGroups).
+            if (starting)
+                PatrolGroups.Assist(creature.RuntimeMapChannel ?? MapChannelManager.Instance.FindByContextId(creature.MapContextId), creature, targetEntityId);
+
             return true;
         }
 
@@ -3045,6 +3088,9 @@ namespace Rasa.Managers
 
             if (mapChannel != null)
                 BuildPath(mapChannel, creature, creature.HomePos.Position);
+
+            // A group's leader does not go back to its beat alone (PatrolGroups).
+            PatrolGroups.LeashFollowers(mapChannel, creature);
         }
 
         /// <summary>How long a creature gets to run <paramref name="distance"/> metres home before it is put there: twice the straight run, at least <see cref="ReturnTimeoutMinMs"/>.</summary>
