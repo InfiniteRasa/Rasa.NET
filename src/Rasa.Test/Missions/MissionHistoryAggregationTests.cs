@@ -42,11 +42,10 @@ namespace Rasa.Test.Missions
             Assert.IsTrue(context.Manager.CompleteOfferedMission(context.Client, receiver.EntityId, First, null));
 
             AssertCounter(context, 1, complete: false);
-            Assert.AreEqual(1U, context.Drain().OfType<UpdateObjectiveCounterPacket>()
-                .Single(packet => packet.MissionId == Target).CounterValue);
+            Assert.AreEqual(1U, PublishedCount(context));
             Assert.IsTrue(context.Manager.CompleteOfferedMission(context.Client, receiver.EntityId, Alternative, null));
             AssertCounter(context, 1, complete: false);
-            Assert.AreEqual(0, context.Drain().OfType<UpdateObjectiveCounterPacket>().Count(packet => packet.MissionId == Target));
+            Assert.IsTrue(PublishedCount(context) is null or 1U, "the group counted once");
             Assert.IsFalse(context.Manager.RecordProgress(context.Client, MissionProgressEvent.Mission(Pending)));
             Assert.IsFalse(context.Manager.RecordProgress(context.Client, MissionProgressEvent.Mission(Instance)));
             AssertCounter(context, 1, complete: false);
@@ -54,8 +53,7 @@ namespace Rasa.Test.Missions
             Assert.IsTrue(context.Manager.RewardOfferedMission(context.Client, receiver.EntityId, Pending, null, null));
 
             AssertCounter(context, 2, complete: false);
-            Assert.AreEqual(2U, context.Drain().OfType<UpdateObjectiveCounterPacket>()
-                .Single(packet => packet.MissionId == Target).CounterValue);
+            Assert.AreEqual(2U, PublishedCount(context));
             Assert.IsFalse(context.Manager.RecordProgress(context.Client, MissionProgressEvent.Mission(Pending)));
             AssertCounter(context, 2, complete: false);
             using var unit = context.CreateChar();
@@ -165,6 +163,21 @@ namespace Rasa.Test.Missions
             new(id, 1001, 1002, Array.Empty<uint?>(), 0, MissionObjectiveState.Incomplete, true,
                 null, null, Array.Empty<MissionObjectiveConversation>(), Array.Empty<uint>(), Array.Empty<uint>(),
                 Array.Empty<MissionIndicator>());
+
+        /// <summary>
+        /// The count the client was last given for objective 55. Its counter text, 13685 (mission
+        /// 1449's), is blank in the client, so it goes in the status snapshot and never as a counter
+        /// update (BlankCounterNames); null when no snapshot went out.
+        /// </summary>
+        private static uint? PublishedCount(MissionTestContext context)
+        {
+            var packets = context.Drain();
+
+            Assert.AreEqual(0, packets.OfType<UpdateObjectiveCounterPacket>().Count(packet => packet.MissionId == Target));
+
+            return packets.OfType<MissionStatusInfoPacket>().LastOrDefault(packet => packet.MissionStatusDict.ContainsKey(Target))?
+                .MissionStatusDict[Target].ObjectivesList.Single(objective => objective.ObjectiveId == 55).Counters[0].CounterValue;
+        }
 
         private static void AssertCounter(MissionTestContext context, uint value, bool complete)
         {

@@ -302,12 +302,23 @@ namespace Rasa.Managers
             }
             _inventoryPublication?.Invoke(client);
 
+            // A counter the client has no name for goes in the status snapshot below, not as a
+            // counter update, whose big text would read ": 3/5" (BlankCounterNames).
+            var unnamedCounterMissionIds = new SortedSet<uint>();
+
             foreach (var publication in _publications.Where(
                 publication =>
                     publication.CounterId.HasValue &&
                     !publication.IsItemCounter &&
                     PublishesObjectives(publication.MissionId) &&
                     publication.Definition.Objectives[publication.ObjectiveId].IsVisible))
+            {
+                if (BlankCounterNames.Has(publication.Definition.Objectives[publication.ObjectiveId], publication.CounterId.Value))
+                {
+                    unnamedCounterMissionIds.Add(publication.MissionId);
+                    continue;
+                }
+
                 MissionApplication.TryPublish(
                     () => client.CallMethod(
                         client.Player.EntityId,
@@ -319,6 +330,7 @@ namespace Rasa.Managers
                             publication.InitialValue.Value,
                             publication.TargetValue.Value)),
                     $"mission {publication.MissionId} objective counter");
+            }
 
             foreach (var publication in _publications.Where(
                 publication => publication.IsItemCounter &&
@@ -392,6 +404,7 @@ namespace Rasa.Managers
             }
 
             var indicatorRefreshMissionIds = new SortedSet<uint>(_missionStatusMissionIds);
+            indicatorRefreshMissionIds.UnionWith(unnamedCounterMissionIds);
             foreach (var publication in _publications)
                 if (publication.ShownIndicatorIds.Count > 0)
                     indicatorRefreshMissionIds.Add(publication.MissionId);
@@ -401,7 +414,7 @@ namespace Rasa.Managers
                 _manager.PublishMissionStatus(
                     client,
                     indicatorRefreshMissionIds,
-                    $"mission {string.Join(", ", indicatorRefreshMissionIds)} status after deadline start or indicator reveal");
+                    $"mission {string.Join(", ", indicatorRefreshMissionIds)} status after deadline start, indicator reveal or unnamed counter");
 
             foreach (var missionId in _completableMissions)
             {
