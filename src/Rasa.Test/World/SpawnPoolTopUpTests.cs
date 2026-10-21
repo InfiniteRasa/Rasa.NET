@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Rasa.Test.World
@@ -43,6 +44,52 @@ namespace Rasa.Test.World
             Assert.AreEqual(2500L, pool.RespawnTime);
 
             return pool;
+        }
+
+        [TestMethod]
+        public void AGroupOnABeatGetsItsLeaderBackAndItsGuardsFallInBehindIt()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var pool = PoolOf(harness);
+
+            // Made a group on a beat (PatrolGroups): one of 51 leads, two of 53 follow it.
+            pool.SpawnSlot = new List<SpawnPoolSlot> { new SpawnPoolSlot(First, 1, 1), new SpawnPoolSlot(Second, 2, 2) };
+            pool.Patrol = new[] { new PatrolStep(pool.Position), new PatrolStep(pool.Position + new Vector3(10, 0, 0)) };
+
+            harness.SpawnWorld(Pool);
+
+            var leader = Standing(harness, pool).Single(creature => creature.DbId == First);
+            var guards = Standing(harness, pool).Where(creature => creature.DbId == Second).ToList();
+
+            Assert.HasCount(2, guards);
+            Assert.AreSame(leader, pool.Leader);
+
+            Kill(harness, pool, First, 1);
+            harness.Tick();
+
+            foreach (var guard in guards)
+            {
+                Assert.AreEqual(BehaviorManager.BehaviorActionWander, guard.Controller.CurrentAction, "Leaderless, it strolls where it is.");
+                Assert.AreEqual(0UL, guard.Controller.ActionFollow.FollowTargetId);
+            }
+
+            // Its respawn time after the loss, the pool tops its leader back up.
+            harness.SpawnWorldAfter(pool.RespawnTime, Pool);
+
+            var next = Standing(harness, pool).Single(creature => creature.DbId == First);
+
+            Assert.AreNotSame(leader, next);
+            Assert.AreSame(next, pool.Leader);
+            Assert.AreSame(pool.Patrol, next.Patrol);
+            Assert.AreEqual(3, pool.AliveCreatures);
+
+            harness.Tick();
+
+            foreach (var guard in guards)
+            {
+                Assert.AreEqual(BehaviorManager.BehaviorActionFollow, guard.Controller.CurrentAction);
+                Assert.AreEqual(next.EntityId, guard.Controller.ActionFollow.FollowTargetId);
+            }
         }
 
         private static void Kill(WildernessRuntimeTestHarness harness, SpawnPool pool, uint creatureId, int count)
