@@ -1543,6 +1543,26 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void AGuardFarAboveOrBelowItsPlaceTakesARouteRatherThanFloatingStraightToIt()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0)), new PatrolStep(new Vector3(30, 0, 0)) });
+
+            Record(world, watcher, leader, 8);
+            Assert.IsTrue(guards[0].Controller.ActionFollow.SteppingDirect);
+
+            var place = PatrolGroups.PlaceOf(world.Map, guards[0], leader);
+
+            Assert.IsTrue(PatrolGroups.StraightTo(world.Map, guards[0], place));
+
+            // Down a bank, 3 m below its place, near it across the ground.
+            guards[0].Position = place + new Vector3(0, -PatrolGroups.DirectClimb - 1, 0);
+
+            Assert.IsFalse(PatrolGroups.StraightTo(world.Map, guards[0], place));
+        }
+
+        [TestMethod]
         public void GuardsStandingAtTheirPlacesSendNoMovesAndWalkingAtTheirLeadersPaceAreNotShownRunning()
         {
             using var world = new WorldTestContext();

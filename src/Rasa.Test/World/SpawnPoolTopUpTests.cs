@@ -192,6 +192,41 @@ namespace Rasa.Test.World
             Assert.IsTrue(guards.All(guard => guard.Patrol == null), "No second patroller.");
         }
 
+        [TestMethod]
+        public void AGuardDoesNotStepStraightThroughAWallToItsPlace()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var nav = harness.Map.NavMesh;
+            var pool = Spawned(harness);
+            var guard = Standing(harness, pool).First();
+
+            // Two points on the navmesh round the pool, 5 m apart and level, with a wall or a
+            // drop between them: found, as the map's walls are not written down here.
+            (Vector3 From, Vector3 To)? blocked = null;
+
+            for (var x = -40f; x <= 40f && blocked == null; x += 2f)
+                for (var z = -40f; z <= 40f && blocked == null; z += 2f)
+                {
+                    var from = nav.Nearest(pool.Position + new Vector3(x, 0, z));
+                    var to = from == null ? null : nav.Nearest(from.Value + new Vector3(5, 0, 0));
+
+                    if (from == null || to == null || System.Math.Abs(to.Value.Y - from.Value.Y) > 1f
+                        || Spacing.AcrossGround(from.Value + new Vector3(5, 0, 0), to.Value) > 0.2f)
+                        continue;
+
+                    if (!nav.IsWalkClear(from.Value, to.Value))
+                        blocked = (from.Value, to.Value);
+                }
+
+            if (blocked == null)
+                Assert.Inconclusive("No wall within 40 m of the pool to test against.");
+
+            guard.Position = blocked.Value.From;
+            guard.Controller.ActionFollow.StraightClear = null;
+
+            Assert.IsFalse(PatrolGroups.StraightTo(harness.Map, guard, blocked.Value.To));
+        }
+
         private static void Kill(WildernessRuntimeTestHarness harness, SpawnPool pool, uint creatureId, int count)
         {
             foreach (var creature in Standing(harness, pool).Where(creature => creature.DbId == creatureId).Take(count).ToList())

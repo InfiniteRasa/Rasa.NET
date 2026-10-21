@@ -1857,13 +1857,13 @@ namespace Rasa.Managers
             // At the leader's pace at least: at its own slower walk it would drop out of its place.
             var speed = follow.CatchUpRunning ? Math.Max(creature.RunSpeed, leader.WalkSpeed) : Math.Max(creature.WalkSpeed, leader.WalkSpeed);
 
-            // Near its place, and that on the navmesh, it steps straight onto it: the ground
-            // beside its leader is walked as the leader walks its own, with no route built each
-            // think. Further off - fallen behind, round a corner - it takes a route across the
+            // Near its place, and that on the navmesh, level with it and nothing between, it steps
+            // straight onto it: the ground beside its leader is walked as the leader walks its
+            // own, with no route built each think. Further off - fallen behind, round a corner - it takes a route across the
             // navmesh, built again at the chase's pace, and at once when it leaves the straight step.
             var controller = creature.Controller;
 
-            if (placed && gap <= PatrolGroups.DirectDistance)
+            if (placed && gap <= PatrolGroups.DirectDistance && PatrolGroups.StraightTo(map, creature, place))
             {
                 controller.Path.Clear();
                 controller.Path.Add(place);

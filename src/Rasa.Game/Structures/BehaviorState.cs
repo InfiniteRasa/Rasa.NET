@@ -143,6 +143,9 @@ namespace Rasa.Structures
         internal bool PlacedOnMesh { get; set; }
         internal long PlacedMs { get; set; }
 
+        /// <summary>Whether a straight walk to a patrol group follower's place, as last put, meets nothing on the navmesh (Managers.PatrolGroups.StraightTo); null until it is looked at.</summary>
+        internal bool? StraightClear { get; set; }
+
         /// <summary>A patrol group follower stepping straight onto its place, not along a route (BehaviorManager.AdvanceGroupFollower).</summary>
         internal bool SteppingDirect { get; set; }
     }
