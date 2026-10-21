@@ -40,11 +40,48 @@ namespace Rasa.Missions.Definitions
         /// </summary>
         public const string MapArrivalKey = "map.arrival";
 
+        /// <summary>
+        /// The key of a ServerEvent source that offers its mission by radio when the character is
+        /// rewarded for another mission, as Headquarters calls after a turn-in. The id of that
+        /// mission follows the prefix: "mission.rewarded:867". The key carries the id, so one
+        /// mission can have more than one such source and the offer row needs no new column.
+        /// </summary>
+        public const string MissionRewardedPrefix = "mission.rewarded:";
+
+        public static string MissionRewardedKey(uint missionId) =>
+            MissionRewardedPrefix + missionId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+        /// <summary>
+        /// Reads the mission id of a mission-rewarded key. Only the exact form MissionRewardedKey
+        /// writes is accepted: digits only, no sign, no leading zero, and a nonzero id.
+        /// </summary>
+        public static bool TryParseMissionRewarded(string key, out uint missionId)
+        {
+            missionId = 0;
+            if (key == null || !key.StartsWith(MissionRewardedPrefix, StringComparison.Ordinal))
+                return false;
+            var digits = key.Substring(MissionRewardedPrefix.Length);
+            if (digits.Length == 0 || !digits.All(character => character is >= '0' and <= '9') ||
+                !uint.TryParse(digits, System.Globalization.NumberStyles.None,
+                    System.Globalization.CultureInfo.InvariantCulture, out var parsed) ||
+                parsed == 0 || MissionRewardedKey(parsed) != key)
+                return false;
+            missionId = parsed;
+            return true;
+        }
+
+        public static MissionOfferSourceDefinition MissionRewarded(uint afterMissionId, uint? mapContextId = null,
+            MissionRequirement requirement = null) =>
+            new(MissionOfferSourceKind.ServerEvent, MissionRewardedKey(afterMissionId), mapContextId, false, requirement);
+
         [System.Text.Json.Serialization.JsonIgnore]
         public string ValidationError =>
             Kind is not (MissionOfferSourceKind.ServerEvent or MissionOfferSourceKind.Scene) ? "unknown radio source kind" :
             string.IsNullOrWhiteSpace(Key) || Key.Length > 96 ? "radio source key must contain 1-96 characters" :
-            MapContextId == 0 ? "radio source map must be nonzero" : null;
+            MapContextId == 0 ? "radio source map must be nonzero" :
+            Key.StartsWith(MissionRewardedPrefix, StringComparison.Ordinal) &&
+                (Kind != MissionOfferSourceKind.ServerEvent || !TryParseMissionRewarded(Key, out _))
+                ? "a mission-rewarded radio source must be a ServerEvent with a nonzero mission id" : null;
     }
 
     public sealed record MissionOfferSourceIdentity(MissionOfferSourceKind Kind, string Key, string InstanceId,
