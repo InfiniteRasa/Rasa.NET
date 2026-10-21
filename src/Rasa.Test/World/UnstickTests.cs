@@ -142,7 +142,12 @@ namespace Rasa.Test.World
             ActorActionManager.Instance.PerformRecovery(harness.Map, pending);
 
             Assert.AreEqual(Stuck, player.Position);
-            Assert.IsNull(harness.Drain().OfType<UserActionFailedPacket>().Single().MsgId, "closed, silently");
+            var told = harness.Drain().ToList();
+            var interrupt = told.OfType<ActionInterruptPacket>().Single();
+            Assert.AreEqual(ActionId.Unstick, interrupt.ActionId);
+            var closed = told.OfType<UserActionFailedPacket>().Single();
+            Assert.IsNull(closed.MsgId, "closed, silently");
+            Assert.IsTrue(told.IndexOf(interrupt) < told.IndexOf(closed), "\"Interrupted\" over them, then the request closed");
             Assert.IsFalse(player.ActionReuseUntil.ContainsKey(ActionId.Unstick), "they may try again");
 
             player.State = CharacterState.Dead;

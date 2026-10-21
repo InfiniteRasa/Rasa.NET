@@ -96,6 +96,40 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void AnInterruptedFinisherIsToldAsInterruptedToThoseShownItsWindup()
+        {
+            using var world = new WorldTestContext();
+            var finisher = world.CreateClient(x: 12);
+            finisher.Player.Attributes[Attributes.Health] = new ActorAttributes(Attributes.Health, 100, 100, 100, 0, 0);
+            finisher.Player.Cells = CellsAt(world, finisher.Player.Position);
+            var watcher = Watch(world, x: 14);
+            var crit = Spawn(world, "Spared", 10);
+
+            OpenWindow(world, crit, finisher.Player);
+
+            CritDeathManager.Instance.RequestCritDeathFinish(finisher, new RequestCritDeathFinishPacket
+            {
+                ActionId = ActionId.CriticalDeathFinisher,
+                ActionArgId = 1,
+                TargetId = crit.EntityId
+            });
+            var press = world.Map.PerformRecovery.Single(action => action.ActionId == ActionId.CriticalDeathFinisher);
+            world.Map.PerformRecovery.Remove(press);
+            press.IsInrerrupted = true;
+            WorldTestContext.Drain(watcher);
+
+            CritDeathManager.Instance.PerformRecovery(world.Map, press);
+
+            var seen = WorldTestContext.Drain(watcher).Select(packet => packet.Message).OfType<CallMethodMessage>()
+                .Select(message => message.Packet).ToList();
+            var interrupt = seen.OfType<ActionInterruptPacket>().Single();
+            Assert.AreEqual(finisher.Player.EntityId, interrupt.SourceId);
+            Assert.AreEqual(ActionId.CriticalDeathFinisher, interrupt.ActionId);
+            Assert.AreEqual(0, seen.OfType<PerformRecoveryPacket>().Count(), "not finished");
+            Assert.IsNotNull(CritDeathManager.PreDeathOf(crit), "the window is still open");
+        }
+
+        [TestMethod]
         public void ADeadCreatureWithHealthLeftOnItIsStillACorpseToTheBehaviorWorker()
         {
             using var world = new WorldTestContext();

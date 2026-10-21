@@ -88,10 +88,11 @@ namespace Rasa.Managers
 
             var client = GameEffectManager.ClientOf(mapChannel, player);
 
+            // Interrupted: everyone is told, the player too ("Interrupted" over them).
             if (action.IsInrerrupted)
             {
                 Forgive(player);
-                SendToOthers(mapChannel, player, new ActionInterruptPacket(player.EntityId, Action, ArgId));
+                CellManager.Instance.CellCallMethod(mapChannel, player, new ActionInterruptPacket(player.EntityId, Action, ArgId));
                 ActorManager.ResolveInterruptedRequest(client, Action, ArgId);
                 return;
             }

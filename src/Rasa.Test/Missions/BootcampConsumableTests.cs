@@ -225,6 +225,66 @@ namespace Rasa.Test.Missions
         }
 
         [TestMethod]
+        [DataRow(true)]
+        [DataRow(false)]
+        public void AnInterruptedWindupIsToldToThePlayerAndADeathIsNot(bool interrupted)
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            using (var unit = harness.Context.CreateChar())
+            using (var grant = new InventoryManager.InventoryGrant())
+            {
+                unit.ExecuteTransaction(() => grant.PlanAndSave(harness.Client,
+                    new[] { new InventoryManager.InventoryItemGrant(44917, 2) }, unit));
+                grant.Publish(harness.Client);
+            }
+            var player = harness.Client.Player;
+            var item = player.Inventory.PersonalInventory.Where(id => id != 0)
+                .Select(EntityManager.Instance.GetItem).Single(candidate => candidate.ItemTemplateId == 44917);
+            var manager = CreateMedpackManager(harness);
+            manager.RequestPerformAbility(harness.Client, ReadMedpackRequest(item.EntityId));
+            var pending = harness.BootcampMap.PerformRecovery.Single(action => action.ActionId == (ActionId)419);
+            harness.Drain();
+
+            if (interrupted)
+                pending.IsInrerrupted = true;
+            else
+                player.State = CharacterState.Dead;
+
+            lock (Server.Clients)
+                Server.Clients.Add(harness.Client);
+            try
+            {
+                manager.PerformRecovery(harness.BootcampMap, pending);
+            }
+            finally
+            {
+                lock (Server.Clients)
+                    Server.Clients.Remove(harness.Client);
+                player.State = CharacterState.Idle;
+            }
+
+            var sent = harness.Drain().ToList();
+            var closed = sent.OfType<UserActionFailedPacket>().Single(packet => packet.ActionId == (ActionId)419);
+
+            if (interrupted)
+            {
+                // Their client cancelled it as it asked; this floats "Interrupted" over them.
+                var interrupt = sent.OfType<ActionInterruptPacket>().Single(packet => packet.SourceId == player.EntityId);
+                Assert.AreEqual((ActionId)419, interrupt.ActionId);
+                Assert.IsNull(closed.MsgId);
+                Assert.IsTrue(sent.IndexOf(interrupt) < sent.IndexOf(closed));
+            }
+            else
+            {
+                // Dead: told why it failed, and not shown "Interrupted".
+                Assert.IsFalse(sent.OfType<ActionInterruptPacket>().Any());
+                Assert.AreEqual(PlayerMessage.PmActionFailedActorDead, closed.MsgId);
+            }
+
+            Assert.AreEqual(2u, item.StackSize, "nothing used up");
+        }
+
+        [TestMethod]
         public void AStunDuringTheMedpacksWindupCallsItOffAndConsumesNothing()
         {
             using var harness = BootcampRuntimeTestHarness.Create();

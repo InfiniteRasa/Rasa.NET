@@ -335,9 +335,11 @@ namespace Rasa.Managers
             if (client?.Player == null || client.State != ClientState.Ingame)
                 return;
 
+            // Interrupted: everyone is told, the user too - their client cancelled it as it sent
+            // the interrupt, and this is what floats "Interrupted" over them.
             if (action.IsInrerrupted)
             {
-                SendToOthers(mapChannel, action.Actor,
+                CellManager.Instance.CellCallMethod(mapChannel, action.Actor,
                     new ActionInterruptPacket(action.Actor.EntityId, action.ActionId, action.ActionArgId));
                 ActorManager.ResolveInterruptedRequest(client, action.ActionId, action.ActionArgId);
                 return;

@@ -321,6 +321,11 @@ namespace Rasa.Managers
                 if (window != null && window.FinisherId == player.EntityId)
                     window.FinisherId = 0;
 
+                // Interrupted: everyone who was shown the windup is told, the player too
+                // ("Interrupted" over them), and their request is closed.
+                if (action.IsInrerrupted)
+                    CellManager.Instance.CellCallMethod(mapChannel, player, new ActionInterruptPacket(player.EntityId, ActionId.CriticalDeathFinisher, action.ActionArgId));
+
                 if (client != null)
                 {
                     if (action.IsInrerrupted)

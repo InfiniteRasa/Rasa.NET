@@ -5111,7 +5111,14 @@ namespace Rasa.Managers
             if (action.IsInrerrupted
                 || (action.SourceId != 0 && InventoryManager.Instance.CurrentWeapon(client)?.EntityId != action.SourceId))
             {
-                client.CellIgnoreSelfCallMethod(client, new ActionInterruptPacket(client.Player.EntityId, ActionId.WeaponReload, action.ActionArgId));
+                // An interrupt the player made is told to them as well: "Interrupted" over them.
+                var interrupt = new ActionInterruptPacket(client.Player.EntityId, ActionId.WeaponReload, action.ActionArgId);
+
+                if (action.IsInrerrupted)
+                    client.CellCallMethod(client, client.Player.EntityId, interrupt);
+                else
+                    client.CellIgnoreSelfCallMethod(client, interrupt);
+
                 ActorManager.ResolveInterruptedRequest(client, ActionId.WeaponReload, action.ActionArgId);
                 return;
             }

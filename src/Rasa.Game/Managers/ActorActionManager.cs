@@ -171,10 +171,18 @@ namespace Rasa.Managers
                     Unstick.Land(mapChannel, action);
                     break;
                 case ActionId.UseObject:
-                    // A claim of a control point that was interrupted has no recovery to show:
-                    // those who were shown its windup are told it was interrupted instead
-                    // (DynamicObjectManager.CaptureControlPointRecovery).
-                    if (!DynamicObjectManager.Instance.IsInterruptedClaim(action))
+                    // A use that was interrupted - the user moved, crouched or jumped - has no
+                    // recovery to show. Everyone is told it was interrupted, the user too: their
+                    // client cancelled it as it sent the interrupt, and this is what floats
+                    // "Interrupted" over them, plays the action bar's interrupt and takes the
+                    // use's progress bar down (Actor.Recv_ActionInterrupt, which looks for it in
+                    // the action it has just cancelled). Their request is closed after it.
+                    if (action.IsInrerrupted)
+                    {
+                        CellManager.Instance.CellCallMethod(mapChannel, action.Actor, new ActionInterruptPacket(action.Actor.EntityId, action.ActionId, action.ActionArgId));
+                        ActorManager.ResolveInterruptedRequest(mapChannel.ClientList.Find(c => c?.Player == action.Actor), action.ActionId, action.ActionArgId);
+                    }
+                    else
                         CellManager.Instance.CellCallMethod(mapChannel, action.Actor, new PerformRecoveryPacket(PerformType.TwoArgs, action.ActionId, action.ActionArgId));
 
                     // The use is over, finished or not: the object is nobody's before whatever it

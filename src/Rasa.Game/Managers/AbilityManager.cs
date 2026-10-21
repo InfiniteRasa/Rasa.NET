@@ -963,9 +963,15 @@ namespace Rasa.Managers
             if (action.IsInrerrupted || player.State == CharacterState.Dead && actionInfo.Module != SelfResModule)
             {
                 // The others are still showing the windup. The performer's client cancelled its
-                // own when it sent the interrupt; a performer who died mid-windup is told, so the
-                // request does not sit unresolved on their side.
-                SendToOthers(mapChannel, player, new ActionInterruptPacket(player.EntityId, action.ActionId, action.ActionArgId));
+                // own when it sent the interrupt, and is told too: that is what floats
+                // "Interrupted" over them. A performer who died mid-windup is told it failed, so
+                // the request does not sit unresolved on their side.
+                var interrupt = new ActionInterruptPacket(player.EntityId, action.ActionId, action.ActionArgId);
+
+                if (action.IsInrerrupted)
+                    CellManager.Instance.CellCallMethod(mapChannel, player, interrupt);
+                else
+                    SendToOthers(mapChannel, player, interrupt);
 
                 if (!action.IsInrerrupted)
                     Fail(client, action.ActionId, action.ActionArgId, PlayerMessage.PmActionFailedActorDead);

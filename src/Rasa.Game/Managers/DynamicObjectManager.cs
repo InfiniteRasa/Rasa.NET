@@ -1049,17 +1049,6 @@ namespace Rasa.Managers
         private static bool IsFoughtOver(DynamicObject obj) =>
             ControlPoints.Instance.PointOf(obj) != null || Battlegrounds.Instance.PointOf(obj) != null;
 
-        /// <summary>
-        /// Whether an action is a claim of a control point that was interrupted. It has no
-        /// recovery to show (ActorActionManager): the others, who were shown its windup, are told
-        /// it was interrupted instead, and the claimant's request is closed
-        /// (<see cref="CaptureControlPointRecovery"/>).
-        /// </summary>
-        internal bool IsInterruptedClaim(ActionData action)
-        {
-            return action != null && action.IsInrerrupted && ClaimedBy(action) != null;
-        }
-
         /// <summary>The control point somebody fights over that an action is a use of, or null.</summary>
         private static DynamicObject ClaimedBy(ActionData action)
         {
@@ -1134,22 +1123,10 @@ namespace Rasa.Managers
                     {
                         controlpoint.TriggeredByPlayers.Remove(client);
 
+                        // Interrupted: everyone, the claimant too, has been told so and the
+                        // request is closed (ActorActionManager, as for any use).
                         if (action.IsInrerrupted)
-                        {
-                            // The others are still showing the claimant at it. The claimant's own
-                            // client stopped when it sent the interrupt, and keeps the request
-                            // open until it is answered.
-                            if (IsFoughtOver(controlpoint))
-                            {
-                                if (client.Player?.MapChannel != null)
-                                    client.CellIgnoreSelfCallMethod(client,
-                                        new ActionInterruptPacket(action.Actor.EntityId, action.ActionId, action.ActionArgId));
-
-                                ActorManager.ResolveInterruptedRequest(client, action.ActionId, action.ActionArgId);
-                            }
-
                             break;
-                        }
 
                         // As with a logos: a capture belongs to whoever is still standing at the
                         // point when its ten seconds are up.
