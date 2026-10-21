@@ -107,18 +107,21 @@ namespace Rasa.Services.Preloader.Missions.Plateau
                 ("comment", comment));
 
         public void Objective(uint id, uint nameTextId, uint bodyTextId, uint ordinal, MissionObjectiveState initial,
-            uint? counterTextId = null) =>
+            uint? counterTextId = null, bool required = true) =>
             Insert("mission_objective_definition",
                 ("objective_id", id), ("client_name_text_id", nameTextId), ("client_body_text_id", bodyTextId),
                 ("client_counter_0_text_id", counterTextId), ("client_counter_1_text_id", null),
                 ("client_counter_2_text_id", null), ("ordinal", ordinal), ("initial_state", (byte)initial),
-                ("is_required", true), ("comment", $"Native objective {_missionId}.{id}"));
+                ("is_required", required), ("comment", $"Native objective {_missionId}.{id}"));
 
-        public void Transition(uint objective) =>
+        public void Transition(uint objective) => Transition(objective, 1, 1);
+
+        /// <summary>One more way to complete <paramref name="objective"/>, as a dialogue choice's (WildernessMissionDataV1).</summary>
+        public void Transition(uint objective, uint transition, uint sequence) =>
             Insert("mission_objective_transition",
-                ("objective_id", objective), ("transition_id", 1U), ("sequence", 1U),
+                ("objective_id", objective), ("transition_id", transition), ("sequence", sequence),
                 ("from_state", (byte)MissionObjectiveState.Incomplete), ("to_state", (byte)MissionObjectiveState.Completed),
-                ("comment", $"Objective {objective} transition 1"));
+                ("comment", $"Objective {objective} transition {transition}"));
 
         /// <summary>Completes <paramref name="objective"/> once objective <paramref name="related"/> reaches <paramref name="state"/>.</summary>
         public void ObjectiveState(uint objective, uint related, MissionObjectiveState state) =>
@@ -126,6 +129,10 @@ namespace Rasa.Services.Preloader.Missions.Plateau
 
         public void Conversation(uint objective, uint package, uint flag = 1) =>
             Trigger(objective, MissionTriggerKind.Conversation, ("npc_package_id", package), ("player_flag_id", flag));
+
+        /// <summary>The conversation that completes <paramref name="objective"/> by <paramref name="transition"/>.</summary>
+        public void Conversation(uint objective, uint package, uint flag, uint transition) =>
+            Trigger(objective, transition, MissionTriggerKind.Conversation, 1, ("npc_package_id", package), ("player_flag_id", flag));
 
         /// <summary>
         /// A progress rule. Rules that name the same <paramref name="counter"/> add to one count,
@@ -140,9 +147,10 @@ namespace Rasa.Services.Preloader.Missions.Plateau
 
         public void Action(uint objective, uint id, MissionActionKind kind, uint? targetObjective = null,
             uint? reward = null, MissionObjectiveState? state = null, CharacterIntent itemIntent = null,
-            uint? playerFlag = null, uint? playerFlagValue = null, string comment = null, uint? scenario = null) =>
+            uint? playerFlag = null, uint? playerFlagValue = null, string comment = null, uint? scenario = null,
+            uint transition = 1) =>
             Insert("mission_action",
-                ("objective_id", objective), ("transition_id", 1U), ("action_id", id),
+                ("objective_id", objective), ("transition_id", transition), ("action_id", id),
                 ("kind", (byte)kind), ("sequence", id), ("target_objective_id", targetObjective),
                 ("objective_state", state.HasValue ? (byte)state.Value : null), ("reward_id", reward),
                 ("spawn_group_id", null), ("scenario_id", scenario), ("indicator_id", null),
@@ -209,10 +217,13 @@ namespace Rasa.Services.Preloader.Missions.Plateau
             Trigger(objective, kind, 1, values);
 
         private void Trigger(uint objective, MissionTriggerKind kind, uint trigger, params (string Column, object Value)[] values) =>
+            Trigger(objective, 1, kind, trigger, values);
+
+        private void Trigger(uint objective, uint transition, MissionTriggerKind kind, uint trigger, params (string Column, object Value)[] values) =>
             Insert("mission_trigger",
                 new[]
                 {
-                    ("objective_id", (object)objective), ("transition_id", 1U), ("trigger_id", trigger),
+                    ("objective_id", (object)objective), ("transition_id", transition), ("trigger_id", trigger),
                     ("kind", (byte)kind), ("sequence", trigger), ("comment", $"Objective {objective} trigger {trigger}")
                 }.Concat(values).ToArray());
 

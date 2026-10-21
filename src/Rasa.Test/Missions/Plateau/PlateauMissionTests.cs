@@ -47,7 +47,8 @@ namespace Rasa.Test.Missions.Plateau
             PlateauCrystalBluePersuasionV1.MissionId, PlateauAlphaMoxV1.MissionId, PlateauVoiceFromThePastV1.MissionId,
             PlateauTrinityLogosPastV1.MissionId, PlateauCleanSlateV1.MissionId, PlateauMindBenderV1.MissionId,
             PlateauPhotoOpsV1.MissionId, PlateauResultsAreInV1.MissionId, PlateauMindSlayerV1.MissionId,
-            PlateauBombVoyageV1.MissionId, PlateauLookoutDownBelowV1.MissionId, PlateauBloodhoundV1.MissionId
+            PlateauBombVoyageV1.MissionId, PlateauLookoutDownBelowV1.MissionId, PlateauBloodhoundV1.MissionId,
+            PlateauBlueFluV1.MissionId, PlateauMurderMostFoulV1.MissionId, PlateauLookingForCluesV1.MissionId
         };
 
         /// <summary>
@@ -57,9 +58,11 @@ namespace Rasa.Test.Missions.Plateau
         /// All Along The Watchtowers', Cryptic Messages' and Soyuz Salvage's three each. The Beer Hunter's four;
         /// The Defiant Ones', A Bridge Too Far's, Crystal Blue Persuasion's and Alpha Mox's one each.
         /// A Voice From The Past's and Trinity Bridge Logos: Past's one each. Clean Slate's three, Mind Bender's
-        /// eight, Photo Ops' five, The Results Are In's and Mind Slayer's one each.
+        /// eight, Photo Ops' five, The Results Are In's and Mind Slayer's one each. Bomb Voyage's two, Lookout Down
+        /// Below's one, The Stainless Steel Bloodhound's two. Blue Flu's two, Murder Most Foul's seven, Looking For
+        /// Clues' eight.
         /// </summary>
-        internal const int Indicators = 62;
+        internal const int Indicators = 79;
 
         private const string Before = "20270123000000_Thunderhead_base_teleporters";
         private const string GiantKiller = "20270125000000_Plateau_giant_killer";
@@ -97,6 +100,10 @@ namespace Rasa.Test.Missions.Plateau
         private const string ChasmNpcs = "20270226000000_Plateau_chasm_npcs";
         private const string BombVoyage = "20270227000000_Plateau_bomb_voyage";
         private const string LookoutDownBelow = "20270228000000_Plateau_lookout_down_below";
+        private const string Bloodhound = "20270301000000_Plateau_bloodhound";
+        private const string CidNpcs = "20270302000000_Plateau_cid_npcs";
+        private const string BlueFlu = "20270303000000_Plateau_blue_flu";
+        private const string MurderMostFoul = "20270304000000_Plateau_murder_most_foul";
 
         [TestMethod]
         public void TheMissionsAreEnabledAndOperationalAtTheirGiversAndReceiversAndLevels()
@@ -132,7 +139,10 @@ namespace Rasa.Test.Missions.Plateau
                 (PlateauMindSlayerV1.MissionId, PlateauPerduNpcsV1.Perdu, PlateauPerduNpcsV1.Perdu),
                 (PlateauBombVoyageV1.MissionId, PlateauPerduNpcsV1.Russ, PlateauPerduNpcsV1.Russ),
                 (PlateauLookoutDownBelowV1.MissionId, PlateauPerduNpcsV1.Russ, PlateauBloodhoundV1.Garde),
-                (PlateauBloodhoundV1.MissionId, PlateauBloodhoundV1.Garde, null)
+                (PlateauBloodhoundV1.MissionId, PlateauBloodhoundV1.Garde, null),
+                (PlateauBlueFluV1.MissionId, PlateauCidNpcsV1.Parkman, PlateauCidNpcsV1.Norton),
+                (PlateauMurderMostFoulV1.MissionId, PlateauCidNpcsV1.Norton, PlateauCidNpcsV1.Crais),
+                (PlateauLookingForCluesV1.MissionId, PlateauCidNpcsV1.Crais, PlateauCidNpcsV1.Crais)
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             var enabled = harness.World.MissionContentDefinitionEntries.AsNoTracking()
@@ -210,7 +220,19 @@ namespace Rasa.Test.Missions.Plateau
                 (719, 3438, new (uint, uint, uint, uint?)[] { (1, 5774, 6405, null) }),
                 (931, 4998, new (uint, uint, uint, uint?)[] { (2, 5007, 6314, 5008), (8, 5014, 6321, null) }),
                 (970, 5305, new (uint, uint, uint, uint?)[] { (1, 5610, 6394, null) }),
-                (867, 4534, new (uint, uint, uint, uint?)[] { (3, 4539, 6471, null), (2, 4540, 6472, null) })
+                (867, 4534, new (uint, uint, uint, uint?)[] { (3, 4539, 6471, null), (2, 4540, 6472, null) }),
+                (1014, 5547, new (uint, uint, uint, uint?)[] { (2, 5551, 6308, null), (1, 5553, 6309, null) }),
+                (895, 4698, new (uint, uint, uint, uint?)[]
+                {
+                    (1, 4722, 6420, null), (2, 4723, 6421, null), (3, 4724, 6422, null), (4, 4725, 6426, null),
+                    (5, 4729, 6423, null), (6, 4730, 6425, null), (7, 4734, 6424, null)
+                }),
+                (928, 4974, new (uint, uint, uint, uint?)[]
+                {
+                    (1, 5070, 6386, null), (4, 5075, 6387, null), (6, 5081, 6384, null), (5, 5083, 6385, null),
+                    (2, 5071, 6388, null), (8, 5090, 6389, null), (9, 5091, 6390, null), (10, 5092, 6391, null),
+                    (11, 5100, 6392, null)
+                })
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             foreach (var (mission, title, objectives) in expected)
@@ -243,7 +265,8 @@ namespace Rasa.Test.Missions.Plateau
         /// Far, then The Beer Hunter; Crystal Blue Persuasion, then Alpha Mox. A Voice From The Past has none;
         /// Trinity Bridge Logos: Past follows it. Clean Slate has none; Perdu's line follows it: Mind Bender, Photo
         /// Ops, The Results Are In, Mind Slayer. Bomb Voyage and Lookout Down Below have none; The Stainless Steel
-        /// Bloodhound follows Lookout Down Below.
+        /// Bloodhound follows Lookout Down Below. Fort Defiance's murder case: Blue Flu follows The Defiant Ones, Murder
+        /// Most Foul Blue Flu, Looking For Clues Murder Most Foul.
         /// </summary>
         [TestMethod]
         public void EachMissionRequiresTheMissionOrDeliveryBeforeIt()
@@ -251,7 +274,7 @@ namespace Rasa.Test.Missions.Plateau
             using var harness = WildernessRuntimeTestHarness.Create();
             var prerequisites = harness.World.MissionPrerequisiteEntries.AsNoTracking()
                 .Where(entry => entry.ContentRevision == PlateauMissionDataV1.Revision).ToArray();
-            Assert.HasCount(16, prerequisites);
+            Assert.HasCount(19, prerequisites);
             var incommunicado = prerequisites.Single(entry => entry.MissionId == PlateauIncommunicadoV1.MissionId);
             Assert.AreEqual(MissionPrerequisiteKind.MissionCompleted, incommunicado.Kind);
             Assert.AreEqual<uint?>(PlateauGiantKillerV1.MissionId, incommunicado.RequiredMissionId);
@@ -288,7 +311,7 @@ namespace Rasa.Test.Missions.Plateau
                 (stalkMarket.Kind, stalkMarket.RequiredMissionId));
             foreach (var mission in new uint[] { 933, 1981, 930, 1034, 1825, 557, 2007, 887, 934, 1983, 931, 970 })
                 Assert.IsFalse(prerequisites.Any(entry => entry.MissionId == mission), $"{mission}");
-            foreach (var (mission, required) in new (uint, uint)[] { (713, 887), (954, 887), (855, 713), (1027, 954), (1044, 934), (905, 1983), (929, 905), (936, 929), (719, 936), (867, 970) })
+            foreach (var (mission, required) in new (uint, uint)[] { (713, 887), (954, 887), (855, 713), (1027, 954), (1044, 934), (905, 1983), (929, 905), (936, 929), (719, 936), (867, 970), (1014, 887), (895, 1014), (928, 895) })
             {
                 var prerequisite = prerequisites.Single(entry => entry.MissionId == mission);
                 Assert.AreEqual((MissionPrerequisiteKind.MissionCompleted, (uint?)required),
@@ -370,7 +393,13 @@ namespace Rasa.Test.Missions.Plateau
                 (970, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
                     (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
                 (867, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
-                    (MissionEvidenceSourceKind.Reconstruction, 0.3) })
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                (1014, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                (895, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                (928, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.2) })
             })
                 CollectionAssert.AreEqual(confidences, evidence.Where(entry => entry.MissionId == mission)
                     .OrderBy(entry => entry.EvidenceId).Select(entry => (entry.SourceKind, entry.Confidence)).ToArray(),
@@ -815,6 +844,53 @@ namespace Rasa.Test.Missions.Plateau
             Assert.AreEqual((0, 0), Sentinel());
             var thibodeau = world.SpawnPoolEntries.AsNoTracking().Single(entry => entry.Id == PlateauWedgeRockNpcsV1.Thibodeau);
             Assert.AreEqual(PlateauWedgeRockNpcsV1.Moves[0].At.X, Math.Round(thibodeau.PosX, 2), "the Wedge Rock move stays");
+        }
+
+        /// <summary>
+        /// Fort Defiance's murder case rolls back a migration at a time: Looking For Clues; Murder Most Foul; Blue
+        /// Flu; then the case's NPCs (Parkman's pool, the new templates, Pendrik's shot, Norton's pose), and Norton and
+        /// Crais go back to the dropship marker. The Bloodhound stays.
+        /// </summary>
+        [TestMethod]
+        public void FortDefiancesMurderCaseAndItsNpcsRollBack()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            int Count(string sql) => world.Database.SqlQueryRaw<int>(sql).AsEnumerable().Single();
+            (int, int, int, int, int) Npcs() => (
+                Count($"SELECT COUNT(*) AS Value FROM creature WHERE id BETWEEN {PlateauCidNpcsV1.Parkman} AND {PlateauCidNpcsV1.CrapsPlayer}"),
+                Count($"SELECT COUNT(*) AS Value FROM spawnpool WHERE id = {PlateauCidNpcsV1.ParkmanPool}"),
+                Count($"SELECT COUNT(*) AS Value FROM creature_action WHERE id = {PlateauCidNpcsV1.PendrikShot}"),
+                Count($"SELECT COUNT(*) AS Value FROM npc_package WHERE id BETWEEN {PlateauCidNpcsV1.Parkman} AND {PlateauCidNpcsV1.CrapsPlayer}"),
+                Count($"SELECT COUNT(*) AS Value FROM spawnpool_pose WHERE id = {PlateauCidNpcsV1.Norton}"));
+            (double, double, double) At(uint pool)
+            {
+                var row = world.SpawnPoolEntries.AsNoTracking().Single(entry => entry.Id == pool);
+                return (Math.Round(row.PosX, 2), Math.Round(row.PosY, 2), Math.Round(row.PosZ, 2));
+            }
+            bool Has(uint mission) => world.MissionContentDefinitionEntries.AsNoTracking().Any(entry => entry.MissionId == mission);
+
+            Assert.AreEqual((5, 1, 1, 2, 1), Npcs());
+            foreach (var move in PlateauCidNpcsV1.Moves)
+                Assert.AreEqual(move.At, At(move.Pool), $"{move.Pool}");
+            foreach (var (target, gone, stays) in new (string, uint, uint)[]
+            {
+                (MurderMostFoul, PlateauLookingForCluesV1.MissionId, PlateauMurderMostFoulV1.MissionId),
+                (BlueFlu, PlateauMurderMostFoulV1.MissionId, PlateauBlueFluV1.MissionId),
+                (CidNpcs, PlateauBlueFluV1.MissionId, PlateauBloodhoundV1.MissionId)
+            })
+            {
+                world.GetService<IMigrator>().Migrate(target);
+                Assert.IsFalse(Has(gone), $"{gone} rolled back");
+                Assert.IsTrue(Has(stays), $"{stays} stays");
+                Assert.AreEqual((5, 1, 1, 2, 1), Npcs(), $"the NPCs stay with their own migration ({target})");
+            }
+
+            world.GetService<IMigrator>().Migrate(Bloodhound);
+            Assert.AreEqual((0, 0, 0, 0, 0), Npcs());
+            foreach (var move in PlateauCidNpcsV1.Moves)
+                Assert.AreEqual(move.Before, At(move.Pool), $"{move.Pool} back at the dropship marker");
+            Assert.IsTrue(Has(PlateauBloodhoundV1.MissionId));
         }
 
         /// <summary>
