@@ -344,6 +344,13 @@ namespace Rasa.Managers
                     return;
             }
 
+            // Pravus Research's keypass scanner: no use without the keypass (PravusResearchFacility).
+            if (PravusResearchFacility.Refusal(client, obj) is { } keypassRefusal)
+            {
+                ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, keypassRefusal);
+                return;
+            }
+
             // One use at a time. Every request queued another windup and recovery, and each
             // recovery goes to everyone nearby, with no limit on how many one player could have
             // waiting. The client's own action queue holds one use; a second is not it.
@@ -1369,6 +1376,10 @@ namespace Rasa.Managers
 
                     // The Ojasa hive's Shocking Device (OjasaHive).
                     if (OjasaHive.Used(mapChannel, client, obj))
+                        return;
+
+                    // Pravus Research's keypass scanner (PravusResearchFacility).
+                    if (PravusResearchFacility.Used(mapChannel, client, obj))
                         return;
 
                     if (obj.MissionUseAction != null)

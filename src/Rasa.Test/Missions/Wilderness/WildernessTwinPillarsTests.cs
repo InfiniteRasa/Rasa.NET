@@ -89,9 +89,15 @@ namespace Rasa.Test.Missions.Wilderness
                 CollectionAssert.AreEqual(pair.Value, mission.Objectives.Keys.OrderBy(id => id).ToArray());
             }
             // 923, Logos: Feeling, Trap, Heal, is the Caves of Donn's (CavesOfDonnContent).
-            foreach (var excluded in new uint[] { 593, 924, 751, 780, 767 })
+            foreach (var excluded in new uint[] { 751, 780, 767 })
                 Assert.IsFalse(harness.Manager.TryGetOperationalMission(excluded, out _),
                     $"W5 must not enable excluded or instance-only mission {excluded}.");
+
+            // The Escapist and Logos: Communication, Control, Machine are Pravus Research's, on its
+            // own revision (PravusResearchContent).
+            foreach (var pravus in new uint[] { 593, 924 })
+                Assert.AreEqual(Rasa.Services.Preloader.PravusResearchContent.Revision, harness.World.MissionContentDefinitionEntries
+                    .AsNoTracking().Single(entry => entry.Enabled && entry.MissionId == pravus).ContentRevision);
         }
 
         [TestMethod]
@@ -351,7 +357,10 @@ namespace Rasa.Test.Missions.Wilderness
             Reward(harness, parsons, 574, 0, 20548, 8000, 1200);
             Assert.AreEqual(0L, Held(harness, 753));
             Assert.AreEqual(1220U, harness.Client.Player.MapContextId);
-            Assert.IsFalse(harness.Manager.TryGetOperationalMission(593, out _));
+
+            // And Parsons sends the player on to Ranger Nylla in Pravus Research (PravusResearchContent).
+            Accept(harness, parsons, 593);
+            Assert.AreEqual(MissionObjectiveState.Incomplete, harness.Client.Player.Missions[593].Objectives[1].State);
         }
 
         /// <summary>A blow of exactly its health and armour, from the harness's player, through the real damage path.</summary>

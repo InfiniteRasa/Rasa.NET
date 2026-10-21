@@ -468,6 +468,9 @@ namespace Rasa.Managers
                     // The Devil's Den's teleporters, bombs, door, howitzers, Fransisco and counted machinery, in each copy of it.
                     Guard("DevilsDen.Worker", mapChannel, () => DevilsDen.Worker(mapChannel));
 
+                    // Pravus Research Facility's story, in each copy of it.
+                    Guard("PravusResearchFacility.Worker", mapChannel, () => PravusResearchFacility.Worker(mapChannel));
+
                     // Maws come up at whoever comes near, and the ones gone back down are taken off.
                     Guard("MawLurk.Worker", mapChannel, () => MawLurk.Worker(mapChannel));
 

@@ -119,6 +119,12 @@ namespace Rasa.Managers
             public int MaxHealth { get; set; }
             public int Health { get; set; }
 
+            /// <summary>
+            /// Shot at, it takes nothing: a field only something else takes down, such as the gate
+            /// of Pravus Research, which its keypass scanner opens (PravusResearch).
+            /// </summary>
+            public bool Sealed { get; set; }
+
             public bool IsDestroyed => Health <= 0;
             public Vector3 Position => Object.Position;
             public float Yaw => (float)Object.Rotation;
@@ -422,10 +428,10 @@ namespace Rasa.Managers
             SendBlockInfo(field);
         }
 
-        /// <summary>Whether this actor may shoot the field: it has to be one that stops them.</summary>
+        /// <summary>Whether this actor may shoot the field: it has to be one that stops them, and not sealed.</summary>
         public static bool MayShoot(Field field, Actor shooter)
         {
-            if (field == null || shooter == null || field.IsDestroyed)
+            if (field == null || shooter == null || field.IsDestroyed || field.Sealed)
                 return false;
 
             return shooter switch
