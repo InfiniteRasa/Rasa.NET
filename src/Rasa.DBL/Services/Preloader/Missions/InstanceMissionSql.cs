@@ -24,7 +24,7 @@ namespace Rasa.Services.Preloader.Missions
         private readonly uint _missionId;
 
         public InstanceMissionSql(List<string> sql, string revision, uint missionId, string name, uint nameTextId,
-            uint? giverId, uint? receiverId, uint level, uint categoryId, bool shareable = false)
+            uint? giverId, uint? receiverId, uint level, uint categoryId, bool shareable = false, bool radioCompleteable = false)
         {
             _sql = sql;
             _revision = revision;
@@ -32,7 +32,7 @@ namespace Rasa.Services.Preloader.Missions
             Insert("mission_content_definition",
                 ("client_name_text_id", nameTextId), ("giver_id", giverId), ("receiver_id", receiverId),
                 ("level", level), ("group_type", (byte)1), ("category_id", categoryId),
-                ("shareable", shareable), ("radio_completeable", false), ("comment", name),
+                ("shareable", shareable), ("radio_completeable", radioCompleteable), ("comment", name),
                 ("abandonment_policy", (byte)MissionAbandonmentPolicy.Allowed), ("enabled", false));
         }
 
@@ -64,6 +64,10 @@ namespace Rasa.Services.Preloader.Missions
             Trigger(objective, transition, trigger, MissionTriggerKind.ProgressEvent,
                 ("event_kind", (byte)kind), ("subject_id", subject), ("counter_id", counter),
                 ("initial_value", target.HasValue ? 0U : null), ("target_value", target));
+
+        /// <summary>The objective's deadline: <paramref name="seconds"/> after it is taken up, the transition.</summary>
+        public void Timer(uint objective, uint seconds, uint transition) =>
+            Trigger(objective, transition, 1, MissionTriggerKind.TimerElapsed, ("duration_seconds", seconds));
 
         public void Action(uint objective, uint id, MissionActionKind kind, uint? targetObjective = null,
             uint? reward = null, uint transition = 1, MissionObjectiveState? state = null,
@@ -151,14 +155,29 @@ namespace Rasa.Services.Preloader.Missions
                 ("confidence", kind == MissionEvidenceSourceKind.Client ? 1.0 : 0.5), ("reconstruction_note", note)
             }));
 
-        public void Enable(MissionSceneDefinition scene)
-        {
-            _sql.Add(Statement("mission_scene_binding", new (string, object)[]
+        /// <summary>
+        /// How the mission is taken on and handed in, and the server events that may offer it by
+        /// radio (MissionOfferSourceDefinition, in the loader's default JSON contract).
+        /// </summary>
+        public void Channels(MissionChannel acceptance, MissionChannel completion, params MissionOfferSourceDefinition[] sources) =>
+            _sql.Add(Statement("mission_channel_policy", new (string, object)[]
             {
-                ("mission_id", _missionId), ("content_revision", _revision), ("script_key", scene.Script),
-                ("state_version", scene.StateVersion), ("bindings", JsonSerializer.Serialize(scene, MissionContentCodec.Options))
+                ("mission_id", _missionId), ("content_revision", _revision), ("acceptance_channel", (int)acceptance),
+                ("completion_channel", (int)completion), ("radio_sources", JsonSerializer.Serialize(sources))
             }));
-            _sql.Add($"UPDATE mission_content_definition SET enabled = 1 WHERE mission_id = {_missionId} AND content_revision = {S(_revision)};");
+
+        /// <summary>The scene binding, if there is one, and the mission enabled - or, with <paramref name="enabled"/> false, left as it was put in, disabled.</summary>
+        public void Enable(MissionSceneDefinition scene, bool enabled = true)
+        {
+            if (scene != null)
+                _sql.Add(Statement("mission_scene_binding", new (string, object)[]
+                {
+                    ("mission_id", _missionId), ("content_revision", _revision), ("script_key", scene.Script),
+                    ("state_version", scene.StateVersion), ("bindings", JsonSerializer.Serialize(scene, MissionContentCodec.Options))
+                }));
+
+            if (enabled)
+                _sql.Add($"UPDATE mission_content_definition SET enabled = 1 WHERE mission_id = {_missionId} AND content_revision = {S(_revision)};");
         }
 
         /// <summary>Every row of the missions under the revision, child tables first.</summary>

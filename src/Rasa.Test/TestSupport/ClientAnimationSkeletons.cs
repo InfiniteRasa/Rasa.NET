@@ -34,7 +34,7 @@ namespace Rasa.Test.TestSupport
             [49677] = 14003,    // Bane_Thrax_Soldier_Grunt_Rifle, on the Thrax rifle soldier's skeleton
             [18147] = 13964,    // Bane_Nitroglazer (DevilsDenContent)
             [18148] = 13923,    // Bane_Sentinel
-            [20519] = 13927,    // Vehicle_Bane_Juggernaut
+            [20519] = 13927,    // Vehicle_Bane_Juggernaut (DevilsDenContent, TorcastraPrisonContent)
             [37531] = 21,       // Bane_Kael_Armored, on the Kael's skeleton
         };
 

@@ -37,11 +37,12 @@ namespace Rasa.Test.Missions.Wilderness
         /// <summary>
         /// Every mission enabled by a migration dated after the Wilderness ones: the
         /// battlefields', the Ojasa Atta Hive's five (Ojasa_hive), the Caves of Donn's six
-        /// (Caves_of_donn), the Devil's Den's eight (Devils_den) and Pravus Research's six
-        /// (Pravus_research).
+        /// (Caves_of_donn), the Devil's Den's eight (Devils_den), Pravus Research's six
+        /// (Pravus_research) and Torcastra Prison's five (Torcastra_prison).
         /// </summary>
         private static readonly uint[] LaterMissions = BattlefieldMissions.Concat(OjasaHiveContent.Missions)
-            .Concat(CavesOfDonnContent.Missions).Concat(DevilsDenContent.Missions).Concat(PravusResearchContent.Missions).ToArray();
+            .Concat(CavesOfDonnContent.Missions).Concat(DevilsDenContent.Missions).Concat(PravusResearchContent.Missions)
+            .Concat(Rasa.Services.Preloader.Missions.Torcastra.TorcastraMissionsV1.Enabled).ToArray();
 
         [TestMethod]
         [DataRow(typeof(SqliteWorldContext))]
@@ -422,7 +423,8 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.AreEqual(69, expected.Count);
             harness.World.Initialize();
             // Everything dated after the Wilderness migrations: the battlefields' missions, the
-            // Ojasa hive's, the Caves of Donn's, the Devil's Den's and Pravus Research's come with it.
+            // Ojasa hive's, the Caves of Donn's, the Devil's Den's, Pravus Research's and Torcastra's
+            // come with it.
             expected.UnionWith(LaterMissions);
             CollectionAssert.AreEquivalent(expected.ToArray(),
                 harness.World.MissionContentDefinitionEntries.AsNoTracking()
@@ -587,14 +589,16 @@ namespace Rasa.Test.Missions.Wilderness
 
         /// <summary>
         /// The evidence of Bootcamp and the Wilderness missions. The battlefields' missions, the
-        /// Ojasa hive's, the Caves of Donn's, the Devil's Den's and Pravus Research's have theirs
-        /// from migrations dated after these, which come and go with a rollback to one of them.
+        /// Ojasa hive's, the Caves of Donn's, the Devil's Den's, Pravus Research's and Torcastra's
+        /// have theirs from migrations dated after these, which come and go with a rollback to one
+        /// of them.
         /// </summary>
         private static string[] EvidenceRows(WildernessRuntimeTestHarness harness) =>
             harness.World.MissionEvidenceEntries.AsNoTracking().AsEnumerable()
                 .Where(entry => entry.ContentRevision != TargetsOfOpportunitySeed.Revision &&
                     entry.ContentRevision != OjasaHiveContent.Revision && entry.ContentRevision != CavesOfDonnContent.Revision &&
-                    entry.ContentRevision != DevilsDenContent.Revision && entry.ContentRevision != PravusResearchContent.Revision)
+                    entry.ContentRevision != DevilsDenContent.Revision && entry.ContentRevision != PravusResearchContent.Revision &&
+                    entry.ContentRevision != Rasa.Services.Preloader.Missions.Torcastra.TorcastraMissionsV1.Revision)
                 // Wilderness_reward_consumables and Wilderness_reward_modules, dated after the
                 // Wilderness migrations, add their own.
                 .Where(entry => entry.SourceUri != "repository:WildernessRewardConsumables" &&
@@ -610,12 +614,13 @@ namespace Rasa.Test.Missions.Wilderness
         public void OnlyIndicatorsKeyedByTheClientsIdsAreSentWithAName()
         {
             using var harness = WildernessRuntimeTestHarness.Create();
-            // The Ojasa hive's, the Caves of Donn's, the Devil's Den's and Pravus Research's are keyed
-            // by the client's ids where it has one (OjasaHiveTests, CavesOfDonnTests, DevilsDenTests,
-            // PravusResearchTests).
+            // The Ojasa hive's, the Caves of Donn's, the Devil's Den's, Pravus Research's and
+            // Torcastra's are keyed by the client's ids where it has one (OjasaHiveTests,
+            // CavesOfDonnTests, DevilsDenTests, PravusResearchTests, TorcastraPrisonTests).
             var rows = harness.World.MissionIndicatorEntries.AsNoTracking().AsEnumerable()
                 .Where(row => row.ContentRevision != OjasaHiveContent.Revision && row.ContentRevision != CavesOfDonnContent.Revision &&
-                    row.ContentRevision != DevilsDenContent.Revision && row.ContentRevision != PravusResearchContent.Revision).ToArray();
+                    row.ContentRevision != DevilsDenContent.Revision && row.ContentRevision != PravusResearchContent.Revision &&
+                    row.ContentRevision != Rasa.Services.Preloader.Missions.Torcastra.TorcastraMissionsV1.Revision).ToArray();
             var bootcamp = rows.Where(row => row.ContentRevision == "deployment_11").ToArray();
             var wilderness = rows.Where(row => row.ContentRevision == WildernessMissionDataV1.Revision).ToArray();
 

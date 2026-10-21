@@ -121,7 +121,8 @@ namespace Rasa.Managers
 
             /// <summary>
             /// Shot at, it takes nothing: a field only something else takes down, such as the gate
-            /// of Pravus Research, which its keypass scanner opens (PravusResearch).
+            /// of Pravus Research, which its keypass scanner opens (PravusResearch), or Torcastra
+            /// Prison's, which its gate key opens (TorcastraPrison).
             /// </summary>
             public bool Sealed { get; set; }
 

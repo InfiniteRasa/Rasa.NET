@@ -25,13 +25,14 @@ namespace Rasa.Test.Missions.Wilderness
             // And the battlefields' Targets of Opportunity (TargetsOfOpportunitySeed): fourteen, the
             // fifteenth being the Wilderness missions' own 1449. And the Ojasa Atta Hive's five
             // (OjasaHiveContent), the Caves of Donn's six (CavesOfDonnContent), the Devil's Den's
-            // eight (DevilsDenContent) and Pravus Research's six (PravusResearchContent), which are
-            // instances'.
+            // eight (DevilsDenContent), Pravus Research's six (PravusResearchContent) and Torcastra
+            // Prison's five (TorcastraMissionsV1), which are instances'.
             var battlefields = Rasa.Services.Preloader.TargetsOfOpportunitySeed.Zones.Select(zone => zone.MissionId).ToArray();
             var ojasa = Rasa.Services.Preloader.OjasaHiveContent.Missions;
             var donn = Rasa.Services.Preloader.CavesOfDonnContent.Missions;
             var den = Rasa.Services.Preloader.DevilsDenContent.Missions;
-            var pravus = Rasa.Services.Preloader.PravusResearchContent.Missions;
+            var pravus = Rasa.Services.Preloader.PravusResearchContent.Missions
+                .Concat(Rasa.Services.Preloader.Missions.Torcastra.TorcastraMissionsV1.Enabled).ToArray();
             CollectionAssert.AreEquivalent(expected.Concat(WildernessMissionCases.ProtectedBootcampMissionIds)
                     .Concat(battlefields).Concat(ojasa).Concat(donn).Concat(den).Concat(pravus).ToArray(),
                 enabled.Select(entry => entry.MissionId).ToArray());

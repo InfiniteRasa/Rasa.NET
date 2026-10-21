@@ -624,6 +624,10 @@ namespace Rasa.Managers
         /// <summary>Why the player cannot use it as it is now, or null if they can.</summary>
         private static PlayerMessage? RefusalOf(Client client, Live live)
         {
+            // Torcastra Prison's consoles, its gate's key slot and Ferme's cell wait on the place (TorcastraPrison).
+            if (TorcastraPrison.RefusalOf(client, live) is { } torcastra)
+                return torcastra;
+
             switch (live.Placement.Kind)
             {
                 case Kind.Dispenser:
@@ -725,6 +729,9 @@ namespace Rasa.Managers
             }
 
             Show(live, next, user.EntityId);
+
+            // What it does in Torcastra Prison (TorcastraPrison).
+            TorcastraPrison.Used(client, live, next);
 
             return next;
         }

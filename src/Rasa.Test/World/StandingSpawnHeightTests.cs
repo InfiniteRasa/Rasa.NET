@@ -144,8 +144,9 @@ namespace Rasa.Test.World
 
             // Moved since by a later migration: Corporal DeSimone (Place_bootcamp_base_npcs), the
             // Alia Das NPCs moved or taken away by Alia_das_npcs, the Wilderness ones moved or
-            // taken away by Wilderness_post_npcs, the two on tent roofs (Tent_floor_npcs), and the Twin
-            // Pillars ones moved or taken away by Twin_pillars_npcs.
+            // taken away by Wilderness_post_npcs, the two on tent roofs (Tent_floor_npcs), the Twin
+            // Pillars ones moved or taken away by Twin_pillars_npcs, and Airman Hamilton, moved to
+            // Torcastra Prison's research ward (Torcastra_prison).
             void AssertCorrected(bool expected, params uint[] movedSince)
             {
                 harness.World.ChangeTracker.Clear();
@@ -172,7 +173,8 @@ namespace Rasa.Test.World
                 .Concat(WildernessPostNpcs.Moves.Select(move => move.Pool)).Concat(WildernessPostNpcs.Removed.Select(removed => removed.Id))
                 .Concat(TentFloors.Pools)
                 .Concat(TwinPillarsNpcs.Moves.Select(move => move.Pool)).Concat(TwinPillarsNpcs.Removed.Select(removed => removed.Id))
-                .Append(Rasa.Services.Preloader.BootcampBaseNpcs.DeSimonePoolId).ToArray());
+                .Append(Rasa.Services.Preloader.BootcampBaseNpcs.DeSimonePoolId)
+                .Append(TorcastraPrisonContent.Hamilton).ToArray());
 
             // The vendor of Torcastra Prison was 5.69 m over the floor of the hall; Private
             // Parsons a metre in the ground. General Beacham, in the sandbags beside Cimoch, has

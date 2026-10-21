@@ -699,12 +699,13 @@ namespace Rasa.Test.World
                     MigratedDatabaseTemplates.Migrate(context, () => context.Database.Migrate());
 
                     // No rows of its own: the only ones are later migrations' (Wilderness_post_npcs, Twin_pillars_npcs,
-                    // Caves_of_donn, Devils_den), taken out here so the fixture's lot is all there is.
+                    // Caves_of_donn, Devils_den, Torcastra_prison), taken out here so the fixture's lot is all there is.
                     CollectionAssert.AreEquivalent(
                         Enumerable.Range(0, WildernessPostNpcs.Barrels.Length + 1).Select(i => WildernessPostNpcs.FirstDestructible + (uint)i)
                             .Concat(Enumerable.Range(0, TwinPillarsNpcs.Destructibles.Length).Select(TwinPillarsNpcs.DestructibleId))
                             .Concat(CavesOfDonnContent.EggClusters.Select(egg => egg.Id))
-                            .Concat(DevilsDenContent.Breakables.Select(row => row.Id)).ToList(),
+                            .Concat(DevilsDenContent.Breakables.Select(row => row.Id))
+                            .Concat(TorcastraPrisonContent.Destructibles.Select(row => row.Id)).ToList(),
                         new WorldDestructibleRepository(context).Get().Select(row => row.Id).ToList(), "no rows of its own");
                     context.Database.ExecuteSqlRaw("DELETE FROM world_destructible");
                     Assert.IsFalse(context.Database.HasPendingModelChanges());
