@@ -310,6 +310,22 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void ItsHomeGoesAlongTheBeatSoAFightFarFromThePoolsPointIsNoChaseTooFar()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 80);
+            var sentry = Spawn(world, x: 10, walkSpeed: 2, facing: East);
+
+            sentry.Patrol = new[] { new PatrolStep(new Vector3(10, 0, 0)), new PatrolStep(new Vector3(75, 0, 0), pauseMs: 60000) };
+
+            Record(world, watcher, sentry, 140);
+
+            Assert.AreEqual(new Vector3(75, 0, 0), sentry.Position, $"at {sentry.Position}");
+            Assert.AreEqual(sentry.Position, sentry.HomePos.Position);
+            Assert.IsFalse(BehaviorManager.ChasedTooFar(sentry), "65 m from where it started, and at home.");
+        }
+
+        [TestMethod]
         public void AHitOnItsBeatStartsAFightAsOneOnAStrollDoes()
         {
             using var world = new WorldTestContext();

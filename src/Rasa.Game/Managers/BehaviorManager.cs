@@ -1651,6 +1651,7 @@ namespace Rasa.Managers
 
                         creature.Rotation = creature.LastYaw;
                         patrol.LeftAt = creature.Position;
+                        creature.HomePos.Position = creature.Position;
                         return;
                     }
                 }
@@ -1705,6 +1706,11 @@ namespace Rasa.Managers
             }
 
             patrol.LeftAt = creature.Position;
+
+            // Home is where it is on the beat: a fight it is drawn into is measured from there
+            // (ChasedTooFar), and it is where it runs back to (ReturnHome) - not the pool's point
+            // a beat may lead it far from.
+            creature.HomePos.Position = creature.Position;
         }
 
         /// <summary>
