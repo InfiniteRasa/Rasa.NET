@@ -112,6 +112,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Penumbra Administrator Alexander](https://tabularasa.fandom.com/wiki/Penumbra_Administrator_Alexander): Abyss, Penumbra Headquarters, /loc -601.4, 536.5, -256.5 (NPC page lists this mission)
   - [The Director](https://tabularasa.fandom.com/wiki/The_Director): Abyss, Penumbra Headquarters, /loc -537.8, 534.0, -152.5 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Robocrusty chain (18 missions), step 2
+  - Requires: Robocrusty (id 1420) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Belly_Of_The_Beast)
+  - Leads to: The Human Factor (id 1333) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Belly_Of_The_Beast), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Human_Factor)
+- **TR MMO DB quest series:** "The Belly Of The Beast", row 2 of 3 ([list](https://web.archive.org/web/20120731161331/http://tr.mmodb.com/quests/seriesname-the_belly_of_the_beast/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1332 — On The Edge
 
 - **Rebuild summary:**
@@ -151,6 +155,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Penumbra Administrator Alexander](https://tabularasa.fandom.com/wiki/Penumbra_Administrator_Alexander): Abyss, Penumbra Headquarters, /loc -601.4, 536.5, -256.5 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Robocrusty chain (18 missions), step 3
+  - Requires: The Belly Of The Beast (id 1319) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Belly_Of_The_Beast), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Human_Factor)
+  - Leads to: Section Two (id 1432) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Section_Two), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Human_Factor)
+- **TR MMO DB quest series:** "The Belly Of The Beast", row 3 of 3 ([list](https://web.archive.org/web/20120731161331/http://tr.mmodb.com/quests/seriesname-the_belly_of_the_beast/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1334 — Enemy Of The State
 
 - **Rebuild summary:**
@@ -170,6 +178,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TaRapedia mission list** [Penumbra Headquarters mission list](https://tabularasa.fandom.com/wiki/Penumbra_Headquarters_mission_list): zone Abyss, area Penumbra Headquarters, given by Penumbra Administrator Pearce
 - **TR MMO DB quest series** [Ememy Of The State](https://web.archive.org/web/20120731164155/http://tr.mmodb.com/quests/seriesname-ememy_of_the_state/): Enemy of the State (level 45, reward 6600) → Section Four (level 45, reward 2025) → Section Three (level 45, reward 1980) → The Goggles That Do Nothing (level 45, reward 6600) → Viral Marketing (level 45, reward 6600) (series order as listed on the page; reward unit not stated)
 
+- **Chain** (explicit prerequisite links): Robocrusty chain (18 missions), step 5
+  - Requires: Section Two (id 1432) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Enemy_Of_The_State), [TaRapedia](https://tabularasa.fandom.com/wiki/Section_Two)
+  - Leads to: Questioning Authority (id 1335) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Enemy_Of_The_State)
+  - Leads to: Section Three (id 1515) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Enemy_Of_The_State), [TaRapedia](https://tabularasa.fandom.com/wiki/Section_Three)
+- **TR MMO DB quest series:** "Ememy Of The State", row 1 of 5 ([list](https://web.archive.org/web/20120731164155/http://tr.mmodb.com/quests/seriesname-ememy_of_the_state/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1335 — Questioning Authority
 
 - **Rebuild summary:**
@@ -185,6 +198,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **IGN TR boards** [vnboards.ign.com:80/tabula_rasa/b22750/104941824/p1/](https://web.archive.org/web/20071021052253/http://vnboards.ign.com:80/tabula_rasa/b22750/104941824/p1/): “? Abyss - ?The Scorpion King? ? Granitour Boss is now dropping mission item properly. / ? Abyss - ?Questioning Authority? ? Mission text now states that mission will fail if a specific branch is chosen. / ? Abyss - ?Pipe Down? ? Generator #3 now blows up when all three attached pipes are destroyed.”
 - **IGN TR boards** [vnboards.ign.com:80/tabula_rasa_general_board/b22750/106459602/p1/?](https://web.archive.org/web/20080302101520/http://vnboards.ign.com:80/tabula_rasa_general_board/b22750/106459602/p1/?): “* Mission log for "The Twelve Chairs" will now indicate mission giver/completer. / * "Questioning Authority" will now be available as soon as a player blackmails Corporal Cottman. / * "Questioning Authority" will no longer be available to players if they turn down helping Corporal Cottman.”
 
+- **Chain** (explicit prerequisite links): Robocrusty chain (18 missions), step 6
+  - Requires: Enemy Of The State (id 1334) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Enemy_Of_The_State)
 ### 1337 — Viral Marketing
 
 - **Rebuild summary:**
@@ -206,6 +221,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TR MMO DB quest series** [Ememy Of The State](https://web.archive.org/web/20120731164155/http://tr.mmodb.com/quests/seriesname-ememy_of_the_state/): Enemy of the State (level 45, reward 6600) → Section Four (level 45, reward 2025) → Section Three (level 45, reward 1980) → The Goggles That Do Nothing (level 45, reward 6600) → Viral Marketing (level 45, reward 6600) (series order as listed on the page; reward unit not stated)
 - **TR MMO DB NPC** [Larai Zupa Monlo](https://web.archive.org/web/20080905082109/http://tr.mmodb.com/bestiary/larai-zupa-monlo-962.php): Quest NPC, zone Abyss (starts this quest)
 
+- **Chain** (explicit prerequisite links): Robocrusty chain (18 missions), step 8
+  - Requires: The Goggles That Do Nothing (id 1524) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Goggles_That_Do_Nothing), [TaRapedia](https://tabularasa.fandom.com/wiki/Viral_Marketing)
+  - Leads to: The General Will See You Now (id 1517) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_General_Will_See_You_Now)
+  - Leads to: Section Four (id 1530) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Section_Four), [TaRapedia](https://tabularasa.fandom.com/wiki/Viral_Marketing)
+- **TR MMO DB quest series:** "Ememy Of The State", row 5 of 5 ([list](https://web.archive.org/web/20120731164155/http://tr.mmodb.com/quests/seriesname-ememy_of_the_state/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1338 — Product Recall
 
 - **Rebuild summary:**
@@ -225,6 +245,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - / * Control chips should now only drop from Thrax Machina for "Product Recall" — source: [IGN TR boards](https://web.archive.org/web/20080302101520/http://vnboards.ign.com:80/tabula_rasa_general_board/b22750/106459602/p1/?)
 
+- **Chain** (explicit prerequisite links): Robocrusty chain (18 missions), step 12
+  - Requires: Crisis In Section Five (id 1342) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Crisis_In_Section_Five), [TaRapedia](https://tabularasa.fandom.com/wiki/Product_Recall)
+  - Leads to: Prototype (id 1508) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Product_Recall), [TaRapedia](https://tabularasa.fandom.com/wiki/Prototype)
 ### 1341 — Double Agent
 
 - **Rebuild summary:**
@@ -243,6 +266,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **IGN TR boards** [vnboards.ign.com/tabula_rasa_general_board/b22750/106585290/r106594805 …](https://web.archive.org/web/20080518034441/http://vnboards.ign.com/tabula_rasa_general_board/b22750/106585290/r106594805/): “eal the barracks, but runs inside before the doors seal, they will be killed by the explosion instead of being trapped in the sealed room. / * Abyss “Double Agent” will now complete properly for both branching choices. / * Mires “Prisoner Transfer” – Now with actual prisoners!”
 - **IGN TR Vault** [tabularasavault.ign.com/View.php?view=PatchNotes.Detail&id=1](https://web.archive.org/web/20120712161331/http://tabularasavault.ign.com/View.php?view=PatchNotes.Detail&id=1): “o seal the barracks, but runs inside before the doors seal, they will be killed by the explosion instead of being trapped in the sealed room. / Abyss 'Double Agent' will now complete properly for both branching choices. / Mires 'Prisoner Transfer'; Now with actual prisoners!”
 
+- **Requires (name not matched to a mission):** The Human Factor in mission log; or Viral Marketing completed — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Double_Agent)
 ### 1342 — Crisis In Section Five
 
 - **Rebuild summary:**
@@ -266,6 +290,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [The Director](https://tabularasa.fandom.com/wiki/The_Director): Abyss, Penumbra Headquarters, /loc -537.8, 534.0, -152.5 (named in client text)
 
+- **Chain** (explicit prerequisite links): Robocrusty chain (18 missions), step 11
+  - Requires: Giants Of The Abyss (id 1509) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Crisis_In_Section_Five)
+  - Requires: Pathogen (id 1510) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Crisis_In_Section_Five), [TaRapedia](https://tabularasa.fandom.com/wiki/Pathogen)
+  - Requires: Hyper Links (id 1514) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Crisis_In_Section_Five)
+  - Leads to: Product Recall (id 1338) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Crisis_In_Section_Five), [TaRapedia](https://tabularasa.fandom.com/wiki/Product_Recall)
 ### 1343 — The Lurking Fear
 
 - **Rebuild summary:**
@@ -306,6 +335,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **PlayTR EU** [eu.playtr.com/en/news_article/deployment_84_live_server](https://web.archive.org/web/20090106070852/http://eu.playtr.com/en/news_article/deployment_84_live_server): “Instance: Ruins of Tampei – The main door in the instance will now open if you have activated the required missions “Keys to the City”, “The Warhead”, and “Patches to Ashes”, or if you have completed any one of them.”
 - **RGTR official site** [www.rgtr.com/news/patch_notes/deployment_8_live.html](https://web.archive.org/web/20081115092820/http://www.rgtr.com/news/patch_notes/deployment_8_live.html): “as been decreased significantly. Instance: Ruins of Tampei – The main door in the instance will now open if you have activated the required missions “Keys to the City”, “The Warhead”, and “Patches to Ashes”, or if you have completed any one of them. Instance: Outpost Inferno - Eloh Reliquary dispenses loot now Instance: Sanctus Grotto - Eloh Reliquary dispenses loot now Instance: Fluxite Mines - Missions “Deadly Vapors” and “Capturing Supply …”
 
+- **Chain** (explicit prerequisite links): Keys To The City chain (2 missions), step 1
+  - Leads to: Open Says Me (id 1365) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Keys_to_the_City), [TaRapedia](https://tabularasa.fandom.com/wiki/Open_Says_Me)
 ### 1362 — Flaregasher Genocide
 
 - **Instance mentioned:** Ruins of Tampeii — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -404,6 +435,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **PlayTR EU** [eu.playtr.com/en/news_article/d133_on_pts](https://web.archive.org/web/20090106022538/http://eu.playtr.com/en/news_article/d133_on_pts): “Mission: Open Says Me: Abyss: Ruins of Tampeii: Restarting the mission after failing will result in Danaher giving you the “Mission Completed” text and reward after you restart.”
 - **RGTR official site** [www.rgtr.com:80/news/patch_notes_public_test/163_patch_notes.html](https://web.archive.org/web/20080324234758/http://www.rgtr.com:80/news/patch_notes_public_test/163_patch_notes.html): “Fixed: Mission: Open Says Me (Abyss: Ruins of Tampeii): The Warhead: Oftentimes after killing Sandeen, Arizin will disappear while you accomplish the remaining tasks of the mission, making it impossible to complete.”
 
+- **Chain** (explicit prerequisite links): Keys To The City chain (2 missions), step 2
+  - Requires: Keys To The City (id 1350) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Keys_to_the_City), [TaRapedia](https://tabularasa.fandom.com/wiki/Open_Says_Me)
 ### 1420 — Robocrusty
 
 - **Rebuild summary:**
@@ -426,6 +459,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Private Heard](https://tabularasa.fandom.com/wiki/Private_Heard): Abyss, Icarus Post, /loc -30.8, 535.8, -542.1 (NPC page lists this mission)
   - [The Director](https://tabularasa.fandom.com/wiki/The_Director): Abyss, Penumbra Headquarters, /loc -537.8, 534.0, -152.5 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Robocrusty chain (18 missions), step 1
+  - Leads to: The Belly Of The Beast (id 1319) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Belly_Of_The_Beast)
 ### 1432 — Section Two
 
 - **Rebuild summary:**
@@ -448,6 +483,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Penumbra Administrator Alexander](https://tabularasa.fandom.com/wiki/Penumbra_Administrator_Alexander): Abyss, Penumbra Headquarters, /loc -601.4, 536.5, -256.5 (named as giver/receiver)
   - [The Director](https://tabularasa.fandom.com/wiki/The_Director): Abyss, Penumbra Headquarters, /loc -537.8, 534.0, -152.5 (named in client text)
 
+- **Chain** (explicit prerequisite links): Robocrusty chain (18 missions), step 4
+  - Requires: The Human Factor (id 1333) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Section_Two), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Human_Factor)
+  - Leads to: Enemy Of The State (id 1334) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Enemy_Of_The_State), [TaRapedia](https://tabularasa.fandom.com/wiki/Section_Two)
+- **TR MMO DB quest series:** "The Belly Of The Beast", row 1 of 3 ([list](https://web.archive.org/web/20120731161331/http://tr.mmodb.com/quests/seriesname-the_belly_of_the_beast/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1435 — Lava Lamps
 
 - **Rebuild summary:**
@@ -536,6 +575,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - objectives: • Help Defeat the Mantas Attacking Rebel Defenses
 - **TaRapedia mission list** [Magma Caverns mission list](https://tabularasa.fandom.com/wiki/Magma_Caverns_mission_list): zone Abyss, given by Rebel Leader Salyard
 
+- **Chain** (explicit prerequisite links): Big Meanies chain (7 missions), step 2
+  - Requires: Consensus (id 1942) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Creature_Strike)
+- **Requires an instance mission:** Consensus (1942) — source: the chain links above
 ### 1474 — Lava Beast [instance]
 
 - **Instance:** Magma Caverns — client objective/log text: "Search for the lava beast called "Ember" located somewhere in the center of Magma Caverns. Some of the Magmonix in …"
@@ -557,6 +599,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **RGTR official site** [www.rgtr.com/news/patch_notes/deployment_8_live.html](https://web.archive.org/web/20081115092820/http://www.rgtr.com/news/patch_notes/deployment_8_live.html): “amage than Hand to Hand Combat. Updated the CELLAR loading screen. Updated the Self Destruct tooltip reflect recent changes in Deployment 8. Mission: Lava Beast (Magma Caverns, Abyss): You should now receive credit for killing Ember when you choose the Kill Rebels story line. Mission: Lava Beast / Executioner (Magma Caverns): Updated mission rewards. Added Brass Knuckles texture on paper doll. Deployment 8.4”
 - **RGTR official site** [www.rgtr.com/news/patch_notes_public_test/deployment_8_5052008_1.html](https://web.archive.org/web/20081117082202/http://www.rgtr.com/news/patch_notes_public_test/deployment_8_5052008_1.html): “oming publish. Shredder Ammo is doing too much damage when used with rapid fire weapons. Some boss mobs are not dropping loot when defeated. Mission: Lava Beast (Magma Caverns, Abyss): Players are not receiving credit for killing Ember when they choose the Kill Rebels story line.”
 
+- **Chain** (explicit prerequisite links): Big Meanies chain (7 missions), step 2
+  - Requires: Consensus (id 1942) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Lava_Beast)
+- **Requires an instance mission:** Consensus (1942) — source: the chain links above
 ### 1477 — Crossing Guard
 
 - **Rebuild summary:**
@@ -633,6 +678,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - The Juggernaut patrols the northern end of the Eloh Bridge around -170, 374, 322 and once you've retrieved your CPU head back to Peterson who will reward you with 6200 credits and your choice of Cryogen Bio Armor Legs, CryoGen Mech Armor Vest, CryoGen Stealth … — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/fort-defiance-part-1)
 - **Ellatha boss NPC** [Thraxus Machina Super Soldier](https://www.ellatha.com/tr/bossnpcview.asp?key=Thraxus+Machina+Super+Soldier&id=57): zone Abyss; Inside Penumbra Section 5; needed for: Abyss Targets of Opportunity (boss named in client text)
 
+- **Chain** (explicit prerequisite links): Robocrusty chain (18 missions), step 13
+  - Requires: Product Recall (id 1338) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Product_Recall), [TaRapedia](https://tabularasa.fandom.com/wiki/Prototype)
 ### 1509 — Giants Of The Abyss
 
 - **Instance mentioned:** Dybukkar — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -653,6 +700,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **PlayTR EU** [eu.playtr.com/en/news_article/deployment_11_patchnotes_known_issues](https://web.archive.org/web/20081120082001/http://eu.playtr.com/en/news_article/deployment_11_patchnotes_known_issues): “er to be granted Level 5 Security Clearance to gain access to this section. The final prerequisites for Level 5 Clearance are the Section 4 missions “Giants of the Abyss,” “Hyper Links” and “Pathogen.” The instance contains 5 new missions: “Bad Medicine,” “The Omega Files,” “Ways and Means,” “The Doctor Is In” and “The Final Countdown.””
 - **PlayTR EU** [eu.rgtr.com:80/en/news_article/patch_notes_and_known_issues_26th_febru …](https://web.archive.org/web/20080303001652/http://eu.rgtr.com:80/en/news_article/patch_notes_and_known_issues_26th_february_2008): ““Stingers” has had its mission prerequisites removed. / Mission items requirement for “Giants of the Abyss” have been reduced. / Thrax Machina Super Soldier has had its health slightly reduced on Abyss.”
 
+- **Chain** (explicit prerequisite links): Robocrusty chain (18 missions), step 10
+  - Requires: Section Four (id 1530) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Giants_Of_The_Abyss), [TaRapedia](https://tabularasa.fandom.com/wiki/Section_Four)
+  - Leads to: Crisis In Section Five (id 1342) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Crisis_In_Section_Five)
 ### 1510 — Pathogen
 
 - **Instance mentioned:** Dybukkar — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -671,6 +721,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TaRapedia mission list** [Penumbra Headquarters mission list](https://tabularasa.fandom.com/wiki/Penumbra_Headquarters_mission_list): zone Abyss, area Penumbra Headquarters, given by Penumbra Agent Earhardt
 - **PlayTR EU** [eu.playtr.com/en/news_article/deployment_11_patchnotes_known_issues](https://web.archive.org/web/20081120082001/http://eu.playtr.com/en/news_article/deployment_11_patchnotes_known_issues): “ce to gain access to this section. The final prerequisites for Level 5 Clearance are the Section 4 missions “Giants of the Abyss,” “Hyper Links” and “Pathogen.” The instance contains 5 new missions: “Bad Medicine,” “The Omega Files,” “Ways and Means,” “The Doctor Is In” and “The Final Countdown.””
 
+- **Chain** (explicit prerequisite links): Robocrusty chain (18 missions), step 10
+  - Requires: Section Four (id 1530) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Pathogen), [TaRapedia](https://tabularasa.fandom.com/wiki/Section_Four)
+  - Leads to: Crisis In Section Five (id 1342) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Crisis_In_Section_Five), [TaRapedia](https://tabularasa.fandom.com/wiki/Pathogen)
 ### 1511 — Pipe Down
 
 - **Instance mentioned:** Dybukkar — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -741,6 +794,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - related mob Penumbra Researcher Ackroyd (not in the archived bestiary pages)
 - **PlayTR EU** [eu.playtr.com/en/news_article/deployment_11_patchnotes_known_issues](https://web.archive.org/web/20081120082001/http://eu.playtr.com/en/news_article/deployment_11_patchnotes_known_issues): “5 Security Clearance to gain access to this section. The final prerequisites for Level 5 Clearance are the Section 4 missions “Giants of the Abyss,” “Hyper Links” and “Pathogen.” The instance contains 5 new missions: “Bad Medicine,” “The Omega Files,” “Ways and Means,” “The Doctor Is In” and “The Final Countdown.””
 
+- **Chain** (explicit prerequisite links): Robocrusty chain (18 missions), step 10
+  - Requires: Section Four (id 1530) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Hyper_Links), [TaRapedia](https://tabularasa.fandom.com/wiki/Section_Four)
+  - Leads to: Crisis In Section Five (id 1342) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Crisis_In_Section_Five)
 ### 1515 — Section Three
 
 - **Rebuild summary:**
@@ -761,6 +817,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [The Director](https://tabularasa.fandom.com/wiki/The_Director): Abyss, Penumbra Headquarters, /loc -537.8, 534.0, -152.5 (named in client text)
 
+- **Chain** (explicit prerequisite links): Robocrusty chain (18 missions), step 6
+  - Requires: Enemy Of The State (id 1334) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Enemy_Of_The_State), [TaRapedia](https://tabularasa.fandom.com/wiki/Section_Three)
+  - Leads to: The Goggles That Do Nothing (id 1524) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Section_Three), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Goggles_That_Do_Nothing)
+- **TR MMO DB quest series:** "Ememy Of The State", row 3 of 5 ([list](https://web.archive.org/web/20120731164155/http://tr.mmodb.com/quests/seriesname-ememy_of_the_state/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1517 — The General Will See You Now
 
 - **Rebuild summary:**
@@ -779,6 +839,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TR MMO DB NPC** [Sergeant Hayes](https://web.archive.org/web/20080907091421/http://tr.mmodb.com/bestiary/sergeant-hayes-938.php): Quest NPC, zone Abyss (starts this quest)
 - **IGN TR boards** [vnboards.ign.com:80/tabula_rasa_general_board/b22750/106459602/p1/?](https://web.archive.org/web/20080302101520/http://vnboards.ign.com:80/tabula_rasa_general_board/b22750/106459602/p1/?): “* "Styx & Stones" now gives proper credit for grouped players. / * Removed "The General Will See You Now" from Abyss ToO. / * Removed Abyss instance missions from Abyss ToO.”
 
+- **Chain** (explicit prerequisite links): Robocrusty chain (18 missions), step 9
+  - Requires: Viral Marketing (id 1337) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_General_Will_See_You_Now)
 ### 1524 — The Goggles That Do Nothing
 
 - **Rebuild summary:**
@@ -799,6 +861,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TR MMO DB NPC** [Larai Zupa Monlo](https://web.archive.org/web/20080905082109/http://tr.mmodb.com/bestiary/larai-zupa-monlo-962.php): Quest NPC, zone Abyss (related to this quest)
 - **IGN TR boards** [vnboards.ign.com:80/tabula_rasa/b22750/104941824/p1/](https://web.archive.org/web/20071021052253/http://vnboards.ign.com:80/tabula_rasa/b22750/104941824/p1/): “? Abyss ?The Penumbra Strain? ? Obtain Virus Samples objectives will now complete properly. / ? Abyss ?The Goggles That Do Nothing? ? Now has correct mission completer. / ? Abyss ?The Abyss Looks Into You? ? Both Branching objective choices now complete correctly.”
 
+- **Chain** (explicit prerequisite links): Robocrusty chain (18 missions), step 7
+  - Requires: Section Three (id 1515) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Section_Three), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Goggles_That_Do_Nothing)
+  - Leads to: Viral Marketing (id 1337) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Goggles_That_Do_Nothing), [TaRapedia](https://tabularasa.fandom.com/wiki/Viral_Marketing)
+- **TR MMO DB quest series:** "Ememy Of The State", row 4 of 5 ([list](https://web.archive.org/web/20120731164155/http://tr.mmodb.com/quests/seriesname-ememy_of_the_state/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1530 — Section Four
 
 - **Rebuild summary:**
@@ -819,6 +885,13 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [The Director](https://tabularasa.fandom.com/wiki/The_Director): Abyss, Penumbra Headquarters, /loc -537.8, 534.0, -152.5 (named in client text)
 
+- **Chain** (explicit prerequisite links): Robocrusty chain (18 missions), step 9
+  - Requires: Viral Marketing (id 1337) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Section_Four), [TaRapedia](https://tabularasa.fandom.com/wiki/Viral_Marketing)
+  - Leads to: Giants Of The Abyss (id 1509) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Giants_Of_The_Abyss), [TaRapedia](https://tabularasa.fandom.com/wiki/Section_Four)
+  - Leads to: Pathogen (id 1510) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Pathogen), [TaRapedia](https://tabularasa.fandom.com/wiki/Section_Four)
+  - Leads to: Hyper Links (id 1514) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Hyper_Links), [TaRapedia](https://tabularasa.fandom.com/wiki/Section_Four)
+  - Leads to: Judge, Jury, and... (id 1940) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Judge%2C_Jury%2C_and...)
+- **TR MMO DB quest series:** "Ememy Of The State", row 2 of 5 ([list](https://web.archive.org/web/20120731164155/http://tr.mmodb.com/quests/seriesname-ememy_of_the_state/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1546 — Manta Claws
 
 - **Rebuild summary:**
@@ -906,6 +979,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **PlayTR EU** [eu.playtr.com/en/news_article/deployment_11_patchnotes_known_issues](https://web.archive.org/web/20081120082001/http://eu.playtr.com/en/news_article/deployment_11_patchnotes_known_issues): “ance: Dybukkar Garrison (Torden Abyss): This new instance map is available with D11 for players, including the new missions: “Dybukkar Stops Here!”, “The Dybukkar Investigation”, “Weak Side Blitz”, “Destroy, Destruct, Demoralize”, and “The Drug War”. Dybukkar Garrison is designed for level 50 and is accessible from the Dybukkar Underground area of Torden Abyss. These missions can be obtained at Archeron Outpost on Abyss, and inside Dybukkar …”
 - **RGTR official site** [www.rgtr.com/news/patch_notes_public_test/deployment_10.html](https://web.archive.org/web/20081117082235/http://www.rgtr.com/news/patch_notes_public_test/deployment_10.html): “ar Garrison (PTS) - A new instance map, "Dybukkar Garrison," is available on the Public Test Server along with new missions: "Dybukkar Stops Here!", "The Dybukkar Investigation", "Weak Side Blitz", "Destroy, Destruct, Demoralize", and "The Drug War". Dybukkar Garrison is designed for level 50 and is accessible from the Dybukkar Underground area of Torden Abyss. These missions can be obtained at Archeron Outopost on Abyss, and inside Dybukkar …”
 
+- **Chain** (explicit prerequisite links): The Dybukkar Investigation chain (2 missions), step 1
+  - Leads to: The Drug War (id 1987) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Drug_War), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Dybukkar_Investigation)
 ### 1822 — Weak Side Blitz [instance]
 
 - **Instance:** Dybukkar — client objective/log text: "General D'Amato wants you to head deep into Dybukkar Garrison and set up a GPS beacon to call in an airstrike on a set …"
@@ -1138,6 +1213,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [The Director](https://tabularasa.fandom.com/wiki/The_Director): Abyss, Penumbra Headquarters, /loc -537.8, 534.0, -152.5 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Robocrusty chain (18 missions), step 10
+  - Requires: Section Four (id 1530) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Judge%2C_Jury%2C_and...)
+- **Requires (name not matched to a mission):** Section Four & Level 44 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Judge%2C_Jury%2C_and...)
 ### 1942 — Consensus [instance]
 
 - **Instance:** Magma Caverns — client objective/log text: "Wait for the rest of your squad inside Magma Caverns to make their choice."
@@ -1156,6 +1234,12 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **PlayTR EU** [eu.playtr.com/en/news_article/deployment_84_live_server](https://web.archive.org/web/20090106070852/http://eu.playtr.com/en/news_article/deployment_84_live_server): “Caverns instance (level 44-46) off Torden Abyss has been reconstructed, with a brand new map layout, and entirely new missions. The initial mission “Consensus” offers players the choice of whether to side with Penumbra or the Renegade Faction, and will take into account squad majority rule. In the event of a tie vote, the first vote entered will be the deciding vote.”
 - **PlayTR EU** [eu.rgtr.com:80/en/news_article/deployment_82_tuesday_6th_may_2008_pts](https://web.archive.org/web/20080512123315/http://eu.rgtr.com:80/en/news_article/deployment_82_tuesday_6th_may_2008_pts): “The initial mission “Consensus” offers players the choice of whether to side with Penumbra or the Renegade Faction, and will take into account squad majority rule. In the event of a tie vote, the first vote entered will be the deciding vote.”
 
+- **Chain** (explicit prerequisite links): Big Meanies chain (7 missions), step 1
+  - Leads to: Creature Strike (id 1457) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Creature_Strike)
+  - Leads to: Lava Beast (id 1474) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Lava_Beast)
+  - Leads to: Executioner (id 1944) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Executioner)
+  - Leads to: Final Chance (id 1945) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Final_Chance)
+  - Leads to: Lost Little Monster — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Consensus)
 ### 1943 — The Omega Files
 
 - **Instance mentioned:** Omega Labs — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -1199,6 +1283,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Executioner Derge at 948,171,714. — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/thrax-hybrid-access-mission)
   - The laboratory entrance is in the far western side of Khulago Base, through a doorway at 276,160,-370. — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/thrax-hybrid-access-mission)
 
+- **Chain** (explicit prerequisite links): Big Meanies chain (7 missions), step 2
+  - Requires: Consensus (id 1942) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Executioner)
+- **Requires an instance mission:** Consensus (1942) — source: the chain links above
 ### 1945 — Final Chance
 
 - **Instance mentioned:** Magma Caverns — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -1219,6 +1306,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **PlayTR EU** [eu.rgtr.com:80/en/news_article/deployment_82_tuesday_6th_may_2008_pts](https://web.archive.org/web/20080512123315/http://eu.rgtr.com:80/en/news_article/deployment_82_tuesday_6th_may_2008_pts): “event of a tie vote, the first vote entered will be the deciding vote. / “Consensus” can be played a second time / Choice A – side w/ rebels receive “Final Chance” / Choice B – side w/ penumbra receive “Executioner” / “Final Chance” and “Executioner” can both be played through once each (have to leave instance and come back after it resets and choose opposite choice in “Consensus” to play other story line)”
 - **RGTR official site** [www.rgtr.com/news/patch_notes/deployment_8_live.html](https://web.archive.org/web/20081115092820/http://www.rgtr.com/news/patch_notes/deployment_8_live.html): “will be the deciding vote. The choice mission at the beginning of the map, “Consensus”, is repeatable. Choice A: Players siding with Rebels receive “Final Chance” Choice B: Players siding with Penumbra receive “Executioner” "Final Chance” and “Executioner” can both be played through once each. Other side missions within the instance are not repeatable. The CELLAR Arena (Coalition of Enlistees Likely Looking for Aggressive Retaliation) is now …”
 
+- **Chain** (explicit prerequisite links): Big Meanies chain (7 missions), step 2
+  - Requires: Consensus (id 1942) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Final_Chance)
+- **Requires an instance mission:** Consensus (1942) — source: the chain links above
 ### 1948 — The Doctor Is In [instance]
 
 - **Instance:** Omega Labs — an objective conversation's NPC package 2472 spawns in this instance (map 2203) — source: client objectiveconversation + data/rasaworld.db
@@ -1254,6 +1344,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **PlayTR EU** [eu.playtr.com/en/news_article/deployment_102_patchnotes_known_issues_4 …](https://web.archive.org/web/20090107005649/http://eu.playtr.com/en/news_article/deployment_102_patchnotes_known_issues_4th_july_2008): “c Test Server along with new missions: “Dybukkar Stops Here!”, “The Dybukkar Investigation”, “Weak Side Blitz”, “Destroy, Destruct, Demoralize”, and “The Drug War”. Dybukkar Garrison is designed for level 50 and is accessible from the Dybukkar Underground area of Torden Abyss. These missions can be obtained at Archeron Outpost on Abyss, and inside Dybukkar Garrison.”
 - **PlayTR EU** [eu.playtr.com/en/news_article/deployment_11_patchnotes_known_issues](https://web.archive.org/web/20081120082001/http://eu.playtr.com/en/news_article/deployment_11_patchnotes_known_issues): “r players, including the new missions: “Dybukkar Stops Here!”, “The Dybukkar Investigation”, “Weak Side Blitz”, “Destroy, Destruct, Demoralize”, and “The Drug War”. Dybukkar Garrison is designed for level 50 and is accessible from the Dybukkar Underground area of Torden Abyss. These missions can be obtained at Archeron Outpost on Abyss, and inside Dybukkar Garrison.”
 
+- **Chain** (explicit prerequisite links): The Dybukkar Investigation chain (2 missions), step 2
+  - Requires: The Dybukkar Investigation (id 1790) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Drug_War), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Dybukkar_Investigation)
+- **Requires an instance mission:** The Dybukkar Investigation (1790) — source: the chain links above
 ## Ashen Desert
 
 ### 1242 — Angry Angry Atta
@@ -1271,6 +1364,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - objectives: • Kill 10 Ashen Atta Soldiers • Atta Soldiers x/10 • Kill 10 Atta Workers • Atta Workers x/10
 - **TaRapedia mission list** [Shadow's Edge Post mission list](https://tabularasa.fandom.com/wiki/Shadow%27s_Edge_Post_mission_list): zone Ashen Desert, area Shadow's Edge Post, given by Lieutenant Simon Kuang
 
+- **Chain** (explicit prerequisite links): Angry Angry Atta chain (2 missions), step 1
+  - Leads to: Chemical Oversight (id 1244) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Chemical_Oversight)
 ### 1243 — Harmful Mutations
 
 - **Rebuild summary:**
@@ -1286,6 +1381,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - objectives: • Recover 4 Mutant Atta Blood Samples • x/4
 - **TaRapedia mission list** [Shadow's Edge Post mission list](https://tabularasa.fandom.com/wiki/Shadow%27s_Edge_Post_mission_list): zone Ashen Desert, area Shadow's Edge Post, given by Lieutenant Simon Kuang
 
+- **Chain** (explicit prerequisite links): Harmful Mutations chain (2 missions), step 1
+  - Leads to: Eyes on the Ground (id 1245) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Eyes_on_the_Ground)
 ### 1244 — Chemical Oversight
 
 - **Rebuild summary:**
@@ -1309,6 +1406,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha boss NPC** [Exing](https://www.ellatha.com/tr/bossnpcview.asp?key=Exing): /loc -281, -252; zone Ashen Desert; needed for: Ashen Desert Targets of Opportunity (boss named in client text)
 - **Ellatha boss NPC** [Exing](https://www.ellatha.com/tr/bossnpcview.asp?key=Exing&id=59): /loc -281, -252; zone Ashen Desert; needed for: Ashen Desert Targets of Opportunity (boss named in client text)
 
+- **Chain** (explicit prerequisite links): Angry Angry Atta chain (2 missions), step 2
+  - Requires: Angry Angry Atta (id 1242) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Chemical_Oversight)
 ### 1245 — Eyes on the Ground
 
 - **Rebuild summary:**
@@ -1324,6 +1423,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - objectives: • Sensor Beacon 1 • Sensor Beacon 2 • Sensor Beacon 3 • Sensor Beacon 4 • Sensor Beacon 5
 - **TaRapedia mission list** [Shadow's Edge Post mission list](https://tabularasa.fandom.com/wiki/Shadow%27s_Edge_Post_mission_list): zone Ashen Desert, area Shadow's Edge Post, given by Captain Sera Karter (Ashen Desert)
 
+- **Chain** (explicit prerequisite links): Harmful Mutations chain (2 missions), step 2
+  - Requires: Harmful Mutations (id 1243) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Eyes_on_the_Ground)
 ### 1247 — Highway to Hell
 
 - **Rebuild summary:**
@@ -1426,6 +1527,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Shinichiro Ito](https://tabularasa.fandom.com/wiki/Shinichiro_Ito): Plains, Ashoka Settlement, /loc 556, 248, -320 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): The Human Perspective chain (7 missions), step 1
+  - Leads to: A Bribe for Your Thoughts (id 1259) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Bribe_for_Your_Thoughts), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Human_Perspective)
+- **Requires (name not matched to a mission):** Formal Complaints (If Option 2) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Human_Perspective)
 ### 1259 — A Bribe for Your Thoughts
 
 - **Rebuild summary:**
@@ -1443,6 +1547,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Captain Aiko Yamamoto](https://tabularasa.fandom.com/wiki/Captain_Aiko_Yamamoto): Ashen Desert, Boneyard Outpost (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): The Human Perspective chain (7 missions), step 2
+  - Requires: The Human Perspective (id 1258) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Bribe_for_Your_Thoughts), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Human_Perspective)
+  - Leads to: Court Martial Arts (id 1261) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Bribe_for_Your_Thoughts), [TaRapedia](https://tabularasa.fandom.com/wiki/Court_Martial_Arts)
 ### 1261 — Court Martial Arts
 
 - **Rebuild summary:**
@@ -1460,6 +1567,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Captain Aiko Yamamoto](https://tabularasa.fandom.com/wiki/Captain_Aiko_Yamamoto): Ashen Desert, Boneyard Outpost (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): The Human Perspective chain (7 missions), step 3
+  - Requires: A Bribe for Your Thoughts (id 1259) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Bribe_for_Your_Thoughts), [TaRapedia](https://tabularasa.fandom.com/wiki/Court_Martial_Arts)
+  - Leads to: Dearly Departed (id 1285) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Dearly_Departed)
 ### 1262 — Xanxless Job
 
 - **Rebuild summary:**
@@ -1478,6 +1588,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TaRapedia mission list** [Boneyard Outpost mission list](https://tabularasa.fandom.com/wiki/Boneyard_Outpost_mission_list): zone Ashen Desert, area Boneyard Outpost, given by Lieutenant Jan Blood
 - **TR MMO DB** [Xanxless Job](https://web.archive.org/web/20081216162411/http://tr.mmodb.com:80/quests/xanxless-job-644.php): level: 30; starts at npc: Lieutenant Jan Blood; starts in zone: Ashen Desert; objectives: Kill 6 Xanx, Return to Lieutenant Jan Blood; reward: 6300
 
+- **Chain** (explicit prerequisite links): Fallen Soldiers chain (9 missions), step 1
+  - Leads to: Death from Above (id 1352) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Death_from_Above)
+  - Leads to: Turning Out the Lights (id 1354) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Turning_Out_the_Lights)
+  - Leads to: The Strongest Link (id 1355) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Strongest_Link_%28Ashen_Desert%29)
 ### 1263 — Fallen Soldiers
 
 - **Rebuild summary:**
@@ -1496,6 +1610,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Captain Aiko Yamamoto](https://tabularasa.fandom.com/wiki/Captain_Aiko_Yamamoto): Ashen Desert, Boneyard Outpost (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Fallen Soldiers chain (9 missions), step 1
+  - Leads to: Death from Above (id 1352) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Death_from_Above), [TaRapedia](https://tabularasa.fandom.com/wiki/Fallen_Soldiers)
+  - Leads to: Turning Out the Lights (id 1354) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Turning_Out_the_Lights)
+  - Leads to: The Strongest Link (id 1355) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Strongest_Link_%28Ashen_Desert%29)
 ### 1264 — Robotic Salvage Recovery
 
 - **Rebuild summary:**
@@ -1512,6 +1630,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - walkthrough: Nitroglazers and Hominus Machina Mark XI which will drop the required salvage spawn throughout The Boneyard.
 - **TaRapedia mission list** [Ashoka Settlement mission list](https://tabularasa.fandom.com/wiki/Ashoka_Settlement_mission_list): zone Ashen Desert, area Ashoka Settlement, given by Scavenger Vakiel Latan
 
+- **Chain** (explicit prerequisite links): Robotic Salvage Recovery chain (3 missions), step 1
+  - Leads to: Weapon Salvage Recovery (id 1266) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Robotic_Salvage_Recovery), [TaRapedia](https://tabularasa.fandom.com/wiki/Weapon_Salvage_Recovery)
 ### 1265 — Heavy Salvage Recovery
 
 - **Rebuild summary:**
@@ -1530,6 +1650,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - Down one of each, Preditor can be found on Sheitan Highway, Stalkers in the Boneyard — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Heavy_Salvage_Recovery)
 
+- **Chain** (explicit prerequisite links): Robotic Salvage Recovery chain (3 missions), step 3
+  - Requires: Weapon Salvage Recovery (id 1266) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Heavy_Salvage_Recovery), [TaRapedia](https://tabularasa.fandom.com/wiki/Weapon_Salvage_Recovery)
 ### 1266 — Weapon Salvage Recovery
 
 - **Rebuild summary:**
@@ -1546,6 +1668,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - walkthrough: Any Thrax Soldier in Ashen Desert will drop a Rifle. Likewise, any Thrax Ravager will drop a Grenade Launcher.
 - **TaRapedia mission list** [Ashoka Settlement mission list](https://tabularasa.fandom.com/wiki/Ashoka_Settlement_mission_list): zone Ashen Desert, area Ashoka Settlement, given by Scavenger Vakiel Latan
 
+- **Chain** (explicit prerequisite links): Robotic Salvage Recovery chain (3 missions), step 2
+  - Requires: Robotic Salvage Recovery (id 1264) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Robotic_Salvage_Recovery), [TaRapedia](https://tabularasa.fandom.com/wiki/Weapon_Salvage_Recovery)
+  - Leads to: Heavy Salvage Recovery (id 1265) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Heavy_Salvage_Recovery), [TaRapedia](https://tabularasa.fandom.com/wiki/Weapon_Salvage_Recovery)
 ### 1267 — Robotic Salvage Acquisitions
 
 - **Rebuild summary:**
@@ -1564,6 +1689,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Shinichiro Ito](https://tabularasa.fandom.com/wiki/Shinichiro_Ito): Plains, Ashoka Settlement, /loc 556, 248, -320 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): The Human Perspective chain (7 missions), step 5
+  - Requires: Dearly Departed (id 1285) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Robotic_Salvage_Acquisitions)
+  - Leads to: Weapon Salvage Acquisitions (id 1269) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Robotic_Salvage_Acquisitions), [TaRapedia](https://tabularasa.fandom.com/wiki/Weapon_Salvage_Acquisitions)
 ### 1268 — Heavy Salvage Acquisitions
 
 - **Rebuild summary:**
@@ -1582,6 +1710,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Shinichiro Ito](https://tabularasa.fandom.com/wiki/Shinichiro_Ito): Plains, Ashoka Settlement, /loc 556, 248, -320 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): The Human Perspective chain (7 missions), step 7
+  - Requires: Weapon Salvage Acquisitions (id 1269) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Heavy_Salvage_Acquisitions), [TaRapedia](https://tabularasa.fandom.com/wiki/Weapon_Salvage_Acquisitions)
 ### 1269 — Weapon Salvage Acquisitions
 
 - **Rebuild summary:**
@@ -1600,6 +1730,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Shinichiro Ito](https://tabularasa.fandom.com/wiki/Shinichiro_Ito): Plains, Ashoka Settlement, /loc 556, 248, -320 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): The Human Perspective chain (7 missions), step 6
+  - Requires: Robotic Salvage Acquisitions (id 1267) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Robotic_Salvage_Acquisitions), [TaRapedia](https://tabularasa.fandom.com/wiki/Weapon_Salvage_Acquisitions)
+  - Leads to: Heavy Salvage Acquisitions (id 1268) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Heavy_Salvage_Acquisitions), [TaRapedia](https://tabularasa.fandom.com/wiki/Weapon_Salvage_Acquisitions)
 ### 1272 — Stalking the Stalkers
 
 - **Rebuild summary:**
@@ -1667,6 +1800,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - objectives: • Recover Bane Radar Frequency Codes • x/1
 - **TaRapedia mission list** [Stonewall Ridge mission list](https://tabularasa.fandom.com/wiki/Stonewall_Ridge_mission_list): zone Ashen Desert, area Stonewall Ridge, given by Captain Marcus Emmons
 
+- **Chain** (explicit prerequisite links): Cycled Frequencies chain (3 missions), step 1
+  - Leads to: On The Same Frequency (id 1277) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Cycled_Frequencies), [TaRapedia](https://tabularasa.fandom.com/wiki/On_The_Same_Frequency)
 ### 1277 — On The Same Frequency
 
 - **Rebuild summary:**
@@ -1684,6 +1819,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - The Radar Operations Console for each tower can be found on the top floor, through the teleporter — source: [TaRapedia](https://tabularasa.fandom.com/wiki/On_The_Same_Frequency)
 
+- **Chain** (explicit prerequisite links): Cycled Frequencies chain (3 missions), step 2
+  - Requires: Cycled Frequencies (id 1275) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Cycled_Frequencies), [TaRapedia](https://tabularasa.fandom.com/wiki/On_The_Same_Frequency)
+  - Leads to: King of the Hill (id 1278) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/King_of_the_Hill), [TaRapedia](https://tabularasa.fandom.com/wiki/On_The_Same_Frequency)
 ### 1278 — King of the Hill
 
 - **Rebuild summary:**
@@ -1702,6 +1840,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **PlanetTR** [www.planettr.com:80/forums/showthread.php?mode=hybrid&t=8421](https://web.archive.org/web/20081014123022/http://www.planettr.com:80/forums/showthread.php?mode=hybrid&t=8421): “A stiff contender for the title of most frantic, the Gauntlet gave King of the Hill pause. Teams of knowledgeable and talented AFS joined forces for a run though the tunnels of Abyss. It soon became evident this was not an ordinary run as shouts rang out through the caves of Atta and other threats. After clearing seemingly ordinary groupings of bane soldiers, AFS troops were confronted with very hostile Atta groups – with several Queens in …”
 - **PlayTR EU** [eu.playtr.com:80/en/news/news_article/weekend_wrap_up_9th_february_200 …](https://web.archive.org/web/20090215174217/http://eu.playtr.com:80/en/news/news_article/weekend_wrap_up_9th_february_2009): “p your calendars clear and join us as members of the TR Development team will log in and slug it out with TR Players. That night will also see a Dev “King of the Hill” fight and a chance for players to team with Developers in the “Epic Pride & Trust Challenge”.”
 
+- **Chain** (explicit prerequisite links): Cycled Frequencies chain (3 missions), step 3
+  - Requires: On The Same Frequency (id 1277) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/King_of_the_Hill), [TaRapedia](https://tabularasa.fandom.com/wiki/On_The_Same_Frequency)
 ### 1280 — Missing Scientists
 
 - **Rebuild summary:**
@@ -1717,6 +1857,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - objectives: • Recover Resistor Codes • x/1
 - **TaRapedia mission list** [Indra Pass mission list](https://tabularasa.fandom.com/wiki/Indra_Pass_mission_list): zone Ashen Desert, area Indra Pass, given by Surveyor Malya Odesha
 
+- **Chain** (explicit prerequisite links): Missing Scientists chain (3 missions), step 1
+  - Leads to: God of Storms (id 1281) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/God_of_Storms), [TaRapedia](https://tabularasa.fandom.com/wiki/Missing_Scientists)
+  - Leads to: The Bonds of Blood (id 1282) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Bonds_of_Blood)
 ### 1281 — God of Storms
 
 - **Instance mentioned:** Bane Conscription Facility — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -1735,6 +1878,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - walkthrough: NOTE: Surveyer Endala Berish will offer you a competing quest to rescue her brother. Once you accept "god of storms" you cannot get see or accept her quest.
 - **TaRapedia mission list** [Indra Pass mission list](https://tabularasa.fandom.com/wiki/Indra_Pass_mission_list): zone Ashen Desert, area Indra Pass, given by Surveyor Malya Odesha
 
+- **Chain** (explicit prerequisite links): Missing Scientists chain (3 missions), step 2
+  - Requires: Missing Scientists (id 1280) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/God_of_Storms), [TaRapedia](https://tabularasa.fandom.com/wiki/Missing_Scientists)
 ### 1282 — The Bonds of Blood [instance]
 
 - **Instance:** Indra Caverns — NPC Researcher Endala Berish (NPC page lists this mission) is in Indra Caverns — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Researcher_Endala_Berish)
@@ -1755,6 +1900,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Researcher Endala Berish](https://tabularasa.fandom.com/wiki/Researcher_Endala_Berish): Ashen Desert, Indra Caverns, /loc 312, 324, 293 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Missing Scientists chain (3 missions), step 2
+  - Requires: Missing Scientists (id 1280) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Bonds_of_Blood)
 ### 1283 — Good Day to Die
 
 - **Rebuild summary:**
@@ -1812,6 +1959,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Yamamoto's Wedding Ring can be found on one of the many Thrax in the region — source: client text
   - The wedding ring is a random drop off Thrax in the area — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Dearly_Departed)
 
+- **Chain** (explicit prerequisite links): The Human Perspective chain (7 missions), step 4
+  - Requires: Court Martial Arts (id 1261) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Dearly_Departed)
+  - Leads to: Robotic Salvage Acquisitions (id 1267) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Robotic_Salvage_Acquisitions)
 ### 1286 — Precious Tools
 
 - **Rebuild summary:**
@@ -1846,6 +1996,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - walkthrough: Sally can be found around -439, -258.
 - **TaRapedia mission list** [Shadow's Edge Post mission list](https://tabularasa.fandom.com/wiki/Shadow%27s_Edge_Post_mission_list): zone Ashen Desert, area Shadow's Edge Post, given by Ida Hayner
 
+- **Chain** (explicit prerequisite links): Designer Jewelry Gone Wrong chain (2 missions), step 1
+  - Leads to: All the Latest Rage! (id 1293) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/All_the_Latest_Rage%21), [TaRapedia](https://tabularasa.fandom.com/wiki/Designer_Jewelry_Gone_Wrong)
 ### 1289 — I Wouldn't Wear It, But...
 
 - **Rebuild summary:**
@@ -1864,6 +2016,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Where (locations / coordinates):**
   - (275, -659) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/I_Wouldn%27t_Wear_It%2C_But...)
 
+- **Chain** (explicit prerequisite links): I Wouldn't Wear It, But... chain (2 missions), step 1
+  - Leads to: A New Fad (id 1291) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_New_Fad), [TaRapedia](https://tabularasa.fandom.com/wiki/I_Wouldn%27t_Wear_It%2C_But...)
 ### 1291 — A New Fad
 
 - **Rebuild summary:**
@@ -1880,6 +2034,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - walkthrough: Trudy can be found in the very nothern most area. -242.2 771.1
 - **TaRapedia mission list** [Shadow's Edge Post mission list](https://tabularasa.fandom.com/wiki/Shadow%27s_Edge_Post_mission_list): zone Ashen Desert, area Shadow's Edge Post, given by Ida Hayner
 
+- **Chain** (explicit prerequisite links): I Wouldn't Wear It, But... chain (2 missions), step 2
+  - Requires: I Wouldn't Wear It, But... (id 1289) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_New_Fad), [TaRapedia](https://tabularasa.fandom.com/wiki/I_Wouldn%27t_Wear_It%2C_But...)
 ### 1293 — All the Latest Rage!
 
 - **Rebuild summary:**
@@ -1896,6 +2052,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - walkthrough: Wendy is found at /loc -190 580, near the marker for Coheri Pools. This is in the northern tip of the zone map.
 - **TaRapedia mission list** [Shadow's Edge Post mission list](https://tabularasa.fandom.com/wiki/Shadow%27s_Edge_Post_mission_list): zone Ashen Desert, area Shadow's Edge Post, given by Ida Hayner
 
+- **Chain** (explicit prerequisite links): Designer Jewelry Gone Wrong chain (2 missions), step 2
+  - Requires: Designer Jewelry Gone Wrong (id 1287) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/All_the_Latest_Rage%21), [TaRapedia](https://tabularasa.fandom.com/wiki/Designer_Jewelry_Gone_Wrong)
 ### 1295 — Analyzing the Harvesters
 
 - **Rebuild summary:**
@@ -1911,6 +2069,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - objectives: • Analyze Harvester 1 • Analyze Harvester 2 • Analyze Harvester 3 • Analyze Harvester 4
 - **TaRapedia mission list** [White Oasis Post mission list](https://tabularasa.fandom.com/wiki/White_Oasis_Post_mission_list): zone Ashen Desert, area White Oasis Post, given by Captain Daris Linier
 
+- **Chain** (explicit prerequisite links): Analyzing the Harvesters chain (5 missions), step 1
+  - Leads to: Murky Waters (id 1298) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Analyzing_the_Harvesters), [TaRapedia](https://tabularasa.fandom.com/wiki/Murky_Waters)
 ### 1298 — Murky Waters
 
 - **Instance mentioned:** Bane Conscription Facility — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -1927,6 +2087,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - objectives: • Choose to help Agent Hale or the Colonel
 - **TaRapedia mission list** [White Oasis Post mission list](https://tabularasa.fandom.com/wiki/White_Oasis_Post_mission_list): zone Ashen Desert, area White Oasis Post, given by Agent Hale
 
+- **Chain** (explicit prerequisite links): Analyzing the Harvesters chain (5 missions), step 2
+  - Requires: Analyzing the Harvesters (id 1295) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Analyzing_the_Harvesters), [TaRapedia](https://tabularasa.fandom.com/wiki/Murky_Waters)
+  - Leads to: Water Purification (id 1299) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Murky_Waters)
+  - Leads to: Neurotoxins (id 1300) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Murky_Waters)
 ### 1299 — Water Purification
 
 - **Rebuild summary:**
@@ -1939,6 +2103,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - objectives (client): Recover 12 Granitour Water Glands
 - **Web:** zone: Arieki, Ligo, Ashen Desert (White Oasis Post); prerequisites: Murky Waters (listed as a follow-up of Murky Waters) Sources: [Murky Waters](https://tabularasa.fandom.com/wiki/Murky_Waters)
 
+- **Chain** (explicit prerequisite links): Analyzing the Harvesters chain (5 missions), step 3
+  - Requires: Murky Waters (id 1298) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Murky_Waters)
 ### 1300 — Neurotoxins
 
 - **Rebuild summary:**
@@ -1954,6 +2120,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - objectives: Recover 12 Lasher Poison Glands • Lasher Poison Gland 0/12
 - **TaRapedia mission list** [White Oasis Post mission list](https://tabularasa.fandom.com/wiki/White_Oasis_Post_mission_list): zone Ashen Desert, area White Oasis Post, given by Agent Hale
 
+- **Chain** (explicit prerequisite links): Analyzing the Harvesters chain (5 missions), step 3
+  - Requires: Murky Waters (id 1298) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Murky_Waters)
+  - Leads to: Poisoning the Wellwater (id 1302) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Neurotoxins), [TaRapedia](https://tabularasa.fandom.com/wiki/Poisoning_the_Wellwater)
+- **Requires (name not matched to a mission):** Murky Waters(Choice A) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Neurotoxins)
 ### 1302 — Poisoning the Wellwater
 
 - **Rebuild summary:**
@@ -1969,6 +2139,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - objectives: • Sabotage Harvester 1 • Sabotage Harvester 2 • Sabotage Harvester 3 • Sabotage Harvester 4
   - walkthrough: With /loc: • Harvester Control Panel 1 at -305.7, 198.1 • Harvester Control Panel 2 at -260.2, 340.6 • Harvester Control Panel 3 at -375.5, 394.1 • Harvester Control Panel 4 at -363.9, 510.7
 
+- **Chain** (explicit prerequisite links): Analyzing the Harvesters chain (5 missions), step 4
+  - Requires: Neurotoxins (id 1300) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Neurotoxins), [TaRapedia](https://tabularasa.fandom.com/wiki/Poisoning_the_Wellwater)
 ### 1303 — Prying Eyes
 
 - **Rebuild summary:**
@@ -2008,6 +2180,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Captain Aiko Yamamoto](https://tabularasa.fandom.com/wiki/Captain_Aiko_Yamamoto): Ashen Desert, Boneyard Outpost (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Fallen Soldiers chain (9 missions), step 2
+  - Requires: Xanxless Job (id 1262) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Death_from_Above)
+  - Requires: Fallen Soldiers (id 1263) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Death_from_Above), [TaRapedia](https://tabularasa.fandom.com/wiki/Fallen_Soldiers)
 ### 1354 — Turning Out the Lights
 
 - **Instance mentioned:** Bane Conscription Facility — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -2024,6 +2199,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - objectives: • Destroy Power Generator 1 • Destroy Power Generator 2 • Destroy Power Generator 3
 - **TaRapedia mission list** [Boneyard Outpost mission list](https://tabularasa.fandom.com/wiki/Boneyard_Outpost_mission_list): zone Ashen Desert, area Boneyard Outpost, given by Lieutenant Gabriel Infanger
 
+- **Chain** (explicit prerequisite links): Fallen Soldiers chain (9 missions), step 2
+  - Requires: Xanxless Job (id 1262) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Turning_Out_the_Lights)
+  - Requires: Fallen Soldiers (id 1263) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Turning_Out_the_Lights)
 ### 1355 — The Strongest Link
 
 - **Rebuild summary:**
@@ -2053,6 +2231,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Naxveik (Thrax): /loc 304,83, zone Ashen Desert — source: [Ellatha boss NPC](https://www.ellatha.com/tr/bossnpcview.asp?key=Naxveik&id=58)
 - **Ellatha boss NPC** [Naxveik](https://www.ellatha.com/tr/bossnpcview.asp?key=Naxveik&id=58): Thrax; /loc 304,83; zone Ashen Desert; needed for: Ashen Desert Targets of Opportunity (boss named in client text)
 
+- **Chain** (explicit prerequisite links): Fallen Soldiers chain (9 missions), step 4
+  - Requires: Xanxless Job (id 1262) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Strongest_Link_%28Ashen_Desert%29)
+  - Requires: Fallen Soldiers (id 1263) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Strongest_Link_%28Ashen_Desert%29)
+  - Requires: Look Before You Sabotage (id 1296) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Look_Before_You_Sabotage)
 ### 1356 — Gas Shortages
 
 - **Rebuild summary:**
@@ -2105,6 +2287,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - :Most were slaughtered during the attack, which must have come from somewhere within the caverns because our watch post at the entrance to the facility was attacked from behind — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Threshold)
 
+- **Chain** (explicit prerequisite links): Indra Caverns chain (4 missions), step 2
+  - Requires: Indra Caverns (id 1559) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Indra_Caverns_%28mission%29), [TaRapedia](https://tabularasa.fandom.com/wiki/Threshold)
+  - Leads to: Vindication (id 1395) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Threshold), [TaRapedia](https://tabularasa.fandom.com/wiki/Vindication)
+- **Requires an instance mission:** Indra Caverns (1559) — source: the chain links above
 ### 1395 — Vindication
 
 - **Instance mentioned:** Indra Caverns — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -2123,6 +2309,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - Use the Thrax Hand found on the Overseer's body to unlock Naimi's cell — source: client text
 
+- **Chain** (explicit prerequisite links): Indra Caverns chain (4 missions), step 3
+  - Requires: Threshold (id 1360) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Threshold), [TaRapedia](https://tabularasa.fandom.com/wiki/Vindication)
+  - Leads to: Digging for the Truth (id 1447) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Digging_for_the_Truth), [TaRapedia](https://tabularasa.fandom.com/wiki/Vindication)
 ### 1447 — Digging for the Truth
 
 - **Instance mentioned:** Indra Caverns — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -2139,6 +2328,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - objectives: • Restore Power and Use the Teleporters • Find the Rear Cave Entrance • Explore the Tunnel • Destroy Mining Equipment • Articulated Drill (1 of 6) • Articulated Drill (2 of 6) • Articulated Drill (3 of 6) • Articulated Drill (4 of 6) • Articulated Drill (5 of 6) • Articulated Drill (6 of 6)
 - **TaRapedia mission list** [Indra Caverns mission list](https://tabularasa.fandom.com/wiki/Indra_Caverns_mission_list): zone Ashen Desert, given by Sergeant Jonas Drof
 
+- **Chain** (explicit prerequisite links): Indra Caverns chain (4 missions), step 4
+  - Requires: Vindication (id 1395) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Digging_for_the_Truth), [TaRapedia](https://tabularasa.fandom.com/wiki/Vindication)
 ### 1451 — Subversion
 
 - **Instance mentioned:** Indra Caverns — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -2156,6 +2347,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - walkthrough: Take the east exit from the Juggernaut bay to reach the life support rooms. There are four switches on pedestals to activate - after you throw each one, 6 Thrax spawn. Once the objectives are complete, the mission text says to return to Sergeant Drof. However, the mission is completed by selecting the 'Radio HQ' button with the mission selected in the mission log, rather than by returning to the Sergeant.
 - **TaRapedia mission list** [Indra Caverns mission list](https://tabularasa.fandom.com/wiki/Indra_Caverns_mission_list): zone Ashen Desert, given by Sergeant Jonas Drof
 
+- **Chain** (explicit prerequisite links): Meet Sergeant Drof chain (2 missions), step 2
+  - Requires: Meet Sergeant Drof (id 1532) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Meet_Sergeant_Drof), [TaRapedia](https://tabularasa.fandom.com/wiki/Subversion)
 ### 1452 — Desistance
 
 - **Instance mentioned:** Indra Caverns — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -2190,6 +2383,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - walkthrough: Be sure to pick up the Dominate logos before entering the facility proper.
 - **TaRapedia mission list** [Bane Conscription Facility mission list](https://tabularasa.fandom.com/wiki/Bane_Conscription_Facility_mission_list): zone Ashen Desert, given by Capt. Peacock
 
+- **Chain** (explicit prerequisite links): Lockdown the Conscription Facility chain (6 missions), step 2
+  - Requires: Lockdown the Conscription Facility (id 1500) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Lockdown_the_Conscription_Facility), [TaRapedia](https://tabularasa.fandom.com/wiki/Raid_the_Conscription_Facility)
+  - Leads to: Blast the Biolab (id 1498) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Blast_the_Biolab), [TaRapedia](https://tabularasa.fandom.com/wiki/Raid_the_Conscription_Facility)
 ### 1498 — Blast the Biolab
 
 - **Instance mentioned:** Bane Conscription Facility — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -2208,6 +2404,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TaRapedia mission list** [Bane Conscription Facility mission list](https://tabularasa.fandom.com/wiki/Bane_Conscription_Facility_mission_list): zone Ashen Desert, given by Bane CommLink Terminal
 - **PlanetTR** [planettr.com:80/forums/archive/index.php/t-1365.html](https://web.archive.org/web/20071209022816/http://planettr.com:80/forums/archive/index.php/t-1365.html): “* Torcastra Prison: Fixed so the graveyard should display and work properly. / * Fixed: Blast the Biolab: Fixed objective indicators. / * Fixed: Into the Lion’s Den: Fixed objective indicators.”
 
+- **Chain** (explicit prerequisite links): Lockdown the Conscription Facility chain (6 missions), step 3
+  - Requires: Raid the Conscription Facility (id 1497) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Blast_the_Biolab), [TaRapedia](https://tabularasa.fandom.com/wiki/Raid_the_Conscription_Facility)
+  - Leads to: Into the Lion's Den (id 1499) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Blast_the_Biolab), [TaRapedia](https://tabularasa.fandom.com/wiki/Into_the_Lion%27s_Den)
+  - Leads to: What Makes Them Tick (id 1551) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Blast_the_Biolab), [TaRapedia](https://tabularasa.fandom.com/wiki/What_Makes_Them_Tick)
 ### 1499 — Into the Lion's Den
 
 - **Instance mentioned:** Bane Conscription Facility — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -2225,6 +2425,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - walkthrough: In order to get to the east wing, head directly south from the terminal where you accepted the quest to enter a maintenance section that connects the two wings. If you are worried about the time, you can simply run past most of the enemies here without engaging them. Moral quandries aside, saving the AFS Officer requires fighting three Atta bosses and a swarm of normal Atta in an open area, a nearly guaranteed recipe for a quick death and an agonizingly long walk back. In contrast, saving the Brann requires killing about four normal Atta and two Nitroglazers. To save the Brann, walk north …
 - **TaRapedia mission list** [Bane Conscription Facility mission list](https://tabularasa.fandom.com/wiki/Bane_Conscription_Facility_mission_list): zone Ashen Desert, given by Bane CommLink Terminal
 
+- **Chain** (explicit prerequisite links): Lockdown the Conscription Facility chain (6 missions), step 4
+  - Requires: Blast the Biolab (id 1498) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Blast_the_Biolab), [TaRapedia](https://tabularasa.fandom.com/wiki/Into_the_Lion%27s_Den)
+  - Leads to: Save the Queen (id 1501) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Into_the_Lion%27s_Den), [TaRapedia](https://tabularasa.fandom.com/wiki/Save_the_Queen)
 ### 1501 — Save the Queen
 
 - **Instance mentioned:** Bane Conscription Facility — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -2244,6 +2447,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Commander Jawan](https://tabularasa.fandom.com/wiki/Commander_Jawan): Thunderhead, Thunderhead Base (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Lockdown the Conscription Facility chain (6 missions), step 5
+  - Requires: Into the Lion's Den (id 1499) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Into_the_Lion%27s_Den), [TaRapedia](https://tabularasa.fandom.com/wiki/Save_the_Queen)
 ### 1532 — Meet Sergeant Drof
 
 - **Instance mentioned:** Indra Caverns — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -2260,6 +2465,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - objectives: • Proceed to Drof's New Location
 - **TaRapedia mission list** [Indra Caverns mission list](https://tabularasa.fandom.com/wiki/Indra_Caverns_mission_list): zone Ashen Desert, given by Headquarters
 
+- **Chain** (explicit prerequisite links): Meet Sergeant Drof chain (2 missions), step 1
+  - Leads to: Subversion (id 1451) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Meet_Sergeant_Drof), [TaRapedia](https://tabularasa.fandom.com/wiki/Subversion)
 ### 1551 — What Makes Them Tick [instance]
 
 - **Instance:** Bane Conscription Facility — client objective/log text: "Eliminate Enraged Atta and their Queen in the Bane Conscription Facility and return them to Cpt. Yamamoto in the …"
@@ -2282,6 +2489,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Captain Aiko Yamamoto](https://tabularasa.fandom.com/wiki/Captain_Aiko_Yamamoto): Ashen Desert, Boneyard Outpost (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Lockdown the Conscription Facility chain (6 missions), step 4
+  - Requires: Blast the Biolab (id 1498) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Blast_the_Biolab), [TaRapedia](https://tabularasa.fandom.com/wiki/What_Makes_Them_Tick)
 ### 1559 — Indra Caverns [instance]
 
 - **Instance:** Indra Caverns — client objective/log text: "Find Major Diren, he should be waiting for you just inside Indra Caverns."
@@ -2300,6 +2509,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TaRapedia mission list** [Indra Caverns mission list](https://tabularasa.fandom.com/wiki/Indra_Caverns_mission_list): zone Ashen Desert, given by Surveyor Malya Odesha
 - **GiddyGamer TR guides** [www.giddygamer.com:80/tabula/content/basics/zones.pdf](https://web.archive.org/web/20100326124735/http://www.giddygamer.com:80/tabula/content/basics/zones.pdf): “Indra Caverns Y / Known base camps / Known Instances / Lvl 32 - indicates the monster levels encountered in an instance / Almost all vendors offer repairs and ammo, plus a selection of wares specific to their trade. / Wormholes transport a character to a different planet - you don't need prior knowledge to use them / Drop Ships transport a character to another (known) dropship location in any zone or zone instance / Waypoints transport a character to a different locale within the zone - you must have previously visited the destination waypoint / Local Teleporters are generally found in Large Bases and Instances / Hospitals are resurrection points - when you die, you will be allowed to choose in which (known) hospital you wish to be revived / Information is based on in-game conditions during late beta testing, and can/will change frequently and without notice. / Revision Date: 2007/11/18 Icons © NCsoft © the Giddy Gamer http://www.giddygamer.com”
 
+- **Chain** (explicit prerequisite links): Indra Caverns chain (4 missions), step 1
+  - Leads to: Threshold (id 1360) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Indra_Caverns_%28mission%29), [TaRapedia](https://tabularasa.fandom.com/wiki/Threshold)
 ### 1580 — Ashen Desert Targets of Opportunity [implemented]
 
 - **Implemented:** enabled on the local server (content revision targets_1) — source: data/rasaworld.db, mission_content_definition
@@ -2352,6 +2563,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TR MMO DB** [Echoes in the Sand](https://web.archive.org/web/20081216162301/http://tr.mmodb.com:80/quests/echoes-in-the-sand-642.php): level: 30; starts at npc: Captain Amandla Botha; starts in zone: Ashen Desert; objectives: Escort Researchers to Daedalus' Landing, Escort Researchers back to Ashoka; reward: 8400
 - **TR MMO DB NPC** [Captain Amandla Botha](https://web.archive.org/web/20081216161843/http://tr.mmodb.com:80/bestiary/captain-amandla-botha-1022.php): Quest NPC, location Ashoka Settlement, zone Ashen Desert (starts this quest)
 
+- **Chain** (explicit prerequisite links): Making Amends chain (8 missions), step 5
+  - Requires: It Came From Erdas (id 1218) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Echoes_in_the_Sand), [TaRapedia](https://tabularasa.fandom.com/wiki/It_Came_From_Erdas)
 ## Avernus Outpost
 
 ### 1473 — Overly Sensitive [instance]
@@ -2423,6 +2636,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Captain Petrovich](https://tabularasa.fandom.com/wiki/Captain_Petrovich): Avernus Outpost, Atta Hive, /loc 952.0, 274.3, -275.0 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Petrovich's Run chain (4 missions), step 1
+  - Leads to: Assessing The Atta (id 1536) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Assessing_The_Atta), [TaRapedia](https://tabularasa.fandom.com/wiki/Petrovich%27s_Run)
 ### 1536 — Assessing The Atta [instance]
 
 - **Instance:** Avernus Outpost — NPC Captain Tananda (NPC page lists this mission) is in Avernus Outpost — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Captain_Tananda)
@@ -2442,6 +2657,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Captain Tananda](https://tabularasa.fandom.com/wiki/Captain_Tananda): Avernus Outpost, Cave In, /loc 467.4, 384.1, -97.5 (NPC page lists this mission)
   - [Captain Petrovich](https://tabularasa.fandom.com/wiki/Captain_Petrovich): Avernus Outpost, Atta Hive, /loc 952.0, 274.3, -275.0 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Petrovich's Run chain (4 missions), step 2
+  - Requires: Petrovich's Run (id 1535) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Assessing_The_Atta), [TaRapedia](https://tabularasa.fandom.com/wiki/Petrovich%27s_Run)
+  - Leads to: God Save the Queen (id 1537) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Assessing_The_Atta), [TaRapedia](https://tabularasa.fandom.com/wiki/God_Save_the_Queen)
+- **Requires an instance mission:** Petrovich's Run (1535) — source: the chain links above
 ### 1537 — God Save the Queen [instance]
 
 - **Instance:** Avernus Outpost — NPC Colonel Vandeweghe (NPC page lists this mission) is in Avernus Outpost — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Colonel_Vandeweghe)
@@ -2462,6 +2681,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Colonel Vandeweghe](https://tabularasa.fandom.com/wiki/Colonel_Vandeweghe): Avernus Outpost, Queen's Chamber, /loc 342.0, 231.8, -267.8 (NPC page lists this mission)
   - [Captain Petrovich](https://tabularasa.fandom.com/wiki/Captain_Petrovich): Avernus Outpost, Atta Hive, /loc 952.0, 274.3, -275.0 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Petrovich's Run chain (4 missions), step 3
+  - Requires: Assessing The Atta (id 1536) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Assessing_The_Atta), [TaRapedia](https://tabularasa.fandom.com/wiki/God_Save_the_Queen)
+  - Leads to: The Big Secret (id 1581) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/God_Save_the_Queen), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Big_Secret)
+- **Requires an instance mission:** Assessing The Atta (1536) — source: the chain links above
 ### 1581 — The Big Secret [instance]
 
 - **Instance:** Avernus Outpost — NPC Zuriel (NPC page lists this mission) is in Avernus Outpost — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Zuriel)
@@ -2482,6 +2705,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Captain Petrovich](https://tabularasa.fandom.com/wiki/Captain_Petrovich): Avernus Outpost, Atta Hive, /loc 952.0, 274.3, -275.0 (named as giver/receiver)
   - [Captain Aiko Yamamoto](https://tabularasa.fandom.com/wiki/Captain_Aiko_Yamamoto): Ashen Desert, Boneyard Outpost (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Petrovich's Run chain (4 missions), step 4
+  - Requires: God Save the Queen (id 1537) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/God_Save_the_Queen), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Big_Secret)
+- **Requires an instance mission:** God Save the Queen (1537) — source: the chain links above
 ## Bane Conscription Facility
 
 ### 1500 — Lockdown the Conscription Facility
@@ -2503,6 +2729,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Captain Aiko Yamamoto](https://tabularasa.fandom.com/wiki/Captain_Aiko_Yamamoto): Ashen Desert, Boneyard Outpost (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Lockdown the Conscription Facility chain (6 missions), step 1
+  - Leads to: Raid the Conscription Facility (id 1497) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Lockdown_the_Conscription_Facility), [TaRapedia](https://tabularasa.fandom.com/wiki/Raid_the_Conscription_Facility)
 ## Base
 
 ### 1309 — Impact Site
@@ -2522,6 +2750,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Major Silvia](https://tabularasa.fandom.com/wiki/Major_Silvia): Plains, Irendas Penal Colony, /loc 348, 430, -170 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Combat Ground Patrol: Plains chain (4 missions), step 2
+  - Requires: Combat Ground Patrol: Plains (id 1022) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Combat_Ground_Patrol%3A_Plains), [TaRapedia](https://tabularasa.fandom.com/wiki/Impact_Site)
+  - Leads to: Speak to Captain Reyko (id 1310) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Impact_Site), [TaRapedia](https://tabularasa.fandom.com/wiki/Speak_to_Captain_Reyko)
 ## Bootcamp
 
 ### 1990 — Initiation [implemented]
@@ -2538,6 +2769,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Local server:** revision `deployment_11`, level 1, solo, category 1 (Battlefield (Crucible)), giver Major McAllister
   - reward: 100 XP; 100 credits
 
+- **Chain** (explicit prerequisite links): Initiation chain (4 missions), step 1
+  - Leads to: Gearing Up for Battle (id 1992) — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 1992 — Gearing Up for Battle [implemented] [instance]
 
 - **Implemented:** enabled on the local server (content revision deployment_11) — source: data/rasaworld.db, mission_content_definition
@@ -2559,6 +2792,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **PlayTR EU** [eu.playtr.com/en/news_article/d114_and_d115_on_pts](https://web.archive.org/web/20090107021306/http://eu.playtr.com/en/news_article/d114_and_d115_on_pts): “Tutorial: “Footlockers” pop-up now contains an active “Read More” button. / Fixed typo in mission “Gearing Up For Battle” in Bootcamp. / Bootcamp: Planting the bomb with 5 seconds left on the timer will no longer break the mission scripting.”
 - **RGTR official site** [www.rgtr.com/news/patch_notes_public_test/deployment_114_8082008.html](https://web.archive.org/web/20081114031718/http://www.rgtr.com/news/patch_notes_public_test/deployment_114_8082008.html): “ixed mission "Mama Miasma" so that it will complete. Tutorial: "Footlockers" pop-up now contains an active "Read More" button. Fixed typo in mission "Gearing Up For Battle" in Bootcamp. Bootcamp: Planting the bomb with 5 seconds left on the timer will no longer break the mission scripting. Clan Lockbox: Players can now separate items into both stacks and singles. Clan Window: Sorting by player name and by map should now work properly. Leader …”
 
+- **Chain** (explicit prerequisite links): Initiation chain (4 missions), step 2
+  - Requires: Initiation (id 1990) — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Capture the Flag (id 1994) — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 1994 — Capture the Flag [implemented] [instance]
 
 - **Implemented:** enabled on the local server (content revision deployment_11) — source: data/rasaworld.db, mission_content_definition
@@ -2579,6 +2815,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **PlanetTR** [www.planettr.com:80/forums/showthread.php?s=9b42e3bf211cf9527dad913910 …](https://web.archive.org/web/20071109160758/http://www.planettr.com:80/forums/showthread.php?s=9b42e3bf211cf9527dad91391031c81e&t=1157&page=2): “Originally Posted by QtheMuse / There will even be AFS sanctioned Rivalry Zones where players have strategic objectives to fight over such as Capture the Flag, and Hold the Location. / Rivalry Zones isn't too bad a name, but I'd recommend "Training Centers" instead, the idea being that it could be something similar to the Army's National Training Center, or the Air Force's Red Flag. Then maybe, as players, a higher-level clan could "train" a …”
 - **PlayTR EU** [eu.rgtr.com:80/en/news_article/elder_game_content](https://web.archive.org/web/20071011031340/http://eu.rgtr.com:80/en/news_article/elder_game_content): “arning bonuses while they control them. There will even be AFS sanctioned Rivalry Zones where players have strategic objectives to fight over such as Capture the Flag, and Hold the Location.”
 
+- **Chain** (explicit prerequisite links): Initiation chain (4 missions), step 3
+  - Requires: Gearing Up for Battle (id 1992) — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Calling for Reinforcements (id 1995) — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+- **Requires an instance mission:** Gearing Up for Battle (1992) — source: the chain links above
 ### 1995 — Calling for Reinforcements [implemented]
 
 - **Implemented:** enabled on the local server (content revision deployment_11) — source: data/rasaworld.db, mission_content_definition
@@ -2596,6 +2836,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Outpost Commander Rogers](https://tabularasa.fandom.com/wiki/Outpost_Commander_Rogers): Wilderness, Alia Das, /loc 870.0, 294.2, 385.5 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Initiation chain (4 missions), step 4
+  - Requires: Capture the Flag (id 1994) — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+- **Requires an instance mission:** Capture the Flag (1994) — source: the chain links above
 ### 2005 — Calling for Reinforcements [implemented]
 
 - **Implemented:** enabled on the local server (content revision deployment_11) — source: data/rasaworld.db, mission_content_definition
@@ -2663,6 +2906,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - No word has come from the Caves of Donn in some time — source: client text
 
+- **Chain** (explicit prerequisite links): To the Caves chain (2 missions), step 2
+  - Requires: To the Caves (id 859) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Too_Quiet)
 ### 691 — Body Count [instance]
 
 - **Instance:** Caves of Donn — NPC Dying Forean (NPC page lists this mission) is in Caves of Donn — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Dying_Forean)
@@ -2706,6 +2951,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Dying Forean - Caves of Donn](https://www.ellatha.com/tr/npcview.asp?key=Dying+Forean+%2D+Caves+of+Donn&id=57): Forean; loc -245,24,-283; zone Caves of Donn (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Lost Forean](https://www.ellatha.com/tr/npcview.asp?key=Lost+Forean&id=58): Forean; loc -203,7,-109; zone Caves of Donn (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Body Count chain (3 missions), step 1
+  - Leads to: What Evil Lurks (id 692) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Body_Count), [TaRapedia](https://tabularasa.fandom.com/wiki/What_Evil_Lurks)
 ### 692 — What Evil Lurks [instance]
 
 - **Instance:** Caves of Donn — NPC Lost Forean (NPC page lists this mission) is in Caves of Donn — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Lost_Forean)
@@ -2748,6 +2995,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - :"We’ve uploaded the data from the datapad you found on the Excavator — source: [TaRapedia](https://tabularasa.fandom.com/wiki/What_Evil_Lurks)
 
+- **Chain** (explicit prerequisite links): Body Count chain (3 missions), step 2
+  - Requires: Body Count (id 691) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Body_Count), [TaRapedia](https://tabularasa.fandom.com/wiki/What_Evil_Lurks)
+  - Leads to: The Reason Why (id 693) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Reason_Why), [TaRapedia](https://tabularasa.fandom.com/wiki/What_Evil_Lurks)
+- **Requires an instance mission:** Body Count (691) — source: the chain links above
 ### 693 — The Reason Why [instance]
 
 - **Instance:** Caves of Donn — client objective/log text: "Elder Nekala has asked you to preserve the legacy of the Foreans and the Eloh within the Caves of Donn. As a reward, …"
@@ -2775,6 +3026,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Where (locations / coordinates):**
   - You can find the first switch in front of a statue around -161.2, 37.7, -326.3 grabbing your update. — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/caves-of-donn-instance)
 
+- **Chain** (explicit prerequisite links): Body Count chain (3 missions), step 3
+  - Requires: What Evil Lurks (id 692) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Reason_Why), [TaRapedia](https://tabularasa.fandom.com/wiki/What_Evil_Lurks)
+- **Requires an instance mission:** What Evil Lurks (692) — source: the chain links above
 ## Crater Lake Research Facility
 
 ### 711 — Return to Sender [instance]
@@ -2801,6 +3055,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Captain Velns](https://tabularasa.fandom.com/wiki/Captain_Velns): Crater Lake Research Facility, Crater Lake Research Facility, /loc 30.0, 140.0, 200.0 (named as giver/receiver)
 - **Ellatha NPC** [Captain Velns](https://www.ellatha.com/tr/npcview.asp?key=Captain+Velns&id=74): Human; loc 32,139,199; zone Crater Lake Research (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Destroying the Evidence chain (4 missions), step 3
+  - Requires: Reclaiming What's Ours (id 1056) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Reclaiming_What%27s_Ours), [TaRapedia](https://tabularasa.fandom.com/wiki/Return_to_Sender)
+- **Requires an instance mission:** Reclaiming What's Ours (1056) — source: the chain links above
 ### 1054 — We Be Jammin' [instance]
 
 - **Instance:** Crater Lake Research Facility — NPC Captain Velns (NPC page lists this mission) is in Crater Lake Research Facility — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Captain_Velns)
@@ -2829,6 +3086,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Captain Velns](https://tabularasa.fandom.com/wiki/Captain_Velns): Crater Lake Research Facility, Crater Lake Research Facility, /loc 30.0, 140.0, 200.0 (NPC page lists this mission)
 - **Ellatha NPC** [Captain Velns](https://www.ellatha.com/tr/npcview.asp?key=Captain+Velns&id=74): Human; loc 32,139,199; zone Crater Lake Research (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): The Dead Live chain (4 missions), step 2
+  - Requires: The Dead Live (id 450) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Dead_Live), [TaRapedia](https://tabularasa.fandom.com/wiki/We_Be_Jammin%27)
+  - Leads to: Ghost in the Machine (id 1059) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/We_Be_Jammin%27)
+- **Requires an instance mission:** The Dead Live (450) — source: the chain links above
 ### 1056 — Reclaiming What's Ours [instance]
 
 - **Instance:** Crater Lake Research Facility — NPC Daniel Corman (named as giver/receiver) is in Crater Lake Research Facility — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Daniel_Corman)
@@ -2861,6 +3122,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Daniel Corman](https://www.ellatha.com/tr/npcview.asp?key=Daniel+Corman&id=75): Human; loc 19,71,-14; zone Crater Lake Research (Ellatha lists this mission for the NPC)
 - **Ellatha boss NPC** [Overseer Tyryd](https://www.ellatha.com/tr/bossnpcview.asp?key=Overseer+Tyryd&id=45): Thrax Technician; level 9; zone Crater Lake Research; Located inside the base!; needed for: Reclaiming What's Ours (Ellatha lists this mission under "Needed for Quests")
 
+- **Chain** (explicit prerequisite links): Destroying the Evidence chain (4 missions), step 2
+  - Requires: Destroying the Evidence (id 1055) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Destroying_the_Evidence), [TaRapedia](https://tabularasa.fandom.com/wiki/Reclaiming_What%27s_Ours)
+  - Leads to: Return to Sender (id 711) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Reclaiming_What%27s_Ours), [TaRapedia](https://tabularasa.fandom.com/wiki/Return_to_Sender)
+  - Leads to: Bending the Rules (id 1065) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bending_the_Rules), [TaRapedia](https://tabularasa.fandom.com/wiki/Reclaiming_What%27s_Ours)
+- **Requires an instance mission:** Destroying the Evidence (1055) — source: the chain links above
 ### 1059 — Ghost in the Machine
 
 - **Instance mentioned:** Crater Lake Research Facility — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -2892,6 +3158,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Dr. Franja Corman](https://www.ellatha.com/tr/npcview.asp?key=Dr%2E+Franja+Corman&id=48): Human; loc -716,170,-325; zone Wilderness (Ellatha lists this mission for the NPC)
 - **Ellatha boss NPC** [Hominis Machina Lt. Casper](https://www.ellatha.com/tr/bossnpcview.asp?key=Hominis+Machina+Lt%2E+Casper&id=44): Machina; level 9; /loc -272,168,-54; zone Crater Lake Research; needed for: Ghost in the Machine (Ellatha lists this mission under "Needed for Quests")
 
+- **Chain** (explicit prerequisite links): The Dead Live chain (4 missions), step 3
+  - Requires: We Be Jammin' (id 1054) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/We_Be_Jammin%27)
+  - Requires: The Dead Live (id 450) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Ghost_in_the_Machine)
+  - Leads to: Mending A Broken Heart (id 446) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Ghost_in_the_Machine), [TaRapedia](https://tabularasa.fandom.com/wiki/Mending_A_Broken_Heart)
+- **Requires an instance mission:** We Be Jammin' (1054), The Dead Live (450) — source: the chain links above
 ### 1065 — Bending the Rules [instance]
 
 - **Instance:** Crater Lake Research Facility — NPC Daniel Corman (NPC page lists this mission) is in Crater Lake Research Facility — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Daniel_Corman)
@@ -2918,6 +3189,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Daniel Corman](https://tabularasa.fandom.com/wiki/Daniel_Corman): Crater Lake Research Facility, Crater Lake Research Facility, /loc 20.0, 70.0, -10.0 (NPC page lists this mission)
 - **Ellatha NPC** [Daniel Corman](https://www.ellatha.com/tr/npcview.asp?key=Daniel+Corman&id=75): Human; loc 19,71,-14; zone Crater Lake Research (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Destroying the Evidence chain (4 missions), step 3
+  - Requires: Reclaiming What's Ours (id 1056) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bending_the_Rules), [TaRapedia](https://tabularasa.fandom.com/wiki/Reclaiming_What%27s_Ours)
+- **Requires an instance mission:** Reclaiming What's Ours (1056) — source: the chain links above
 ## Crucible
 
 ### 1142 — The Last Men Standing
@@ -2938,6 +3212,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Corporal Shandy](https://tabularasa.fandom.com/wiki/Corporal_Shandy): Crucible, Outpost Intrepid (named as giver/receiver)
   - [Captain DeLisi](https://tabularasa.fandom.com/wiki/Captain_DeLisi): Crucible, Outpost Intrepid (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 1
+  - Leads to: A Fort Called Intrepid (id 1150) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Last_Man_Standing)
 ### 1143 — The Departed
 
 - **Rebuild summary:**
@@ -2979,6 +3255,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Lieutenant Sherer](https://tabularasa.fandom.com/wiki/Lieutenant_Sherer): Crucible, Outpost Intrepid (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Calendar Girl chain (2 missions), step 1
+  - Leads to: Stray Cats (id 1152) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Stray_Cats)
 ### 1145 — The Wire
 
 - **Rebuild summary:**
@@ -2997,6 +3275,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Captain DeLisi](https://tabularasa.fandom.com/wiki/Captain_DeLisi): Crucible, Outpost Intrepid (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 3
+  - Requires: A Fort Called Intrepid (id 1150) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Fort_Called_Intrepid), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Wire)
+  - Leads to: The Boss Of All Bosses (id 1161) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Boss_Of_All_Bosses), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Wire)
 ### 1146 — The Protection Racket
 
 - **Rebuild summary:**
@@ -3018,6 +3299,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [Larai Syndicate Token](https://tabularasa.fandom.com/wiki/Larai_Syndicate_Token): Overview: The is only given out to those who have proven themselves worthy. The token represents that you are one of the most loyal and trustworthy members of the Viddia Syndicate. Rumours tell that, to this day, only a select few is in possession of this token, and Larai Grupa Vitto …
 
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 5
+  - Requires: The Boss Of All Bosses (id 1161) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Protection_Racket)
 ### 1147 — Game Wardens
 
 - **Instance mentioned:** Warden bot facility — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -3040,6 +3323,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [Viddia Syndicate Token](https://tabularasa.fandom.com/wiki/Viddia_Syndicate_Token): Overview: The is only given out to those who have proven themselves worthy. The token represents that you are one of the most loyal and trustworthy members of the Viddia Syndicate. Rumours tell that, to this day, only a select few is in possession of this token, and Viddia Grupa …
 
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 5
+  - Requires: The Boss Of All Bosses (id 1161) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Game_Wardens)
+  - Leads to: Architects Of Destruction (id 1202) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Architects_Of_Destruction), [TaRapedia](https://tabularasa.fandom.com/wiki/Game_Wardens)
+  - Leads to: Sadistic Sabotage (id 1445) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Sadistic_Sabotage)
 ### 1148 — Smoking Guns
 
 - **Rebuild summary:**
@@ -3061,6 +3348,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [Top Khana Syndicate Token](https://tabularasa.fandom.com/wiki/Top_Khana_Syndicate_Token): Overview: The is only given out to those who have proven themselves worthy. The token represents that you are one of the most loyal and trustworthy members of the Top Khana Syndicate. Rumours tell that, to this day, only a select few is in possession of this token, and Top Khana …
 
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 5
+  - Requires: The Boss Of All Bosses (id 1161) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Smoking_Guns)
+  - Leads to: Out Of Sight (id 1208) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Out_Of_Sight)
 ### 1149 — Junkyard Dogs
 
 - **Instance mentioned:** Staal Junkyard — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -3086,6 +3376,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [Labbna Syndicate Token](https://tabularasa.fandom.com/wiki/Labbna_Syndicate_Token): Overview: The is only given out to those who have proven themselves worthy. The token represents that you are one of the most loyal and trustworthy members of the Labbna Syndicate. Rumours tell that, to this day, only a select few is in possession of this token, and Labbna Grupa Rigs …
 
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 5
+  - Requires: The Boss Of All Bosses (id 1161) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Junkyard_Dogs)
+  - Leads to: Salvage Duty (id 1203) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Junkyard_Dogs), [TaRapedia](https://tabularasa.fandom.com/wiki/Salvage_Duty)
 ### 1150 — A Fort Called Intrepid
 
 - **Rebuild summary:**
@@ -3104,6 +3397,12 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Captain DeLisi](https://tabularasa.fandom.com/wiki/Captain_DeLisi): Crucible, Outpost Intrepid (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 2
+  - Requires: The Last Men Standing (id 1142) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Last_Man_Standing)
+  - Leads to: The Wire (id 1145) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Fort_Called_Intrepid), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Wire)
+  - Leads to: Minesweeper (id 1232) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Minesweeper)
+  - Leads to: Funeral Derge (id 1241) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Fort_Called_Intrepid), [TaRapedia](https://tabularasa.fandom.com/wiki/Funeral_Derge)
+- **Requires (name not matched to a mission):** The Last Man Standing — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Fort_Called_Intrepid)
 ### 1152 — Stray Cats
 
 - **Rebuild summary:**
@@ -3132,6 +3431,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Intelligence Officer D'Ambrose](https://tabularasa.fandom.com/wiki/Intelligence_Officer_D%27Ambrose): Crucible, Outpost Intrepid (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Calendar Girl chain (2 missions), step 2
+  - Requires: Calendar Girl (id 1144) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Stray_Cats)
 ### 1153 — The Other Side Of The Coin
 
 - **Rebuild summary:**
@@ -3155,6 +3456,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Awol Sergeant Breiburg](https://tabularasa.fandom.com/wiki/Awol_Sergeant_Breiburg): Crucible, AWOL Camp (named as giver/receiver)
   - [Intelligence Officer D'Ambrose](https://tabularasa.fandom.com/wiki/Intelligence_Officer_D%27Ambrose): Crucible, Outpost Intrepid (named in client text)
 
+- **Chain** (explicit prerequisite links): Making Amends chain (8 missions), step 1
+  - Leads to: Heads Will Roll (id 1206) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Heads_Will_Roll)
+- **Requires (name not matched to a mission):** Stray Cats (in mission log) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Other_Side_Of_The_Coin)
 ### 1155 — Making Amends
 
 - **Rebuild summary:**
@@ -3177,6 +3481,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Awol Sergeant Breiburg](https://tabularasa.fandom.com/wiki/Awol_Sergeant_Breiburg): Crucible, AWOL Camp (named as giver/receiver)
   - [Intelligence Officer D'Ambrose](https://tabularasa.fandom.com/wiki/Intelligence_Officer_D%27Ambrose): Crucible, Outpost Intrepid (named in client text)
 
+- **Chain** (explicit prerequisite links): Making Amends chain (8 missions), step 1
+  - Leads to: Heads Will Roll (id 1206) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Heads_Will_Roll), [TaRapedia](https://tabularasa.fandom.com/wiki/Making_Amends)
+  - Leads to: Not My Junk (id 1538) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Making_Amends), [TaRapedia](https://tabularasa.fandom.com/wiki/Not_My_Junk)
+- **Requires (name not matched to a mission):** Stray Cats (completed) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Making_Amends)
 ### 1157 — Whiplash
 
 - **Rebuild summary:**
@@ -3216,6 +3524,13 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Kappa Grupa Lohen](https://tabularasa.fandom.com/wiki/Kappa_Grupa_Lohen): Crucible (named as giver/receiver)
   - [Boss](https://tabularasa.fandom.com/wiki/Boss): no location on page (named in client text)
 
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 4
+  - Requires: The Wire (id 1145) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Boss_Of_All_Bosses), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Wire)
+  - Leads to: The Protection Racket (id 1146) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Protection_Racket)
+  - Leads to: Game Wardens (id 1147) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Game_Wardens)
+  - Leads to: Smoking Guns (id 1148) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Smoking_Guns)
+  - Leads to: Junkyard Dogs (id 1149) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Junkyard_Dogs)
+  - Leads to: Earning Respect (id 1170) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Earning_Respect), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Boss_Of_All_Bosses)
 ### 1170 — Earning Respect
 
 - **Rebuild summary:**
@@ -3240,6 +3555,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Kappa Grupa Lohen](https://tabularasa.fandom.com/wiki/Kappa_Grupa_Lohen): Crucible (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 5
+  - Requires: The Boss Of All Bosses (id 1161) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Earning_Respect), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Boss_Of_All_Bosses)
+  - Leads to: Irreconcilable Differences (id 1185) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Irreconcilable_Differences)
+  - Leads to: Business Proposal (id 1229) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Business_Proposal), [TaRapedia](https://tabularasa.fandom.com/wiki/Earning_Respect)
 ### 1185 — Irreconcilable Differences
 
 - **Rebuild summary:**
@@ -3266,6 +3585,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - Molitor wears a necklace of bones taken from his victims — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Irreconcilable_Differences)
 
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 6
+  - Requires: Earning Respect (id 1170) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Irreconcilable_Differences)
 ### 1202 — Architects Of Destruction
 
 - **Rebuild summary:**
@@ -3287,6 +3608,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Viddia Sigal Nema](https://tabularasa.fandom.com/wiki/Viddia_Sigal_Nema): Crucible, Staal Infirmary (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 6
+  - Requires: Game Wardens (id 1147) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Architects_Of_Destruction), [TaRapedia](https://tabularasa.fandom.com/wiki/Game_Wardens)
 ### 1203 — Salvage Duty
 
 - **Rebuild summary:**
@@ -3305,6 +3628,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Labbna Sigal Haggus](https://tabularasa.fandom.com/wiki/Labbna_Sigal_Haggus): Crucible, Labbna Quarter (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 6
+  - Requires: Junkyard Dogs (id 1149) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Junkyard_Dogs), [TaRapedia](https://tabularasa.fandom.com/wiki/Salvage_Duty)
+  - Leads to: More Salvage Duty (id 1204) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/More_Salvage_Duty), [TaRapedia](https://tabularasa.fandom.com/wiki/Salvage_Duty)
 ### 1204 — More Salvage Duty
 
 - **Rebuild summary:**
@@ -3325,6 +3651,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - These can also be found on the Warden Bots and Reconstructor Bots, but they are not so common — source: [TaRapedia](https://tabularasa.fandom.com/wiki/More_Salvage_Duty)
 
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 7
+  - Requires: Salvage Duty (id 1203) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/More_Salvage_Duty), [TaRapedia](https://tabularasa.fandom.com/wiki/Salvage_Duty)
 ### 1205 — Sweet Revenge
 
 - **Rebuild summary:**
@@ -3347,6 +3675,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Awol Sergeant Breiburg](https://tabularasa.fandom.com/wiki/Awol_Sergeant_Breiburg): Crucible, AWOL Camp (named as giver/receiver)
   - [Intelligence Officer D'Ambrose](https://tabularasa.fandom.com/wiki/Intelligence_Officer_D%27Ambrose): Crucible, Outpost Intrepid (named in client text)
 
+- **Chain** (explicit prerequisite links): Making Amends chain (8 missions), step 1
+  - Leads to: Heads Will Roll (id 1206) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Sweet_Revenge)
+  - Leads to: Not My Junk (id 1538) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Not_My_Junk)
+- **Requires (name not matched to a mission):** The Other Side Of The Coin (option 1) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Sweet_Revenge)
 ### 1206 — Heads Will Roll
 
 - **Rebuild summary:**
@@ -3384,6 +3716,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha boss NPC** [Coercer Mungrel](https://www.ellatha.com/tr/bossnpcview.asp?key=Coercer+Mungrel&id=68): zone Crucible; needed for: Crucible Targets of Opportunity (boss named in client text)
 - **Ellatha boss NPC** [Defiler Sedge](https://www.ellatha.com/tr/bossnpcview.asp?key=Defiler+Sedge&id=69): zone Crucible; needed for: Crucible Targets of Opportunity (boss named in client text)
 
+- **Chain** (explicit prerequisite links): Making Amends chain (8 missions), step 2
+  - Requires: The Other Side Of The Coin (id 1153) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Heads_Will_Roll)
+  - Requires: Making Amends (id 1155) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Heads_Will_Roll), [TaRapedia](https://tabularasa.fandom.com/wiki/Making_Amends)
+  - Requires: Sweet Revenge (id 1205) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Sweet_Revenge)
 ### 1208 — Out Of Sight
 
 - **Rebuild summary:**
@@ -3402,6 +3738,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Top Khana Sigal Pico](https://tabularasa.fandom.com/wiki/Top_Khana_Sigal_Pico): Crucible, Staal Detention Center (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 6
+  - Requires: Smoking Guns (id 1148) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Out_Of_Sight)
 ### 1210 — Prometheus Rising
 
 - **Rebuild summary:**
@@ -3421,6 +3759,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Captain DeLisi](https://tabularasa.fandom.com/wiki/Captain_DeLisi): Crucible, Outpost Intrepid (named as giver/receiver)
   - [Major Keplinger](https://tabularasa.fandom.com/wiki/Major_Keplinger): Crucible, Prometheus Outpost (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 7
+  - Requires: Business Proposal (id 1229) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Business_Proposal), [TaRapedia](https://tabularasa.fandom.com/wiki/Prometheus_Rising)
 ### 1212 — Confirmed Kills
 
 - **Rebuild summary:**
@@ -3442,6 +3782,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Larai Zupa Madias](https://tabularasa.fandom.com/wiki/Larai_Zupa_Madias): Mires, Control Point: Prometheus Outpost, /loc 378.9, 168.0, 367.6 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 7
+  - Requires: Business Proposal (id 1229) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Confirmed_Kills)
+  - Leads to: Iron Giants (id 1213) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Confirmed_Kills), [TaRapedia](https://tabularasa.fandom.com/wiki/Iron_Giants)
+- **TR MMO DB quest series:** "Confirmed Kills", row 1 of 4 ([list](https://web.archive.org/web/20120731162239/http://tr.mmodb.com/quests/seriesname-confirmed_kills/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1213 — Iron Giants
 
 - **Rebuild summary:**
@@ -3463,6 +3807,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Larai Zupa Madias](https://tabularasa.fandom.com/wiki/Larai_Zupa_Madias): Mires, Control Point: Prometheus Outpost, /loc 378.9, 168.0, 367.6 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 8
+  - Requires: Confirmed Kills (id 1212) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Confirmed_Kills), [TaRapedia](https://tabularasa.fandom.com/wiki/Iron_Giants)
+  - Leads to: Who's In Charge Here? (id 1215) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Iron_Giants), [TaRapedia](https://tabularasa.fandom.com/wiki/Who%27s_In_Charge_Here%3F)
+- **TR MMO DB quest series:** "Confirmed Kills", row 2 of 4 ([list](https://web.archive.org/web/20120731162239/http://tr.mmodb.com/quests/seriesname-confirmed_kills/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1214 — Strike Zone
 
 - **Rebuild summary:**
@@ -3481,6 +3829,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Major Keplinger](https://tabularasa.fandom.com/wiki/Major_Keplinger): Crucible, Prometheus Outpost (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Pump Up The Jam chain (2 missions), step 2
+  - Requires: Pump Up The Jam (id 1224) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Pump_Up_The_Jam), [TaRapedia](https://tabularasa.fandom.com/wiki/Strike_Zone)
 ### 1215 — Who's In Charge Here?
 
 - **Rebuild summary:**
@@ -3502,6 +3852,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Larai Zupa Madias](https://tabularasa.fandom.com/wiki/Larai_Zupa_Madias): Mires, Control Point: Prometheus Outpost, /loc 378.9, 168.0, 367.6 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 9
+  - Requires: Iron Giants (id 1213) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Iron_Giants), [TaRapedia](https://tabularasa.fandom.com/wiki/Who%27s_In_Charge_Here%3F)
+  - Leads to: The Big Kahuna (id 1216) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Big_Kahuna), [TaRapedia](https://tabularasa.fandom.com/wiki/Who%27s_In_Charge_Here%3F)
+- **TR MMO DB quest series:** "Confirmed Kills", row 4 of 4 ([list](https://web.archive.org/web/20120731162239/http://tr.mmodb.com/quests/seriesname-confirmed_kills/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1216 — The Big Kahuna
 
 - **Rebuild summary:**
@@ -3527,6 +3881,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Larai Zupa Madias](https://tabularasa.fandom.com/wiki/Larai_Zupa_Madias): Mires, Control Point: Prometheus Outpost, /loc 378.9, 168.0, 367.6 (NPC page lists this mission)
 - **Ellatha boss NPC** [Maxxum Ugoretz](https://www.ellatha.com/tr/bossnpcview.asp?key=Maxxum+Ugoretz&id=70): zone Crucible; needed for: Crucible Targets of Opportunity (boss named in client text)
 
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 10
+  - Requires: Who's In Charge Here? (id 1215) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Big_Kahuna), [TaRapedia](https://tabularasa.fandom.com/wiki/Who%27s_In_Charge_Here%3F)
+- **TR MMO DB quest series:** "Confirmed Kills", row 3 of 4 ([list](https://web.archive.org/web/20120731162239/http://tr.mmodb.com/quests/seriesname-confirmed_kills/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1217 — Point Of Impact
 
 - **Rebuild summary:**
@@ -3551,6 +3908,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [Eloh Resonator](https://tabularasa.fandom.com/wiki/Eloh_Resonator): Overview: The Eloh Resonator is an Eloh artifact that was found at the Eloh Crash Site near Devil's Pitchfork in Crucible. The item was most likely carried onboard the crashed Eloh vessel, which is believed to be some kind of escape pod launched from Erdas. The artifact is currently …
 
+- **Chain** (explicit prerequisite links): Making Amends chain (8 missions), step 3
+  - Requires: Not My Junk (id 1538) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Not_My_Junk), [TaRapedia](https://tabularasa.fandom.com/wiki/Point_Of_Impact)
+  - Leads to: It Came From Erdas (id 1218) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/It_Came_From_Erdas), [TaRapedia](https://tabularasa.fandom.com/wiki/Point_Of_Impact)
+- **Requires an instance mission:** Not My Junk (1538) — source: the chain links above
 ### 1218 — It Came From Erdas
 
 - **Rebuild summary:**
@@ -3574,6 +3935,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Kardash Eloh Obelisk](https://tabularasa.fandom.com/wiki/Kardash_Eloh_Obelisk): Crucible, Eloh Crash Site (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Making Amends chain (8 missions), step 4
+  - Requires: Point Of Impact (id 1217) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/It_Came_From_Erdas), [TaRapedia](https://tabularasa.fandom.com/wiki/Point_Of_Impact)
+  - Leads to: Echoes in the Sand (id 1736) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Echoes_in_the_Sand), [TaRapedia](https://tabularasa.fandom.com/wiki/It_Came_From_Erdas)
 ### 1224 — Pump Up The Jam
 
 - **Rebuild summary:**
@@ -3593,6 +3957,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Captain Tiersky](https://tabularasa.fandom.com/wiki/Captain_Tiersky): Crucible, Prometheus Outpost (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Pump Up The Jam chain (2 missions), step 1
+  - Leads to: Strike Zone (id 1214) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Pump_Up_The_Jam), [TaRapedia](https://tabularasa.fandom.com/wiki/Strike_Zone)
 ### 1229 — Business Proposal
 
 - **Rebuild summary:**
@@ -3610,6 +3976,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Kappa Grupa Lohen](https://tabularasa.fandom.com/wiki/Kappa_Grupa_Lohen): Crucible (named as giver/receiver)
   - [Captain DeLisi](https://tabularasa.fandom.com/wiki/Captain_DeLisi): Crucible, Outpost Intrepid (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 6
+  - Requires: Earning Respect (id 1170) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Business_Proposal), [TaRapedia](https://tabularasa.fandom.com/wiki/Earning_Respect)
+  - Leads to: Prometheus Rising (id 1210) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Business_Proposal), [TaRapedia](https://tabularasa.fandom.com/wiki/Prometheus_Rising)
+  - Leads to: Confirmed Kills (id 1212) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Confirmed_Kills)
+  - Leads to: Careful Negotiation (id 1519) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Careful_Negotiation)
 ### 1232 — Minesweeper
 
 - **Rebuild summary:**
@@ -3629,6 +4000,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Private Drake](https://tabularasa.fandom.com/wiki/Private_Drake): Crucible, Outpost Intrepid (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 3
+  - Requires: A Fort Called Intrepid (id 1150) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Minesweeper)
 ### 1241 — Funeral Derge
 
 - **Rebuild summary:**
@@ -3656,6 +4029,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha boss NPC** [Executioner Derge](https://www.ellatha.com/tr/bossnpcview.asp?key=Executioner+Derge): zone Crucible; Patrols around Fort Intrepid ruins walls, use strairs to get up top; needed for: Crucible Targets of Opportunity (boss named in client text)
 - **Ellatha boss NPC** [Executioner Derge](https://www.ellatha.com/tr/bossnpcview.asp?key=Executioner+Derge&id=65): zone Crucible; Patrols around Fort Intrepid ruins walls, use strairs to get up top; needed for: Crucible Targets of Opportunity (boss named in client text)
 
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 3
+  - Requires: A Fort Called Intrepid (id 1150) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Fort_Called_Intrepid), [TaRapedia](https://tabularasa.fandom.com/wiki/Funeral_Derge)
 ### 1398 — Leaky Pipes [instance]
 
 - **Instance:** Incurables Ward — an objective conversation's NPC package 1640 spawns in this instance (map 2141) — source: client objectiveconversation + data/rasaworld.db
@@ -3738,6 +4113,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Supervisor Sheira](https://tabularasa.fandom.com/wiki/Supervisor_Sheira): Crucible, Incurables Ward (named as giver/receiver)
   - [Engineer Dhimand](https://tabularasa.fandom.com/wiki/Engineer_Dhimand): Crucible, Incurables Ward (named in client text)
 
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 7
+  - Requires: Sadistic Sabotage (id 1445) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Lost_in_the_Asylum), [TaRapedia](https://tabularasa.fandom.com/wiki/Sadistic_Sabotage)
+- **Requires an instance mission:** Sadistic Sabotage (1445) — source: the chain links above
 ### 1445 — Sadistic Sabotage [instance]
 
 - **Instance:** Incurables Ward — an objective conversation's NPC package 1640 spawns in this instance (map 2141) — source: client objectiveconversation + data/rasaworld.db
@@ -3763,6 +4141,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Viddia Sigal Nema](https://tabularasa.fandom.com/wiki/Viddia_Sigal_Nema): Crucible, Staal Infirmary (named as giver/receiver)
   - [Supervisor Sheira](https://tabularasa.fandom.com/wiki/Supervisor_Sheira): Crucible, Incurables Ward (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 6
+  - Requires: Game Wardens (id 1147) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Sadistic_Sabotage)
+  - Leads to: Lost in the Asylum (id 1444) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Lost_in_the_Asylum), [TaRapedia](https://tabularasa.fandom.com/wiki/Sadistic_Sabotage)
 ### 1519 — Careful Negotiation [instance]
 
 - **Instance:** Staal Junkyard — NPC Cirkin (named as giver/receiver) is in Staal Junkyard — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Cirkin)
@@ -3782,6 +4163,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Captain DeLisi](https://tabularasa.fandom.com/wiki/Captain_DeLisi): Crucible, Outpost Intrepid (named as giver/receiver)
   - [Cirkin](https://tabularasa.fandom.com/wiki/Cirkin): Crucible, Staal Junkyard (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 7
+  - Requires: Business Proposal (id 1229) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Careful_Negotiation)
+  - Leads to: Your Part of the Bargain (id 1529) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Careful_Negotiation), [TaRapedia](https://tabularasa.fandom.com/wiki/Your_Part_of_the_Bargain)
 ### 1521 — Control the Brain
 
 - **Rebuild summary:**
@@ -3808,6 +4192,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Cipher Specialist Brian](https://tabularasa.fandom.com/wiki/Cipher_Specialist_Brian): Crucible, Chaukas Robotics Facility (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Get to Chaukas chain (5 missions), step 2
+  - Requires: Get to Chaukas (id 1577) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Control_the_Brain), [TaRapedia](https://tabularasa.fandom.com/wiki/Get_to_Chaukas)
+  - Leads to: Fix the Factory (id 1522) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Control_the_Brain), [TaRapedia](https://tabularasa.fandom.com/wiki/Fix_the_Factory)
 ### 1522 — Fix the Factory
 
 - **Rebuild summary:**
@@ -3829,6 +4216,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Cipher Specialist Brian](https://tabularasa.fandom.com/wiki/Cipher_Specialist_Brian): Crucible, Chaukas Robotics Facility (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Get to Chaukas chain (5 missions), step 3
+  - Requires: Control the Brain (id 1521) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Control_the_Brain), [TaRapedia](https://tabularasa.fandom.com/wiki/Fix_the_Factory)
+  - Leads to: Factory Fortification (id 1523) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Factory_Fortification), [TaRapedia](https://tabularasa.fandom.com/wiki/Fix_the_Factory)
 ### 1523 — Factory Fortification
 
 - **Rebuild summary:**
@@ -3853,6 +4243,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Cipher Specialist Brian](https://tabularasa.fandom.com/wiki/Cipher_Specialist_Brian): Crucible, Chaukas Robotics Facility (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Get to Chaukas chain (5 missions), step 4
+  - Requires: Fix the Factory (id 1522) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Factory_Fortification), [TaRapedia](https://tabularasa.fandom.com/wiki/Fix_the_Factory)
+  - Leads to: Information is Key (id 1525) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Factory_Fortification), [TaRapedia](https://tabularasa.fandom.com/wiki/Information_is_Key)
 ### 1525 — Information is Key
 
 - **Rebuild summary:**
@@ -3877,6 +4270,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Cipher Specialist Brian](https://tabularasa.fandom.com/wiki/Cipher_Specialist_Brian): Crucible, Chaukas Robotics Facility (named as giver/receiver)
   - [Information Analyst Ruben](https://tabularasa.fandom.com/wiki/Information_Analyst_Ruben): Crucible, Outpost Intrepid (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Get to Chaukas chain (5 missions), step 5
+  - Requires: Factory Fortification (id 1523) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Factory_Fortification), [TaRapedia](https://tabularasa.fandom.com/wiki/Information_is_Key)
 ### 1529 — Your Part of the Bargain [instance]
 
 - **Instance:** Staal Junkyard — NPC Cirkin (named as giver/receiver) is in Staal Junkyard — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Cirkin)
@@ -3908,6 +4303,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - They are small, blue crystal-shaped items that can be found on the ground — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Your_Part_of_the_Bargain)
 
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 8
+  - Requires: Careful Negotiation (id 1519) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Careful_Negotiation), [TaRapedia](https://tabularasa.fandom.com/wiki/Your_Part_of_the_Bargain)
+  - Leads to: Rising Up (id 1534) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Rising_Up), [TaRapedia](https://tabularasa.fandom.com/wiki/Your_Part_of_the_Bargain)
+- **Requires an instance mission:** Careful Negotiation (1519) — source: the chain links above
 ### 1538 — Not My Junk [instance]
 
 - **Instance:** Staal Junkyard — NPC Cirkin (named in client text) is in Staal Junkyard — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Cirkin)
@@ -3936,6 +4335,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Awol Captain Cheung](https://tabularasa.fandom.com/wiki/Awol_Captain_Cheung): Crucible (NPC page lists this mission)
   - [Cirkin](https://tabularasa.fandom.com/wiki/Cirkin): Crucible, Staal Junkyard (named in client text)
 
+- **Chain** (explicit prerequisite links): Making Amends chain (8 missions), step 2
+  - Requires: Making Amends (id 1155) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Making_Amends), [TaRapedia](https://tabularasa.fandom.com/wiki/Not_My_Junk)
+  - Requires: Sweet Revenge (id 1205) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Not_My_Junk)
+  - Leads to: Point Of Impact (id 1217) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Not_My_Junk), [TaRapedia](https://tabularasa.fandom.com/wiki/Point_Of_Impact)
 ### 1577 — Get to Chaukas
 
 - **Rebuild summary:**
@@ -3958,6 +4361,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Information Analyst Ruben](https://tabularasa.fandom.com/wiki/Information_Analyst_Ruben): Crucible, Outpost Intrepid (named as giver/receiver)
   - [Cipher Specialist Brian](https://tabularasa.fandom.com/wiki/Cipher_Specialist_Brian): Crucible, Chaukas Robotics Facility (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Get to Chaukas chain (5 missions), step 1
+  - Leads to: Control the Brain (id 1521) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Control_the_Brain), [TaRapedia](https://tabularasa.fandom.com/wiki/Get_to_Chaukas)
 ### 1589 — Crucible Targets of Opportunity [implemented] [instance]
 
 - **Implemented:** enabled on the local server (content revision targets_1) — source: data/rasaworld.db, mission_content_definition
@@ -4029,6 +4434,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Viddea Scientist Eugin](https://tabularasa.fandom.com/wiki/Viddea_Scientist_Eugin): Crucible, Staal Detention Center (named as giver/receiver)
   - [Special Agent Capriulo](https://tabularasa.fandom.com/wiki/Special_Agent_Capriulo): Crucible, Staal Detention Center (named in client text)
 
+- **Chain** (explicit prerequisite links): Dark Genesis chain (4 missions), step 1
+  - Leads to: The Gene Machine (id 1857) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Dark_Genesis), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Gene_Machine)
+- **Requires (name not matched to a mission):** Level 36 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Dark_Genesis)
 ### 1857 — The Gene Machine
 
 - **Rebuild summary:**
@@ -4060,6 +4468,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Rendylitic Calibrator](https://tabularasa.fandom.com/wiki/Rendylitic_Calibrator): Found at -431 276
   - [Vanadium Redox Power Cell](https://tabularasa.fandom.com/wiki/Vanadium_Redox_Power_Cell): Found at -451 247, -401 220, and -413 253
 
+- **Chain** (explicit prerequisite links): Dark Genesis chain (4 missions), step 2
+  - Requires: Dark Genesis (id 1856) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Dark_Genesis), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Gene_Machine)
+  - Leads to: Designer Genes (id 1881) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Designer_Genes), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Gene_Machine)
+- **TR MMO DB quest series:** "The Gene Machine", row 3 of 3 ([list](https://web.archive.org/web/20120731170342/http://tr.mmodb.com/quests/seriesname-the_gene_machine/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1881 — Designer Genes
 
 - **Rebuild summary:**
@@ -4085,6 +4497,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Viddea Scientist Eugin](https://tabularasa.fandom.com/wiki/Viddea_Scientist_Eugin): Crucible, Staal Detention Center (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Dark Genesis chain (4 missions), step 3
+  - Requires: The Gene Machine (id 1857) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Designer_Genes), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Gene_Machine)
+  - Leads to: Genome Sweet Genome (id 1899) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Designer_Genes), [TaRapedia](https://tabularasa.fandom.com/wiki/Genome_Sweet_Genome)
+- **TR MMO DB quest series:** "The Gene Machine", row 1 of 3 ([list](https://web.archive.org/web/20120731170342/http://tr.mmodb.com/quests/seriesname-the_gene_machine/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1899 — Genome Sweet Genome
 
 - **Rebuild summary:**
@@ -4110,6 +4526,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Viddea Scientist Eugin](https://tabularasa.fandom.com/wiki/Viddea_Scientist_Eugin): Crucible, Staal Detention Center (named as giver/receiver)
   - [Special Agent Capriulo](https://tabularasa.fandom.com/wiki/Special_Agent_Capriulo): Crucible, Staal Detention Center (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Dark Genesis chain (4 missions), step 4
+  - Requires: Designer Genes (id 1881) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Designer_Genes), [TaRapedia](https://tabularasa.fandom.com/wiki/Genome_Sweet_Genome)
+- **TR MMO DB quest series:** "The Gene Machine", row 2 of 3 ([list](https://web.archive.org/web/20120731170342/http://tr.mmodb.com/quests/seriesname-the_gene_machine/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ## Descent
 
 ### 1348 — Take a Flying Leap
@@ -4130,6 +4549,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **RGTR official site** [rgtr.com:80/news/patch_notes/patch_notes_and_known_issues_109.html](https://web.archive.org/web/20071011062613/http://rgtr.com:80/news/patch_notes/patch_notes_and_known_issues_109.html): “Issue: Cannot turn in mission / Foreas Valverde Descent / Mission: Take a Flying Leap / Issue: The mission does not complete if you choose to jump 3 times / Mission: Just the Artifacts, Man”
 - **RGTR official site** [www.rgtr.com/news/patch_notes/patch_notes_and_known_issues_0.html](https://web.archive.org/web/20081117172617/http://www.rgtr.com/news/patch_notes/patch_notes_and_known_issues_0.html): “rently has a bug where you cannot deploy one mine of each type at the same time. You can currently only deploy 3 different types at a time. / Mission: Take a Flying Leap (Descent): Does not complete or fail if you choose to continue to jump 3 times. / Mission: Release the Hounds (Torden:Mires): Fort Haroun Officer traitor regens too fast.”
 
+- **Chain** (explicit prerequisite links): Take a Flying Leap chain (2 missions), step 1
+  - Leads to: The Skeletons in your Closet (id 1359) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_skeletons_in_your_closet)
 ### 1351 — The General's Daughter
 
 - **Rebuild summary:**
@@ -4160,6 +4581,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - walkthrough: The locations to travel to to complete this mission are not marked. The first objective completes by traveling through the transporter near Corporal Cannell, marked "Wormhole Transport", and proceeding to the center of the room you arrive in. Then proceed back through the transport and up to the weapons shop, not the armor shop as it says in your mission list.
 - **TaRapedia mission list** [Fort Virgil mission list](https://tabularasa.fandom.com/wiki/Fort_Virgil_mission_list): zone Descent, area Fort Virgil, given by Corporal Cannell
 
+- **Chain** (explicit prerequisite links): Take a Flying Leap chain (2 missions), step 2
+  - Requires: Take a Flying Leap (id 1348) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_skeletons_in_your_closet)
 ### 1461 — Raging Inferno [instance]
 
 - **Instance:** Outpost Inferno — client objective/log text: "Report to Captain Shaw on the path to Outpost Inferno"
@@ -4179,6 +4602,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TaRapedia mission list** [Antaeus Hollow mission list](https://tabularasa.fandom.com/wiki/Antaeus_Hollow_mission_list): zone Descent, area Antaeus Hollow, given by Captain Maddox
 - **IGN TR boards** [vnboards.ign.com/tabula_rasa_general_board/b22750/106585290/r106594805 …](https://web.archive.org/web/20080518034441/http://vnboards.ign.com/tabula_rasa_general_board/b22750/106585290/r106594805/): “* Fixed Plains: Rock and Rumble mission item to go into correct inventory slot. / * Fixed Descent: Raging Inferno to delete the correct number of spawns when abandoned. / * Fixed reward levels in Pravus Research.”
 
+- **Requires (name not matched to a mission):** Level 46 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Raging_Inferno)
 ### 1462 — Defender of the Weak
 
 - **Rebuild summary:**
@@ -4218,6 +4642,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Commander Merrick](https://tabularasa.fandom.com/wiki/Commander_Merrick): Descent, Merrick's Quarters, /loc 382, 389, 277 (named in client text)
 
+- **Chain** (explicit prerequisite links): Special Deliveries chain (15 missions), step 1
+  - Leads to: Fortuna Smiles (id 1465) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Fortuna_Smiles)
 ### 1465 — Fortuna Smiles
 
 - **Rebuild summary:**
@@ -4238,6 +4664,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha boss NPC** [Fortuna](https://www.ellatha.com/tr/bossnpcview.asp?key=Fortuna): zone Descent; Storyline Bosses. To get to them easily, enter a teleporter at 650, 120, then take a quick left and enter another teleporter. Fortuna is here, to get to Merrick, go forward into another teleporter. You must be level 47 to complete the appropriate quest, and have finished the delivery mission for the commander in Fort Virgil.; needed for: Descent Targets of Opportunity (boss named in client text)
 - **Ellatha boss NPC** [Fortuna](https://www.ellatha.com/tr/bossnpcview.asp?key=Fortuna&id=78): zone Descent; Storyline Bosses. To get to them easily, enter a teleporter at 650, 120, then take a quick left and enter another teleporter. Fortuna is here, to get to Merrick, go forward into another teleporter. You must be level 47 to complete the appropriate quest, and have finished the delivery mission for the commander in Fort Virgil.; needed for: Descent Targets of Opportunity (boss named in client text)
 
+- **Chain** (explicit prerequisite links): Special Deliveries chain (15 missions), step 2
+  - Requires: Special Deliveries (id 1464) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Fortuna_Smiles)
+  - Leads to: Into the Refuge (id 1553) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Into_the_Refuge)
+  - Leads to: Into the Refuge (id 1558) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Into_the_Refuge)
 ### 1466 — Betrayal of Fortuna
 
 - **Rebuild summary:**
@@ -4265,6 +4695,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha boss NPC** [Fortuna](https://www.ellatha.com/tr/bossnpcview.asp?key=Fortuna): zone Descent; Storyline Bosses. To get to them easily, enter a teleporter at 650, 120, then take a quick left and enter another teleporter. Fortuna is here, to get to Merrick, go forward into another teleporter. You must be level 47 to complete the appropriate quest, and have finished the delivery mission for the commander in Fort Virgil.; needed for: Descent Targets of Opportunity (boss named in client text)
 - **Ellatha boss NPC** [Fortuna](https://www.ellatha.com/tr/bossnpcview.asp?key=Fortuna&id=78): zone Descent; Storyline Bosses. To get to them easily, enter a teleporter at 650, 120, then take a quick left and enter another teleporter. Fortuna is here, to get to Merrick, go forward into another teleporter. You must be level 47 to complete the appropriate quest, and have finished the delivery mission for the commander in Fort Virgil.; needed for: Descent Targets of Opportunity (boss named in client text)
 
+- **Chain** (explicit prerequisite links): Eloh Down and Dirty chain (2 missions), step 2
+  - Requires: Eloh Down and Dirty (id 1471) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Betrayal_of_Fortuna), [TaRapedia](https://tabularasa.fandom.com/wiki/Eloh_Down_and_Dirty)
 ### 1467 — Beacon in the Night
 
 - **Rebuild summary:**
@@ -4283,6 +4715,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TaRapedia mission list** [Antaeus Hollow mission list](https://tabularasa.fandom.com/wiki/Antaeus_Hollow_mission_list): zone Descent, area Antaeus Hollow, given by Field Sergeant Tick
 - **TR MMO DB** [Beacon in the Night](https://web.archive.org/web/20080829155557/http://tr.mmodb.com/quests/beacon-in-the-night-340.php): level: 45; starts at npc: Field Sergeant Tick; starts in zone: Descent; objectives: Activate any of the Predator Radio-Controlled Beacons, Return to Field Sergeant Tick; reward: 7050
 
+- **Requires (name not matched to a mission):** Level 46 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Beacon_in_the_Night)
 ### 1468 — Drill Instructors
 
 - **Rebuild summary:**
@@ -4304,6 +4737,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - related mob Preceptor Gissa (not in the archived bestiary pages)
 - **TR MMO DB NPC** [Captain Maddox](https://web.archive.org/web/20081121161255/http://tr.mmodb.com/bestiary/captain-maddox-746.php): Quest NPC, location Antaeus Hollow, zone Descent (starts this quest)
 
+- **Requires (name not matched to a mission):** Level 46 ??? — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Drill_Instructors)
 ### 1470 — Take it or Leave it
 
 - **Rebuild summary:**
@@ -4316,6 +4750,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - objectives (client): Deliver the note... and perhaps the armor... to Specialist Crowley
 - **Web:** zone: Foreas / Valverde / Descent — Prerequisite for 'Seismic Situation' (given by Specialist Crowley at Antaeus Hollow); that page says to return to the tunnels where 'Take it or Leave it' was picked up. Sources: [Seismic Situation - TaRapedia](https://tabularasa.fandom.com/wiki/Seismic_Situation)
 
+- **Chain** (explicit prerequisite links): Take it or Leave it chain (5 missions), step 1
+  - Leads to: Seismic Situation (id 1488) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Seismic_Situation)
+  - Leads to: Seismic Situation (id 1550) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Seismic_Situation)
 ### 1471 — Eloh Down and Dirty
 
 - **Instance mentioned:** The Refuge — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -4341,6 +4778,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - And me and my boys are going to find out the secret, you better believe it! It's all down to the science - that same 'science' that your little Logos powers come from — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Eloh_Down_and_Dirty)
 
+- **Chain** (explicit prerequisite links): Eloh Down and Dirty chain (2 missions), step 1
+  - Leads to: Betrayal of Fortuna (id 1466) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Betrayal_of_Fortuna), [TaRapedia](https://tabularasa.fandom.com/wiki/Eloh_Down_and_Dirty)
 ### 1488 — Seismic Situation
 
 - **Rebuild summary:**
@@ -4356,6 +4795,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - objectives: Download Seismic Data from the Upper Tier Console: Download Seismic Data from the Lower Tier Console: Download Seismic Data from the Master Console:
   - walkthrough: Return to the area where you initially picked up Take it or Leave it. Inside the tunnels, fight your way through the hordes of Bane which are even thicker than usual and ascend the spiral ramp. Up here you will find three consoles very near one another - each of which must be used once the area has been cleared. As soon as all consoles have been used, you will get a radio call to complete the mission to be immediately followed by Operation Wolves Den.
 
+- **Chain** (explicit prerequisite links): Take it or Leave it chain (5 missions), step 2
+  - Requires: Take it or Leave it (id 1470) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Seismic_Situation)
+  - Leads to: Operation Wolves Den (id 1489) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Operation_Wolves_Den), [TaRapedia](https://tabularasa.fandom.com/wiki/Seismic_Situation)
+  - Leads to: Operation Wolves Den (id 1490) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Operation_Wolves_Den), [TaRapedia](https://tabularasa.fandom.com/wiki/Seismic_Situation)
 ### 1489 — Operation Wolves Den
 
 - **Rebuild summary:**
@@ -4372,6 +4815,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - walkthrough: Exit the Bane tunnels the way you came and, at the exit, head due north. You can sneak around the east wall of the nearby capture point and drop down to the laser drill. Follow whatever route around the pit and head up the northern incline. Take out the Bane roaming at the top and head due north when the incline ends. Behind a rock outcropping south of Antaeus Hollow is Agent Karloff. Map location 121, 463
 - **TaRapedia mission list** [Antaeus Hollow mission list](https://tabularasa.fandom.com/wiki/Antaeus_Hollow_mission_list): zone Descent, area Antaeus Hollow, given by Specialist Crowley
 
+- **Chain** (explicit prerequisite links): Take it or Leave it chain (5 missions), step 3
+  - Requires: Seismic Situation (id 1488) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Operation_Wolves_Den), [TaRapedia](https://tabularasa.fandom.com/wiki/Seismic_Situation)
+  - Requires: Seismic Situation (id 1550) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Operation_Wolves_Den), [TaRapedia](https://tabularasa.fandom.com/wiki/Seismic_Situation)
 ### 1490 — Operation Wolves Den
 
 - **Rebuild summary:**
@@ -4388,6 +4834,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - walkthrough: Exit the Bane tunnels the way you came and, at the exit, head due north. You can sneak around the east wall of the nearby capture point and drop down to the laser drill. Follow whatever route around the pit and head up the northern incline. Take out the Bane roaming at the top and head due north when the incline ends. Behind a rock outcropping south of Antaeus Hollow is Agent Karloff. Map location 121, 463
 - **TaRapedia mission list** [Antaeus Hollow mission list](https://tabularasa.fandom.com/wiki/Antaeus_Hollow_mission_list): zone Descent, area Antaeus Hollow, given by Specialist Crowley
 
+- **Chain** (explicit prerequisite links): Take it or Leave it chain (5 missions), step 3
+  - Requires: Seismic Situation (id 1488) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Operation_Wolves_Den), [TaRapedia](https://tabularasa.fandom.com/wiki/Seismic_Situation)
+  - Requires: Seismic Situation (id 1550) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Operation_Wolves_Den), [TaRapedia](https://tabularasa.fandom.com/wiki/Seismic_Situation)
 ### 1502 — Power Grab
 
 - **Instance mentioned:** Outpost Inferno — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -4432,6 +4881,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Commander Merrick](https://tabularasa.fandom.com/wiki/Commander_Merrick): Descent, Merrick's Quarters, /loc 382, 389, 277 (named in client text)
 - **Ellatha boss NPC** [Commander Merrick](https://www.ellatha.com/tr/bossnpcview.asp?key=Commander+Merrick&id=79): zone Descent; Storyline Bosses. To get to them easily, enter a teleporter at 650, 120, then take a quick left and enter another teleporter. Fortuna is here, to get to Merrick, go forward into another teleporter. You must be level 47 to complete the appropriate quest, and have finished the delivery mission for the commander in Fort Virgil.; needed for: Descent Targets of Opportunity (boss named in client text)
 
+- **Chain** (explicit prerequisite links): Inferno at the Outpost chain (4 missions), step 3
+  - Requires: Interception (Descent) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Betrayal), [TaRapedia](https://tabularasa.fandom.com/wiki/Interception_%28Descent%29)
 ### 1505 — Tenacity
 
 - **Instance mentioned:** Outpost Inferno — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -4452,6 +4903,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TR MMO DB quest series** [Inferno At The Outpost](https://web.archive.org/web/20120731163711/http://tr.mmodb.com/quests/seriesname-inferno_at_the_outpost/): Inferno At The Outpost (level 45, reward 4800) → Tenacity (level 45, reward 7200) (series order as listed on the page; reward unit not stated)
 - **TR MMO DB NPC** [Captain Marcus Kayle](https://web.archive.org/web/20081121082559/http://tr.mmodb.com/bestiary/captain-marcus-kayle-765.php): Quest NPC, location Outpost Inferno, zone Descent (starts this quest)
 
+- **Chain** (explicit prerequisite links): Inferno at the Outpost chain (4 missions), step 2
+  - Requires: Inferno at the Outpost (id 1528) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Inferno_at_the_Outpost), [TaRapedia](https://tabularasa.fandom.com/wiki/Tenacity)
+- **TR MMO DB quest series:** "Inferno At The Outpost", row 2 of 2 ([list](https://web.archive.org/web/20120731163711/http://tr.mmodb.com/quests/seriesname-inferno_at_the_outpost/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** Inferno at the Outpost (1528) — source: the chain links above
 ### 1528 — Inferno at the Outpost [instance]
 
 - **Instance:** Outpost Inferno — client objective/log text: "Report to Captain Kayle inside Outpost Inferno."
@@ -4474,6 +4929,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TR MMO DB quest series** [Inferno At The Outpost](https://web.archive.org/web/20120731163711/http://tr.mmodb.com/quests/seriesname-inferno_at_the_outpost/): Inferno At The Outpost (level 45, reward 4800) → Tenacity (level 45, reward 7200) (series order as listed on the page; reward unit not stated)
 - **TR MMO DB NPC** [Captain Marcus Kayle](https://web.archive.org/web/20081121082559/http://tr.mmodb.com/bestiary/captain-marcus-kayle-765.php): Quest NPC, location Outpost Inferno, zone Descent (related to this quest)
 
+- **Chain** (explicit prerequisite links): Inferno at the Outpost chain (4 missions), step 1
+  - Leads to: Tenacity (id 1505) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Inferno_at_the_Outpost), [TaRapedia](https://tabularasa.fandom.com/wiki/Tenacity)
+  - Leads to: Interception (Descent) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Interception_%28Descent%29)
+- **TR MMO DB quest series:** "Inferno At The Outpost", row 1 of 2 ([list](https://web.archive.org/web/20120731163711/http://tr.mmodb.com/quests/seriesname-inferno_at_the_outpost/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1539 — Mox-a-million
 
 - **Rebuild summary:**
@@ -4515,6 +4974,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - objectives: Download Seismic Data from the Upper Tier Console: Download Seismic Data from the Lower Tier Console: Download Seismic Data from the Master Console:
   - walkthrough: Return to the area where you initially picked up Take it or Leave it. Inside the tunnels, fight your way through the hordes of Bane which are even thicker than usual and ascend the spiral ramp. Up here you will find three consoles very near one another - each of which must be used once the area has been cleared. As soon as all consoles have been used, you will get a radio call to complete the mission to be immediately followed by Operation Wolves Den.
 
+- **Chain** (explicit prerequisite links): Take it or Leave it chain (5 missions), step 2
+  - Requires: Take it or Leave it (id 1470) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Seismic_Situation)
+  - Leads to: Operation Wolves Den (id 1489) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Operation_Wolves_Den), [TaRapedia](https://tabularasa.fandom.com/wiki/Seismic_Situation)
+  - Leads to: Operation Wolves Den (id 1490) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Operation_Wolves_Den), [TaRapedia](https://tabularasa.fandom.com/wiki/Seismic_Situation)
 ### 1553 — Into the Refuge [instance]
 
 - **Instance:** The Refuge — NPC Lt. Hatch (named as giver/receiver) is in The Refuge — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Lt._Hatch)
@@ -4542,6 +5005,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Lt. Hatch](https://tabularasa.fandom.com/wiki/Lt._Hatch): The Refuge, Contact (named as giver/receiver)
   - [Commander Merrick](https://tabularasa.fandom.com/wiki/Commander_Merrick): Descent, Merrick's Quarters, /loc 382, 389, 277 (listed under this NPC on a TaRapedia mission list)
 
+- **Chain** (explicit prerequisite links): Special Deliveries chain (15 missions), step 3
+  - Requires: Fortuna Smiles (id 1465) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Into_the_Refuge)
+  - Leads to: Race to the Finish (id 1552) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Into_the_Refuge), [TaRapedia](https://tabularasa.fandom.com/wiki/Race_to_the_Finish)
+- **TR MMO DB quest series:** "Into The Refuge", row 3 of 4 ([list](https://web.archive.org/web/20120731162020/http://tr.mmodb.com/quests/seriesname-into_the_refuge/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1558 — Into the Refuge [instance]
 
 - **Instance:** The Refuge — NPC Lt. Hatch (named as giver/receiver) is in The Refuge — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Lt._Hatch)
@@ -4569,6 +5036,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Lt. Hatch](https://tabularasa.fandom.com/wiki/Lt._Hatch): The Refuge, Contact (named as giver/receiver)
   - [Commander Merrick](https://tabularasa.fandom.com/wiki/Commander_Merrick): Descent, Merrick's Quarters, /loc 382, 389, 277 (listed under this NPC on a TaRapedia mission list)
 
+- **Chain** (explicit prerequisite links): Special Deliveries chain (15 missions), step 3
+  - Requires: Fortuna Smiles (id 1465) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Into_the_Refuge)
+  - Leads to: Race to the Finish (id 1552) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Into_the_Refuge), [TaRapedia](https://tabularasa.fandom.com/wiki/Race_to_the_Finish)
+- **TR MMO DB quest series:** "Into The Refuge", row 3 of 4 ([list](https://web.archive.org/web/20120731162020/http://tr.mmodb.com/quests/seriesname-into_the_refuge/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1561 — Merrick and his Mercenaries
 
 - **Rebuild summary:**
@@ -4657,6 +5128,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TaRapedia mission list** [Sanctus Grotto mission list](https://tabularasa.fandom.com/wiki/Sanctus_Grotto_mission_list): zone Descent, given by Headquarters
 - **PlayTR EU** [eu.rgtr.com:80/en/news_article/patch_notes_and_known_issues_29th_novem …](https://web.archive.org/web/20071201203306/http://eu.rgtr.com:80/en/news_article/patch_notes_and_known_issues_29th_november_2007): “Valverede Divide: Sanctus Grotto: Mission rewards have been added to the new missions “Baneful Excavations”, “Nothing But Nests”, “The Hidden Grotto”, and “A Holy Cave”.”
 
+- **Requires (name not matched to a mission):** Level Requirement 50 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Baneful_Excavations)
 ### 1772 — The Secret of Sanctus Grotto [instance]
 
 - **Instance:** Sanctus Grotto — client objective/log text: "Locate the secret Forean Temple hidden within Sanctus Grotto."
@@ -4676,6 +5148,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TaRapedia mission list** [Sanctus Grotto mission list](https://tabularasa.fandom.com/wiki/Sanctus_Grotto_mission_list): zone Descent, given by Captain Danny Bowers
 - **IGN TR Vault** [tabularasavault.ign.com/wiki/index.php/Sanctus_Grotto](https://web.archive.org/web/20080723153725/http://tabularasavault.ign.com/wiki/index.php/Sanctus_Grotto): “ou your first mission inside. Note: this will be the last mission you accomplish in here, head to complete the other missions you get in here first. / The Secret of Sanctus Grotto / Find the Hidden Path”
 
+- **Requires (name not matched to a mission):** Level Requirement 50 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Secret_of_Sanctus_Grotto)
 ### 1913 — Head for the Hills [instance]
 
 - **Instance:** Runi Valley — client objective/log text: "Head to Descent and find Pilot Engalls. He'll be able to take you to Runi Valley."
@@ -4752,6 +5225,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [Battle Plans](https://tabularasa.fandom.com/wiki/Battle_Plans): Found on Thrax defending their outpost in Benefactor Valley.
 
+- **Chain** (explicit prerequisite links): Bane Battle Plans chain (2 missions), step 1
+  - Leads to: Bringing the Battle Home (id 621) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bane_Battle_Plans_%28Divide%29)
 ### 332 — Ammo Express
 
 - **Rebuild summary:**
@@ -4799,6 +5274,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Where (locations / coordinates):**
   - The area surrounding Purgas is populated with standard Divide Bane, except for 2 level 43 Linkers guarding the entrance at -880,121,-900. — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/tabula-rasa-purgas-station-guide)
 
+- **Chain** (explicit prerequisite links): A New Plan of Attack chain (4 missions), step 1
+  - Leads to: Off Grid (id 705) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_New_Plan_of_Attack), [TaRapedia](https://tabularasa.fandom.com/wiki/Off_Grid)
 ### 346 — Cleansing the Toxins
 
 - **Rebuild summary:**
@@ -4837,6 +5314,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Calla Frond](https://tabularasa.fandom.com/wiki/Calla_Frond): Cleansing the Toxins These are harvested in the Benefactor Valley on Divide. They are near the infestation of Xanx, the Logos Terminal: Now, and the cave where Logos: War is found. 480 - 720
   - [Forean Crystal](https://tabularasa.fandom.com/wiki/Forean_Crystal): These drop from killing Warnets. This is an automatic drop on killing a Warnet.
 
+- **Chain** (explicit prerequisite links): Cleansing the Toxins chain (2 missions), step 1
+  - Leads to: Cleansing the Toxins: Part II (id 347) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Cleansing_the_Toxins%3A_Part_II), [TaRapedia](https://tabularasa.fandom.com/wiki/Cleansing_the_Toxins)
+- **TR MMO DB quest series:** "Cleansing The Toxins", row 1 of 2 ([list](https://web.archive.org/web/20120731161623/http://tr.mmodb.com/quests/seriesname-cleansing_the_toxins/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 347 — Cleansing the Toxins: Part II
 
 - **Rebuild summary:**
@@ -4865,6 +5345,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Shaman Horea](https://tabularasa.fandom.com/wiki/Shaman_Horea): Divide, Thoria Das, /loc 284.2, 170.0, 1094.3 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Cleansing the Toxins chain (2 missions), step 2
+  - Requires: Cleansing the Toxins (id 346) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Cleansing_the_Toxins%3A_Part_II), [TaRapedia](https://tabularasa.fandom.com/wiki/Cleansing_the_Toxins)
+- **TR MMO DB quest series:** "Cleansing The Toxins", row 2 of 2 ([list](https://web.archive.org/web/20120731161623/http://tr.mmodb.com/quests/seriesname-cleansing_the_toxins/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 349 — Robot or Rotten?
 
 - **Rebuild summary:**
@@ -4884,6 +5367,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - The head will drop from most any Thrax patrol killed along the eastern front — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Robot_or_Rotten)
 
+- **Requires (name not matched to a mission):** Level 13 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Robot_or_Rotten)
 ### 356 — Keymaster of Torcastra [instance]
 
 - **Instance:** Torcastra Prison — an objective conversation's NPC package 1527 spawns in this instance (map 1349) — source: client objectiveconversation + data/rasaworld.db
@@ -4906,6 +5390,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ten Ton Hammer** [guide-to-eloh-vale](https://www.tentonhammer.com/guides/guide-to-eloh-vale): “Keymaster of Torcastra Lt. Cisco outside the command center in the Torcastra Prison Instance off Concordia Divide offers this mission. You must recover Airman Hamilton and retrieve any information he discovered. The Airman is near the end of this group instance, inside the main prison facility. Read through the Torcastra Prison Guide for help in completing this portion. After …”
 - **PlayTR EU** [eu.rgtr.com:80/en/news_article/patch_notes_and_known_issues_24th_septe …](https://web.archive.org/web/20071029103708/http://eu.rgtr.com:80/en/news_article/patch_notes_and_known_issues_24th_september_2007): “Issue: Quest items do not properly assign to squad members / • Mission: Keymaster of Torcastra / Issue: Mission NPC Hamilton gets killed by friendlies if led out of the prison”
 
+- **Chain** (explicit prerequisite links): Securing Torcastra chain (2 missions), step 2
+  - Requires: Securing Torcastra (id 594) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Keymaster_of_Torcastra)
 ### 358 — Filcher Frenzy
 
 - **Rebuild summary:**
@@ -4929,6 +5415,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Lt. Sebastian](https://tabularasa.fandom.com/wiki/Lt._Sebastian): Divide, Foreas Base, /loc -48, 119, 434 (NPC page lists this mission)
 
+- **Requires (name not matched to a mission):** Level 12 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Filcher_Frenzy)
 ### 370 — Dissections
 
 - **Rebuild summary:**
@@ -4967,6 +5454,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - The venom does not drop from every kill, so be prepared to take out a bunch to get your 5 samples — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/tabula-rasa-guide-to-thoria-das-and-delta-outpost)
 
+- **Chain** (explicit prerequisite links): Dissections chain (3 missions), step 1
+  - Leads to: Dissections: Part II (id 371) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Dissections%3A_Part_II), [TaRapedia](https://tabularasa.fandom.com/wiki/Dissections)
+- **TR MMO DB quest series:** "Dissections", row 1 of 3 ([list](https://web.archive.org/web/20120731160522/http://tr.mmodb.com/quests/seriesname-dissections/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 371 — Dissections: Part II
 
 - **Rebuild summary:**
@@ -4996,6 +5486,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [Xanx Skin Sample](https://tabularasa.fandom.com/wiki/Xanx_Skin_Sample): This is a random drop from killing Xanx. You may have to kill a few to get the required number.
 
+- **Chain** (explicit prerequisite links): Dissections chain (3 missions), step 2
+  - Requires: Dissections (id 370) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Dissections%3A_Part_II), [TaRapedia](https://tabularasa.fandom.com/wiki/Dissections)
+  - Leads to: Dissections: Part III (id 372) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Dissections%3A_Part_II), [TaRapedia](https://tabularasa.fandom.com/wiki/Dissections%3A_Part_III)
+- **TR MMO DB quest series:** "Dissections", row 2 of 3 ([list](https://web.archive.org/web/20120731160522/http://tr.mmodb.com/quests/seriesname-dissections/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 372 — Dissections: Part III
 
 - **Rebuild summary:**
@@ -5025,6 +5519,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Medical Officer Mayes](https://tabularasa.fandom.com/wiki/Medical_Officer_Mayes): Wilderness, Foreas Base, /loc -11.7, 116.9, 544.7 (NPC page lists this mission)
 - **Ellatha boss NPC** [Rotting Sal](https://www.ellatha.com/tr/bossnpcview.asp?key=Rotting+Sal&id=3): Hominis Machina; /loc -50,-120; zone Divide; In the trenches, near a big hill, roams around a tad; needed for: Divide Targets of Opportunity (boss named in client text)
 
+- **Chain** (explicit prerequisite links): Dissections chain (3 missions), step 3
+  - Requires: Dissections: Part II (id 371) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Dissections%3A_Part_II), [TaRapedia](https://tabularasa.fandom.com/wiki/Dissections%3A_Part_III)
+- **TR MMO DB quest series:** "Dissections", row 3 of 3 ([list](https://web.archive.org/web/20120731160522/http://tr.mmodb.com/quests/seriesname-dissections/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 373 — There's A Hominus Among Us
 
 - **Rebuild summary:**
@@ -5305,6 +5802,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **PlayTR EU** [eu.rgtr.com:80/en/news_article/patch_notes_and_known_issues_6th_septem …](https://web.archive.org/web/20071029103713/http://eu.rgtr.com:80/en/news_article/patch_notes_and_known_issues_6th_september_2007): “Instance: Torcastra Prison / • Mission: Securing Torcastra / • Issue: If the airstrike kills you after you have cleared any of the 4 bunkers, those bunkers never clear again when you attempt the mission a second time”
 - **RGTR official site** [rgtr.com:80/news/patch_notes/patch_notes_and_known_issues_96.html](https://web.archive.org/web/20071011064500/http://rgtr.com:80/news/patch_notes/patch_notes_and_known_issues_96.html): “Issue: Quest items do not properly assign to group members Instance: Torcastra Prison / Mission: Securing Torcastra / Issue: If the airstrike kills you after you have cleared any of the 4 bunkers, those bunkers never clear again when you attempt the mission a second time Arieki Torden Plains”
 
+- **Chain** (explicit prerequisite links): Securing Torcastra chain (2 missions), step 1
+  - Leads to: Keymaster of Torcastra (id 356) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Keymaster_of_Torcastra)
 ### 621 — Bringing the Battle Home
 
 - **Rebuild summary:**
@@ -5338,6 +5837,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Bringing the Battle Home continues with Base Commander Marquette around -42.5, 121.1, 425.9. — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/northwestern-highlands-and-nidu-dav-missions)
   - Speaking with Elder Toras at -459.9, 145.6, 494.4 will begin an attack sequence and you are required to repel the attack with no more than one Forean defender loss (so a friend might be a good idea). — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/northwestern-highlands-and-nidu-dav-missions)
 
+- **Chain** (explicit prerequisite links): Bane Battle Plans chain (2 missions), step 2
+  - Requires: Bane Battle Plans (id 329) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bane_Battle_Plans_%28Divide%29)
+- **Requires (name not matched to a mission):** Bane Battle Plans (Divide) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bringing_the_Battle_Home)
 ### 687 — The Fall of Pogonos More
 
 - **Rebuild summary:**
@@ -5440,6 +5942,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - In this northwest room youll have access to 2 fuels depots to blow up at -195,34,61 and -256,33,64. — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/tabula-rasa-purgas-station-guide-part-two)
   - Go back through the conduit and into the dropout at -167,65,16. — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/tabula-rasa-purgas-station-guide-part-two)
 
+- **Chain** (explicit prerequisite links): A New Plan of Attack chain (4 missions), step 2
+  - Requires: A New Plan of Attack (id 339) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_New_Plan_of_Attack), [TaRapedia](https://tabularasa.fandom.com/wiki/Off_Grid)
+  - Leads to: A Means to an End (id 850) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Means_to_an_End), [TaRapedia](https://tabularasa.fandom.com/wiki/Off_Grid)
 ### 755 — Careless
 
 - **Rebuild summary:**
@@ -5464,6 +5969,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **PlayTR EU** [eu.rgtr.com:80/en/news_article/patch_notes_and_known_issues_24th_septe …](https://web.archive.org/web/20071029103708/http://eu.rgtr.com:80/en/news_article/patch_notes_and_known_issues_24th_september_2007): “Issue: Unable to Turn in/complete mission. / • Mission: Careless (Formerly Taking Care of the Caretakers - Dr. Sherman) / Issue: Unable to Turn in/complete mission.”
 - **RGTR official site** [www.rgtr.com/news/patch_notes/patch_notes_and_known_issues_1_4.html](https://web.archive.org/web/20081117172815/http://www.rgtr.com/news/patch_notes/patch_notes_and_known_issues_1_4.html): “ed: Map: The Refuge – map display name was not showing up, and an error message box was appearing to report this. / Fixed a problem with the mission “Careless” on Divide, where it wasn’t completing properly. / Fixed Mission Objective Text for "Create the Queen Lure".”
 
+- **Chain** (explicit prerequisite links): The Tallest chain (3 missions), step 2
+  - Requires: The Tallest (id 774) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Careless), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Tallest)
+  - Leads to: Amoebalicious (id 800) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Amoebalicius)
+- **TR MMO DB quest series:** "Careless", row 2 of 2 ([list](https://web.archive.org/web/20120731164917/http://tr.mmodb.com/quests/seriesname-careless/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 792 — Climbing the Corporate Ladder [instance]
 
 - **Instance:** Timora Mines — client objective/log text: "Eliminate the Wardmaster, Overseers, and the Warden of the mining operation. Report back to Sergeant Pastre in Timora …"
@@ -5516,6 +6025,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Agent Franz](https://tabularasa.fandom.com/wiki/Agent_Franz): Divide, Foreas Base, /loc 107.7, 59.0, 442.1 (NPC page lists this mission)
   - [Field Dr. Dawson](https://tabularasa.fandom.com/wiki/Field_Dr._Dawson): Wilderness, Foreas Base, /loc 19.0, 116.9, 524.9 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Top Secret Salvage chain (11 missions), step 2
+  - Requires: Top Secret Salvage (id 797) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Behind_Closed_Doors), [TaRapedia](https://tabularasa.fandom.com/wiki/Top_Secret_Salvage)
+  - Leads to: Care and Feeding of Prisoners (id 798) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Behind_Closed_Doors), [TaRapedia](https://tabularasa.fandom.com/wiki/Care_and_Feeding_of_Prisoners)
 ### 797 — Top Secret Salvage
 
 - **Rebuild summary:**
@@ -5546,6 +6058,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Field Dr. Dawson](https://tabularasa.fandom.com/wiki/Field_Dr._Dawson): Wilderness, Foreas Base, /loc 19.0, 116.9, 524.9 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Top Secret Salvage chain (11 missions), step 1
+  - Leads to: Behind Closed Doors (id 796) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Behind_Closed_Doors), [TaRapedia](https://tabularasa.fandom.com/wiki/Top_Secret_Salvage)
+- **Requires (name not matched to a mission):** Level 11 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Top_Secret_Salvage)
 ### 800 — Amoebalicious
 
 - **Rebuild summary:**
@@ -5562,6 +6077,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - objectives: Acquire 5 Amoeboid Cytoplasms:
 - **TaRapedia mission list** [Delta Outpost mission list](https://tabularasa.fandom.com/wiki/Delta_Outpost_mission_list): zone Divide, area Delta Outpost, given by Dr. Sherman
 
+- **Chain** (explicit prerequisite links): The Tallest chain (3 missions), step 3
+  - Requires: Careless (id 755) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Amoebalicius)
 ### 819 — Shoot the Messenger
 
 - **Rebuild summary:**
@@ -5590,6 +6107,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [Bane Datapad](https://tabularasa.fandom.com/wiki/Bane_Datapad): Found on Conscript Naa... in Bane base.
 
+- **Chain** (explicit prerequisite links): Top Secret Salvage chain (11 missions), step 5
+  - Requires: The Secrets You Keep (id 810) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Shoot_The_Messenger), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Secrets_You_Keep)
+  - Leads to: Exposing the Traitors (id 813) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Shoot_The_Messenger)
+  - Leads to: Exposing the Traitors (id 824) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Shoot_The_Messenger)
+- **Requires (name not matched to a mission):** The Secrets You Keep; level 13 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Shoot_The_Messenger)
 ### 835 — A Casualty Notification
 
 - **Rebuild summary:**
@@ -5643,6 +6165,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Follow the catwalk around and through the down-sloped tunnel, looping around until you find the next transporter at -112,35,33 conveniently located next to your 3rd Fuel Pump. — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/tabula-rasa-purgas-station-guide-part-two)
   - Run north out of this room and through a door at -38,9,-137. — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/tabula-rasa-purgas-station-guide-part-two)
 
+- **Chain** (explicit prerequisite links): A New Plan of Attack chain (4 missions), step 3
+  - Requires: Off Grid (id 705) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Means_to_an_End), [TaRapedia](https://tabularasa.fandom.com/wiki/Off_Grid)
+  - Leads to: Reactor Overload (id 852) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Means_to_an_End), [TaRapedia](https://tabularasa.fandom.com/wiki/Reactor_Overload)
 ### 852 — Reactor Overload
 
 - **Instance mentioned:** Purgas Station — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -5672,6 +6197,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - The reactor can be found on the bottom floor of the facility — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Reactor_Overload)
 
+- **Chain** (explicit prerequisite links): A New Plan of Attack chain (4 missions), step 4
+  - Requires: A Means to an End (id 850) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Means_to_an_End), [TaRapedia](https://tabularasa.fandom.com/wiki/Reactor_Overload)
 ### 1276 — Mining for Information [instance]
 
 - **Instance:** Timora Mines — client objective/log text: "Locate and interact with any Eloh information in the Timora Mines"
@@ -5735,6 +6262,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Base Cmdr. Matlin](https://tabularasa.fandom.com/wiki/Base_Cmdr._Matlin): Palisades, Cumbria Research Facility, /loc -809, 1318, 601 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Pieces of the Puzzle chain (11 missions), step 1
+  - Leads to: Eloh Vale Transport (id 1199) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Eloh_Vale_Transport), [TaRapedia](https://tabularasa.fandom.com/wiki/Pieces_of_the_Puzzle)
+  - Leads to: Invade Eloh Vale (id 1429) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Invade_Eloh_Vale), [TaRapedia](https://tabularasa.fandom.com/wiki/Pieces_of_the_Puzzle)
+- **TR MMO DB quest series:** "Pieces Of The Puzzle", row 2 of 2 ([list](https://web.archive.org/web/20120731164958/http://tr.mmodb.com/quests/seriesname-pieces_of_the_puzzle/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1469 — Escape from Bane Mountain
 
 - **Rebuild summary:**
@@ -6011,6 +6542,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Receptive Liaison Brice](https://tabularasa.fandom.com/wiki/Receptive_Liaison_Brice): Wilderness, Nidu Dav, /loc -773.7, 179.3, 615.9 (NPC page lists this mission)
 
+- **Requires (name not matched to a mission):** Level 11 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Report_to_Liaison_Noonan)
 ### 1744 — Report to Liaison Arizpe
 
 - **Rebuild summary:**
@@ -6115,6 +6647,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Dying Forean](https://tabularasa.fandom.com/wiki/Dying_Forean): Plains, Caves of Donn (NPC page lists this mission)
   - [Elder Q'uoa](https://tabularasa.fandom.com/wiki/Elder_Q%27uoa): Divide, Thoria Das (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Fading Signal chain (3 missions), step 1
+  - Leads to: Stolen History (id 1860) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Fading_Signal), [TaRapedia](https://tabularasa.fandom.com/wiki/Stolen_History)
 ### 1860 — Stolen History [instance]
 
 - **Instance:** Minos Caverns — client objective/log text: "Locate the map to the Forean homeworld in Minos Caverns."
@@ -6152,6 +6686,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - *The Rendezvous Coordinates drop from the Hunter Boss Overseer Torqua located on the eastern approach to Torcastra Prison at approximately (120, 70, -100) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Stolen_History)
 
+- **Chain** (explicit prerequisite links): A Fading Signal chain (3 missions), step 2
+  - Requires: A Fading Signal (id 1859) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Fading_Signal), [TaRapedia](https://tabularasa.fandom.com/wiki/Stolen_History)
+  - Leads to: Traitor on the Run (id 1861) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Stolen_History), [TaRapedia](https://tabularasa.fandom.com/wiki/Traitor_on_the_Run)
+- **Requires an instance mission:** A Fading Signal (1859) — source: the chain links above
 ### 1861 — Traitor on the Run [instance]
 
 - **Instance:** Minos Caverns — NPC Scout Horlo (named in client text) is in Minos Caverns — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Scout_Horlo)
@@ -6181,6 +6719,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Elder Q'uoa](https://tabularasa.fandom.com/wiki/Elder_Q%27uoa): Divide, Thoria Das (named as giver/receiver)
   - [Scout Horlo](https://tabularasa.fandom.com/wiki/Scout_Horlo): Divide, Minos Caverns (named in client text)
 
+- **Chain** (explicit prerequisite links): A Fading Signal chain (3 missions), step 3
+  - Requires: Stolen History (id 1860) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Stolen_History), [TaRapedia](https://tabularasa.fandom.com/wiki/Traitor_on_the_Run)
+- **Requires an instance mission:** Stolen History (1860) — source: the chain links above
 ### 1998 — Time Capsule
 
 - **Rebuild summary:**
@@ -6298,6 +6839,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Commander Jaxon](https://tabularasa.fandom.com/wiki/Commander_Jaxon): Incline (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Pieces of the Puzzle chain (11 missions), step 5
+  - Requires: Provision Procurement (id 1111) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Provision_Procurement), [TaRapedia](https://tabularasa.fandom.com/wiki/Wipeout)
+  - Leads to: Crossing the Bridge (id 1110) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Crossing_the_Bridge), [TaRapedia](https://tabularasa.fandom.com/wiki/Wipeout)
+- **TR MMO DB quest series:** "Report To Commander Jaxon", row 7 of 7 ([list](https://web.archive.org/web/20120731161648/http://tr.mmodb.com/quests/seriesname-report_to_commander_jaxon/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 821 — Protect the Benefactor
 
 - **Instance mentioned:** Eloh Vale — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -6317,6 +6862,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TaRapedia mission list** [Eloh Vale mission list](https://tabularasa.fandom.com/wiki/Eloh_Vale_mission_list): zone Palisades, given by Chla'bo
 - **TR MMO DB quest series** [Report To Commander Jaxon](https://web.archive.org/web/20120731161648/http://tr.mmodb.com/quests/seriesname-report_to_commander_jaxon/): Crossing the Bridge (level 22, reward 4000) → Protect the Benefactor (level 22, reward 5000) → Provision Procurement (level 22, reward 4000) → Report to Commander Jaxon (level 22, reward 3000) → Sacrificial Lamb (level 22, reward 5000) → The Benefactor (level 22, reward 3000) → Wipeout (level 22, reward 3000) (series order as listed on the page; reward unit not stated)
 
+- **Chain** (explicit prerequisite links): Pieces of the Puzzle chain (11 missions), step 7
+  - Requires: Crossing the Bridge (id 1110) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Protect_the_Benefactor)
+  - Leads to: The Benefactor (id 1091) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Protect_the_Benefactor)
+- **TR MMO DB quest series:** "Report To Commander Jaxon", row 2 of 7 ([list](https://web.archive.org/web/20120731161648/http://tr.mmodb.com/quests/seriesname-report_to_commander_jaxon/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 825 — Sacrificial Lamb
 
 - **Instance mentioned:** Eloh Vale — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -6339,6 +6888,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Where (locations / coordinates):**
   - Whitman waits inside at -125,168,-239. — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/guide-to-eloh-vale)
 
+- **Chain** (explicit prerequisite links): Pieces of the Puzzle chain (11 missions), step 7
+  - Requires: Crossing the Bridge (id 1110) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Sacrificial_Lamb)
+  - Leads to: The Benefactor (id 1091) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Sacrificial_Lamb)
+- **TR MMO DB quest series:** "Report To Commander Jaxon", row 5 of 7 ([list](https://web.archive.org/web/20120731161648/http://tr.mmodb.com/quests/seriesname-report_to_commander_jaxon/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 843 — Report to Commander Jaxon
 
 - **Instance mentioned:** Eloh Vale — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -6361,6 +6914,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Commander Jaxon](https://tabularasa.fandom.com/wiki/Commander_Jaxon): Incline (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Pieces of the Puzzle chain (11 missions), step 3
+  - Requires: Invade Eloh Vale (id 1429) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Invade_Eloh_Vale), [TaRapedia](https://tabularasa.fandom.com/wiki/Report_to_Commander_Jaxon)
+  - Leads to: Provision Procurement (id 1111) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Provision_Procurement), [TaRapedia](https://tabularasa.fandom.com/wiki/Report_to_Commander_Jaxon)
+- **TR MMO DB quest series:** "Report To Commander Jaxon", row 4 of 7 ([list](https://web.archive.org/web/20120731161648/http://tr.mmodb.com/quests/seriesname-report_to_commander_jaxon/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** Invade Eloh Vale (1429) — source: the chain links above
 ### 1110 — Crossing the Bridge
 
 - **Instance mentioned:** Eloh Vale — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -6384,6 +6942,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Commander Jaxon](https://tabularasa.fandom.com/wiki/Commander_Jaxon): Incline (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Pieces of the Puzzle chain (11 missions), step 6
+  - Requires: Wipeout (id 806) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Crossing_the_Bridge), [TaRapedia](https://tabularasa.fandom.com/wiki/Wipeout)
+  - Leads to: Protect the Benefactor (id 821) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Protect_the_Benefactor)
+  - Leads to: Sacrificial Lamb (id 825) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Sacrificial_Lamb)
+- **TR MMO DB quest series:** "Report To Commander Jaxon", row 1 of 7 ([list](https://web.archive.org/web/20120731161648/http://tr.mmodb.com/quests/seriesname-report_to_commander_jaxon/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1111 — Provision Procurement
 
 - **Instance mentioned:** Eloh Vale — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -6412,6 +6975,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Commander Jaxon](https://tabularasa.fandom.com/wiki/Commander_Jaxon): Incline (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Pieces of the Puzzle chain (11 missions), step 4
+  - Requires: Report to Commander Jaxon (id 843) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Provision_Procurement), [TaRapedia](https://tabularasa.fandom.com/wiki/Report_to_Commander_Jaxon)
+  - Leads to: Wipeout (id 806) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Provision_Procurement), [TaRapedia](https://tabularasa.fandom.com/wiki/Wipeout)
+- **TR MMO DB quest series:** "Report To Commander Jaxon", row 3 of 7 ([list](https://web.archive.org/web/20120731161648/http://tr.mmodb.com/quests/seriesname-report_to_commander_jaxon/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ## Fault Lever
 
 ### 1767 — Traitor in the Midst: Part 1
@@ -6436,6 +7003,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Return to Commander Darren with the new information found on the Bane computer — source: client text
   - : Return to Dyro with the new information found on the Bane computer — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Traitor_in_the_Midst%3A_Part_1)
 
+- **Requires (name not matched to a mission):** Possibly Rotten to the Core — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Traitor_in_the_Midst%3A_Part_1)
 ## Foreas
 
 ### 348 — Taking Care of the Caretakers
@@ -6503,6 +7071,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - In Prison: In Terror - This mission begins with Field Sgt O'Toole in the Foreas Command center around -44.2, 118.0, 442.9. — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/foreas-base-missions)
   - Symbol Name Area of Wilderness Location (x, z, y - type /loc to display) Awake Foreas Base -132.4, 48.2, 535.9 Defend Foreas Base 106.3, 137.9, 692.4 Negative Between Foreas and Foxtrot 184.9, 119. — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/foreas-base-missions)
 
+- **Chain** (explicit prerequisite links): In Prison: In Terror chain (3 missions), step 1
+  - Leads to: Information Sabotage (id 398) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/In_Prison%3A_In_Terror), [TaRapedia](https://tabularasa.fandom.com/wiki/Information_Sabotage)
+- **TR MMO DB quest series:** "In Prison: In Terror", row 1 of 3 ([list](https://web.archive.org/web/20120731163351/http://tr.mmodb.com/quests/seriesname-in_prison:_in_terror/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 398 — Information Sabotage
 
 - **Instance mentioned:** Torcastra Prison — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -6523,6 +7094,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TR MMO DB quest series** [In Prison: In Terror](https://web.archive.org/web/20120731163351/http://tr.mmodb.com/quests/seriesname-in_prison:_in_terror/): In Prison: In Terror (level 15, reward 2550) → Information Sabotage (level 15, reward 2550) → Information Sabotage (level 15, reward 2550) (series order as listed on the page; reward unit not stated)
 - **MyTabulaRasa forum** [mytabularasa.com:80/trforum/showthread.php?p=881#post881](https://web.archive.org/web/20071130054000/http://mytabularasa.com:80/trforum/showthread.php?p=881#post881): “Clear this room use the console on the left for an objective complete and then open the cell beyond. Talk to the ranger for a mission (Information Sabotage). Exit this room and go through the sphincter door on the other side. Clear the room and destory the banks on the right (first) and left (second) then upload the worm on the console across from the door. Leave this room and cross the hall back to the room with the ranger. Talk to the ranger …”
 
+- **Chain** (explicit prerequisite links): In Prison: In Terror chain (3 missions), step 2
+  - Requires: In Prison: In Terror (id 397) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/In_Prison%3A_In_Terror), [TaRapedia](https://tabularasa.fandom.com/wiki/Information_Sabotage)
+  - Leads to: Prison Riot (id 399) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Information_Sabotage), [TaRapedia](https://tabularasa.fandom.com/wiki/Prison_Riot)
+- **TR MMO DB quest series:** "In Prison: In Terror", row 2 of 3 ([list](https://web.archive.org/web/20120731163351/http://tr.mmodb.com/quests/seriesname-in_prison:_in_terror/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** In Prison: In Terror (397) — source: the chain links above
 ### 399 — Prison Riot
 
 - **Instance mentioned:** Torcastra Prison — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -6540,6 +7116,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TaRapedia mission list** [Torcastra Prison mission list](https://tabularasa.fandom.com/wiki/Torcastra_Prison_mission_list): zone Divide, given by Headquarters
 - **MyTabulaRasa forum** [mytabularasa.com:80/trforum/showthread.php?p=881#post881](https://web.archive.org/web/20071130054000/http://mytabularasa.com:80/trforum/showthread.php?p=881#post881): “s followed by a radio mission. Courtsey note: Do not go up the ramps, and certainly don't try to unlock the cells until every one is caught up and on Prison Riot. Opening Cell block before you are prison riot will make prison riot uncompletable.”
 
+- **Chain** (explicit prerequisite links): In Prison: In Terror chain (3 missions), step 3
+  - Requires: Information Sabotage (id 398) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Information_Sabotage), [TaRapedia](https://tabularasa.fandom.com/wiki/Prison_Riot)
 ### 404 — Fuel Lake Sabotage [instance]
 
 - **Instance:** Timora Mines — client objective/log text: "Locate and destroy the Main Fuel Pump deep in the Timora Mines. You'll need a sustained burn of the nearby fuel lakes …"
@@ -6633,6 +7211,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [Stalker Scraps](https://tabularasa.fandom.com/wiki/Stalker_Scraps): Found on Bane Stalkers after destroying them.
 
+- **Chain** (explicit prerequisite links): The Tallest chain (3 missions), step 1
+  - Leads to: Careless (id 755) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Careless), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Tallest)
 ### 798 — Care and Feeding of Prisoners
 
 - **Rebuild summary:**
@@ -6670,6 +7250,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Medic Campbell](https://tabularasa.fandom.com/wiki/Medic_Campbell): Wilderness, Foreas Base, /loc 112.9, 59.0, 446.1 (NPC page lists this mission)
   - [Agent Franz](https://tabularasa.fandom.com/wiki/Agent_Franz): Divide, Foreas Base, /loc 107.7, 59.0, 442.1 (named in client text)
 
+- **Chain** (explicit prerequisite links): Top Secret Salvage chain (11 missions), step 3
+  - Requires: Behind Closed Doors (id 796) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Behind_Closed_Doors), [TaRapedia](https://tabularasa.fandom.com/wiki/Care_and_Feeding_of_Prisoners)
+  - Leads to: Encroaching on Thoria Das (id 807) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Encroaching_on_Thoria_Das)
+  - Leads to: The Secrets You Keep (id 810) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Secrets_You_Keep)
+- **TR MMO DB quest series:** "Care And Feeding Of Prisoners", row 1 of 4 ([list](https://web.archive.org/web/20080419043450/http://tr.mmodb.com:80/quests/seriesname-care_and_feeding_of_prisoners/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 807 — Encroaching on Thoria Das
 
 - **Rebuild summary:**
@@ -6698,6 +7283,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Conscript Thull](https://tabularasa.fandom.com/wiki/Conscript_Thull): Wilderness, Foreas Base, /loc 116.3, 62.3, 443.0 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Top Secret Salvage chain (11 missions), step 4
+  - Requires: Care and Feeding of Prisoners (id 798) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Encroaching_on_Thoria_Das)
+  - Leads to: Message in a Bottle (id 809) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Encroaching_on_Thoria_Das), [TaRapedia](https://tabularasa.fandom.com/wiki/Message_in_a_Bottle)
+- **TR MMO DB quest series:** "Care And Feeding Of Prisoners", row 2 of 4 ([list](https://web.archive.org/web/20080419043450/http://tr.mmodb.com:80/quests/seriesname-care_and_feeding_of_prisoners/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 809 — Message in a Bottle
 
 - **Rebuild summary:**
@@ -6727,6 +7316,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Conscript Thull](https://tabularasa.fandom.com/wiki/Conscript_Thull): Wilderness, Foreas Base, /loc 116.3, 62.3, 443.0 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Top Secret Salvage chain (11 missions), step 5
+  - Requires: Encroaching on Thoria Das (id 807) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Encroaching_on_Thoria_Das), [TaRapedia](https://tabularasa.fandom.com/wiki/Message_in_a_Bottle)
+  - Leads to: Exposing the Traitors (id 813) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Exposing_the_Traitors), [TaRapedia](https://tabularasa.fandom.com/wiki/Message_in_a_Bottle)
+  - Leads to: Exposing the Traitors (id 824) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Exposing_the_Traitors), [TaRapedia](https://tabularasa.fandom.com/wiki/Message_in_a_Bottle)
+- **TR MMO DB quest series:** "Care And Feeding Of Prisoners", row 4 of 4 ([list](https://web.archive.org/web/20080419043450/http://tr.mmodb.com:80/quests/seriesname-care_and_feeding_of_prisoners/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 810 — The Secrets You Keep
 
 - **Rebuild summary:**
@@ -6744,6 +7338,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Agent Franz](https://tabularasa.fandom.com/wiki/Agent_Franz): Divide, Foreas Base, /loc 107.7, 59.0, 442.1 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Top Secret Salvage chain (11 missions), step 4
+  - Requires: Care and Feeding of Prisoners (id 798) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Secrets_You_Keep)
+  - Leads to: Shoot the Messenger (id 819) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Shoot_The_Messenger), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Secrets_You_Keep)
 ## Howling Maw
 
 ### 1375 — Check-in with Cho
@@ -6770,6 +7367,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Colonel Sherk](https://tabularasa.fandom.com/wiki/Colonel_Sherk): Howling Maw, Gangus Outpost (named as giver/receiver)
   - [Captain Cho](https://tabularasa.fandom.com/wiki/Captain_Cho): Howling Maw, Ingruo Valley, /loc -301.5, 202.3, -800.6 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Check-in with Cho chain (5 missions), step 1
+  - Leads to: Spank the Xanx (id 1376) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Check_in_with_Cho), [TaRapedia](https://tabularasa.fandom.com/wiki/Spank_the_Xanx)
+- **TR MMO DB quest series:** "Check In With Cho", row 1 of 2 ([list](https://web.archive.org/web/20120731162500/http://tr.mmodb.com/quests/seriesname-check_in_with_cho/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1376 — Spank the Xanx
 
 - **Rebuild summary:**
@@ -6799,6 +7399,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [Bane Control Chip](https://tabularasa.fandom.com/wiki/Bane_Control_Chip): no description
 
+- **Chain** (explicit prerequisite links): Check-in with Cho chain (5 missions), step 2
+  - Requires: Check-in with Cho (id 1375) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Check_in_with_Cho), [TaRapedia](https://tabularasa.fandom.com/wiki/Spank_the_Xanx)
+  - Leads to: Low Fidelity (id 1379) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Low_Fidelity), [TaRapedia](https://tabularasa.fandom.com/wiki/Spank_the_Xanx)
+- **TR MMO DB quest series:** "Check In With Cho", row 2 of 2 ([list](https://web.archive.org/web/20120731162500/http://tr.mmodb.com/quests/seriesname-check_in_with_cho/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1379 — Low Fidelity
 
 - **Rebuild summary:**
@@ -6831,6 +7435,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [Modified GPS Beacon](https://tabularasa.fandom.com/wiki/Modified_GPS_Beacon): no description
 
+- **Chain** (explicit prerequisite links): Check-in with Cho chain (5 missions), step 3
+  - Requires: Spank the Xanx (id 1376) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Low_Fidelity), [TaRapedia](https://tabularasa.fandom.com/wiki/Spank_the_Xanx)
+  - Leads to: Sonic Boom (id 1387) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Low_Fidelity), [TaRapedia](https://tabularasa.fandom.com/wiki/Sonic_Boom)
+- **TR MMO DB quest series:** "Low Fidelity", row 1 of 2 ([list](https://web.archive.org/web/20120731165531/http://tr.mmodb.com/quests/seriesname-low_fidelity/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1387 — Sonic Boom
 
 - **Rebuild summary:**
@@ -6852,6 +7460,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Major Phych](https://tabularasa.fandom.com/wiki/Major_Phych): Howling Maw, Gangus Supply Annex, /loc -19.8, 214.4, -672.8 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Check-in with Cho chain (5 missions), step 4
+  - Requires: Low Fidelity (id 1379) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Low_Fidelity), [TaRapedia](https://tabularasa.fandom.com/wiki/Sonic_Boom)
+  - Leads to: A Job Well Done (id 1388) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Job_Well_Done), [TaRapedia](https://tabularasa.fandom.com/wiki/Sonic_Boom)
+- **TR MMO DB quest series:** "Low Fidelity", row 2 of 2 ([list](https://web.archive.org/web/20120731165531/http://tr.mmodb.com/quests/seriesname-low_fidelity/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1388 — A Job Well Done
 
 - **Rebuild summary:**
@@ -6873,6 +7485,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Colonel Sherk](https://tabularasa.fandom.com/wiki/Colonel_Sherk): Howling Maw, Gangus Outpost (named as giver/receiver)
   - [Major Phych](https://tabularasa.fandom.com/wiki/Major_Phych): Howling Maw, Gangus Supply Annex, /loc -19.8, 214.4, -672.8 (named in client text)
 
+- **Chain** (explicit prerequisite links): Check-in with Cho chain (5 missions), step 5
+  - Requires: Sonic Boom (id 1387) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Job_Well_Done), [TaRapedia](https://tabularasa.fandom.com/wiki/Sonic_Boom)
 ### 1394 — De-Triangulation
 
 - **Rebuild summary:**
@@ -6915,6 +7529,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [Dog Tags 183rd Airborne](https://tabularasa.fandom.com/wiki/Dog_Tags_183rd_Airborne): no description
 
+- **Chain** (explicit prerequisite links): The Fallen 183rd chain (2 missions), step 1
+  - Leads to: Vulcanus (id 1592) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Fallen_183rd), [TaRapedia](https://tabularasa.fandom.com/wiki/Vulcanus)
 ### 1404 — Taking Striders
 
 - **Rebuild summary:**
@@ -6963,6 +7579,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Colonel Sherk](https://tabularasa.fandom.com/wiki/Colonel_Sherk): Howling Maw, Gangus Outpost (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Matter of Taste Part 1 chain (26 missions), step 1
+  - Leads to: A Matter of Taste Part 2 (id 1410) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Matter_of_Taste_Part_1), [TaRapedia](https://tabularasa.fandom.com/wiki/A_Matter_of_Taste_Part_2)
+- **TR MMO DB quest series:** "A Matter Of Taste Part 1", row 1 of 5 ([list](https://web.archive.org/web/20120731162205/http://tr.mmodb.com/quests/seriesname-a_matter_of_taste_part_1/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1410 — A Matter of Taste Part 2
 
 - **Rebuild summary:**
@@ -6985,6 +7604,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Colonel Sherk](https://tabularasa.fandom.com/wiki/Colonel_Sherk): Howling Maw, Gangus Outpost (named as giver/receiver)
   - [Normui](https://tabularasa.fandom.com/wiki/Normui): Howling Maw, Dia Uyona (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Matter of Taste Part 1 chain (26 missions), step 2
+  - Requires: A Matter of Taste Part 1 (id 1408) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Matter_of_Taste_Part_1), [TaRapedia](https://tabularasa.fandom.com/wiki/A_Matter_of_Taste_Part_2)
+  - Leads to: A Matter of Taste Part 3 (id 1416) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Matter_of_Taste_Part_2), [TaRapedia](https://tabularasa.fandom.com/wiki/A_Matter_of_Taste_Part_3)
+- **TR MMO DB quest series:** "A Matter Of Taste Part 1", row 2 of 5 ([list](https://web.archive.org/web/20120731162205/http://tr.mmodb.com/quests/seriesname-a_matter_of_taste_part_1/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1416 — A Matter of Taste Part 3
 
 - **Rebuild summary:**
@@ -7008,6 +7631,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Normui](https://tabularasa.fandom.com/wiki/Normui): Howling Maw, Dia Uyona (named as giver/receiver)
   - [Captain Quanos](https://tabularasa.fandom.com/wiki/Captain_Quanos): Howling Maw, Dia Uyona (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Matter of Taste Part 1 chain (26 missions), step 3
+  - Requires: A Matter of Taste Part 2 (id 1410) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Matter_of_Taste_Part_2), [TaRapedia](https://tabularasa.fandom.com/wiki/A_Matter_of_Taste_Part_3)
+  - Leads to: Food for Thought (id 1417) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Matter_of_Taste_Part_3), [TaRapedia](https://tabularasa.fandom.com/wiki/Food_for_Thought)
+- **TR MMO DB quest series:** "A Matter Of Taste Part 1", row 3 of 5 ([list](https://web.archive.org/web/20120731162205/http://tr.mmodb.com/quests/seriesname-a_matter_of_taste_part_1/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1417 — Food for Thought
 
 - **Rebuild summary:**
@@ -7031,6 +7658,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Captain Quanos](https://tabularasa.fandom.com/wiki/Captain_Quanos): Howling Maw, Dia Uyona (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Matter of Taste Part 1 chain (26 missions), step 4
+  - Requires: A Matter of Taste Part 3 (id 1416) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Matter_of_Taste_Part_3), [TaRapedia](https://tabularasa.fandom.com/wiki/Food_for_Thought)
+  - Leads to: Theory Confirmed (id 1430) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Food_for_Thought), [TaRapedia](https://tabularasa.fandom.com/wiki/Theory_Confirmed)
+- **TR MMO DB quest series:** "A Matter Of Taste Part 1", row 4 of 5 ([list](https://web.archive.org/web/20120731162205/http://tr.mmodb.com/quests/seriesname-a_matter_of_taste_part_1/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1430 — Theory Confirmed
 
 - **Rebuild summary:**
@@ -7052,6 +7683,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Captain Quanos](https://tabularasa.fandom.com/wiki/Captain_Quanos): Howling Maw, Dia Uyona (named as giver/receiver)
   - [Colonel Sherk](https://tabularasa.fandom.com/wiki/Colonel_Sherk): Howling Maw, Gangus Outpost (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Matter of Taste Part 1 chain (26 missions), step 5
+  - Requires: Food for Thought (id 1417) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Food_for_Thought), [TaRapedia](https://tabularasa.fandom.com/wiki/Theory_Confirmed)
+  - Leads to: Soil Samples (id 1434) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Soil_Samples), [TaRapedia](https://tabularasa.fandom.com/wiki/Theory_Confirmed)
+- **TR MMO DB quest series:** "A Matter Of Taste Part 1", row 5 of 5 ([list](https://web.archive.org/web/20120731162205/http://tr.mmodb.com/quests/seriesname-a_matter_of_taste_part_1/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1433 — Lights Out!
 
 - **Rebuild summary:**
@@ -7078,6 +7713,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Chief Engineer Schmitty](https://tabularasa.fandom.com/wiki/Chief_Engineer_Schmitty): Howling Maw, Gangus Outpost, /loc -628.4, 200.0, -976.8 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Lights Out! chain (3 missions), step 1
+  - Leads to: Tootin' One's Horn (id 1438) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Lights_Out%21), [TaRapedia](https://tabularasa.fandom.com/wiki/Tootin%27_One%27s_Horn)
+- **TR MMO DB quest series:** "Lights Out", row 2 of 2 ([list](https://web.archive.org/web/20080407025707/http://tr.mmodb.com:80/quests/seriesname-lights_out/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1434 — Soil Samples
 
 - **Rebuild summary:**
@@ -7099,6 +7737,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Colonel Sherk](https://tabularasa.fandom.com/wiki/Colonel_Sherk): Howling Maw, Gangus Outpost (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Matter of Taste Part 1 chain (26 missions), step 6
+  - Requires: Theory Confirmed (id 1430) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Soil_Samples), [TaRapedia](https://tabularasa.fandom.com/wiki/Theory_Confirmed)
+  - Leads to: Infection Rejection (id 1448) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Infection_Rejection), [TaRapedia](https://tabularasa.fandom.com/wiki/Soil_Samples)
+- **TR MMO DB quest series:** "Soil Samples", row 4 of 4 ([list](https://web.archive.org/web/20120731163834/http://tr.mmodb.com/quests/seriesname-soil_samples/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1438 — Tootin' One's Horn
 
 - **Rebuild summary:**
@@ -7118,6 +7760,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Colonel Sherk](https://tabularasa.fandom.com/wiki/Colonel_Sherk): Howling Maw, Gangus Outpost (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Lights Out! chain (3 missions), step 2
+  - Requires: Lights Out! (id 1433) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Lights_Out%21), [TaRapedia](https://tabularasa.fandom.com/wiki/Tootin%27_One%27s_Horn)
+  - Leads to: A Grateful Schmitty (id 1440) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Grateful_Schmitty), [TaRapedia](https://tabularasa.fandom.com/wiki/Tootin%27_One%27s_Horn)
 ### 1440 — A Grateful Schmitty
 
 - **Rebuild summary:**
@@ -7140,6 +7785,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Chief Engineer Schmitty](https://tabularasa.fandom.com/wiki/Chief_Engineer_Schmitty): Howling Maw, Gangus Outpost, /loc -628.4, 200.0, -976.8 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Lights Out! chain (3 missions), step 3
+  - Requires: Tootin' One's Horn (id 1438) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Grateful_Schmitty), [TaRapedia](https://tabularasa.fandom.com/wiki/Tootin%27_One%27s_Horn)
+- **TR MMO DB quest series:** "Lights Out", row 1 of 2 ([list](https://web.archive.org/web/20080407025707/http://tr.mmodb.com:80/quests/seriesname-lights_out/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1442 — Hallowed Ruins
 
 - **Rebuild summary:**
@@ -7165,6 +7813,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Scholar Rui](https://tabularasa.fandom.com/wiki/Scholar_Rui): Howling Maw, Dia Uyona, /loc 1047.0, 190.5, -880.9 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Hallowed Ruins chain (2 missions), step 1
+  - Leads to: Exorcise the Taint (id 1443) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Exorcise_the_Taint), [TaRapedia](https://tabularasa.fandom.com/wiki/Hallowed_Ruins)
+- **TR MMO DB quest series:** "Hallowed Ruins", row 2 of 2 ([list](https://web.archive.org/web/20120731165349/http://tr.mmodb.com/quests/seriesname-hallowed_ruins/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1443 — Exorcise the Taint
 
 - **Rebuild summary:**
@@ -7192,6 +7843,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Scholar Rui](https://tabularasa.fandom.com/wiki/Scholar_Rui): Howling Maw, Dia Uyona, /loc 1047.0, 190.5, -880.9 (NPC page lists this mission)
   - [Contagion](https://tabularasa.fandom.com/wiki/Contagion): Howling Maw (named in client text)
 
+- **Chain** (explicit prerequisite links): Hallowed Ruins chain (2 missions), step 2
+  - Requires: Hallowed Ruins (id 1442) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Exorcise_the_Taint), [TaRapedia](https://tabularasa.fandom.com/wiki/Hallowed_Ruins)
+- **TR MMO DB quest series:** "Hallowed Ruins", row 1 of 2 ([list](https://web.archive.org/web/20120731165349/http://tr.mmodb.com/quests/seriesname-hallowed_ruins/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1448 — Infection Rejection
 
 - **Rebuild summary:**
@@ -7214,6 +7868,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Colonel Sherk](https://tabularasa.fandom.com/wiki/Colonel_Sherk): Howling Maw, Gangus Outpost (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Matter of Taste Part 1 chain (26 missions), step 7
+  - Requires: Soil Samples (id 1434) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Infection_Rejection), [TaRapedia](https://tabularasa.fandom.com/wiki/Soil_Samples)
+  - Leads to: Recent Discovery (id 1453) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Infection_Rejection), [TaRapedia](https://tabularasa.fandom.com/wiki/Recent_Discovery)
+- **TR MMO DB quest series:** "Soil Samples", row 1 of 4 ([list](https://web.archive.org/web/20120731163834/http://tr.mmodb.com/quests/seriesname-soil_samples/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1453 — Recent Discovery
 
 - **Rebuild summary:**
@@ -7235,6 +7893,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Colonel Sherk](https://tabularasa.fandom.com/wiki/Colonel_Sherk): Howling Maw, Gangus Outpost (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Matter of Taste Part 1 chain (26 missions), step 8
+  - Requires: Infection Rejection (id 1448) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Infection_Rejection), [TaRapedia](https://tabularasa.fandom.com/wiki/Recent_Discovery)
+  - Leads to: Ready for McReddy (id 1458) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Ready_for_McReddy), [TaRapedia](https://tabularasa.fandom.com/wiki/Recent_Discovery)
+- **TR MMO DB quest series:** "Soil Samples", row 3 of 4 ([list](https://web.archive.org/web/20120731163834/http://tr.mmodb.com/quests/seriesname-soil_samples/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1455 — Gaseous Matters
 
 - **Rebuild summary:**
@@ -7258,6 +7920,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Sergeant Fonseca](https://tabularasa.fandom.com/wiki/Sergeant_Fonseca): Howling Maw, Ingruo Valley, /loc -186.5, 207.6, -476.9 (named in client text)
   - [Colonel Sherk](https://tabularasa.fandom.com/wiki/Colonel_Sherk): Howling Maw, Gangus Outpost (named in client text)
 
+- **Chain** (explicit prerequisite links): A Matter of Taste Part 1 chain (26 missions), step 10
+  - Requires: Ready for McReddy (id 1458) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Gaseous_Matters), [TaRapedia](https://tabularasa.fandom.com/wiki/Ready_for_McReddy)
+  - Leads to: Striders Stage Right (id 1472) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Gaseous_Matters), [TaRapedia](https://tabularasa.fandom.com/wiki/Striders_Stage_Right)
+  - Leads to: Curtain Call (id 1476) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Curtain_Call)
+- **TR MMO DB quest series:** "Gaseous Matters", row 2 of 3 ([list](https://web.archive.org/web/20120731165721/http://tr.mmodb.com/quests/seriesname-gaseous_matters/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1458 — Ready for McReddy
 
 - **Rebuild summary:**
@@ -7283,6 +7950,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Colonel Sherk](https://tabularasa.fandom.com/wiki/Colonel_Sherk): Howling Maw, Gangus Outpost (named as giver/receiver)
   - [Recon Commander McReddy](https://tabularasa.fandom.com/wiki/Recon_Commander_McReddy): Howling Maw, Dia Toma (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Matter of Taste Part 1 chain (26 missions), step 9
+  - Requires: Recent Discovery (id 1453) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Ready_for_McReddy), [TaRapedia](https://tabularasa.fandom.com/wiki/Recent_Discovery)
+  - Leads to: Gaseous Matters (id 1455) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Gaseous_Matters), [TaRapedia](https://tabularasa.fandom.com/wiki/Ready_for_McReddy)
+- **TR MMO DB quest series:** "Soil Samples", row 2 of 4 ([list](https://web.archive.org/web/20120731163834/http://tr.mmodb.com/quests/seriesname-soil_samples/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1472 — Striders Stage Right
 
 - **Rebuild summary:**
@@ -7310,6 +7981,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Recon Commander McReddy](https://tabularasa.fandom.com/wiki/Recon_Commander_McReddy): Howling Maw, Dia Toma (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Matter of Taste Part 1 chain (26 missions), step 11
+  - Requires: Gaseous Matters (id 1455) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Gaseous_Matters), [TaRapedia](https://tabularasa.fandom.com/wiki/Striders_Stage_Right)
+  - Leads to: Curtain Call (id 1476) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Striders_Stage_Right)
+- **TR MMO DB quest series:** "Gaseous Matters", row 3 of 3 ([list](https://web.archive.org/web/20120731165721/http://tr.mmodb.com/quests/seriesname-gaseous_matters/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1476 — Curtain Call
 
 - **Instance mentioned:** Cuthah Base — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -7338,6 +8013,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Recon Commander McReddy](https://tabularasa.fandom.com/wiki/Recon_Commander_McReddy): Howling Maw, Dia Toma (named as giver/receiver)
   - [Recon Commander Jillian](https://tabularasa.fandom.com/wiki/Recon_Commander_Jillian): Howling Maw, Lake Divinus (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Matter of Taste Part 1 chain (26 missions), step 12
+  - Requires: Gaseous Matters (id 1455) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Curtain_Call)
+  - Requires: Striders Stage Right (id 1472) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Striders_Stage_Right)
+  - Leads to: Electrician's Charge (id 1481) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Curtain_Call), [TaRapedia](https://tabularasa.fandom.com/wiki/Electrician%27s_Charge)
+- **TR MMO DB quest series:** "Gaseous Matters", row 1 of 3 ([list](https://web.archive.org/web/20120731165721/http://tr.mmodb.com/quests/seriesname-gaseous_matters/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1481 — Electrician's Charge [instance]
 
 - **Instance:** Live Target Pens — client objective/log text: "Go northest of Recon Field Commander Jillian's position into the Live Target Pens exterior, kill the Thrax Machina the …"
@@ -7361,6 +8041,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Recon Commander Jillian](https://tabularasa.fandom.com/wiki/Recon_Commander_Jillian): Howling Maw, Lake Divinus (named as giver/receiver)
   - [Colonel Sherk](https://tabularasa.fandom.com/wiki/Colonel_Sherk): Howling Maw, Gangus Outpost (named in client text)
 
+- **Chain** (explicit prerequisite links): A Matter of Taste Part 1 chain (26 missions), step 13
+  - Requires: Curtain Call (id 1476) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Curtain_Call), [TaRapedia](https://tabularasa.fandom.com/wiki/Electrician%27s_Charge)
+  - Leads to: Penned Up Aggression (id 1531) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Penned_up_Aggression)
+  - Leads to: Securing Security (id 1774) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Securing_Security)
 ### 1516 — Surgical Strike
 
 - **Rebuild summary:**
@@ -7390,6 +8074,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [Flare Marker](https://tabularasa.fandom.com/wiki/Flare_Marker): no description
 
+- **Chain** (explicit prerequisite links): Shield Drone Headache chain (5 missions), step 2
+  - Requires: Shield Drone Headache (id 1518) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Shield_Drone_Headache), [TaRapedia](https://tabularasa.fandom.com/wiki/Surgical_Strike)
+  - Leads to: Infection Connection (id 1738) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Infection_Connection)
+- **TR MMO DB quest series:** "Shield Drone Headache", row 2 of 2 ([list](https://web.archive.org/web/20120731160913/http://tr.mmodb.com/quests/seriesname-shield_drone_headache/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1518 — Shield Drone Headache
 
 - **Rebuild summary:**
@@ -7412,6 +8100,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Field Commander Welling](https://tabularasa.fandom.com/wiki/Field_Commander_Welling): Howling Maw, Gangus Forward Base, /loc -1124.4, 236.9, -671.4 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Shield Drone Headache chain (5 missions), step 1
+  - Leads to: Surgical Strike (id 1516) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Shield_Drone_Headache), [TaRapedia](https://tabularasa.fandom.com/wiki/Surgical_Strike)
+- **TR MMO DB quest series:** "Shield Drone Headache", row 1 of 2 ([list](https://web.archive.org/web/20120731160913/http://tr.mmodb.com/quests/seriesname-shield_drone_headache/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1527 — More Than Penumbra
 
 - **Rebuild summary:**
@@ -7432,6 +8123,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Colonel Sherk](https://tabularasa.fandom.com/wiki/Colonel_Sherk): Howling Maw, Gangus Outpost (named as giver/receiver)
   - [Field Commander Welling](https://tabularasa.fandom.com/wiki/Field_Commander_Welling): Howling Maw, Gangus Forward Base, /loc -1124.4, 236.9, -671.4 (named in client text)
 
+- **Chain** (explicit prerequisite links): Shield Drone Headache chain (5 missions), step 5
+  - Requires: Take the Disc (id 1681) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/More_Than_Penumbra), [TaRapedia](https://tabularasa.fandom.com/wiki/Take_the_Disc)
 ### 1531 — Penned Up Aggression [instance]
 
 - **Instance:** Live Target Pens — client objective/log text: "Find the Main Computer inside the Live Target Pens."
@@ -7458,6 +8151,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Colonel Sherk](https://tabularasa.fandom.com/wiki/Colonel_Sherk): Howling Maw, Gangus Outpost (named as giver/receiver)
   - [Recon Commander Jillian](https://tabularasa.fandom.com/wiki/Recon_Commander_Jillian): Howling Maw, Lake Divinus (named in client text)
 
+- **Chain** (explicit prerequisite links): A Matter of Taste Part 1 chain (26 missions), step 14
+  - Requires: Electrician's Charge (id 1481) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Penned_up_Aggression)
+  - Leads to: Cuthah Information (id 1547) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Cuthah_Information), [TaRapedia](https://tabularasa.fandom.com/wiki/Penned_up_Aggression)
+- **Requires an instance mission:** Electrician's Charge (1481) — source: the chain links above
 ### 1545 — Into the Maw [instance]
 
 - **Instance:** Cuthah Base — NPC Lieutenant Riley (named as giver/receiver) is in Cuthah Base — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Lieutenant_Riley)
@@ -7484,6 +8181,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Recon Commander Jillian](https://tabularasa.fandom.com/wiki/Recon_Commander_Jillian): Howling Maw, Lake Divinus (named as giver/receiver)
   - [Lieutenant Riley](https://tabularasa.fandom.com/wiki/Lieutenant_Riley): Cuthah Base, Cuthah Base (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Matter of Taste Part 1 chain (26 missions), step 16
+  - Requires: Cuthah Information (id 1547) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Cuthah_Information), [TaRapedia](https://tabularasa.fandom.com/wiki/Into_the_Maw)
+  - Leads to: Digital Distraction (id 1620) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Digital_Distraction), [TaRapedia](https://tabularasa.fandom.com/wiki/Into_the_Maw)
 ### 1547 — Cuthah Information
 
 - **Instance mentioned:** Cuthah Base — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -7508,6 +8208,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Colonel Sherk](https://tabularasa.fandom.com/wiki/Colonel_Sherk): Howling Maw, Gangus Outpost (named as giver/receiver)
   - [Recon Commander Jillian](https://tabularasa.fandom.com/wiki/Recon_Commander_Jillian): Howling Maw, Lake Divinus (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Matter of Taste Part 1 chain (26 missions), step 15
+  - Requires: Penned Up Aggression (id 1531) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Cuthah_Information), [TaRapedia](https://tabularasa.fandom.com/wiki/Penned_up_Aggression)
+  - Leads to: Into the Maw (id 1545) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Cuthah_Information), [TaRapedia](https://tabularasa.fandom.com/wiki/Into_the_Maw)
+- **Requires an instance mission:** Penned Up Aggression (1531) — source: the chain links above
 ### 1591 — The Phage
 
 - **Rebuild summary:**
@@ -7549,6 +8253,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Sergeant Fonseca](https://tabularasa.fandom.com/wiki/Sergeant_Fonseca): Howling Maw, Ingruo Valley, /loc -186.5, 207.6, -476.9 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): The Fallen 183rd chain (2 missions), step 2
+  - Requires: The Fallen 183rd (id 1397) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Fallen_183rd), [TaRapedia](https://tabularasa.fandom.com/wiki/Vulcanus)
+- **Requires (name not matched to a mission):** Level 49 & The Fallen 183rd? — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Vulcanus)
 ### 1620 — Digital Distraction [instance]
 
 - **Instance:** Cuthah Base — NPC Lieutenant Riley (named as giver/receiver) is in Cuthah Base — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Lieutenant_Riley)
@@ -7572,6 +8279,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Lieutenant Riley](https://tabularasa.fandom.com/wiki/Lieutenant_Riley): Cuthah Base, Cuthah Base (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Matter of Taste Part 1 chain (26 missions), step 17
+  - Requires: Into the Maw (id 1545) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Digital_Distraction), [TaRapedia](https://tabularasa.fandom.com/wiki/Into_the_Maw)
+  - Leads to: Storming the Castle (id 1622) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Digital_Distraction), [TaRapedia](https://tabularasa.fandom.com/wiki/Storming_the_Castle)
+- **TR MMO DB quest series:** "Digital Distraction", row 1 of 3 ([list](https://web.archive.org/web/20120731160557/http://tr.mmodb.com/quests/seriesname-digital_distraction/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** Into the Maw (1545) — source: the chain links above
 ### 1622 — Storming the Castle [instance]
 
 - **Instance:** Cuthah Base — NPC Lieutenant Riley (named as giver/receiver) is in Cuthah Base — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Lieutenant_Riley)
@@ -7594,6 +8306,15 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Lieutenant Riley](https://tabularasa.fandom.com/wiki/Lieutenant_Riley): Cuthah Base, Cuthah Base (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Matter of Taste Part 1 chain (26 missions), step 18
+  - Requires: Digital Distraction (id 1620) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Digital_Distraction), [TaRapedia](https://tabularasa.fandom.com/wiki/Storming_the_Castle)
+  - Leads to: Knowing What They Know (id 1623) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Knowing_What_They_Know), [TaRapedia](https://tabularasa.fandom.com/wiki/Storming_the_Castle)
+  - Leads to: Can't Stand the Heat (id 1625) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Can%27t_Stand_the_Heat), [TaRapedia](https://tabularasa.fandom.com/wiki/Storming_the_Castle)
+  - Leads to: Bad Medicine (id 1629) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bad_Medicine), [TaRapedia](https://tabularasa.fandom.com/wiki/Storming_the_Castle)
+  - Leads to: Trapped Like Rats (id 1632) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Storming_the_Castle), [TaRapedia](https://tabularasa.fandom.com/wiki/Trapped_Like_Rats)
+  - Leads to: Bad Medicine (id 1947) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bad_Medicine), [TaRapedia](https://tabularasa.fandom.com/wiki/Storming_the_Castle)
+- **TR MMO DB quest series:** "Digital Distraction", row 2 of 3 ([list](https://web.archive.org/web/20120731160557/http://tr.mmodb.com/quests/seriesname-digital_distraction/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** Digital Distraction (1620) — source: the chain links above
 ### 1623 — Knowing What They Know [instance]
 
 - **Instance:** Cuthah Base — client objective/log text: "The central intelligence center of the Bane forces on Foreas can be found in Cuthah Base. Use Maithan's head to bypass …"
@@ -7615,6 +8336,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TR MMO DB** [Knowing What They Know](https://web.archive.org/web/20090210210522/http://tr.mmodb.com:80/quests/knowing-what-they-know-408.php): level: 49; starts at npc: Specialist Nason; starts in zone: Cuthah Base; objectives: Execute Commander Warrish, Destroy the Central Comm Mainframe, Destroy the Valverde Comm Mainframe, Destroy the Concordia Comm Mainframe, Recover Valverde Intelligence, Recover Confordia Intelligence, Return to Specialist Nason; reward: 10000
   - related mob Commander Warrish (not in the archived bestiary pages)
 
+- **Chain** (explicit prerequisite links): A Matter of Taste Part 1 chain (26 missions), step 19
+  - Requires: Storming the Castle (id 1622) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Knowing_What_They_Know), [TaRapedia](https://tabularasa.fandom.com/wiki/Storming_the_Castle)
+- **Requires an instance mission:** Storming the Castle (1622) — source: the chain links above
 ### 1625 — Can't Stand the Heat
 
 - **Instance mentioned:** Cuthah Base — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -7639,6 +8363,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - This can be taken from Doctor Splicer in the Bioresearch Wing — source: client text
   - This can be taken from Commander Warrish in the Intelligence Wing — source: client text
 
+- **Chain** (explicit prerequisite links): A Matter of Taste Part 1 chain (26 missions), step 19
+  - Requires: Storming the Castle (id 1622) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Can%27t_Stand_the_Heat), [TaRapedia](https://tabularasa.fandom.com/wiki/Storming_the_Castle)
+- **Requires an instance mission:** Storming the Castle (1622) — source: the chain links above
 ### 1626 — A Traitor's Execution
 
 - **Instance mentioned:** Cuthah Base — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -7661,6 +8388,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [The Director](https://tabularasa.fandom.com/wiki/The_Director): Abyss, Penumbra Headquarters, /loc -537.8, 534.0, -152.5 (named in client text)
 
+- **Chain** (explicit prerequisite links): A Matter of Taste Part 1 chain (26 missions), step 20
+  - Requires: Trapped Like Rats (id 1632) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Traitor%27s_Execution), [TaRapedia](https://tabularasa.fandom.com/wiki/Trapped_Like_Rats)
+- **Requires an instance mission:** Trapped Like Rats (1632) — source: the chain links above
 ### 1629 — Bad Medicine
 
 - **Instance mentioned:** Cuthah Base — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -7686,6 +8416,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **PlayTR EU** [eu.playtr.com:80/en/news_article/deployment_12_patchnotes_known_issues …](https://web.archive.org/web/20090109081646/http://eu.playtr.com:80/en/news_article/deployment_12_patchnotes_known_issues_18_september_2008): “uisites for Level 5 Clearance are the Section 4 missions “Giants of the Abyss,” “Hyper Links” and “Pathogen.” The instance contains 5 new missions: “Bad Medicine,” “The Omega Files,” “Ways and Means,” “The Doctor Is In” and “The Final Countdown.””
 - **PlayTR EU** [eu.rgtr.com:80/en/news_article/patch_notes_and_known_issues_29th_novem …](https://web.archive.org/web/20071201203306/http://eu.rgtr.com:80/en/news_article/patch_notes_and_known_issues_29th_november_2007): “Valverde Howling Maw: Cuthah Base: Mission rewards have been altered for the missions “Bad Medicine”, “Digital Distractions”, “Can’t Stand the Heat”, “The Director’s Plans”, “Death to Crustie!”, “A Traitor’s Execution”, and “Trapped Like Rats”.”
 
+- **Chain** (explicit prerequisite links): A Matter of Taste Part 1 chain (26 missions), step 19
+  - Requires: Storming the Castle (id 1622) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bad_Medicine), [TaRapedia](https://tabularasa.fandom.com/wiki/Storming_the_Castle)
+- **Requires an instance mission:** Storming the Castle (1622) — source: the chain links above
 ### 1632 — Trapped Like Rats [instance]
 
 - **Instance:** Cuthah Base — NPC Lieutenant Riley (named as giver/receiver) is in Cuthah Base — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Lieutenant_Riley)
@@ -7709,6 +8442,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Lieutenant Riley](https://tabularasa.fandom.com/wiki/Lieutenant_Riley): Cuthah Base, Cuthah Base (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Matter of Taste Part 1 chain (26 missions), step 19
+  - Requires: Storming the Castle (id 1622) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Storming_the_Castle), [TaRapedia](https://tabularasa.fandom.com/wiki/Trapped_Like_Rats)
+  - Leads to: A Traitor's Execution (id 1626) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Traitor%27s_Execution), [TaRapedia](https://tabularasa.fandom.com/wiki/Trapped_Like_Rats)
+- **TR MMO DB quest series:** "Digital Distraction", row 3 of 3 ([list](https://web.archive.org/web/20120731160557/http://tr.mmodb.com/quests/seriesname-digital_distraction/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** Storming the Castle (1622) — source: the chain links above
 ### 1653 — Death to Crustie! [instance]
 
 - **Instance:** Cuthah Base — NPC Lieutenant Riley (named as giver/receiver) is in Cuthah Base — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Lieutenant_Riley)
@@ -7755,6 +8493,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [Medical Data Pad](https://tabularasa.fandom.com/wiki/Medical_Data_Pad): no description
 
+- **Chain** (explicit prerequisite links): Shield Drone Headache chain (5 missions), step 4
+  - Requires: Infection Connection (id 1738) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Infection_Connection), [TaRapedia](https://tabularasa.fandom.com/wiki/Take_the_Disc)
+  - Leads to: More Than Penumbra (id 1527) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/More_Than_Penumbra), [TaRapedia](https://tabularasa.fandom.com/wiki/Take_the_Disc)
+- **TR MMO DB quest series:** "Infection Correction", row 2 of 2 ([list](https://web.archive.org/web/20120731161119/http://tr.mmodb.com/quests/seriesname-infection_correction/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1738 — Infection Connection
 
 - **Rebuild summary:**
@@ -7778,6 +8520,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Security Guard Norton](https://tabularasa.fandom.com/wiki/Security_Guard_Norton): Plateau, Fort Defiance, /loc -187, 398, 1016 (named as giver/receiver)
   - [Field Commander Welling](https://tabularasa.fandom.com/wiki/Field_Commander_Welling): Howling Maw, Gangus Forward Base, /loc -1124.4, 236.9, -671.4 (named in client text)
 
+- **Chain** (explicit prerequisite links): Shield Drone Headache chain (5 missions), step 3
+  - Requires: Surgical Strike (id 1516) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Infection_Connection)
+  - Leads to: Take the Disc (id 1681) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Infection_Connection), [TaRapedia](https://tabularasa.fandom.com/wiki/Take_the_Disc)
 ### 1752 — Howling Maw Targets of Opportunity [implemented]
 
 - **Implemented:** enabled on the local server (content revision targets_1) — source: data/rasaworld.db, mission_content_definition
@@ -7828,6 +8573,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Recon Commander Jillian](https://tabularasa.fandom.com/wiki/Recon_Commander_Jillian): Howling Maw, Lake Divinus (named as giver/receiver)
   - [Lieutenant Schlereth](https://tabularasa.fandom.com/wiki/Lieutenant_Schlereth): Howling Maw, Contact (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Matter of Taste Part 1 chain (26 missions), step 14
+  - Requires: Electrician's Charge (id 1481) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Securing_Security)
+  - Leads to: Freedom Spree (id 1775) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Securing_Security)
+- **Requires an instance mission:** Electrician's Charge (1481) — source: the chain links above
 ### 1775 — Freedom Spree [instance]
 
 - **Instance:** Live Target Pens — client objective/log text: "Find and release AFS prisoners from all 3 Cellblocks and the Main Test Pit in the Live Target Pens. Report back to …"
@@ -7850,6 +8599,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Lieutenant Schlereth](https://tabularasa.fandom.com/wiki/Lieutenant_Schlereth): Howling Maw, Contact (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Matter of Taste Part 1 chain (26 missions), step 15
+  - Requires: Securing Security (id 1774) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Securing_Security)
+- **Requires an instance mission:** Securing Security (1774) — source: the chain links above
 ### 1776 — Lockdown
 
 - **Instance mentioned:** Live Target Pens — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -7910,6 +8662,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Elder Orivos](https://tabularasa.fandom.com/wiki/Elder_Orivos): Howling Maw, Gangus Outpost, /loc -638.0, 199.8, -985.3 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Special Deliveries chain (15 missions), step 6
+  - Requires: Choosing Sides (id 1554) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Absence_of_Faith), [TaRapedia](https://tabularasa.fandom.com/wiki/Choosing_Sides)
+- **Requires an instance mission:** Choosing Sides (1554) — source: the chain links above
 ### 1782 — Final Wishes
 
 - **Rebuild summary:**
@@ -7943,6 +8698,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Elder Orivos](https://tabularasa.fandom.com/wiki/Elder_Orivos): Howling Maw, Gangus Outpost, /loc -638.0, 199.8, -985.3 (NPC page lists this mission)
   - [Colonel Sherk](https://tabularasa.fandom.com/wiki/Colonel_Sherk): Howling Maw, Gangus Outpost (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Special Deliveries chain (15 missions), step 6
+  - Requires: Choosing Sides (id 1554) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Choosing_Sides), [TaRapedia](https://tabularasa.fandom.com/wiki/No_Options_Left)
+- **Requires an instance mission:** Choosing Sides (1554) — source: the chain links above
 ### 1947 — Bad Medicine [instance]
 
 - **Instance:** Omega Labs — client objective/log text: "Locate the missing AFS Squad inside Omega Labs."
@@ -7969,6 +8727,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **PlayTR EU** [eu.playtr.com:80/en/news_article/deployment_12_patchnotes_known_issues …](https://web.archive.org/web/20090109081646/http://eu.playtr.com:80/en/news_article/deployment_12_patchnotes_known_issues_18_september_2008): “uisites for Level 5 Clearance are the Section 4 missions “Giants of the Abyss,” “Hyper Links” and “Pathogen.” The instance contains 5 new missions: “Bad Medicine,” “The Omega Files,” “Ways and Means,” “The Doctor Is In” and “The Final Countdown.””
 - **PlayTR EU** [eu.rgtr.com:80/en/news_article/patch_notes_and_known_issues_29th_novem …](https://web.archive.org/web/20071201203306/http://eu.rgtr.com:80/en/news_article/patch_notes_and_known_issues_29th_november_2007): “Valverde Howling Maw: Cuthah Base: Mission rewards have been altered for the missions “Bad Medicine”, “Digital Distractions”, “Can’t Stand the Heat”, “The Director’s Plans”, “Death to Crustie!”, “A Traitor’s Execution”, and “Trapped Like Rats”.”
 
+- **Chain** (explicit prerequisite links): A Matter of Taste Part 1 chain (26 missions), step 19
+  - Requires: Storming the Castle (id 1622) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bad_Medicine), [TaRapedia](https://tabularasa.fandom.com/wiki/Storming_the_Castle)
+- **Requires an instance mission:** Storming the Castle (1622) — source: the chain links above
 ### 2008 — Soyuz Salvage: Howling Maw
 
 - **Rebuild summary:**
@@ -8069,6 +8830,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Salvager Thark](https://tabularasa.fandom.com/wiki/Salvager_Thark): Incline, Ojasa Highlands, /loc -806, 283, 353 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Retrieval of Goods chain (2 missions), step 1
+  - Leads to: Caravan Escort (id 513) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Caravan_Escort), [TaRapedia](https://tabularasa.fandom.com/wiki/Retrieval_of_Goods)
 ### 513 — Caravan Escort
 
 - **Rebuild summary:**
@@ -8087,6 +8850,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Salvager Thark](https://tabularasa.fandom.com/wiki/Salvager_Thark): Incline, Ojasa Highlands, /loc -806, 283, 353 (NPC page lists this mission)
   - [Coordinator Melsi](https://tabularasa.fandom.com/wiki/Coordinator_Melsi): Incline (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Retrieval of Goods chain (2 missions), step 2
+  - Requires: Retrieval of Goods (id 512) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Caravan_Escort), [TaRapedia](https://tabularasa.fandom.com/wiki/Retrieval_of_Goods)
 ### 514 — Scout Recon
 
 - **Rebuild summary:**
@@ -8150,6 +8915,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Coordinator Vash](https://tabularasa.fandom.com/wiki/Coordinator_Vash): Incline, Nyxroq Post, /loc 180, 235, -245 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Finding Pheromones chain (2 missions), step 1
+  - Leads to: A Carrot on a Stick (id 522) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Carrot_on_a_Stick), [TaRapedia](https://tabularasa.fandom.com/wiki/Finding_Pheromones)
 ### 522 — A Carrot on a Stick
 
 - **Rebuild summary:**
@@ -8168,6 +8935,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Coordinator Vash](https://tabularasa.fandom.com/wiki/Coordinator_Vash): Incline, Nyxroq Post, /loc 180, 235, -245 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Finding Pheromones chain (2 missions), step 2
+  - Requires: Finding Pheromones (id 521) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Carrot_on_a_Stick), [TaRapedia](https://tabularasa.fandom.com/wiki/Finding_Pheromones)
 ### 525 — Nitroglazer Tank Supply
 
 - **Rebuild summary:**
@@ -8211,6 +8980,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Lieutenant Epp](https://tabularasa.fandom.com/wiki/Lieutenant_Epp): Incline (named as giver/receiver)
   - [Salvage Master Orto](https://tabularasa.fandom.com/wiki/Salvage_Master_Orto): Incline (named in client text)
 
+- **Chain** (explicit prerequisite links): Stalker Cores Over Hard chain (2 missions), step 2
+  - Requires: Stalker Cores Over Hard (id 804) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Aid_Packages)
 ### 527 — Battered Lashers
 
 - **Rebuild summary:**
@@ -8298,6 +9069,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Gunnery Sergeant Obahmi](https://tabularasa.fandom.com/wiki/Gunnery_Sergeant_Obahmi): Incline, Plains Post (NPC page lists this mission)
   - [Field Commander Foletto](https://tabularasa.fandom.com/wiki/Field_Commander_Foletto): Incline (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Deliver Mire Station Field Report chain (2 missions), step 1
+  - Leads to: Stalker Stalker (id 803) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Deliver_Mire_Station_Field_Report), [TaRapedia](https://tabularasa.fandom.com/wiki/Stalker_Stalker)
 ### 803 — Stalker Stalker
 
 - **Rebuild summary:**
@@ -8317,6 +9090,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Field Commander Foletto](https://tabularasa.fandom.com/wiki/Field_Commander_Foletto): Incline (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Deliver Mire Station Field Report chain (2 missions), step 2
+  - Requires: Deliver Mire Station Field Report (id 802) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Deliver_Mire_Station_Field_Report), [TaRapedia](https://tabularasa.fandom.com/wiki/Stalker_Stalker)
 ### 804 — Stalker Cores Over Hard
 
 - **Rebuild summary:**
@@ -8337,6 +9112,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Field Commander Foletto](https://tabularasa.fandom.com/wiki/Field_Commander_Foletto): Incline (named in client text)
   - [Slappy](https://tabularasa.fandom.com/wiki/Slappy): Plains, Mount Hellas Outpost (named in client text)
 
+- **Chain** (explicit prerequisite links): Stalker Cores Over Hard chain (2 missions), step 1
+  - Leads to: Aid Packages (id 526) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Aid_Packages)
 ### 805 — The Guns of Nyxroq
 
 - **Rebuild summary:**
@@ -8356,6 +9133,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Field Commander Foletto](https://tabularasa.fandom.com/wiki/Field_Commander_Foletto): Incline (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): The Guns of Nyxroq chain (4 missions), step 1
+  - Leads to: Play Dirty, Win Big (id 815) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Play_Dirty%2C_Win_Big), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Guns_of_Nyxroq)
 ### 815 — Play Dirty, Win Big
 
 - **Rebuild summary:**
@@ -8373,6 +9152,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Field Commander Foletto](https://tabularasa.fandom.com/wiki/Field_Commander_Foletto): Incline (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): The Guns of Nyxroq chain (4 missions), step 2
+  - Requires: The Guns of Nyxroq (id 805) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Play_Dirty%2C_Win_Big), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Guns_of_Nyxroq)
+  - Leads to: Kick Crusty in the Jimmy (id 816) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Kick_Crusty_in_the_Jimmy), [TaRapedia](https://tabularasa.fandom.com/wiki/Play_Dirty%2C_Win_Big)
 ### 816 — Kick Crusty in the Jimmy
 
 - **Rebuild summary:**
@@ -8394,6 +9176,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Field Commander Foletto](https://tabularasa.fandom.com/wiki/Field_Commander_Foletto): Incline (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): The Guns of Nyxroq chain (4 missions), step 3
+  - Requires: Play Dirty, Win Big (id 815) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Kick_Crusty_in_the_Jimmy), [TaRapedia](https://tabularasa.fandom.com/wiki/Play_Dirty%2C_Win_Big)
+  - Leads to: Report to Field Sergeant Hanna (id 818) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Kick_Crusty_in_the_Jimmy), [TaRapedia](https://tabularasa.fandom.com/wiki/Report_to_Field_Sergeant_Hanna)
 ### 818 — Report to Field Sergeant Hanna
 
 - **Rebuild summary:**
@@ -8412,6 +9197,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Field Commander Foletto](https://tabularasa.fandom.com/wiki/Field_Commander_Foletto): Incline (named as giver/receiver)
   - [Field Sergeant Hanna](https://tabularasa.fandom.com/wiki/Field_Sergeant_Hanna): Incline (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): The Guns of Nyxroq chain (4 missions), step 4
+  - Requires: Kick Crusty in the Jimmy (id 816) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Kick_Crusty_in_the_Jimmy), [TaRapedia](https://tabularasa.fandom.com/wiki/Report_to_Field_Sergeant_Hanna)
 ### 826 — Intercept and Exterminate
 
 - **Rebuild summary:**
@@ -8440,6 +9227,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Major Nicholson](https://tabularasa.fandom.com/wiki/Major_Nicholson): Incline (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Intercept and Exterminate chain (12 missions), step 1
+  - Leads to: Interrogation (id 827) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Intercept_and_Exterminate), [TaRapedia](https://tabularasa.fandom.com/wiki/Interrogation)
+- **TR MMO DB quest series:** "Intercept And Exterminate", row 1 of 8 ([list](https://web.archive.org/web/20120731161238/http://tr.mmodb.com/quests/seriesname-intercept_and_exterminate/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 827 — Interrogation
 
 - **Rebuild summary:**
@@ -8460,6 +9250,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Major Nicholson](https://tabularasa.fandom.com/wiki/Major_Nicholson): Incline (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Intercept and Exterminate chain (12 missions), step 2
+  - Requires: Intercept and Exterminate (id 826) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Intercept_and_Exterminate), [TaRapedia](https://tabularasa.fandom.com/wiki/Interrogation)
+  - Leads to: Short Fuse (id 828) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Interrogation), [TaRapedia](https://tabularasa.fandom.com/wiki/Short_Fuse)
+- **TR MMO DB quest series:** "Intercept And Exterminate", row 2 of 8 ([list](https://web.archive.org/web/20120731161238/http://tr.mmodb.com/quests/seriesname-intercept_and_exterminate/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 828 — Short Fuse
 
 - **Rebuild summary:**
@@ -8481,6 +9275,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Major Nicholson](https://tabularasa.fandom.com/wiki/Major_Nicholson): Incline (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Intercept and Exterminate chain (12 missions), step 3
+  - Requires: Interrogation (id 827) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Interrogation), [TaRapedia](https://tabularasa.fandom.com/wiki/Short_Fuse)
+  - Leads to: Relay the Terrorist Information (id 831) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_the_Terrorist_Information), [TaRapedia](https://tabularasa.fandom.com/wiki/Short_Fuse)
+  - Leads to: Relay the Terrorist Information (id 840) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_the_Terrorist_Information), [TaRapedia](https://tabularasa.fandom.com/wiki/Short_Fuse)
+- **TR MMO DB quest series:** "Intercept And Exterminate", row 6 of 8 ([list](https://web.archive.org/web/20120731161238/http://tr.mmodb.com/quests/seriesname-intercept_and_exterminate/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 831 — Relay the Terrorist Information
 
 - **Rebuild summary:**
@@ -8499,6 +9298,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Major Nicholson](https://tabularasa.fandom.com/wiki/Major_Nicholson): Incline (named as giver/receiver)
   - [Field Commander Foletto](https://tabularasa.fandom.com/wiki/Field_Commander_Foletto): Incline (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Intercept and Exterminate chain (12 missions), step 4
+  - Requires: Short Fuse (id 828) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_the_Terrorist_Information), [TaRapedia](https://tabularasa.fandom.com/wiki/Short_Fuse)
+  - Leads to: Relay Terrorist Info to Hanna (id 833) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_Terrorist_Info_to_Hanna), [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_the_Terrorist_Information)
+  - Leads to: Relay Terrorist Info to Hanna (id 841) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_Terrorist_Info_to_Hanna), [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_the_Terrorist_Information)
 ### 833 — Relay Terrorist Info to Hanna
 
 - **Rebuild summary:**
@@ -8517,6 +9320,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Field Commander Foletto](https://tabularasa.fandom.com/wiki/Field_Commander_Foletto): Incline (named as giver/receiver)
   - [Field Sergeant Hanna](https://tabularasa.fandom.com/wiki/Field_Sergeant_Hanna): Incline (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Intercept and Exterminate chain (12 missions), step 5
+  - Requires: Relay the Terrorist Information (id 831) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_Terrorist_Info_to_Hanna), [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_the_Terrorist_Information)
+  - Requires: Relay the Terrorist Information (id 840) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_Terrorist_Info_to_Hanna), [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_the_Terrorist_Information)
+  - Leads to: Relay Terrorist Info to Colonel Deiley (id 842) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_Terrorist_Info_to_Colonel_Deiley), [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_Terrorist_Info_to_Hanna)
+  - Leads to: Relay Terrorist Info to Colonel Deiley (id 848) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_Terrorist_Info_to_Colonel_Deiley), [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_Terrorist_Info_to_Hanna)
 ### 834 — Turn the Tables
 
 - **Rebuild summary:**
@@ -8538,6 +9346,12 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Colonel Deiley](https://tabularasa.fandom.com/wiki/Colonel_Deiley): Incline, Ortho Post, /loc 381, 260, 9 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Intercept and Exterminate chain (12 missions), step 7
+  - Requires: Relay Terrorist Info to Colonel Deiley (id 842) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_Terrorist_Info_to_Colonel_Deiley), [TaRapedia](https://tabularasa.fandom.com/wiki/Turn_the_Tables)
+  - Requires: Relay Terrorist Info to Colonel Deiley (id 848) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_Terrorist_Info_to_Colonel_Deiley), [TaRapedia](https://tabularasa.fandom.com/wiki/Turn_the_Tables)
+  - Leads to: Operation: Cauterize (id 838) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Operation%3A_Cauterize), [TaRapedia](https://tabularasa.fandom.com/wiki/Turn_the_Tables)
+  - Leads to: Operation: Cauterize (id 839) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Operation%3A_Cauterize), [TaRapedia](https://tabularasa.fandom.com/wiki/Turn_the_Tables)
+- **TR MMO DB quest series:** "Intercept And Exterminate", row 8 of 8 ([list](https://web.archive.org/web/20120731161238/http://tr.mmodb.com/quests/seriesname-intercept_and_exterminate/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 838 — Operation: Cauterize
 
 - **Rebuild summary:**
@@ -8558,6 +9372,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Colonel Deiley](https://tabularasa.fandom.com/wiki/Colonel_Deiley): Incline, Ortho Post, /loc 381, 260, 9 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Intercept and Exterminate chain (12 missions), step 8
+  - Requires: Turn the Tables (id 834) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Operation%3A_Cauterize), [TaRapedia](https://tabularasa.fandom.com/wiki/Turn_the_Tables)
+- **TR MMO DB quest series:** "Intercept And Exterminate", row 3 of 8 ([list](https://web.archive.org/web/20120731161238/http://tr.mmodb.com/quests/seriesname-intercept_and_exterminate/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 839 — Operation: Cauterize
 
 - **Rebuild summary:**
@@ -8578,6 +9395,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Colonel Deiley](https://tabularasa.fandom.com/wiki/Colonel_Deiley): Incline, Ortho Post, /loc 381, 260, 9 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Intercept and Exterminate chain (12 missions), step 8
+  - Requires: Turn the Tables (id 834) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Operation%3A_Cauterize), [TaRapedia](https://tabularasa.fandom.com/wiki/Turn_the_Tables)
+- **TR MMO DB quest series:** "Intercept And Exterminate", row 3 of 8 ([list](https://web.archive.org/web/20120731161238/http://tr.mmodb.com/quests/seriesname-intercept_and_exterminate/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 840 — Relay the Terrorist Information
 
 - **Rebuild summary:**
@@ -8596,6 +9416,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Major Nicholson](https://tabularasa.fandom.com/wiki/Major_Nicholson): Incline (named as giver/receiver)
   - [Field Commander Foletto](https://tabularasa.fandom.com/wiki/Field_Commander_Foletto): Incline (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Intercept and Exterminate chain (12 missions), step 4
+  - Requires: Short Fuse (id 828) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_the_Terrorist_Information), [TaRapedia](https://tabularasa.fandom.com/wiki/Short_Fuse)
+  - Leads to: Relay Terrorist Info to Hanna (id 833) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_Terrorist_Info_to_Hanna), [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_the_Terrorist_Information)
+  - Leads to: Relay Terrorist Info to Hanna (id 841) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_Terrorist_Info_to_Hanna), [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_the_Terrorist_Information)
 ### 841 — Relay Terrorist Info to Hanna
 
 - **Rebuild summary:**
@@ -8614,6 +9438,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Field Commander Foletto](https://tabularasa.fandom.com/wiki/Field_Commander_Foletto): Incline (named as giver/receiver)
   - [Field Sergeant Hanna](https://tabularasa.fandom.com/wiki/Field_Sergeant_Hanna): Incline (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Intercept and Exterminate chain (12 missions), step 5
+  - Requires: Relay the Terrorist Information (id 831) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_Terrorist_Info_to_Hanna), [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_the_Terrorist_Information)
+  - Requires: Relay the Terrorist Information (id 840) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_Terrorist_Info_to_Hanna), [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_the_Terrorist_Information)
+  - Leads to: Relay Terrorist Info to Colonel Deiley (id 842) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_Terrorist_Info_to_Colonel_Deiley), [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_Terrorist_Info_to_Hanna)
+  - Leads to: Relay Terrorist Info to Colonel Deiley (id 848) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_Terrorist_Info_to_Colonel_Deiley), [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_Terrorist_Info_to_Hanna)
 ### 842 — Relay Terrorist Info to Colonel Deiley
 
 - **Rebuild summary:**
@@ -8635,6 +9464,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Field Sergeant Hanna](https://tabularasa.fandom.com/wiki/Field_Sergeant_Hanna): Incline (named as giver/receiver)
   - [Colonel Deiley](https://tabularasa.fandom.com/wiki/Colonel_Deiley): Incline, Ortho Post, /loc 381, 260, 9 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Intercept and Exterminate chain (12 missions), step 6
+  - Requires: Relay Terrorist Info to Hanna (id 833) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_Terrorist_Info_to_Colonel_Deiley), [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_Terrorist_Info_to_Hanna)
+  - Requires: Relay Terrorist Info to Hanna (id 841) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_Terrorist_Info_to_Colonel_Deiley), [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_Terrorist_Info_to_Hanna)
+  - Leads to: Turn the Tables (id 834) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_Terrorist_Info_to_Colonel_Deiley), [TaRapedia](https://tabularasa.fandom.com/wiki/Turn_the_Tables)
+- **TR MMO DB quest series:** "Intercept And Exterminate", row 4 of 8 ([list](https://web.archive.org/web/20120731161238/http://tr.mmodb.com/quests/seriesname-intercept_and_exterminate/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 848 — Relay Terrorist Info to Colonel Deiley
 
 - **Rebuild summary:**
@@ -8656,6 +9490,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Field Sergeant Hanna](https://tabularasa.fandom.com/wiki/Field_Sergeant_Hanna): Incline (named as giver/receiver)
   - [Colonel Deiley](https://tabularasa.fandom.com/wiki/Colonel_Deiley): Incline, Ortho Post, /loc 381, 260, 9 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Intercept and Exterminate chain (12 missions), step 6
+  - Requires: Relay Terrorist Info to Hanna (id 833) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_Terrorist_Info_to_Colonel_Deiley), [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_Terrorist_Info_to_Hanna)
+  - Requires: Relay Terrorist Info to Hanna (id 841) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_Terrorist_Info_to_Colonel_Deiley), [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_Terrorist_Info_to_Hanna)
+  - Leads to: Turn the Tables (id 834) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Relay_Terrorist_Info_to_Colonel_Deiley), [TaRapedia](https://tabularasa.fandom.com/wiki/Turn_the_Tables)
+- **TR MMO DB quest series:** "Intercept And Exterminate", row 4 of 8 ([list](https://web.archive.org/web/20120731161238/http://tr.mmodb.com/quests/seriesname-intercept_and_exterminate/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1032 — Free Labbna
 
 - **Rebuild summary:**
@@ -8703,6 +9542,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - Facility Keycard #3 is obtained from Model 6TR in the large room in the southwest — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Radio_Free_Arieki)
 
+- **Chain** (explicit prerequisite links): Attack of the Drones chain (3 missions), step 2
+  - Requires: Attack of the Drones (id 1182) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Attack_of_the_Drones), [TaRapedia](https://tabularasa.fandom.com/wiki/Radio_Free_Arieki)
+- **TR MMO DB quest series:** "Attack Of The Drones", row 3 of 3 ([list](https://web.archive.org/web/20120731164701/http://tr.mmodb.com/quests/seriesname-attack_of_the_drones/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** Attack of the Drones (1182) — source: the chain links above
 ### 1180 — Gotta Get Out of this Place [instance]
 
 - **Instance:** Comm Tower — NPC Prisoner Varsti (named as giver/receiver) is in Comm Tower — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Prisoner_Varsti)
@@ -8752,6 +9595,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Field Commander Foletto](https://tabularasa.fandom.com/wiki/Field_Commander_Foletto): Incline (named as giver/receiver)
   - [Commander Ryder](https://tabularasa.fandom.com/wiki/Commander_Ryder): Comm Tower (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Attack of the Drones chain (3 missions), step 1
+  - Leads to: Radio Free Arieki (id 1179) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Attack_of_the_Drones), [TaRapedia](https://tabularasa.fandom.com/wiki/Radio_Free_Arieki)
+  - Leads to: Chaos Theory (id 1191) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Attack_of_the_Drones), [TaRapedia](https://tabularasa.fandom.com/wiki/Chaos_Theory)
+- **TR MMO DB quest series:** "Attack Of The Drones", row 1 of 3 ([list](https://web.archive.org/web/20120731164701/http://tr.mmodb.com/quests/seriesname-attack_of_the_drones/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1191 — Chaos Theory [instance]
 
 - **Instance:** Comm Tower — NPC Commander Ryder (named as giver/receiver) is in Comm Tower — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Commander_Ryder)
@@ -8780,6 +9627,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Commander Ryder](https://tabularasa.fandom.com/wiki/Commander_Ryder): Comm Tower (named as giver/receiver)
   - [Field Commander Foletto](https://tabularasa.fandom.com/wiki/Field_Commander_Foletto): Incline (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Attack of the Drones chain (3 missions), step 2
+  - Requires: Attack of the Drones (id 1182) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Attack_of_the_Drones), [TaRapedia](https://tabularasa.fandom.com/wiki/Chaos_Theory)
+- **TR MMO DB quest series:** "Attack Of The Drones", row 2 of 3 ([list](https://web.archive.org/web/20120731164701/http://tr.mmodb.com/quests/seriesname-attack_of_the_drones/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** Attack of the Drones (1182) — source: the chain links above
 ### 1316 — Hard Driven
 
 - **Rebuild summary:**
@@ -8805,6 +9656,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - That should be enough to correlate exactly where their commands come from — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Hard_Driven)
   - If these hard drives don't tell us where their commands come from, nothing will — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Hard_Driven)
 
+- **Chain** (explicit prerequisite links): Hard Driven chain (4 missions), step 1
+  - Leads to: Reprogramming Evolution (id 1320) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Hard_Driven), [TaRapedia](https://tabularasa.fandom.com/wiki/Reprogramming_Evolution)
+- **TR MMO DB quest series:** "Hard Driven", row 2 of 3 ([list](https://web.archive.org/web/20120731163240/http://tr.mmodb.com/quests/seriesname-hard_driven/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1320 — Reprogramming Evolution
 
 - **Rebuild summary:**
@@ -8826,6 +9680,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Lieutenant Epp](https://tabularasa.fandom.com/wiki/Lieutenant_Epp): Incline (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Hard Driven chain (4 missions), step 2
+  - Requires: Hard Driven (id 1316) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Hard_Driven), [TaRapedia](https://tabularasa.fandom.com/wiki/Reprogramming_Evolution)
+  - Leads to: Genetically Coded (id 1734) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Genetically_Coded), [TaRapedia](https://tabularasa.fandom.com/wiki/Reprogramming_Evolution)
+  - Leads to: Genetically Coded (id 1737) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Genetically_Coded), [TaRapedia](https://tabularasa.fandom.com/wiki/Reprogramming_Evolution)
+- **TR MMO DB quest series:** "Hard Driven", row 3 of 3 ([list](https://web.archive.org/web/20120731163240/http://tr.mmodb.com/quests/seriesname-hard_driven/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1491 — Fried Atta [instance]
 
 - **Instance:** Ojasa Atta Hive — NPC Explosives Specialist John (named as giver/receiver) is in Ojasa Atta Hive — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Explosives_Specialist_John)
@@ -8859,6 +9718,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Munitions Expert Sal](https://tabularasa.fandom.com/wiki/Munitions_Expert_Sal): Incline, Plains Post, /loc 167.6, 232.0, -279.5 (NPC page lists this mission)
   - [Explosives Specialist John](https://tabularasa.fandom.com/wiki/Explosives_Specialist_John): Ojasa Atta Hive, Ojasa Atta Hive, /loc 319.5, 82.0, 133.4 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Fried Atta chain (5 missions), step 1
+  - Leads to: Something Smells (id 1492) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Fried_Atta), [TaRapedia](https://tabularasa.fandom.com/wiki/Something_Smells)
+- **TR MMO DB quest series:** "Fried Atta", row 3 of 5 ([list](https://web.archive.org/web/20120731161557/http://tr.mmodb.com/quests/seriesname-fried_atta/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1492 — Something Smells [instance]
 
 - **Instance:** Ojasa Atta Hive — NPC Explosives Specialist John (NPC page lists this mission) is in Ojasa Atta Hive — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Explosives_Specialist_John)
@@ -8881,6 +9743,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Explosives Specialist John](https://tabularasa.fandom.com/wiki/Explosives_Specialist_John): Ojasa Atta Hive, Ojasa Atta Hive, /loc 319.5, 82.0, 133.4 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Fried Atta chain (5 missions), step 2
+  - Requires: Fried Atta (id 1491) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Fried_Atta), [TaRapedia](https://tabularasa.fandom.com/wiki/Something_Smells)
+  - Leads to: Brann Bacon (id 1493) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Brann_Bacon), [TaRapedia](https://tabularasa.fandom.com/wiki/Something_Smells)
+- **TR MMO DB quest series:** "Fried Atta", row 5 of 5 ([list](https://web.archive.org/web/20120731161557/http://tr.mmodb.com/quests/seriesname-fried_atta/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** Fried Atta (1491) — source: the chain links above
 ### 1493 — Brann Bacon [instance]
 
 - **Instance:** Ojasa Atta Hive — NPC Explosives Specialist John (NPC page lists this mission) is in Ojasa Atta Hive — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Explosives_Specialist_John)
@@ -8904,6 +9771,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Explosives Specialist John](https://tabularasa.fandom.com/wiki/Explosives_Specialist_John): Ojasa Atta Hive, Ojasa Atta Hive, /loc 319.5, 82.0, 133.4 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Fried Atta chain (5 missions), step 3
+  - Requires: Something Smells (id 1492) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Brann_Bacon), [TaRapedia](https://tabularasa.fandom.com/wiki/Something_Smells)
+  - Leads to: Atta Ought To Do It (id 1494) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Atta_Ought_To_Do_It), [TaRapedia](https://tabularasa.fandom.com/wiki/Brann_Bacon)
+- **TR MMO DB quest series:** "Fried Atta", row 2 of 5 ([list](https://web.archive.org/web/20120731161557/http://tr.mmodb.com/quests/seriesname-fried_atta/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** Something Smells (1492) — source: the chain links above
 ### 1494 — Atta Ought To Do It [instance]
 
 - **Instance:** Ojasa Atta Hive — NPC Explosives Specialist John (NPC page lists this mission) is in Ojasa Atta Hive — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Explosives_Specialist_John)
@@ -8929,6 +9801,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Explosives Specialist John](https://tabularasa.fandom.com/wiki/Explosives_Specialist_John): Ojasa Atta Hive, Ojasa Atta Hive, /loc 319.5, 82.0, 133.4 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Fried Atta chain (5 missions), step 4
+  - Requires: Brann Bacon (id 1493) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Atta_Ought_To_Do_It), [TaRapedia](https://tabularasa.fandom.com/wiki/Brann_Bacon)
+  - Leads to: Long Live the Queen (id 1495) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Atta_Ought_To_Do_It), [TaRapedia](https://tabularasa.fandom.com/wiki/Long_Live_the_Queen)
+- **TR MMO DB quest series:** "Fried Atta", row 1 of 5 ([list](https://web.archive.org/web/20120731161557/http://tr.mmodb.com/quests/seriesname-fried_atta/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** Brann Bacon (1493) — source: the chain links above
 ### 1495 — Long Live the Queen [instance]
 
 - **Instance:** Ojasa Atta Hive — NPC Explosives Specialist John (NPC page lists this mission) is in Ojasa Atta Hive — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Explosives_Specialist_John)
@@ -8955,6 +9832,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Explosives Specialist John](https://tabularasa.fandom.com/wiki/Explosives_Specialist_John): Ojasa Atta Hive, Ojasa Atta Hive, /loc 319.5, 82.0, 133.4 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Fried Atta chain (5 missions), step 5
+  - Requires: Atta Ought To Do It (id 1494) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Atta_Ought_To_Do_It), [TaRapedia](https://tabularasa.fandom.com/wiki/Long_Live_the_Queen)
+- **TR MMO DB quest series:** "Fried Atta", row 4 of 5 ([list](https://web.archive.org/web/20120731161557/http://tr.mmodb.com/quests/seriesname-fried_atta/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** Atta Ought To Do It (1494) — source: the chain links above
 ### 1661 — Logos: Create
 
 - **Rebuild summary:**
@@ -9102,6 +9983,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Lieutenant Epp](https://tabularasa.fandom.com/wiki/Lieutenant_Epp): Incline (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Hard Driven chain (4 missions), step 3
+  - Requires: Reprogramming Evolution (id 1320) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Genetically_Coded), [TaRapedia](https://tabularasa.fandom.com/wiki/Reprogramming_Evolution)
+- **TR MMO DB quest series:** "Hard Driven", row 1 of 3 ([list](https://web.archive.org/web/20120731163240/http://tr.mmodb.com/quests/seriesname-hard_driven/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1737 — Genetically Coded
 
 - **Rebuild summary:**
@@ -9125,6 +10009,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Lieutenant Epp](https://tabularasa.fandom.com/wiki/Lieutenant_Epp): Incline (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Hard Driven chain (4 missions), step 3
+  - Requires: Reprogramming Evolution (id 1320) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Genetically_Coded), [TaRapedia](https://tabularasa.fandom.com/wiki/Reprogramming_Evolution)
+- **TR MMO DB quest series:** "Hard Driven", row 1 of 3 ([list](https://web.archive.org/web/20120731163240/http://tr.mmodb.com/quests/seriesname-hard_driven/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1739 — Incline Targets of Opportunity [implemented]
 
 - **Implemented:** enabled on the local server (content revision targets_1) — source: data/rasaworld.db, mission_content_definition
@@ -9158,6 +10045,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Captain Caruthers](https://tabularasa.fandom.com/wiki/Captain_Caruthers): Incline (NPC page lists this mission)
 
+- **Requires (name not matched to a mission):** Level 25 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Incline_Targets_of_Opportunity)
 ### 1747 — Report to Liaison Maddox
 
 - **Rebuild summary:**
@@ -9236,6 +10124,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Private Parsons](https://tabularasa.fandom.com/wiki/Private_Parsons): Incline, Plains Post (named as giver/receiver)
   - [Supply Sergeant Otto](https://tabularasa.fandom.com/wiki/Supply_Sergeant_Otto): Incline, Ortho Post (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Helping Parsons chain (4 missions), step 1
+  - Leads to: Gerry Rigging (id 1827) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Gerry_Rigging), [TaRapedia](https://tabularasa.fandom.com/wiki/Helping_Parsons)
+- **TR MMO DB quest series:** "Helping Parsons", row 3 of 5 ([list](https://web.archive.org/web/20120731161652/http://tr.mmodb.com/quests/seriesname-helping_parsons/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires (name not matched to a mission):** Unknown (maybe none) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Helping_Parsons)
 ### 1827 — Gerry Rigging
 
 - **Rebuild summary:**
@@ -9263,6 +10155,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - Contrary to the description, the arms can also be obtained from Reconstructor Bots in addition to Warden Bots — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Gerry_Rigging)
 
+- **Chain** (explicit prerequisite links): Helping Parsons chain (4 missions), step 2
+  - Requires: Helping Parsons (id 1826) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Gerry_Rigging), [TaRapedia](https://tabularasa.fandom.com/wiki/Helping_Parsons)
+  - Leads to: Missing Merchandise (id 1832) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Gerry_Rigging), [TaRapedia](https://tabularasa.fandom.com/wiki/Missing_Merchandise)
+- **TR MMO DB quest series:** "Helping Parsons", row 2 of 5 ([list](https://web.archive.org/web/20120731161652/http://tr.mmodb.com/quests/seriesname-helping_parsons/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1832 — Missing Merchandise
 
 - **Rebuild summary:**
@@ -9288,6 +10184,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Supply Sergeant Otto](https://tabularasa.fandom.com/wiki/Supply_Sergeant_Otto): Incline, Ortho Post (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Helping Parsons chain (4 missions), step 3
+  - Requires: Gerry Rigging (id 1827) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Gerry_Rigging), [TaRapedia](https://tabularasa.fandom.com/wiki/Missing_Merchandise)
+  - Leads to: Ocular Enhancements (id 1858) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Missing_Merchandise), [TaRapedia](https://tabularasa.fandom.com/wiki/Ocular_Enhancements)
+- **TR MMO DB quest series:** "Helping Parsons", row 4 of 5 ([list](https://web.archive.org/web/20120731161652/http://tr.mmodb.com/quests/seriesname-helping_parsons/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1853 — Darn Dirty Robots
 
 - **Rebuild summary:**
@@ -9332,6 +10232,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Supply Sergeant Otto](https://tabularasa.fandom.com/wiki/Supply_Sergeant_Otto): Incline, Ortho Post (named as giver/receiver)
   - [Lt. Gerry](https://tabularasa.fandom.com/wiki/Lt._Gerry): Mires Post, Mires Post (named in client text)
 
+- **Chain** (explicit prerequisite links): Helping Parsons chain (4 missions), step 4
+  - Requires: Missing Merchandise (id 1832) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Missing_Merchandise), [TaRapedia](https://tabularasa.fandom.com/wiki/Ocular_Enhancements)
 ### 1894 — Finding Samantha
 
 - **Rebuild summary:**
@@ -9350,6 +10252,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TaRapedia mission list** [Raintree Post mission list](https://tabularasa.fandom.com/wiki/Raintree_Post_mission_list): zone Incline, area Raintree Post, given by Samantha
 - **TR MMO DB** [Finding Samantha](https://web.archive.org/web/20081202023229/http://tr.mmodb.com/quests/finding-samantha-486.php): level: 25; starts at npc: Samantha; starts in zone: Incline; objectives: Talk to Samantha; reward: 3000; series: Finding Samantha
 
+- **Requires (name not matched to a mission):** Unknown (maybe nothing) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Finding_Samantha)
 ### 1895 — Missing Persons: Samatha
 
 - **Rebuild summary:**
@@ -9365,6 +10268,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - objectives: Report to Sergeant Grim • Report the whereabouts of Private Samantha to Sergeant Grim.; Go to post • Go to the post where Samantha is suposed to be patrolling.; Fill Quota • Fill Private Samantha's Quota of 45 Thrax kills. • Thrax Killed 0/45; Talk to Samantha
   - walkthrough: The CP assault thrax will not count towards the mission, so your best bet is to actually leave the designated point.
 
+- **Requires (name not matched to a mission):** Finding Samantha (turn in) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Missing_Persons%3A_Samantha)
 ### 1911 — FLASHPOINT: Predator Hunt
 
 - **Rebuild summary:**
@@ -9383,6 +10287,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [Armor Requisition Form](https://tabularasa.fandom.com/wiki/Armor_Requisition_Form): Armor Requisition Form is a reward from the mission FLASHPOINT: Predator Hunt. Required for the misson FLASHPOINT: Rewarding the Savior.
 
+- **Chain** (explicit prerequisite links): FLASHPOINT: Predator Hunt chain (5 missions), step 1
+  - Leads to: FLASHPOINT: Rewarding the Savior (id 1918) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/FLASHPOINT%3A_Predator_Hunt), [TaRapedia](https://tabularasa.fandom.com/wiki/FLASHPOINT%3A_Rewarding_the_Savior)
+  - Leads to: FLASHPOINT: Rewarding the Savior (id 1921) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/FLASHPOINT%3A_Predator_Hunt), [TaRapedia](https://tabularasa.fandom.com/wiki/FLASHPOINT%3A_Rewarding_the_Savior)
+  - Leads to: FLASHPOINT: Rewarding the Savior (id 1924) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/FLASHPOINT%3A_Predator_Hunt), [TaRapedia](https://tabularasa.fandom.com/wiki/FLASHPOINT%3A_Rewarding_the_Savior)
+  - Leads to: FLASHPOINT: Rewarding the Savior (id 1927) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/FLASHPOINT%3A_Predator_Hunt), [TaRapedia](https://tabularasa.fandom.com/wiki/FLASHPOINT%3A_Rewarding_the_Savior)
 ### 1918 — FLASHPOINT: Rewarding the Savior
 
 - **Rebuild summary:**
@@ -9400,6 +10309,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Chief Engineer Hay](https://tabularasa.fandom.com/wiki/Chief_Engineer_Hay): Incline (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): FLASHPOINT: Predator Hunt chain (5 missions), step 2
+  - Requires: FLASHPOINT: Predator Hunt (id 1911) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/FLASHPOINT%3A_Predator_Hunt), [TaRapedia](https://tabularasa.fandom.com/wiki/FLASHPOINT%3A_Rewarding_the_Savior)
 ### 1921 — FLASHPOINT: Rewarding the Savior
 
 - **Rebuild summary:**
@@ -9417,6 +10328,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Chief Engineer Hay](https://tabularasa.fandom.com/wiki/Chief_Engineer_Hay): Incline (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): FLASHPOINT: Predator Hunt chain (5 missions), step 2
+  - Requires: FLASHPOINT: Predator Hunt (id 1911) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/FLASHPOINT%3A_Predator_Hunt), [TaRapedia](https://tabularasa.fandom.com/wiki/FLASHPOINT%3A_Rewarding_the_Savior)
 ### 1924 — FLASHPOINT: Rewarding the Savior
 
 - **Rebuild summary:**
@@ -9434,6 +10347,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Chief Engineer Hay](https://tabularasa.fandom.com/wiki/Chief_Engineer_Hay): Incline (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): FLASHPOINT: Predator Hunt chain (5 missions), step 2
+  - Requires: FLASHPOINT: Predator Hunt (id 1911) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/FLASHPOINT%3A_Predator_Hunt), [TaRapedia](https://tabularasa.fandom.com/wiki/FLASHPOINT%3A_Rewarding_the_Savior)
 ### 1927 — FLASHPOINT: Rewarding the Savior
 
 - **Rebuild summary:**
@@ -9451,6 +10366,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Chief Engineer Hay](https://tabularasa.fandom.com/wiki/Chief_Engineer_Hay): Incline (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): FLASHPOINT: Predator Hunt chain (5 missions), step 2
+  - Requires: FLASHPOINT: Predator Hunt (id 1911) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/FLASHPOINT%3A_Predator_Hunt), [TaRapedia](https://tabularasa.fandom.com/wiki/FLASHPOINT%3A_Rewarding_the_Savior)
 ## Live Target Pens
 
 ### 1778 — The Brann Plan
@@ -9525,6 +10442,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Colonel Bosley](https://tabularasa.fandom.com/wiki/Colonel_Bosley): Plateau, AFS Camp Resistance (named in client text)
 
+- **Chain** (explicit prerequisite links): Showdown chain (2 missions), step 1
+  - Leads to: Coup (id 878) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Coup), [TaRapedia](https://tabularasa.fandom.com/wiki/Showdown)
 ### 878 — Coup [instance]
 
 - **Instance:** Maligo Base — NPC Downed Prisoner (named as giver/receiver) is in Maligo Base — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Downed_Prisoner)
@@ -9548,6 +10467,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Downed Prisoner](https://tabularasa.fandom.com/wiki/Downed_Prisoner): Maligo Base, /loc 378, -22, -179 (named as giver/receiver)
   - [Squad Leader Alter](https://tabularasa.fandom.com/wiki/Squad_Leader_Alter): Maligo Base, Maligo Base, /loc 234, -22, -125 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Showdown chain (2 missions), step 2
+  - Requires: Showdown (id 876) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Coup), [TaRapedia](https://tabularasa.fandom.com/wiki/Showdown)
 ### 879 — Self Preservation
 
 - **Instance mentioned:** Maligo Base — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -9709,6 +10630,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Sergeant Fitz](https://tabularasa.fandom.com/wiki/Sergeant_Fitz): /loc -211.1, 27.9, 230.2 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Taste of Their Own Medicine chain (5 missions), step 1
+  - Leads to: Freedom's Just Another Word (id 548) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Taste_of_Their_Own_Medicine), [TaRapedia](https://tabularasa.fandom.com/wiki/Freedom%27s_Just_Another_Word)
+  - Leads to: Slay on Target (id 718) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Taste_of_Their_Own_Medicine), [TaRapedia](https://tabularasa.fandom.com/wiki/Slay_On_Target)
+- **TR MMO DB quest series:** "A Taste Of Their Own Medicine", row 1 of 4 ([list](https://web.archive.org/web/20120731164150/http://tr.mmodb.com/quests/seriesname-a_taste_of_their_own_medicine/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 548 — Freedom's Just Another Word
 
 - **Instance mentioned:** Logos Research Facility — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -9735,6 +10660,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - TIP: The key drops from a boss in the control room — source: [TR MMO DB](https://web.archive.org/web/20080516071337/http://tr.mmodb.com:80/quests/freedoms-just-another-word-335.php)
 
+- **Chain** (explicit prerequisite links): A Taste of Their Own Medicine chain (5 missions), step 2
+  - Requires: A Taste of Their Own Medicine (id 546) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Taste_of_Their_Own_Medicine), [TaRapedia](https://tabularasa.fandom.com/wiki/Freedom%27s_Just_Another_Word)
+  - Leads to: Leggo My Logos (id 550) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Freedom%27s_Just_Another_Word), [TaRapedia](https://tabularasa.fandom.com/wiki/Leggo_My_Logos)
+- **TR MMO DB quest series:** "A Taste Of Their Own Medicine", row 2 of 4 ([list](https://web.archive.org/web/20120731164150/http://tr.mmodb.com/quests/seriesname-a_taste_of_their_own_medicine/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** A Taste of Their Own Medicine (546) — source: the chain links above
 ### 550 — Leggo My Logos
 
 - **Instance mentioned:** Logos Research Facility — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -9764,6 +10694,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Sergeant Fitz](https://tabularasa.fandom.com/wiki/Sergeant_Fitz): /loc -211.1, 27.9, 230.2 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Taste of Their Own Medicine chain (5 missions), step 3
+  - Requires: Freedom's Just Another Word (id 548) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Freedom%27s_Just_Another_Word), [TaRapedia](https://tabularasa.fandom.com/wiki/Leggo_My_Logos)
+  - Leads to: To a Subterranean Chamber (id 1674) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/To_a_Subterranean_Chamber)
+- **TR MMO DB quest series:** "A Taste Of Their Own Medicine", row 3 of 4 ([list](https://web.archive.org/web/20120731164150/http://tr.mmodb.com/quests/seriesname-a_taste_of_their_own_medicine/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 663 — Insertion Point
 
 - **Instance mentioned:** Bane Supply Depot — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -9788,6 +10722,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Elder Toida](https://tabularasa.fandom.com/wiki/Elder_Toida): /loc -205, 230, 28 (NPC page lists this mission)
 
+- **Requires (name not matched to a mission):** 37 lvl — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Insertion_Point)
 ### 664 — Survivors
 
 - **Instance mentioned:** Bane Supply Depot — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -9837,6 +10772,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **PlanetTR** [planettr.com:80/forums/archive/index.php/t-1365.html](https://web.archive.org/web/20071209022816/http://planettr.com:80/forums/archive/index.php/t-1365.html): “* Logos Research: Necromites ambush should only spawn once now. / * Logos Research – Slay on Target: DNA sample usables are now mission activated, so you can’t steal extra DNA. / * Logos Research – Added mini boss into logos analyzer room.”
 - **PlayTR EU** [eu.playtr.com/en/news_article/deployment_93_patchnotes_and_known_issue …](https://web.archive.org/web/20090105235435/http://eu.playtr.com/en/news_article/deployment_93_patchnotes_and_known_issues_5th_june_2008_test_server): “le: Refusing to help the AWOLs completes the Other Side of the Coin mission, and fails the Stray Cats mission. This should be the opposite. / Mission: Slay on Target (Logos Research Facility): Slay on Target mission may not be able to be completed. / Some boss mobs are not dropping loot when defeated.”
 
+- **Chain** (explicit prerequisite links): A Taste of Their Own Medicine chain (5 missions), step 2
+  - Requires: A Taste of Their Own Medicine (id 546) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Taste_of_Their_Own_Medicine), [TaRapedia](https://tabularasa.fandom.com/wiki/Slay_On_Target)
+- **TR MMO DB quest series:** "A Taste Of Their Own Medicine", row 4 of 4 ([list](https://web.archive.org/web/20120731164150/http://tr.mmodb.com/quests/seriesname-a_taste_of_their_own_medicine/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** A Taste of Their Own Medicine (546) — source: the chain links above
 ### 864 — Bringing the Spirit Home
 
 - **Rebuild summary:**
@@ -9882,6 +10821,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Researcher Vetter](https://tabularasa.fandom.com/wiki/Researcher_Vetter): no location on page (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Reaping the Harvest chain (4 missions), step 1
+  - Leads to: Hassling the Harvesters (id 890) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Hassling_the_Harvesters), [TaRapedia](https://tabularasa.fandom.com/wiki/Reaping_the_Harvest)
+  - Leads to: Beware: Buried Gas Lines (id 913) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Beware%3A_Buried_Gas_Lines), [TaRapedia](https://tabularasa.fandom.com/wiki/Reaping_the_Harvest)
+  - Leads to: A Butcher, a Baker, and a Caretaker (id 968) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Butcher%2C_a_Baker%2C_and_a_Caretaker)
 ### 888 — Tread Lightly
 
 - **Rebuild summary:**
@@ -9939,6 +10882,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - objectives: • Destroy the Bane Gas Harvesters
 - **TaRapedia mission list** [Paludos mission list](https://tabularasa.fandom.com/wiki/Paludos_mission_list): zone Marshes, area Paludos, given by Retread Kline
 
+- **Chain** (explicit prerequisite links): Reaping the Harvest chain (4 missions), step 2
+  - Requires: Reaping the Harvest (id 881) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Hassling_the_Harvesters), [TaRapedia](https://tabularasa.fandom.com/wiki/Reaping_the_Harvest)
 ### 891 — Never Surrender
 
 - **Instance mentioned:** P'reo Das — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -9957,6 +10902,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - walkthrough: Pretty straight-forward. Proceed north and repel the Bane invasion.
 - **TaRapedia mission list** [P'reo Das mission list](https://tabularasa.fandom.com/wiki/P%27reo_Das_mission_list): zone Marshes, given by Forean Warrior Tola
 
+- **Chain** (explicit prerequisite links): Never Surrender chain (2 missions), step 1
+  - Leads to: Cleaning House (id 894) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Cleaning_House), [TaRapedia](https://tabularasa.fandom.com/wiki/Never_Surrender)
 ### 892 — Picking Up the Pieces
 
 - **Instance mentioned:** P'reo Das — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -9996,6 +10943,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TaRapedia mission list** [P'reo Das mission list](https://tabularasa.fandom.com/wiki/P%27reo_Das_mission_list): zone Marshes, given by Radio Mission
 - **TR MMO DB** [Needle in a Bane Camp](https://web.archive.org/web/20080413105138/http://tr.mmodb.com:80/quests/needle-in-a-bane-camp-330.php): level: 35; starts in zone: Marshes; description: NOTE: This quest is given by a radio transmission, but we have no further details at this time. Please submit some.
 
+- **Chain** (explicit prerequisite links): The Lost Ones chain (3 missions), step 2
+  - Requires: The Lost Ones (id 1076) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Needle_in_a_Bane_Camp)
+- **Requires an instance mission:** The Lost Ones (1076) — source: the chain links above
 ### 894 — Cleaning House
 
 - **Instance mentioned:** P'reo Das — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -10016,6 +10966,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TR MMO DB** [Cleaning House](https://web.archive.org/web/20081202022904/http://tr.mmodb.com/quests/cleaning-house-334.php): level: 35; starts at npc: Forean Elder Kirii; starts in zone: Marshes; objectives: Rescue Forean Captured by the Bane (0/4), Destroy Pump 1, Destroy Pump 2, Destroy Pump 3, Destroy Pump 4, Speak to Forean Warrior Tola; reward: 7000
   - related mob Forean Warrior Tola (not in the archived bestiary pages)
 
+- **Chain** (explicit prerequisite links): Never Surrender chain (2 missions), step 2
+  - Requires: Never Surrender (id 891) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Cleaning_House), [TaRapedia](https://tabularasa.fandom.com/wiki/Never_Surrender)
 ### 913 — Beware: Buried Gas Lines [instance]
 
 - **Instance:** Bane Supply Depot — client objective/log text: "Use the detonators to blow up the 8 Bane pipeline supply joints in the pipeline fields of the eastern Marshes to …"
@@ -10033,6 +10985,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - objectives: • Destroy the first pipeline supply joint • Destroy the second pipeline supply joint • Destroy the third pipeline supply joint • Destroy the fourth pipeline supply joint
 - **TaRapedia mission list** [Paludos mission list](https://tabularasa.fandom.com/wiki/Paludos_mission_list): zone Marshes, area Paludos, given by Lieutenant Brazos
 
+- **Chain** (explicit prerequisite links): Reaping the Harvest chain (4 missions), step 2
+  - Requires: Reaping the Harvest (id 881) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Beware%3A_Buried_Gas_Lines), [TaRapedia](https://tabularasa.fandom.com/wiki/Reaping_the_Harvest)
 ### 914 — Highway Robbery
 
 - **Rebuild summary:**
@@ -10061,6 +11015,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Retread Vincent](https://tabularasa.fandom.com/wiki/Retread_Vincent): /loc -268, 216, -812 (NPC page lists this mission)
   - [Commander Figgins](https://tabularasa.fandom.com/wiki/Commander_Figgins): /loc -186, 219, 628 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Highway Robbery chain (3 missions), step 1
+  - Leads to: Production Destruction (id 916) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Highway_Robbery), [TaRapedia](https://tabularasa.fandom.com/wiki/Production_Destruction)
+  - Leads to: Production Destruction (id 1033) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Highway_Robbery), [TaRapedia](https://tabularasa.fandom.com/wiki/Production_Destruction)
 ### 916 — Production Destruction
 
 - **Rebuild summary:**
@@ -10081,6 +11038,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Retread Vincent](https://tabularasa.fandom.com/wiki/Retread_Vincent): /loc -268, 216, -812 (NPC page lists this mission)
   - [Lieutenant Holloway](https://tabularasa.fandom.com/wiki/Lieutenant_Holloway): /loc -285, 216, -753 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Highway Robbery chain (3 missions), step 2
+  - Requires: Highway Robbery (id 914) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Highway_Robbery), [TaRapedia](https://tabularasa.fandom.com/wiki/Production_Destruction)
 ### 917 — Divided We Fall
 
 - **Rebuild summary:**
@@ -10182,6 +11141,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Retread McCormick](https://tabularasa.fandom.com/wiki/Retread_McCormick): /loc -268, 216, -812 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): The Regulator: Part I chain (4 missions), step 1
+  - Leads to: The Regulator: Part II (id 1028) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Regulator%3A_Part_1), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Regulator%3A_Part_2)
+- **TR MMO DB quest series:** "The Regulator", row 4 of 4 ([list](https://web.archive.org/web/20120731165522/http://tr.mmodb.com/quests/seriesname-the_regulator/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 959 — Tastes Like Grubber
 
 - **Rebuild summary:**
@@ -10203,6 +11165,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Research Chemist Horsh](https://tabularasa.fandom.com/wiki/Research_Chemist_Horsh): /loc -168, 219, 593 (named as giver/receiver)
   - [Research Chemist Horsch](https://tabularasa.fandom.com/wiki/Research_Chemist_Horsch): /loc -268, 216, -812 (named in client text)
 
+- **Chain** (explicit prerequisite links): Tastes Like Grubber chain (2 missions), step 1
+  - Leads to: Fixing the Food Chain (id 961) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Fixing_the_Food_Chain), [TaRapedia](https://tabularasa.fandom.com/wiki/Tastes_Like_Grubber)
+- **TR MMO DB quest series:** "Tastes Like Grubber", row 2 of 2 ([list](https://web.archive.org/web/20120731161656/http://tr.mmodb.com/quests/seriesname-tastes_like_grubber/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 961 — Fixing the Food Chain
 
 - **Rebuild summary:**
@@ -10227,6 +11192,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Research Chemist Horsh](https://tabularasa.fandom.com/wiki/Research_Chemist_Horsh): /loc -168, 219, 593 (named as giver/receiver)
   - [Research Chemist Horsch](https://tabularasa.fandom.com/wiki/Research_Chemist_Horsch): /loc -268, 216, -812 (named in client text)
 
+- **Chain** (explicit prerequisite links): Tastes Like Grubber chain (2 missions), step 2
+  - Requires: Tastes Like Grubber (id 959) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Fixing_the_Food_Chain), [TaRapedia](https://tabularasa.fandom.com/wiki/Tastes_Like_Grubber)
+- **TR MMO DB quest series:** "Tastes Like Grubber", row 1 of 2 ([list](https://web.archive.org/web/20120731161656/http://tr.mmodb.com/quests/seriesname-tastes_like_grubber/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 968 — A Butcher, a Baker, and a Caretaker
 
 - **Rebuild summary:**
@@ -10255,6 +11223,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha boss NPC** [Commander Sto](https://www.ellatha.com/tr/bossnpcview.asp?key=Commander+Sto): Thrax; /loc 362 , -168; zone Marshes; needed for: Marshes Targets of Opportunity (boss named in client text)
 - **Ellatha boss NPC** [Commander Sto](https://www.ellatha.com/tr/bossnpcview.asp?key=Commander+Sto&id=85): Thrax; /loc 362 , -168; zone Marshes; needed for: Marshes Targets of Opportunity (boss named in client text)
 
+- **Chain** (explicit prerequisite links): Reaping the Harvest chain (4 missions), step 2
+  - Requires: Reaping the Harvest (id 881) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Butcher%2C_a_Baker%2C_and_a_Caretaker)
 ### 1023 — Rest and Recreation
 
 - **Rebuild summary:**
@@ -10295,6 +11265,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Retread McCormick](https://tabularasa.fandom.com/wiki/Retread_McCormick): /loc -268, 216, -812 (listed under this NPC on a TaRapedia mission list)
 
+- **Chain** (explicit prerequisite links): The Regulator: Part I chain (4 missions), step 2
+  - Requires: The Regulator: Part I (id 925) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Regulator%3A_Part_1), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Regulator%3A_Part_2)
+  - Leads to: The Regulator: Part III (id 1029) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Regulator%3A_Part_2), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Regulator%3A_Part_3)
+- **TR MMO DB quest series:** "The Regulator", row 1 of 4 ([list](https://web.archive.org/web/20120731165522/http://tr.mmodb.com/quests/seriesname-the_regulator/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1029 — The Regulator: Part III
 
 - **Rebuild summary:**
@@ -10315,6 +11289,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Retread McCormick](https://tabularasa.fandom.com/wiki/Retread_McCormick): /loc -268, 216, -812 (listed under this NPC on a TaRapedia mission list)
 
+- **Chain** (explicit prerequisite links): The Regulator: Part I chain (4 missions), step 3
+  - Requires: The Regulator: Part II (id 1028) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Regulator%3A_Part_2), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Regulator%3A_Part_3)
+  - Leads to: The Regulator: Part IV (id 1030) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Regulator%3A_Part_3), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Regulator%3A_Part_4)
+- **TR MMO DB quest series:** "The Regulator", row 2 of 4 ([list](https://web.archive.org/web/20120731165522/http://tr.mmodb.com/quests/seriesname-the_regulator/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1030 — The Regulator: Part IV
 
 - **Rebuild summary:**
@@ -10339,6 +11317,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Retread McCormick](https://tabularasa.fandom.com/wiki/Retread_McCormick): /loc -268, 216, -812 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): The Regulator: Part I chain (4 missions), step 4
+  - Requires: The Regulator: Part III (id 1029) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Regulator%3A_Part_3), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Regulator%3A_Part_4)
+- **TR MMO DB quest series:** "The Regulator", row 3 of 4 ([list](https://web.archive.org/web/20120731165522/http://tr.mmodb.com/quests/seriesname-the_regulator/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1033 — Production Destruction
 
 - **Rebuild summary:**
@@ -10359,6 +11340,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Retread Vincent](https://tabularasa.fandom.com/wiki/Retread_Vincent): /loc -268, 216, -812 (NPC page lists this mission)
   - [Lieutenant Holloway](https://tabularasa.fandom.com/wiki/Lieutenant_Holloway): /loc -285, 216, -753 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Highway Robbery chain (3 missions), step 2
+  - Requires: Highway Robbery (id 914) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Highway_Robbery), [TaRapedia](https://tabularasa.fandom.com/wiki/Production_Destruction)
 ### 1052 — Trapped!
 
 - **Instance mentioned:** Logos Research Facility — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -10404,6 +11387,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Lieutenant Morrison](https://tabularasa.fandom.com/wiki/Lieutenant_Morrison): Marshes, /loc -205, 219, 600 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): The Lost Ones chain (3 missions), step 1
+  - Leads to: Needle in a Bane Camp (id 893) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Needle_in_a_Bane_Camp)
+  - Leads to: The Choices We Make (id 1078) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Choices_We_Make), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Lost_Ones)
+- **TR MMO DB quest series:** "The Lost Ones", row 2 of 2 ([list](https://web.archive.org/web/20120731162321/http://tr.mmodb.com/quests/seriesname-the_lost_ones/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1077 — Dirty Secrets
 
 - **Instance mentioned:** P'reo Das — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -10443,6 +11430,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **PlanetTR** [planettr.com:80/forums/archive/index.php/t-1365.html](https://web.archive.org/web/20071209022816/http://planettr.com:80/forums/archive/index.php/t-1365.html): “* P’reo Das / o Mission: The Choices We Make / o Issue: Mission objective tells the player to complete the mission by leaving the instance but doing that fails the mission.”
 - **RGTR official site** [www.rgtr.com/news/patch_notes/patch_notes_and_known_issues_1_4.html](https://web.archive.org/web/20081117172815/http://www.rgtr.com/news/patch_notes/patch_notes_and_known_issues_1_4.html): “P’reo Das / Mission: The Choices We Make / Issue: Mission objective tells the player to complete the mission by leaving the instance but doing that fails the mission.”
 
+- **Chain** (explicit prerequisite links): The Lost Ones chain (3 missions), step 2
+  - Requires: The Lost Ones (id 1076) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Choices_We_Make), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Lost_Ones)
+- **TR MMO DB quest series:** "The Lost Ones", row 1 of 2 ([list](https://web.archive.org/web/20120731162321/http://tr.mmodb.com/quests/seriesname-the_lost_ones/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** The Lost Ones (1076) — source: the chain links above
 ### 1084 — Calling all Parts
 
 - **Rebuild summary:**
@@ -10480,6 +11471,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Retread Karl](https://tabularasa.fandom.com/wiki/Retread_Karl): /loc -268, 216, -812 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Retread Arena: Beat Street chain (3 missions), step 1
+  - Leads to: Retread Arena: Smackdown (id 1087) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Retread_Arena%3A_Beat_Street), [TaRapedia](https://tabularasa.fandom.com/wiki/Retread_Arena%3A_Smackdown)
 ### 1087 — Retread Arena: Smackdown
 
 - **Rebuild summary:**
@@ -10497,6 +11490,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Retread Karl](https://tabularasa.fandom.com/wiki/Retread_Karl): /loc -268, 216, -812 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Retread Arena: Beat Street chain (3 missions), step 2
+  - Requires: Retread Arena: Beat Street (id 1085) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Retread_Arena%3A_Beat_Street), [TaRapedia](https://tabularasa.fandom.com/wiki/Retread_Arena%3A_Smackdown)
+  - Leads to: Retread Arena: Legend or Fall (id 1088) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Retread_Arena%3A_Legend_or_Fall), [TaRapedia](https://tabularasa.fandom.com/wiki/Retread_Arena%3A_Smackdown)
 ### 1088 — Retread Arena: Legend or Fall
 
 - **Rebuild summary:**
@@ -10515,6 +11511,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Retread Karl](https://tabularasa.fandom.com/wiki/Retread_Karl): /loc -268, 216, -812 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Retread Arena: Beat Street chain (3 missions), step 3
+  - Requires: Retread Arena: Smackdown (id 1087) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Retread_Arena%3A_Legend_or_Fall), [TaRapedia](https://tabularasa.fandom.com/wiki/Retread_Arena%3A_Smackdown)
 ### 1583 — Marshes Targets of Opportunity [implemented] [instance]
 
 - **Implemented:** enabled on the local server (content revision targets_1) — source: data/rasaworld.db, mission_content_definition
@@ -10576,6 +11574,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Retread Vincent](https://tabularasa.fandom.com/wiki/Retread_Vincent): /loc -268, 216, -812 (NPC page lists this mission)
   - [Lieutenant Morrison](https://tabularasa.fandom.com/wiki/Lieutenant_Morrison): Marshes, /loc -205, 219, 600 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Giant Killer chain (11 missions), step 8
+  - Requires: Retreads to Retreads (id 1751) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/It_Lies_in_Ruins), [TaRapedia](https://tabularasa.fandom.com/wiki/Retreads_to_Retreads)
 ### 1674 — To a Subterranean Chamber
 
 - **Rebuild summary:**
@@ -10595,6 +11595,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Retread Vincent](https://tabularasa.fandom.com/wiki/Retread_Vincent): /loc -268, 216, -812 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): A Taste of Their Own Medicine chain (5 missions), step 4
+  - Requires: Leggo My Logos (id 550) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/To_a_Subterranean_Chamber)
 ### 1863 — Missing in Action
 
 - **Rebuild summary:**
@@ -10649,6 +11651,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Retread Lou](https://tabularasa.fandom.com/wiki/Retread_Lou): Marshes, Stalker Woods, /loc -776, 241, -542 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Gun Control chain (5 missions), step 1
+  - Leads to: Gun Control - Part II (id 1866) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Gun_Control), [TaRapedia](https://tabularasa.fandom.com/wiki/Gun_Control_-_Part_II)
 ### 1866 — Gun Control - Part II
 
 - **Rebuild summary:**
@@ -10667,6 +11671,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Retread Lou](https://tabularasa.fandom.com/wiki/Retread_Lou): Marshes, Stalker Woods, /loc -776, 241, -542 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Gun Control chain (5 missions), step 2
+  - Requires: Gun Control (id 1865) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Gun_Control), [TaRapedia](https://tabularasa.fandom.com/wiki/Gun_Control_-_Part_II)
+  - Leads to: Gun Control - Part III (id 1867) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Gun_Control_-_Part_II), [TaRapedia](https://tabularasa.fandom.com/wiki/Gun_Control_-_Part_III)
 ### 1867 — Gun Control - Part III
 
 - **Rebuild summary:**
@@ -10687,6 +11694,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Retread Lou](https://tabularasa.fandom.com/wiki/Retread_Lou): Marshes, Stalker Woods, /loc -776, 241, -542 (NPC page lists this mission)
   - [Shaman Masai](https://tabularasa.fandom.com/wiki/Shaman_Masai): Marshes, Plateau Point, /loc -735, 217, 171 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Gun Control chain (5 missions), step 3
+  - Requires: Gun Control - Part II (id 1866) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Gun_Control_-_Part_II), [TaRapedia](https://tabularasa.fandom.com/wiki/Gun_Control_-_Part_III)
+  - Leads to: Gun Control - Part IV (id 1868) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Gun_Control_-_Part_III), [TaRapedia](https://tabularasa.fandom.com/wiki/Gun_Control_-_Part_IV)
+  - Leads to: Gun Control - Part IV (id 1904) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Gun_Control_-_Part_III), [TaRapedia](https://tabularasa.fandom.com/wiki/Gun_Control_-_Part_IV)
 ### 1868 — Gun Control - Part IV
 
 - **Rebuild summary:**
@@ -10706,6 +11717,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Shaman Masai](https://tabularasa.fandom.com/wiki/Shaman_Masai): Marshes, Plateau Point, /loc -735, 217, 171 (NPC page lists this mission)
   - [Retread Lou](https://tabularasa.fandom.com/wiki/Retread_Lou): Marshes, Stalker Woods, /loc -776, 241, -542 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Gun Control chain (5 missions), step 4
+  - Requires: Gun Control - Part III (id 1867) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Gun_Control_-_Part_III), [TaRapedia](https://tabularasa.fandom.com/wiki/Gun_Control_-_Part_IV)
 ### 1869 — Now Can You Hear Me?
 
 - **Rebuild summary:**
@@ -10745,6 +11758,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Fight your way into the Bane CP at 166,232,57. — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/guide-to-eastern-marshes)
   - Need a Little Help Here : Archer Thoung is a Forean Ranger stationed at a tiny outpost at -127,220,-341. — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/guide-to-eastern-marshes)
 
+- **Chain** (explicit prerequisite links): Under the Radar chain (6 missions), step 3
+  - Requires: Under the Radar - Part II (id 1876) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Data_Disaster)
+  - Requires: Under the Radar - Part II (id 1877) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Data_Disaster)
 ### 1871 — Stop and Smell the Maw Flowers
 
 - **Instance mentioned:** Retread Caves — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -10842,6 +11858,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - Kiang is concerned about what she found on that black box — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/guide-to-eastern-marshes)
 
+- **Chain** (explicit prerequisite links): Under the Radar chain (6 missions), step 1
+  - Leads to: Under the Radar - Part II (id 1876) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Under_the_Radar), [TaRapedia](https://tabularasa.fandom.com/wiki/Under_the_Radar_-_Part_II)
+  - Leads to: Under the Radar - Part II (id 1877) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Under_the_Radar), [TaRapedia](https://tabularasa.fandom.com/wiki/Under_the_Radar_-_Part_II)
+  - Leads to: The Core of the Matter (id 1878) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Core_of_the_Matter), [TaRapedia](https://tabularasa.fandom.com/wiki/Under_the_Radar)
 ### 1876 — Under the Radar - Part II
 
 - **Rebuild summary:**
@@ -10859,6 +11879,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Lt. Kiang](https://tabularasa.fandom.com/wiki/Lt._Kiang): Marshes, /loc -115, 231, -319.5 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Under the Radar chain (6 missions), step 2
+  - Requires: Under the Radar (id 1875) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Under_the_Radar), [TaRapedia](https://tabularasa.fandom.com/wiki/Under_the_Radar_-_Part_II)
+  - Leads to: Data Disaster (id 1870) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Data_Disaster)
+  - Leads to: This Calls For Destruction (id 1879) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/This_Calls_For_Destruction), [TaRapedia](https://tabularasa.fandom.com/wiki/Under_the_Radar_-_Part_II)
 ### 1877 — Under the Radar - Part II
 
 - **Rebuild summary:**
@@ -10876,6 +11900,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Lt. Kiang](https://tabularasa.fandom.com/wiki/Lt._Kiang): Marshes, /loc -115, 231, -319.5 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Under the Radar chain (6 missions), step 2
+  - Requires: Under the Radar (id 1875) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Under_the_Radar), [TaRapedia](https://tabularasa.fandom.com/wiki/Under_the_Radar_-_Part_II)
+  - Leads to: Data Disaster (id 1870) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Data_Disaster)
+  - Leads to: This Calls For Destruction (id 1879) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/This_Calls_For_Destruction), [TaRapedia](https://tabularasa.fandom.com/wiki/Under_the_Radar_-_Part_II)
 ### 1878 — The Core of the Matter
 
 - **Instance mentioned:** Bane Supply Depot — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -10899,6 +11927,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Sgt. McDonald](https://tabularasa.fandom.com/wiki/Sgt._McDonald): Marshes, /loc -124, 224, -307.6 (NPC page lists this mission)
   - [Lt. Kiang](https://tabularasa.fandom.com/wiki/Lt._Kiang): Marshes, /loc -115, 231, -319.5 (named in client text)
 
+- **Chain** (explicit prerequisite links): Under the Radar chain (6 missions), step 2
+  - Requires: Under the Radar (id 1875) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Core_of_the_Matter), [TaRapedia](https://tabularasa.fandom.com/wiki/Under_the_Radar)
 ### 1879 — This Calls For Destruction
 
 - **Instance mentioned:** Bane Supply Depot — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -10917,6 +11947,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Lt. Kiang](https://tabularasa.fandom.com/wiki/Lt._Kiang): Marshes, /loc -115, 231, -319.5 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Under the Radar chain (6 missions), step 3
+  - Requires: Under the Radar - Part II (id 1876) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/This_Calls_For_Destruction), [TaRapedia](https://tabularasa.fandom.com/wiki/Under_the_Radar_-_Part_II)
+  - Requires: Under the Radar - Part II (id 1877) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/This_Calls_For_Destruction), [TaRapedia](https://tabularasa.fandom.com/wiki/Under_the_Radar_-_Part_II)
 ### 1904 — Gun Control - Part IV
 
 - **Rebuild summary:**
@@ -10937,6 +11970,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Retread Lou](https://tabularasa.fandom.com/wiki/Retread_Lou): Marshes, Stalker Woods, /loc -776, 241, -542 (named as giver/receiver)
   - [Retread Duvall](https://tabularasa.fandom.com/wiki/Retread_Duvall): Marshes, /loc -593, 216, -438 (named in client text)
 
+- **Chain** (explicit prerequisite links): Gun Control chain (5 missions), step 4
+  - Requires: Gun Control - Part III (id 1867) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Gun_Control_-_Part_III), [TaRapedia](https://tabularasa.fandom.com/wiki/Gun_Control_-_Part_IV)
 ### 2009 — Soyuz Salvage: Marshes
 
 - **Rebuild summary:**
@@ -10982,6 +12017,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Head back up the trail and northeast towards the Bane area which begins around 148.7, 4.3, 50.1. — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/minos-caverns)
   - Right here you'll also find a chest on the ground at 159,3,70 containing the Galactic Map for the Forean Hybrid access mission, Stolen — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/minos-caverns)
 
+- **Chain** (explicit prerequisite links): Data Thieves chain (2 missions), step 1
+  - Leads to: Cave Extraction (id 392) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Data_Thieves)
+- **TR MMO DB quest series:** "Data Thieves", row 2 of 2 ([list](https://web.archive.org/web/20120731163036/http://tr.mmodb.com/quests/seriesname-data_thieves/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 392 — Cave Extraction
 
 - **Instance mentioned:** Minos Caverns — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -11003,6 +12041,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TR MMO DB** [Cave Extraction](https://web.archive.org/web/20081202022417/http://tr.mmodb.com/quests/cave-extraction-138.php): level: 19; starts at npc: Recon Officer Tyler; starts in zone: Minos Caverns; objectives: Escort Taylor to the Cave Entrance; reward: 2100; series: Data Thieves
 - **TR MMO DB quest series** [Data Thieves](https://web.archive.org/web/20120731163036/http://tr.mmodb.com/quests/seriesname-data_thieves/): Cave Extraction (level 19, reward 2100) → Data Thieves (level 18, reward 1950) (series order as listed on the page; reward unit not stated)
 
+- **Chain** (explicit prerequisite links): Data Thieves chain (2 missions), step 2
+  - Requires: Data Thieves (id 383) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Data_Thieves)
+- **TR MMO DB quest series:** "Data Thieves", row 1 of 2 ([list](https://web.archive.org/web/20120731163036/http://tr.mmodb.com/quests/seriesname-data_thieves/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ## Mires
 
 ### 940 — Making Your Way
@@ -11027,6 +12068,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Sgt. Jeansonne](https://tabularasa.fandom.com/wiki/Sgt._Jeansonne): Mires (NPC page lists this mission)
   - [Sgt. Ricardo](https://tabularasa.fandom.com/wiki/Sgt._Ricardo): Mires, Fort Condor (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Making Your Way chain (6 missions), step 1
+  - Leads to: House Calls (id 943) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/House_Calls), [TaRapedia](https://tabularasa.fandom.com/wiki/Making_Your_Way)
+  - Leads to: Little Bit Crazy... (id 986) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Little_Bit_Crazy...), [TaRapedia](https://tabularasa.fandom.com/wiki/Making_Your_Way)
+  - Leads to: Fort Haroun (id 1172) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Fort_Haroun_%28mission%29), [TaRapedia](https://tabularasa.fandom.com/wiki/Making_Your_Way)
 ### 943 — House Calls
 
 - **Rebuild summary:**
@@ -11060,6 +12105,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Field Medic Casey](https://tabularasa.fandom.com/wiki/Field_Medic_Casey): Mires, Fort Condor (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Making Your Way chain (6 missions), step 2
+  - Requires: Making Your Way (id 940) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/House_Calls), [TaRapedia](https://tabularasa.fandom.com/wiki/Making_Your_Way)
 ### 944 — Fly in the Ointment
 
 - **Rebuild summary:**
@@ -11082,6 +12129,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Corporal Cooper](https://tabularasa.fandom.com/wiki/Corporal_Cooper): Mires, Fort Condor (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 16
+  - Requires: Miner's Apprentice (id 1588) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Fly_in_the_Ointment), [TaRapedia](https://tabularasa.fandom.com/wiki/Miner%27s_Apprentice)
+  - Leads to: Find Me A Rock (id 977) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Find_Me_A_Rock), [TaRapedia](https://tabularasa.fandom.com/wiki/Fly_in_the_Ointment)
+- **TR MMO DB quest series:** "Fluxite Fluids", row 3 of 4 ([list](https://web.archive.org/web/20120731170317/http://tr.mmodb.com/quests/seriesname-fluxite_fluids/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 948 — Tick, Tick, Tick...
 
 - **Rebuild summary:**
@@ -11101,6 +12152,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Dr. Robertson](https://tabularasa.fandom.com/wiki/Dr._Robertson): Mires, Fort Haroun (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): The Green Party chain (6 missions), step 2
+  - Requires: The Green Party (id 972) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Green_Party), [TaRapedia](https://tabularasa.fandom.com/wiki/Tick%2C_Tick%2C_Tick...)
+  - Leads to: Manta Beam Hill (id 1587) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Manta_Beam_Hill), [TaRapedia](https://tabularasa.fandom.com/wiki/Tick%2C_Tick%2C_Tick...)
 ### 952 — Party Gashers
 
 - **Rebuild summary:**
@@ -11119,6 +12173,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Dr. Robertson](https://tabularasa.fandom.com/wiki/Dr._Robertson): Mires, Fort Haroun (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): The Green Party chain (6 missions), step 4
+  - Requires: Manta Beam Hill (id 1587) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Manta_Beam_Hill), [TaRapedia](https://tabularasa.fandom.com/wiki/Party_Gashers)
+  - Leads to: Lasher Virus (id 955) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Lasher_Virus), [TaRapedia](https://tabularasa.fandom.com/wiki/Party_Gashers)
 ### 955 — Lasher Virus
 
 - **Rebuild summary:**
@@ -11142,6 +12199,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Professor Long](https://tabularasa.fandom.com/wiki/Professor_Long): Mires, Fort Haroun (NPC page lists this mission)
   - [Dr. Robertson](https://tabularasa.fandom.com/wiki/Dr._Robertson): Mires, Fort Haroun (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): The Green Party chain (6 missions), step 5
+  - Requires: Party Gashers (id 952) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Lasher_Virus), [TaRapedia](https://tabularasa.fandom.com/wiki/Party_Gashers)
+  - Leads to: Hooves of the Magmonix (id 956) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Hooves_of_the_Magmonix), [TaRapedia](https://tabularasa.fandom.com/wiki/Lasher_Virus)
 ### 956 — Hooves of the Magmonix
 
 - **Rebuild summary:**
@@ -11161,6 +12221,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Dr. Robertson](https://tabularasa.fandom.com/wiki/Dr._Robertson): Mires, Fort Haroun (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): The Green Party chain (6 missions), step 6
+  - Requires: Lasher Virus (id 955) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Hooves_of_the_Magmonix), [TaRapedia](https://tabularasa.fandom.com/wiki/Lasher_Virus)
 ### 962 — Delivery Boy
 
 - **Rebuild summary:**
@@ -11181,6 +12243,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Sgt. Leitch](https://tabularasa.fandom.com/wiki/Sgt._Leitch): Mires, Fort Haroun (named as giver/receiver)
   - [Sgt. Jeansonne](https://tabularasa.fandom.com/wiki/Sgt._Jeansonne): Mires (named in client text)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 23
+  - Requires: Gathering Of Resources (id 963) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Delivery_Boy)
+  - Requires: Release the Hounds (id 1106) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Release_the_Hounds)
 ### 963 — Gathering Of Resources
 
 - **Rebuild summary:**
@@ -11202,6 +12267,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Rijii](https://tabularasa.fandom.com/wiki/Rijii): Mires, Brann LZ, /loc 14.6, 238.5, -629.0 (named in client text)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 3
+  - Requires: So Thirsty... (id 996) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Gathering_of_Resources), [TaRapedia](https://tabularasa.fandom.com/wiki/So_Thirsty...)
+  - Leads to: Delivery Boy (id 962) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Delivery_Boy)
+- **TR MMO DB quest series:** "So Hungry", row 1 of 3 ([list](https://web.archive.org/web/20120731161528/http://tr.mmodb.com/quests/seriesname-so_hungry/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 964 — Find Captain Dial
 
 - **Rebuild summary:**
@@ -11226,6 +12295,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Staff Sgt. Rose](https://tabularasa.fandom.com/wiki/Staff_Sgt._Rose): Mires, Baylor Base, /loc -636, 229, -437 (named as giver/receiver)
   - [Captain Dial](https://tabularasa.fandom.com/wiki/Captain_Dial): Mires, Quicksilver Post, /loc 551, 235, 199 (named as giver/receiver)
 
+- **Requires (name not matched to a mission):** not known — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Find_Captain_Dial)
 ### 966 — Arieki Surveying
 
 - **Rebuild summary:**
@@ -11244,6 +12314,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Sgt. Heatherly](https://tabularasa.fandom.com/wiki/Sgt._Heatherly): Mires (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 1
+  - Leads to: Survey Says (id 1200) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Survey_Says_%28Mires%29)
 ### 967 — Cod3 Br34king
 
 - **Rebuild summary:**
@@ -11299,6 +12371,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Professor Long](https://tabularasa.fandom.com/wiki/Professor_Long): Mires, Fort Haroun (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): The Green Party chain (6 missions), step 1
+  - Leads to: Tick, Tick, Tick... (id 948) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Green_Party), [TaRapedia](https://tabularasa.fandom.com/wiki/Tick%2C_Tick%2C_Tick...)
 ### 973 — Disruption Specialist
 
 - **Rebuild summary:**
@@ -11316,6 +12390,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Sgt. Ricardo](https://tabularasa.fandom.com/wiki/Sgt._Ricardo): Mires, Fort Condor (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 13
+  - Requires: Bring Me A Rock (id 978) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bring_Me_A_Rock), [TaRapedia](https://tabularasa.fandom.com/wiki/Disruption_Specialist)
+  - Leads to: Fluxite Fluids (id 1207) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Disruption_Specialist), [TaRapedia](https://tabularasa.fandom.com/wiki/Fluxite_Fluids)
 ### 974 — Practical Engineering
 
 - **Rebuild summary:**
@@ -11377,6 +12454,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - You can [T] the crate just fine, but no mission item drops from the crate — source: [PlanetTR](https://web.archive.org/web/20090116215409/http://planettr.com:80/forums/archive/index.php/t-2714.html)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 18
+  - Requires: Find Me A Rock (id 977) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Find_Me_A_Rock), [TaRapedia](https://tabularasa.fandom.com/wiki/Flight_Salvage)
+  - Leads to: Can't Survive Without My Radio (id 1067) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Can%27t_Survive_Without_My_Radio), [TaRapedia](https://tabularasa.fandom.com/wiki/Flight_Salvage)
+- **TR MMO DB quest series:** "Flight Salvage", row 2 of 4 ([list](https://web.archive.org/web/20120731161226/http://tr.mmodb.com/quests/seriesname-flight_salvage/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 976 — Restraining Order
 
 - **Rebuild summary:**
@@ -11408,6 +12489,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Colonel Li Hua](https://tabularasa.fandom.com/wiki/Colonel_Li_Hua): Mires, Fort Condor (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Making Your Way chain (6 missions), step 3
+  - Requires: Little Bit Crazy... (id 986) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Little_Bit_Crazy...), [TaRapedia](https://tabularasa.fandom.com/wiki/Restraining_Order)
 ### 977 — Find Me A Rock
 
 - **Rebuild summary:**
@@ -11435,6 +12518,12 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Corporal Cooper](https://tabularasa.fandom.com/wiki/Corporal_Cooper): Mires, Fort Condor (named as giver/receiver)
   - [Major Ston](https://tabularasa.fandom.com/wiki/Major_Ston): Mires, Fort Haroun (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 17
+  - Requires: Fly in the Ointment (id 944) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Find_Me_A_Rock), [TaRapedia](https://tabularasa.fandom.com/wiki/Fly_in_the_Ointment)
+  - Leads to: Flight Salvage (id 975) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Find_Me_A_Rock), [TaRapedia](https://tabularasa.fandom.com/wiki/Flight_Salvage)
+  - Leads to: Stealthy As She Goes (id 985) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Find_Me_A_Rock), [TaRapedia](https://tabularasa.fandom.com/wiki/Stealthy_As_She_Goes)
+  - Leads to: Bane Ace (id 1035) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bane_Ace), [TaRapedia](https://tabularasa.fandom.com/wiki/Find_Me_A_Rock)
+- **TR MMO DB quest series:** "Fluxite Fluids", row 1 of 4 ([list](https://web.archive.org/web/20120731170317/http://tr.mmodb.com/quests/seriesname-fluxite_fluids/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 978 — Bring Me A Rock
 
 - **Rebuild summary:**
@@ -11451,6 +12540,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - walkthrough: Both Thrax Miner and Thrax Mining Supervisors drop the fluxite.
 - **TaRapedia mission list** [Fort Condor mission list](https://tabularasa.fandom.com/wiki/Fort_Condor_mission_list): zone Mires, area Fort Condor, given by Researcher Amidon
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 12
+  - Requires: Survey Says (id 1200) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bring_Me_A_Rock), [TaRapedia](https://tabularasa.fandom.com/wiki/Survey_Says_%28Mires%29)
+  - Requires: Survey Says (id 508) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bring_Me_A_Rock)
+  - Leads to: Disruption Specialist (id 973) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bring_Me_A_Rock), [TaRapedia](https://tabularasa.fandom.com/wiki/Disruption_Specialist)
 ### 979 — The Ubiquitous Black Box
 
 - **Rebuild summary:**
@@ -11469,6 +12562,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Pilot Schuman](https://tabularasa.fandom.com/wiki/Pilot_Schuman): Mires, Fort Haroun (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 19
+  - Requires: Bane Ace (id 1035) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bane_Ace), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Ubiquitous_Black_Box)
+  - Leads to: Mixology (id 980) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mixology), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Ubiquitous_Black_Box)
 ### 980 — Mixology
 
 - **Instance mentioned:** Tahrendra Base — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -11493,6 +12589,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Lt. Cockerell](https://tabularasa.fandom.com/wiki/Lt._Cockerell): Mires, Fort Haroun, /loc 615, 241, 550 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 20
+  - Requires: The Ubiquitous Black Box (id 979) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mixology), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Ubiquitous_Black_Box)
+  - Leads to: Black Helicopters (id 981) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Black_Helicopters), [TaRapedia](https://tabularasa.fandom.com/wiki/Mixology)
+- **TR MMO DB quest series:** "Mixology", row 3 of 4 ([list](https://web.archive.org/web/20120731164801/http://tr.mmodb.com/quests/seriesname-mixology/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 981 — Black Helicopters
 
 - **Rebuild summary:**
@@ -11520,6 +12620,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Ista Kezever](https://tabularasa.fandom.com/wiki/Ista_Kezever): Mires, /loc -480, 230, 350 (NPC page lists this mission)
   - [Lt. Cockerell](https://tabularasa.fandom.com/wiki/Lt._Cockerell): Mires, Fort Haroun, /loc 615, 241, 550 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 21
+  - Requires: Mixology (id 980) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Black_Helicopters), [TaRapedia](https://tabularasa.fandom.com/wiki/Mixology)
+  - Leads to: Can You Handle It? (id 982) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Black_Helicopters), [TaRapedia](https://tabularasa.fandom.com/wiki/Can_You_Handle_It%3F)
+- **TR MMO DB quest series:** "Mixology", row 1 of 4 ([list](https://web.archive.org/web/20120731164801/http://tr.mmodb.com/quests/seriesname-mixology/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 982 — Can You Handle It?
 
 - **Rebuild summary:**
@@ -11545,6 +12649,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Lt. Cockerell](https://tabularasa.fandom.com/wiki/Lt._Cockerell): Mires, Fort Haroun, /loc 615, 241, 550 (NPC page lists this mission)
   - [Captain Gaston](https://tabularasa.fandom.com/wiki/Captain_Gaston): Mires, Baylor Base, /loc -547, 262, -451 (named in client text)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 22
+  - Requires: Black Helicopters (id 981) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Black_Helicopters), [TaRapedia](https://tabularasa.fandom.com/wiki/Can_You_Handle_It%3F)
+  - Leads to: You're the Guy (id 983) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Can_You_Handle_It%3F), [TaRapedia](https://tabularasa.fandom.com/wiki/You%27re_the_Guy)
+  - Leads to: Confidential Delivery (id 1041) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Can_You_Handle_It%3F), [TaRapedia](https://tabularasa.fandom.com/wiki/Confidential_Delivery)
+- **TR MMO DB quest series:** "Mixology", row 2 of 4 ([list](https://web.archive.org/web/20120731164801/http://tr.mmodb.com/quests/seriesname-mixology/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 983 — You're the Guy
 
 - **Rebuild summary:**
@@ -11569,6 +12678,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Lt. Cockerell](https://tabularasa.fandom.com/wiki/Lt._Cockerell): Mires, Fort Haroun, /loc 615, 241, 550 (NPC page lists this mission)
   - [Lt. Foushee](https://tabularasa.fandom.com/wiki/Lt._Foushee): Mires, Fort Haroun, /loc 618, 224, 345 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 23
+  - Requires: Can You Handle It? (id 982) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Can_You_Handle_It%3F), [TaRapedia](https://tabularasa.fandom.com/wiki/You%27re_the_Guy)
+- **TR MMO DB quest series:** "Mixology", row 4 of 4 ([list](https://web.archive.org/web/20120731164801/http://tr.mmodb.com/quests/seriesname-mixology/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 985 — Stealthy As She Goes
 
 - **Rebuild summary:**
@@ -11591,6 +12703,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Ranger Houchen](https://tabularasa.fandom.com/wiki/Ranger_Houchen): Mires, Fort Haroun, /loc 724.1, 224.5, 358.3 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 18
+  - Requires: Find Me A Rock (id 977) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Find_Me_A_Rock), [TaRapedia](https://tabularasa.fandom.com/wiki/Stealthy_As_She_Goes)
+  - Leads to: Quicksilver Samples (id 1005) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Quicksilver_Samples), [TaRapedia](https://tabularasa.fandom.com/wiki/Stealthy_As_She_Goes)
 ### 986 — Little Bit Crazy...
 
 - **Instance mentioned:** Tahrendra Base — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -11614,6 +12729,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Colonel Li Hua](https://tabularasa.fandom.com/wiki/Colonel_Li_Hua): Mires, Fort Condor (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Making Your Way chain (6 missions), step 2
+  - Requires: Making Your Way (id 940) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Little_Bit_Crazy...), [TaRapedia](https://tabularasa.fandom.com/wiki/Making_Your_Way)
+  - Leads to: Restraining Order (id 976) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Little_Bit_Crazy...), [TaRapedia](https://tabularasa.fandom.com/wiki/Restraining_Order)
+- **Requires (name not matched to a mission):** Level 30; Making Your Way — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Little_Bit_Crazy...)
 ### 989 — Death Squad Interception
 
 - **Rebuild summary:**
@@ -11639,6 +12758,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - The Thrax Death Squad can usually be found on the crest of the hill leading out of the Eastern exit from Fort Haroun (click their name for co-ordinates) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Death_Squad_Interception)
 
+- **Requires (name not matched to a mission):** Something, but unknown — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Death_Squad_Interception)
 ### 990 — Thrax Bounty
 
 - **Rebuild summary:**
@@ -11673,6 +12793,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Buhmoni](https://tabularasa.fandom.com/wiki/Buhmoni): Mires, Baylor Base (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Energy Updates chain (2 missions), step 1
+  - Leads to: The Shootist (id 1042) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Energy_Updates), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Shootist)
 ### 995 — Take Better Care
 
 - **Instance mentioned:** Tahrendra Base — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -11724,6 +12846,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Rijii](https://tabularasa.fandom.com/wiki/Rijii): Mires, Brann LZ, /loc 14.6, 238.5, -629.0 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 2
+  - Requires: So Hungry (id 999) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/So_Hungry), [TaRapedia](https://tabularasa.fandom.com/wiki/So_Thirsty...)
+  - Leads to: Gathering Of Resources (id 963) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Gathering_of_Resources), [TaRapedia](https://tabularasa.fandom.com/wiki/So_Thirsty...)
+- **TR MMO DB quest series:** "So Hungry", row 3 of 3 ([list](https://web.archive.org/web/20120731161528/http://tr.mmodb.com/quests/seriesname-so_hungry/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 998 — Instant Messaging
 
 - **Rebuild summary:**
@@ -11749,6 +12875,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Labah](https://tabularasa.fandom.com/wiki/Labah): Mires, Fort Haroun, /loc 591.8, 220.0, 308.1 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 21
+  - Requires: Universal Language (id 1043) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Instant_Messaging)
 ### 999 — So Hungry
 
 - **Rebuild summary:**
@@ -11770,6 +12898,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Rijii](https://tabularasa.fandom.com/wiki/Rijii): Mires, Brann LZ, /loc 14.6, 238.5, -629.0 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 1
+  - Leads to: So Thirsty... (id 996) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/So_Hungry), [TaRapedia](https://tabularasa.fandom.com/wiki/So_Thirsty...)
+- **TR MMO DB quest series:** "So Hungry", row 2 of 3 ([list](https://web.archive.org/web/20120731161528/http://tr.mmodb.com/quests/seriesname-so_hungry/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1000 — Like A Little Kid
 
 - **Rebuild summary:**
@@ -11834,6 +12965,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Domodar](https://tabularasa.fandom.com/wiki/Domodar): Mires, Fort Haroun, /loc 567.7, 224.0, 344.2 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 19
+  - Requires: Stealthy As She Goes (id 985) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Quicksilver_Samples), [TaRapedia](https://tabularasa.fandom.com/wiki/Stealthy_As_She_Goes)
 ### 1012 — The Truth About Tahrendra [instance]
 
 - **Instance:** Bane Fluxite Mines — NPC Specialist Tran (NPC page lists this mission) is in Bane Fluxite Mines — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Specialist_Tran)
@@ -11900,6 +13033,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Bhem](https://tabularasa.fandom.com/wiki/Bhem): Mires, Fort Haroun, /loc 740.6, 224.5, 364.3 (named as giver/receiver)
 - **Ellatha boss NPC** [Rendobar](https://www.ellatha.com/tr/bossnpcview.asp?key=Rendobar&id=93): Predator; zone Mires; Spawns by the big circular building near the Bane Fluxite Mines; needed for: Bane Ace Mires Targets of Opportunity (Ellatha lists this mission under "Needed for Quests")
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 18
+  - Requires: Find Me A Rock (id 977) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bane_Ace), [TaRapedia](https://tabularasa.fandom.com/wiki/Find_Me_A_Rock)
+  - Leads to: The Ubiquitous Black Box (id 979) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bane_Ace), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Ubiquitous_Black_Box)
 ### 1041 — Confidential Delivery
 
 - **Rebuild summary:**
@@ -11929,6 +13065,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Lt. Foushee](https://tabularasa.fandom.com/wiki/Lt._Foushee): Mires, Fort Haroun, /loc 618, 224, 345 (NPC page lists this mission)
   - [Captain Gaston](https://tabularasa.fandom.com/wiki/Captain_Gaston): Mires, Baylor Base, /loc -547, 262, -451 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 23
+  - Requires: Can You Handle It? (id 982) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Can_You_Handle_It%3F), [TaRapedia](https://tabularasa.fandom.com/wiki/Confidential_Delivery)
 ### 1042 — The Shootist
 
 - **Instance mentioned:** Energy Weapon Center — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -11955,6 +13093,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Buhmoni](https://tabularasa.fandom.com/wiki/Buhmoni): Mires, Baylor Base (named in client text)
 - **Ellatha boss NPC** [Phost'Benon](https://www.ellatha.com/tr/bossnpcview.asp?key=Phost%27Benon&id=90): zone Mires; Spawns by the entrance to the Energy Weapon Center; needed for: The Shootist Mires Targets of Opportunity (Ellatha lists this mission under "Needed for Quests")
 
+- **Chain** (explicit prerequisite links): Energy Updates chain (2 missions), step 2
+  - Requires: Energy Updates (id 991) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Energy_Updates), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Shootist)
 ### 1043 — Universal Language
 
 - **Rebuild summary:**
@@ -11978,6 +13118,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Major Ston](https://tabularasa.fandom.com/wiki/Major_Ston): Mires, Fort Haroun (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 20
+  - Requires: Can't Survive Without My Radio (id 1067) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Can%27t_Survive_Without_My_Radio), [TaRapedia](https://tabularasa.fandom.com/wiki/Universal_Language)
+  - Leads to: Instant Messaging (id 998) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Instant_Messaging)
+  - Leads to: Prisoner Transfer (id 1168) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Prisoner_Transfer), [TaRapedia](https://tabularasa.fandom.com/wiki/Universal_Language)
+- **TR MMO DB quest series:** "Flight Salvage", row 4 of 4 ([list](https://web.archive.org/web/20120731161226/http://tr.mmodb.com/quests/seriesname-flight_salvage/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1067 — Can't Survive Without My Radio
 
 - **Rebuild summary:**
@@ -12001,6 +13146,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Major Ston](https://tabularasa.fandom.com/wiki/Major_Ston): Mires, Fort Haroun (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 19
+  - Requires: Flight Salvage (id 975) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Can%27t_Survive_Without_My_Radio), [TaRapedia](https://tabularasa.fandom.com/wiki/Flight_Salvage)
+  - Leads to: Universal Language (id 1043) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Can%27t_Survive_Without_My_Radio), [TaRapedia](https://tabularasa.fandom.com/wiki/Universal_Language)
+- **TR MMO DB quest series:** "Flight Salvage", row 1 of 4 ([list](https://web.archive.org/web/20120731161226/http://tr.mmodb.com/quests/seriesname-flight_salvage/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1106 — Release the Hounds
 
 - **Rebuild summary:**
@@ -12025,6 +13174,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Sgt. Leitch](https://tabularasa.fandom.com/wiki/Sgt._Leitch): Mires, Fort Haroun (named as giver/receiver)
   - [General Mondragon](https://tabularasa.fandom.com/wiki/General_Mondragon): Mires, Fort Haroun (named in client text)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 22
+  - Requires: Prisoner Transfer (id 1168) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Prisoner_Transfer), [TaRapedia](https://tabularasa.fandom.com/wiki/Release_the_Hounds)
+  - Leads to: Delivery Boy (id 962) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Release_the_Hounds)
 ### 1141 — Find Corporal Hairston
 
 - **Rebuild summary:**
@@ -12043,6 +13195,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Sgt. Van Winkle](https://tabularasa.fandom.com/wiki/Sgt._Van_Winkle): Mires (NPC page lists this mission)
   - [Corporal Hairston](https://tabularasa.fandom.com/wiki/Corporal_Hairston): Mires, Fort Haroun, /loc 594.5, 222.0, 329.7 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Making Your Way chain (6 missions), step 3
+  - Requires: Fort Haroun (id 1172) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Find_Corporal_Hairston), [TaRapedia](https://tabularasa.fandom.com/wiki/Fort_Haroun_%28mission%29)
 ### 1168 — Prisoner Transfer
 
 - **Rebuild summary:**
@@ -12067,6 +13221,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Major Ston](https://tabularasa.fandom.com/wiki/Major_Ston): Mires, Fort Haroun (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 21
+  - Requires: Universal Language (id 1043) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Prisoner_Transfer), [TaRapedia](https://tabularasa.fandom.com/wiki/Universal_Language)
+  - Leads to: Release the Hounds (id 1106) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Prisoner_Transfer), [TaRapedia](https://tabularasa.fandom.com/wiki/Release_the_Hounds)
+- **TR MMO DB quest series:** "Flight Salvage", row 3 of 4 ([list](https://web.archive.org/web/20120731161226/http://tr.mmodb.com/quests/seriesname-flight_salvage/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1172 — Fort Haroun
 
 - **Rebuild summary:**
@@ -12094,6 +13252,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Sgt. Ricardo](https://tabularasa.fandom.com/wiki/Sgt._Ricardo): Mires, Fort Condor (NPC page lists this mission)
   - [Sgt. Van Winkle](https://tabularasa.fandom.com/wiki/Sgt._Van_Winkle): Mires (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Making Your Way chain (6 missions), step 2
+  - Requires: Making Your Way (id 940) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Fort_Haroun_%28mission%29), [TaRapedia](https://tabularasa.fandom.com/wiki/Making_Your_Way)
+  - Leads to: Find Corporal Hairston (id 1141) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Find_Corporal_Hairston), [TaRapedia](https://tabularasa.fandom.com/wiki/Fort_Haroun_%28mission%29)
 ### 1192 — Break on Through
 
 - **Instance mentioned:** Tahrendra Base — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -12117,6 +13278,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TR MMO DB NPC** [Captain Tillery](https://web.archive.org/web/20081121151847/http://tr.mmodb.com/bestiary/captain-tillery-924.php): Quest NPC, zone Tahrendra Base (starts this quest)
 - **IGN TR Vault** [tabularasavault.ign.com/View.php?view=PatchNotes.Detail&id=1](https://web.archive.org/web/20120712161331/http://tabularasavault.ign.com/View.php?view=PatchNotes.Detail&id=1): “Tahrendra Base 'Break On Through', if player set the explosives to seal the barracks, but runs inside before the doors seal, they will be killed by the explosion instead of being trapped in the sealed room.”
 
+- **Chain** (explicit prerequisite links): Break on Through chain (3 missions), step 1
+  - Leads to: Bringing the House Down (id 1195) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Break_on_Through), [TaRapedia](https://tabularasa.fandom.com/wiki/Bringing_the_House_Down)
+- **TR MMO DB quest series:** "Break On Through", row 1 of 3 ([list](https://web.archive.org/web/20120731163912/http://tr.mmodb.com/quests/seriesname-break_on_through/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1195 — Bringing the House Down [instance]
 
 - **Instance:** Tahrendra Base — client objective/log text: "Secure the 3 main security rooms in Tahrendra base."
@@ -12136,6 +13300,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - They randomly drop from some of the thrax you kill — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bringing_the_House_Down)
 
+- **Chain** (explicit prerequisite links): Break on Through chain (3 missions), step 2
+  - Requires: Break on Through (id 1192) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Break_on_Through), [TaRapedia](https://tabularasa.fandom.com/wiki/Bringing_the_House_Down)
+  - Leads to: What Goes Around ... (id 1196) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bringing_the_House_Down), [TaRapedia](https://tabularasa.fandom.com/wiki/What_Goes_Around...)
 ### 1196 — What Goes Around ...
 
 - **Instance mentioned:** Tahrendra Base — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -12156,6 +13323,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TR MMO DB quest series** [Break On Through](https://web.archive.org/web/20120731163912/http://tr.mmodb.com/quests/seriesname-break_on_through/): Break On Through (level 33, reward 5850) → Bringing Down The House... (level 33, reward 6000) → What Goes Around... (level 33, reward 7500) (series order as listed on the page; reward unit not stated)
 - **TR MMO DB NPC** [Captain Tillery](https://web.archive.org/web/20081121151847/http://tr.mmodb.com/bestiary/captain-tillery-924.php): Quest NPC, zone Tahrendra Base (related to this quest)
 
+- **Chain** (explicit prerequisite links): Break on Through chain (3 missions), step 3
+  - Requires: Bringing the House Down (id 1195) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bringing_the_House_Down), [TaRapedia](https://tabularasa.fandom.com/wiki/What_Goes_Around...)
+- **TR MMO DB quest series:** "Break On Through", row 3 of 3 ([list](https://web.archive.org/web/20120731163912/http://tr.mmodb.com/quests/seriesname-break_on_through/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** Bringing the House Down (1195) — source: the chain links above
 ### 1200 — Survey Says
 
 - **Rebuild summary:**
@@ -12191,6 +13362,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Mining Tech. Maxwell](https://www.ellatha.com/tr/npcview.asp?key=Mining+Tech%2E+Maxwell&id=13): Human; loc 336,197,599; zone Wilderness (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Outpost Commander Rogers](https://www.ellatha.com/tr/npcview.asp?key=Outpost+Commander+Rogers&id=5): Human; loc 857,294,388; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 2
+  - Requires: Arieki Surveying (id 966) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Survey_Says_%28Mires%29)
+  - Leads to: Bring Me A Rock (id 978) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bring_Me_A_Rock), [TaRapedia](https://tabularasa.fandom.com/wiki/Survey_Says_%28Mires%29)
 ### 1207 — Fluxite Fluids
 
 - **Rebuild summary:**
@@ -12213,6 +13387,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Corporal Cooper](https://tabularasa.fandom.com/wiki/Corporal_Cooper): Mires, Fort Condor (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 14
+  - Requires: Disruption Specialist (id 973) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Disruption_Specialist), [TaRapedia](https://tabularasa.fandom.com/wiki/Fluxite_Fluids)
+  - Leads to: Miner's Apprentice (id 1588) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Fluxite_Fluids), [TaRapedia](https://tabularasa.fandom.com/wiki/Miner%27s_Apprentice)
+- **TR MMO DB quest series:** "Fluxite Fluids", row 2 of 4 ([list](https://web.archive.org/web/20120731170317/http://tr.mmodb.com/quests/seriesname-fluxite_fluids/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1253 — It's All In the Timing
 
 - **Rebuild summary:**
@@ -12229,6 +13407,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - walkthrough: As the overview says, just take left at the intersection. Kill the Bane forces in the first room, go right and you'll get to the two reactor chambers. As the plasma beams fire in alternating sequence you move through the chambers when the other beam is firing. Being in a chamber while the beam is firing will kill you instantly. When you get to the reactor room, take care of the Nitroglazers first. That will make the cooling units explode... After that the reactor can easily be destroyed with EMP bombs or weaponry.
 - **TaRapedia mission list** [Energy Weapon Center mission list](https://tabularasa.fandom.com/wiki/Energy_Weapon_Center_mission_list): zone Mires, given by Sergeant Wolfe
 
+- **Chain** (explicit prerequisite links): Fallen Soldiers chain (9 missions), step 1
+  - Leads to: Tesla Inversion (id 1260) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/It%27s_All_In_the_Timing), [TaRapedia](https://tabularasa.fandom.com/wiki/Tesla_Inversion)
 ### 1260 — Tesla Inversion
 
 - **Rebuild summary:**
@@ -12250,6 +13430,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ten Ton Hammer** [tabula-rasa-energy-center-guide](https://www.tentonhammer.com/guides/tabula-rasa-energy-center-guide): “Tesla Inversion. There is some equipment to shoot in the Research Lab, but it doesnt seem to any benefit to destroy the gear. A level 30 silver Thrax soldier named Overseer Xirnon awaits you as do other Riflemen, Technicians and Kael. Grab the datablade from one of the tables and keep moving to the Tesla Control Room. Use the Tesla Control Console to trigger the tesla …”
 - **TR MMO DB quest series** [Tesla Invasion](https://web.archive.org/web/20120731162011/http://tr.mmodb.com/quests/seriesname-tesla_invasion/): Look Before You Sabotage (level 33, reward 7250) → Tesla Inversion (level 33, reward 5800) → The Strongest Link (EWC) (level 33, reward 7500) (series order as listed on the page; reward unit not stated)
 
+- **Chain** (explicit prerequisite links): Fallen Soldiers chain (9 missions), step 2
+  - Requires: It's All In the Timing (id 1253) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/It%27s_All_In_the_Timing), [TaRapedia](https://tabularasa.fandom.com/wiki/Tesla_Inversion)
+  - Leads to: Look Before You Sabotage (id 1296) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Look_Before_You_Sabotage), [TaRapedia](https://tabularasa.fandom.com/wiki/Tesla_Inversion)
+- **TR MMO DB quest series:** "Tesla Invasion", row 2 of 3 ([list](https://web.archive.org/web/20120731162011/http://tr.mmodb.com/quests/seriesname-tesla_invasion/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1271 — Incursion Investigation [instance]
 
 - **Instance:** Energy Weapon Center — client objective/log text: "Enter the Energy Weapon center and determine the fate of the incursion team."
@@ -12292,6 +13476,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ten Ton Hammer** [tabula-rasa-energy-center-guide](https://www.tentonhammer.com/guides/tabula-rasa-energy-center-guide): “Look Before You Sabotage. Head toward the mission marker to find the remains of Demolitionist Engelsen. On your way there, you will enter a room with four Bane terminals. Facing the long wall, there are two terminals on your left and two on your right. Choose the first one on the right (the one closest to the long wall) to get a nice fly-over scene that shows you exactly …”
 - **TR MMO DB quest series** [Tesla Invasion](https://web.archive.org/web/20120731162011/http://tr.mmodb.com/quests/seriesname-tesla_invasion/): Look Before You Sabotage (level 33, reward 7250) → Tesla Inversion (level 33, reward 5800) → The Strongest Link (EWC) (level 33, reward 7500) (series order as listed on the page; reward unit not stated)
 
+- **Chain** (explicit prerequisite links): Fallen Soldiers chain (9 missions), step 3
+  - Requires: Tesla Inversion (id 1260) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Look_Before_You_Sabotage), [TaRapedia](https://tabularasa.fandom.com/wiki/Tesla_Inversion)
+  - Leads to: The Strongest Link (id 1355) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Look_Before_You_Sabotage)
+  - Leads to: The Strongest Link (id 1307) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Look_Before_You_Sabotage), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Strongest_Link_%28Mires%29)
+- **TR MMO DB quest series:** "Tesla Invasion", row 1 of 3 ([list](https://web.archive.org/web/20120731162011/http://tr.mmodb.com/quests/seriesname-tesla_invasion/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1307 — The Strongest Link
 
 - **Rebuild summary:**
@@ -12318,6 +13507,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **PlayTR EU** [eu.rgtr.com:80/en/news_article/patch_notes_and_known_issues_26th_febru …](https://web.archive.org/web/20080303001652/http://eu.rgtr.com:80/en/news_article/patch_notes_and_known_issues_26th_february_2008): “Any mission that requires the player to loot an item from a corpse will not drop the mission loot needed when killed by a pet. / Mission: The Strongest Link (Energy Weapons Center:Mires): Pets do not attack Linker Commander Casso or other Linkers in room / If a player has the “Function” logos in their Tabula already then they cannot complete the objective “Retrieve the Eloh Artifact” (which is to obtain Function from the obelisk) and cannot …”
 - **PlayTR EU** [eu.rgtr.com:80/en/news_article/patchnotes_and_known_issues_monday_28th …](https://web.archive.org/web/20080501145429/http://eu.rgtr.com:80/en/news_article/patchnotes_and_known_issues_monday_28th_april_2008): “Mires “Targets of Opportunity” – “Complete All Operations” now completes for Energy Weapons Center with mission “The Strongest Link” instead of optional mission “Incursion Invasion,” which was incorrectly used originally, sometimes breaking the ToO mission.”
 
+- **Chain** (explicit prerequisite links): Fallen Soldiers chain (9 missions), step 4
+  - Requires: Look Before You Sabotage (id 1296) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Look_Before_You_Sabotage), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Strongest_Link_%28Mires%29)
 ### 1380 — Hacking the System [instance]
 
 - **Instance:** Bane Fluxite Mines — NPC Specialist Tran (NPC page lists this mission) is in Bane Fluxite Mines — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Specialist_Tran)
@@ -12340,6 +13531,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Specialist Tran](https://tabularasa.fandom.com/wiki/Specialist_Tran): Mires, Bane Fluxite Mines, /loc -11, 145, -7 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Hacking the System chain (3 missions), step 1
+  - Leads to: A State of Flux (id 1382) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_State_of_Flux), [TaRapedia](https://tabularasa.fandom.com/wiki/Hacking_the_System)
+- **TR MMO DB quest series:** "Hacking The System", row 3 of 3 ([list](https://web.archive.org/web/20120731165854/http://tr.mmodb.com/quests/seriesname-hacking_the_system/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1381 — Supplies in Flux
 
 - **Rebuild summary:**
@@ -12384,6 +13578,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Specialist Tran](https://tabularasa.fandom.com/wiki/Specialist_Tran): Mires, Bane Fluxite Mines, /loc -11, 145, -7 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Hacking the System chain (3 missions), step 2
+  - Requires: Hacking the System (id 1380) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_State_of_Flux), [TaRapedia](https://tabularasa.fandom.com/wiki/Hacking_the_System)
+  - Leads to: Capturing Supply Lines (id 1386) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_State_of_Flux), [TaRapedia](https://tabularasa.fandom.com/wiki/Capturing_Supply_Lines)
+- **TR MMO DB quest series:** "Hacking The System", row 1 of 3 ([list](https://web.archive.org/web/20120731165854/http://tr.mmodb.com/quests/seriesname-hacking_the_system/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** Hacking the System (1380) — source: the chain links above
 ### 1384 — Making a Run For It
 
 - **Instance mentioned:** Bane Fluxite Mines — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -12407,6 +13606,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **IGN TR boards** [vnboards.ign.com:80/tabula_rasa_general_board/b22750/106459602/p1/?](https://web.archive.org/web/20080302101520/http://vnboards.ign.com:80/tabula_rasa_general_board/b22750/106459602/p1/?): “* Fluxite Mines: "Capturing Supply Lines" created new boss mob; extended mission length; 3 new objectives added. / * Fluxite Mines: "Making a Run for It" extended length of mission; 2 new objectives added. / * Fluxite Mines: Creature spawn pass for better balance; nearly all spawns are on patrols now”
 - **RGTR official site** [rgtr.com:80/news/patch_notes/patch_notes_and_known_issues_109.html](https://web.archive.org/web/20071011062613/http://rgtr.com:80/news/patch_notes/patch_notes_and_known_issues_109.html): “Issue: Parties cannot get the keycard for the final objective, making it uncompletable for all but one player / Mission: Making a Run for It / Issue: Players cannot turn in the mission.”
 
+- **Chain** (explicit prerequisite links): Making a Run For It chain (2 missions), step 1
+  - Leads to: Flashback (id 1385) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Flashback), [TaRapedia](https://tabularasa.fandom.com/wiki/Making_a_Run_For_It)
+- **TR MMO DB quest series:** "Making A Run For It", row 2 of 2 ([list](https://web.archive.org/web/20120731161140/http://tr.mmodb.com/quests/seriesname-making_a_run_for_it/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1385 — Flashback
 
 - **Instance mentioned:** Bane Fluxite Mines — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -12429,6 +13631,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TR MMO DB quest series** [Making A Run For It](https://web.archive.org/web/20120731161140/http://tr.mmodb.com/quests/seriesname-making_a_run_for_it/): Flashback (level 33, reward 4200) → Making A Run For It (level 33, reward 4200) (series order as listed on the page; reward unit not stated)
 - **TR MMO DB NPC** [Anuj](https://web.archive.org/web/20081010180813/http://tr.mmodb.com/bestiary/anuj-921.php): Quest NPC, zone Bane Fluxite Mines (starts this quest)
 
+- **Chain** (explicit prerequisite links): Making a Run For It chain (2 missions), step 2
+  - Requires: Making a Run For It (id 1384) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Flashback), [TaRapedia](https://tabularasa.fandom.com/wiki/Making_a_Run_For_It)
+- **TR MMO DB quest series:** "Making A Run For It", row 1 of 2 ([list](https://web.archive.org/web/20120731161140/http://tr.mmodb.com/quests/seriesname-making_a_run_for_it/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1386 — Capturing Supply Lines
 
 - **Rebuild summary:**
@@ -12455,6 +13660,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Where (locations / coordinates):**
   - * Fixed: MAP: Stuck at -726.8 129.3 -693.9 in Foreas Concordia Divide outside of Purgos Base (CP). — source: [PlanetTR](https://web.archive.org/web/20071209022816/http://planettr.com:80/forums/archive/index.php/t-1365.html)
 
+- **Chain** (explicit prerequisite links): Hacking the System chain (3 missions), step 3
+  - Requires: A State of Flux (id 1382) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_State_of_Flux), [TaRapedia](https://tabularasa.fandom.com/wiki/Capturing_Supply_Lines)
+- **TR MMO DB quest series:** "Hacking The System", row 2 of 3 ([list](https://web.archive.org/web/20120731165854/http://tr.mmodb.com/quests/seriesname-hacking_the_system/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** A State of Flux (1382) — source: the chain links above
 ### 1585 — Mires Targets of Opportunity [implemented]
 
 - **Implemented:** enabled on the local server (content revision targets_1) — source: data/rasaworld.db, mission_content_definition
@@ -12519,6 +13728,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Dr. Robertson](https://tabularasa.fandom.com/wiki/Dr._Robertson): Mires, Fort Haroun (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): The Green Party chain (6 missions), step 3
+  - Requires: Tick, Tick, Tick... (id 948) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Manta_Beam_Hill), [TaRapedia](https://tabularasa.fandom.com/wiki/Tick%2C_Tick%2C_Tick...)
+  - Leads to: Party Gashers (id 952) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Manta_Beam_Hill), [TaRapedia](https://tabularasa.fandom.com/wiki/Party_Gashers)
 ### 1588 — Miner's Apprentice
 
 - **Rebuild summary:**
@@ -12550,6 +13762,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Corporal Cooper](https://tabularasa.fandom.com/wiki/Corporal_Cooper): Mires, Fort Condor (named as giver/receiver)
 - **Ellatha boss NPC** [Honjerhyn](https://www.ellatha.com/tr/bossnpcview.asp?key=Honjerhyn&id=92): zone Mires; Spawns on the bridge next to the Bane Fluxite Mines entrance; needed for: Miner's Apprentice Mires Targets of Opportunity (Ellatha lists this mission under "Needed for Quests")
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 15
+  - Requires: Fluxite Fluids (id 1207) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Fluxite_Fluids), [TaRapedia](https://tabularasa.fandom.com/wiki/Miner%27s_Apprentice)
+  - Leads to: Fly in the Ointment (id 944) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Fly_in_the_Ointment), [TaRapedia](https://tabularasa.fandom.com/wiki/Miner%27s_Apprentice)
+- **TR MMO DB quest series:** "Fluxite Fluids", row 4 of 4 ([list](https://web.archive.org/web/20120731170317/http://tr.mmodb.com/quests/seriesname-fluxite_fluids/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1666 — Logos: Destruction
 
 - **Rebuild summary:**
@@ -12720,6 +13936,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Jhulyus](https://tabularasa.fandom.com/wiki/Jhulyus): Mires, Brann LZ (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Discovery chain (4 missions), step 1
+  - Leads to: Diagnosis (id 1849) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Diagnosis), [TaRapedia](https://tabularasa.fandom.com/wiki/Discovery)
+- **Requires (name not matched to a mission):** Level 27+ — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Discovery)
 ### 1849 — Diagnosis [instance]
 
 - **Instance:** Energy Weapon Center — an objective conversation's NPC package 1064 spawns in this instance (map 2107) — source: client objectiveconversation + data/rasaworld.db
@@ -12753,6 +13972,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Jhulyus](https://tabularasa.fandom.com/wiki/Jhulyus): Mires, Brann LZ (named as giver/receiver)
   - [Connant](https://tabularasa.fandom.com/wiki/Connant): Mires, Baylor Base (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Discovery chain (4 missions), step 2
+  - Requires: Discovery (id 1848) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Diagnosis), [TaRapedia](https://tabularasa.fandom.com/wiki/Discovery)
+  - Leads to: Consult (id 1850) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Consult), [TaRapedia](https://tabularasa.fandom.com/wiki/Diagnosis)
 ### 1850 — Consult
 
 - **Rebuild summary:**
@@ -12783,6 +14005,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Dr. Torpor](https://tabularasa.fandom.com/wiki/Dr._Torpor): Mires, Baylor Base (named as giver/receiver)
   - [Jhulyus](https://tabularasa.fandom.com/wiki/Jhulyus): Mires, Brann LZ (named in client text)
 
+- **Chain** (explicit prerequisite links): Discovery chain (4 missions), step 3
+  - Requires: Diagnosis (id 1849) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Consult), [TaRapedia](https://tabularasa.fandom.com/wiki/Diagnosis)
+  - Leads to: Remedy (id 1851) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Consult), [TaRapedia](https://tabularasa.fandom.com/wiki/Remedy)
+- **Requires an instance mission:** Diagnosis (1849) — source: the chain links above
 ### 1851 — Remedy
 
 - **Rebuild summary:**
@@ -12817,6 +14043,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha boss NPC** [Horntail](https://www.ellatha.com/tr/bossnpcview.asp?key=Horntail&id=41): level 13; /loc 615,284,737; zone Wilderness; needed for: Herbal Remedy Wilderness Targets of Opportunity (Ellatha lists this mission under "Needed for Quests")
 - **Ellatha boss NPC** [Old Scratch](https://www.ellatha.com/tr/bossnpcview.asp?key=Old+Scratch&id=42): Thrax Soldier; level 14; /loc 615,284,737; zone Wilderness; Roams around Lake Tinctuan near Alia Das; needed for: Herbal Remedy Wilderness Targets of Opportunity (Ellatha lists this mission under "Needed for Quests")
 
+- **Chain** (explicit prerequisite links): Discovery chain (4 missions), step 4
+  - Requires: Consult (id 1850) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Consult), [TaRapedia](https://tabularasa.fandom.com/wiki/Remedy)
 ### 1896 — Getting on the Nerves
 
 - **Rebuild summary:**
@@ -12831,6 +14059,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - overview: Help Samantha with her problems.
   - objectives: • Bring back a Magmonix Chunk • Samantha is cold and asked for a chunk of still warm Magmonix. • Take the Chunk of mamonix to Samantha • Gather Rainwater • Gather some rain water for Samantha from the Rainforest lake that is marked on the map. • Take the Rain Water to Samantha.
 
+- **Requires (name not matched to a mission):** Finding Samantha (mock) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Getting_on_the_Nerves)
 ### 1897 — In Shock
 
 - **Rebuild summary:**
@@ -12847,6 +14076,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - walkthrough: Possibly only available if you picked the third dialog option in the previous mission, Finding Samantha, "Well, I can't make the war end, and I can't put you in front of a fire, but I might be able to get you some hot cocoa." (Confirm?)
 - **TaRapedia mission list** [Raintree Post mission list](https://tabularasa.fandom.com/wiki/Raintree_Post_mission_list): zone Incline, area Raintree Post, given by Samantha
 
+- **Requires (name not matched to a mission):** Finding Samantha (cocoa) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/In_Shock)
 ### 1907 — Shipping and Handling
 
 - **Instance mentioned:** Bane Fluxite Mines — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -12864,6 +14094,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TaRapedia mission list** [Bane Fluxite Mines mission list](https://tabularasa.fandom.com/wiki/Bane_Fluxite_Mines_mission_list): zone Mires, given by Radio Mission
 - **IGN TR boards** [vnboards.ign.com:80/tabula_rasa_general_board/b22750/106459602/p1/?](https://web.archive.org/web/20080302101520/http://vnboards.ign.com:80/tabula_rasa_general_board/b22750/106459602/p1/?): “* Live Target Pens: improve flow of map through mission tweaks and door use. / * Fluxite Mines: Added "Shipping and Handling" and "Deadly Vapors" missions with rewards. / * Fluxite Mines: "Capturing Supply Lines" created new boss mob; extended mission length; 3 new objectives added.”
 
+- **Chain** (explicit prerequisite links): Shipping and Handling chain (2 missions), step 1
+  - Leads to: Deadly Vapors (id 1908) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Deadly_Vapors), [TaRapedia](https://tabularasa.fandom.com/wiki/Shipping_and_Handling)
 ### 1908 — Deadly Vapors
 
 - **Instance mentioned:** Bane Fluxite Mines — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -12883,6 +14115,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **PlayTR EU** [eu.playtr.com/en/news_article/deployment_84_live_server](https://web.archive.org/web/20090106070852/http://eu.playtr.com/en/news_article/deployment_84_live_server): “Instance: Fluxite Mines - Missions “Deadly Vapors” and “Capturing Supply Lines” can now be completed if you leave the instance without completing the missions and return to re-take them.”
 - **RGTR official site** [www.rgtr.com/news/patch_notes/deployment_8_live.html](https://web.archive.org/web/20081115092820/http://www.rgtr.com/news/patch_notes/deployment_8_live.html): “Outpost Inferno - Eloh Reliquary dispenses loot now Instance: Sanctus Grotto - Eloh Reliquary dispenses loot now Instance: Fluxite Mines - Missions “Deadly Vapors” and “Capturing Supply Lines” can now be completed if you leave the instance without completing the missions and return to re-take them. Instance: Fluxite Mines - Missions can be reacquired if you leave the instance without completing the missions, and return to take them again. …”
 
+- **Chain** (explicit prerequisite links): Shipping and Handling chain (2 missions), step 2
+  - Requires: Shipping and Handling (id 1907) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Deadly_Vapors), [TaRapedia](https://tabularasa.fandom.com/wiki/Shipping_and_Handling)
 ## Palisades
 
 ### 331 — Eloh Translations
@@ -12963,6 +14197,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TaRapedia mission list** [Cumbria Research Facility mission list](https://tabularasa.fandom.com/wiki/Cumbria_Research_Facility_mission_list): zone Palisades, area Cumbria Research Facility, given by Sgt. Briggs
 - **TR MMO DB quest series** [Right On The Bark](https://web.archive.org/web/20120731164247/http://tr.mmodb.com/quests/seriesname-right_on_the_bark/): Right on the Bark (level 20, reward 2700) → Speedy Delivery (level 20, reward 2700) (series order as listed on the page; reward unit not stated)
 
+- **Chain** (explicit prerequisite links): Right on the Bark chain (2 missions), step 1
+  - Leads to: Speedy Delivery (id 345) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Right_on_the_Bark), [TaRapedia](https://tabularasa.fandom.com/wiki/Speedy_Delivery)
+- **TR MMO DB quest series:** "Right On The Bark", row 1 of 2 ([list](https://web.archive.org/web/20120731164247/http://tr.mmodb.com/quests/seriesname-right_on_the_bark/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 345 — Speedy Delivery
 
 - **Rebuild summary:**
@@ -12983,6 +14220,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TR MMO DB quest series** [Right On The Bark](https://web.archive.org/web/20120731164247/http://tr.mmodb.com/quests/seriesname-right_on_the_bark/): Right on the Bark (level 20, reward 2700) → Speedy Delivery (level 20, reward 2700) (series order as listed on the page; reward unit not stated)
 - **TR MMO DB NPC** [Alpha Patrol Leader](https://web.archive.org/web/20120731173948/http://tr.mmodb.com/bestiary/alpha-patrol-leader-607.php): Quest NPC, zone Palisades (related to this quest)
 
+- **Chain** (explicit prerequisite links): Right on the Bark chain (2 missions), step 2
+  - Requires: Right on the Bark (id 344) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Right_on_the_Bark), [TaRapedia](https://tabularasa.fandom.com/wiki/Speedy_Delivery)
+- **TR MMO DB quest series:** "Right On The Bark", row 2 of 2 ([list](https://web.archive.org/web/20120731164247/http://tr.mmodb.com/quests/seriesname-right_on_the_bark/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 351 — Pincer Power
 
 - **Rebuild summary:**
@@ -13042,6 +14282,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Ranger Hunrambi](https://tabularasa.fandom.com/wiki/Ranger_Hunrambi): Palisades (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Off With Their Heads chain (2 missions), step 2
+  - Requires: Off With Their Heads (id 354) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Off_With_Their_Heads), [TaRapedia](https://tabularasa.fandom.com/wiki/Two_Heads_Are_Better)
+- **TR MMO DB quest series:** "Off With Their Heads", row 2 of 2 ([list](https://web.archive.org/web/20120731165311/http://tr.mmodb.com/quests/seriesname-off_with_their_heads/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 354 — Off With Their Heads
 
 - **Rebuild summary:**
@@ -13072,6 +14315,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Kennilaxx](https://tabularasa.fandom.com/wiki/Kennilaxx): no location on page (named in client text)
 - **Ellatha boss NPC** [Kennilaxx](https://www.ellatha.com/tr/bossnpcview.asp?key=Kennilaxx&id=6): Howler; /loc 305,295; zone Palisades; Roams around, south of Lake Elinor and east of CP River-base Krimm; needed for: Palisades Targets of Opportunity (boss named in client text)
 
+- **Chain** (explicit prerequisite links): Off With Their Heads chain (2 missions), step 1
+  - Leads to: Two Heads Are Better (id 353) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Off_With_Their_Heads), [TaRapedia](https://tabularasa.fandom.com/wiki/Two_Heads_Are_Better)
+- **TR MMO DB quest series:** "Off With Their Heads", row 1 of 2 ([list](https://web.archive.org/web/20120731165311/http://tr.mmodb.com/quests/seriesname-off_with_their_heads/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 355 — Weapon Hunt
 
 - **Rebuild summary:**
@@ -13146,6 +14392,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Ranger Kogari](https://tabularasa.fandom.com/wiki/Ranger_Kogari): Palisades, Hightower Outpost, /loc -42, 153, 42 (NPC page lists this mission)
   - [Warden Lagori](https://tabularasa.fandom.com/wiki/Warden_Lagori): Palisades, Temple of the Raging Patriarch, /loc -439, 166, 37 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 2
+  - Requires: A Spiritual Pilgrimage (id 1988) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Proving_Justice)
+  - Leads to: Proven Justice (id 412) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Proven_Justice), [TaRapedia](https://tabularasa.fandom.com/wiki/Proving_Justice)
 ### 367 — Proving Conservation
 
 - **Rebuild summary:**
@@ -13167,6 +14416,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Warden Kahlee](https://tabularasa.fandom.com/wiki/Warden_Kahlee): Palisades, Temple of the Proud Patriarch, /loc -694, 192, -91 (NPC page lists this mission)
   - [Ranger Urialia](https://tabularasa.fandom.com/wiki/Ranger_Urialia): Palisades, Viands Village, /loc -230, 166, -462 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 1
+  - Leads to: Proven Conservation (id 413) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Proven_Conservation), [TaRapedia](https://tabularasa.fandom.com/wiki/Proving_Conservation)
+- **Requires (name not matched to a mission):** Unclear which ones — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Proving_Conservation)
 ### 368 — Searching for Acceptance
 
 - **Instance mentioned:** Devils Den — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -13195,6 +14447,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Ranger Kogari](https://tabularasa.fandom.com/wiki/Ranger_Kogari): Palisades, Hightower Outpost, /loc -42, 153, 42 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 1
+  - Leads to: An Unexpected Test (id 369) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/An_Unexpected_Test), [TaRapedia](https://tabularasa.fandom.com/wiki/Searching_for_Acceptance)
+  - Leads to: Proven Justice (id 412) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Proven_Justice)
 ### 369 — An Unexpected Test
 
 - Internal/test identity in the client.
@@ -13208,6 +14463,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Ranger Kogari](https://tabularasa.fandom.com/wiki/Ranger_Kogari): Palisades, Hightower Outpost, /loc -42, 153, 42 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 2
+  - Requires: Searching for Acceptance (id 368) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/An_Unexpected_Test), [TaRapedia](https://tabularasa.fandom.com/wiki/Searching_for_Acceptance)
+  - Leads to: Finding Acceptance (id 375) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/An_Unexpected_Test), [TaRapedia](https://tabularasa.fandom.com/wiki/Finding_Acceptance)
+  - Leads to: Proven Justice (id 412) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Proven_Justice)
+  - Leads to: An Unexpected Test - Part II (id 694) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/An_Unexpected_Test), [TaRapedia](https://tabularasa.fandom.com/wiki/An_Unexpected_Test_-_Part_II)
 ### 375 — Finding Acceptance
 
 - **Rebuild summary:**
@@ -13236,6 +14496,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Ranger Kogari](https://tabularasa.fandom.com/wiki/Ranger_Kogari): Palisades, Hightower Outpost, /loc -42, 153, 42 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 4
+  - Requires: An Unexpected Test (id 369) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/An_Unexpected_Test), [TaRapedia](https://tabularasa.fandom.com/wiki/Finding_Acceptance)
+  - Requires: An Unexpected Test - Part II (id 694) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/An_Unexpected_Test_-_Part_II)
+  - Leads to: Discover Their Fate (id 376) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Discover_Their_Fate), [TaRapedia](https://tabularasa.fandom.com/wiki/Finding_Acceptance)
+  - Leads to: Proven Justice (id 412) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Proven_Justice)
 ### 376 — Discover Their Fate
 
 - **Instance mentioned:** Devils Den — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -13255,6 +14520,12 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Ranger Kogari](https://tabularasa.fandom.com/wiki/Ranger_Kogari): Palisades, Hightower Outpost, /loc -42, 153, 42 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 5
+  - Requires: Finding Acceptance (id 375) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Discover_Their_Fate), [TaRapedia](https://tabularasa.fandom.com/wiki/Finding_Acceptance)
+  - Leads to: Recovery of Hakari's Band (id 378) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Discover_Their_Fate)
+  - Leads to: Recover Luroron's Band (id 379) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Discover_Their_Fate)
+  - Leads to: Recover the Eloh Artifacts (id 381) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Discover_Their_Fate)
+  - Leads to: Proven Justice (id 412) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Discover_Their_Fate), [TaRapedia](https://tabularasa.fandom.com/wiki/Proven_Justice)
 ### 378 — Recovery of Hakari's Band [instance]
 
 - **Instance:** Devils Den — client objective/log text: "Find the Hakari's Honor Guard Band in the Devil's Den for Ranger Siri."
@@ -13275,6 +14546,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Hakari's corpse (+50, -350 or /loc 47, 80, -145) is located in an alcove at the bottom of a ramp, a short distance north of the south end of the long tunnel between the 1st and 2nd main caves of Devil's Den. — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Recovery_of_Hakari%27s_Band)
   - It is south of Luroron's corpse (-60, -190 or /loc 47,60,-146). — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Recovery_of_Hakari%27s_Band)
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 6
+  - Requires: Discover Their Fate (id 376) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Discover_Their_Fate)
 ### 379 — Recover Luroron's Band [instance]
 
 - **Instance:** Devils Den — client objective/log text: "Find the Luroron's Honor Guard Band in the Devil's Den for Ranger Lurori."
@@ -13292,6 +14565,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Where (locations / coordinates):**
   - Luroron's corpse (-54.0, 94.4, 40.5) is located in an alcove at the north end of the long tunnel that leads to The Den. — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Recover_Luroron%27s_Band)
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 6
+  - Requires: Discover Their Fate (id 376) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Discover_Their_Fate)
 ### 380 — Find Caritas in the Devil's Den Cave [instance]
 
 - **Instance:** Devils Den — client objective/log text: "Find Caritas in the Devil's Den Caves"
@@ -13316,6 +14591,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Ranger Cyrida](https://tabularasa.fandom.com/wiki/Ranger_Cyrida): Palisades, Hightower Outpost, /loc 37.9, 153.6, 47.6 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Find Caritas in the Devil's Den Cave chain (3 missions), step 1
+  - Leads to: Finish the Task (id 671) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Find_Caritas_in_the_Devil%27s_Den_Cave), [TaRapedia](https://tabularasa.fandom.com/wiki/Finish_The_Task)
+  - Leads to: Finish the Job. (id 703) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Finish_The_Task)
+- **TR MMO DB quest series:** "Find Caritas In The Devil's Den Cave", row 1 of 2 ([list](https://web.archive.org/web/20120731164949/http://tr.mmodb.com/quests/seriesname-find_caritas_in_the_devil's_den_cave/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 381 — Recover the Eloh Artifacts [instance]
 
 - **Instance:** Devils Den — client objective/log text: "Recover the Forean Eloh Artifacts from storage containers near Bane Overlord Qraal, Taskmaster Gryl and the Fithik Hive …"
@@ -13340,6 +14619,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Ranger Kogari](https://tabularasa.fandom.com/wiki/Ranger_Kogari): Palisades, Hightower Outpost, /loc -42, 153, 42 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 6
+  - Requires: Discover Their Fate (id 376) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Discover_Their_Fate)
 ### 386 — Emergency Extraction
 
 - **Instance mentioned:** Warnet Caverns — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -13394,6 +14675,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Information Spec. Nye](https://tabularasa.fandom.com/wiki/Information_Spec._Nye): Palisades, Lake Elinor, /loc 331.0, 522.6, 37 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 1
+  - Leads to: Secure the Camp (id 388) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Secure_the_Camp)
 ### 388 — Secure the Camp
 
 - **Rebuild summary:**
@@ -13425,6 +14708,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Information Spec. Nye](https://tabularasa.fandom.com/wiki/Information_Spec._Nye): Palisades, Lake Elinor, /loc 331.0, 522.6, 37 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 2
+  - Requires: Recover Equipment (id 387) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Secure_the_Camp)
+  - Leads to: Escort to the Research Site (id 389) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Escort_to_the_Research_Site), [TaRapedia](https://tabularasa.fandom.com/wiki/Secure_the_Camp)
 ### 389 — Escort to the Research Site [instance]
 
 - **Instance:** Warnet Caverns — client objective/log text: "Escort the science team to Warnet Caverns"
@@ -13457,6 +14743,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Information Spec. Brumley](https://tabularasa.fandom.com/wiki/Information_Spec._Brumley): /loc 158, -179.8, -- (NPC page lists this mission)
   - [Information Spec. Nye](https://tabularasa.fandom.com/wiki/Information_Spec._Nye): Palisades, Lake Elinor, /loc 331.0, 522.6, 37 (listed under this NPC on a TaRapedia mission list)
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 3
+  - Requires: Secure the Camp (id 388) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Escort_to_the_Research_Site), [TaRapedia](https://tabularasa.fandom.com/wiki/Secure_the_Camp)
+  - Leads to: Escort to Remote Station 3 (id 394) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Escort_to_Remote_Station_3)
+  - Leads to: Proven Commitment (id 411) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Proven_Commitment)
 ### 393 — Reset the Research Stations [instance]
 
 - **Instance:** Warnet Caverns — client objective/log text: "Activate the three remote Stations in the Warnet Caverns"
@@ -13484,6 +14774,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Information Spec. Sides](https://tabularasa.fandom.com/wiki/Information_Spec._Sides): /loc 20.3, -246, -- (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 1
+  - Leads to: Escort to Remote Station 3 (id 394) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Reset_the_Research_Stations)
+- **TR MMO DB quest series:** "Reset The Research Stations", row 4 of 4 ([list](https://web.archive.org/web/20120731165911/http://tr.mmodb.com/quests/seriesname-reset_the_research_stations/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 394 — Escort to Remote Station 3
 
 - **Rebuild summary:**
@@ -13513,6 +14806,12 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Information Spec. Brumley](https://tabularasa.fandom.com/wiki/Information_Spec._Brumley): /loc 158, -179.8, -- (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 4
+  - Requires: Escort to the Research Site (id 389) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Escort_to_Remote_Station_3)
+  - Requires: Reset the Research Stations (id 393) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Reset_the_Research_Stations)
+  - Leads to: Create the Queen Lure (id 395) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Create_the_Queen_Lure), [TaRapedia](https://tabularasa.fandom.com/wiki/Escort_to_Remote_Station_3)
+- **TR MMO DB quest series:** "Reset The Research Stations", row 2 of 4 ([list](https://web.archive.org/web/20120731165911/http://tr.mmodb.com/quests/seriesname-reset_the_research_stations/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** Escort to the Research Site (389), Reset the Research Stations (393) — source: the chain links above
 ### 395 — Create the Queen Lure
 
 - **Instance mentioned:** Warnet Caverns — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -13551,6 +14850,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - The remaining ingredients are dropped by mobs in the caverns — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Create_the_Queen_Lure)
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 5
+  - Requires: Escort to Remote Station 3 (id 394) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Create_the_Queen_Lure), [TaRapedia](https://tabularasa.fandom.com/wiki/Escort_to_Remote_Station_3)
+  - Leads to: Kill the Queen (id 396) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Create_the_Queen_Lure), [TaRapedia](https://tabularasa.fandom.com/wiki/Kill_the_Queen)
+- **TR MMO DB quest series:** "Reset The Research Stations", row 1 of 4 ([list](https://web.archive.org/web/20120731165911/http://tr.mmodb.com/quests/seriesname-reset_the_research_stations/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 396 — Kill the Queen [instance]
 
 - **Instance:** Warnet Caverns — client objective/log text: "Use the Lure to find and kill the Warnet Queen to get the unknown object. Bring it back to Information Specialist …"
@@ -13578,6 +14881,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - The artifact is found on her body — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Kill_the_Queen)
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 6
+  - Requires: Create the Queen Lure (id 395) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Create_the_Queen_Lure), [TaRapedia](https://tabularasa.fandom.com/wiki/Kill_the_Queen)
+- **TR MMO DB quest series:** "Reset The Research Stations", row 3 of 4 ([list](https://web.archive.org/web/20120731165911/http://tr.mmodb.com/quests/seriesname-reset_the_research_stations/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 405 — Intercept Bane Hunting Parties
 
 - **Rebuild summary:**
@@ -13605,6 +14911,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Located at /loc 715.5, 132.6, 546.1 (Eastern side of Lake Elinor). — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Intercept_Bane_Hunting_Parties)
   - 9/1/08 Found SE of Lake Elinor (682,324) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Intercept_Bane_Hunting_Parties)
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 1
+  - Leads to: Gathering Information (id 406) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Gathering_Information)
+  - Leads to: Save the Cubs (id 409) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Save_the_Cubs)
+- **TR MMO DB quest series:** "Intercept Bane Hunting Parties", row 1 of 4 ([list](https://web.archive.org/web/20120731163215/http://tr.mmodb.com/quests/seriesname-intercept_bane_hunting_parties/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 406 — Gathering Information
 
 - **Rebuild summary:**
@@ -13627,6 +14937,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TR MMO DB quest series** [Gathering Information](https://web.archive.org/web/20120731165405/http://tr.mmodb.com/quests/seriesname-gathering_information/): Gathering Information (level 20, reward 3000) → Revealing Treeback Experimentation (level 20, reward 2000) (series order as listed on the page; reward unit not stated)
 - **Stratics TR forum** [boards.stratics.com:80/php-bin/tr/showflat.php?Cat=&Number=10262&page= …](https://web.archive.org/web/20071221003516/http://boards.stratics.com:80/php-bin/tr/showflat.php?Cat=&Number=10262&page=0&view=collapsed&sb=5&o=&fpart=1): “[Re: Darkblade ] / #10430 - 11/08/07 03:14 PM / Gathering Information (Palisades) / Cannot complete mission because Lt Jamison is not located at the objective marker. / KyleTheWeasel”
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 2
+  - Requires: Intercept Bane Hunting Parties (id 405) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Gathering_Information)
+  - Leads to: Revealing Treeback Experimentation (id 408) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Gathering_Information), [TaRapedia](https://tabularasa.fandom.com/wiki/Revealing_Treeback_Experimentation)
+- **TR MMO DB quest series:** "Gathering Information", row 1 of 2 ([list](https://web.archive.org/web/20120731165405/http://tr.mmodb.com/quests/seriesname-gathering_information/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 407 — Healing the Herd
 
 - **Rebuild summary:**
@@ -13665,6 +14979,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TaRapedia mission list** [Cumbria Research Facility mission list](https://tabularasa.fandom.com/wiki/Cumbria_Research_Facility_mission_list): zone Palisades, area Cumbria Research Facility, given by Lt. Jamison
 - **TR MMO DB quest series** [Gathering Information](https://web.archive.org/web/20120731165405/http://tr.mmodb.com/quests/seriesname-gathering_information/): Gathering Information (level 20, reward 3000) → Revealing Treeback Experimentation (level 20, reward 2000) (series order as listed on the page; reward unit not stated)
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 3
+  - Requires: Gathering Information (id 406) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Gathering_Information), [TaRapedia](https://tabularasa.fandom.com/wiki/Revealing_Treeback_Experimentation)
+- **TR MMO DB quest series:** "Gathering Information", row 2 of 2 ([list](https://web.archive.org/web/20120731165405/http://tr.mmodb.com/quests/seriesname-gathering_information/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 409 — Save the Cubs
 
 - **Rebuild summary:**
@@ -13686,6 +15003,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Ranger Kevlo](https://tabularasa.fandom.com/wiki/Ranger_Kevlo): Palisades (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 2
+  - Requires: Intercept Bane Hunting Parties (id 405) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Save_the_Cubs)
+  - Leads to: Saving the Herd Patriarch (id 410) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Save_the_Cubs), [TaRapedia](https://tabularasa.fandom.com/wiki/Saving_the_Herd_Patriarch)
+- **TR MMO DB quest series:** "Intercept Bane Hunting Parties", row 2 of 4 ([list](https://web.archive.org/web/20120731163215/http://tr.mmodb.com/quests/seriesname-intercept_bane_hunting_parties/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 410 — Saving the Herd Patriarch
 
 - **Rebuild summary:**
@@ -13711,6 +15032,12 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [Modified Healing Disc](https://tabularasa.fandom.com/wiki/Modified_Healing_Disc): A modified Healing Disc. Obtained from the mission Saving the Herd Patriarch, and used in the follow-up mission Saving the Herd Patriarch II.
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 3
+  - Requires: Save the Cubs (id 409) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Save_the_Cubs), [TaRapedia](https://tabularasa.fandom.com/wiki/Saving_the_Herd_Patriarch)
+  - Leads to: Proven Conservation (id 413) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Proven_Conservation)
+  - Leads to: Treeback Beachhead (id 551) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Saving_the_Herd_Patriarch), [TaRapedia](https://tabularasa.fandom.com/wiki/Treeback_Beachhead)
+  - Leads to: Saving the Herd Patriarch II (id 1103) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Saving_the_Herd_Patriarch), [TaRapedia](https://tabularasa.fandom.com/wiki/Saving_the_Herd_Patriarch_II)
+- **TR MMO DB quest series:** "Intercept Bane Hunting Parties", row 3 of 4 ([list](https://web.archive.org/web/20120731163215/http://tr.mmodb.com/quests/seriesname-intercept_bane_hunting_parties/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 411 — Proven Commitment
 
 - **Rebuild summary:**
@@ -13739,6 +15066,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Watchman Hillenmeyer](https://tabularasa.fandom.com/wiki/Watchman_Hillenmeyer): Palisades, Cumbria Weald, /loc 323, 128, 604 (NPC page lists this mission)
   - [Warden Brocail](https://tabularasa.fandom.com/wiki/Warden_Brocail): Palisades, Walk of Giants (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 4
+  - Requires: Escort to the Research Site (id 389) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Proven_Commitment)
+  - Leads to: Temple of the Bowed Patriarch (id 414) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Temple_of_the_Bowed_Patriarch)
+- **Requires an instance mission:** Escort to the Research Site (389) — source: the chain links above
 ### 412 — Proven Justice
 
 - **Instance mentioned:** Eloh Temples — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -13763,6 +15094,12 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Ranger Kogari](https://tabularasa.fandom.com/wiki/Ranger_Kogari): Palisades, Hightower Outpost, /loc -42, 153, 42 (NPC page lists this mission)
   - [Warden Lagori](https://tabularasa.fandom.com/wiki/Warden_Lagori): Palisades, Temple of the Raging Patriarch, /loc -439, 166, 37 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 6
+  - Requires: Proving Justice (id 366) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Proven_Justice), [TaRapedia](https://tabularasa.fandom.com/wiki/Proving_Justice)
+  - Requires: Searching for Acceptance (id 368) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Proven_Justice)
+  - Requires: An Unexpected Test (id 369) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Proven_Justice)
+  - Requires: Finding Acceptance (id 375) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Proven_Justice)
+  - Requires: Discover Their Fate (id 376) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Discover_Their_Fate), [TaRapedia](https://tabularasa.fandom.com/wiki/Proven_Justice)
 ### 413 — Proven Conservation
 
 - **Rebuild summary:**
@@ -13788,6 +15125,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Ranger Urialia](https://tabularasa.fandom.com/wiki/Ranger_Urialia): Palisades, Viands Village, /loc -230, 166, -462 (NPC page lists this mission)
   - [Warden Kahlee](https://tabularasa.fandom.com/wiki/Warden_Kahlee): Palisades, Temple of the Proud Patriarch, /loc -694, 192, -91 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 4
+  - Requires: Proving Conservation (id 367) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Proven_Conservation), [TaRapedia](https://tabularasa.fandom.com/wiki/Proving_Conservation)
+  - Requires: Saving the Herd Patriarch (id 410) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Proven_Conservation)
+  - Leads to: Temple of the Proud Patriarch (id 415) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Proven_Conservation)
+- **TR MMO DB quest series:** "Proven Conservation", row 1 of 2 ([list](https://web.archive.org/web/20120731161640/http://tr.mmodb.com/quests/seriesname-proven_conservation/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 414 — Temple of the Bowed Patriarch
 
 - **Instance mentioned:** Eloh Temples — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -13823,6 +15165,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Warden Tyne](https://tabularasa.fandom.com/wiki/Warden_Tyne): Palisades, Temple of the Bowed Patriarch, /loc -725.1, 189.3, 49.1 (NPC page lists this mission)
   - [Warden Brocail](https://tabularasa.fandom.com/wiki/Warden_Brocail): Palisades, Walk of Giants (named in client text)
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 6
+  - Requires: Proven Commitment (id 411) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Temple_of_the_Bowed_Patriarch)
+  - Requires: Temple of the Proud Patriarch (id 415) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Temple_of_the_Bowed_Patriarch)
+  - Leads to: Temple of the Patriarch Protector (id 417) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Temple_of_the_Bowed_Patriarch), [TaRapedia](https://tabularasa.fandom.com/wiki/Temple_of_the_Patriarch_Protector)
 ### 415 — Temple of the Proud Patriarch
 
 - **Instance mentioned:** Eloh Temples — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -13853,6 +15199,12 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Warden Ebra](https://tabularasa.fandom.com/wiki/Warden_Ebra): Palisades, Temple of the Proud Patriarch, /loc -699, 194, -90 (NPC page lists this mission)
   - [Warden Kahlee](https://tabularasa.fandom.com/wiki/Warden_Kahlee): Palisades, Temple of the Proud Patriarch, /loc -694, 192, -91 (named in client text)
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 5
+  - Requires: Proven Conservation (id 413) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Proven_Conservation)
+  - Requires: Temple of the Raging Patriarch (id 416) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Temple_of_the_Raging_Patriarch)
+  - Leads to: Temple of the Bowed Patriarch (id 414) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Temple_of_the_Bowed_Patriarch)
+  - Leads to: Temple of the Patriarch Protector (id 417) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Temple_of_the_Patriarch_Protector)
+- **TR MMO DB quest series:** "Proven Conservation", row 2 of 2 ([list](https://web.archive.org/web/20120731161640/http://tr.mmodb.com/quests/seriesname-proven_conservation/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 416 — Temple of the Raging Patriarch
 
 - **Instance mentioned:** Eloh Temples — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -13887,6 +15239,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Warden Lagori](https://tabularasa.fandom.com/wiki/Warden_Lagori): Palisades, Temple of the Raging Patriarch, /loc -439, 166, 37 (named in client text)
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 2
+  - Requires: A Spiritual Pilgrimage (id 1988) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Temple_of_the_Raging_Patriarch)
+  - Leads to: Temple of the Proud Patriarch (id 415) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Temple_of_the_Raging_Patriarch)
+  - Leads to: Temple of the Patriarch Protector (id 417) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Temple_of_the_Patriarch_Protector)
 ### 417 — Temple of the Patriarch Protector
 
 - **Instance mentioned:** Eloh Temples — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -13909,6 +15265,13 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Where (locations / coordinates):**
   - Temple of the Patriarch Protector at -630, 189,-187. — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/guide-to-eloh-vale-temples)
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 7
+  - Requires: Temple of the Bowed Patriarch (id 414) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Temple_of_the_Bowed_Patriarch), [TaRapedia](https://tabularasa.fandom.com/wiki/Temple_of_the_Patriarch_Protector)
+  - Requires: Temple of the Proud Patriarch (id 415) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Temple_of_the_Patriarch_Protector)
+  - Requires: Temple of the Raging Patriarch (id 416) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Temple_of_the_Patriarch_Protector)
+  - Leads to: Palisades Targets of Opportunity (id 1630) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Temple_of_the_Patriarch_Protector)
+  - Leads to: Palisades Targets of Opportunity (id 1809) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Temple_of_the_Patriarch_Protector)
+  - Leads to: Trial of the Temples (id 1989) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Temple_of_the_Patriarch_Protector)
 ### 551 — Treeback Beachhead [instance]
 
 - **Instance:** Treeback Camp — NPC Field Lt. Bagby (named as giver/receiver) is in Treeback Camp — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Field_Lt._Bagby)
@@ -13930,6 +15293,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Field Lt. Bagby](https://tabularasa.fandom.com/wiki/Field_Lt._Bagby): Palisades, Treeback Camp, /loc -337.2, 103.6, 353.7 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 4
+  - Requires: Saving the Herd Patriarch (id 410) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Saving_the_Herd_Patriarch), [TaRapedia](https://tabularasa.fandom.com/wiki/Treeback_Beachhead)
 ### 622 — Friendly Wager
 
 - **Rebuild summary:**
@@ -14018,6 +15383,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TR MMO DB quest series** [Find Caritas In The Devil's Den Cave](https://web.archive.org/web/20120731164949/http://tr.mmodb.com/quests/seriesname-find_caritas_in_the_devil's_den_cave/): Find Caritas in the Devil's Den Cave (level 20, reward 0) → Finish the Task (level 22, reward 3800) (series order as listed on the page; reward unit not stated)
 - **TR MMO DB NPC** [Fithik Hive Master](https://web.archive.org/web/20080214005820/http://tr.mmodb.com:80/bestiary/fithik-hive-master-637.php): Quest Monster, zone Devil's Den (related to this quest)
 
+- **Chain** (explicit prerequisite links): Find Caritas in the Devil's Den Cave chain (3 missions), step 2
+  - Requires: Find Caritas in the Devil's Den Cave (id 380) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Find_Caritas_in_the_Devil%27s_Den_Cave), [TaRapedia](https://tabularasa.fandom.com/wiki/Finish_The_Task)
+- **TR MMO DB quest series:** "Find Caritas In The Devil's Den Cave", row 2 of 2 ([list](https://web.archive.org/web/20120731164949/http://tr.mmodb.com/quests/seriesname-find_caritas_in_the_devil's_den_cave/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** Find Caritas in the Devil's Den Cave (380) — source: the chain links above
 ### 672 — Sever the Devil's Head
 
 - **Instance mentioned:** Devils Den — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -14053,6 +15422,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Soanji](https://tabularasa.fandom.com/wiki/Soanji): Palisades, Concordia Palisades, /loc 42, 113, -25 (NPC page lists this mission)
   - [Ranger Kogari](https://tabularasa.fandom.com/wiki/Ranger_Kogari): Palisades, Hightower Outpost, /loc -42, 153, 42 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 3
+  - Requires: An Unexpected Test (id 369) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/An_Unexpected_Test), [TaRapedia](https://tabularasa.fandom.com/wiki/An_Unexpected_Test_-_Part_II)
+  - Leads to: Finding Acceptance (id 375) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/An_Unexpected_Test_-_Part_II)
 ### 703 — Finish the Job. [instance]
 
 - **Instance:** Devils Den — client objective/log text: "Kill the Fithik Hive Master in the Devil's Den."
@@ -14071,6 +15443,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Web:** zone: Concordia Palisades (Devil's Den instance); giver: Caritas (Devil's Den); xp: 41000 (3000 for returning to Caritas at Hightower + 38000 on completion); credits: 3,800; items: Teleract Electric Injector Gun, Teleract Electric Net Gun, or ChiTech Photonic Shotgun; prerequisites: Find Caritas in the Devil's Den Cave — Injured Ranger Caritas asks the player to continue her mission and kill the Fithik Hive Master in Devil's Den, then meet her back at Hightower Outpost. Sources: [Finish The Task](https://tabularasa.fandom.com/wiki/Finish_The_Task)
 - **TaRapedia mission list** [Devil's Den mission list](https://tabularasa.fandom.com/wiki/Devil%27s_Den_mission_list): zone Palisades, given by Ranger Caritas
 
+- **Chain** (explicit prerequisite links): Find Caritas in the Devil's Den Cave chain (3 missions), step 2
+  - Requires: Find Caritas in the Devil's Den Cave (id 380) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Finish_The_Task)
+- **Requires an instance mission:** Find Caritas in the Devil's Den Cave (380) — source: the chain links above
 ### 851 — Missing Specimens
 
 - **Rebuild summary:**
@@ -14102,6 +15477,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Thomas Jansona](https://tabularasa.fandom.com/wiki/Thomas_Jansona): Palisades, Hightower Outpost, /loc -43, 153, 40 (NPC page lists this mission)
 
+- **Requires (name not matched to a mission):** A Damaged Container in your inventory — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Missing_Specimens)
 ### 861 — Treeback Research [instance]
 
 - **Instance:** Treeback Camp — NPC Field Lt. Bagby (named as giver/receiver) is in Treeback Camp — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Field_Lt._Bagby)
@@ -14247,6 +15623,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Cmdr. Kendrick](https://tabularasa.fandom.com/wiki/Cmdr._Kendrick): Palisades, Treeback Camp, /loc -103, 100.5, 134 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Sabotage chain (2 missions), step 1
+  - Leads to: Treeback Genocide (id 870) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Sabotage), [TaRapedia](https://tabularasa.fandom.com/wiki/Treeback_Genocide)
+- **TR MMO DB quest series:** "Sabotage", row 1 of 2 ([list](https://web.archive.org/web/20120731170055/http://tr.mmodb.com/quests/seriesname-sabotage/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 870 — Treeback Genocide [instance]
 
 - **Instance:** Treeback Camp — NPC Captain Markinson (NPC page lists this mission) is in Treeback Camp — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Captain_Markinson)
@@ -14270,6 +15649,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Captain Markinson](https://tabularasa.fandom.com/wiki/Captain_Markinson): Palisades, Treeback Camp, /loc 315.4, 150.8, 251.8 (NPC page lists this mission)
   - [Field Lt. Bagby](https://tabularasa.fandom.com/wiki/Field_Lt._Bagby): Palisades, Treeback Camp, /loc -337.2, 103.6, 353.7 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Sabotage chain (2 missions), step 2
+  - Requires: Sabotage (id 869) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Sabotage), [TaRapedia](https://tabularasa.fandom.com/wiki/Treeback_Genocide)
+- **TR MMO DB quest series:** "Sabotage", row 2 of 2 ([list](https://web.archive.org/web/20120731170055/http://tr.mmodb.com/quests/seriesname-sabotage/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** Sabotage (869) — source: the chain links above
 ### 1019 — Finishing Move [instance]
 
 - **Instance:** Treeback Camp — NPC Lt. Galloway (named as giver/receiver) is in Treeback Camp — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Lt._Galloway)
@@ -14320,6 +15703,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [Modified Healing Disc](https://tabularasa.fandom.com/wiki/Modified_Healing_Disc): A modified Healing Disc. Obtained from the mission Saving the Herd Patriarch, and used in the follow-up mission Saving the Herd Patriarch II.
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 4
+  - Requires: Saving the Herd Patriarch (id 410) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Saving_the_Herd_Patriarch), [TaRapedia](https://tabularasa.fandom.com/wiki/Saving_the_Herd_Patriarch_II)
+- **TR MMO DB quest series:** "Intercept Bane Hunting Parties", row 4 of 4 ([list](https://web.archive.org/web/20120731163215/http://tr.mmodb.com/quests/seriesname-intercept_bane_hunting_parties/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1137 — Tracking Down the Vale
 
 - **Instance mentioned:** Eloh Vale — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -14376,6 +15762,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Where (locations / coordinates):**
   - Before you leave the area, notice the computer terminal at -50,172,-463, and the nearby red flare. — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/guide-to-eloh-vale)
 
+- **Chain** (explicit prerequisite links): Pieces of the Puzzle chain (11 missions), step 2
+  - Requires: Pieces of the Puzzle (id 1423) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Eloh_Vale_Transport), [TaRapedia](https://tabularasa.fandom.com/wiki/Pieces_of_the_Puzzle)
+- **Requires an instance mission:** Pieces of the Puzzle (1423) — source: the chain links above
 ### 1429 — Invade Eloh Vale [instance]
 
 - **Instance:** Eloh Vale — client objective/log text: "Report to Eloh Vale"
@@ -14412,6 +15801,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Base Cmdr. Matlin](https://tabularasa.fandom.com/wiki/Base_Cmdr._Matlin): Palisades, Cumbria Research Facility, /loc -809, 1318, 601 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Pieces of the Puzzle chain (11 missions), step 2
+  - Requires: Pieces of the Puzzle (id 1423) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Invade_Eloh_Vale), [TaRapedia](https://tabularasa.fandom.com/wiki/Pieces_of_the_Puzzle)
+  - Leads to: Report to Commander Jaxon (id 843) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Invade_Eloh_Vale), [TaRapedia](https://tabularasa.fandom.com/wiki/Report_to_Commander_Jaxon)
+- **TR MMO DB quest series:** "Pieces Of The Puzzle", row 1 of 2 ([list](https://web.archive.org/web/20120731164958/http://tr.mmodb.com/quests/seriesname-pieces_of_the_puzzle/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** Pieces of the Puzzle (1423) — source: the chain links above
 ### 1630 — Palisades Targets of Opportunity [instance]
 
 - **Instance:** Warnet Caverns — client objective/log text: "Operative: Complete the primary objectives in Warnet Caverns, Eloh Temples, Devils Den, Treeback Camp and Eloh Vale."
@@ -14455,6 +15849,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha boss NPC** [Hygax](https://www.ellatha.com/tr/bossnpcview.asp?key=Hygax&id=9): Lightbender; /loc -347,174,-803; zone Palisades; Near Fort Dew; needed for: Palisades Targets of Opportunity Treeback Cubs (Ellatha lists this mission under "Needed for Quests")
 - **Ellatha boss NPC** [Kennilaxx](https://www.ellatha.com/tr/bossnpcview.asp?key=Kennilaxx&id=6): Howler; /loc 305,295; zone Palisades; Roams around, south of Lake Elinor and east of CP River-base Krimm; needed for: Palisades Targets of Opportunity (Ellatha lists this mission under "Needed for Quests")
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 8
+  - Requires: Temple of the Patriarch Protector (id 417) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Temple_of_the_Patriarch_Protector)
+  - Leads to: Targets of Opportunity Reward. (id 1810) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Targets_of_Opportunity_Reward)
 ### 1652 — Logos: Ground
 
 - **Rebuild summary:**
@@ -14592,6 +15989,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - : Transmit the data you found on the Lightbender immediately soldier — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Kill_the_Light)
 
+- **Chain** (explicit prerequisite links): Kill the Light chain (2 missions), step 1
+  - Leads to: Kill the Light part II (id 1792) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Kill_the_Light), [TaRapedia](https://tabularasa.fandom.com/wiki/Kill_the_Light_part_II)
+- **TR MMO DB quest series:** "Kill The Light", row 1 of 2 ([list](https://web.archive.org/web/20120731165156/http://tr.mmodb.com/quests/seriesname-kill_the_light/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1792 — Kill the Light part II
 
 - **Instance mentioned:** Warnet Caverns — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -14617,6 +16017,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Captain LaFontaine](https://tabularasa.fandom.com/wiki/Captain_LaFontaine): River-base Krimm, /loc 227, 109, 350 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Kill the Light chain (2 missions), step 2
+  - Requires: Kill the Light (id 1791) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Kill_the_Light), [TaRapedia](https://tabularasa.fandom.com/wiki/Kill_the_Light_part_II)
+- **TR MMO DB quest series:** "Kill The Light", row 2 of 2 ([list](https://web.archive.org/web/20120731165156/http://tr.mmodb.com/quests/seriesname-kill_the_light/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1793 — Scarecrow [instance]
 
 - **Instance:** Warnet Caverns — client objective/log text: "Sgt Barrasso stationed inside the River-Base Krimm control point on Palisades wants you to go into the Warnet Caverns …"
@@ -14646,6 +16049,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - The Miasma essence is dropped by Miasmas throughout the Warnet Caverns — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Scarecrow)
   - The Pulsing Miasma Meat is dropped by a Boss Miasma Joahg up on a ledge from the mission waypoint indicator "Miasma Emanations" that appears along the path — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Scarecrow)
 
+- **Chain** (explicit prerequisite links): Scarecrow chain (2 missions), step 1
+  - Leads to: Fear Caper (id 1796) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Fear_Caper), [TaRapedia](https://tabularasa.fandom.com/wiki/Scarecrow)
 ### 1794 — Trophy Case [instance]
 
 - **Instance:** Warnet Caverns — client objective/log text: "Collect Trophies from Warnets inside the Warnet Caverns"
@@ -14716,6 +16121,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Sgt Barrasso](https://tabularasa.fandom.com/wiki/Sgt_Barrasso): /loc -612, --, -- (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Scarecrow chain (2 missions), step 2
+  - Requires: Scarecrow (id 1793) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Fear_Caper), [TaRapedia](https://tabularasa.fandom.com/wiki/Scarecrow)
+- **Requires an instance mission:** Scarecrow (1793) — source: the chain links above
 ### 1797 — To The Rescue [instance]
 
 - **Instance:** Devils Den — client objective/log text: "Captain LaFontaine stationed at River-Base Krimm in Palisades wants you to travel to Firebase Tango to rendezvous with …"
@@ -14853,6 +16261,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [LZ Flare](https://tabularasa.fandom.com/wiki/LZ_Flare): no description
 
+- **Chain** (explicit prerequisite links): Big Risk chain (2 missions), step 1
+  - Leads to: Supporting Your Local Strike Team (id 1802) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Big_Risk), [TaRapedia](https://tabularasa.fandom.com/wiki/Supporting_Your_Local_Strike_Team)
+- **TR MMO DB quest series:** "Big Risk", row 1 of 2 ([list](https://web.archive.org/web/20120731165302/http://tr.mmodb.com/quests/seriesname-big_risk/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1802 — Supporting Your Local Strike Team
 
 - **Instance mentioned:** Treeback Camp — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -14875,6 +16286,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Field Commander Twitty](https://tabularasa.fandom.com/wiki/Field_Commander_Twitty): Palisades, Staging Point, /loc 883.9, 125.1, -214.1 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Big Risk chain (2 missions), step 2
+  - Requires: Big Risk (id 1801) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Big_Risk), [TaRapedia](https://tabularasa.fandom.com/wiki/Supporting_Your_Local_Strike_Team)
+- **TR MMO DB quest series:** "Big Risk", row 2 of 2 ([list](https://web.archive.org/web/20120731165302/http://tr.mmodb.com/quests/seriesname-big_risk/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1803 — Grim Duty
 
 - **Rebuild summary:**
@@ -14893,6 +16307,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Captain McShay](https://tabularasa.fandom.com/wiki/Captain_McShay): Palisades, Staging Point, /loc 892.3, 123.4, -223.7 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Grim Duty chain (2 missions), step 1
+  - Leads to: Following Orders (id 1816) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Grim_Duty)
 ### 1804 — Trick and Mortar
 
 - **Rebuild summary:**
@@ -15047,6 +16463,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha boss NPC** [Hygax](https://www.ellatha.com/tr/bossnpcview.asp?key=Hygax&id=9): Lightbender; /loc -347,174,-803; zone Palisades; Near Fort Dew; needed for: Palisades Targets of Opportunity Treeback Cubs (Ellatha lists this mission under "Needed for Quests")
 - **Ellatha boss NPC** [Kennilaxx](https://www.ellatha.com/tr/bossnpcview.asp?key=Kennilaxx&id=6): Howler; /loc 305,295; zone Palisades; Roams around, south of Lake Elinor and east of CP River-base Krimm; needed for: Palisades Targets of Opportunity (Ellatha lists this mission under "Needed for Quests")
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 8
+  - Requires: Temple of the Patriarch Protector (id 417) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Temple_of_the_Patriarch_Protector)
+  - Leads to: Targets of Opportunity Reward. (id 1810) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Targets_of_Opportunity_Reward)
 ### 1810 — Targets of Opportunity Reward.
 
 - **Rebuild summary:**
@@ -15062,6 +16481,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Surveyor Savinelli](https://tabularasa.fandom.com/wiki/Surveyor_Savinelli): Palisades, Cumbria Research Facility, /loc -716.0, 138.0, 685.9 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 9
+  - Requires: Palisades Targets of Opportunity (id 1630) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Targets_of_Opportunity_Reward)
+  - Requires: Palisades Targets of Opportunity (id 1809) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Targets_of_Opportunity_Reward)
+- **Requires an instance mission:** Palisades Targets of Opportunity (1630), Palisades Targets of Opportunity (1809) — source: the chain links above
 ### 1812 — Logos: True
 
 - **Rebuild summary:**
@@ -15129,6 +16552,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Captain McShay](https://tabularasa.fandom.com/wiki/Captain_McShay): Palisades, Staging Point, /loc 892.3, 123.4, -223.7 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Grim Duty chain (2 missions), step 2
+  - Requires: Grim Duty (id 1803) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Grim_Duty)
+- **Requires (name not matched to a mission):** Grim Duty (Abandon Mission) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Following_Orders)
 ### 1817 — Secret Extraction
 
 - **Rebuild summary:**
@@ -15144,6 +16570,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - objectives: • Speak to Corporal Hutchinson • Deliver Barbeau's message to Corporal Hutchinson in Cumbria Research Facility.
   - walkthrough: If you want to save the only surviving team member Corporal Barbeau, you CANNOT tell Captain McShay that he is alive! Doing so will fail this mission and prevent you taking it again and you'll have no choice other then to kill Corporal Barbeau.
 
+- **Requires (name not matched to a mission):** Grim Duty (Abandon Mission) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Secret_Extraction)
 ### 1952 — FLASHPOINT: Inspection at Skive Base
 
 - **Rebuild summary:**
@@ -15238,6 +16665,12 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Warden Brocail](https://tabularasa.fandom.com/wiki/Warden_Brocail): Palisades, Walk of Giants (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 1
+  - Leads to: Proving Justice (id 366) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Proving_Justice)
+  - Leads to: Temple of the Raging Patriarch (id 416) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Temple_of_the_Raging_Patriarch)
+  - Leads to: Proving Commitment (id 363) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Proving_Commitment)
+  - Leads to: Trial of the Temples (id 1989) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Spiritual_Pilgrimage)
+- **Requires (name not matched to a mission):** None? — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Spiritual_Pilgrimage)
 ### 2006 — Soyuz Salvage: Palisades
 
 - **Rebuild summary:**
@@ -15298,6 +16731,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Colonel Whitaker](https://tabularasa.fandom.com/wiki/Colonel_Whitaker): Plains, Irendas Penal Colony, /loc 320, 499, -47 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Mine Layer Hunt chain (10 missions), step 1
+  - Leads to: Supplies Interception (id 656) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mine_Layer_Hunt), [TaRapedia](https://tabularasa.fandom.com/wiki/Supplies_Interception)
+- **TR MMO DB quest series:** "Mine Layer Hunt", row 1 of 3 ([list](https://web.archive.org/web/20120731165601/http://tr.mmodb.com/quests/seriesname-mine_layer_hunt/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 628 — Hedgehog Down
 
 - **Rebuild summary:**
@@ -15321,6 +16757,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Colonel Whitaker](https://tabularasa.fandom.com/wiki/Colonel_Whitaker): Plains, Irendas Penal Colony, /loc 320, 499, -47 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Running Interference chain (13 missions), step 2
+  - Requires: Running Interference (id 640) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Hedgehog_Down), [TaRapedia](https://tabularasa.fandom.com/wiki/Running_Interference)
+- **TR MMO DB quest series:** "Running Interference", row 1 of 2 ([list](https://web.archive.org/web/20120731165539/http://tr.mmodb.com/quests/seriesname-running_interference/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 638 — Trailblaze Mt. Hellas Outpost
 
 - **Rebuild summary:**
@@ -15343,6 +16782,14 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Colonel Whitaker](https://tabularasa.fandom.com/wiki/Colonel_Whitaker): Plains, Irendas Penal Colony, /loc 320, 499, -47 (NPC page lists this mission)
   - [Colonel Franks](https://tabularasa.fandom.com/wiki/Colonel_Franks): Plains, Mount Hellas Outpost (named in client text)
 
+- **Chain** (explicit prerequisite links): Running Interference chain (13 missions), step 3
+  - Requires: Interception (id 1013) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Trailblaze_Mt._Hellas_Outpost)
+  - Requires: Interception! (id 1189) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Trailblaze_Mt._Hellas_Outpost)
+  - Requires: Interception (id 1503) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Trailblaze_Mt._Hellas_Outpost)
+  - Leads to: Slappy's Tech Fun Pt. 1 (id 639) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Slappy%27s_Tech_Fun_Pt._1), [TaRapedia](https://tabularasa.fandom.com/wiki/Trailblaze_Mt._Hellas_Outpost)
+  - Leads to: Operation: Termination (id 1090) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Operation%3A_Termination), [TaRapedia](https://tabularasa.fandom.com/wiki/Trailblaze_Mt._Hellas_Outpost)
+- **TR MMO DB quest series:** "Mine Layer Hunt", row 3 of 3 ([list](https://web.archive.org/web/20120731165601/http://tr.mmodb.com/quests/seriesname-mine_layer_hunt/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** Interception (1013), Interception! (1189), Interception (1503) — source: the chain links above
 ### 639 — Slappy's Tech Fun Pt. 1
 
 - **Rebuild summary:**
@@ -15361,6 +16808,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Colonel Franks](https://tabularasa.fandom.com/wiki/Colonel_Franks): Plains, Mount Hellas Outpost (NPC page lists this mission)
   - [Slappy](https://tabularasa.fandom.com/wiki/Slappy): Plains, Mount Hellas Outpost (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Running Interference chain (13 missions), step 4
+  - Requires: Trailblaze Mt. Hellas Outpost (id 638) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Slappy%27s_Tech_Fun_Pt._1), [TaRapedia](https://tabularasa.fandom.com/wiki/Trailblaze_Mt._Hellas_Outpost)
+  - Leads to: Shock Treatment (id 645) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Acquire_Electrical_Resistor_Filters)
 ### 640 — Running Interference
 
 - **Rebuild summary:**
@@ -15383,6 +16833,12 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Colonel Whitaker](https://tabularasa.fandom.com/wiki/Colonel_Whitaker): Plains, Irendas Penal Colony, /loc 320, 499, -47 (NPC page lists this mission)
   - [Operations Mainframe](https://tabularasa.fandom.com/wiki/Operations_Mainframe): Plains, Viro Relay Tower, /loc 900, 430, -132 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Running Interference chain (13 missions), step 1
+  - Leads to: Hedgehog Down (id 628) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Hedgehog_Down), [TaRapedia](https://tabularasa.fandom.com/wiki/Running_Interference)
+  - Leads to: Interception (id 1013) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Interception), [TaRapedia](https://tabularasa.fandom.com/wiki/Running_Interference)
+  - Leads to: Interception! (id 1189) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Running_Interference)
+  - Leads to: Interception (id 1503) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Running_Interference)
+- **TR MMO DB quest series:** "Running Interference", row 2 of 2 ([list](https://web.archive.org/web/20120731165539/http://tr.mmodb.com/quests/seriesname-running_interference/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 645 — Shock Treatment
 
 - **Rebuild summary:**
@@ -15402,6 +16858,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Slappy](https://tabularasa.fandom.com/wiki/Slappy): Plains, Mount Hellas Outpost (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Running Interference chain (13 missions), step 5
+  - Requires: Slappy's Tech Fun Pt. 1 (id 639) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Acquire_Electrical_Resistor_Filters)
 ### 648 — Speak to Colonel Franks
 
 - **Rebuild summary:**
@@ -15423,6 +16881,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Colonel Franks](https://tabularasa.fandom.com/wiki/Colonel_Franks): Plains, Mount Hellas Outpost (named as giver/receiver)
   - [Colonel Whitaker](https://tabularasa.fandom.com/wiki/Colonel_Whitaker): Plains, Irendas Penal Colony, /loc 320, 499, -47 (named in client text)
 
+- **Chain** (explicit prerequisite links): Speak to Colonel Franks chain (2 missions), step 1
+  - Leads to: A Brother's Message (id 649) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Brother%27s_Message), [TaRapedia](https://tabularasa.fandom.com/wiki/Speak_to_Colonel_Franks)
 ### 649 — A Brother's Message
 
 - **Rebuild summary:**
@@ -15450,6 +16910,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Colonel Franks](https://tabularasa.fandom.com/wiki/Colonel_Franks): Plains, Mount Hellas Outpost (NPC page lists this mission)
   - [Xeniol](https://tabularasa.fandom.com/wiki/Xeniol): Plains, Mount Hellas Outpost, /loc -537, 442, 421 (named in client text)
 
+- **Chain** (explicit prerequisite links): Speak to Colonel Franks chain (2 missions), step 2
+  - Requires: Speak to Colonel Franks (id 648) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Brother%27s_Message), [TaRapedia](https://tabularasa.fandom.com/wiki/Speak_to_Colonel_Franks)
 ### 656 — Supplies Interception
 
 - **Rebuild summary:**
@@ -15479,6 +16941,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Colonel Whitaker](https://tabularasa.fandom.com/wiki/Colonel_Whitaker): Plains, Irendas Penal Colony, /loc 320, 499, -47 (NPC page lists this mission)
   - [Dr. Finobee](https://tabularasa.fandom.com/wiki/Dr._Finobee): Plains, Irendas Penal Colony, /loc 211, 425, -230 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Mine Layer Hunt chain (10 missions), step 2
+  - Requires: Mine Layer Hunt (id 627) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mine_Layer_Hunt), [TaRapedia](https://tabularasa.fandom.com/wiki/Supplies_Interception)
+  - Leads to: Medical Supply Recovery (id 1117) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Medical_Supply_Recovery), [TaRapedia](https://tabularasa.fandom.com/wiki/Supplies_Interception)
+- **TR MMO DB quest series:** "Mine Layer Hunt", row 2 of 3 ([list](https://web.archive.org/web/20120731165601/http://tr.mmodb.com/quests/seriesname-mine_layer_hunt/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 660 — Scout Atta Hive Entrance
 
 - **Rebuild summary:**
@@ -15500,6 +16966,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Dr. Finobee](https://tabularasa.fandom.com/wiki/Dr._Finobee): Plains, Irendas Penal Colony, /loc 211, 425, -230 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Mine Layer Hunt chain (10 missions), step 1
+  - Leads to: Into The Hive (id 1112) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Into_The_Hive), [TaRapedia](https://tabularasa.fandom.com/wiki/Scout_Atta_Hive_Entrance)
+  - Leads to: Bug Hunt (id 1115) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bug_Hunt), [TaRapedia](https://tabularasa.fandom.com/wiki/Scout_Atta_Hive_Entrance)
+  - Leads to: Bug Hugger (id 1939) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bug_Hugger)
 ### 717 — Duck Hunt
 
 - **Rebuild summary:**
@@ -15521,6 +16991,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Sergeant Major Ngyen](https://tabularasa.fandom.com/wiki/Sergeant_Major_Ngyen): Plains, Irendas Penal Colony, /loc 353, 433, -89 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Duck Hunt chain (3 missions), step 1
+  - Leads to: Pretty, Shiny Things (id 1016) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Duck_Hunt), [TaRapedia](https://tabularasa.fandom.com/wiki/Pretty%2C_Shiny_Things)
+- **TR MMO DB quest series:** "Duck Hunt", row 1 of 3 ([list](https://web.archive.org/web/20120731163421/http://tr.mmodb.com/quests/seriesname-duck_hunt/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 817 — Terminate Overseer Quarm
 
 - **Rebuild summary:**
@@ -15572,6 +17045,14 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Lieutenant Jaru](https://tabularasa.fandom.com/wiki/Lieutenant_Jaru): Plains, Viro Relay Tower, /loc 897, 428, -129 (NPC page lists this mission)
   - [Field Lieutenant Rapp](https://tabularasa.fandom.com/wiki/Field_Lieutenant_Rapp): Ustor Yard (listed under this NPC on a TaRapedia mission list)
 
+- **Chain** (explicit prerequisite links): Running Interference chain (13 missions), step 2
+  - Requires: Running Interference (id 640) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Interception), [TaRapedia](https://tabularasa.fandom.com/wiki/Running_Interference)
+  - Requires: Silent But Deadly (id 1187) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Silent_But_Deadly)
+  - Leads to: Trailblaze Mt. Hellas Outpost (id 638) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Trailblaze_Mt._Hellas_Outpost)
+  - Leads to: Incriminating Evidence (id 1063) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Incriminating_Evidence)
+  - Leads to: Monkey Wrench (id 1188) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Monkey_Wrench)
+- **TR MMO DB quest series:** "Silent But Deadly", row 1 of 3 ([list](https://web.archive.org/web/20120731163805/http://tr.mmodb.com/quests/seriesname-silent_but_deadly/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** Silent But Deadly (1187) — source: the chain links above
 ### 1016 — Pretty, Shiny Things
 
 - **Rebuild summary:**
@@ -15600,6 +17081,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Sergeant Major Ngyen](https://tabularasa.fandom.com/wiki/Sergeant_Major_Ngyen): Plains, Irendas Penal Colony, /loc 353, 433, -89 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Duck Hunt chain (3 missions), step 2
+  - Requires: Duck Hunt (id 717) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Duck_Hunt), [TaRapedia](https://tabularasa.fandom.com/wiki/Pretty%2C_Shiny_Things)
+  - Leads to: Periodical of Questionable Morality (id 1082) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Periodical_of_Questionable_Morality), [TaRapedia](https://tabularasa.fandom.com/wiki/Pretty%2C_Shiny_Things)
+- **TR MMO DB quest series:** "Duck Hunt", row 3 of 3 ([list](https://web.archive.org/web/20120731163421/http://tr.mmodb.com/quests/seriesname-duck_hunt/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1022 — Combat Ground Patrol: Plains
 
 - **Rebuild summary:**
@@ -15618,6 +17103,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Major Silvia](https://tabularasa.fandom.com/wiki/Major_Silvia): Plains, Irendas Penal Colony, /loc 348, 430, -170 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Combat Ground Patrol: Plains chain (4 missions), step 1
+  - Leads to: Impact Site (id 1309) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Combat_Ground_Patrol%3A_Plains), [TaRapedia](https://tabularasa.fandom.com/wiki/Impact_Site)
 ### 1024 — One Brann's Treasure
 
 - **Rebuild summary:**
@@ -15687,6 +17174,12 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Colonel Whitaker](https://tabularasa.fandom.com/wiki/Colonel_Whitaker): Plains, Irendas Penal Colony, /loc 320, 499, -47 (named in client text)
   - [Colonel Franks](https://tabularasa.fandom.com/wiki/Colonel_Franks): Plains, Mount Hellas Outpost (named in client text)
 
+- **Chain** (explicit prerequisite links): Running Interference chain (13 missions), step 3
+  - Requires: Interception (id 1013) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Incriminating_Evidence)
+  - Requires: Interception! (id 1189) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Incriminating_Evidence)
+  - Requires: Interception (id 1503) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Incriminating_Evidence)
+  - Leads to: Incriminating Delivery (id 1064) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Incriminating_Delivery), [TaRapedia](https://tabularasa.fandom.com/wiki/Incriminating_Evidence)
+- **Requires an instance mission:** Interception (1013), Interception! (1189), Interception (1503) — source: the chain links above
 ### 1064 — Incriminating Delivery
 
 - **Rebuild summary:**
@@ -15705,6 +17198,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Lieutenant Liu](https://tabularasa.fandom.com/wiki/Lieutenant_Liu): Plains, Eir Crater Field Hospital, /loc 700, 414, 230 (NPC page lists this mission)
   - [Colonel Franks](https://tabularasa.fandom.com/wiki/Colonel_Franks): Plains, Mount Hellas Outpost (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Running Interference chain (13 missions), step 4
+  - Requires: Incriminating Evidence (id 1063) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Incriminating_Delivery), [TaRapedia](https://tabularasa.fandom.com/wiki/Incriminating_Evidence)
 ### 1070 — Go to Incline, Young Soldier
 
 - **Rebuild summary:**
@@ -15835,6 +17330,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Sergeant Major Ngyen](https://tabularasa.fandom.com/wiki/Sergeant_Major_Ngyen): Plains, Irendas Penal Colony, /loc 353, 433, -89 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Duck Hunt chain (3 missions), step 3
+  - Requires: Pretty, Shiny Things (id 1016) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Periodical_of_Questionable_Morality), [TaRapedia](https://tabularasa.fandom.com/wiki/Pretty%2C_Shiny_Things)
+- **TR MMO DB quest series:** "Duck Hunt", row 2 of 3 ([list](https://web.archive.org/web/20120731163421/http://tr.mmodb.com/quests/seriesname-duck_hunt/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1089 — Operation: Mole Removal
 
 - **Rebuild summary:**
@@ -15871,6 +17369,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Colonel Whitaker](https://tabularasa.fandom.com/wiki/Colonel_Whitaker): Plains, Irendas Penal Colony, /loc 320, 499, -47 (NPC page lists this mission)
   - [Lieutenant Phelps](https://tabularasa.fandom.com/wiki/Lieutenant_Phelps): Plains (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Running Interference chain (13 missions), step 4
+  - Requires: Trailblaze Mt. Hellas Outpost (id 638) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Operation%3A_Termination), [TaRapedia](https://tabularasa.fandom.com/wiki/Trailblaze_Mt._Hellas_Outpost)
 ### 1112 — Into The Hive [instance]
 
 - **Instance:** Kardash Atta Colony — client objective/log text: "Travel to the Kardash Atta Colony, west of Irendas Colony. Enter the colony and find the cause of any electrical …"
@@ -15897,6 +17397,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Computer Access Terminal](https://tabularasa.fandom.com/wiki/Computer_Access_Terminal): Plains, Research Outpost Alpha, /loc 5, 233, -212 (named as giver/receiver)
   - [Dr. Finobee](https://tabularasa.fandom.com/wiki/Dr._Finobee): Plains, Irendas Penal Colony, /loc 211, 425, -230 (named in client text)
 
+- **Chain** (explicit prerequisite links): Mine Layer Hunt chain (10 missions), step 2
+  - Requires: Scout Atta Hive Entrance (id 660) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Into_The_Hive), [TaRapedia](https://tabularasa.fandom.com/wiki/Scout_Atta_Hive_Entrance)
+  - Leads to: Atta Control (id 1113) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Atta_Control), [TaRapedia](https://tabularasa.fandom.com/wiki/Into_The_Hive)
+- **TR MMO DB quest series:** "Bug Hunt", row 3 of 3 ([list](https://web.archive.org/web/20120731160651/http://tr.mmodb.com/quests/seriesname-bug_hunt/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1113 — Atta Control
 
 - **Instance mentioned:** Kardash Atta Colony — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -15917,6 +17421,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Computer Access Terminal](https://tabularasa.fandom.com/wiki/Computer_Access_Terminal): Plains, Research Outpost Alpha, /loc 5, 233, -212 (NPC page lists this mission)
   - [Captain Reyko](https://tabularasa.fandom.com/wiki/Captain_Reyko): Plains, Irendas Penal Colony, /loc 324, 433, -59 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Mine Layer Hunt chain (10 missions), step 3
+  - Requires: Into The Hive (id 1112) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Atta_Control), [TaRapedia](https://tabularasa.fandom.com/wiki/Into_The_Hive)
+  - Leads to: Medical Supply Recovery (id 1117) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Atta_Control), [TaRapedia](https://tabularasa.fandom.com/wiki/Medical_Supply_Recovery)
+- **Requires an instance mission:** Into The Hive (1112) — source: the chain links above
 ### 1114 — The Mind of a Madman
 
 - **Rebuild summary:**
@@ -15937,6 +17445,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Sargeant Phenix](https://tabularasa.fandom.com/wiki/Sargeant_Phenix): Plains (NPC page lists this mission)
   - [Captain Reyko](https://tabularasa.fandom.com/wiki/Captain_Reyko): Plains, Irendas Penal Colony, /loc 324, 433, -59 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Divided People chain (10 missions), step 7
+  - Requires: Into the Facility (id 1183) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Into_the_Facility), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Mind_of_a_Madman)
+- **Requires an instance mission:** Into the Facility (1183) — source: the chain links above
 ### 1115 — Bug Hunt [instance]
 
 - **Instance:** Kardash Atta Colony — an objective conversation's NPC package 2457 spawns in this instance (map 1773) — source: client objectiveconversation + data/rasaworld.db
@@ -15965,6 +17476,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Agent Zim](https://tabularasa.fandom.com/wiki/Agent_Zim): Plains, Irendas Penal Colony, /loc 210, 425, -215 (NPC page lists this mission)
   - [Captain Reyko](https://tabularasa.fandom.com/wiki/Captain_Reyko): Plains, Irendas Penal Colony, /loc 324, 433, -59 (named in client text)
 
+- **Chain** (explicit prerequisite links): Mine Layer Hunt chain (10 missions), step 2
+  - Requires: Scout Atta Hive Entrance (id 660) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bug_Hunt), [TaRapedia](https://tabularasa.fandom.com/wiki/Scout_Atta_Hive_Entrance)
+  - Leads to: Do Bugs Feel Fear? (id 1116) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bug_Hunt), [TaRapedia](https://tabularasa.fandom.com/wiki/Do_Bugs_Feel_Fear%3F)
+- **TR MMO DB quest series:** "Bug Hunt", row 2 of 3 ([list](https://web.archive.org/web/20120731160651/http://tr.mmodb.com/quests/seriesname-bug_hunt/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1116 — Do Bugs Feel Fear?
 
 - **Instance mentioned:** Kardash Atta Colony — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -15987,6 +17502,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Agent Zim](https://tabularasa.fandom.com/wiki/Agent_Zim): Plains, Irendas Penal Colony, /loc 210, 425, -215 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Mine Layer Hunt chain (10 missions), step 3
+  - Requires: Bug Hunt (id 1115) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bug_Hunt), [TaRapedia](https://tabularasa.fandom.com/wiki/Do_Bugs_Feel_Fear%3F)
+- **Requires an instance mission:** Bug Hunt (1115) — source: the chain links above
 ### 1117 — Medical Supply Recovery
 
 - **Instance mentioned:** Phanin Research Center — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -16010,6 +17528,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Captain Reyko](https://tabularasa.fandom.com/wiki/Captain_Reyko): Plains, Irendas Penal Colony, /loc 324, 433, -59 (NPC page lists this mission)
   - [Dr. Finobee](https://tabularasa.fandom.com/wiki/Dr._Finobee): Plains, Irendas Penal Colony, /loc 211, 425, -230 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Mine Layer Hunt chain (10 missions), step 4
+  - Requires: Supplies Interception (id 656) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Medical_Supply_Recovery), [TaRapedia](https://tabularasa.fandom.com/wiki/Supplies_Interception)
+  - Requires: Atta Control (id 1113) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Atta_Control), [TaRapedia](https://tabularasa.fandom.com/wiki/Medical_Supply_Recovery)
 ### 1118 — A Divided People
 
 - **Rebuild summary:**
@@ -16029,6 +17550,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Researcher Erodan](https://tabularasa.fandom.com/wiki/Researcher_Erodan): Plains, Irendas Penal Colony, /loc 253, 433, -149 (NPC page lists this mission)
   - [Engineer Tralos](https://tabularasa.fandom.com/wiki/Engineer_Tralos): Plains, Irendas Penal Colony, /loc 265, 433, -234 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Divided People chain (10 missions), step 1
+  - Leads to: A Tale of Two Brothers (id 1119) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Divided_People), [TaRapedia](https://tabularasa.fandom.com/wiki/A_Tale_of_Two_Brothers)
 ### 1119 — A Tale of Two Brothers [instance]
 
 - **Instance:** Kardash Atta Colony — client objective/log text: "Travel to the Kardash Atta Colony and find Surveyor Miras."
@@ -16052,6 +17575,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Engineer Tralos](https://tabularasa.fandom.com/wiki/Engineer_Tralos): Plains, Irendas Penal Colony, /loc 265, 433, -234 (NPC page lists this mission)
   - [Surveyor Miras](https://tabularasa.fandom.com/wiki/Surveyor_Miras): Plains, Research Outpost Alpha, /loc 4, 273, -200 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Divided People chain (10 missions), step 2
+  - Requires: A Divided People (id 1118) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Divided_People), [TaRapedia](https://tabularasa.fandom.com/wiki/A_Tale_of_Two_Brothers)
+  - Leads to: Unexpected Guests (id 1120) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Tale_of_Two_Brothers), [TaRapedia](https://tabularasa.fandom.com/wiki/Unexpected_Guests)
+  - Leads to: Just to be Certain (id 1121) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Tale_of_Two_Brothers), [TaRapedia](https://tabularasa.fandom.com/wiki/Just_to_be_Certain)
 ### 1120 — Unexpected Guests [instance]
 
 - **Instance:** Kardash Atta Colony — client objective/log text: "Find the Lightbender Infiltrators inside the Kardash Atta Colony and kill as many as you can before they report their …"
@@ -16073,6 +17600,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Surveyor Miras](https://tabularasa.fandom.com/wiki/Surveyor_Miras): Plains, Research Outpost Alpha, /loc 4, 273, -200 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): A Divided People chain (10 missions), step 3
+  - Requires: A Tale of Two Brothers (id 1119) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Tale_of_Two_Brothers), [TaRapedia](https://tabularasa.fandom.com/wiki/Unexpected_Guests)
+  - Leads to: Key Information (id 1122) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Key_Information), [TaRapedia](https://tabularasa.fandom.com/wiki/Unexpected_Guests)
+- **Requires an instance mission:** A Tale of Two Brothers (1119) — source: the chain links above
 ### 1121 — Just to be Certain [instance]
 
 - **Instance:** Kardash Atta Colony — client objective/log text: "Recover any information you can from the Lightbender Infiltrators in the Kardash Atta Colony. Return the information to …"
@@ -16093,6 +17624,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Researcher Kranix](https://tabularasa.fandom.com/wiki/Researcher_Kranix): Plains, Research Outpost Alpha, /loc 6, 273, -215 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): A Divided People chain (10 missions), step 3
+  - Requires: A Tale of Two Brothers (id 1119) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Tale_of_Two_Brothers), [TaRapedia](https://tabularasa.fandom.com/wiki/Just_to_be_Certain)
+  - Leads to: Key Information (id 1122) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Just_to_be_Certain), [TaRapedia](https://tabularasa.fandom.com/wiki/Key_Information)
+- **Requires an instance mission:** A Tale of Two Brothers (1119) — source: the chain links above
 ### 1122 — Key Information
 
 - **Instance mentioned:** Kardash Atta Colony — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -16114,6 +17649,13 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Surveyor Miras](https://tabularasa.fandom.com/wiki/Surveyor_Miras): Plains, Research Outpost Alpha, /loc 4, 273, -200 (NPC page lists this mission)
   - [Engineer Tralos](https://tabularasa.fandom.com/wiki/Engineer_Tralos): Plains, Irendas Penal Colony, /loc 265, 433, -234 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Divided People chain (10 missions), step 4
+  - Requires: Unexpected Guests (id 1120) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Key_Information), [TaRapedia](https://tabularasa.fandom.com/wiki/Unexpected_Guests)
+  - Requires: Just to be Certain (id 1121) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Just_to_be_Certain), [TaRapedia](https://tabularasa.fandom.com/wiki/Key_Information)
+  - Leads to: Proof of Collusion (id 1123) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Key_Information), [TaRapedia](https://tabularasa.fandom.com/wiki/Proof_of_Collusion)
+  - Leads to: Reformist Justice (id 1124) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Reformist_Justice)
+  - Leads to: Security Threat (id 1125) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Key_Information), [TaRapedia](https://tabularasa.fandom.com/wiki/Security_Threat)
+- **Requires an instance mission:** Unexpected Guests (1120), Just to be Certain (1121) — source: the chain links above
 ### 1123 — Proof of Collusion
 
 - **Instance mentioned:** Kardash Atta Colony — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -16138,6 +17680,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Master Phanin](https://tabularasa.fandom.com/wiki/Master_Phanin): Plains, Phanin Research Facility, /loc -107, -40, 80 (NPC page lists this mission)
   - [Researcher Erodan](https://tabularasa.fandom.com/wiki/Researcher_Erodan): Plains, Irendas Penal Colony, /loc 253, 433, -149 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): A Divided People chain (10 missions), step 5
+  - Requires: Key Information (id 1122) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Key_Information), [TaRapedia](https://tabularasa.fandom.com/wiki/Proof_of_Collusion)
 ### 1124 — Reformist Justice
 
 - **Rebuild summary:**
@@ -16161,6 +17705,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Head Scientist Mernash](https://tabularasa.fandom.com/wiki/Head_Scientist_Mernash): Plains (named in client text)
   - [Head Security Shendro](https://tabularasa.fandom.com/wiki/Head_Security_Shendro): Plains (named in client text)
 
+- **Chain** (explicit prerequisite links): A Divided People chain (10 missions), step 5
+  - Requires: Key Information (id 1122) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Reformist_Justice)
 ### 1125 — Security Threat
 
 - **Rebuild summary:**
@@ -16180,6 +17726,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Engineer Tralos](https://tabularasa.fandom.com/wiki/Engineer_Tralos): Plains, Irendas Penal Colony, /loc 265, 433, -234 (NPC page lists this mission)
   - [Captain Reyko](https://tabularasa.fandom.com/wiki/Captain_Reyko): Plains, Irendas Penal Colony, /loc 324, 433, -59 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Divided People chain (10 missions), step 5
+  - Requires: Key Information (id 1122) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Key_Information), [TaRapedia](https://tabularasa.fandom.com/wiki/Security_Threat)
+  - Leads to: Into the Facility (id 1183) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Into_the_Facility), [TaRapedia](https://tabularasa.fandom.com/wiki/Security_Threat)
 ### 1166 — We Need Backup!
 
 - **Instance mentioned:** Brann Water Refinery — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -16207,6 +17756,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Commander Killroy](https://tabularasa.fandom.com/wiki/Commander_Killroy): Plains (named as giver/receiver)
   - [Field Officer Lagda](https://tabularasa.fandom.com/wiki/Field_Officer_Lagda): Plains (named in client text)
 
+- **Chain** (explicit prerequisite links): We Need Backup! chain (5 missions), step 1
+  - Leads to: Cripple the Defenses (id 1173) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Cripple_the_Defenses), [TaRapedia](https://tabularasa.fandom.com/wiki/We_Need_Backup%21)
+  - Leads to: Defusing the Situation (id 1174) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Defusing_the_Situation), [TaRapedia](https://tabularasa.fandom.com/wiki/We_Need_Backup%21)
+  - Leads to: Flanks for Nothing (id 1175) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Flanks_for_Nothing), [TaRapedia](https://tabularasa.fandom.com/wiki/We_Need_Backup%21)
+- **TR MMO DB quest series:** "We Need Backup", row 5 of 5 ([list](https://web.archive.org/web/20120731170300/http://tr.mmodb.com/quests/seriesname-we_need_backup/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1173 — Cripple the Defenses
 
 - **Instance mentioned:** Brann Water Refinery — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -16234,6 +17788,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Marshall Arboc](https://tabularasa.fandom.com/wiki/Marshall_Arboc): Plains (named as giver/receiver)
   - [Commander Caolots](https://tabularasa.fandom.com/wiki/Commander_Caolots): Plains (named in client text)
 
+- **Chain** (explicit prerequisite links): We Need Backup! chain (5 missions), step 2
+  - Requires: We Need Backup! (id 1166) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Cripple_the_Defenses), [TaRapedia](https://tabularasa.fandom.com/wiki/We_Need_Backup%21)
+- **TR MMO DB quest series:** "We Need Backup", row 1 of 5 ([list](https://web.archive.org/web/20120731170300/http://tr.mmodb.com/quests/seriesname-we_need_backup/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1174 — Defusing the Situation
 
 - **Instance mentioned:** Brann Water Refinery — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -16261,6 +17818,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Marshall Arboc](https://tabularasa.fandom.com/wiki/Marshall_Arboc): Plains (NPC page lists this mission)
   - [Scout Coen](https://tabularasa.fandom.com/wiki/Scout_Coen): Plains (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): We Need Backup! chain (5 missions), step 2
+  - Requires: We Need Backup! (id 1166) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Defusing_the_Situation), [TaRapedia](https://tabularasa.fandom.com/wiki/We_Need_Backup%21)
+- **TR MMO DB quest series:** "We Need Backup", row 2 of 5 ([list](https://web.archive.org/web/20120731170300/http://tr.mmodb.com/quests/seriesname-we_need_backup/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1175 — Flanks for Nothing
 
 - **Instance mentioned:** Brann Water Refinery — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -16290,6 +17850,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Scout Coen](https://tabularasa.fandom.com/wiki/Scout_Coen): Plains (NPC page lists this mission)
   - [Gunnery Sergeant Namistai](https://tabularasa.fandom.com/wiki/Gunnery_Sergeant_Namistai): Plains (named in client text)
 
+- **Chain** (explicit prerequisite links): We Need Backup! chain (5 missions), step 2
+  - Requires: We Need Backup! (id 1166) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Flanks_for_Nothing), [TaRapedia](https://tabularasa.fandom.com/wiki/We_Need_Backup%21)
+  - Leads to: Hostile Overtaking (id 1176) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Flanks_for_Nothing), [TaRapedia](https://tabularasa.fandom.com/wiki/Hostile_Overtaking)
+- **TR MMO DB quest series:** "We Need Backup", row 3 of 5 ([list](https://web.archive.org/web/20120731170300/http://tr.mmodb.com/quests/seriesname-we_need_backup/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1176 — Hostile Overtaking
 
 - **Instance mentioned:** Brann Water Refinery — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -16316,6 +17880,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Lieutenant Commander Michan](https://tabularasa.fandom.com/wiki/Lieutenant_Commander_Michan): Plains, Irendas Penal Colony, /loc 207, 426, -233 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): We Need Backup! chain (5 missions), step 3
+  - Requires: Flanks for Nothing (id 1175) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Flanks_for_Nothing), [TaRapedia](https://tabularasa.fandom.com/wiki/Hostile_Overtaking)
+- **TR MMO DB quest series:** "We Need Backup", row 4 of 5 ([list](https://web.archive.org/web/20120731170300/http://tr.mmodb.com/quests/seriesname-we_need_backup/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1183 — Into the Facility [instance]
 
 - **Instance:** Phanin Research Center — an objective conversation's NPC package 1273 spawns in this instance (map 2034) — source: client objectiveconversation + data/rasaworld.db
@@ -16340,6 +17907,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Captain Reyko](https://tabularasa.fandom.com/wiki/Captain_Reyko): Plains, Irendas Penal Colony, /loc 324, 433, -59 (NPC page lists this mission)
   - [Sargeant Phenix](https://tabularasa.fandom.com/wiki/Sargeant_Phenix): Plains (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Divided People chain (10 missions), step 6
+  - Requires: Security Threat (id 1125) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Into_the_Facility), [TaRapedia](https://tabularasa.fandom.com/wiki/Security_Threat)
+  - Leads to: The Mind of a Madman (id 1114) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Into_the_Facility), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Mind_of_a_Madman)
 ### 1186 — Underground Mysteries
 
 - **Instance mentioned:** Kardash Atta Colony — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -16363,6 +17933,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Captain Reyko](https://tabularasa.fandom.com/wiki/Captain_Reyko): Plains, Irendas Penal Colony, /loc 324, 433, -59 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Combat Ground Patrol: Plains chain (4 missions), step 4
+  - Requires: Speak to Captain Reyko (id 1310) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Speak_to_Captain_Reyko), [TaRapedia](https://tabularasa.fandom.com/wiki/Underground_Mysteries)
 ### 1231 — Hunt for the Red Kraken
 
 - **Rebuild summary:**
@@ -16416,6 +17988,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Major Silvia](https://tabularasa.fandom.com/wiki/Major_Silvia): Plains, Irendas Penal Colony, /loc 348, 430, -170 (NPC page lists this mission)
   - [Captain Reyko](https://tabularasa.fandom.com/wiki/Captain_Reyko): Plains, Irendas Penal Colony, /loc 324, 433, -59 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Combat Ground Patrol: Plains chain (4 missions), step 3
+  - Requires: Impact Site (id 1309) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Impact_Site), [TaRapedia](https://tabularasa.fandom.com/wiki/Speak_to_Captain_Reyko)
+  - Leads to: Underground Mysteries (id 1186) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Speak_to_Captain_Reyko), [TaRapedia](https://tabularasa.fandom.com/wiki/Underground_Mysteries)
+- **TR MMO DB quest series:** "Ground Combat Patrol: Plains", row 3 of 3 ([list](https://web.archive.org/web/20120731170313/http://tr.mmodb.com/quests/seriesname-ground_combat_patrol:_plains/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1548 — Do-ya Wanna Manta?
 
 - **Rebuild summary:**
@@ -16701,6 +18277,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Lieutenant Commander Michan](https://tabularasa.fandom.com/wiki/Lieutenant_Commander_Michan): Plains, Irendas Penal Colony, /loc 207, 426, -233 (named as giver/receiver)
   - [Dr. Finobee](https://tabularasa.fandom.com/wiki/Dr._Finobee): Plains, Irendas Penal Colony, /loc 211, 425, -230 (named in client text)
 
+- **Requires (name not matched to a mission):** The Infesus Garrison Directive — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Infiltrate_Infesus_Garrison)
 ### 1855 — Rock and Rumble
 
 - **Rebuild summary:**
@@ -16730,6 +18307,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Dr. Finobee](https://tabularasa.fandom.com/wiki/Dr._Finobee): Plains, Irendas Penal Colony, /loc 211, 425, -230 (NPC page lists this mission)
   - [Drill Technician Grok](https://tabularasa.fandom.com/wiki/Drill_Technician_Grok): Plains (named in client text)
 
+- **Requires (name not matched to a mission):** Infiltrate Infesus Garrison — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Rock_and_Rumble)
 ### 1862 — The Infensus Garrison Directive
 
 - **Rebuild summary:**
@@ -16817,6 +18395,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Lieutenant Donnors](https://tabularasa.fandom.com/wiki/Lieutenant_Donnors): Plains, Kardash Atta Colony, /loc -5.0, 314.4, 164.4 (NPC page lists this mission)
   - [Agent Zim](https://tabularasa.fandom.com/wiki/Agent_Zim): Plains, Irendas Penal Colony, /loc 210, 425, -215 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Mine Layer Hunt chain (10 missions), step 2
+  - Requires: Scout Atta Hive Entrance (id 660) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bug_Hugger)
+  - Leads to: Do Bugs Have Feelings? (id 1941) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bug_Hugger), [TaRapedia](https://tabularasa.fandom.com/wiki/Do_Bugs_Have_Feelings%3F)
+- **TR MMO DB quest series:** "Bug Hunt", row 1 of 3 ([list](https://web.archive.org/web/20120731160651/http://tr.mmodb.com/quests/seriesname-bug_hunt/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires (name not matched to a mission):** Scout Atta Hive Entrance & accepted Bug Hunt — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bug_Hugger)
 ### 1941 — Do Bugs Have Feelings? [instance]
 
 - **Instance:** Kardash Atta Colony — NPC Lieutenant Donners (named in client text) is in Kardash Atta Colony — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Lieutenant_Donners)
@@ -16836,6 +18419,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Colonel Whitaker](https://tabularasa.fandom.com/wiki/Colonel_Whitaker): Plains, Irendas Penal Colony, /loc 320, 499, -47 (named as giver/receiver)
   - [Lieutenant Donners](https://tabularasa.fandom.com/wiki/Lieutenant_Donners): Plains, Kardash Atta Colony, /loc -5.0, 314.4, 164.4 (named in client text)
 
+- **Chain** (explicit prerequisite links): Mine Layer Hunt chain (10 missions), step 3
+  - Requires: Bug Hugger (id 1939) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bug_Hugger), [TaRapedia](https://tabularasa.fandom.com/wiki/Do_Bugs_Have_Feelings%3F)
+- **Requires an instance mission:** Bug Hugger (1939) — source: the chain links above
 ## Plateau
 
 ### 555 — Behind Enemy Lines
@@ -16857,6 +18443,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Colonel Bosley](https://tabularasa.fandom.com/wiki/Colonel_Bosley): Plateau, AFS Camp Resistance (named as giver/receiver)
   - [General Thaddeus T. Bailey](https://tabularasa.fandom.com/wiki/General_Thaddeus_T._Bailey): Plateau, Fort Defiance, /loc -68, 404, 949 (named in client text)
 
+- **Chain** (explicit prerequisite links): Lookout Down Below chain (3 missions), step 3
+  - Requires: The Stainless Steel Bloodhound (id 867) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Behind_Enemy_Lines), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Stainless_Steel_Bloodhound)
 ### 557 — Cryptic Messages
 
 - **Instance mentioned:** Maligo Base — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -16922,6 +18510,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - TIP: THe Prototype Juggernaut CPU can be found on the north side of Trinity Bridge — source: [TR MMO DB](https://web.archive.org/web/20120731174048/http://tr.mmodb.com/quests/a-bridge-too-far-238.php)
 
+- **Chain** (explicit prerequisite links): The Defiant Ones chain (8 missions), step 2
+  - Requires: The Defiant Ones (id 887) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Bridge_Too_Far), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Defiant_Ones)
+  - Leads to: The Beer Hunter (id 855) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Bridge_Too_Far), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Beer_Hunter)
+- **TR MMO DB quest series:** "The Defiant Ones", row 1 of 3 ([list](https://web.archive.org/web/20120731160614/http://tr.mmodb.com/quests/seriesname-the_defiant_ones/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 714 — Clean Slate
 
 - **Rebuild summary:**
@@ -16952,6 +18544,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Corporal Wainwright](https://tabularasa.fandom.com/wiki/Corporal_Wainwright): Plateau, New Velon Village, /loc 194, 354, 519 (named as giver/receiver)
   - [Agent Perdu](https://tabularasa.fandom.com/wiki/Agent_Perdu): Plateau, Fort Defiance (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Clean Slate chain (6 missions), step 1
+  - Leads to: Mind Bender (id 905) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Clean_Slate), [TaRapedia](https://tabularasa.fandom.com/wiki/Mind_Bender)
+- **TR MMO DB quest series:** "Clean Slate", row 1 of 3 ([list](https://web.archive.org/web/20120731165006/http://tr.mmodb.com/quests/seriesname-clean_slate/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 719 — Mind Slayer
 
 - **Rebuild summary:**
@@ -16978,6 +18573,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Inquisitor Krakatus](https://tabularasa.fandom.com/wiki/Inquisitor_Krakatus): Plateau (named in client text)
 - **Ellatha boss NPC** [Inquisitor Krakatus](https://www.ellatha.com/tr/bossnpcview.asp?key=Inquisitor+Krakatus&id=95): Technician; zone Plateau; Inside Derak Prison; needed for: Plateau Targets of Opportunity Mind Slayer (Ellatha lists this mission under "Needed for Quests")
 
+- **Chain** (explicit prerequisite links): Clean Slate chain (6 missions), step 5
+  - Requires: Mind Bender (id 905) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mind_Slayer)
+  - Requires: The Results Are In (id 936) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Results_Are_In)
+- **TR MMO DB quest series:** "Clean Slate", row 3 of 3 ([list](https://web.archive.org/web/20120731165006/http://tr.mmodb.com/quests/seriesname-clean_slate/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 855 — The Beer Hunter
 
 - **Rebuild summary:**
@@ -17005,6 +18604,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Field Lt. Peterson](https://tabularasa.fandom.com/wiki/Field_Lt._Peterson): Plateau, Fort Defiance, /loc -66, 401, 931 (named as giver/receiver)
   - [Bartender McLaughlin](https://tabularasa.fandom.com/wiki/Bartender_McLaughlin): Plateau, Fort Defiance, /loc 19, 399, 925 (named in client text)
 
+- **Chain** (explicit prerequisite links): The Defiant Ones chain (8 missions), step 3
+  - Requires: A Bridge Too Far (id 713) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Bridge_Too_Far), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Beer_Hunter)
+- **TR MMO DB quest series:** "The Defiant Ones", row 2 of 3 ([list](https://web.archive.org/web/20120731160614/http://tr.mmodb.com/quests/seriesname-the_defiant_ones/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 867 — The Stainless Steel Bloodhound
 
 - **Rebuild summary:**
@@ -17033,6 +18635,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Field Sgt. Garde](https://tabularasa.fandom.com/wiki/Field_Sgt._Garde): Plateau, Valverde Chasm, /loc -103, 269, 183 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Lookout Down Below chain (3 missions), step 2
+  - Requires: Lookout Down Below (id 970) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Stainless_Steel_Bloodhound)
+  - Leads to: Behind Enemy Lines (id 555) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Behind_Enemy_Lines), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Stainless_Steel_Bloodhound)
 ### 877 — One Way Trip [instance]
 
 - **Instance:** Maligo Base — client objective/log text: "Search Maligo Base for the location of the prototype Wormhole device that the Bane are working on."
@@ -17061,6 +18666,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Colonel Bosley](https://tabularasa.fandom.com/wiki/Colonel_Bosley): Plateau, AFS Camp Resistance (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Giant Killer chain (11 missions), step 4
+  - Requires: Blueprint For Victory (id 1046) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Blueprint_For_Victory), [TaRapedia](https://tabularasa.fandom.com/wiki/One_Way_Trip)
+  - Leads to: South Of The Border (id 1068) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/One_Way_Trip), [TaRapedia](https://tabularasa.fandom.com/wiki/South_Of_The_Border)
+  - Leads to: New Orders From The General (id 1541) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/New_Orders_From_The_General), [TaRapedia](https://tabularasa.fandom.com/wiki/One_Way_Trip)
 ### 887 — The Defiant Ones
 
 - **Rebuild summary:**
@@ -17090,6 +18699,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Transportation Officer Mamede](https://tabularasa.fandom.com/wiki/Transportation_Officer_Mamede): Fort Defiance (named as giver/receiver)
   - [Field Lt. Peterson](https://tabularasa.fandom.com/wiki/Field_Lt._Peterson): Plateau, Fort Defiance, /loc -66, 401, 931 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): The Defiant Ones chain (8 missions), step 1
+  - Leads to: A Bridge Too Far (id 713) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Bridge_Too_Far), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Defiant_Ones)
+  - Leads to: Crystal Blue Persuasion (id 954) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Crystal_Blue_Persuasion), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Defiant_Ones)
+  - Leads to: Blue Flu (id 1014) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Blue_Flu), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Defiant_Ones)
+- **TR MMO DB quest series:** "The Defiant Ones", row 3 of 3 ([list](https://web.archive.org/web/20120731160614/http://tr.mmodb.com/quests/seriesname-the_defiant_ones/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 895 — Murder Most Foul
 
 - **Rebuild summary:**
@@ -17111,6 +18725,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Security Guard Norton](https://tabularasa.fandom.com/wiki/Security_Guard_Norton): Plateau, Fort Defiance, /loc -187, 398, 1016 (named as giver/receiver)
   - [CID Detective Crais](https://tabularasa.fandom.com/wiki/CID_Detective_Crais): Plateau, Fort Defiance, /loc -230, 421, 938 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): The Defiant Ones chain (8 missions), step 3
+  - Requires: Blue Flu (id 1014) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Blue_Flu), [TaRapedia](https://tabularasa.fandom.com/wiki/Murder_Most_Foul)
+  - Leads to: Looking For Clues (id 928) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Looking_For_Clues), [TaRapedia](https://tabularasa.fandom.com/wiki/Murder_Most_Foul)
 ### 905 — Mind Bender
 
 - **Rebuild summary:**
@@ -17134,6 +18751,12 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Agent Perdu](https://tabularasa.fandom.com/wiki/Agent_Perdu): Plateau, Fort Defiance (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Clean Slate chain (6 missions), step 2
+  - Requires: Clean Slate (id 714) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Clean_Slate), [TaRapedia](https://tabularasa.fandom.com/wiki/Mind_Bender)
+  - Requires: Clean Slate (id 1983) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Clean_Slate), [TaRapedia](https://tabularasa.fandom.com/wiki/Mind_Bender)
+  - Leads to: Mind Slayer (id 719) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mind_Slayer)
+  - Leads to: Photo Ops (id 929) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mind_Bender), [TaRapedia](https://tabularasa.fandom.com/wiki/Photo_Ops)
+- **TR MMO DB quest series:** "Clean Slate", row 2 of 3 ([list](https://web.archive.org/web/20120731165006/http://tr.mmodb.com/quests/seriesname-clean_slate/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 928 — Looking For Clues
 
 - **Rebuild summary:**
@@ -17157,6 +18780,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [CID Detective Crais](https://tabularasa.fandom.com/wiki/CID_Detective_Crais): Plateau, Fort Defiance, /loc -230, 421, 938 (named as giver/receiver)
   - [Private Remick](https://tabularasa.fandom.com/wiki/Private_Remick): Wedge Rock Outpost (named in client text)
 
+- **Chain** (explicit prerequisite links): The Defiant Ones chain (8 missions), step 4
+  - Requires: Murder Most Foul (id 895) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Looking_For_Clues), [TaRapedia](https://tabularasa.fandom.com/wiki/Murder_Most_Foul)
 ### 929 — Photo Ops
 
 - **Rebuild summary:**
@@ -17178,6 +18803,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Outpost Cmdr. Russ](https://tabularasa.fandom.com/wiki/Outpost_Cmdr._Russ): Plateau, Wedge Rock Outpost, /loc 449, 378, 367 (named as giver/receiver)
   - [Science Officer Clark](https://tabularasa.fandom.com/wiki/Science_Officer_Clark): Plateau, Wedge Rock Outpost, /loc 464, 378, 366 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Clean Slate chain (6 missions), step 3
+  - Requires: Mind Bender (id 905) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mind_Bender), [TaRapedia](https://tabularasa.fandom.com/wiki/Photo_Ops)
+  - Leads to: The Results Are In (id 936) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Photo_Ops), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Results_Are_In)
 ### 930 — The Book Of Velonar
 
 - **Rebuild summary:**
@@ -17259,9 +18887,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Caretaker Tendahl](https://tabularasa.fandom.com/wiki/Caretaker_Tendahl): Plateau, Mount Reverance, /loc -781, 442.6, 431.7 (NPC page lists this mission)
 
-### 935 — Array Of Hope
+- **Chain** (explicit prerequisite links): A Voice From The Past chain (12 missions), step 1
+  - Leads to: Trinity Bridge Logos: Past (id 1044) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Voice_From_The_Past), [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Past)
+### 935 — Array Of Hope [instance]
 
-- **Instance mentioned:** Temporal Chamber — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
+- **Instance:** Temporal Chamber — client log 5031: open the portal on Trinity Bridge, enter it and investigate what lies beyond; the hand-in (package 1199) is beyond it (ESTIMATE) — checked by hand
 - **Rebuild summary:**
   - level: 30 — source: [TR MMO DB](https://web.archive.org/web/20080907092249/http://tr.mmodb.com/quests/array-of-hope-255.php)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
@@ -17284,6 +18914,15 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Vogren's Hologram](https://tabularasa.fandom.com/wiki/Vogren%27s_Hologram): Plateau, Vogren's Tomb, /loc -673, 466, 539 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Voice From The Past chain (12 missions), step 4
+  - Requires: Trinity Bridge Logos: Past (id 1044) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Array_of_Hope)
+  - Requires: Trinity Bridge Logos: Future (id 1047) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Array_of_Hope)
+  - Requires: Trinity Bridge Logos: Disperse (id 1048) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Array_of_Hope)
+  - Requires: Trinity Bridge Logos: Logos (id 1049) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Array_of_Hope)
+  - Requires: Trinity Bridge Logos: Far (id 1051) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Array_of_Hope)
+  - Requires: Trinity Bridge Logos: Distance (id 1057) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Array_of_Hope)
+  - Leads to: Future Sacrifice (id 1171) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Array_of_Hope), [TaRapedia](https://tabularasa.fandom.com/wiki/Future_Sacrifice)
+- **TR MMO DB quest series:** "Array Of Hope", row 1 of 5 ([list](https://web.archive.org/web/20120731161907/http://tr.mmodb.com/quests/seriesname-array_of_hope/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 936 — The Results Are In
 
 - **Rebuild summary:**
@@ -17305,6 +18944,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Science Officer Clark](https://tabularasa.fandom.com/wiki/Science_Officer_Clark): Plateau, Wedge Rock Outpost, /loc 464, 378, 366 (named as giver/receiver)
   - [Agent Perdu](https://tabularasa.fandom.com/wiki/Agent_Perdu): Plateau, Fort Defiance (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Clean Slate chain (6 missions), step 4
+  - Requires: Photo Ops (id 929) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Photo_Ops), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Results_Are_In)
+  - Leads to: Mind Slayer (id 719) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Results_Are_In)
 ### 939 — Giant Killer [implemented]
 
 - **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -17338,6 +18980,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Goliath](https://tabularasa.fandom.com/wiki/Goliath): Plateau (named in client text)
 - **Ellatha boss NPC** [Goliath](https://www.ellatha.com/tr/bossnpcview.asp?key=Goliath&id=22): Kael; /loc -440,-230; zone Plateau; Patrols east of Camp Resistance along the north ridge, near -250, -350; needed for: Plateau Targets of Opportunity Giant Killer (Ellatha lists this mission under "Needed for Quests")
 
+- **Chain** (explicit prerequisite links): Giant Killer chain (11 missions), step 1
+  - Leads to: Incommunicado (id 1040) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Giant_Killer), [TaRapedia](https://tabularasa.fandom.com/wiki/Incommunicado), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+- **TR MMO DB quest series:** "Giant Killer", row 1 of 2 ([list](https://web.archive.org/web/20120731163753/http://tr.mmodb.com/quests/seriesname-giant_killer/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 954 — Crystal Blue Persuasion
 
 - **Rebuild summary:**
@@ -17361,6 +19006,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Senior Engineer Mauer](https://tabularasa.fandom.com/wiki/Senior_Engineer_Mauer): Plateau, Fort Defiance, /loc -61, 402, 940 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): The Defiant Ones chain (8 missions), step 2
+  - Requires: The Defiant Ones (id 887) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Crystal_Blue_Persuasion), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Defiant_Ones)
+  - Leads to: Alpha Mox (id 1027) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Alpha_Mox), [TaRapedia](https://tabularasa.fandom.com/wiki/Crystal_Blue_Persuasion)
+- **TR MMO DB quest series:** "Crystal Blue Persuasion", row 2 of 2 ([list](https://web.archive.org/web/20120731160528/http://tr.mmodb.com/quests/seriesname-crystal_blue_persuasion/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 965 — Mislaid Plans
 
 - **Rebuild summary:**
@@ -17404,6 +19053,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Outpost Cmdr. Russ](https://tabularasa.fandom.com/wiki/Outpost_Cmdr._Russ): Plateau, Wedge Rock Outpost, /loc 449, 378, 367 (named as giver/receiver)
   - [Field Sgt. Garde](https://tabularasa.fandom.com/wiki/Field_Sgt._Garde): Plateau, Valverde Chasm, /loc -103, 269, 183 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Lookout Down Below chain (3 missions), step 1
+  - Leads to: The Stainless Steel Bloodhound (id 867) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Stainless_Steel_Bloodhound)
 ### 1014 — Blue Flu
 
 - **Rebuild summary:**
@@ -17435,6 +19086,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [MP Lieutenant Parkman](https://tabularasa.fandom.com/wiki/MP_Lieutenant_Parkman): Plateau, Fort Defiance, /loc -72, 404, 951 (named as giver/receiver)
   - [Security Guard Norton](https://tabularasa.fandom.com/wiki/Security_Guard_Norton): Plateau, Fort Defiance, /loc -187, 398, 1016 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): The Defiant Ones chain (8 missions), step 2
+  - Requires: The Defiant Ones (id 887) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Blue_Flu), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Defiant_Ones)
+  - Leads to: Murder Most Foul (id 895) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Blue_Flu), [TaRapedia](https://tabularasa.fandom.com/wiki/Murder_Most_Foul)
 ### 1015 — Scavenger Hunt
 
 - **Rebuild summary:**
@@ -17456,6 +19110,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - These items randomly drop from any type of Thrax in Plateau — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Scavenger_Hunt)
 
+- **Chain** (explicit prerequisite links): Comic Relief chain (3 missions), step 2
+  - Requires: Comic Relief (id 1251) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Scavenger_Hunt)
+  - Leads to: The Stalk Market (id 1017) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Scavenger_Hunt), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Stalk_Market)
 ### 1017 — The Stalk Market
 
 - **Rebuild summary:**
@@ -17474,6 +19131,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Private "Scrounger" Scarpelo](https://tabularasa.fandom.com/wiki/Private_%22Scrounger%22_Scarpelo): Plateau, AFS Camp Resistance, /loc -622, 442, -227 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Comic Relief chain (3 missions), step 3
+  - Requires: Scavenger Hunt (id 1015) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Scavenger_Hunt), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Stalk_Market)
 ### 1027 — Alpha Mox
 
 - **Rebuild summary:**
@@ -17502,6 +19161,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Mox Alpha Male](https://tabularasa.fandom.com/wiki/Mox_Alpha_Male): Plateau (named in client text)
 - **Ellatha boss NPC** [Mox Alpha Male](https://www.ellatha.com/tr/bossnpcview.asp?key=Mox+Alpha+Male&id=96): Mox; zone Plateau; In a cave before Empower logos (-443,1080); needed for: Alpha Mox Plateau Targets of Opportunity (Ellatha lists this mission under "Needed for Quests")
 
+- **Chain** (explicit prerequisite links): The Defiant Ones chain (8 missions), step 3
+  - Requires: Crystal Blue Persuasion (id 954) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Alpha_Mox), [TaRapedia](https://tabularasa.fandom.com/wiki/Crystal_Blue_Persuasion)
+- **TR MMO DB quest series:** "Crystal Blue Persuasion", row 1 of 2 ([list](https://web.archive.org/web/20120731160528/http://tr.mmodb.com/quests/seriesname-crystal_blue_persuasion/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1034 — Going Postal
 
 - **Rebuild summary:**
@@ -17552,6 +19214,12 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Beta Squad Commander Petrie](https://tabularasa.fandom.com/wiki/Beta_Squad_Commander_Petrie): Plateau, Martyr's Canyon (named in client text)
   - [Delta Squad Commander Locke](https://tabularasa.fandom.com/wiki/Delta_Squad_Commander_Locke): Plateau, Maligo Creek, /loc 164, 323, -771 (named in client text)
 
+- **Chain** (explicit prerequisite links): Giant Killer chain (11 missions), step 2
+  - Requires: Giant Killer (id 939) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Giant_Killer), [TaRapedia](https://tabularasa.fandom.com/wiki/Incommunicado), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Canyon Sweep (id 1045) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Canyon_Sweep)
+  - Leads to: Blueprint For Victory (id 1046) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Blueprint_For_Victory)
+  - Leads to: Toxic Detox (id 1053) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Toxic_Detox)
+- **TR MMO DB quest series:** "Giant Killer", row 2 of 2 ([list](https://web.archive.org/web/20120731163753/http://tr.mmodb.com/quests/seriesname-giant_killer/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1044 — Trinity Bridge Logos: Past
 
 - **Instance mentioned:** Maligo Base — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -17572,6 +19240,14 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Vogren's Hologram](https://tabularasa.fandom.com/wiki/Vogren%27s_Hologram): Plateau, Vogren's Tomb, /loc -673, 466, 539 (listed under this NPC on a TaRapedia mission list)
 
+- **Chain** (explicit prerequisite links): A Voice From The Past chain (12 missions), step 2
+  - Requires: A Voice From The Past (id 934) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Voice_From_The_Past), [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Past)
+  - Leads to: Array Of Hope (id 935) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Array_of_Hope)
+  - Leads to: Trinity Bridge Logos: Future (id 1047) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Future), [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Past)
+  - Leads to: Trinity Bridge Logos: Disperse (id 1048) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Disperse), [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Past)
+  - Leads to: Trinity Bridge Logos: Logos (id 1049) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Logos), [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Past)
+  - Leads to: Trinity Bridge Logos: Far (id 1051) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Far), [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Past)
+  - Leads to: Trinity Bridge Logos: Distance (id 1057) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Distance), [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Past)
 ### 1045 — Canyon Sweep [implemented] [needs playtest]
 
 - **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -17598,6 +19274,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Alpha Squad Commander Carvelle](https://tabularasa.fandom.com/wiki/Alpha_Squad_Commander_Carvelle): Plateau, Martyr's Canyon, /loc -432, 320, -797 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Giant Killer chain (11 missions), step 3
+  - Requires: Incommunicado (id 1040) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Canyon_Sweep)
 ### 1046 — Blueprint For Victory [implemented] [needs playtest]
 
 - **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -17625,6 +19303,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Beta Squad Commander Petrie](https://tabularasa.fandom.com/wiki/Beta_Squad_Commander_Petrie): Plateau, Martyr's Canyon (NPC page lists this mission)
   - [Colonel Bosley](https://tabularasa.fandom.com/wiki/Colonel_Bosley): Plateau, AFS Camp Resistance (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Giant Killer chain (11 missions), step 3
+  - Requires: Incommunicado (id 1040) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Blueprint_For_Victory)
+  - Leads to: One Way Trip (id 877) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Blueprint_For_Victory), [TaRapedia](https://tabularasa.fandom.com/wiki/One_Way_Trip)
 ### 1047 — Trinity Bridge Logos: Future
 
 - **Instance mentioned:** Guardian Prominence — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -17646,6 +19327,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Vogren's Hologram](https://tabularasa.fandom.com/wiki/Vogren%27s_Hologram): Plateau, Vogren's Tomb, /loc -673, 466, 539 (listed under this NPC on a TaRapedia mission list)
 
+- **Chain** (explicit prerequisite links): A Voice From The Past chain (12 missions), step 3
+  - Requires: Trinity Bridge Logos: Past (id 1044) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Future), [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Past)
+  - Leads to: Array Of Hope (id 935) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Array_of_Hope)
 ### 1048 — Trinity Bridge Logos: Disperse
 
 - **Rebuild summary:**
@@ -17665,6 +19349,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Vogren's Hologram](https://tabularasa.fandom.com/wiki/Vogren%27s_Hologram): Plateau, Vogren's Tomb, /loc -673, 466, 539 (listed under this NPC on a TaRapedia mission list)
 
+- **Chain** (explicit prerequisite links): A Voice From The Past chain (12 missions), step 3
+  - Requires: Trinity Bridge Logos: Past (id 1044) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Disperse), [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Past)
+  - Leads to: Array Of Hope (id 935) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Array_of_Hope)
 ### 1049 — Trinity Bridge Logos: Logos
 
 - **Instance mentioned:** Logos Research Facility — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -17685,6 +19372,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Vogren's Hologram](https://tabularasa.fandom.com/wiki/Vogren%27s_Hologram): Plateau, Vogren's Tomb, /loc -673, 466, 539 (listed under this NPC on a TaRapedia mission list)
 
+- **Chain** (explicit prerequisite links): A Voice From The Past chain (12 missions), step 3
+  - Requires: Trinity Bridge Logos: Past (id 1044) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Logos), [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Past)
+  - Leads to: Array Of Hope (id 935) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Array_of_Hope)
 ### 1051 — Trinity Bridge Logos: Far
 
 - **Instance mentioned:** Turpis Refinery — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -17705,6 +19395,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Vogren's Hologram](https://tabularasa.fandom.com/wiki/Vogren%27s_Hologram): Plateau, Vogren's Tomb, /loc -673, 466, 539 (listed under this NPC on a TaRapedia mission list)
 
+- **Chain** (explicit prerequisite links): A Voice From The Past chain (12 missions), step 3
+  - Requires: Trinity Bridge Logos: Past (id 1044) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Far), [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Past)
+  - Leads to: Array Of Hope (id 935) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Array_of_Hope)
 ### 1053 — Toxic Detox [implemented] [needs playtest]
 
 - **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -17730,6 +19423,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Delta Squad Commander Locke](https://tabularasa.fandom.com/wiki/Delta_Squad_Commander_Locke): Plateau, Maligo Creek, /loc 164, 323, -771 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Giant Killer chain (11 missions), step 3
+  - Requires: Incommunicado (id 1040) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Toxic_Detox)
 ### 1057 — Trinity Bridge Logos: Distance
 
 - **Instance mentioned:** Lamnas Armory — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -17750,6 +19445,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Vogren's Hologram](https://tabularasa.fandom.com/wiki/Vogren%27s_Hologram): Plateau, Vogren's Tomb, /loc -673, 466, 539 (listed under this NPC on a TaRapedia mission list)
 
+- **Chain** (explicit prerequisite links): A Voice From The Past chain (12 missions), step 3
+  - Requires: Trinity Bridge Logos: Past (id 1044) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Distance), [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Past)
+  - Leads to: Array Of Hope (id 935) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Array_of_Hope)
 ### 1068 — South Of The Border
 
 - **Rebuild summary:**
@@ -17769,9 +19467,12 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Colonel Bosley](https://tabularasa.fandom.com/wiki/Colonel_Bosley): Plateau, AFS Camp Resistance (named as giver/receiver)
   - [Colonel 'Snake' Washington](https://tabularasa.fandom.com/wiki/Colonel_%27Snake%27_Washington): Pools, The Snakepit, /loc -981, 915, 413 (named as giver/receiver)
 
-### 1167 — The Final Assault
+- **Chain** (explicit prerequisite links): Giant Killer chain (11 missions), step 5
+  - Requires: One Way Trip (id 877) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/One_Way_Trip), [TaRapedia](https://tabularasa.fandom.com/wiki/South_Of_The_Border)
+- **Requires an instance mission:** One Way Trip (877) — source: the chain links above
+### 1167 — The Final Assault [instance]
 
-- **Instance mentioned:** Temporal Chamber — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
+- **Instance:** Temporal Chamber — client log 8578: destroy the Security Control Stations of the underground facility, past the teleporter of 1171 — checked by hand
 - **Rebuild summary:**
   - level: 30 — source: [TR MMO DB](https://web.archive.org/web/20080404145832/http://tr.mmodb.com:80/quests/the-final-assault-257.php)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
@@ -17794,9 +19495,14 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **PlanetTR** [planettr.com:80/forums/archive/index.php/t-2227.html](https://web.archive.org/web/20090116224024/http://planettr.com:80/forums/archive/index.php/t-2227.html): “The Final Assault Mission in the Eloh Bridge instance is not "allowed" to complete at this time. Mission parameters have been completed ... just can't turn in the mission to the Eloh Hologram contact.”
 - **RGTR official site** [www.rgtr.com/news/patch_notes/patch_notes_and_known_issues_1_4.html](https://web.archive.org/web/20081117172815/http://www.rgtr.com/news/patch_notes/patch_notes_and_known_issues_1_4.html): “Temporal Chamber / Mission: The Final Assault / Issue: Leaving the instance without completing The Final Assault can break the mission making completing the mission chain impossible.”
 
-### 1171 — Future Sacrifice
+- **Chain** (explicit prerequisite links): A Voice From The Past chain (12 missions), step 6
+  - Requires: Future Sacrifice (id 1171) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Future_Sacrifice), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Final_Assault)
+  - Leads to: Foreas Base Past (id 1178) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Foreas_Base_Past), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Final_Assault)
+- **TR MMO DB quest series:** "Array Of Hope", row 5 of 5 ([list](https://web.archive.org/web/20120731161907/http://tr.mmodb.com/quests/seriesname-array_of_hope/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** Future Sacrifice (1171) — source: the chain links above
+### 1171 — Future Sacrifice [instance]
 
-- **Instance mentioned:** Temporal Chamber — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
+- **Instance:** Temporal Chamber — client log 8730 / objective 8752: go through the teleporter and speak to Colonel Hudson on the other side — checked by hand
 - **Rebuild summary:**
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
   - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 51 missions in this file with a sourced level
@@ -17811,6 +19517,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - walkthrough: Just step through the teleporter and talk to Colonel Hudson.
 - **TaRapedia mission list** [Temporal Chamber mission list](https://tabularasa.fandom.com/wiki/Temporal_Chamber_mission_list): zone Plateau, given by Eloh Hologram
 
+- **Chain** (explicit prerequisite links): A Voice From The Past chain (12 missions), step 5
+  - Requires: Array Of Hope (id 935) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Array_of_Hope), [TaRapedia](https://tabularasa.fandom.com/wiki/Future_Sacrifice)
+  - Leads to: The Final Assault (id 1167) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Future_Sacrifice), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Final_Assault)
+- **Requires an instance mission:** Array Of Hope (935) — source: the chain links above
 ### 1178 — Foreas Base Past [instance]
 
 - **Instance:** Temporal Chamber — client objective/log text: "Return to the Temporal Chamber"
@@ -17833,9 +19543,14 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - related mob Colonel Fonseca (not in the archived bestiary pages)
 - **TR MMO DB quest series** [Array Of Hope](https://web.archive.org/web/20120731161907/http://tr.mmodb.com/quests/seriesname-array_of_hope/): Array of Hope (level 30, reward 4000) → Array of Hope (level 30, reward 5550) → Foreas Base Past (level 30, reward 9250) → Send a Message (level 30, reward 9250) → The Final Assault (level 30, reward 9250) (series order as listed on the page; reward unit not stated)
 
-### 1181 — Send a Message
+- **Chain** (explicit prerequisite links): A Voice From The Past chain (12 missions), step 7
+  - Requires: The Final Assault (id 1167) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Foreas_Base_Past), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Final_Assault)
+  - Leads to: Send a Message (id 1181) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Foreas_Base_Past), [TaRapedia](https://tabularasa.fandom.com/wiki/Send_a_Message)
+- **TR MMO DB quest series:** "Array Of Hope", row 3 of 5 ([list](https://web.archive.org/web/20120731161907/http://tr.mmodb.com/quests/seriesname-array_of_hope/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** The Final Assault (1167) — source: the chain links above
+### 1181 — Send a Message [instance]
 
-- **Instance mentioned:** Temporal Chamber — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
+- **Instance:** Temporal Chamber — client log 8967: use the Communications Array in the Communications Room; follows 1178 Foreas Base Past (instance) — checked by hand
 - **Rebuild summary:**
   - level: 30 — source: [TR MMO DB](https://web.archive.org/web/20080404145827/http://tr.mmodb.com:80/quests/send-a-message-259.php)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
@@ -17855,6 +19570,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - related mob Colonel Fonseca (not in the archived bestiary pages)
 - **TR MMO DB quest series** [Array Of Hope](https://web.archive.org/web/20120731161907/http://tr.mmodb.com/quests/seriesname-array_of_hope/): Array of Hope (level 30, reward 4000) → Array of Hope (level 30, reward 5550) → Foreas Base Past (level 30, reward 9250) → Send a Message (level 30, reward 9250) → The Final Assault (level 30, reward 9250) (series order as listed on the page; reward unit not stated)
 
+- **Chain** (explicit prerequisite links): A Voice From The Past chain (12 missions), step 8
+  - Requires: Foreas Base Past (id 1178) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Foreas_Base_Past), [TaRapedia](https://tabularasa.fandom.com/wiki/Send_a_Message)
+- **TR MMO DB quest series:** "Array Of Hope", row 4 of 5 ([list](https://web.archive.org/web/20120731161907/http://tr.mmodb.com/quests/seriesname-array_of_hope/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** Foreas Base Past (1178) — source: the chain links above
 ### 1187 — Silent But Deadly [instance]
 
 - **Instance:** Ustor Yard — NPC Field Lieutenant Rapp (named as giver/receiver) is in Ustor Yard — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Field_Lieutenant_Rapp)
@@ -17879,6 +19598,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Field Lieutenant Rapp](https://tabularasa.fandom.com/wiki/Field_Lieutenant_Rapp): Ustor Yard (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Running Interference chain (13 missions), step 1
+  - Leads to: Interception (id 1013) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Silent_But_Deadly)
+  - Leads to: Interception! (id 1189) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Interception%21), [TaRapedia](https://tabularasa.fandom.com/wiki/Silent_But_Deadly)
+  - Leads to: Interception (id 1503) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Interception%21), [TaRapedia](https://tabularasa.fandom.com/wiki/Silent_But_Deadly)
+- **TR MMO DB quest series:** "Silent But Deadly", row 3 of 3 ([list](https://web.archive.org/web/20120731163805/http://tr.mmodb.com/quests/seriesname-silent_but_deadly/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1188 — Monkey Wrench [instance]
 
 - **Instance:** Ustor Yard — NPC Field Lieutenant Rapp (named as giver/receiver) is in Ustor Yard — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Field_Lieutenant_Rapp)
@@ -17901,6 +19625,12 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Field Lieutenant Rapp](https://tabularasa.fandom.com/wiki/Field_Lieutenant_Rapp): Ustor Yard (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Running Interference chain (13 missions), step 3
+  - Requires: Interception (id 1013) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Monkey_Wrench)
+  - Requires: Interception! (id 1189) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Interception%21), [TaRapedia](https://tabularasa.fandom.com/wiki/Monkey_Wrench)
+  - Requires: Interception (id 1503) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Interception%21), [TaRapedia](https://tabularasa.fandom.com/wiki/Monkey_Wrench)
+- **TR MMO DB quest series:** "Silent But Deadly", row 2 of 3 ([list](https://web.archive.org/web/20120731163805/http://tr.mmodb.com/quests/seriesname-silent_but_deadly/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** Interception (1013), Interception! (1189), Interception (1503) — source: the chain links above
 ### 1189 — Interception! [instance]
 
 - **Instance:** Ustor Yard — NPC Field Lieutenant Rapp (named as giver/receiver) is in Ustor Yard — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Field_Lieutenant_Rapp)
@@ -17927,6 +19657,14 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Lieutenant Jaru](https://tabularasa.fandom.com/wiki/Lieutenant_Jaru): Plains, Viro Relay Tower, /loc 897, 428, -129 (NPC page lists this mission)
   - [Field Lieutenant Rapp](https://tabularasa.fandom.com/wiki/Field_Lieutenant_Rapp): Ustor Yard (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Running Interference chain (13 missions), step 2
+  - Requires: Running Interference (id 640) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Running_Interference)
+  - Requires: Silent But Deadly (id 1187) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Interception%21), [TaRapedia](https://tabularasa.fandom.com/wiki/Silent_But_Deadly)
+  - Leads to: Trailblaze Mt. Hellas Outpost (id 638) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Trailblaze_Mt._Hellas_Outpost)
+  - Leads to: Incriminating Evidence (id 1063) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Incriminating_Evidence)
+  - Leads to: Monkey Wrench (id 1188) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Interception%21), [TaRapedia](https://tabularasa.fandom.com/wiki/Monkey_Wrench)
+- **TR MMO DB quest series:** "Silent But Deadly", row 1 of 3 ([list](https://web.archive.org/web/20120731163805/http://tr.mmodb.com/quests/seriesname-silent_but_deadly/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** Silent But Deadly (1187) — source: the chain links above
 ### 1251 — Comic Relief
 
 - **Rebuild summary:**
@@ -17947,6 +19685,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Corporal "Relay" O'Brien](https://tabularasa.fandom.com/wiki/Corporal_%22Relay%22_O%27Brien): Plateau, AFS Camp Resistance, /loc -621, 441, -234 (named as giver/receiver)
   - [Major Lonigan](https://tabularasa.fandom.com/wiki/Major_Lonigan): Plateau, AFS Camp Resistance (named in client text)
 
+- **Chain** (explicit prerequisite links): Comic Relief chain (3 missions), step 1
+  - Leads to: Scavenger Hunt (id 1015) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Scavenger_Hunt)
 ### 1503 — Interception [instance]
 
 - **Instance:** Outpost Inferno — client objective/log text: "A distress signal was intercepted from Scientist Albright who is hiding somewhere within Outpost Inferno. Locate the …"
@@ -17984,6 +19724,14 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Lieutenant Jaru](https://tabularasa.fandom.com/wiki/Lieutenant_Jaru): Plains, Viro Relay Tower, /loc 897, 428, -129 (NPC page lists this mission)
   - [Field Lieutenant Rapp](https://tabularasa.fandom.com/wiki/Field_Lieutenant_Rapp): Ustor Yard (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Running Interference chain (13 missions), step 2
+  - Requires: Running Interference (id 640) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Running_Interference)
+  - Requires: Silent But Deadly (id 1187) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Interception%21), [TaRapedia](https://tabularasa.fandom.com/wiki/Silent_But_Deadly)
+  - Leads to: Trailblaze Mt. Hellas Outpost (id 638) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Trailblaze_Mt._Hellas_Outpost)
+  - Leads to: Incriminating Evidence (id 1063) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Incriminating_Evidence)
+  - Leads to: Monkey Wrench (id 1188) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Interception%21), [TaRapedia](https://tabularasa.fandom.com/wiki/Monkey_Wrench)
+- **TR MMO DB quest series:** "Silent But Deadly", row 1 of 3 ([list](https://web.archive.org/web/20120731163805/http://tr.mmodb.com/quests/seriesname-silent_but_deadly/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** Silent But Deadly (1187) — source: the chain links above
 ### 1541 — New Orders From The General
 
 - **Rebuild summary:**
@@ -18002,6 +19750,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Colonel Bosley](https://tabularasa.fandom.com/wiki/Colonel_Bosley): Plateau, AFS Camp Resistance (named as giver/receiver)
   - [Amee Corman](https://tabularasa.fandom.com/wiki/Amee_Corman): Pools, Retread Camp (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Giant Killer chain (11 missions), step 5
+  - Requires: One Way Trip (id 877) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/New_Orders_From_The_General), [TaRapedia](https://tabularasa.fandom.com/wiki/One_Way_Trip)
+  - Leads to: Weapons Trafficking (id 904) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/New_Orders_From_The_General)
+- **Requires an instance mission:** One Way Trip (877) — source: the chain links above
 ### 1586 — Plateau Targets of Opportunity [implemented] [instance]
 
 - **Implemented:** enabled on the local server (content revision targets_1) — source: data/rasaworld.db, mission_content_definition
@@ -18070,10 +19822,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Receptive Liaison Ridout](https://tabularasa.fandom.com/wiki/Receptive_Liaison_Ridout): Plateau, Fort Defiance, /loc -62, 404, 950 (NPC page lists this mission)
 
-### 1783 — Mountain Spring Toxins
+### 1783 — Mountain Spring Toxins [instance]
 
+- **Instance:** Velon Hollow — client log 17832: explore the Howling Death Burrow caves (client map adv_foreas_howlingmaw_deathburrow, named Velon Hollow) — checked by hand
 - **Instance mentioned:** Cuthah Base — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
-- **Instance mentioned:** Velon Hollow — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
 - **Rebuild summary:**
   - level: 49 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731172600/http://tr.mmodb.com/quests/startingzone-howling_death_burrow/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
@@ -18094,6 +19846,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Outpost Cmdr. Russ](https://tabularasa.fandom.com/wiki/Outpost_Cmdr._Russ): Plateau, Wedge Rock Outpost, /loc 449, 378, 367 (NPC page lists this mission)
   - [Colonel Sherk](https://tabularasa.fandom.com/wiki/Colonel_Sherk): Howling Maw, Gangus Outpost (named in client text)
 
+- **Chain** (explicit prerequisite links): Special Deliveries chain (15 missions), step 6
+  - Requires: Village Of The Damned (id 1981) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mountain_Spring_Toxins)
+  - Requires: Choosing Sides (id 1554) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Choosing_Sides)
+- **Requires an instance mission:** Choosing Sides (1554) — source: the chain links above
 ### 1825 — All Along The Watchtowers
 
 - **Rebuild summary:**
@@ -18134,6 +19890,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Luminary Sampei](https://tabularasa.fandom.com/wiki/Luminary_Sampei): Plateau, New Velon Village, /loc 259, 352, 619 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Special Deliveries chain (15 missions), step 2
+  - Requires: Village Of The Damned (id 1981) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Deadly_Silence)
 ### 1975 — The Better Half [instance]
 
 - **Instance:** Velon Hollow — client objective/log text: "Tala Clark was sent into Velon Hollow to investigate the Foreans living there and report back with their status. …"
@@ -18154,6 +19912,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Science Officer Clark](https://tabularasa.fandom.com/wiki/Science_Officer_Clark): Plateau, Wedge Rock Outpost, /loc 464, 378, 366 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Special Deliveries chain (15 missions), step 2
+  - Requires: Village Of The Damned (id 1981) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Better_Half)
 ### 1976 — These Old Bones [instance]
 
 - **Instance:** Velon Hollow — client objective/log text: "Elder Hathen is the highest ranking survivor of the Seekers of Velon. He demands to come with you into Velon Hollow, …"
@@ -18171,6 +19931,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TaRapedia mission list** [Velon Hollow mission list](https://tabularasa.fandom.com/wiki/Velon_Hollow_mission_list): zone Plateau, given by Elder Hathen
 - **PlayTR EU** [eu.playtr.com/en/news_article/deployment_102_patchnotes_known_issues_4 …](https://web.archive.org/web/20090107005649/http://eu.playtr.com/en/news_article/deployment_102_patchnotes_known_issues_4th_july_2008): “n Hollow - This instance is now open for players to experience, along with the new missions Village of the Damned, Ancient Mysteries, Deadly Silence, These Old Bones, Mountain Spring Toxins, Holy Vengeance, and The Better Half. These missions can be obtained at New Velon Village and Wedge Rock Outpost.”
 
+- **Chain** (explicit prerequisite links): These Old Bones chain (2 missions), step 1
+  - Leads to: Holy Vengeance (id 1977) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Holy_Vengeance), [TaRapedia](https://tabularasa.fandom.com/wiki/These_Old_Bones)
 ### 1977 — Holy Vengeance [instance]
 
 - **Instance:** Velon Hollow — client objective/log text: "Clear the outer part of the Bane Outpost established inside Velon Hollow."
@@ -18190,6 +19952,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Luminary Sampei](https://tabularasa.fandom.com/wiki/Luminary_Sampei): Plateau, New Velon Village, /loc 259, 352, 619 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): These Old Bones chain (2 missions), step 2
+  - Requires: These Old Bones (id 1976) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Holy_Vengeance), [TaRapedia](https://tabularasa.fandom.com/wiki/These_Old_Bones)
+- **Requires an instance mission:** These Old Bones (1976) — source: the chain links above
 ### 1978 — Ancient Mysteries [instance]
 
 - **Instance:** Velon Hollow — client objective/log text: "Recover the artifacts from Bane officers in Velon Hollow before they are lost forever."
@@ -18209,9 +19974,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **PlayTR EU** [eu.playtr.com/en/news_article/deployment_102_patchnotes_known_issues_4 …](https://web.archive.org/web/20090107005649/http://eu.playtr.com/en/news_article/deployment_102_patchnotes_known_issues_4th_july_2008): “Plateau: Velon Hollow - This instance is now open for players to experience, along with the new missions Village of the Damned, Ancient Mysteries, Deadly Silence, These Old Bones, Mountain Spring Toxins, Holy Vengeance, and The Better Half. These missions can be obtained at New Velon Village and Wedge Rock Outpost.”
 - **RGTR official site** [www.rgtr.com/news/patch_notes_public_test/deployment_10.html](https://web.archive.org/web/20081117082235/http://www.rgtr.com/news/patch_notes_public_test/deployment_10.html): “vailable for players. Plateau: Velon Hollow - This instance is now open for players to experience, along with the new missions Village of the Damned, Ancient Mysteries, Deadly Silence, These Old Bones, Mountain Spring Toxins, Holy Vengeance, and The Better Half. These missions can be obtained at New Velon Village and Wedge Rock Outpost. Boot Camp - Tutorial text now properly instructs player to press "T" to talk to NPCs instead of "F." Boot Camp …”
 
-### 1979 — Mountain Spring Toxins
+- **Chain** (explicit prerequisite links): Special Deliveries chain (15 missions), step 2
+  - Requires: Village Of The Damned (id 1981) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Ancient_Mysteries)
+### 1979 — Mountain Spring Toxins [instance]
 
-- **Instance mentioned:** Velon Hollow — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
+- **Instance:** Velon Hollow — client log 20824 / objective 20907: infiltrate and explore Velon Hollow (client map adv_foreas_howlingmaw_deathburrow) — checked by hand
 - **Rebuild summary:**
   - level: 49 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731172600/http://tr.mmodb.com/quests/startingzone-howling_death_burrow/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
@@ -18232,6 +19999,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Elder Orivos](https://tabularasa.fandom.com/wiki/Elder_Orivos): Howling Maw, Gangus Outpost, /loc -638.0, 199.8, -985.3 (NPC page lists this mission)
   - [Outpost Cmdr. Russ](https://tabularasa.fandom.com/wiki/Outpost_Cmdr._Russ): Plateau, Wedge Rock Outpost, /loc 449, 378, 367 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Special Deliveries chain (15 missions), step 6
+  - Requires: Village Of The Damned (id 1981) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mountain_Spring_Toxins)
+  - Requires: Choosing Sides (id 1554) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Choosing_Sides)
+- **Requires an instance mission:** Choosing Sides (1554) — source: the chain links above
 ### 1981 — Village Of The Damned
 
 - **Rebuild summary:**
@@ -18255,6 +20026,12 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Luminary Sampei](https://tabularasa.fandom.com/wiki/Luminary_Sampei): Plateau, New Velon Village, /loc 259, 352, 619 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Special Deliveries chain (15 missions), step 1
+  - Leads to: Mountain Spring Toxins (id 1783) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mountain_Spring_Toxins)
+  - Leads to: Deadly Silence (id 1974) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Deadly_Silence)
+  - Leads to: The Better Half (id 1975) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Better_Half)
+  - Leads to: Ancient Mysteries (id 1978) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Ancient_Mysteries)
+  - Leads to: Mountain Spring Toxins (id 1979) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mountain_Spring_Toxins)
 ### 1982 — The Order Of Velon [instance]
 
 - **Instance:** Velon Hollow — an objective conversation's NPC package 2263 spawns in this instance (map 2136) — source: client objectiveconversation + data/rasaworld.db
@@ -18301,6 +20078,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Corporal Wainwright](https://tabularasa.fandom.com/wiki/Corporal_Wainwright): Plateau, New Velon Village, /loc 194, 354, 519 (named as giver/receiver)
   - [Agent Perdu](https://tabularasa.fandom.com/wiki/Agent_Perdu): Plateau, Fort Defiance (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Clean Slate chain (6 missions), step 1
+  - Leads to: Mind Bender (id 905) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Clean_Slate), [TaRapedia](https://tabularasa.fandom.com/wiki/Mind_Bender)
+- **TR MMO DB quest series:** "Clean Slate", row 1 of 3 ([list](https://web.archive.org/web/20120731165006/http://tr.mmodb.com/quests/seriesname-clean_slate/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 2007 — Soyuz Salvage: Plateau
 
 - **Rebuild summary:**
@@ -18340,6 +20120,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Archeologist Wynne Topper](https://tabularasa.fandom.com/wiki/Archeologist_Wynne_Topper): Wilderness, Twin Pillars Outpost, /loc -132, 232, -628 (NPC page lists this mission)
   - [General Thaddeus T. Bailey](https://tabularasa.fandom.com/wiki/General_Thaddeus_T._Bailey): Plateau, Fort Defiance, /loc -68, 404, 949 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): A Mystery Unearthed chain (2 missions), step 1
+  - Leads to: Symbolism (id 2017) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Mystery_Unearthed), [TaRapedia](https://tabularasa.fandom.com/wiki/Symbolism)
 ### 2017 — Symbolism
 
 - **Rebuild summary:**
@@ -18361,6 +20143,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Hermit](https://tabularasa.fandom.com/wiki/Hermit): /loc -430, 921, 115 (NPC page lists this mission)
   - [Retread McCormick](https://tabularasa.fandom.com/wiki/Retread_McCormick): /loc -268, 216, -812 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): A Mystery Unearthed chain (2 missions), step 2
+  - Requires: A Mystery Unearthed (id 2016) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Mystery_Unearthed), [TaRapedia](https://tabularasa.fandom.com/wiki/Symbolism)
 ## Pools
 
 ### 560 — A Cult Divided
@@ -18384,6 +20168,12 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Hermit](https://tabularasa.fandom.com/wiki/Hermit): /loc -430, 921, 115 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Death Patrol chain (17 missions), step 3
+  - Requires: The Hermit (id 1327) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Thirsty_Hermit)
+  - Requires: The Thirsty Hermit (id 1328) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Cult_Divided), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Thirsty_Hermit)
+  - Leads to: Testing the Pools (id 561) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Cult_Divided), [TaRapedia](https://tabularasa.fandom.com/wiki/Testing_the_Pools)
+  - Leads to: One Man's Trash (id 562) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Cult_Divided), [TaRapedia](https://tabularasa.fandom.com/wiki/One_Man%27s_Trash)
+- **TR MMO DB quest series:** "Death Patrol", row 1 of 3 ([list](https://web.archive.org/web/20120731161916/http://tr.mmodb.com/quests/seriesname-death_patrol/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 856 — The Mad Bomber
 
 - **Instance mentioned:** Retread Caves — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -18406,6 +20196,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **PlayTR EU** [eu.playtr.com/en/news_article/deployment_84_live_server](https://web.archive.org/web/20090106070852/http://eu.playtr.com/en/news_article/deployment_84_live_server): “The mission “Pincer Power” on Palisades can now be completed normally. / The Mad Bomber’s bombs in Retread Caves now do significantly more damage. / The linker Overseer Prion in Pravus Research now has a visible name.”
 - **RGTR official site** [www.rgtr.com/news/patch_notes/deployment_8_live.html](https://web.archive.org/web/20081115092820/http://www.rgtr.com/news/patch_notes/deployment_8_live.html): “s, even if they advanced to this objective at the same time as another player. The mission “Pincer Power” on Palisades can now be completed normally. The Mad Bomber’s bombs in Retread Caves now do significantly more damage. The linker Overseer Prion in Pravus Research now has a visible name. The AFS have deployed a Portable Waypoint at the entrance to Eloh Vale. The Brann in the Phanin Research Facility now drop appropriate loot The Brann in the …”
 
+- **Chain** (explicit prerequisite links): Mox Clearing chain (8 missions), step 8
+  - Requires: Total Slaughter (id 1138) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Mad_Bomber), [TaRapedia](https://tabularasa.fandom.com/wiki/Total_Slaughter)
+- **TR MMO DB quest series:** "Mox Clearing", row 7 of 8 ([list](https://web.archive.org/web/20120731162925/http://tr.mmodb.com/quests/seriesname-mox_clearing/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 882 — Things That Blow Up
 
 - **Instance mentioned:** Turpis Refinery — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -18606,6 +20399,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Amee Corman](https://tabularasa.fandom.com/wiki/Amee_Corman): Pools, Retread Camp (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Giant Killer chain (11 missions), step 6
+  - Requires: New Orders From The General (id 1541) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/New_Orders_From_The_General)
+  - Leads to: Retreads to Retreads (id 1751) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Retreads_to_Retreads), [TaRapedia](https://tabularasa.fandom.com/wiki/Weapons_Trafficking)
+- **TR MMO DB quest series:** "Weapons Trafficking", row 2 of 2 ([list](https://web.archive.org/web/20120731165344/http://tr.mmodb.com/quests/seriesname-weapons_trafficking/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 932 — Bane Investigation
 
 - **Rebuild summary:**
@@ -18628,6 +20425,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Lieutenant Feldman](https://tabularasa.fandom.com/wiki/Lieutenant_Feldman): Pools, The Snakepit, /loc -934, 920, 381 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Bane Investigation chain (4 missions), step 1
+  - Leads to: Sabotage the Tower (id 937) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bane_Investigation), [TaRapedia](https://tabularasa.fandom.com/wiki/Sabotage_the_Tower)
+- **TR MMO DB quest series:** "Bane Investigation", row 1 of 3 ([list](https://web.archive.org/web/20120731170309/http://tr.mmodb.com/quests/seriesname-bane_investigation/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 937 — Sabotage the Tower
 
 - **Rebuild summary:**
@@ -18651,6 +20451,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Lieutenant Feldman](https://tabularasa.fandom.com/wiki/Lieutenant_Feldman): Pools, The Snakepit, /loc -934, 920, 381 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Bane Investigation chain (4 missions), step 2
+  - Requires: Bane Investigation (id 932) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bane_Investigation), [TaRapedia](https://tabularasa.fandom.com/wiki/Sabotage_the_Tower)
+  - Leads to: Bane Jamming (id 938) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bane_Jamming), [TaRapedia](https://tabularasa.fandom.com/wiki/Sabotage_the_Tower)
+  - Leads to: Elimination (id 941) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Elimination), [TaRapedia](https://tabularasa.fandom.com/wiki/Sabotage_the_Tower)
+- **TR MMO DB quest series:** "Bane Investigation", row 3 of 3 ([list](https://web.archive.org/web/20120731170309/http://tr.mmodb.com/quests/seriesname-bane_investigation/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 938 — Bane Jamming
 
 - **Rebuild summary:**
@@ -18673,6 +20478,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Lieutenant Feldman](https://tabularasa.fandom.com/wiki/Lieutenant_Feldman): Pools, The Snakepit, /loc -934, 920, 381 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Bane Investigation chain (4 missions), step 3
+  - Requires: Sabotage the Tower (id 937) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bane_Jamming), [TaRapedia](https://tabularasa.fandom.com/wiki/Sabotage_the_Tower)
+- **TR MMO DB quest series:** "Bane Investigation", row 2 of 3 ([list](https://web.archive.org/web/20120731170309/http://tr.mmodb.com/quests/seriesname-bane_investigation/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 941 — Elimination
 
 - **Rebuild summary:**
@@ -18696,6 +20504,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Colonel 'Snake' Washington](https://tabularasa.fandom.com/wiki/Colonel_%27Snake%27_Washington): Pools, The Snakepit, /loc -981, 915, 413 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Bane Investigation chain (4 missions), step 3
+  - Requires: Sabotage the Tower (id 937) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Elimination), [TaRapedia](https://tabularasa.fandom.com/wiki/Sabotage_the_Tower)
 ### 1025 — Mapping The Pools
 
 - **Rebuild summary:**
@@ -18746,6 +20556,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Dr. Hester](https://tabularasa.fandom.com/wiki/Dr._Hester): Pools, The Snakepit, /loc -961, 919, 469 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Death Patrol chain (17 missions), step 1
+  - Leads to: The Hermit (id 1327) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Thirsty_Hermit)
+  - Leads to: The Thirsty Hermit (id 1328) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Thirsty_Hermit)
 ### 1079 — Cost of Doing Business
 
 - **Instance mentioned:** Turpis Refinery — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -18787,6 +20600,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - walkthrough: The moment you accept the mission, miasma will leap from the ground closest to the doctor, most likely the ledge below the two female NPC mission givers. The miasma will respawn at that point from now on.
 - **TaRapedia mission list** [Retread Caves mission list](https://tabularasa.fandom.com/wiki/Retread_Caves_mission_list): zone Pools, given by Dr. Donius
 
+- **Chain** (explicit prerequisite links): Mox Clearing chain (8 missions), step 5
+  - Requires: Deadly Moxins, er-Toxins (id 1134) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Deadly_Moxins%2C_er-Toxins), [TaRapedia](https://tabularasa.fandom.com/wiki/Miasma_Mutations)
+  - Leads to: Miasma Testing (id 1136) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Miasma_Mutations), [TaRapedia](https://tabularasa.fandom.com/wiki/Miasma_Testing)
 ### 1132 — Mox Clearing
 
 - **Instance mentioned:** Retread Caves — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -18808,6 +20624,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TR MMO DB quest series** [Mox Clearing](https://web.archive.org/web/20120731162925/http://tr.mmodb.com/quests/seriesname-mox_clearing/): A Mox On Both Our Houses (level 35, reward 4800) → Deadly Moxins, er-Toxins (level 35, reward 4800) → Deadly Moxins, er-Toxins (level 35, reward 4800) → Miasma Testing (level 35, reward 4800) → Mox Clearing (level 35, reward 4800) → Mox Shouldn't Smoke (level 35, reward 4800) → The Mad Bomber (level 35, reward 7000) → Total Slaughter (level 35, reward 4950) (series order as listed on the page; reward unit not stated)
 - **PlanetTR** [www.planettr.com:80/forums/archive/index.php/t-2090.html](https://web.archive.org/web/20080926064554/http://www.planettr.com:80/forums/archive/index.php/t-2090.html): “I have sight problem with Retead Cavss well, there is a quest there called "Mox Clearing" and no matter how many I kill the quest counter still says "0/10" some guys at General Chat said that there are 2 kind of mox there, well I searched and I only found 1 type of Mox , Miasmas and the Mad Bomber, so if someone would kindly tell me in which cave does this "second kind of Mox" spawn or whether these exist or is it bugged?”
 
+- **Chain** (explicit prerequisite links): Mox Clearing chain (8 missions), step 1
+  - Leads to: Mox Shouldn't Smoke (id 1135) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mox_Clearing), [TaRapedia](https://tabularasa.fandom.com/wiki/Mox_Shouldn%27t_Smoke)
+- **TR MMO DB quest series:** "Mox Clearing", row 5 of 8 ([list](https://web.archive.org/web/20120731162925/http://tr.mmodb.com/quests/seriesname-mox_clearing/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1133 — A Mox On Both Our Houses
 
 - **Instance mentioned:** Retread Caves — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -18827,6 +20646,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TaRapedia mission list** [Retread Caves mission list](https://tabularasa.fandom.com/wiki/Retread_Caves_mission_list): zone Pools, given by Dr. Donius
 - **TR MMO DB quest series** [Mox Clearing](https://web.archive.org/web/20120731162925/http://tr.mmodb.com/quests/seriesname-mox_clearing/): A Mox On Both Our Houses (level 35, reward 4800) → Deadly Moxins, er-Toxins (level 35, reward 4800) → Deadly Moxins, er-Toxins (level 35, reward 4800) → Miasma Testing (level 35, reward 4800) → Mox Clearing (level 35, reward 4800) → Mox Shouldn't Smoke (level 35, reward 4800) → The Mad Bomber (level 35, reward 7000) → Total Slaughter (level 35, reward 4950) (series order as listed on the page; reward unit not stated)
 
+- **Chain** (explicit prerequisite links): Mox Clearing chain (8 missions), step 3
+  - Requires: Mox Shouldn't Smoke (id 1135) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Mox_On_Both_Our_Houses), [TaRapedia](https://tabularasa.fandom.com/wiki/Mox_Shouldn%27t_Smoke)
+  - Leads to: Deadly Moxins, er-Toxins (id 1134) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Mox_On_Both_Our_Houses), [TaRapedia](https://tabularasa.fandom.com/wiki/Deadly_Moxins%2C_er-Toxins)
+- **TR MMO DB quest series:** "Mox Clearing", row 1 of 8 ([list](https://web.archive.org/web/20120731162925/http://tr.mmodb.com/quests/seriesname-mox_clearing/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1134 — Deadly Moxins, er-Toxins
 
 - **Instance mentioned:** Retread Caves — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -18853,6 +20676,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - 06/28/08: The only way I was able to get this mission to complete was to go through the Drop Off and into the Eastern Fringe and kill the Mad bomber — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Deadly_Moxins%2C_er-Toxins)
 
+- **Chain** (explicit prerequisite links): Mox Clearing chain (8 missions), step 4
+  - Requires: A Mox On Both Our Houses (id 1133) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Mox_On_Both_Our_Houses), [TaRapedia](https://tabularasa.fandom.com/wiki/Deadly_Moxins%2C_er-Toxins)
+  - Leads to: Miasma Mutations (id 1131) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Deadly_Moxins%2C_er-Toxins), [TaRapedia](https://tabularasa.fandom.com/wiki/Miasma_Mutations)
+- **TR MMO DB quest series:** "Mox Clearing", row 2 of 8 ([list](https://web.archive.org/web/20120731162925/http://tr.mmodb.com/quests/seriesname-mox_clearing/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1135 — Mox Shouldn't Smoke
 
 - **Instance mentioned:** Retread Caves — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -18873,6 +20700,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TaRapedia mission list** [Retread Caves mission list](https://tabularasa.fandom.com/wiki/Retread_Caves_mission_list): zone Pools, given by Ellen Lenee
 - **TR MMO DB quest series** [Mox Clearing](https://web.archive.org/web/20120731162925/http://tr.mmodb.com/quests/seriesname-mox_clearing/): A Mox On Both Our Houses (level 35, reward 4800) → Deadly Moxins, er-Toxins (level 35, reward 4800) → Deadly Moxins, er-Toxins (level 35, reward 4800) → Miasma Testing (level 35, reward 4800) → Mox Clearing (level 35, reward 4800) → Mox Shouldn't Smoke (level 35, reward 4800) → The Mad Bomber (level 35, reward 7000) → Total Slaughter (level 35, reward 4950) (series order as listed on the page; reward unit not stated)
 
+- **Chain** (explicit prerequisite links): Mox Clearing chain (8 missions), step 2
+  - Requires: Mox Clearing (id 1132) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mox_Clearing), [TaRapedia](https://tabularasa.fandom.com/wiki/Mox_Shouldn%27t_Smoke)
+  - Leads to: A Mox On Both Our Houses (id 1133) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Mox_On_Both_Our_Houses), [TaRapedia](https://tabularasa.fandom.com/wiki/Mox_Shouldn%27t_Smoke)
+- **TR MMO DB quest series:** "Mox Clearing", row 6 of 8 ([list](https://web.archive.org/web/20120731162925/http://tr.mmodb.com/quests/seriesname-mox_clearing/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1136 — Miasma Testing
 
 - **Instance mentioned:** Retread Caves — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -18885,6 +20716,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TaRapedia mission list** [Retread Caves mission list](https://tabularasa.fandom.com/wiki/Retread_Caves_mission_list): zone Pools, given by Dr. Donius
 - **TR MMO DB quest series** [Mox Clearing](https://web.archive.org/web/20120731162925/http://tr.mmodb.com/quests/seriesname-mox_clearing/): A Mox On Both Our Houses (level 35, reward 4800) → Deadly Moxins, er-Toxins (level 35, reward 4800) → Deadly Moxins, er-Toxins (level 35, reward 4800) → Miasma Testing (level 35, reward 4800) → Mox Clearing (level 35, reward 4800) → Mox Shouldn't Smoke (level 35, reward 4800) → The Mad Bomber (level 35, reward 7000) → Total Slaughter (level 35, reward 4950) (series order as listed on the page; reward unit not stated)
 
+- **Chain** (explicit prerequisite links): Mox Clearing chain (8 missions), step 6
+  - Requires: Miasma Mutations (id 1131) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Miasma_Mutations), [TaRapedia](https://tabularasa.fandom.com/wiki/Miasma_Testing)
+  - Leads to: Total Slaughter (id 1138) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Miasma_Testing), [TaRapedia](https://tabularasa.fandom.com/wiki/Total_Slaughter)
+- **TR MMO DB quest series:** "Mox Clearing", row 4 of 8 ([list](https://web.archive.org/web/20120731162925/http://tr.mmodb.com/quests/seriesname-mox_clearing/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** Miasma Mutations (1131) — source: the chain links above
 ### 1138 — Total Slaughter
 
 - **Instance mentioned:** Retread Caves — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -18907,6 +20743,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **PlanetTR** [planettr.com:80/forums/archive/index.php/t-2591.html](https://web.archive.org/web/20090117075527/http://planettr.com:80/forums/archive/index.php/t-2591.html): “Pools: You just need to petition it and have a GM see you kill them, then he/she will complete it for you. After a while you get the mission 'Total Slaughter, 'which is also bugged. You need to do the first objective before killing all the Miasmas in the room to complete the mission.”
 - **PlanetTR** [www.planettr.com:80/forums/archive/index.php/t-2090.html](https://web.archive.org/web/20080926064554/http://www.planettr.com:80/forums/archive/index.php/t-2090.html): “12-20-2007, 06:25 PM / just a note, another quest in there "Total Slaughter" seems to be bugged as well, I had to petition that to complete it. / vBulletin® v3.6.8, Copyright ©2000-2008, Jelsoft Enterprises Ltd.”
 
+- **Chain** (explicit prerequisite links): Mox Clearing chain (8 missions), step 7
+  - Requires: Miasma Testing (id 1136) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Miasma_Testing), [TaRapedia](https://tabularasa.fandom.com/wiki/Total_Slaughter)
+  - Leads to: The Mad Bomber (id 856) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Mad_Bomber), [TaRapedia](https://tabularasa.fandom.com/wiki/Total_Slaughter)
+- **TR MMO DB quest series:** "Mox Clearing", row 8 of 8 ([list](https://web.archive.org/web/20120731162925/http://tr.mmodb.com/quests/seriesname-mox_clearing/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1305 — Turpis Transport [instance]
 
 - **Instance:** Turpis Refinery — client objective/log text: "Talk to Corporal hash when you are ready to be transported to Turpis Refinery."
@@ -18999,6 +20839,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Supply Chief Riggins](https://tabularasa.fandom.com/wiki/Supply_Chief_Riggins): Pools, The Snakepit, /loc -967, 915, 400 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Death Patrol chain (17 missions), step 1
+  - Leads to: The Supply Master (id 1322) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Supply_Master)
+  - Leads to: The Hermit (id 1327) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Thirsty_Hermit)
+  - Leads to: The Thirsty Hermit (id 1328) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Thirsty_Hermit)
+- **TR MMO DB quest series:** "Death Patrol", row 2 of 3 ([list](https://web.archive.org/web/20120731161916/http://tr.mmodb.com/quests/seriesname-death_patrol/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1321 — More Clips and Tags
 
 - **Rebuild summary:**
@@ -19045,6 +20890,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Supply Chief Riggins](https://tabularasa.fandom.com/wiki/Supply_Chief_Riggins): Pools, The Snakepit, /loc -967, 915, 400 (named as giver/receiver)
   - [Spymaster Timlin](https://tabularasa.fandom.com/wiki/Spymaster_Timlin): Pools, The Snakepit, /loc -970, 915, 414 (named in client text)
 
+- **Chain** (explicit prerequisite links): Death Patrol chain (17 missions), step 2
+  - Requires: Death Patrol (id 1315) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Supply_Master)
+  - Leads to: Eastern Listening Post (id 1323) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Eastern_Listening_Post), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Supply_Master)
+- **TR MMO DB quest series:** "The Supply Master", row 2 of 2 ([list](https://web.archive.org/web/20120731161417/http://tr.mmodb.com/quests/seriesname-the_supply_master/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1323 — Eastern Listening Post
 
 - **Rebuild summary:**
@@ -19069,6 +20918,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Lieutenant Chester](https://tabularasa.fandom.com/wiki/Lieutenant_Chester): Pools, East Listening Post, /loc 1017.1, 656.5, 330.9 (named as giver/receiver)
   - [Spymaster Timlin](https://tabularasa.fandom.com/wiki/Spymaster_Timlin): Pools, The Snakepit, /loc -970, 915, 414 (named in client text)
 
+- **Chain** (explicit prerequisite links): Death Patrol chain (17 missions), step 3
+  - Requires: The Supply Master (id 1322) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Eastern_Listening_Post), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Supply_Master)
+  - Leads to: Smash and Grab (id 1324) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Eastern_Listening_Post), [TaRapedia](https://tabularasa.fandom.com/wiki/Smash_and_Grab)
+- **TR MMO DB quest series:** "The Supply Master", row 1 of 2 ([list](https://web.archive.org/web/20120731161417/http://tr.mmodb.com/quests/seriesname-the_supply_master/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1324 — Smash and Grab
 
 - **Rebuild summary:**
@@ -19093,6 +20946,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Lieutenant Chester](https://tabularasa.fandom.com/wiki/Lieutenant_Chester): Pools, East Listening Post, /loc 1017.1, 656.5, 330.9 (named as giver/receiver)
   - [Spymaster Timlin](https://tabularasa.fandom.com/wiki/Spymaster_Timlin): Pools, The Snakepit, /loc -970, 915, 414 (named in client text)
 
+- **Chain** (explicit prerequisite links): Death Patrol chain (17 missions), step 4
+  - Requires: Eastern Listening Post (id 1323) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Eastern_Listening_Post), [TaRapedia](https://tabularasa.fandom.com/wiki/Smash_and_Grab)
+  - Leads to: Spoils of War (id 1326) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Smash_and_Grab), [TaRapedia](https://tabularasa.fandom.com/wiki/Spoils_of_War)
 ### 1326 — Spoils of War
 
 - **Rebuild summary:**
@@ -19111,6 +20967,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Lieutenant Chester](https://tabularasa.fandom.com/wiki/Lieutenant_Chester): Pools, East Listening Post, /loc 1017.1, 656.5, 330.9 (named as giver/receiver)
   - [Colonel 'Snake' Washington](https://tabularasa.fandom.com/wiki/Colonel_%27Snake%27_Washington): Pools, The Snakepit, /loc -981, 915, 413 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Death Patrol chain (17 missions), step 9
+  - Requires: Smash and Grab (id 1324) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Smash_and_Grab), [TaRapedia](https://tabularasa.fandom.com/wiki/Spoils_of_War)
+  - Requires: Taking the Poison (id 1590) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Taking_the_Poison)
 ### 1327 — The Hermit
 
 - **Rebuild summary:**
@@ -19132,6 +20991,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Supply Chief Riggins](https://tabularasa.fandom.com/wiki/Supply_Chief_Riggins): Pools, The Snakepit, /loc -967, 915, 400 (named as giver/receiver)
   - [Hermit](https://tabularasa.fandom.com/wiki/Hermit): /loc -430, 921, 115 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Death Patrol chain (17 missions), step 2
+  - Requires: Medicinal Measures (id 1066) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Thirsty_Hermit)
+  - Requires: Death Patrol (id 1315) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Thirsty_Hermit)
+  - Leads to: A Cult Divided (id 560) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Thirsty_Hermit)
 ### 1328 — The Thirsty Hermit
 
 - **Rebuild summary:**
@@ -19154,6 +21017,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Hermit](https://tabularasa.fandom.com/wiki/Hermit): /loc -430, 921, 115 (named as giver/receiver)
   - [Dr. Hester](https://tabularasa.fandom.com/wiki/Dr._Hester): Pools, The Snakepit, /loc -961, 919, 469 (named in client text)
 
+- **Chain** (explicit prerequisite links): Death Patrol chain (17 missions), step 2
+  - Requires: Medicinal Measures (id 1066) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Thirsty_Hermit)
+  - Requires: Death Patrol (id 1315) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Thirsty_Hermit)
+  - Leads to: A Cult Divided (id 560) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Cult_Divided), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Thirsty_Hermit)
+- **TR MMO DB quest series:** "Death Patrol", row 3 of 3 ([list](https://web.archive.org/web/20120731161916/http://tr.mmodb.com/quests/seriesname-death_patrol/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1329 — Stick Your Neck Out [instance]
 
 - **Instance:** Retread Caves — client objective/log text: "Speak with Kaethi Rose inside the Retread Caves"
@@ -19175,6 +21043,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Amee Corman](https://tabularasa.fandom.com/wiki/Amee_Corman): Pools, Retread Camp (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Death Patrol chain (17 missions), step 6
+  - Requires: Retread Planning (id 563) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Retread_Planning), [TaRapedia](https://tabularasa.fandom.com/wiki/Stick_Your_Neck_Out)
 ### 1331 — Spy Networking
 
 - **Instance mentioned:** Turpis Refinery — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -19195,6 +21065,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Amee Corman](https://tabularasa.fandom.com/wiki/Amee_Corman): Pools, Retread Camp (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Death Patrol chain (17 missions), step 7
+  - Requires: Retread Planning Part II (id 1330) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Retread_Planning_Part_II), [TaRapedia](https://tabularasa.fandom.com/wiki/Spy_Networking)
+  - Leads to: Taking the Poison (id 1590) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Taking_the_Poison)
+  - Leads to: Poison Control (id 1368) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Poison_Control)
 ### 1590 — Taking the Poison
 
 - **Rebuild summary:**
@@ -19216,6 +21090,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Corporal Sheen](https://tabularasa.fandom.com/wiki/Corporal_Sheen): Pools, East Listening Post, /loc 978, 656, 358 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Death Patrol chain (17 missions), step 8
+  - Requires: Spy Networking (id 1331) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Taking_the_Poison)
+  - Leads to: Spoils of War (id 1326) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Taking_the_Poison)
 ### 1594 — Pools Targets of Opportunity [implemented] [instance]
 
 - **Implemented:** enabled on the local server (content revision targets_1) — source: data/rasaworld.db, mission_content_definition
@@ -19274,6 +21151,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Retread Vincent](https://tabularasa.fandom.com/wiki/Retread_Vincent): /loc -268, 216, -812 (NPC page lists this mission)
   - [Amee Corman](https://tabularasa.fandom.com/wiki/Amee_Corman): Pools, Retread Camp (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Giant Killer chain (11 missions), step 7
+  - Requires: Weapons Trafficking (id 904) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Retreads_to_Retreads), [TaRapedia](https://tabularasa.fandom.com/wiki/Weapons_Trafficking)
+  - Leads to: It Lies in Ruins (id 1673) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/It_Lies_in_Ruins), [TaRapedia](https://tabularasa.fandom.com/wiki/Retreads_to_Retreads)
+- **TR MMO DB quest series:** "Weapons Trafficking", row 1 of 2 ([list](https://web.archive.org/web/20120731165344/http://tr.mmodb.com/quests/seriesname-weapons_trafficking/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ## Pravus Research Facility
 
 ### 321 — Assemble With Lieutenant Perkins [instance]
@@ -19378,6 +21259,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Ranger Nylla](https://www.ellatha.com/tr/npcview.asp?key=Ranger+Nylla&id=69): Forean; loc -185,5,-123; zone Pravus Research (Ellatha lists this mission for the NPC)
 - **Ellatha boss NPC** [Forean Machina](https://www.ellatha.com/tr/bossnpcview.asp?key=Forean+Machina&id=37): Forean Machina; level 9; zone Caves of Donn; Spawns near the Logos Shrine "Trap"; needed for: Too Quiet (boss named in client text)
 
+- **Chain** (explicit prerequisite links): Traitors to the Cause chain (5 missions), step 4
+  - Requires: The Escapist (id 593) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Means_of_Production)
+  - Leads to: A Higher Calling (id 1075) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Higher_Calling), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Means_of_Production)
+- **Requires an instance mission:** The Escapist (593) — source: the chain links above
 ### 1075 — A Higher Calling [instance]
 
 - **Instance:** Pravus Research — NPC Ranger Nylla (NPC page lists this mission) is in Pravus Research — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Ranger_Nylla)
@@ -19411,6 +21296,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - The Book of Velonar speaks of one will come from the starts and unlock the secrets of this riddle — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Higher_Calling)
 
+- **Chain** (explicit prerequisite links): Traitors to the Cause chain (5 missions), step 5
+  - Requires: The Means of Production (id 575) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Higher_Calling), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Means_of_Production)
+- **Requires an instance mission:** The Means of Production (575) — source: the chain links above
 ## Retread Camp
 
 ### 561 — Testing the Pools
@@ -19424,6 +21312,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - walkthrough: The only tricky part of this mission is that when you find the correct pool, you will get a notice that you filled an objective, but the walkie talkie indicator stays lit. Just ignore it and move on to the next waypoint.
 - **TaRapedia mission list** [Retread Camp mission list](https://tabularasa.fandom.com/wiki/Retread_Camp_mission_list): zone Pools, area Retread Camp, given by Jayson Venma
 
+- **Chain** (explicit prerequisite links): Death Patrol chain (17 missions), step 4
+  - Requires: A Cult Divided (id 560) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Cult_Divided), [TaRapedia](https://tabularasa.fandom.com/wiki/Testing_the_Pools)
 ### 562 — One Man's Trash
 
 - **Rebuild summary:**
@@ -19446,6 +21336,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Where (locations / coordinates):**
   - Collect Ration Packs from container in The Snake Pit: -953, 919, 458 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/One_Man%27s_Trash)
 
+- **Chain** (explicit prerequisite links): Death Patrol chain (17 missions), step 4
+  - Requires: A Cult Divided (id 560) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Cult_Divided), [TaRapedia](https://tabularasa.fandom.com/wiki/One_Man%27s_Trash)
+  - Leads to: Retread Planning (id 563) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/One_Man%27s_Trash), [TaRapedia](https://tabularasa.fandom.com/wiki/Retread_Planning)
 ### 563 — Retread Planning
 
 - **Rebuild summary:**
@@ -19466,6 +21359,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Hermit](https://tabularasa.fandom.com/wiki/Hermit): /loc -430, 921, 115 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Death Patrol chain (17 missions), step 5
+  - Requires: One Man's Trash (id 562) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/One_Man%27s_Trash), [TaRapedia](https://tabularasa.fandom.com/wiki/Retread_Planning)
+  - Leads to: Stick Your Neck Out (id 1329) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Retread_Planning), [TaRapedia](https://tabularasa.fandom.com/wiki/Stick_Your_Neck_Out)
+  - Leads to: Retread Planning Part II (id 1330) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Retread_Planning), [TaRapedia](https://tabularasa.fandom.com/wiki/Retread_Planning_Part_II)
+- **TR MMO DB quest series:** "Retread Planning", row 1 of 2 ([list](https://web.archive.org/web/20120731164744/http://tr.mmodb.com/quests/seriesname-retread_planning/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1330 — Retread Planning Part II
 
 - **Rebuild summary:**
@@ -19486,6 +21384,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Hermit](https://tabularasa.fandom.com/wiki/Hermit): /loc -430, 921, 115 (named as giver/receiver)
   - [Amee Corman](https://tabularasa.fandom.com/wiki/Amee_Corman): Pools, Retread Camp (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Death Patrol chain (17 missions), step 6
+  - Requires: Retread Planning (id 563) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Retread_Planning), [TaRapedia](https://tabularasa.fandom.com/wiki/Retread_Planning_Part_II)
+  - Leads to: Spy Networking (id 1331) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Retread_Planning_Part_II), [TaRapedia](https://tabularasa.fandom.com/wiki/Spy_Networking)
+- **TR MMO DB quest series:** "Retread Planning", row 2 of 2 ([list](https://web.archive.org/web/20120731164744/http://tr.mmodb.com/quests/seriesname-retread_planning/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1368 — Poison Control
 
 - **Rebuild summary:**
@@ -19506,6 +21408,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Amee Corman](https://tabularasa.fandom.com/wiki/Amee_Corman): Pools, Retread Camp (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Death Patrol chain (17 missions), step 8
+  - Requires: Spy Networking (id 1331) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Poison_Control)
 ## Staal Junkyard
 
 ### 1534 — Rising Up [instance]
@@ -19529,6 +21433,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [AFS Data Cache](https://tabularasa.fandom.com/wiki/AFS_Data_Cache): no description
 
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 9
+  - Requires: Your Part of the Bargain (id 1529) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Rising_Up), [TaRapedia](https://tabularasa.fandom.com/wiki/Your_Part_of_the_Bargain)
+- **Requires an instance mission:** Your Part of the Bargain (1529) — source: the chain links above
 ## The Refuge
 
 ### 1552 — Race to the Finish [instance]
@@ -19557,6 +21464,13 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Lt. Hatch](https://tabularasa.fandom.com/wiki/Lt._Hatch): The Refuge, Contact (named as giver/receiver)
   - [Ezekiel](https://tabularasa.fandom.com/wiki/Ezekiel): The Refuge, Contact (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Special Deliveries chain (15 missions), step 4
+  - Requires: Into the Refuge (id 1553) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Into_the_Refuge), [TaRapedia](https://tabularasa.fandom.com/wiki/Race_to_the_Finish)
+  - Requires: Into the Refuge (id 1558) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Into_the_Refuge), [TaRapedia](https://tabularasa.fandom.com/wiki/Race_to_the_Finish)
+  - Leads to: Choosing Sides (id 1554) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Choosing_Sides), [TaRapedia](https://tabularasa.fandom.com/wiki/Race_to_the_Finish)
+  - Leads to: Holding Point (id 1556) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Holding_Point)
+- **TR MMO DB quest series:** "Into The Refuge", row 4 of 4 ([list](https://web.archive.org/web/20120731162020/http://tr.mmodb.com/quests/seriesname-into_the_refuge/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** Into the Refuge (1553), Into the Refuge (1558) — source: the chain links above
 ### 1554 — Choosing Sides [instance]
 
 - **Instance:** The Refuge — NPC Ezekiel (named as giver/receiver) is in The Refuge — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Ezekiel)
@@ -19583,6 +21497,14 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Colonel Sherk](https://tabularasa.fandom.com/wiki/Colonel_Sherk): Howling Maw, Gangus Outpost (named as giver/receiver)
   - [Field Commander Welling](https://tabularasa.fandom.com/wiki/Field_Commander_Welling): Howling Maw, Gangus Forward Base, /loc -1124.4, 236.9, -671.4 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Special Deliveries chain (15 missions), step 5
+  - Requires: Race to the Finish (id 1552) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Choosing_Sides), [TaRapedia](https://tabularasa.fandom.com/wiki/Race_to_the_Finish)
+  - Leads to: Absence of Faith (id 1781) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Absence_of_Faith), [TaRapedia](https://tabularasa.fandom.com/wiki/Choosing_Sides)
+  - Leads to: No Options Left (id 1784) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Choosing_Sides), [TaRapedia](https://tabularasa.fandom.com/wiki/No_Options_Left)
+  - Leads to: Mountain Spring Toxins (id 1783) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Choosing_Sides)
+  - Leads to: Mountain Spring Toxins (id 1979) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Choosing_Sides)
+- **TR MMO DB quest series:** "Into The Refuge", row 1 of 4 ([list](https://web.archive.org/web/20120731162020/http://tr.mmodb.com/quests/seriesname-into_the_refuge/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** Race to the Finish (1552) — source: the chain links above
 ### 1556 — Holding Point [instance]
 
 - **Instance:** The Refuge — NPC Lt. Hatch (named as giver/receiver) is in The Refuge — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Lt._Hatch)
@@ -19606,6 +21528,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Lt. Hatch](https://tabularasa.fandom.com/wiki/Lt._Hatch): The Refuge, Contact (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Special Deliveries chain (15 missions), step 5
+  - Requires: Race to the Finish (id 1552) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Holding_Point)
+- **TR MMO DB quest series:** "Into The Refuge", row 2 of 4 ([list](https://web.archive.org/web/20120731162020/http://tr.mmodb.com/quests/seriesname-into_the_refuge/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** Race to the Finish (1552) — source: the chain links above
 ### 1557 — Pretty Distraction
 
 - **Instance mentioned:** The Refuge — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -19639,6 +21565,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - objectives: • Collect 10 Tracking Anklets
 - **TaRapedia mission list** [Viddia Camp mission list](https://tabularasa.fandom.com/wiki/Viddia_Camp_mission_list): zone Thunderhead, area Viddia Camp, given by Scientist Irial
 
+- **Chain** (explicit prerequisite links): Help You to Help Us chain (5 missions), step 2
+  - Requires: Help You to Help Us (id 1226) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Help_You_to_Help_Us), [TaRapedia](https://tabularasa.fandom.com/wiki/Tracking_Anklets)
+  - Leads to: Bait and Destroy (id 1227) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bait_and_Destroy), [TaRapedia](https://tabularasa.fandom.com/wiki/Tracking_Anklets)
 ### 1226 — Help You to Help Us
 
 - **Rebuild summary:**
@@ -19653,6 +21582,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - objectives: • Speak with Scientist Irial
 - **TaRapedia mission list** [Viddia Camp mission list](https://tabularasa.fandom.com/wiki/Viddia_Camp_mission_list): zone Thunderhead, area Viddia Camp, given by Zupa Yrun
 
+- **Chain** (explicit prerequisite links): Help You to Help Us chain (5 missions), step 1
+  - Leads to: Tracking Anklets (id 1225) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Help_You_to_Help_Us), [TaRapedia](https://tabularasa.fandom.com/wiki/Tracking_Anklets)
 ### 1227 — Bait and Destroy
 
 - **Rebuild summary:**
@@ -19675,6 +21606,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Found at -420, 350, -450 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bait_and_Destroy)
 - **Ellatha boss NPC** [Warden Bot Abomination](https://www.ellatha.com/tr/bossnpcview.asp?key=Warden+Bot+Abomination&id=109): Warden Bot; zone Thunderhead; Roams around by the western exit to Crucible; needed for: Thunderhead Targets of Opportunity (boss named in client text)
 
+- **Chain** (explicit prerequisite links): Help You to Help Us chain (5 missions), step 3
+  - Requires: Tracking Anklets (id 1225) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bait_and_Destroy), [TaRapedia](https://tabularasa.fandom.com/wiki/Tracking_Anklets)
+  - Leads to: Core of the Problem (id 1228) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bait_and_Destroy), [TaRapedia](https://tabularasa.fandom.com/wiki/Core_of_the_Problem)
 ### 1228 — Core of the Problem
 
 - **Instance mentioned:** Warden bot facility — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -19694,6 +21628,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Warden Bot Abomination (Warden Bot), zone Thunderhead — Roams around by the western exit to Crucible — source: [Ellatha boss NPC](https://www.ellatha.com/tr/bossnpcview.asp?key=Warden+Bot+Abomination&id=109)
 - **Ellatha boss NPC** [Warden Bot Abomination](https://www.ellatha.com/tr/bossnpcview.asp?key=Warden+Bot+Abomination&id=109): Warden Bot; zone Thunderhead; Roams around by the western exit to Crucible; needed for: Thunderhead Targets of Opportunity (boss named in client text)
 
+- **Chain** (explicit prerequisite links): Help You to Help Us chain (5 missions), step 4
+  - Requires: Bait and Destroy (id 1227) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bait_and_Destroy), [TaRapedia](https://tabularasa.fandom.com/wiki/Core_of_the_Problem)
+  - Leads to: Rotten to the Core (id 1230) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Core_of_the_Problem), [TaRapedia](https://tabularasa.fandom.com/wiki/Rotten_to_the_Core)
 ### 1230 — Rotten to the Core
 
 - **Rebuild summary:**
@@ -19711,6 +21648,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - Most worryingly, patrol route of Rein and his soldiers also found on core with many others — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Rotten_to_the_Core)
 
+- **Chain** (explicit prerequisite links): Help You to Help Us chain (5 missions), step 5
+  - Requires: Core of the Problem (id 1228) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Core_of_the_Problem), [TaRapedia](https://tabularasa.fandom.com/wiki/Rotten_to_the_Core)
 ### 1233 — Where's Rein?
 
 - **Rebuild summary:**
@@ -19776,6 +21715,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Whiskey Key](https://tabularasa.fandom.com/wiki/Whiskey_Key): no description
   - [X-ray Key](https://tabularasa.fandom.com/wiki/X-ray_Key): no description
 
+- **Chain** (explicit prerequisite links): Wrench in the Gears chain (3 missions), step 1
+  - Leads to: Proof of Assurance (id 1766) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Proof_of_Assurance), [TaRapedia](https://tabularasa.fandom.com/wiki/Wrench_in_the_Gears)
+- **Requires (name not matched to a mission):** Level 47 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Wrench_in_the_Gears)
 ### 1391 — Bug Em [instance]
 
 - **Instance:** Quasso Station — client objective/log text: "Communications Officer Andrews, provided a description of the last communication that was received from a team of …"
@@ -19797,6 +21739,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - With the information obtained from Commander Jawan and Communications Officer Andrews find a way to the entrance of Quasso Station and infiltrate the facility — source: client text
 
+- **Chain** (explicit prerequisite links): Bug Em chain (7 missions), step 1
+  - Leads to: Explosive Reinforcements (id 1411) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bug_Em), [TaRapedia](https://tabularasa.fandom.com/wiki/Explosive_Reinforcements)
+  - Leads to: Kill the Crustie (id 1415) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bug_Em), [TaRapedia](https://tabularasa.fandom.com/wiki/Kill_the_Crustie)
 ### 1403 — Scrambled
 
 - **Rebuild summary:**
@@ -19824,6 +21769,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - walkthrough: Head directly north through the communications room to find the console to use.
 - **TaRapedia mission list** [Quasso Station mission list](https://tabularasa.fandom.com/wiki/Quasso_Station_mission_list): zone Thunderhead, given by Headquarters
 
+- **Chain** (explicit prerequisite links): Bug Em chain (7 missions), step 2
+  - Requires: Bug Em (id 1391) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bug_Em), [TaRapedia](https://tabularasa.fandom.com/wiki/Explosive_Reinforcements)
+  - Requires: Help Bug Em (id 1578) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bug_Em)
+  - Leads to: Stopping the Unstoppable (id 1412) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Explosive_Reinforcements), [TaRapedia](https://tabularasa.fandom.com/wiki/Stopping_the_Unstoppable)
+- **Requires an instance mission:** Bug Em (1391), Help Bug Em (1578) — source: the chain links above
 ### 1412 — Stopping the Unstoppable
 
 - **Instance mentioned:** Quasso Station — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -19840,6 +21790,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - walkthrough: This mission becomes available after traversing the dropship landing bay. There is a lot of cover in the Juggernaut bays, so it is quite possible to simply walk in the main entrance to each and take out the Juggernauts and Thrax Technicians one by one. There is a button in one of the side corridors that kills all Juggernauts in the bay. [Added by Idaho, Cassiopeia, April 8, 2008] The "Kill Switches" are located at 135, 308 and -185, 353 . Both can be easily accessed without engaging any Juggernauts. In groups, the Juggernauts can be easily taken down. I was soloing as a level 46 Exobiologist, …
 - **TaRapedia mission list** [Quasso Station mission list](https://tabularasa.fandom.com/wiki/Quasso_Station_mission_list): zone Thunderhead, given by Headquarters
 
+- **Chain** (explicit prerequisite links): Bug Em chain (7 missions), step 3
+  - Requires: Explosive Reinforcements (id 1411) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Explosive_Reinforcements), [TaRapedia](https://tabularasa.fandom.com/wiki/Stopping_the_Unstoppable)
+  - Leads to: Barracks Sweep (id 1413) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Barracks_Sweep), [TaRapedia](https://tabularasa.fandom.com/wiki/Stopping_the_Unstoppable)
 ### 1413 — Barracks Sweep
 
 - **Instance mentioned:** Quasso Station — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -19857,6 +21810,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TaRapedia mission list** [Quasso Station mission list](https://tabularasa.fandom.com/wiki/Quasso_Station_mission_list): zone Thunderhead, given by Headquarters
 - **PlanetTR** [planettr.com:80/forums/archive/index.php/t-1365.html](https://web.archive.org/web/20071209022816/http://planettr.com:80/forums/archive/index.php/t-1365.html): “* Fixed: Map: Thunderhead: Mission: Kill the Crustie: Mission Completion Text is Callous. / * Fixed: Mission: Barracks Sweep (Quasso Station): Can poison the Bane before you have acquire the poison. / * Fixed: Marshes TOO to require the correct number of Maw kills.”
 
+- **Chain** (explicit prerequisite links): Bug Em chain (7 missions), step 4
+  - Requires: Stopping the Unstoppable (id 1412) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Barracks_Sweep), [TaRapedia](https://tabularasa.fandom.com/wiki/Stopping_the_Unstoppable)
+  - Leads to: Missing Troops (id 1414) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Barracks_Sweep), [TaRapedia](https://tabularasa.fandom.com/wiki/Missing_Troops)
 ### 1414 — Missing Troops [instance]
 
 - **Instance:** Quasso Station — client objective/log text: "Find the missing troops in Quasso Station, then radio HQ."
@@ -19874,6 +21830,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TaRapedia mission list** [Quasso Station mission list](https://tabularasa.fandom.com/wiki/Quasso_Station_mission_list): zone Thunderhead, given by Headquarters
 - **PlanetTR** [planettr.com:80/forums/archive/index.php/t-1365.html](https://web.archive.org/web/20071209022816/http://planettr.com:80/forums/archive/index.php/t-1365.html): “* Fixed: Map: Thunderhead: Quasso Station: Mission: Kill Crustie level requirement is not consistent with instance. / * Fixed: Mission: Missing Troops (Quasso Station): After killing Brown the objective in your Journal says "none" . / * Fixed: Map: Thunderhead: Mission: Kill the Crustie: Mission Completion Text is Callous.”
 
+- **Chain** (explicit prerequisite links): Bug Em chain (7 missions), step 5
+  - Requires: Barracks Sweep (id 1413) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Barracks_Sweep), [TaRapedia](https://tabularasa.fandom.com/wiki/Missing_Troops)
 ### 1415 — Kill the Crustie [instance]
 
 - **Instance:** Quasso Station — client objective/log text: "Communications Officer Andrews has given me the mission to kill the Thrax Lieutenant in Quasso Station, and take the …"
@@ -19895,6 +21853,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - The battle plans you found on the Thrax Lieutenant should prove useful — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Kill_the_Crustie)
 
+- **Chain** (explicit prerequisite links): Bug Em chain (7 missions), step 2
+  - Requires: Bug Em (id 1391) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bug_Em), [TaRapedia](https://tabularasa.fandom.com/wiki/Kill_the_Crustie)
+  - Requires: Help Bug Em (id 1578) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bug_Em)
+- **Requires an instance mission:** Bug Em (1391), Help Bug Em (1578) — source: the chain links above
 ### 1424 — Operation Sledgehammer
 
 - **Instance mentioned:** Rivasa Atta Colony — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -19996,6 +21958,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Captain Jacobs](https://tabularasa.fandom.com/wiki/Captain_Jacobs): Thunderhead, Thunderhead Base (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Babysitting chain (5 missions), step 1
+  - Leads to: Spy On Something (id 1562) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Spy_On_Something)
+  - Leads to: Feeling Pressure (id 1564) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Feeling_Pressure)
 ### 1562 — Spy On Something
 
 - **Rebuild summary:**
@@ -20018,6 +21983,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Surveillance Data 'N'](https://tabularasa.fandom.com/wiki/Surveillance_Data_%27N%27): Overview: is stored on a disc which is used for safekeeping the surveillance footage of enemy troop movements. Walkthrough: How to obtain: ToDo Where to use: The item is required in order to complete the mission Spy On Something.
   - [Surveillance Data 'O'](https://tabularasa.fandom.com/wiki/Surveillance_Data_%27O%27): Overview: is stored on a disc which is used for safekeeping the surveillance footage of enemy troop movements. Walkthrough: How to obtain: ToDo Where to use: The item is required in order to complete the mission Spy On Something.
 
+- **Chain** (explicit prerequisite links): Babysitting chain (5 missions), step 2
+  - Requires: Babysitting (id 1560) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Spy_On_Something)
+  - Leads to: Get Out and Stay Out (id 1566) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Get_Out_and_Stay_Out)
 ### 1564 — Feeling Pressure
 
 - **Rebuild summary:**
@@ -20033,6 +22001,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TaRapedia mission list** [E-104 mission list](https://tabularasa.fandom.com/wiki/E-104_mission_list): zone Thunderhead, area E-140, given by Sergeant Dempster
 - **PlanetTR** [planettr.com:80/forums/archive/index.php/t-1365.html](https://web.archive.org/web/20071209022816/http://planettr.com:80/forums/archive/index.php/t-1365.html): “* Killing Juroaz should now properly credit entire group in "Showing Off". / * Killing Bane should now properly credit entire group in "Feeling Pressure". / * Mission Item should now drop properly for everybody in group for "Warped Waypoint".”
 
+- **Chain** (explicit prerequisite links): Babysitting chain (5 missions), step 2
+  - Requires: Babysitting (id 1560) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Feeling_Pressure)
+  - Leads to: Showing Off (id 1565) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Showing_Off)
 ### 1565 — Showing Off
 
 - **Rebuild summary:**
@@ -20052,6 +22023,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Juroaz (Thrax Soldier), zone Thunderhead — Patrols west of AFS Substation E-104 — source: [Ellatha boss NPC](https://www.ellatha.com/tr/bossnpcview.asp?key=Juroaz&id=112)
 - **Ellatha boss NPC** [Juroaz](https://www.ellatha.com/tr/bossnpcview.asp?key=Juroaz&id=112): Thrax Soldier; zone Thunderhead; Patrols west of AFS Substation E-104; needed for: Thunderhead Targets of Opportunity (boss named in client text)
 
+- **Chain** (explicit prerequisite links): Babysitting chain (5 missions), step 3
+  - Requires: Feeling Pressure (id 1564) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Showing_Off)
+  - Leads to: Get Out and Stay Out (id 1566) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Get_Out_and_Stay_Out), [TaRapedia](https://tabularasa.fandom.com/wiki/Showing_Off)
 ### 1566 — Get Out and Stay Out
 
 - **Rebuild summary:**
@@ -20066,6 +22040,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - objectives: • Report to Captain Karter • Report to Captain Karter at Shadow's Edge Post in Ashen Desert.
 - **TaRapedia mission list** [E-104 mission list](https://tabularasa.fandom.com/wiki/E-104_mission_list): zone Thunderhead, area E-140, given by Captain Howry
 
+- **Chain** (explicit prerequisite links): Babysitting chain (5 missions), step 4
+  - Requires: Spy On Something (id 1562) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Get_Out_and_Stay_Out)
+  - Requires: Showing Off (id 1565) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Get_Out_and_Stay_Out), [TaRapedia](https://tabularasa.fandom.com/wiki/Showing_Off)
 ### 1570 — Cleaning Crew
 
 - **Rebuild summary:**
@@ -20086,6 +22063,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Junior Officer Tonnes](https://tabularasa.fandom.com/wiki/Junior_Officer_Tonnes): Thunderhead, Thunderhead Base (named as giver/receiver)
   - [Handyman Hank](https://tabularasa.fandom.com/wiki/Handyman_Hank): Thunderhead (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Cleaning Crew chain (2 missions), step 1
+  - Leads to: Warped Waypoint (id 1571) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Cleaning_Crew), [TaRapedia](https://tabularasa.fandom.com/wiki/Warped_Waypoint)
 ### 1571 — Warped Waypoint
 
 - **Rebuild summary:**
@@ -20106,6 +22085,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - The Telemetry Matrix can be found on the named Lasher Esoobac — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Warped_Waypoint)
 
+- **Chain** (explicit prerequisite links): Cleaning Crew chain (2 missions), step 2
+  - Requires: Cleaning Crew (id 1570) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Cleaning_Crew), [TaRapedia](https://tabularasa.fandom.com/wiki/Warped_Waypoint)
 ### 1573 — Atta Boy
 
 - **Rebuild summary:**
@@ -20120,6 +22101,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - objectives: • Collect 15 Male Atta Glands
 - **TaRapedia mission list** [Larai Camp mission list](https://tabularasa.fandom.com/wiki/Larai_Camp_mission_list): zone Thunderhead, area Larai Camp, given by Enforcer Bonree
 
+- **Chain** (explicit prerequisite links): Atta Boy chain (3 missions), step 1
+  - Leads to: Up and Atta 'em (id 1574) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Atta_Boy), [TaRapedia](https://tabularasa.fandom.com/wiki/Up_and_Atta_%27em)
 ### 1574 — Up and Atta 'em
 
 - **Rebuild summary:**
@@ -20141,6 +22124,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha boss NPC** [Tiamox](https://www.ellatha.com/tr/bossnpcview.asp?key=Tiamox): Atta; /loc -830, 110; zone Thunderhead; needed for: Thunderhead Targets of Opportunity (boss named in client text)
 - **Ellatha boss NPC** [Tiamox](https://www.ellatha.com/tr/bossnpcview.asp?key=Tiamox&id=114): Atta; /loc -830, 110; zone Thunderhead; needed for: Thunderhead Targets of Opportunity (boss named in client text)
 
+- **Chain** (explicit prerequisite links): Atta Boy chain (3 missions), step 2
+  - Requires: Atta Boy (id 1573) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Atta_Boy), [TaRapedia](https://tabularasa.fandom.com/wiki/Up_and_Atta_%27em)
+  - Leads to: Atta Standstill (id 1575) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Atta_Standstill), [TaRapedia](https://tabularasa.fandom.com/wiki/Up_and_Atta_%27em)
 ### 1575 — Atta Standstill
 
 - **Instance mentioned:** Fault Lever — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -20160,6 +22146,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Painrox (Kael), zone Thunderhead — Inside the Conscription Transport Terminal, use teleport at 550, 350 — source: [Ellatha boss NPC](https://www.ellatha.com/tr/bossnpcview.asp?key=Painrox&id=110)
 - **Ellatha boss NPC** [Painrox](https://www.ellatha.com/tr/bossnpcview.asp?key=Painrox&id=110): Kael; zone Thunderhead; Inside the Conscription Transport Terminal, use teleport at 550, 350; needed for: Thunderhead Targets of Opportunity (boss named in client text)
 
+- **Chain** (explicit prerequisite links): Atta Boy chain (3 missions), step 3
+  - Requires: Up and Atta 'em (id 1574) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Atta_Standstill), [TaRapedia](https://tabularasa.fandom.com/wiki/Up_and_Atta_%27em)
 ### 1578 — Help Bug Em [instance]
 
 - **Instance:** Quasso Station — client objective/log text: "Field Medic Lacey is working with Communications Officer Andrews and needs a "Bug" attached to the Communications …"
@@ -20181,6 +22169,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Commander Jawan](https://tabularasa.fandom.com/wiki/Commander_Jawan): Thunderhead, Thunderhead Base (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Bug Em chain (7 missions), step 1
+  - Leads to: Explosive Reinforcements (id 1411) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bug_Em)
+  - Leads to: Kill the Crustie (id 1415) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bug_Em)
 ### 1763 — Thunderhead Targets of Opportunity [implemented] [instance]
 
 - **Implemented:** enabled on the local server (content revision targets_1) — source: data/rasaworld.db, mission_content_definition
@@ -20241,6 +22232,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Whiskey Key](https://tabularasa.fandom.com/wiki/Whiskey_Key): no description
   - [X-ray Key](https://tabularasa.fandom.com/wiki/X-ray_Key): no description
 
+- **Chain** (explicit prerequisite links): Wrench in the Gears chain (3 missions), step 1
+  - Leads to: Proof of Assurance (id 1766) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Proof_of_Assurance), [TaRapedia](https://tabularasa.fandom.com/wiki/Wrench_in_the_Gears)
+- **Requires (name not matched to a mission):** Level 47 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Wrench_in_the_Gears)
 ### 1765 — Process of Elimination
 
 - **Instance mentioned:** Fault Lever — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -20260,6 +22254,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [X-ray Key](https://tabularasa.fandom.com/wiki/X-ray_Key): no description
 
+- **Requires (name not matched to a mission):** Level 47 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Process_of_Elimination)
 ### 1766 — Proof of Assurance
 
 - **Instance mentioned:** Fault Lever — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -20280,6 +22275,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [Eloh Bomb](https://tabularasa.fandom.com/wiki/Eloh_Bomb): no description
 
+- **Chain** (explicit prerequisite links): Wrench in the Gears chain (3 missions), step 2
+  - Requires: Wrench in the Gears (id 1236) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Proof_of_Assurance), [TaRapedia](https://tabularasa.fandom.com/wiki/Wrench_in_the_Gears)
+  - Requires: Wrench in the Gears (id 1764) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Proof_of_Assurance), [TaRapedia](https://tabularasa.fandom.com/wiki/Wrench_in_the_Gears)
 ### 1882 — Tough Translating
 
 - **Rebuild summary:**
@@ -20299,6 +22297,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Field Sgt. Eiserloh](https://tabularasa.fandom.com/wiki/Field_Sgt._Eiserloh): Thunderhead, Vashtar Pass (named as giver/receiver)
 
+- **Requires (name not matched to a mission):** Supply Run — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Tough_Translating)
 ### 1883 — Supply Pass
 
 - **Rebuild summary:**
@@ -20381,6 +22380,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TR MMO DB** [Chambers of Horror](https://web.archive.org/web/20120731174529/http://tr.mmodb.com/quests/chambers-of-horror-588.php): level: 45; starts at npc: Penumbra Researcher Chambers; starts in zone: Abyss; objectives: Destroy 15 Machina Chambers, Return to Penumbra Researcher Chambers; reward: 6900; series: Chambers of Horror
 - **TR MMO DB quest series** [Chambers Of Horror](https://web.archive.org/web/20120731164608/http://tr.mmodb.com/quests/seriesname-chambers_of_horror/): Chambers of Horror (level 45, reward 6900) → The Penumbra Strain (level 45, reward 6900) (series order as listed on the page; reward unit not stated)
 
+- **Chain** (explicit prerequisite links): Chambers Of Horror chain (3 missions), step 1
+  - Leads to: The Penumbra Strain (id 1507) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Chambers_of_Horror), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Penumbra_Strain)
+- **TR MMO DB quest series:** "Chambers Of Horror", row 1 of 2 ([list](https://web.archive.org/web/20120731164608/http://tr.mmodb.com/quests/seriesname-chambers_of_horror/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1345 — The Abyss Looks Into You
 
 - **Rebuild summary:**
@@ -20399,6 +22401,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [The Director](https://tabularasa.fandom.com/wiki/The_Director): Abyss, Penumbra Headquarters, /loc -537.8, 534.0, -152.5 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Chambers Of Horror chain (3 missions), step 3
+  - Requires: The Penumbra Strain (id 1507) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Abyss_Looks_Into_You), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Penumbra_Strain)
 ### 1507 — The Penumbra Strain
 
 - **Rebuild summary:**
@@ -20419,6 +22423,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **IGN TR boards** [vnboards.ign.com:80/tabula_rasa/b22750/104941824/p1/](https://web.archive.org/web/20071021052253/http://vnboards.ign.com:80/tabula_rasa/b22750/104941824/p1/): “? updated Descent: Moxamillion mission to be clearer about kills required / ? Abyss ?The Penumbra Strain? ? Obtain Virus Samples objectives will now complete properly. / ? Abyss ?The Goggles That Do Nothing? ? Now has correct mission completer.”
 - **PlanetTR** [planettr.com:80/forums/archive/index.php/t-1365.html](https://web.archive.org/web/20071209022816/http://planettr.com:80/forums/archive/index.php/t-1365.html): “* Abyss - Archeron Post waypoint now working properly. / * Abyss “The Penumbra Strain” – Obtain Virus Samples objectives will now complete properly. / * Abyss “The Goggles That Do Nothing” – Now has correct mission completer.”
 
+- **Chain** (explicit prerequisite links): Chambers Of Horror chain (3 missions), step 2
+  - Requires: Chambers Of Horror (id 1344) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Chambers_of_Horror), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Penumbra_Strain)
+  - Leads to: The Abyss Looks Into You (id 1345) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Abyss_Looks_Into_You), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Penumbra_Strain)
+- **TR MMO DB quest series:** "Chambers Of Horror", row 2 of 2 ([list](https://web.archive.org/web/20120731164608/http://tr.mmodb.com/quests/seriesname-chambers_of_horror/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 1946 — Ways And Means [instance]
 
 - **Instance:** Omega Labs — client objective/log text: "Reboot the Local Teleporters in the Involuntary Commitment Ward, Bioweapons Unit, Network Operations Center, …"
@@ -20538,6 +22546,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Warden Brocail](https://tabularasa.fandom.com/wiki/Warden_Brocail): Palisades, Walk of Giants (NPC page lists this mission)
   - [Watchman Hillenmeyer](https://tabularasa.fandom.com/wiki/Watchman_Hillenmeyer): Palisades, Cumbria Weald, /loc 323, 128, 604 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 2
+  - Requires: A Spiritual Pilgrimage (id 1988) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Proving_Commitment)
 ### 421 — A Father's Goodbye [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -20588,6 +22598,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [Lt. Saviours's Dogtags](https://tabularasa.fandom.com/wiki/Lt._Saviours%27s_Dogtags): no description
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 12
+  - Requires: Supplies On The Double (id 428) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Father%27s_Goodbye), [TaRapedia](https://tabularasa.fandom.com/wiki/Supplies_On_The_Double), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 422 — Miner Difficulties [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -20631,6 +22643,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Medical Supplies (Miner Difficulties)](https://tabularasa.fandom.com/wiki/Medical_Supplies_%28Miner_Difficulties%29): no description
   - [Mining Equipment](https://tabularasa.fandom.com/wiki/Mining_Equipment): no description
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 9
+  - Requires: Receptive Reception (id 1069) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Miner_Difficulties), [TaRapedia](https://tabularasa.fandom.com/wiki/Receptive_Reception), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Mama Miasma! (id 506) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mama_Miasma), [TaRapedia](https://tabularasa.fandom.com/wiki/Miner_Difficulties), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 425 — Contents Under Pressure [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -20685,6 +22700,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [Dr. Samual Corman's Sample Vials](https://tabularasa.fandom.com/wiki/Dr._Samual_Corman%27s_Sample_Vials): Dr. Samual Corman's Sample Vials is a mission item required for the quest Contents Under Pressure. The player must kill the Thrax overseer to recover Dr. Samual Corman's Sample Vials from his corpse and deliver them to Dr. Eleanor Corman.
 
+- **Chain** (explicit prerequisite links): Quarantine chain (11 missions), step 3
+  - Requires: Unity Among Men (id 444) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Contents_Under_Pressure), [TaRapedia](https://tabularasa.fandom.com/wiki/Unity_Among_Men), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Going Native (id 679) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Contents_Under_Pressure), [TaRapedia](https://tabularasa.fandom.com/wiki/Going_Native), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 427 — Lurking In The Shadows [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -20738,6 +22756,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [Ammo Shipment for Alia Das](https://tabularasa.fandom.com/wiki/Ammo_Shipment_for_Alia_Das): This item is obtained by killing Proctor Fulgor. Walkthrough: Proctor Fulgor is a Lightbender found in a hilltop bunker. He is accompanied by three to four other Lightbenders.
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 11
+  - Requires: Forming Alliances (id 479) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Lurking_In_The_Shadows), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Mighty Miasma (id 767) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mighty_Miasma)
 ### 428 — Supplies On The Double [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -20775,6 +22796,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [Medical Supplies (Supplies On The Double)](https://tabularasa.fandom.com/wiki/Medical_Supplies_%28Supplies_On_The_Double%29): no description
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 11
+  - Requires: Forming Alliances (id 479) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Forming_Alliances), [TaRapedia](https://tabularasa.fandom.com/wiki/Supplies_On_The_Double), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: A Father's Goodbye (id 421) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Father%27s_Goodbye), [TaRapedia](https://tabularasa.fandom.com/wiki/Supplies_On_The_Double), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 429 — River Recon [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -20820,6 +22844,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Field Sgt. Witherspoon](https://www.ellatha.com/tr/npcview.asp?key=Field+Sgt%2E+Witherspoon&id=11): Human; loc 501,238,214; zone Wilderness (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Outpost Commander Rogers](https://www.ellatha.com/tr/npcview.asp?key=Outpost+Commander+Rogers&id=5): Human; loc 857,294,388; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 11
+  - Requires: Forming Alliances (id 479) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Forming_Alliances), [TaRapedia](https://tabularasa.fandom.com/wiki/River_Recon), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Distress On The River (id 431) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/River_Recon), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 430 — Mortar By Numbers [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -20855,6 +22882,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Ojy (155.0, 163.0, -93.0) offers Soldier's Blood in the hospital tent. — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/tabula-rasa-leveling-guide-1-10-part-3)
 - **Ellatha NPC** [Aviation Coordinator Wagner](https://www.ellatha.com/tr/npcview.asp?key=Aviation+Coordinator+Wagner&id=35): Human; loc 193,171,-89; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Mortar By Numbers chain (3 missions), step 1
+  - Leads to: Failure to Launch (id 549) — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 431 — Distress On The River [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -20899,6 +22928,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Lt. Wood](https://www.ellatha.com/tr/npcview.asp?key=Lt.+Wood): Human; loc 367,232,283; zone Wilderness (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Surveyor Hugh Corman](https://www.ellatha.com/tr/npcview.asp?key=Surveyor+Hugh+Corman&id=24): Human; loc 296,228,468; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 12
+  - Requires: River Recon (id 429) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/River_Recon), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Snipe Hunt (id 433) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Distress_On_The_River), [TaRapedia](https://tabularasa.fandom.com/wiki/Snipe_Hunt), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 432 — Hitting 'em Where It Hurts [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -20936,6 +22968,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Recon Spec. Jennings](https://tabularasa.fandom.com/wiki/Recon_Spec._Jennings): Wilderness, Lower Eloh Creek, /loc 499.6, 238.3, 211.3 (NPC page lists this mission)
 - **Ellatha NPC** [Recon. Spec. Jennings](https://www.ellatha.com/tr/npcview.asp?key=Recon%2E+Spec%2E+Jennings&id=28): Human; loc 500,238,211; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Hitting 'em Where It Hurts chain (2 missions), step 1
+  - Leads to: Rendezvous At The LZ (id 434) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Rendezvous_At_The_LZ), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 433 — Snipe Hunt [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -20984,6 +23018,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha boss NPC** [Thrax Overseer Rankash](https://www.ellatha.com/tr/bossnpcview.asp?key=Thrax+Overseer+Rankash): Thrax Soldier; level 6; /loc 263,230,265; zone Wilderness; needed for: Snipe Hunt Wilderness Targets of Opportunity (Ellatha lists this mission under "Needed for Quests")
 - **Ellatha boss NPC** [Thrax Overseer Rankash](https://www.ellatha.com/tr/bossnpcview.asp?key=Thrax+Overseer+Rankash&id=30): Thrax Soldier; level 6; /loc 263,230,265; zone Wilderness; needed for: Snipe Hunt Wilderness Targets of Opportunity (Ellatha lists this mission under "Needed for Quests")
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 13
+  - Requires: Distress On The River (id 431) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Distress_On_The_River), [TaRapedia](https://tabularasa.fandom.com/wiki/Snipe_Hunt), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 434 — Rendezvous At The LZ [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -21024,6 +23060,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Field Sgt. Witherspoon](https://www.ellatha.com/tr/npcview.asp?key=Field+Sgt%2E+Witherspoon&id=11): Human; loc 501,238,214; zone Wilderness (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Outpost Commander Randolph](https://www.ellatha.com/tr/npcview.asp?key=Outpost+Commander+Randolph&id=29): Human; loc 165,163,-100; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Hitting 'em Where It Hurts chain (2 missions), step 2
+  - Requires: Hitting 'em Where It Hurts (id 432) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Rendezvous_At_The_LZ), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 436 — The Trouble With Treebacks [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -21058,6 +23096,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Location of the Emanator is at /loc 288,284,529 — source: [Ellatha](https://www.ellatha.com/tr/missionsview.asp?key=The+Trouble+with+Treebacks&id=17)
 - **Ellatha NPC** [Mining Coord. Richards](https://www.ellatha.com/tr/npcview.asp?key=Mining+Coord%2E+Richards&id=12): Human; loc 370,213,521; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 11
+  - Requires: Mama Miasma! (id 506) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Trouble_With_Treebacks), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 441 — In Short Supply [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -21101,6 +23141,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Medical Assistant Duncan](https://www.ellatha.com/tr/npcview.asp?key=Medical+Assistant+Duncan&id=37): Human; loc -128,220,-467; zone Wilderness (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Outpost Commander Randolph](https://www.ellatha.com/tr/npcview.asp?key=Outpost+Commander+Randolph&id=29): Human; loc 165,163,-100; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Mortar By Numbers chain (3 missions), step 3
+  - Requires: Failure to Launch (id 549) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/In_Short_Supply), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 442 — Quarantine [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -21148,6 +23190,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Medical Assistant Duncan](https://www.ellatha.com/tr/npcview.asp?key=Medical+Assistant+Duncan&id=37): Human; loc -128,220,-467; zone Wilderness (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Victor Corman](https://www.ellatha.com/tr/npcview.asp?key=Victor+Corman&id=59): Human; loc -26,189,-386; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Quarantine chain (11 missions), step 1
+  - Leads to: Unity Among Men (id 444) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Quarantine), [TaRapedia](https://tabularasa.fandom.com/wiki/Unity_Among_Men), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 444 — Unity Among Men [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -21196,6 +23240,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Dr. Eleanor Corman](https://www.ellatha.com/tr/npcview.asp?key=Dr.+Eleanor+Corman): Human; loc -756,171,-278; zone Wilderness (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Victor Corman](https://www.ellatha.com/tr/npcview.asp?key=Victor+Corman&id=59): Human; loc -26,189,-386; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Quarantine chain (11 missions), step 2
+  - Requires: Quarantine (id 442) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Quarantine), [TaRapedia](https://tabularasa.fandom.com/wiki/Unity_Among_Men), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Contents Under Pressure (id 425) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Contents_Under_Pressure), [TaRapedia](https://tabularasa.fandom.com/wiki/Unity_Among_Men), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 446 — Mending A Broken Heart
 
 - **Rebuild summary:**
@@ -21225,6 +23272,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Council Elder Baruhi](https://www.ellatha.com/tr/npcview.asp?key=Council+Elder+Baruhi&id=42): Forean; loc -45,207,70; zone Wilderness (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Dr. Franja Corman](https://www.ellatha.com/tr/npcview.asp?key=Dr%2E+Franja+Corman&id=48): Human; loc -716,170,-325; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): The Dead Live chain (4 missions), step 4
+  - Requires: Ghost in the Machine (id 1059) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Ghost_in_the_Machine), [TaRapedia](https://tabularasa.fandom.com/wiki/Mending_A_Broken_Heart)
 ### 450 — The Dead Live [instance]
 
 - **Instance:** Crater Lake Research Facility — NPC Captain Velns (NPC page lists this mission) is in Crater Lake Research Facility — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Captain_Velns)
@@ -21267,6 +23316,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Captain Velns](https://www.ellatha.com/tr/npcview.asp?key=Captain+Velns&id=74): Human; loc 32,139,199; zone Crater Lake Research (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Dr. Franja Corman](https://www.ellatha.com/tr/npcview.asp?key=Dr%2E+Franja+Corman&id=48): Human; loc -716,170,-325; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): The Dead Live chain (4 missions), step 1
+  - Leads to: We Be Jammin' (id 1054) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Dead_Live), [TaRapedia](https://tabularasa.fandom.com/wiki/We_Be_Jammin%27)
+  - Leads to: Ghost in the Machine (id 1059) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Ghost_in_the_Machine)
 ### 451 — A Visit To The Elders [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -21304,6 +23356,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Council Luminary Doyan](https://www.ellatha.com/tr/npcview.asp?key=Council+Luminary+Doyan): Forean; loc -793,263,742; zone Wilderness (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Council Luminary Doyan](https://www.ellatha.com/tr/npcview.asp?key=Council+Luminary+Doyan&id=62): Forean; loc -793,263,742; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Quarantine chain (11 missions), step 5
+  - Requires: Going Native (id 679) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Visit_To_The_Elders), [TaRapedia](https://tabularasa.fandom.com/wiki/Going_Native), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Childhood's End (id 682) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Visit_To_The_Elders), [TaRapedia](https://tabularasa.fandom.com/wiki/Childhood%27s_End), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 479 — Forming Alliances [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -21358,6 +23413,14 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - Rip out the hearts of your enemies of course! Bring Aprika 12 Thrax hearts which randomly drop off any Thrax — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/alia-das-missions)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 10
+  - Requires: Receptive Reception (id 1069) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Forming_Alliances), [TaRapedia](https://tabularasa.fandom.com/wiki/Receptive_Reception), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Requires: Life of the Party — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Life_of_the_Party)
+  - Requires: Multi-Tusking — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Multi-Tusking)
+  - Leads to: Lurking In The Shadows (id 427) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Lurking_In_The_Shadows), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Supplies On The Double (id 428) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Forming_Alliances), [TaRapedia](https://tabularasa.fandom.com/wiki/Supplies_On_The_Double), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: River Recon (id 429) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Forming_Alliances), [TaRapedia](https://tabularasa.fandom.com/wiki/River_Recon), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Conscientious Objector (id 1390) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Conscientious_Objector), [TaRapedia](https://tabularasa.fandom.com/wiki/Forming_Alliances), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 489 — Centrifuge Fuel [instance]
 
 - **Instance:** Crater Lake Research Facility — client objective/log text: "Search for Centrifuge Crystals in the Crater Lake Research Facility and return them to Operation Chief Sten Corman."
@@ -21430,6 +23493,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - NPC Mining Coord. Richards: /loc 370,213,521, zone Wilderness — source: [Ellatha NPC](https://www.ellatha.com/tr/npcview.asp?key=Mining+Coord%2E+Richards&id=12)
 - **Ellatha NPC** [Mining Coord. Richards](https://www.ellatha.com/tr/npcview.asp?key=Mining+Coord%2E+Richards&id=12): Human; loc 370,213,521; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 10
+  - Requires: Miner Difficulties (id 422) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mama_Miasma), [TaRapedia](https://tabularasa.fandom.com/wiki/Miner_Difficulties), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: The Trouble With Treebacks (id 436) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Trouble_With_Treebacks), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Survey Says (id 508) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Survey_Says_%28Wilderness%29), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 508 — Survey Says [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -21476,6 +23543,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Mining Tech. Maxwell](https://www.ellatha.com/tr/npcview.asp?key=Mining+Tech%2E+Maxwell&id=13): Human; loc 336,197,599; zone Wilderness (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Outpost Commander Rogers](https://www.ellatha.com/tr/npcview.asp?key=Outpost+Commander+Rogers&id=5): Human; loc 857,294,388; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 11
+  - Requires: Mama Miasma! (id 506) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Survey_Says_%28Wilderness%29), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Bring Me A Rock (id 978) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bring_Me_A_Rock)
 ### 549 — Failure to Launch [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -21515,6 +23585,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Engineer Salter](https://www.ellatha.com/tr/npcview.asp?key=Engineer+Salter): Human; loc 764,294,409; zone Wilderness (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Engineer Salter](https://www.ellatha.com/tr/npcview.asp?key=Engineer+Salter&id=36): Human; loc 764,294,409; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Mortar By Numbers chain (3 missions), step 2
+  - Requires: Mortar By Numbers (id 430) — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: In Short Supply (id 441) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/In_Short_Supply), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+- **Requires (name not matched to a mission):** Mortar by the Numbers — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Failure_to_Launch)
 ### 570 — Traitors to the Cause [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -21563,6 +23637,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Council Elder Baruhi](https://www.ellatha.com/tr/npcview.asp?key=Council+Elder+Baruhi&id=42): Forean; loc -45,207,70; zone Wilderness (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Outpost Cmdr Taylor](https://www.ellatha.com/tr/npcview.asp?key=Outpost+Cmdr+Taylor&id=41): Human; loc -92,220,-503; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Traitors to the Cause chain (5 missions), step 1
+  - Leads to: Machinations (id 574) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Machinations), [TaRapedia](https://tabularasa.fandom.com/wiki/Traitors_to_the_Cause), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 574 — Machinations [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -21617,6 +23693,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [Forean Machina Remains](https://tabularasa.fandom.com/wiki/Forean_Machina_Remains): Forean Machina Remains are mission items required for the quest Machinations. The player must kill Forean Machina soldiers, collect ten remains from their corpses and deliver them to Council Elder Baruhi.
 
+- **Chain** (explicit prerequisite links): Traitors to the Cause chain (5 missions), step 2
+  - Requires: Traitors to the Cause (id 570) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Machinations), [TaRapedia](https://tabularasa.fandom.com/wiki/Traitors_to_the_Cause), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: The Escapist (id 593) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Machinations), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Escapist)
 ### 593 — The Escapist [instance]
 
 - **Instance:** Pravus Research — NPC Ranger Nylla (named as giver/receiver) is in Pravus Research — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Ranger_Nylla)
@@ -21655,6 +23734,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Ranger Nylla](https://tabularasa.fandom.com/wiki/Ranger_Nylla): Pravus Research Facility, AFS Preperation Camp, /loc -180.0, 5.0, -120.0 (named as giver/receiver)
 - **Ellatha NPC** [Ranger Nylla](https://www.ellatha.com/tr/npcview.asp?key=Ranger+Nylla&id=69): Forean; loc -185,5,-123; zone Pravus Research (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Traitors to the Cause chain (5 missions), step 3
+  - Requires: Machinations (id 574) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Machinations), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Escapist)
+  - Leads to: The Means of Production (id 575) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Means_of_Production)
 ### 623 — Smuggler's Blues [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -21701,6 +23783,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [Stim Dust](https://tabularasa.fandom.com/wiki/Stim_Dust): Stim Dust are mission items required for the quest Smuggler's Blues and Suspicious Minds. Private Moore will give you 3 packets of Stim Dust after you accept the mission, Smuggler's Blues. You can either deliver the packets and complete his mission or report him to Outpost Cmdr Taylor in the …
 
+- **Chain** (explicit prerequisite links): Smuggler's Blues chain (2 missions), step 1
+  - Leads to: Suspicious Minds (id 791) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Smuggler%27s_Blues), [TaRapedia](https://tabularasa.fandom.com/wiki/Suspicious_Minds)
 ### 665 — Cache of the Day [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -21746,6 +23830,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Squad Leader Rodriguez](https://tabularasa.fandom.com/wiki/Squad_Leader_Rodriguez): Wilderness, Landing Zone L.Z., /loc 192.5, 163.2, -69.5 (NPC page lists this mission)
 - **Ellatha NPC** [Squad Leader Rodriguez](https://www.ellatha.com/tr/npcview.asp?key=Squad+Leader+Rodriguez&id=33): Human; loc 192,163,-69; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Cache of the Day chain (2 missions), step 1
+  - Leads to: Escape Velocity (id 666) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Escape_Velocity)
 ### 666 — Escape Velocity [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -21784,6 +23870,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Squad Leader Rodriguez](https://tabularasa.fandom.com/wiki/Squad_Leader_Rodriguez): Wilderness, Landing Zone L.Z., /loc 192.5, 163.2, -69.5 (named as giver/receiver)
 - **Ellatha NPC** [Sgt. Pierre](https://www.ellatha.com/tr/npcview.asp?key=Sgt%2E+Pierre&id=34): Human; loc -281,170,86; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Cache of the Day chain (2 missions), step 2
+  - Requires: Cache of the Day (id 665) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Escape_Velocity)
 ### 679 — Going Native [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -21829,6 +23917,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Dr. Eleanor Corman](https://www.ellatha.com/tr/npcview.asp?key=Dr%2E+Eleanor+Corman&id=60): Human; loc -756,171,-278; zone Wilderness (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Dr. Eleanor Corman](https://www.ellatha.com/tr/npcview.asp?key=Dr.+Eleanor+Corman): Human; loc -756,171,-278; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Quarantine chain (11 missions), step 4
+  - Requires: Contents Under Pressure (id 425) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Contents_Under_Pressure), [TaRapedia](https://tabularasa.fandom.com/wiki/Going_Native), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: A Visit To The Elders (id 451) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Visit_To_The_Elders), [TaRapedia](https://tabularasa.fandom.com/wiki/Going_Native), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 682 — Childhood's End [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -21873,6 +23964,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Ranger Anjuhi](https://www.ellatha.com/tr/npcview.asp?key=Ranger+Anjuhi&id=64): Forean; loc -475,193,519; zone Wilderness (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Ranger Tirna](https://www.ellatha.com/tr/npcview.asp?key=Ranger+Tirna&id=65): Forean; loc -495,216,532; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Quarantine chain (11 missions), step 6
+  - Requires: A Visit To The Elders (id 451) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Visit_To_The_Elders), [TaRapedia](https://tabularasa.fandom.com/wiki/Childhood%27s_End), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Herbal Remedy (id 695) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Childhood%27s_End), [TaRapedia](https://tabularasa.fandom.com/wiki/Herbal_Remedy), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 695 — Herbal Remedy [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -21922,6 +24016,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [Tinctu Herb](https://tabularasa.fandom.com/wiki/Tinctu_Herb): These herbs come from plants that are growing in Lake Tinctu. They are guarded by three Thrax Wilderness Officers Old Scratch, Horntail and Archfiend. They will need to be killed before you can gather this herb. To gather the herbs simply walk up to one of the plants and activate it. These herbs …
 
+- **Chain** (explicit prerequisite links): Quarantine chain (11 missions), step 7
+  - Requires: Childhood's End (id 682) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Childhood%27s_End), [TaRapedia](https://tabularasa.fandom.com/wiki/Herbal_Remedy), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Elixir Vitae (id 698) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Elixir_Vitae), [TaRapedia](https://tabularasa.fandom.com/wiki/Herbal_Remedy), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 696 — Xanx For The Memories [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -22036,6 +24133,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Dr. Eleanor Corman](https://www.ellatha.com/tr/npcview.asp?key=Dr.+Eleanor+Corman): Human; loc -756,171,-278; zone Wilderness (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Elder Gadfly](https://www.ellatha.com/tr/npcview.asp?key=Elder+Gadfly&id=67): Forean; loc -542,278,885; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Quarantine chain (11 missions), step 8
+  - Requires: Herbal Remedy (id 695) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Elixir_Vitae), [TaRapedia](https://tabularasa.fandom.com/wiki/Herbal_Remedy), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Traveling Medicine Show (id 700) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Elixir_Vitae), [TaRapedia](https://tabularasa.fandom.com/wiki/Traveling_Medicine_Show), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Traveling Medicine Show (id 820) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Elixir_Vitae), [TaRapedia](https://tabularasa.fandom.com/wiki/Traveling_Medicine_Show), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 700 — Traveling Medicine Show [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -22075,6 +24176,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Dr. Gwen Duvall-Corman](https://www.ellatha.com/tr/npcview.asp?key=Dr%2E+Gwen+Duvall%2DCorman&id=68): Human; loc -604,276,892; zone Wilderness (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Dr. Eleanor Corman](https://www.ellatha.com/tr/npcview.asp?key=Dr.+Eleanor+Corman): Human; loc -756,171,-278; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Quarantine chain (11 missions), step 9
+  - Requires: Elixir Vitae (id 698) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Elixir_Vitae), [TaRapedia](https://tabularasa.fandom.com/wiki/Traveling_Medicine_Show), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Orders From High Command (id 701) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Orders_From_High_Command), [TaRapedia](https://tabularasa.fandom.com/wiki/Traveling_Medicine_Show)
 ### 701 — Orders From High Command [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -22109,6 +24213,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [Corman Plague Vaccination](https://tabularasa.fandom.com/wiki/Corman_Plague_Vaccination): This is crafted from the extract of the Tinctu Herb found in Lake Tinctu. Created in Mission: *Elixir Vitae Required for Missions: *Orders From High Command *Traveling Medicine Show
 
+- **Chain** (explicit prerequisite links): Quarantine chain (11 missions), step 10
+  - Requires: Traveling Medicine Show (id 700) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Orders_From_High_Command), [TaRapedia](https://tabularasa.fandom.com/wiki/Traveling_Medicine_Show)
+  - Requires: Traveling Medicine Show (id 820) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Orders_From_High_Command), [TaRapedia](https://tabularasa.fandom.com/wiki/Traveling_Medicine_Show)
 ### 706 — The Fate Of The Callisto [instance]
 
 - **Instance:** Guardian Prominence — NPC Researcher Anand (named as giver/receiver) is in Guardian Prominence — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Researcher_Anand)
@@ -22134,6 +24241,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Researcher Anand](https://tabularasa.fandom.com/wiki/Researcher_Anand): Guardian Prominence, Contact, /loc 154.0, 316.8, 196.1 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): The Fate Of The Callisto chain (2 missions), step 1
+  - Leads to: The Chamber Of Eternity (id 1127) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Chamber_of_Eternity), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Fate_of_the_Callisto)
 ### 708 — Breaking The Chain Of Command [instance]
 
 - **Instance:** Guardian Prominence — NPC Lieutenant Danchekker (named as giver/receiver) is in Guardian Prominence — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Lieutenant_Danchekker)
@@ -22222,6 +24331,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - These can be found on the Boargar in the wilderness nearby — source: [TR MMO DB](https://web.archive.org/web/20071015142857/http://tr.mmodb.com:80/quests/boargar-acquisition-9.php)
   - Both mission items drop from each Boargar kill — source: [BradyGames guide sample](https://web.archive.org/web/20090317004540/http://www.bradygames.com/content/images/9780744009439/samplechapter/tabularasa.pdf)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 1
+  - Leads to: Treelurker Samples (id 780) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Boargar_Acquisition), [TaRapedia](https://tabularasa.fandom.com/wiki/Treelurker_Samples)
 ### 758 — Fithikally Challenged [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -22257,6 +24368,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Dr. Soji](https://www.ellatha.com/tr/npcview.asp?key=Dr%2E+Soji&id=47): Human; loc -749,171,-272; zone Wilderness (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Dr. Soji](https://www.ellatha.com/tr/npcview.asp?key=Dr.+Soji): Human; loc -749,171,-272; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Soldier's Blood chain (7 missions), step 4
+  - Requires: Droning On (id 771) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Droning_On), [TaRapedia](https://tabularasa.fandom.com/wiki/Fithikally_Challenged), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Xanx For the Help (id 787) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Fithikally_Challenged), [TaRapedia](https://tabularasa.fandom.com/wiki/Xanx_For_the_Help), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 767 — Mighty Miasma
 
 - **Rebuild summary:**
@@ -22299,6 +24413,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Drops / item sources:**
   - These drop from Miasmas in the Pinhole Falls to the west — source: [TR MMO DB](https://web.archive.org/web/20071015142953/http://tr.mmodb.com:80/quests/mighty-miasma-17.php)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 12
+  - Requires: Lurking In The Shadows (id 427) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mighty_Miasma)
+  - Requires: Treelurker Samples (id 780) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Treelurker_Samples)
 ### 769 — Predatory [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -22342,6 +24459,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Dr. Soji](https://www.ellatha.com/tr/npcview.asp?key=Dr%2E+Soji&id=47): Human; loc -749,171,-272; zone Wilderness (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Dr. Soji](https://www.ellatha.com/tr/npcview.asp?key=Dr.+Soji): Human; loc -749,171,-272; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Soldier's Blood chain (7 missions), step 6
+  - Requires: Xanx For the Help (id 787) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Predatory), [TaRapedia](https://tabularasa.fandom.com/wiki/Xanx_For_the_Help), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 771 — Droning On [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -22385,6 +24504,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Dr. Ojy](https://www.ellatha.com/tr/npcview.asp?key=Dr%2E+Ojy&id=32): Human; loc 155,163,-91; zone Wilderness (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Dr. Ojy](https://www.ellatha.com/tr/npcview.asp?key=Dr.+Ojy): Human; loc 155,163,-91; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Soldier's Blood chain (7 missions), step 3
+  - Requires: Lightbender Glands (id 795) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Droning_On), [TaRapedia](https://tabularasa.fandom.com/wiki/Lightbender_Glands), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Fithikally Challenged (id 758) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Droning_On), [TaRapedia](https://tabularasa.fandom.com/wiki/Fithikally_Challenged), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 776 — Soldier's Blood [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -22433,6 +24555,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [Thrax Blood Sample](https://tabularasa.fandom.com/wiki/Thrax_Blood_Sample): Thrax Blood Samples are mission items required for the quest Soldier's Blood. The player must kill Thrax soldiers, collect ten blood samples from their corpses and deliver them to Dr. Ojy.
 
+- **Chain** (explicit prerequisite links): Soldier's Blood chain (7 missions), step 1
+  - Leads to: Lightbender Glands (id 795) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Lightbender_Glands), [TaRapedia](https://tabularasa.fandom.com/wiki/Soldier%27s_Blood), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 777 — Soldier's Blood
 
 - **Rebuild summary:**
@@ -22477,6 +24601,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [Thrax Blood Sample](https://tabularasa.fandom.com/wiki/Thrax_Blood_Sample): Thrax Blood Samples are mission items required for the quest Soldier's Blood. The player must kill Thrax soldiers, collect ten blood samples from their corpses and deliver them to Dr. Ojy.
 
+- **Chain** (explicit prerequisite links): Soldier's Blood chain (7 missions), step 1
+  - Leads to: Lightbender Glands (id 795) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Lightbender_Glands), [TaRapedia](https://tabularasa.fandom.com/wiki/Soldier%27s_Blood)
 ### 780 — Treelurker Samples
 
 - **Rebuild summary:**
@@ -22519,6 +24645,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [Tree Lurker DNA](https://tabularasa.fandom.com/wiki/Tree_Lurker_DNA): no description
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 2
+  - Requires: Boargar Acquisition (id 751) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Boargar_Acquisition), [TaRapedia](https://tabularasa.fandom.com/wiki/Treelurker_Samples)
+  - Leads to: Mighty Miasma (id 767) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Treelurker_Samples)
 ### 787 — Xanx For the Help [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -22558,6 +24687,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [Xanx Pincers](https://tabularasa.fandom.com/wiki/Xanx_Pincers): The pincers of a Xanx. Needed for the mission Xanx For the Help.
 
+- **Chain** (explicit prerequisite links): Soldier's Blood chain (7 missions), step 5
+  - Requires: Fithikally Challenged (id 758) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Fithikally_Challenged), [TaRapedia](https://tabularasa.fandom.com/wiki/Xanx_For_the_Help), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Predatory (id 769) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Predatory), [TaRapedia](https://tabularasa.fandom.com/wiki/Xanx_For_the_Help), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 791 — Suspicious Minds [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -22598,6 +24730,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Outpost Cmdr Taylor](https://tabularasa.fandom.com/wiki/Outpost_Cmdr_Taylor): Wilderness, Twin Pillars Outpost (NPC page lists this mission)
   - [Private Moore](https://tabularasa.fandom.com/wiki/Private_Moore): Wilderness, Twin Pillars, /loc -128, 220, -466 (named in client text)
 
+- **Chain** (explicit prerequisite links): Smuggler's Blues chain (2 missions), step 2
+  - Requires: Smuggler's Blues (id 623) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Smuggler%27s_Blues), [TaRapedia](https://tabularasa.fandom.com/wiki/Suspicious_Minds)
 ### 795 — Lightbender Glands [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -22645,6 +24779,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [Lightbender Gland](https://tabularasa.fandom.com/wiki/Lightbender_Gland): Lightbender Glands are mission items required for the quest Lightbender Glands. The player must kill Lightbender soldiers, collect four glands from their corpses and deliver them to Dr. Ojy.
 
+- **Chain** (explicit prerequisite links): Soldier's Blood chain (7 missions), step 2
+  - Requires: Soldier's Blood (id 776) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Lightbender_Glands), [TaRapedia](https://tabularasa.fandom.com/wiki/Soldier%27s_Blood), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Requires: Soldier's Blood (id 777) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Lightbender_Glands), [TaRapedia](https://tabularasa.fandom.com/wiki/Soldier%27s_Blood)
+  - Leads to: Droning On (id 771) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Droning_On), [TaRapedia](https://tabularasa.fandom.com/wiki/Lightbender_Glands), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 813 — Exposing the Traitors
 
 - **Rebuild summary:**
@@ -22673,6 +24811,12 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Agent Franz](https://tabularasa.fandom.com/wiki/Agent_Franz): Divide, Foreas Base, /loc 107.7, 59.0, 442.1 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Top Secret Salvage chain (11 missions), step 6
+  - Requires: Shoot the Messenger (id 819) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Shoot_The_Messenger)
+  - Requires: Message in a Bottle (id 809) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Exposing_the_Traitors), [TaRapedia](https://tabularasa.fandom.com/wiki/Message_in_a_Bottle)
+  - Leads to: Prison Break (id 822) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Exposing_the_Traitors), [TaRapedia](https://tabularasa.fandom.com/wiki/Prison_Break)
+  - Leads to: Prison Break (id 823) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Exposing_the_Traitors), [TaRapedia](https://tabularasa.fandom.com/wiki/Prison_Break)
+- **TR MMO DB quest series:** "Care And Feeding Of Prisoners", row 3 of 4 ([list](https://web.archive.org/web/20080419043450/http://tr.mmodb.com:80/quests/seriesname-care_and_feeding_of_prisoners/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 820 — Traveling Medicine Show [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -22712,6 +24856,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Dr. Gwen Duvall-Corman](https://www.ellatha.com/tr/npcview.asp?key=Dr%2E+Gwen+Duvall%2DCorman&id=68): Human; loc -604,276,892; zone Wilderness (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Dr. Eleanor Corman](https://www.ellatha.com/tr/npcview.asp?key=Dr.+Eleanor+Corman): Human; loc -756,171,-278; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Quarantine chain (11 missions), step 9
+  - Requires: Elixir Vitae (id 698) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Elixir_Vitae), [TaRapedia](https://tabularasa.fandom.com/wiki/Traveling_Medicine_Show), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Orders From High Command (id 701) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Orders_From_High_Command), [TaRapedia](https://tabularasa.fandom.com/wiki/Traveling_Medicine_Show)
 ### 822 — Prison Break
 
 - **Rebuild summary:**
@@ -22729,6 +24876,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Agent Franz](https://tabularasa.fandom.com/wiki/Agent_Franz): Divide, Foreas Base, /loc 107.7, 59.0, 442.1 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Top Secret Salvage chain (11 missions), step 7
+  - Requires: Exposing the Traitors (id 813) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Exposing_the_Traitors), [TaRapedia](https://tabularasa.fandom.com/wiki/Prison_Break)
+  - Requires: Exposing the Traitors (id 824) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Exposing_the_Traitors), [TaRapedia](https://tabularasa.fandom.com/wiki/Prison_Break)
 ### 823 — Prison Break
 
 - **Rebuild summary:**
@@ -22747,6 +24897,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Agent Franz](https://tabularasa.fandom.com/wiki/Agent_Franz): Divide, Foreas Base, /loc 107.7, 59.0, 442.1 (NPC page lists this mission)
   - [Conscript Thull](https://tabularasa.fandom.com/wiki/Conscript_Thull): Wilderness, Foreas Base, /loc 116.3, 62.3, 443.0 (named in client text)
 
+- **Chain** (explicit prerequisite links): Top Secret Salvage chain (11 missions), step 7
+  - Requires: Exposing the Traitors (id 813) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Exposing_the_Traitors), [TaRapedia](https://tabularasa.fandom.com/wiki/Prison_Break)
+  - Requires: Exposing the Traitors (id 824) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Exposing_the_Traitors), [TaRapedia](https://tabularasa.fandom.com/wiki/Prison_Break)
 ### 824 — Exposing the Traitors
 
 - **Rebuild summary:**
@@ -22775,6 +24928,12 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Agent Franz](https://tabularasa.fandom.com/wiki/Agent_Franz): Divide, Foreas Base, /loc 107.7, 59.0, 442.1 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Top Secret Salvage chain (11 missions), step 6
+  - Requires: Shoot the Messenger (id 819) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Shoot_The_Messenger)
+  - Requires: Message in a Bottle (id 809) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Exposing_the_Traitors), [TaRapedia](https://tabularasa.fandom.com/wiki/Message_in_a_Bottle)
+  - Leads to: Prison Break (id 822) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Exposing_the_Traitors), [TaRapedia](https://tabularasa.fandom.com/wiki/Prison_Break)
+  - Leads to: Prison Break (id 823) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Exposing_the_Traitors), [TaRapedia](https://tabularasa.fandom.com/wiki/Prison_Break)
+- **TR MMO DB quest series:** "Care And Feeding Of Prisoners", row 3 of 4 ([list](https://web.archive.org/web/20080419043450/http://tr.mmodb.com:80/quests/seriesname-care_and_feeding_of_prisoners/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 ### 836 — Incoming!
 
 - **Rebuild summary:**
@@ -22809,6 +24968,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Lieutenant Seguine](https://www.ellatha.com/tr/npcview.asp?key=Lieutenant+Seguine&id=54): Human; loc -556,162,426; zone Divide (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Scott Corman](https://www.ellatha.com/tr/npcview.asp?key=Scott+Corman&id=53): Human; loc -697,170,-281; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Requires (name not matched to a mission):** Level 11 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Incoming%21)
 ### 859 — To the Caves
 
 - **Instance mentioned:** Caves of Donn — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -22845,6 +25005,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - To the Caves from Council Elder Nula in Ranja Gorge (-709.7, 170.1, -337.8). — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/caves-of-donn-instance)
 - **Ellatha NPC** [Council Elder Nula](https://www.ellatha.com/tr/npcview.asp?key=Council+Elder+Nula&id=49): Forean; loc -709,170,-335; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): To the Caves chain (2 missions), step 1
+  - Leads to: Too Quiet (id 674) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Too_Quiet)
 ### 860 — Sacs And Violence [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -22925,6 +25087,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Receptive Liaison Langerman](https://www.ellatha.com/tr/npcview.asp?key=Receptive+Liaison+Langerman): Human; loc 870,294,385; zone Wilderness (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Receptive Liaison Langerman](https://www.ellatha.com/tr/npcview.asp?key=Receptive+Liaison+Langerman&id=21): Human; loc 870,294,385; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 9
+  - Requires: Receptive Reception (id 1069) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Logos%3A_Damage), [TaRapedia](https://tabularasa.fandom.com/wiki/Receptive_Reception), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 908 — Logos: Enemy [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -22962,6 +25126,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Receptive Liaison Standley](https://tabularasa.fandom.com/wiki/Receptive_Liaison_Standley): Wilderness, Twin Pillars, /loc -110.0, 220.0, -490.0 (NPC page lists this mission)
 - **Ellatha NPC** [Receptive Liaison Standley](https://www.ellatha.com/tr/npcview.asp?key=Receptive+Liaison+Standley&id=44): Human; loc -110,220,-494; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 9
+  - Requires: Receptive Reception (id 1069) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Logos%3A_Enemy), [TaRapedia](https://tabularasa.fandom.com/wiki/Receptive_Reception), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 909 — Logos: Time [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -23004,6 +25170,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Receptive Liaison Langerman](https://www.ellatha.com/tr/npcview.asp?key=Receptive+Liaison+Langerman): Human; loc 870,294,385; zone Wilderness (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Receptive Liaison Langerman](https://www.ellatha.com/tr/npcview.asp?key=Receptive+Liaison+Langerman&id=21): Human; loc 870,294,385; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 9
+  - Requires: Receptive Reception (id 1069) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Logos%3A_Time), [TaRapedia](https://tabularasa.fandom.com/wiki/Receptive_Reception), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 911 — Logos: Mind [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -23118,6 +25286,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Receptive Liaison Langerman](https://www.ellatha.com/tr/npcview.asp?key=Receptive+Liaison+Langerman): Human; loc 870,294,385; zone Wilderness (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Receptive Liaison Langerman](https://www.ellatha.com/tr/npcview.asp?key=Receptive+Liaison+Langerman&id=21): Human; loc 870,294,385; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 9
+  - Requires: Receptive Reception (id 1069) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Logos%3A_Projectile), [TaRapedia](https://tabularasa.fandom.com/wiki/Receptive_Reception), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 923 — Logos: Feeling, Trap, Heal [instance]
 
 - **Instance:** Caves of Donn — client objective/log text: "Bring conclusive evidence of the Logos terminals for Heal, Trap and Feeling from within the Caves of Donn."
@@ -23242,6 +25412,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Colonel Whitaker](https://tabularasa.fandom.com/wiki/Colonel_Whitaker): Plains, Irendas Penal Colony, /loc 320, 499, -47 (named as giver/receiver)
 
+- **Chain** (explicit prerequisite links): Pieces of the Puzzle chain (11 missions), step 9
+  - Requires: The Benefactor (id 1091) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Arieki_%28mission%29), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Benefactor)
 ### 1055 — Destroying the Evidence [instance]
 
 - **Instance:** Crater Lake Research Facility — NPC Captain Velns (NPC page lists this mission) is in Crater Lake Research Facility — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Captain_Velns)
@@ -23271,6 +25443,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Captain Velns](https://tabularasa.fandom.com/wiki/Captain_Velns): Crater Lake Research Facility, Crater Lake Research Facility, /loc 30.0, 140.0, 200.0 (NPC page lists this mission)
 - **Ellatha NPC** [Captain Velns](https://www.ellatha.com/tr/npcview.asp?key=Captain+Velns&id=74): Human; loc 32,139,199; zone Crater Lake Research (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Destroying the Evidence chain (4 missions), step 1
+  - Leads to: Reclaiming What's Ours (id 1056) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Destroying_the_Evidence), [TaRapedia](https://tabularasa.fandom.com/wiki/Reclaiming_What%27s_Ours)
 ### 1069 — Receptive Reception [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -23320,6 +25494,20 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Council Elder Solis](https://www.ellatha.com/tr/npcview.asp?key=Council+Elder+Solis&id=7): Forean; loc 789,287,583; zone Wilderness (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Warrior Apirka](https://www.ellatha.com/tr/npcview.asp?key=Warrior+Apirka&id=8): Forean; loc 826,301,499; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 8
+  - Requires: Too Close For Comfort (id 1407) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Receptive_Reception), [TaRapedia](https://tabularasa.fandom.com/wiki/Too_Close_For_Comfort), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Requires: Reporting For Duty. Sir! — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Reporting_For_Duty._Sir%21)
+  - Leads to: Miner Difficulties (id 422) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Miner_Difficulties), [TaRapedia](https://tabularasa.fandom.com/wiki/Receptive_Reception), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Forming Alliances (id 479) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Forming_Alliances), [TaRapedia](https://tabularasa.fandom.com/wiki/Receptive_Reception), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Logos: Damage (id 907) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Logos%3A_Damage), [TaRapedia](https://tabularasa.fandom.com/wiki/Receptive_Reception), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Logos: Enemy (id 908) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Logos%3A_Enemy), [TaRapedia](https://tabularasa.fandom.com/wiki/Receptive_Reception), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Logos: Time (id 909) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Logos%3A_Time), [TaRapedia](https://tabularasa.fandom.com/wiki/Receptive_Reception), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Logos: Projectile (id 921) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Logos%3A_Projectile), [TaRapedia](https://tabularasa.fandom.com/wiki/Receptive_Reception), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Logos: Power (id 1639) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Logos%3A_Power), [TaRapedia](https://tabularasa.fandom.com/wiki/Receptive_Reception), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Logos: Area (id 1640) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Logos%3A_Area), [TaRapedia](https://tabularasa.fandom.com/wiki/Receptive_Reception), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Life of the Party — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Life_of_the_Party)
+  - Leads to: Logos: Attack, Target, Here — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Logos%3A_Attack%2C_Target%2C_Here)
+  - Leads to: Multi-Tusking — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Multi-Tusking)
 ### 1091 — The Benefactor
 
 - **Instance mentioned:** Eloh Vale — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -23342,6 +25530,12 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TR MMO DB quest series** [Report To Commander Jaxon](https://web.archive.org/web/20120731161648/http://tr.mmodb.com/quests/seriesname-report_to_commander_jaxon/): Crossing the Bridge (level 22, reward 4000) → Protect the Benefactor (level 22, reward 5000) → Provision Procurement (level 22, reward 4000) → Report to Commander Jaxon (level 22, reward 3000) → Sacrificial Lamb (level 22, reward 5000) → The Benefactor (level 22, reward 3000) → Wipeout (level 22, reward 3000) (series order as listed on the page; reward unit not stated)
 - **WarCry TR** [tr.warcry.com:80/forums/read/191.41359](https://web.archive.org/web/20070630095135/http://tr.warcry.com:80/forums/read/191.41359): “What is more, to gain the strength to fight the Bane, soldiers must be of sound mind. Part of that quest involves discovering the secrets of Logos. The Benefactor Project is a quest to unearth the first of what we can only assume are many messages in this most sacred of languages.”
 
+- **Chain** (explicit prerequisite links): Pieces of the Puzzle chain (11 missions), step 8
+  - Requires: Protect the Benefactor (id 821) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Protect_the_Benefactor)
+  - Requires: Sacrificial Lamb (id 825) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Sacrificial_Lamb)
+  - Leads to: Arieki (id 1038) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Arieki_%28mission%29), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Benefactor)
+- **TR MMO DB quest series:** "Report To Commander Jaxon", row 6 of 7 ([list](https://web.archive.org/web/20120731161648/http://tr.mmodb.com/quests/seriesname-report_to_commander_jaxon/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires (name not matched to a mission):** Protect the Benefactor OR Sacrificial Lamb — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Benefactor)
 ### 1127 — The Chamber Of Eternity
 
 - **Instance mentioned:** Guardian Prominence — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
@@ -23361,6 +25555,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Luminary Sampei](https://tabularasa.fandom.com/wiki/Luminary_Sampei): Plateau, New Velon Village, /loc 259, 352, 619 (named in client text)
 
+- **Chain** (explicit prerequisite links): The Fate Of The Callisto chain (2 missions), step 2
+  - Requires: The Fate Of The Callisto (id 706) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Chamber_of_Eternity), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Fate_of_the_Callisto)
+- **Requires an instance mission:** The Fate Of The Callisto (706) — source: the chain links above
 ### 1390 — Conscientious Objector [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -23406,6 +25603,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Elder Quillas](https://www.ellatha.com/tr/npcview.asp?key=Elder+Quillas&id=9): Forean; loc 791,298,111; zone Wilderness (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Warrior Apirka](https://www.ellatha.com/tr/npcview.asp?key=Warrior+Apirka&id=8): Forean; loc 826,301,499; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 11
+  - Requires: Forming Alliances (id 479) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Conscientious_Objector), [TaRapedia](https://tabularasa.fandom.com/wiki/Forming_Alliances), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Conscientious Objector - Part Two (id 1392) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Conscientious_Objector), [TaRapedia](https://tabularasa.fandom.com/wiki/Conscientious_Objector_-_Part_Two), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+  - Leads to: Conscientious Objector - Part Two (id 1393) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Conscientious_Objector), [TaRapedia](https://tabularasa.fandom.com/wiki/Conscientious_Objector_-_Part_Two), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 1392 — Conscientious Objector - Part Two [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -23445,6 +25646,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Outpost Commander Rogers](https://www.ellatha.com/tr/npcview.asp?key=Outpost+Commander+Rogers&id=5): Human; loc 857,294,388; zone Wilderness (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Warrior Apirka](https://www.ellatha.com/tr/npcview.asp?key=Warrior+Apirka&id=8): Forean; loc 826,301,499; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 12
+  - Requires: Conscientious Objector (id 1390) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Conscientious_Objector), [TaRapedia](https://tabularasa.fandom.com/wiki/Conscientious_Objector_-_Part_Two), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 1393 — Conscientious Objector - Part Two [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -23484,6 +25687,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Outpost Commander Rogers](https://www.ellatha.com/tr/npcview.asp?key=Outpost+Commander+Rogers&id=5): Human; loc 857,294,388; zone Wilderness (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Warrior Apirka](https://www.ellatha.com/tr/npcview.asp?key=Warrior+Apirka&id=8): Forean; loc 826,301,499; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 12
+  - Requires: Conscientious Objector (id 1390) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Conscientious_Objector), [TaRapedia](https://tabularasa.fandom.com/wiki/Conscientious_Objector_-_Part_Two), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 1407 — Too Close For Comfort [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -23528,6 +25733,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Council Elder Moawi](https://www.ellatha.com/tr/npcview.asp?key=Council+Elder+Moawi&id=6): Forean; loc 810,302,500; zone Wilderness (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Council Elder Solis](https://www.ellatha.com/tr/npcview.asp?key=Council+Elder+Solis&id=7): Forean; loc 789,287,583; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 1
+  - Leads to: Receptive Reception (id 1069) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Receptive_Reception), [TaRapedia](https://tabularasa.fandom.com/wiki/Too_Close_For_Comfort), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 1449 — Wilderness Targets of Opportunity [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -23833,6 +26040,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Receptive Liaison Langerman](https://www.ellatha.com/tr/npcview.asp?key=Receptive+Liaison+Langerman): Human; loc 870,294,385; zone Wilderness (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Receptive Liaison Langerman](https://www.ellatha.com/tr/npcview.asp?key=Receptive+Liaison+Langerman&id=21): Human; loc 870,294,385; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 9
+  - Requires: Receptive Reception (id 1069) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Logos%3A_Power), [TaRapedia](https://tabularasa.fandom.com/wiki/Receptive_Reception), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 1640 — Logos: Area [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -23874,6 +26083,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Receptive Liaison Langerman](https://www.ellatha.com/tr/npcview.asp?key=Receptive+Liaison+Langerman): Human; loc 870,294,385; zone Wilderness (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Receptive Liaison Langerman](https://www.ellatha.com/tr/npcview.asp?key=Receptive+Liaison+Langerman&id=21): Human; loc 870,294,385; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 9
+  - Requires: Receptive Reception (id 1069) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Logos%3A_Area), [TaRapedia](https://tabularasa.fandom.com/wiki/Receptive_Reception), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 1741 — Report to Liaison Standley [implemented]
 
 - **Implemented:** enabled on the local server (content revision wilderness_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -23998,6 +26209,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Warden Brocail](https://tabularasa.fandom.com/wiki/Warden_Brocail): Palisades, Walk of Giants (named in client text)
 
+- **Chain** (explicit prerequisite links): A Spiritual Pilgrimage chain (37 missions), step 8
+  - Requires: Temple of the Patriarch Protector (id 417) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Temple_of_the_Patriarch_Protector)
+  - Requires: A Spiritual Pilgrimage (id 1988) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Spiritual_Pilgrimage)
 ### 1999 — Soyuz Salvage: Wilderness
 
 - **Rebuild summary:**
@@ -25365,6 +27579,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TR MMO DB quest series** [Big Meanies](https://web.archive.org/web/20120731162007/http://tr.mmodb.com/quests/seriesname-big_meanies/): Big Meanies (level 45, reward 9000) → Lost Little Monster (level 45, reward 9000) (series order as listed on the page; reward unit not stated)
 - **Link:** [TR MMO DB quest series "Big Meanies": level 45](https://web.archive.org/web/20120731162007/http://tr.mmodb.com/quests/seriesname-big_meanies/)
 
+- **Chain** (explicit prerequisite links): Big Meanies chain (7 missions), step 1
+  - Leads to: Lost Little Monster — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Big_Meanies), [TaRapedia](https://tabularasa.fandom.com/wiki/Lost_Little_Monster)
+- **TR MMO DB quest series:** "Big Meanies", row 1 of 2 ([list](https://web.archive.org/web/20120731162007/http://tr.mmodb.com/quests/seriesname-big_meanies/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 #### Not in client — Lost Little Monster
 
 - **Rebuild summary:**
@@ -25383,6 +27600,11 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TR MMO DB quest series** [Big Meanies](https://web.archive.org/web/20120731162007/http://tr.mmodb.com/quests/seriesname-big_meanies/): Big Meanies (level 45, reward 9000) → Lost Little Monster (level 45, reward 9000) (series order as listed on the page; reward unit not stated)
 - **Link:** [TR MMO DB quest series "Big Meanies": level 45](https://web.archive.org/web/20120731162007/http://tr.mmodb.com/quests/seriesname-big_meanies/)
 
+- **Chain** (explicit prerequisite links): Big Meanies chain (7 missions), step 2
+  - Requires: Consensus (id 1942) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Consensus)
+  - Requires: Big Meanies — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Big_Meanies), [TaRapedia](https://tabularasa.fandom.com/wiki/Lost_Little_Monster)
+- **TR MMO DB quest series:** "Big Meanies", row 2 of 2 ([list](https://web.archive.org/web/20120731162007/http://tr.mmodb.com/quests/seriesname-big_meanies/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+- **Requires an instance mission:** Consensus (1942) — source: the chain links above
 #### Not in client — Way and Means
 
 - Possible rename / duplicate of client mission 1946 Ways And Means (ESTIMATE: title similarity only).
@@ -25444,6 +27666,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Collector's Head](https://tabularasa.fandom.com/wiki/Collector%27s_Head): The Collector's Head is the head of The Collector, a Thrax boss. He can be found in Luna Caverns. You must kill him, take the head from his corpse and take it to Specialist Vance as an objective of the mission A Tale of Elements.
   - [Dissector's Head](https://tabularasa.fandom.com/wiki/Dissector%27s_Head): The Dissector's Head is the head of The Dissector, a Thrax boss. He can be found in Luna Caverns. You must kill him, take the head from his corpse and take it to Specialist Vance as an objective of the mission A Tale of Elements.
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 4
+  - Requires: Carpe Diem — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Tale_of_Elements), [TaRapedia](https://tabularasa.fandom.com/wiki/Carpe_Diem)
+  - Leads to: The Last Stand — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Tale_of_Elements), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Last_Stand)
 #### Not in client — Basic Training 101
 
 - **Rebuild summary:**
@@ -25469,6 +27694,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Commander Elvers](https://tabularasa.fandom.com/wiki/Commander_Elvers): Bootcamp, Denzil's Caldera, /loc -228, 102, -76 (NPC page lists this mission)
 - **Ellatha NPC** [Commander Elvers](https://www.ellatha.com/tr/npcview.asp?key=Commander+Elvers&id=1): Human; loc Spawns in 3 different spots; zone Bootcamp (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 1
+  - Leads to: Obstruction Destruction — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Basic_Training_101), [TaRapedia](https://tabularasa.fandom.com/wiki/Obstruction_Destruction)
 #### Not in client — Bootcamp Bypass
 
 - **Rebuild summary:**
@@ -25514,6 +27741,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Commander Elvers](https://tabularasa.fandom.com/wiki/Commander_Elvers): Bootcamp, Denzil's Caldera, /loc -228, 102, -76 (NPC page lists this mission)
 - **Ellatha NPC** [Commander Elvers](https://www.ellatha.com/tr/npcview.asp?key=Commander+Elvers&id=1): Human; loc Spawns in 3 different spots; zone Bootcamp (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 3
+  - Requires: Obstruction Destruction — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Carpe_Diem), [TaRapedia](https://tabularasa.fandom.com/wiki/Obstruction_Destruction)
+  - Leads to: A Tale of Elements — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Tale_of_Elements), [TaRapedia](https://tabularasa.fandom.com/wiki/Carpe_Diem)
 #### Not in client — Moving Up to the Big League
 
 - **Rebuild summary:**
@@ -25543,6 +27773,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Evac Pilot Constant](https://www.ellatha.com/tr/npcview.asp?key=Evac+Pilot+Constant&id=3): Human; loc 93,109,127; zone Bootcamp (Ellatha lists this mission for the NPC)
 - **Ellatha NPC** [Outpost Commander Rogers](https://www.ellatha.com/tr/npcview.asp?key=Outpost+Commander+Rogers&id=5): Human; loc 857,294,388; zone Wilderness (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 6
+  - Requires: The Last Stand — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Moving_Up_to_the_Big_League), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Last_Stand)
+  - Leads to: Reporting For Duty. Sir! — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Reporting_For_Duty._Sir%21)
 #### Not in client — Obstruction Destruction
 
 - **Rebuild summary:**
@@ -25566,6 +27799,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Commander Elvers](https://tabularasa.fandom.com/wiki/Commander_Elvers): Bootcamp, Denzil's Caldera, /loc -228, 102, -76 (NPC page lists this mission)
 - **Ellatha NPC** [Commander Elvers](https://www.ellatha.com/tr/npcview.asp?key=Commander+Elvers&id=1): Human; loc Spawns in 3 different spots; zone Bootcamp (Ellatha lists this mission for the NPC)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 2
+  - Requires: Basic Training 101 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Basic_Training_101), [TaRapedia](https://tabularasa.fandom.com/wiki/Obstruction_Destruction)
+  - Leads to: Carpe Diem — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Carpe_Diem), [TaRapedia](https://tabularasa.fandom.com/wiki/Obstruction_Destruction)
 #### Not in client — The Last Stand
 
 - **Rebuild summary:**
@@ -25594,6 +27830,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Ellatha NPC** [Commander Elvers](https://www.ellatha.com/tr/npcview.asp?key=Commander+Elvers&id=1): Human; loc Spawns in 3 different spots; zone Bootcamp (Ellatha lists this mission for the NPC)
 - **Ellatha boss NPC** [Karem Zul](https://www.ellatha.com/tr/bossnpcview.asp?key=Karem+Zul&id=28): Thrax Grenadier; level 3; /loc -18,97,133; zone Bootcamp; needed for: The Last Stand (Ellatha lists this mission under "Needed for Quests")
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 5
+  - Requires: A Tale of Elements — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Tale_of_Elements), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Last_Stand)
+  - Leads to: Moving Up to the Big League — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Moving_Up_to_the_Big_League), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Last_Stand)
 ### Not in client: Descent
 
 #### Not in client — Interception (Descent)
@@ -25611,6 +27850,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - walkthrough: Find the scientist and talk to him.
 - **TaRapedia mission list** [Outpost Inferno mission list](https://tabularasa.fandom.com/wiki/Outpost_Inferno_mission_list): zone Descent, given by Lieutenant Rogers
 
+- **Chain** (explicit prerequisite links): Inferno at the Outpost chain (4 missions), step 2
+  - Requires: Inferno at the Outpost (id 1528) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Interception_%28Descent%29)
+  - Leads to: Betrayal (id 1504) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Betrayal), [TaRapedia](https://tabularasa.fandom.com/wiki/Interception_%28Descent%29)
+- **Requires an instance mission:** Inferno at the Outpost (1528) — source: the chain links above
 ### Not in client: Divide
 
 #### Not in client — Welcome Tour
@@ -25729,6 +27972,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Comm Officer Devinchy](https://tabularasa.fandom.com/wiki/Comm_Officer_Devinchy): Plateau, Wedge Rock Outpost, /loc 363, 369, 360 (NPC page lists this mission)
 
+- **Requires (name not matched to a mission):** Level 32 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Devinchy%27s_Code)
 ### Not in client: Thunderhead
 
 #### Not in client — Abomination
@@ -25840,6 +28084,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Outpost Commander Rogers](https://tabularasa.fandom.com/wiki/Outpost_Commander_Rogers): Wilderness, Alia Das, /loc 870.0, 294.2, 385.5 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 9
+  - Requires: Receptive Reception (id 1069) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Life_of_the_Party)
+  - Leads to: Forming Alliances (id 479) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Life_of_the_Party)
 #### Not in client — Logos: Attack, Target, Here
 
 - **Rebuild summary:**
@@ -25861,6 +28108,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Logos Mentor Ensine](https://tabularasa.fandom.com/wiki/Logos_Mentor_Ensine): Wilderness, Alia Das, /loc 754.5, 295.5, 557.0 (NPC page lists this mission)
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 9
+  - Requires: Receptive Reception (id 1069) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Logos%3A_Attack%2C_Target%2C_Here)
 #### Not in client — Logos: Communications, Control, Machine
 
 - Possible rename / duplicate of client mission 924 Logos: Communication, Control, Machine (ESTIMATE: title similarity only).
@@ -25906,6 +28155,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [Intact Boargar Tusk](https://tabularasa.fandom.com/wiki/Intact_Boargar_Tusk): Intact Boargar Tusks are mission items required for the quest Multi-Tusking. The player must kill Young Forest Boargars, collect the tusks from their corpses and deliver them to Warrior Apirka.
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 9
+  - Requires: Receptive Reception (id 1069) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Multi-Tusking)
+  - Leads to: Forming Alliances (id 479) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Multi-Tusking)
 #### Not in client — Reporting For Duty. Sir!
 
 - **Rebuild summary:**
@@ -25926,6 +28178,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Mission items (TaRapedia item pages):**
   - [Field Report: Lower Eloh Creek (14:00 Hours)](https://tabularasa.fandom.com/wiki/Field_Report%3A_Lower_Eloh_Creek_%2814%3A00_Hours%29): Field Report: Lower Eloh Creek (14:00 Hours) is a mission item required for the mission Reporting For Duty. Sir!. You must obtain it from Officer McHenry and deliver it to Outpost Commander Rogers. Both can be found in the Human AFS camp in Alia Das.
 
+- **Chain** (explicit prerequisite links): Arieki Surveying chain (62 missions), step 7
+  - Requires: Moving Up to the Big League — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Reporting_For_Duty._Sir%21)
+  - Leads to: Receptive Reception (id 1069) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Reporting_For_Duty._Sir%21)
 #### Not in client — Smuggler's Blue
 
 - Possible rename / duplicate of client mission 623 Smuggler's Blues (ESTIMATE: title similarity only).
@@ -25968,6 +28223,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TR MMO DB quest series** [Break On Through](https://web.archive.org/web/20120731163912/http://tr.mmodb.com/quests/seriesname-break_on_through/): Break On Through (level 33, reward 5850) → Bringing Down The House... (level 33, reward 6000) → What Goes Around... (level 33, reward 7500) (series order as listed on the page; reward unit not stated)
 - **Link:** [TR MMO DB quest series "Break On Through": level 33](https://web.archive.org/web/20120731163912/http://tr.mmodb.com/quests/seriesname-break_on_through/)
 
+- **TR MMO DB quest series:** "Break On Through", row 2 of 3 ([list](https://web.archive.org/web/20120731163912/http://tr.mmodb.com/quests/seriesname-break_on_through/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 #### Not in client — Carrot on a Stick
 
 - Possible rename / duplicate of client mission 522 A Carrot on a Stick (ESTIMATE: title similarity only).
@@ -26021,6 +28277,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TR MMO DB quest series** [Helping Parsons](https://web.archive.org/web/20120731161652/http://tr.mmodb.com/quests/seriesname-helping_parsons/): Damn Dirty Robots (level 25, reward 4500) → Gerry Rigging (level 25, reward 4200) → Helping Parsons (level 25, reward 2500) → Missing Merchandise (level 25, reward 2800) → Oculur Enhancements (level 25, reward 4500) (series order as listed on the page; reward unit not stated)
 - **Link:** [TR MMO DB quest series "Helping Parsons": level 25](https://web.archive.org/web/20120731161652/http://tr.mmodb.com/quests/seriesname-helping_parsons/)
 
+- **TR MMO DB quest series:** "Helping Parsons", row 1 of 5 ([list](https://web.archive.org/web/20120731161652/http://tr.mmodb.com/quests/seriesname-helping_parsons/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 #### Not in client — Diffusing the Situation
 
 - Possible rename / duplicate of client mission 1174 Defusing the Situation (ESTIMATE: title similarity only).
@@ -26073,6 +28330,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TR MMO DB quest series** [Ground Combat Patrol: Plains](https://web.archive.org/web/20120731170313/http://tr.mmodb.com/quests/seriesname-ground_combat_patrol:_plains/): Ground Combat Patrol: Plains (level 20, reward 4400) → Ground Combat Patrol: Plains (level 20, reward 4400) → Speak to Captain Reyko (level 20, reward 2200) (series order as listed on the page; reward unit not stated)
 - **Link:** [TR MMO DB quest series "Ground Combat Patrol: Plains": level 20](https://web.archive.org/web/20120731170313/http://tr.mmodb.com/quests/seriesname-ground_combat_patrol:_plains/)
 
+- **TR MMO DB quest series:** "Ground Combat Patrol: Plains", row 1 of 3 ([list](https://web.archive.org/web/20120731170313/http://tr.mmodb.com/quests/seriesname-ground_combat_patrol:_plains/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 #### Not in client — Incursion Invasion
 
 - **Rebuild summary:**
@@ -26095,6 +28353,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TR MMO DB quest series** [Infection Correction](https://web.archive.org/web/20120731161119/http://tr.mmodb.com/quests/seriesname-infection_correction/): Infection Correction (level 49, reward 10000) → Take the Disc (level 49, reward 8200) (series order as listed on the page; reward unit not stated)
 - **Link:** [TR MMO DB quest series "Infection Correction": level 49](https://web.archive.org/web/20120731161119/http://tr.mmodb.com/quests/seriesname-infection_correction/)
 
+- **TR MMO DB quest series:** "Infection Correction", row 1 of 2 ([list](https://web.archive.org/web/20120731161119/http://tr.mmodb.com/quests/seriesname-infection_correction/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 #### Not in client — It's All In The Training
 
 - Possible rename / duplicate of client mission 1253 It's All In the Timing (ESTIMATE: title similarity only).
@@ -26139,6 +28398,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TR MMO DB quest series** [Helping Parsons](https://web.archive.org/web/20120731161652/http://tr.mmodb.com/quests/seriesname-helping_parsons/): Damn Dirty Robots (level 25, reward 4500) → Gerry Rigging (level 25, reward 4200) → Helping Parsons (level 25, reward 2500) → Missing Merchandise (level 25, reward 2800) → Oculur Enhancements (level 25, reward 4500) (series order as listed on the page; reward unit not stated)
 - **Link:** [TR MMO DB quest series "Helping Parsons": level 25](https://web.archive.org/web/20120731161652/http://tr.mmodb.com/quests/seriesname-helping_parsons/)
 
+- **TR MMO DB quest series:** "Helping Parsons", row 5 of 5 ([list](https://web.archive.org/web/20120731161652/http://tr.mmodb.com/quests/seriesname-helping_parsons/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 #### Not in client — Palisades Target of Opportunity
 
 - Possible rename / duplicate of client mission 1630 Palisades Targets of Opportunity (ESTIMATE: title similarity only).
@@ -26171,6 +28431,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TR MMO DB quest series** [Intercept And Exterminate](https://web.archive.org/web/20120731161238/http://tr.mmodb.com/quests/seriesname-intercept_and_exterminate/): Intercept and Exterminate (level 25, reward 5600) → Interrogation (level 25, reward 2800) → Operation: Cauterize (level 25, reward 5800) → Relay Terrorist Info to Colonel Deiley (level 25, reward 2800) → Relay Terrorist Information to Hanna (level 25, reward 2800) → Short Fuse (level 25, reward 4200) → Short Fuse (level 25, reward 2800) → Turn the Tables (level 25, reward 5800) (series order as listed on the page; reward unit not stated)
 - **Link:** [TR MMO DB quest series "Intercept And Exterminate": level 25](https://web.archive.org/web/20120731161238/http://tr.mmodb.com/quests/seriesname-intercept_and_exterminate/)
 
+- **TR MMO DB quest series:** "Intercept And Exterminate", row 5 of 8 ([list](https://web.archive.org/web/20120731161238/http://tr.mmodb.com/quests/seriesname-intercept_and_exterminate/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 #### Not in client — Report to a Class Trainer
 
 - **Rebuild summary:**
@@ -26242,6 +28503,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **TR MMO DB quest series** [Tesla Invasion](https://web.archive.org/web/20120731162011/http://tr.mmodb.com/quests/seriesname-tesla_invasion/): Look Before You Sabotage (level 33, reward 7250) → Tesla Inversion (level 33, reward 5800) → The Strongest Link (EWC) (level 33, reward 7500) (series order as listed on the page; reward unit not stated)
 - **Link:** [TR MMO DB quest series "Tesla Invasion": level 33](https://web.archive.org/web/20120731162011/http://tr.mmodb.com/quests/seriesname-tesla_invasion/)
 
+- **TR MMO DB quest series:** "Tesla Invasion", row 3 of 3 ([list](https://web.archive.org/web/20120731162011/http://tr.mmodb.com/quests/seriesname-tesla_invasion/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 #### Not in client — The Three Devils
 
 - **Rebuild summary:**
