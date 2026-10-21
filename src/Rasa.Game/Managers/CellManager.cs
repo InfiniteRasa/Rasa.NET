@@ -77,6 +77,9 @@ namespace Rasa.Managers
                     ListOfClients.Add(client);
 
             CreatureManager.Instance.CellIntroduceCreatureToClients(mapChannel, creature, ListOfClients);
+
+            // Rogers's glow (CreatureHalos), once those around have been told he is there.
+            CreatureHalos.Put(mapChannel, creature);
         }
 
         //mapTrigger
