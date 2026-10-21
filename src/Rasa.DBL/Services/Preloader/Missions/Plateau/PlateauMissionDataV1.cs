@@ -59,17 +59,23 @@ namespace Rasa.Services.Preloader.Missions.Plateau
         /// items, if any, follow the selectable ones and come with every choice.
         /// </summary>
         public void Reward(uint experience, uint credits, IReadOnlyList<uint> selectableTemplates,
-            IReadOnlyList<uint> fixedTemplates = null)
+            IReadOnlyList<uint> fixedTemplates = null) =>
+            Reward(experience, credits, selectableTemplates.Select(template => (template, 1U)).ToArray(),
+                (fixedTemplates ?? new uint[0]).Select(template => (template, 1U)).ToArray());
+
+        /// <summary>As <see cref="Reward(uint, uint, IReadOnlyList{uint}, IReadOnlyList{uint})"/>, a stack of each item.</summary>
+        public void Reward(uint experience, uint credits, IReadOnlyList<(uint Template, uint Quantity)> selectableItems,
+            IReadOnlyList<(uint Template, uint Quantity)> fixedItems)
         {
             Insert("mission_reward_definition",
                 ("reward_id", 1U), ("experience", experience), ("credits", credits), ("prestige", 0U),
-                ("selection_count", (byte)(selectableTemplates.Count > 0 ? 1 : 0)), ("comment", "Plateau turn-in reward"));
-            var items = selectableTemplates.Select(template => (MissionRewardItemKind.Selectable, template))
-                .Concat((fixedTemplates ?? new uint[0]).Select(template => (MissionRewardItemKind.Fixed, template))).ToArray();
+                ("selection_count", (byte)(selectableItems.Count > 0 ? 1 : 0)), ("comment", "Plateau turn-in reward"));
+            var items = selectableItems.Select(item => (Kind: MissionRewardItemKind.Selectable, item.Template, item.Quantity))
+                .Concat(fixedItems.Select(item => (Kind: MissionRewardItemKind.Fixed, item.Template, item.Quantity))).ToArray();
             for (var i = 0; i < items.Length; i++)
                 _migration.InsertData("mission_reward_item",
                     new[] { "mission_id", "content_revision", "reward_id", "item_id", "kind", "item_template_id", "quantity" },
-                    new object[] { _missionId, Revision, 1U, (uint)i + 1, (byte)items[i].Item1, items[i].template, 1U });
+                    new object[] { _missionId, Revision, 1U, (uint)i + 1, (byte)items[i].Kind, items[i].Template, items[i].Quantity });
         }
 
         /// <summary>
@@ -185,9 +191,11 @@ namespace Rasa.Services.Preloader.Missions.Plateau
                     source, null, confidence ?? (kind == MissionEvidenceSourceKind.Client ? 1.0 : 0.5), note
                 });
 
-        public void Enable(MissionSceneDefinition scene)
+        /// <summary>Enables the mission; a talk-only mission has no scene, as the Wilderness ones.</summary>
+        public void Enable(MissionSceneDefinition scene = null)
         {
-            MissionDataMigration.InsertScene(_migration, _missionId, Revision, scene);
+            if (scene != null)
+                MissionDataMigration.InsertScene(_migration, _missionId, Revision, scene);
             MissionDataMigration.EnableMission(_migration, _missionId, Revision);
         }
 

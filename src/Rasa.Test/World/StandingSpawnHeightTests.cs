@@ -143,8 +143,9 @@ namespace Rasa.Test.World
             Assert.AreEqual(200, StandingHeights.WorldDown.Length);
 
             // Moved since by a later migration: Corporal DeSimone (Place_bootcamp_base_npcs), the
-            // Alia Das NPCs moved or taken away by Alia_das_npcs, and the Wilderness ones moved or
-            // taken away by Wilderness_post_npcs.
+            // Alia Das NPCs moved or taken away by Alia_das_npcs, the Wilderness ones moved or
+            // taken away by Wilderness_post_npcs, Ranger Porthus (Plateau_going_postal) and Peterson,
+            // Mauer and McLaughlin (Plateau_defiant_ones).
             void AssertCorrected(bool expected, params uint[] movedSince)
             {
                 harness.World.ChangeTracker.Clear();
@@ -169,7 +170,9 @@ namespace Rasa.Test.World
             // The migrated world.
             AssertCorrected(true, AliaDasNpcs.Moves.Select(move => move.Pool).Concat(AliaDasNpcs.Removed.Select(removed => removed.Id))
                 .Concat(WildernessPostNpcs.Moves.Select(move => move.Pool)).Concat(WildernessPostNpcs.Removed.Select(removed => removed.Id))
-                .Append(Rasa.Services.Preloader.BootcampBaseNpcs.DeSimonePoolId).ToArray());
+                .Append(Rasa.Services.Preloader.BootcampBaseNpcs.DeSimonePoolId)
+                .Append(Rasa.Services.Preloader.Missions.Plateau.PlateauGoingPostalV1.Porthus)
+                .Concat(Rasa.Services.Preloader.Missions.Plateau.PlateauFortDefianceNpcsV1.Moves.Select(move => move.Pool)).ToArray());
 
             // The vendor of Torcastra Prison was 5.69 m over the floor of the hall; Private
             // Parsons a metre in the ground. General Beacham, in the sandbags beside Cimoch, has

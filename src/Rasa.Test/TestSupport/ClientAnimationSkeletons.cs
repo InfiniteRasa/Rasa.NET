@@ -31,6 +31,10 @@ namespace Rasa.Test.TestSupport
             [49675] = 13999,
             [30281] = 14000,
             [49221] = 23,       // Redshirt_Human_Soldier_Heavy_Female, on the female human skeleton
+            [47378] = 13999,    // the Plateau's Maligo Elite Guard (class 29059)
+            [37531] = 21,       // the Plateau's Maligo Elite Guardmaster (class 25414)
+            [35823] = 14036,    // Redshirt_Forean_Gunner_Infected, the Plateau's Infected Forean
+            [20519] = 13927,    // Vehicle_Bane_Juggernaut(_Boss), the Prototype Juggernaut
         };
 
         /// <summary>Action animation families with no animation on any skeleton: the client's own gap, played by nothing.</summary>
@@ -119,6 +123,7 @@ namespace Rasa.Test.TestSupport
             [14036] = "622 650 651 863 864 930 931 1272",
             [14041] = "622 650 651 1450 1451 1453 1454 1461 1463",
             [14000] = "622 650 651 734 924 1137 1138 1139 1140 1211 1272",
+            [13927] = "622 650 651 940 958 959 1411 1412 1433",
         });
 
         private static IReadOnlyDictionary<uint, IReadOnlySet<uint>> Parse(Dictionary<uint, string> rows) =>
