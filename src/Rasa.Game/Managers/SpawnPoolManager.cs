@@ -651,7 +651,9 @@ namespace Rasa.Managers
 
                     // The rest of a group falls in behind its leader. One that walks in from
                     // an arrival point, or finds no leader standing, does when it is idle.
+                    // One a mission scene has put back where it stood keeps its scripted pose.
                     else if (!leads && arrival == null && PatrolGroups.IsGroup(spawnPool)
+                             && creature.Controller.CurrentAction != BehaviorManager.BehaviorActionScriptedMove
                              && PatrolGroups.LeaderOf(mapChannel, spawnPool) is Creature leader)
                         PatrolGroups.Attach(mapChannel, creature, leader);
 
@@ -663,7 +665,7 @@ namespace Rasa.Managers
 
                     if (leads)
                     {
-                        spawnPool.Leader = creature;
+                        PatrolGroups.SetLeader(spawnPool, creature);
 
                         // Its own leader back, the one that led in its place falls in behind it.
                         if (acting != null && acting != creature)
