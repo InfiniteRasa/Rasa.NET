@@ -26,7 +26,10 @@ namespace Rasa.Test.Missions.Plateau
     /// Defiant Ones (887, Plateau_defiant_ones), A Bridge Too Far (713, Plateau_bridge_too_far), The Beer
     /// Hunter (855, Plateau_beer_hunter), Crystal Blue Persuasion (954, Plateau_crystal_blue_persuasion) and
     /// Alpha Mox (1027, Plateau_alpha_mox); Mount Reverence's A Voice From The Past (934,
-    /// Plateau_voice_from_the_past) and Trinity Bridge Logos: Past (1044, Plateau_trinity_logos_past).
+    /// Plateau_voice_from_the_past) and Trinity Bridge Logos: Past (1044, Plateau_trinity_logos_past); Special
+    /// Agent Perdu's Clean Slate (1983, Plateau_clean_slate), Mind Bender (905, Plateau_mind_bender), Photo Ops
+    /// (929, Plateau_photo_ops), The Results Are In (936, Plateau_results_are_in) and Mind Slayer (719,
+    /// Plateau_mind_slayer).
     /// </summary>
     [TestClass]
     [DoNotParallelize]
@@ -42,7 +45,8 @@ namespace Rasa.Test.Missions.Plateau
             PlateauWatchtowersV1.MissionId, PlateauCrypticMessagesV1.MissionId, PlateauSoyuzSalvageV1.MissionId,
             PlateauDefiantOnesV1.MissionId, PlateauBridgeTooFarV1.MissionId, PlateauBeerHunterV1.MissionId,
             PlateauCrystalBluePersuasionV1.MissionId, PlateauAlphaMoxV1.MissionId, PlateauVoiceFromThePastV1.MissionId,
-            PlateauTrinityLogosPastV1.MissionId
+            PlateauTrinityLogosPastV1.MissionId, PlateauCleanSlateV1.MissionId, PlateauMindBenderV1.MissionId,
+            PlateauPhotoOpsV1.MissionId, PlateauResultsAreInV1.MissionId, PlateauMindSlayerV1.MissionId
         };
 
         /// <summary>
@@ -51,9 +55,10 @@ namespace Rasa.Test.Missions.Plateau
         /// Graveyard Shift's two, Village Of The Damned's, The Book Of Velonar's and Going Postal's one each.
         /// All Along The Watchtowers', Cryptic Messages' and Soyuz Salvage's three each. The Beer Hunter's four;
         /// The Defiant Ones', A Bridge Too Far's, Crystal Blue Persuasion's and Alpha Mox's one each.
-        /// A Voice From The Past's and Trinity Bridge Logos: Past's one each.
+        /// A Voice From The Past's and Trinity Bridge Logos: Past's one each. Clean Slate's three, Mind Bender's
+        /// eight, Photo Ops' five, The Results Are In's and Mind Slayer's one each.
         /// </summary>
-        internal const int Indicators = 39;
+        internal const int Indicators = 57;
 
         private const string Before = "20270123000000_Thunderhead_base_teleporters";
         private const string GiantKiller = "20270125000000_Plateau_giant_killer";
@@ -80,6 +85,12 @@ namespace Rasa.Test.Missions.Plateau
         private const string VogrenNpcs = "20270215000000_Plateau_vogren_npcs";
         private const string VoiceFromThePast = "20270216000000_Plateau_voice_from_the_past";
         private const string TrinityLogosPast = "20270217000000_Plateau_trinity_logos_past";
+        private const string PerduNpcs = "20270218000000_Plateau_perdu_npcs";
+        private const string SurveillanceSentinels = "20270219000000_Plateau_surveillance_sentinels";
+        private const string CleanSlate = "20270220000000_Plateau_clean_slate";
+        private const string MindBender = "20270221000000_Plateau_mind_bender";
+        private const string PhotoOps = "20270222000000_Plateau_photo_ops";
+        private const string ResultsAreIn = "20270223000000_Plateau_results_are_in";
 
         [TestMethod]
         public void TheMissionsAreEnabledAndOperationalAtTheirGiversAndReceiversAndLevels()
@@ -107,7 +118,12 @@ namespace Rasa.Test.Missions.Plateau
                 (PlateauCrystalBluePersuasionV1.MissionId, PlateauFortDefianceNpcsV1.Mauer, PlateauFortDefianceNpcsV1.Mauer),
                 (PlateauAlphaMoxV1.MissionId, PlateauFortDefianceNpcsV1.Mauer, PlateauFortDefianceNpcsV1.Mauer),
                 (PlateauVoiceFromThePastV1.MissionId, PlateauVogrenNpcsV1.Tendahi, PlateauVogrenNpcsV1.Hologram),
-                (PlateauTrinityLogosPastV1.MissionId, PlateauVogrenNpcsV1.Hologram, PlateauVogrenNpcsV1.Hologram)
+                (PlateauTrinityLogosPastV1.MissionId, PlateauVogrenNpcsV1.Hologram, PlateauVogrenNpcsV1.Hologram),
+                (PlateauCleanSlateV1.MissionId, PlateauPerduNpcsV1.Wainwright, PlateauPerduNpcsV1.Perdu),
+                (PlateauMindBenderV1.MissionId, PlateauPerduNpcsV1.Perdu, PlateauPerduNpcsV1.Perdu),
+                (PlateauPhotoOpsV1.MissionId, PlateauPerduNpcsV1.Russ, PlateauPerduNpcsV1.Clark),
+                (PlateauResultsAreInV1.MissionId, PlateauPerduNpcsV1.Clark, PlateauPerduNpcsV1.Perdu),
+                (PlateauMindSlayerV1.MissionId, PlateauPerduNpcsV1.Perdu, PlateauPerduNpcsV1.Perdu)
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             var enabled = harness.World.MissionContentDefinitionEntries.AsNoTracking()
@@ -118,7 +134,7 @@ namespace Rasa.Test.Missions.Plateau
                 var entry = enabled.Single(row => row.MissionId == mission);
                 Assert.AreEqual<uint?>(giver, entry.GiverId, $"{mission} giver");
                 Assert.AreEqual<uint?>(receiver, entry.ReceiverId, $"{mission} receiver");
-                Assert.AreEqual<uint?>(mission switch { 1251 or 1015 or 1017 or 1027 or 1044 => 31U, 930 or 1825 or 557 or 934 => 32U, 2007 => 34U, _ => 30U },
+                Assert.AreEqual<uint?>(mission switch { 1251 or 1015 or 1017 or 1027 or 1044 => 31U, 930 or 1825 or 557 or 934 or 905 or 929 or 936 or 719 => 32U, 2007 => 34U, _ => 30U },
                     entry.Level,
                     $"{mission} level");
                 Assert.AreEqual<uint?>(PlateauMissionDataV1.CategoryId, entry.CategoryId);
@@ -170,7 +186,19 @@ namespace Rasa.Test.Missions.Plateau
                 (954, 5182, new (uint, uint, uint, uint?)[] { (1, 5205, 6345, null) }),
                 (1027, 5683, new (uint, uint, uint, uint?)[] { (1, 5687, 6291, null) }),
                 (934, 5026, new (uint, uint, uint, uint?)[] { (1, 5053, 6480, null) }),
-                (1044, 5870, new (uint, uint, uint, uint?)[] { (1, 5874, 6380, null) })
+                (1044, 5870, new (uint, uint, uint, uint?)[] { (1, 5874, 6380, null) }),
+                (1983, 20892, new (uint, uint, uint, uint?)[] { (1, 20897, 20898, null), (4, 20904, 20905, null), (5, 20921, 20922, null) }),
+                (905, 4804, new (uint, uint, uint, uint?)[]
+                {
+                    (11, 8233, 8234, null), (12, 8240, 8241, null), (13, 8243, 8244, null), (14, 8246, 8247, null),
+                    (3, 4810, 6397, null), (8, 4812, 6398, null), (9, 4814, 6399, null), (10, 4816, 6400, null)
+                }),
+                (929, 4978, new (uint, uint, uint, uint?)[]
+                {
+                    (5, 4993, 6428, null), (6, 5729, 6429, null), (7, 5730, 6430, null), (8, 5731, 6431, null), (9, 5732, 6432, null)
+                }),
+                (936, 5037, new (uint, uint, uint, uint?)[] { (1, 5772, 6434, null) }),
+                (719, 3438, new (uint, uint, uint, uint?)[] { (1, 5774, 6405, null) })
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             foreach (var (mission, title, objectives) in expected)
@@ -201,7 +229,8 @@ namespace Rasa.Test.Missions.Plateau
         /// The Stalk Market follows Scavenger Hunt. New Velon Village's four, Wedge Rock's two, Soyuz Salvage
         /// and The Defiant Ones have no requirement; Fort Defiance's others follow The Defiant Ones: A Bridge Too
         /// Far, then The Beer Hunter; Crystal Blue Persuasion, then Alpha Mox. A Voice From The Past has none;
-        /// Trinity Bridge Logos: Past follows it.
+        /// Trinity Bridge Logos: Past follows it. Clean Slate has none; Perdu's line follows it: Mind Bender, Photo
+        /// Ops, The Results Are In, Mind Slayer.
         /// </summary>
         [TestMethod]
         public void EachMissionRequiresTheMissionOrDeliveryBeforeIt()
@@ -209,7 +238,7 @@ namespace Rasa.Test.Missions.Plateau
             using var harness = WildernessRuntimeTestHarness.Create();
             var prerequisites = harness.World.MissionPrerequisiteEntries.AsNoTracking()
                 .Where(entry => entry.ContentRevision == PlateauMissionDataV1.Revision).ToArray();
-            Assert.HasCount(11, prerequisites);
+            Assert.HasCount(15, prerequisites);
             var incommunicado = prerequisites.Single(entry => entry.MissionId == PlateauIncommunicadoV1.MissionId);
             Assert.AreEqual(MissionPrerequisiteKind.MissionCompleted, incommunicado.Kind);
             Assert.AreEqual<uint?>(PlateauGiantKillerV1.MissionId, incommunicado.RequiredMissionId);
@@ -244,9 +273,9 @@ namespace Rasa.Test.Missions.Plateau
             var stalkMarket = prerequisites.Single(entry => entry.MissionId == PlateauStalkMarketV1.MissionId);
             Assert.AreEqual((MissionPrerequisiteKind.MissionCompleted, (uint?)1015),
                 (stalkMarket.Kind, stalkMarket.RequiredMissionId));
-            foreach (var mission in new uint[] { 933, 1981, 930, 1034, 1825, 557, 2007, 887, 934 })
+            foreach (var mission in new uint[] { 933, 1981, 930, 1034, 1825, 557, 2007, 887, 934, 1983 })
                 Assert.IsFalse(prerequisites.Any(entry => entry.MissionId == mission), $"{mission}");
-            foreach (var (mission, required) in new (uint, uint)[] { (713, 887), (954, 887), (855, 713), (1027, 954), (1044, 934) })
+            foreach (var (mission, required) in new (uint, uint)[] { (713, 887), (954, 887), (855, 713), (1027, 954), (1044, 934), (905, 1983), (929, 905), (936, 929), (719, 936) })
             {
                 var prerequisite = prerequisites.Single(entry => entry.MissionId == mission);
                 Assert.AreEqual((MissionPrerequisiteKind.MissionCompleted, (uint?)required),
@@ -262,7 +291,8 @@ namespace Rasa.Test.Missions.Plateau
         /// the Stalkers, the miasmas, the Infected Foreans, the book's place, Porthus's place, the
         /// towers, Vorvaak's drop, Fort Defiance's NPCs, the Juggernaut, the plants, the Mox Lair) - 0.2 for Soyuz
         /// Salvage, whose places, XP and credits no source gives. The Defiant Ones', The Beer Hunter's and
-        /// Crystal Blue Persuasion's pages are stubs (0.4), as is A Voice From The Past's.
+        /// Crystal Blue Persuasion's pages are stubs (0.4), as are A Voice From The Past's, Mind Bender's and
+        /// Mind Slayer's.
         /// </summary>
         [TestMethod]
         public void TheCommandersMissionsTrustWhatIsReconstructedLeast()
@@ -311,6 +341,16 @@ namespace Rasa.Test.Missions.Plateau
                 (934, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.4),
                     (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
                 (1044, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                (1983, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                (905, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.4),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                (929, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                (936, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                (719, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.4),
                     (MissionEvidenceSourceKind.Reconstruction, 0.3) })
             })
                 CollectionAssert.AreEqual(confidences, evidence.Where(entry => entry.MissionId == mission)
@@ -654,6 +694,73 @@ namespace Rasa.Test.Missions.Plateau
             world.GetService<IMigrator>().Migrate(InfectedForeanAttack);
             Assert.AreEqual((0, 0, 0, 0, 0), Npcs());
             Assert.IsTrue(Has(PlateauAlphaMoxV1.MissionId));
+        }
+
+        /// <summary>
+        /// Perdu's missions roll back a migration at a time: Mind Slayer; The Results Are In; Photo Ops; Mind
+        /// Bender; Clean Slate; then the sentinels (creatures, stats, action, pools); then the NPCs (Wainwright,
+        /// Russ, the four soldiers, Clean Slate's two templates, the pistol), and Perdu and Clark back where the
+        /// NPC seed had them. Mount Reverence's stay.
+        /// </summary>
+        [TestMethod]
+        public void PerdusMissionsTheirSentinelsAndNpcsRollBack()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            int Count(string sql) => world.Database.SqlQueryRaw<int>(sql).AsEnumerable().Single();
+            string Ids(string table, uint first, uint last) =>
+                $"SELECT COUNT(*) AS Value FROM {table} WHERE id BETWEEN {first} AND {last}";
+            var sentinels = PlateauSurveillanceSentinelsV1.Sentinels;
+            (int, int, int, int) Sentinels() => (Count(Ids("creature", sentinels[0].Id, sentinels[^1].Id)),
+                Count(Ids("creature_stat", sentinels[0].Id, sentinels[^1].Id)),
+                Count(Ids("creature_action", PlateauSurveillanceSentinelsV1.Weapon, PlateauSurveillanceSentinelsV1.Weapon)),
+                Count(Ids("spawnpool", sentinels[0].Pool, sentinels[^1].Pool)));
+            (int, int, int, int, int, int) Npcs() => (
+                Count(Ids("creature", PlateauPerduNpcsV1.Wainwright, PlateauPerduNpcsV1.Berserk)),
+                Count(Ids("creature_appearance", PlateauPerduNpcsV1.Wainwright, PlateauPerduNpcsV1.Berserk)),
+                Count(Ids("npc_package", PlateauPerduNpcsV1.Wainwright, PlateauPerduNpcsV1.Berserk)),
+                Count(Ids("creature_actor_name", PlateauPerduNpcsV1.Wainwright, PlateauPerduNpcsV1.Berserk)),
+                Count(Ids("spawnpool", PlateauPerduNpcsV1.WainwrightPool, PlateauPerduNpcsV1.Implanted[^1].Pool)),
+                Count(Ids("creature_action", PlateauPerduNpcsV1.BerserkPistol, PlateauPerduNpcsV1.BerserkPistol)));
+            (double, double, double) At(uint pool)
+            {
+                var row = world.SpawnPoolEntries.AsNoTracking().Single(entry => entry.Id == pool);
+                return (Math.Round(row.PosX, 2), Math.Round(row.PosY, 2), Math.Round(row.PosZ, 2));
+            }
+            bool Has(uint mission) => world.MissionContentDefinitionEntries.AsNoTracking().Any(entry => entry.MissionId == mission);
+
+            // Six humans with the uniform (6 rows each), the two soldiers' pistols; five packages (Russ and the
+            // four); two actor names; six pools; the berserk pistol.
+            var npcs = (8, 6 * 6 + 2, 5, 2, 6, 1);
+            Assert.AreEqual(npcs, Npcs());
+            Assert.AreEqual((5, 5, 1, 5), Sentinels());
+            foreach (var move in PlateauPerduNpcsV1.Moves)
+                Assert.AreEqual(move.At, At(move.Pool), $"{move.Pool}");
+
+            foreach (var (target, gone, stays) in new (string, uint, uint)[]
+            {
+                (ResultsAreIn, PlateauMindSlayerV1.MissionId, PlateauResultsAreInV1.MissionId),
+                (PhotoOps, PlateauResultsAreInV1.MissionId, PlateauPhotoOpsV1.MissionId),
+                (MindBender, PlateauPhotoOpsV1.MissionId, PlateauMindBenderV1.MissionId),
+                (CleanSlate, PlateauMindBenderV1.MissionId, PlateauCleanSlateV1.MissionId),
+                (SurveillanceSentinels, PlateauCleanSlateV1.MissionId, PlateauTrinityLogosPastV1.MissionId)
+            })
+            {
+                world.GetService<IMigrator>().Migrate(target);
+                Assert.IsFalse(Has(gone), $"{gone} rolled back");
+                Assert.IsTrue(Has(stays), $"{stays} stays");
+            }
+            Assert.AreEqual((5, 5, 1, 5), Sentinels(), "the sentinels stay with their own migration");
+
+            world.GetService<IMigrator>().Migrate(PerduNpcs);
+            Assert.AreEqual((0, 0, 0, 0), Sentinels());
+            Assert.AreEqual(npcs, Npcs(), "the NPCs stay with their own migration");
+
+            world.GetService<IMigrator>().Migrate(TrinityLogosPast);
+            Assert.AreEqual((0, 0, 0, 0, 0, 0), Npcs());
+            foreach (var move in PlateauPerduNpcsV1.Moves)
+                Assert.AreEqual(move.Before, At(move.Pool), $"{move.Pool} back where the NPC seed had it");
+            Assert.IsTrue(Has(PlateauTrinityLogosPastV1.MissionId));
         }
     }
 }

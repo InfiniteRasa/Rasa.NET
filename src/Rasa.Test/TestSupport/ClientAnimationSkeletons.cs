@@ -35,6 +35,7 @@ namespace Rasa.Test.TestSupport
             [37531] = 21,       // the Plateau's Maligo Elite Guardmaster (class 25414)
             [35823] = 14036,    // Redshirt_Forean_Gunner_Infected, the Plateau's Infected Forean
             [20519] = 13927,    // Vehicle_Bane_Juggernaut(_Boss), the Prototype Juggernaut
+            [18148] = 13923,    // Bane_Sentinel, the Plateau's Surveillance Sentinels
         };
 
         /// <summary>Action animation families with no animation on any skeleton: the client's own gap, played by nothing.</summary>
@@ -54,6 +55,9 @@ namespace Rasa.Test.TestSupport
                 "1386 1387 1388 1389 1392 1393 1394 1395 1396 1397 1399 1400 1413 1414 1415 1416 1417 1418 1420 1423 " +
                 "1429 1430 1431 1432 1436 1437 1440 1479 1481 1483 1485 1486 1487 1510 1517 1518 1519 1522 1524",
             [21] = "622 650 651 656 663 922 1272 1273 1274 1281 1282 1438 1439",
+            [13923] = "1 4 21 83 126 176 458 503 525 526 531 534 542 543 573 612 618 622 650 651 687 730 731 887 905 942 " +
+                "944 1057 1078 1150 1151 1160 1161 1162 1163 1164 1165 1166 1167 1168 1169 1212 1220 1221 1222 1223 " +
+                "1224 1225 1227 1228 1229 1255 1272 1283 1284 1295 1310",   // Bane_Sentinel (animationdata.animationFamilyData)
             [23] = "85 176 490 491 493 498 499 500 501 502 513 514 518 519 556 557 558 559 560 561 562 566 567 568 569 " +
                 "572 583 593 601 609 610 612 622 627 631 632 633 634 637 638 648 650 651 653 654 664 715 727 729 732 " +
                 "739 748 749 750 764 765 767 778 779 785 827 847 871 873 914 915 916 939 945 983 984 985 986 987 988 " +
