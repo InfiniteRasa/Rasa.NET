@@ -618,7 +618,7 @@ namespace Rasa.Test.World
                 using (var context = (WorldContext)PersistenceIntegrationTests.CreateContext(typeof(SqliteWorldContext), database))
                 {
                     MigratedDatabaseTemplates.Migrate(context, () => context.Database.Migrate());
-                    Assert.IsTrue(new WorldUsableRepository(context).Get().All(Seeded), "only the Arieki vents' eruptions, the Lightning Fields' strikes, the Wilderness terminals and fire pits, the Omega Missile, the Devil's Den's objects and Torcastra Prison's are seeded");
+                    Assert.IsTrue(new WorldUsableRepository(context).Get().All(Seeded), "only the Arieki vents' eruptions, the Lightning Fields' strikes, the Wilderness terminals and fire pits, the Omega Missile, the Devil's Den's objects, Torcastra Prison's and Minos Caverns' are seeded");
                     Assert.IsFalse(context.Database.HasPendingModelChanges());
                 }
 
@@ -685,7 +685,8 @@ namespace Rasa.Test.World
             row.Id >= TwinPillarsNpcs.FirstUsable && row.Id < TwinPillarsNpcs.FirstUsable + TwinPillarsNpcs.Usables.Length ||
             row.Id == OmegaLabsMissile.Id ||
             DevilsDenContent.Usables.Any(usable => usable.Id == row.Id) ||
-            TorcastraPrisonContent.Usables.Any(usable => usable.Id == row.Id && row.MapContextId == TorcastraPrisonContent.Map);
+            TorcastraPrisonContent.Usables.Any(usable => usable.Id == row.Id && row.MapContextId == TorcastraPrisonContent.Map) ||
+            MinosCavernsContent.Usables.Any(usable => usable.Id == row.Id && row.MapContextId == MinosCavernsContent.Map);
 
         private static void Run(WorldContext context, MigrationBuilder builder)
         {
