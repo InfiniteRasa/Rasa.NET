@@ -336,7 +336,7 @@ namespace Rasa.Test.Missions.Plateau
         }
 
         /// <summary>The Plateau as a map of the harness, with its pools from the migrated rows; the player stands on it.</summary>
-        private static MapChannel EnterPlateau(WildernessRuntimeTestHarness harness)
+        internal static MapChannel EnterPlateau(WildernessRuntimeTestHarness harness)
         {
             var plateau = new MapChannel
             {
@@ -362,7 +362,7 @@ namespace Rasa.Test.Missions.Plateau
         }
 
         /// <summary>Only these pools of the Plateau, as WildernessRuntimeTestHarness.SpawnWorld does on the Wilderness.</summary>
-        private static void Spawn(MapChannel plateau, params uint[] pools)
+        internal static void Spawn(MapChannel plateau, params uint[] pools)
         {
             var all = plateau.SpawnPools.ToArray();
             try
@@ -379,11 +379,11 @@ namespace Rasa.Test.Missions.Plateau
             }
         }
 
-        private static IEnumerable<Creature> Living(MapChannel plateau) => plateau.MapCellInfo.Cells.Values
+        internal static IEnumerable<Creature> Living(MapChannel plateau) => plateau.MapCellInfo.Cells.Values
             .SelectMany(cell => cell.CreatureList).Distinct()
             .Where(creature => creature.State != CharacterState.Dead && CreatureManager.IsLivingOnMap(plateau, creature));
 
-        private static Creature RequireNpc(MapChannel plateau, uint pool)
+        internal static Creature RequireNpc(MapChannel plateau, uint pool)
         {
             var npc = Living(plateau).SingleOrDefault(creature => creature.SpawnPool?.DbId == pool && creature.Npc != null);
             Assert.IsNotNull(npc, $"Pool {pool} must stand a real public NPC on the Plateau.");
@@ -392,7 +392,7 @@ namespace Rasa.Test.Missions.Plateau
         }
 
         /// <summary>What the NPC offers when the player talks to him (WildernessRanjaGorgeTests.OpenConversation, which is private).</summary>
-        private static Dictionary<ConversationType, object> Conversation(WildernessRuntimeTestHarness harness, Creature npc)
+        internal static Dictionary<ConversationType, object> Conversation(WildernessRuntimeTestHarness harness, Creature npc)
         {
             harness.MoveTo(npc.Position);
             harness.Drain();
@@ -402,7 +402,7 @@ namespace Rasa.Test.Missions.Plateau
         }
 
         /// <summary>The hand-in topic of exactly this objective, on the objective's flag 1.</summary>
-        private static void AssertHandInTopic(Dictionary<ConversationType, object> conversation, uint mission, uint objective)
+        internal static void AssertHandInTopic(Dictionary<ConversationType, object> conversation, uint mission, uint objective)
         {
             Assert.IsTrue(conversation.TryGetValue(ConversationType.ObjectiveComplete, out var value), $"hand-in of {mission}.{objective}");
             var topic = ((List<CompleteableObjectives>)value).Single();
@@ -433,12 +433,12 @@ namespace Rasa.Test.Missions.Plateau
             return loot;
         }
 
-        private static void PickUp(WildernessRuntimeTestHarness harness, LootDispenser loot) =>
+        internal static void PickUp(WildernessRuntimeTestHarness harness, LootDispenser loot) =>
             LootDispenserManager.Instance.RequestLootAllFromCorpse(harness.Client,
                 new RequestLootAllFromCorpsePacket { EntityId = loot.EntityId });
 
         /// <summary>Completed missions in the character's history, as WildernessRanjaGorgeTests seeds them.</summary>
-        private static void SeedCompleted(WildernessRuntimeTestHarness harness, params uint[] completed)
+        internal static void SeedCompleted(WildernessRuntimeTestHarness harness, params uint[] completed)
         {
             using (var unit = harness.CreateChar())
                 unit.ExecuteTransaction(() =>
