@@ -27,11 +27,15 @@ namespace Rasa.Test.Missions.Plateau
         internal static readonly uint[] MissionIds =
         {
             PlateauGiantKillerV1.MissionId, PlateauIncommunicadoV1.MissionId, PlateauCanyonSweepV1.MissionId,
-            PlateauBlueprintForVictoryV1.MissionId, PlateauToxicDetoxV1.MissionId
+            PlateauBlueprintForVictoryV1.MissionId, PlateauToxicDetoxV1.MissionId, PlateauComicReliefV1.MissionId,
+            PlateauScavengerHuntV1.MissionId, PlateauStalkMarketV1.MissionId
         };
 
-        /// <summary>Giant Killer's two indicators, Incommunicado's three, Canyon Sweep's one, Blueprint For Victory's two, Toxic Detox's one.</summary>
-        internal const int Indicators = 9;
+        /// <summary>
+        /// Giant Killer's two indicators, Incommunicado's three, Canyon Sweep's one, Blueprint For Victory's two,
+        /// Toxic Detox's one, Comic Relief's three, The Stalk Market's three; Scavenger Hunt has none.
+        /// </summary>
+        internal const int Indicators = 15;
 
         private const string Before = "20270123000000_Thunderhead_base_teleporters";
         private const string GiantKiller = "20270125000000_Plateau_giant_killer";
@@ -40,7 +44,7 @@ namespace Rasa.Test.Missions.Plateau
         private const string BlueprintForVictory = "20270128000000_Plateau_blueprint_for_victory";
 
         [TestMethod]
-        public void TheMissionsAreEnabledAndOperationalAtTheirGiversAndReceivers()
+        public void TheMissionsAreEnabledAndOperationalAtTheirGiversAndReceiversAndLevels()
         {
             var expected = new (uint Mission, uint Giver, uint Receiver)[]
             {
@@ -48,7 +52,10 @@ namespace Rasa.Test.Missions.Plateau
                 (PlateauIncommunicadoV1.MissionId, PlateauGiantKillerV1.Bosley, PlateauGiantKillerV1.Bosley),
                 (PlateauCanyonSweepV1.MissionId, PlateauReconSquadsV1.Carvelle, PlateauReconSquadsV1.Carvelle),
                 (PlateauBlueprintForVictoryV1.MissionId, PlateauReconSquadsV1.Petrie, PlateauGiantKillerV1.Bosley),
-                (PlateauToxicDetoxV1.MissionId, PlateauReconSquadsV1.Locke, PlateauReconSquadsV1.Locke)
+                (PlateauToxicDetoxV1.MissionId, PlateauReconSquadsV1.Locke, PlateauReconSquadsV1.Locke),
+                (PlateauComicReliefV1.MissionId, PlateauScroungerNpcsV1.OBrien, PlateauScroungerNpcsV1.OBrien),
+                (PlateauScavengerHuntV1.MissionId, PlateauScroungerNpcsV1.Scarpelo, PlateauScroungerNpcsV1.Scarpelo),
+                (PlateauStalkMarketV1.MissionId, PlateauScroungerNpcsV1.Scarpelo, PlateauScroungerNpcsV1.Scarpelo)
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             var enabled = harness.World.MissionContentDefinitionEntries.AsNoTracking()
@@ -59,7 +66,7 @@ namespace Rasa.Test.Missions.Plateau
                 var entry = enabled.Single(row => row.MissionId == mission);
                 Assert.AreEqual<uint?>(giver, entry.GiverId, $"{mission} giver");
                 Assert.AreEqual<uint?>(receiver, entry.ReceiverId, $"{mission} receiver");
-                Assert.AreEqual<uint?>(30, entry.Level, $"{mission} level");
+                Assert.AreEqual<uint?>(mission is 1251 or 1015 or 1017 ? 31U : 30U, entry.Level, $"{mission} level");
                 Assert.AreEqual<uint?>(PlateauMissionDataV1.CategoryId, entry.CategoryId);
             }
 

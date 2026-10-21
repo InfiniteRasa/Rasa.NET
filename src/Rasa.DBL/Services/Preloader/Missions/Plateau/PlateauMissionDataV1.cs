@@ -53,16 +53,22 @@ namespace Rasa.Services.Preloader.Missions.Plateau
                 ("abandonment_policy", (byte)MissionAbandonmentPolicy.Allowed));
         }
 
-        /// <summary>The turn-in reward, reward 1. Insert it before the GrantReward action that names it.</summary>
-        public void Reward(uint experience, uint credits, IReadOnlyList<uint> selectableTemplates)
+        /// <summary>
+        /// The turn-in reward, reward 1. Insert it before the GrantReward action that names it. Fixed
+        /// items, if any, follow the selectable ones and come with every choice.
+        /// </summary>
+        public void Reward(uint experience, uint credits, IReadOnlyList<uint> selectableTemplates,
+            IReadOnlyList<uint> fixedTemplates = null)
         {
             Insert("mission_reward_definition",
                 ("reward_id", 1U), ("experience", experience), ("credits", credits), ("prestige", 0U),
                 ("selection_count", (byte)(selectableTemplates.Count > 0 ? 1 : 0)), ("comment", "Plateau turn-in reward"));
-            for (var i = 0; i < selectableTemplates.Count; i++)
+            var items = selectableTemplates.Select(template => (MissionRewardItemKind.Selectable, template))
+                .Concat((fixedTemplates ?? new uint[0]).Select(template => (MissionRewardItemKind.Fixed, template))).ToArray();
+            for (var i = 0; i < items.Length; i++)
                 _migration.InsertData("mission_reward_item",
                     new[] { "mission_id", "content_revision", "reward_id", "item_id", "kind", "item_template_id", "quantity" },
-                    new object[] { _missionId, Revision, 1U, (uint)i + 1, (byte)MissionRewardItemKind.Selectable, selectableTemplates[i], 1U });
+                    new object[] { _missionId, Revision, 1U, (uint)i + 1, (byte)items[i].Item1, items[i].template, 1U });
         }
 
         public void Prerequisite(uint mission, uint id = 1) =>
