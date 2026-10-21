@@ -5,7 +5,7 @@ Generated 2026-10-18, extended 2026-10-20 (Wayback round 2: official site + patc
 | Source | Label in entries | Missions |
 | --- | --- | ---: |
 | Client tables (title, log summary, objectives) | **Client** | 1168 |
-| This server, `data/rasaworld.db` enabled `mission_content_definition` rows | **Local server** | 95 |
+| This server, `data/rasaworld.db` enabled `mission_content_definition` rows | **Local server** | 98 |
 | [TaRapedia (Fandom)](https://tabularasa.fandom.com/wiki/Category:Missions) | **TaRapedia** | 941 |
 | [Ellatha / DaOpa mission DB](https://www.ellatha.com/tr/missionslist.asp) | **Ellatha** | 93 |
 | [tabularasawiki.org (Wayback 2007-08)](https://web.archive.org/web/20080511080212/http://www.tabularasawiki.org/action/view/Main_Page) | **TRWiki archive** | 7 |
@@ -37,9 +37,9 @@ Generated 2026-10-18, extended 2026-10-20 (Wayback round 2: official site + patc
 | [TR MMO DB (tr.mmodb.com, Wayback)](https://web.archive.org/web/2008/http://tr.mmodb.com/quests/) quest pages (level / start NPC / zone / mobs / objectives) + bestiary | **TR MMO DB** | 317 |
 | Web search by research agents (mostly TaRapedia patch notes, NPC lists, alternate titles) | **Web** | 88 |
 
-**Implemented** (enabled on the local server, `data/rasaworld.db`; marked `[implemented]` in the entry heading): 95 missions. Per zone: Wilderness 64, Plateau 13, Bootcamp 5, Abyss 1, Ashen Desert 1, Crucible 1, Descent 1, Divide 1, Howling Maw 1, Incline 1, Marshes 1, Mires 1, Palisades 1, Plains 1, Pools 1, Thunderhead 1. Search for `[implemented]` to find them; entries without the mark are not implemented yet.
+**Implemented** (enabled on the local server, `data/rasaworld.db`; marked `[implemented]` in the entry heading): 98 missions. Per zone: Wilderness 64, Plateau 16, Bootcamp 5, Abyss 1, Ashen Desert 1, Crucible 1, Descent 1, Divide 1, Howling Maw 1, Incline 1, Marshes 1, Mires 1, Palisades 1, Plains 1, Pools 1, Thunderhead 1. Search for `[implemented]` to find them; entries without the mark are not implemented yet.
 
-**Needs playtest** (implemented, not yet played through in the game client; marked `[needs playtest]`, list in `tools/mission-crossref/NOTES-playtest.md`): 10 missions.
+**Needs playtest** (implemented, not yet played through in the game client; marked `[needs playtest]`, list in `tools/mission-crossref/NOTES-playtest.md`): 13 missions.
 
 
 **Instance** (the mission takes place in a client instance map, a "mission context" in gamecontext.pyo; marked `[instance]` in the entry heading): from an objective NPC package that spawns in an instance (local DB), a TaRapedia NPC page in an instance, or client objective text placing it there. "Instance mentioned" lines only name an instance (ESTIMATE). Refresh with instance_export.py.
@@ -18445,13 +18445,16 @@ Notes: client text is shipped presentation only; it does not prove availability,
 
 - **Chain** (explicit prerequisite links): Lookout Down Below chain (3 missions), step 3
   - Requires: The Stainless Steel Bloodhound (id 867) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Behind_Enemy_Lines), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Stainless_Steel_Bloodhound)
-### 557 — Cryptic Messages
+### 557 — Cryptic Messages [implemented] [needs playtest]
 
+- **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Instance mentioned:** Maligo Base — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
 - **Rebuild summary:**
-  - level: 32 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Cryptic_Messages); 30 — source: [TR MMO DB](https://web.archive.org/web/20081202023242/http://tr.mmodb.com/quests/cryptic-messages-247.php)
+  - level: 32 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 32 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Cryptic_Messages); 30 — source: [TR MMO DB](https://web.archive.org/web/20081202023242/http://tr.mmodb.com/quests/cryptic-messages-247.php)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
   - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 51 missions in this file with a sourced level
+  - reward: 45000 XP; 4800 credits; choose 1 of: Bio Armor Legs, Graviton Armor Legs, Mech Armor Legs, Stealth Armor Legs — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 45,000 XP; 4,800 credits; Equipment — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Cryptic_Messages)
   - reward: 4800 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20081202023242/http://tr.mmodb.com/quests/cryptic-messages-247.php)
   - drops / mission items: not found (not critical, or not a collect mission)
@@ -18459,6 +18462,8 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - location: Preceptor Vorvaak (Thrax Soldier), zone Plateau — North of the central Trinity Bridge — source: [Ellatha boss NPC](https://www.ellatha.com/tr/bossnpcview.asp?key=Preceptor+Vorvaak&id=97)
 - **Client:** Retrieve a Bane Decryption Device for Communications Officer Devinchy at Wedge Rock Outpost.
   - objectives (client): Speak to Comm Officer McKinley. — Ask Comm Officer McKinley at Wedge Rock Outpost where you might locate a Bane Decryption Device.; Acquire a Decryption Device. — Locate Thrax Preceptor Vorvaak somewhere near Trinity Bridge and obtain his Bane Decryption Device.; Return to Devinchy. — Bring the Decryption Device back to Comm Officer Devinchy at Wedge Rock Outpost.
+- **Local server:** revision `plateau_1_16_5`, level 32, solo, category 10000056 (Battlefield (Plateau)), giver Comm Officer Devinchy
+  - reward: 45000 XP; 4800 credits; choose 1 of: Bio Armor Legs, Graviton Armor Legs, Mech Armor Legs, Stealth Armor Legs
 - **TaRapedia** [Cryptic Messages](https://tabularasa.fandom.com/wiki/Cryptic_Messages) [stub]: giver: Comm Officer Devinchy; at: Wedge Rock Outpost; zone: Plateau; level: 32 (possibly less); requires: None; follow-up: None; XP: 45,000; credits: 4,800; items: Equipment; reward from: Headquarters
   - overview: Retrieve a Bane Decryption Device for Communications Officer Devinchy at Wedge Rock Outpost.
   - objectives: Speak to Comm Officer McKinley. • Ask Comm Officer McKinley at Wedge Rock Outpost where you might locate a Bane Decryption Device.; Acquire a Decryption Device. • Locate Thrax Preceptor Vorvaak somewhere near Trinity Bridge and obtain his Bane Decryption Device. • 0/1; Return to Devinchy. • Bring the Decryption Device back to Comm Officer Devinchy at Wedge Rock Outpost.
@@ -19882,17 +19887,22 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Requires: Village Of The Damned (id 1981) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mountain_Spring_Toxins)
   - Requires: Choosing Sides (id 1554) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Choosing_Sides)
 - **Requires an instance mission:** Choosing Sides (1554) — source: the chain links above
-### 1825 — All Along The Watchtowers
+### 1825 — All Along The Watchtowers [implemented] [needs playtest]
 
+- **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Rebuild summary:**
-  - level: 32 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/All_Along_The_Watchtowers)
+  - level: 32 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 32 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/All_Along_The_Watchtowers)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
   - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 51 missions in this file with a sourced level
+  - reward: 45000 XP; 4800 credits; choose 1 of: Bio Armor Helmet, Graviton Armor Helmet, Mech Armor Helmet, Stealth Armor Helmet — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 45,000 XP; 4,800 credits; Equipment — source: [TaRapedia](https://tabularasa.fandom.com/wiki/All_Along_The_Watchtowers)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: zone Plateau only
 - **Client:** Colonel Thibodeau at Wedge Rock Outpost needs you to manually reboot the Remote Scanning Terminals in the three watchtowers overlooking the eastern end of Valverde Chasm.
   - objectives (client): Reboot Terminal #1 — Reboot Remote Sensor Terminal #1.; Reboot Terminal #2 — Reboot Remote Sensor Terminal #2.; Reboot Terminal #3 — Reboot Remote Sensor Terminal #3.
+- **Local server:** revision `plateau_1_16_5`, level 32, solo, category 10000056 (Battlefield (Plateau)), giver Colonel Thibodeau
+  - reward: 45000 XP; 4800 credits; choose 1 of: Bio Armor Helmet, Graviton Armor Helmet, Mech Armor Helmet, Stealth Armor Helmet
 - **TaRapedia** [All Along The Watchtowers](https://tabularasa.fandom.com/wiki/All_Along_The_Watchtowers): giver: Colonel Thibodeau; at: Wedge Rock Outpost; zone: Plateau; level: 32 (possibly less); requires: None; follow-up: None; XP: 45,000; credits: 4,800; items: Equipment; reward from: Colonel Thibodeau
   - overview: Colonel Thibodeau at Wedge Rock Outpost needs you to manually reboot the Remote Scanning Terminals in the three watchtowers overlooking the eastern end of Valverde Chasm.
   - objectives: Reboot Terminal #1 • Reboot Remote Sensor Terminal #1.; Reboot Terminal #2 • Reboot Remote Sensor Terminal #2.; Reboot Terminal #3 • Reboot Remote Sensor Terminal #3.
@@ -20118,17 +20128,21 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Chain** (explicit prerequisite links): Clean Slate chain (6 missions), step 1
   - Leads to: Mind Bender (id 905) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Clean_Slate), [TaRapedia](https://tabularasa.fandom.com/wiki/Mind_Bender)
 - **TR MMO DB quest series:** "Clean Slate", row 1 of 3 ([list](https://web.archive.org/web/20120731165006/http://tr.mmodb.com/quests/seriesname-clean_slate/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
-### 2007 — Soyuz Salvage: Plateau
+### 2007 — Soyuz Salvage: Plateau [implemented] [needs playtest]
 
+- **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Rebuild summary:**
-  - level: 30 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Soyuz_Salvage%3A_Plateau)
+  - level: 34 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 30 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Soyuz_Salvage%3A_Plateau)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
   - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 51 missions in this file with a sourced level
-  - reward: not found (not critical)
+  - reward: 50000 XP; 5000 credits; Soyuz ISS Model Rocket — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: NPC Commander Grissom: Plateau, Fort Defiance, /loc -92, 399, 914 — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Commander_Grissom)
 - **Client:** Locate one of the pieces of the Orbital Module from General British's Soyuz, somewhere on Plateau, and return it to Commander Grissom at Fort Defiance.
   - objectives (client): Salvage the Soyuz Debris — Locate and salvage the Soyuz Orbital Module Debris that crashed somewhere on Plateau.
+- **Local server:** revision `plateau_1_16_5`, level 34, solo, category 10000056 (Battlefield (Plateau)), giver Commander Grissom
+  - reward: 50000 XP; 5000 credits; items: Soyuz ISS Model Rocket
 - **TaRapedia** [Soyuz Salvage: Plateau](https://tabularasa.fandom.com/wiki/Soyuz_Salvage%3A_Plateau): giver: Commander Grissom; at: Fort Defiance; zone: Plateau; level: 30; reward from: Commander Grissom
   - overview: Locate one of the pieces of the Orbital Module from General British's Soyuz, somewhere on Plateau, and return it to Commander Grissom at Fort Defiance.
   - objectives: Salvage the Soyuz Debris
