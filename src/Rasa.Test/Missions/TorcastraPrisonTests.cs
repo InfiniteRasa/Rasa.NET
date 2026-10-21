@@ -32,7 +32,7 @@ namespace Rasa.Test.Missions
     public class TorcastraPrisonTests
     {
         private const string Migration = "20270307000000_Torcastra_prison";
-        private const string Previous = "20270306000000_Wilderness_urn_enigma_regions";
+        private const string Previous = "20270306000000_Pravus_research";
 
         private static readonly string[] Tables =
         {

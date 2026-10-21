@@ -17,7 +17,7 @@ namespace Rasa.Migrations.SqliteWorld
     // ReSharper disable once InconsistentNaming
     [UsedImplicitly]
     [DbContext(typeof(SqliteWorldContext))]
-    [Migration("20270307000000_Wilderness_urn_enigma_regions")]
+    [Migration("20270601000000_Wilderness_urn_enigma_regions")]
     public class Wilderness_urn_enigma_regions : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)

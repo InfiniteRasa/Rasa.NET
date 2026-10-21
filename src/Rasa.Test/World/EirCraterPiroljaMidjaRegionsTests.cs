@@ -19,7 +19,7 @@ namespace Rasa.Test.World
     public class EirCraterPiroljaMidjaRegionsTests
     {
         private const string Migration = "20270308000000_Eir_crater_pirolja_midja_regions";
-        private const string Previous = "20270307000000_Wilderness_urn_enigma_regions";
+        private const string Previous = "20270307000000_Torcastra_prison";
 
         private const int Sky = 1, Ambient = 4, Music = 8, Name = 16;
 
