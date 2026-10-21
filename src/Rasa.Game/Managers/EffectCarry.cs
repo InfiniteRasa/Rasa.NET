@@ -103,6 +103,10 @@ namespace Rasa.Managers
             var player = client?.Player;
             var mapChannel = player?.MapChannel;
 
+            // The invisible GM's own marker: the new map's client has never seen it.
+            Detection.ShowGmStealth(client);
+            GmSupportCommands.ArrivedFrozen(client);
+
             if (player == null || player.CarriedEffects.Count == 0)
                 return 0;
 

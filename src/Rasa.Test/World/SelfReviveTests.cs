@@ -78,7 +78,7 @@ namespace Rasa.Test.World
 
             // Someone else gets them up while it winds up.
             typeof(PlayerDeath).GetMethod("Revive", BindingFlags.Static | BindingFlags.NonPublic)!
-                .Invoke(null, new object[] { harness.BootcampMap, harness.Client, player.Position, 100, new Actor(), false });
+                .Invoke(null, new object[] { harness.BootcampMap, harness.Client, player.Position, 100, new Actor(), false, true });
             Assert.AreNotEqual(CharacterState.Dead, player.State);
 
             var power = player.Attributes.TryGetValue(Attributes.Power, out var before) ? before.Current : 0;

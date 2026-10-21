@@ -236,8 +236,21 @@ namespace Rasa.Test.World
 
             Assert.IsFalse(gm.Player.GmInvisible, "off until it is turned on");
 
-            commands.ProcessCommand(gm, ".invisible");
+            commands.ProcessCommand(gm, ".invisible status");
             StringAssert.StartsWith(Told(gm).Single(), "You are visible.");
+
+            // On its own it switches, and the GM wears the client's GM Stealth effect while it lasts.
+            commands.ProcessCommand(gm, ".invisible");
+            Assert.IsTrue(gm.Player.GmInvisible);
+            var packets = Packets(gm);
+            StringAssert.StartsWith(packets.OfType<SystemMessagePacket>().Single().TextMessage, "You are invisible:");
+            var marker = packets.OfType<GameEffectAttachedPacket>().Single();
+            Assert.AreEqual((Detection.GmStealthEffectTypeId, Detection.GmStealthEffectId, true), (marker.EffectTypeId, marker.EffectId, marker.Announced), "announced, or the buff bar never shows it");
+            Assert.IsEmpty(Sent<GameEffectAttachedPacket>(observer), "the marker is the GM's alone");
+
+            commands.ProcessCommand(gm, ".invisible");
+            Assert.IsFalse(gm.Player.GmInvisible, "and back");
+            Assert.AreEqual(Detection.GmStealthEffectId, Sent<GameEffectDetachedPacket>(gm).Single().EffectId);
 
             commands.ProcessCommand(gm, ".invisible on");
             Assert.IsTrue(gm.Player.GmInvisible);
@@ -247,7 +260,7 @@ namespace Rasa.Test.World
             Assert.AreEqual("You are already invisible.", Told(gm).Single());
 
             commands.ProcessCommand(gm, ".invisible maybe");
-            Assert.AreEqual("usage: .invisible on|off", Told(gm).Single());
+            Assert.AreEqual("usage: .invisible on/off/status", Told(gm).Single());
             Assert.IsTrue(gm.Player.GmInvisible);
 
             commands.ProcessCommand(gm, ".invisible off");

@@ -30,7 +30,9 @@ namespace Rasa.Managers
             {
                 Level = level;
                 Handler = handler;
-                Arguments = arguments ?? Array.Empty<string>();
+                // As shown in usage and .help: the chat font has no "|" (it draws "ffl" in its
+                // place), so alternatives read "on/off".
+                Arguments = (arguments ?? Array.Empty<string>()).Select(argument => argument.Replace('|', '/')).ToArray();
             }
 
             public GmLevel Level { get; }
@@ -246,7 +248,8 @@ namespace Rasa.Managers
             RegisterCommand(".falldamage", GmLevel.GameMaster, FallDamageCommand, "metres");
             RegisterCommand(".immune", GmLevel.GameMaster, ImmuneCommand, "damageType");
             RegisterCommand(".allowdeath", GmLevel.GameMaster, AllowDeathCommand, "on|off");
-            RegisterCommand(".invisible", GmLevel.GameMaster, InvisibleCommand, "on|off");
+            RegisterCommand(".invisible", GmLevel.GameMaster, InvisibleCommand, "on|off|status");
+            RegisterCommand(".invis", GmLevel.GameMaster, InvisibleCommand, "on|off|status");
             RegisterCommand(".feud", GmLevel.GameMaster, FeudCommand, "action", "arg1", "arg2");
             RegisterCommand(".bark", GmLevel.GameMaster, BarkCommand, "creatureEntityId", "barkId");
             RegisterCommand(".battlecry", GmLevel.GameMaster, BattlecryCommand, "packageId", "typeId");
@@ -294,6 +297,23 @@ namespace Rasa.Managers
             RegisterCommand(".usable", GmLevel.GameMaster, UsableCommand, "state", "entityId");
             RegisterCommand(".announce", GmLevel.GameMaster, AnnounceCommand, "message");
             RegisterCommand(".kick", GmLevel.GameMaster, KickCommand, "familyName", "reason");
+            // Helping a player: find them, move them, stand them up, answer them (GmSupportCommands).
+            RegisterCommand(".who", GmLevel.GameMaster, parts => GmSupportCommands.Who(_client, parts), "word");
+            RegisterCommand(".playerinfo", GmLevel.GameMaster, parts => GmSupportCommands.PlayerInfo(_client, parts), "familyName/#characterId");
+            RegisterCommand(".goto", GmLevel.GameMaster, parts => GmSupportCommands.Goto(_client, parts), "familyName/#characterId");
+            RegisterCommand(".summon", GmLevel.GameMaster, parts => GmSupportCommands.Summon(_client, parts), "familyName/#characterId");
+            RegisterCommand(".unstuck", GmLevel.GameMaster, parts => GmSupportCommands.Unstuck(_client, parts), "familyName/#characterId");
+            RegisterCommand(".revive", GmLevel.GameMaster, parts => GmSupportCommands.Revive(_client, parts), "familyName/#characterId");
+            RegisterCommand(".kill", GmLevel.GameMaster, parts => GmSupportCommands.Kill(_client, parts), "#entityId");
+            RegisterCommand(".gmbar", GmLevel.GameMaster, parts => GmAbilities.FillBar(_client, parts), "loadout");
+            RegisterCommand(".gmoutfit", GmLevel.GameMaster, GmOutfitCommand);
+            RegisterCommand(".pau", GmLevel.GameMaster, parts => GmSupportCommands.Pau(_client, parts), "angel|vulcan|mech|grendel|orson|off");
+            RegisterCommand(".equipanything", GmLevel.GameMaster, parts => GmAbilities.ToggleEquipAnything(_client));
+            RegisterCommand(".untargetable", GmLevel.GameMaster, parts => GmAbilities.ToggleUntargetable(_client));
+            RegisterCommand(".freeze", GmLevel.GameMaster, parts => GmSupportCommands.Freeze(_client, parts), "familyName/#characterId");
+            RegisterCommand(".unfreeze", GmLevel.GameMaster, parts => GmSupportCommands.Unfreeze(_client, parts), "familyName/#characterId");
+            RegisterCommand(".message", GmLevel.GameMaster, parts => GmSupportCommands.Message(_client, parts), "familyName/#characterId", "[important]", "text");
+            RegisterCommand(".petition", GmLevel.GameMaster, parts => GmSupportCommands.Petition(_client, parts), "list/show/resolve", "status/id", "note");
             RegisterCommand(".mute", GmLevel.GameMaster, MuteCommand, "familyName", "minutes", "reason");
             RegisterCommand(".unmute", GmLevel.GameMaster, UnmuteCommand, "familyName");
 
@@ -315,6 +335,7 @@ namespace Rasa.Managers
             RegisterCommand(".failmission", GmLevel.Admin, FailMissionCommand, "missionId");
             RegisterCommand(".failobjective", GmLevel.Admin, FailObjectiveCommand, "missionId", "objectiveId");
             RegisterCommand(".reloadcreatures", GmLevel.Admin, ReloadCreaturesCommand);
+            RegisterCommand(".inventory", GmLevel.Admin, parts => GmSupportCommands.ShowInventory(_client, parts), "familyName/#characterId", "backpack/equipped/lockbox/inbox");
             RegisterCommand(".memory", GmLevel.Admin, MemoryCommand, "map|full");
         }
 
@@ -3446,9 +3467,13 @@ namespace Rasa.Managers
             switch (word)
             {
                 case null:
+                    // On its own it switches: the one word a GM types most.
+                    invisible = !player.GmInvisible;
+                    break;
+                case "status":
                     CommunicatorManager.Instance.SystemMessage(_client, player.GmInvisible
-                        ? "You are invisible to players. .invisible off to be seen."
-                        : "You are visible. .invisible on to be seen by GMs only.");
+                        ? "You are invisible to players. .invisible to be seen."
+                        : "You are visible. .invisible to be seen by GMs only.");
                     return;
                 case "on":
                 case "1":
@@ -3472,7 +3497,7 @@ namespace Rasa.Managers
             }
 
             CommunicatorManager.Instance.SystemMessage(_client, invisible
-                ? "You are invisible: only GMs see you, creatures do not notice you, and to everyone else you are offline. .invisible off to be seen."
+                ? "You are invisible: only GMs see you, creatures do not notice you, and to everyone else you are offline. GM Stealth on your buff bar while it lasts; .invisible again to be seen."
                 : "You are visible again: players see you, and your friends and clan see you online.");
         }
 
@@ -5749,6 +5774,20 @@ namespace Rasa.Managers
         }
 
         /// <summary>
+        /// The Game Master outfit: Armor_Special_GameMaster_Boots, _Gloves, _Helmet, _Legs and
+        /// _Vest, bound on character and not tradable or sellable
+        /// (Bind_gm_veteran_and_event_gear).
+        /// </summary>
+        public static readonly uint[] GmOutfitTemplates = { 97527, 97528, 97529, 97530, 97531 };
+
+        /// <summary>.gmoutfit: the Game Master outfit, each piece as .giveitem gives it.</summary>
+        private void GmOutfitCommand(string[] parts)
+        {
+            foreach (var templateId in GmOutfitTemplates)
+                GiveItemCommand(new[] { ".giveitem", templateId.ToString(), "1" });
+        }
+
+        /// <summary>
         /// .memory [map|full]: what the server holds now, briefly in chat. "map" (the default) adds
         /// the map you're on; "full" adds the busiest maps here and every map to the console.
         /// Navigation is left out: it's measured once, in the startup report, as that takes a walk
@@ -5817,7 +5856,14 @@ namespace Rasa.Managers
             ["gotostartgroup"] = new PrivilegedChatCommand(GmLevel.GameMaster, GmMapCommands.GotoStartGroup),
             ["killmap"] = new PrivilegedChatCommand(GmLevel.Admin, GmMapCommands.KillMap),
             ["usermissions"] = new PrivilegedChatCommand(GmMissionCommands.Level, GmMissionCommands.ShowUserMissions),
-            ["givemission"] = new PrivilegedChatCommand(GmMissionCommands.Level, GmMissionCommands.GiveMission)
+            ["givemission"] = new PrivilegedChatCommand(GmMissionCommands.Level, GmMissionCommands.GiveMission),
+
+            // A GM's menu on a player's name in chat: its two GM
+            // entries, Teleport to Player and Kick Player, send these with the family name.
+            ["gotouser"] = new PrivilegedChatCommand(GmLevel.GameMaster,
+                (gm, name) => GmSupportCommands.Goto(gm, new[] { "/gotouser", name?.Trim() ?? "" })),
+            ["kickuser"] = new PrivilegedChatCommand(GmLevel.GameMaster,
+                (gm, name) => CommunicatorManager.Instance.SystemMessage(gm, Moderation.Kick(name?.Trim(), null, gm).Text))
 
             // "getservercollisiondata" is intentionally not registered: it asks for
             // ServerCollisionData, which the retail client cannot load and this server has no

@@ -382,6 +382,14 @@ namespace Rasa.Managers
                 return false;
             }
 
+            // The client shows clan names as rich text (the clan chat header, the clan window):
+            // markup in one would color or link it, so < and > are not allowed (ChatMarkup).
+            if (clanName.IndexOfAny(new[] { '<', '>' }) >= 0)
+            {
+                client.CallMethod(SysEntity.ClientClanManagerId, new DisplayClanMessagePacket((int)PlayerMessage.PmInappropriateClanName, new Dictionary<string, string>()));
+                return false;
+            }
+
             if (ClanNameExists(clanName, ownClanId))
             {
                 TellNameNotAvailable(client, clanName);

@@ -212,7 +212,7 @@ namespace Rasa.Managers
 
                 // Cloaked (Cloak Wave), or an invisible GM: it cannot be noticed however close it
                 // stands. Nor can someone watching a camera script, who has no controls to answer with.
-                if (Detection.IsHidden(client.Player) || CameraScripts.IsWatching(client.Player))
+                if (Detection.UnnoticedByCreatures(client.Player) || CameraScripts.IsWatching(client.Player))
                     continue;
 
                 // check distance so creature attack closes target
@@ -875,7 +875,7 @@ namespace Rasa.Managers
                     }
 
                     // Cloaked, or watching a camera script: off the table, and on to whoever it hates next.
-                    if (Detection.IsHidden(player) || CameraScripts.IsWatching(player))
+                    if (Detection.UnnoticedByCreatures(player) || CameraScripts.IsWatching(player))
                     {
                         if (!Threat.Retarget(creature))
                             StopFighting(creature);

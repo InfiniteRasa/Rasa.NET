@@ -69,6 +69,8 @@ namespace Rasa.Managers
     public partial class AbilityManager
     {
         public const string KaelSmashModule = "abilities.ai.kaelsmashability";
+        public const string MechMissilesModule = "abilities.ai.mechmissilesability";
+        public const string MechGroundPoundModule = "abilities.ai.mechgroundpoundability";
         public const string KaelGroundPoundModule = "abilities.ai.kaelgroundpoundability";
         public const string CaretakerAttackModule = "abilities.ai.caretakerattackability";
         public const string CaretakerHealModule = "abilities.ai.caretakerhealability";
@@ -81,7 +83,7 @@ namespace Rasa.Managers
         public const int MiniTurretSeconds = 30;
 
         /// <summary>Direct damage whose client class reads each hit as the rawInfo itself.</summary>
-        private static readonly HashSet<string> RawInfoModules = new HashSet<string> { KaelSmashModule, KaelGroundPoundModule, CaretakerAttackModule };
+        private static readonly HashSet<string> RawInfoModules = new HashSet<string> { KaelSmashModule, KaelGroundPoundModule, CaretakerAttackModule, MechMissilesModule, MechGroundPoundModule };
 
         /// <summary>The morph abilities that are not direct damage: the heals, the repair, the turret and the revives.</summary>
         private static readonly HashSet<string> MorphSupportModules = new HashSet<string>

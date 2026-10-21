@@ -97,6 +97,28 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void ANameWithMarkupInItIsRefused()
+        {
+            using var context = MissionTestContext.WithCompletableMission(429);
+            var leader = context.Client;
+            var clan = Clan(context, "Wolves", leader.Player.Id);
+
+            leader.Player.ClanId = clan.Id;
+            leader.State = ClientState.Ingame;
+            WorldTestContext.Drain(leader);
+
+            var clans = (ClanManager)typeof(ClanManager).GetConstructor(BindingFlags.Instance | BindingFlags.NonPublic, null,
+                new[] { typeof(IGameUnitOfWorkFactory) }, null).Invoke(new object[] { context });
+            clans.Clans[clan.Id] = new Lazy<ClanEntry>(() => clan);
+
+            // The client shows clan names as rich text: this one would be a yellow [GM].
+            clans.ChangeClanName(leader, new ChangeClanNamePacket { ClanName = "<font color=y>GM" });
+
+            Assert.AreEqual((int)PlayerMessage.PmInappropriateClanName, Messages(leader).Single().MsgId);
+            Assert.AreEqual("Wolves", NameOf(context, clan.Id));
+        }
+
+        [TestMethod]
         public void TheMigrationRenamesTheLaterOfTwoNamesThatDifferOnlyInCase()
         {
             WithDatabase(characters =>

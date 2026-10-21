@@ -238,8 +238,10 @@ namespace Rasa.Test.World
 
             Assert.AreEqual(2, Moderation.Announce("  Event at Twin Pillars in 10 minutes "));
             Assert.AreEqual(0, Moderation.Announce("   "));
-            Assert.AreEqual(1, MissionTestContext.Drain(one).OfType<SystemMessagePacket>().Count());
-            Assert.AreEqual(0, MissionTestContext.Drain(selecting).OfType<SystemMessagePacket>().Count());
+            var heard = MissionTestContext.Drain(one).OfType<AdminMessagePacket>().Single();
+            Assert.AreEqual("Event at Twin Pillars in 10 minutes", heard.Message);
+            Assert.AreEqual((uint)MsgFilterId.GameMaster, heard.FilterId);
+            Assert.AreEqual(0, MissionTestContext.Drain(selecting).OfType<AdminMessagePacket>().Count());
         }
     }
 }

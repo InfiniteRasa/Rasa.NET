@@ -69,9 +69,10 @@ namespace Rasa.Managers
 
         #region Announcements
 
-        public const string AnnouncementPrefix = "[Announcement] ";
-
-        /// <summary>A line in chat for everyone in the world, or on their way into it. Returns how many.</summary>
+        /// <summary>
+        /// A line in chat for everyone in the world, or on their way into it, as the client's own
+        /// yellow "ADMIN MESSAGE: " (CommunicatorManager.AdminMessage). Returns how many.
+        /// </summary>
         public static int Announce(string text)
         {
             text = text?.Trim();
@@ -79,11 +80,10 @@ namespace Rasa.Managers
             if (string.IsNullOrEmpty(text))
                 return 0;
 
-            var message = AnnouncementPrefix + text;
             var listeners = Connected().Where(c => c.State == ClientState.Ingame || c.State == ClientState.Loading || c.State == ClientState.Teleporting).ToList();
 
             foreach (var client in listeners)
-                Send(client, () => CommunicatorManager.Instance.SystemMessage(client, message));
+                Send(client, () => CommunicatorManager.Instance.AdminMessage(client, text));
 
             Logger.WriteLog(LogType.Command, $"Announced to {listeners.Count} player(s): {text}");
             return listeners.Count;
