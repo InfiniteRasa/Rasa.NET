@@ -125,6 +125,9 @@ namespace Rasa.Structures
 
         /// <summary>A patrol group follower's place in the formation round its leader (Managers.PatrolGroups); -1 when it has none.</summary>
         internal int FormationSlot { get; set; } = -1;
+
+        /// <summary>How long a patrol group follower has been further than PatrolGroups.StrayDistance from its place, milliseconds.</summary>
+        internal long StrayMs { get; set; }
     }
 
     /// <summary>

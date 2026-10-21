@@ -876,10 +876,16 @@ namespace Rasa.Test.World
             // On the far step, sitting out its pause: its guards where they were, behind it to the west.
             Assert.AreEqual(new Vector3(20, 0, 0), leader.Position);
             AtPlace(leader, guards[0], new Vector3(-1.5f, 0, -3));
+            AtPlace(leader, guards[1], new Vector3(-1.5f, 0, 3));
+
+            // Standing at their places, they face the way it does.
+            foreach (var guard in guards)
+                Assert.AreEqual(East, (float)guard.Rotation, 0.0001f);
 
             Record(world, watcher, leader, 25);
 
-            // Turned about and walking back west: they are behind it again, on its east side.
+            // Turned about and walking back west: they are behind it again, on its east side,
+            // each on the side of the beat it was on - not crossed over behind it.
             Assert.AreEqual(West, leader.LastYaw, 0.0001f);
             Assert.IsLessThan(20f, leader.Position.X);
             Assert.IsGreaterThan(10f, leader.Position.X);
@@ -888,8 +894,106 @@ namespace Rasa.Test.World
             foreach (var guard in guards)
                 Assert.IsGreaterThan(leader.Position.X, guard.Position.X);
 
-            AtPlace(leader, guards[0], PatrolGroups.Offset(0, West));
-            AtPlace(leader, guards[1], PatrolGroups.Offset(1, West));
+            AtPlace(leader, guards[0], new Vector3(1.5f, 0, -3));
+            AtPlace(leader, guards[1], new Vector3(1.5f, 0, 3));
+        }
+
+        [TestMethod]
+        public void AHitOnAGuardTakesTheLeaderAndTheOtherGuardIntoTheFight()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0)), new PatrolStep(new Vector3(30, 0, 0)) });
+
+            Record(world, watcher, leader, 6);
+            Assert.AreEqual(BehaviorManager.BehaviorActionFollow, guards[1].Controller.CurrentAction);
+
+            Threat.FromDamage(guards[1], watcher.Player, 10);
+
+            foreach (var member in new[] { leader, guards[0], guards[1] })
+            {
+                Assert.AreEqual(BehaviorManager.BehaviorActionFighting, member.Controller.CurrentAction);
+                Assert.AreEqual(watcher.Player.EntityId, member.Controller.ActionFighting.TargetEntityId);
+            }
+        }
+
+        [TestMethod]
+        public void TheLeaderStartingAFightTakesItsGuardsIntoIt()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0)), new PatrolStep(new Vector3(30, 0, 0)) });
+
+            Record(world, watcher, leader, 6);
+
+            Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(leader, watcher.Player.EntityId));
+
+            foreach (var guard in guards)
+                Assert.AreEqual(BehaviorManager.BehaviorActionFighting, guard.Controller.CurrentAction);
+        }
+
+        [TestMethod]
+        public void AGuardOutOfAFightItsLeaderIsStillInGoesBackIntoIt()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0)), new PatrolStep(new Vector3(30, 0, 0)) });
+
+            Record(world, watcher, leader, 6);
+            Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(leader, watcher.Player.EntityId));
+
+            // Its own fight given up, the guard is back to following.
+            BehaviorManager.Instance.GiveUp(guards[0]);
+            Assert.AreEqual(BehaviorManager.BehaviorActionFollow, guards[0].Controller.CurrentAction);
+
+            Record(world, watcher, leader, 1);
+
+            Assert.AreEqual(BehaviorManager.BehaviorActionFighting, guards[0].Controller.CurrentAction);
+            Assert.AreEqual(watcher.Player.EntityId, guards[0].Controller.ActionFighting.TargetEntityId);
+        }
+
+        [TestMethod]
+        public void TheLeaderLeashedBackToItsBeatTakesItsGuardsOutOfTheFightWithIt()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0)), new PatrolStep(new Vector3(30, 0, 0)) });
+
+            Record(world, watcher, leader, 6);
+            Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(leader, watcher.Player.EntityId));
+
+            BehaviorManager.Instance.Leash(world.Map, leader);
+
+            Assert.IsTrue(BehaviorManager.IsReturning(leader));
+
+            foreach (var guard in guards)
+            {
+                Assert.IsTrue(BehaviorManager.IsReturning(guard), "It gives the fight up with its leader.");
+                Assert.IsFalse(BehaviorManager.Instance.TrySetActionFighting(guard, watcher.Player.EntityId), "Nothing pulls it back on the way.");
+            }
+        }
+
+        [TestMethod]
+        public void AGuardThatCannotGetToItsPlaceIsPutOnIt()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0), pauseMs: 600000), new PatrolStep(new Vector3(30, 0, 0)) });
+
+            // Cut off far from its leader, all but legless: it keeps up with its leader's walk at
+            // least, and its leader barely walks.
+            leader.WalkSpeed = 0.01f;
+            guards[0].Position = new Vector3(10, 0, 60);
+            guards[0].WalkSpeed = 0;
+            guards[0].RunSpeed = 0;
+
+            Record(world, watcher, leader, 4);
+            Assert.IsGreaterThan(PatrolGroups.StrayDistance, Spacing.AcrossGround(guards[0].Position, leader.Position));
+
+            // Twice a run of about 61 m at the 1 m/s it is taken to run at least: about 123 s.
+            Record(world, watcher, leader, 520);
+
+            AtPlace(leader, guards[0], new Vector3(-1.5f, 0, -3));
         }
 
         [TestMethod]
