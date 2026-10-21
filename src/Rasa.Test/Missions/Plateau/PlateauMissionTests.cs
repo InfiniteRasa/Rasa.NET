@@ -48,7 +48,8 @@ namespace Rasa.Test.Missions.Plateau
             PlateauTrinityLogosPastV1.MissionId, PlateauCleanSlateV1.MissionId, PlateauMindBenderV1.MissionId,
             PlateauPhotoOpsV1.MissionId, PlateauResultsAreInV1.MissionId, PlateauMindSlayerV1.MissionId,
             PlateauBombVoyageV1.MissionId, PlateauLookoutDownBelowV1.MissionId, PlateauBloodhoundV1.MissionId,
-            PlateauBlueFluV1.MissionId, PlateauMurderMostFoulV1.MissionId, PlateauLookingForCluesV1.MissionId
+            PlateauBlueFluV1.MissionId, PlateauMurderMostFoulV1.MissionId, PlateauLookingForCluesV1.MissionId,
+            PlateauMysteryUnearthedV1.MissionId, PlateauSymbolismV1.MissionId, PlateauLogosVortexV1.MissionId
         };
 
         /// <summary>
@@ -60,9 +61,10 @@ namespace Rasa.Test.Missions.Plateau
         /// A Voice From The Past's and Trinity Bridge Logos: Past's one each. Clean Slate's three, Mind Bender's
         /// eight, Photo Ops' five, The Results Are In's and Mind Slayer's one each. Bomb Voyage's two, Lookout Down
         /// Below's one, The Stainless Steel Bloodhound's two. Blue Flu's two, Murder Most Foul's seven, Looking For
-        /// Clues' eight.
+        /// Clues' eight. Logos: Vortex's one; A Mystery Unearthed and Symbolism have none (their objectives are on other
+        /// maps, and a marker carries no map).
         /// </summary>
-        internal const int Indicators = 79;
+        internal const int Indicators = 80;
 
         private const string Before = "20270123000000_Thunderhead_base_teleporters";
         private const string GiantKiller = "20270125000000_Plateau_giant_killer";
@@ -104,6 +106,10 @@ namespace Rasa.Test.Missions.Plateau
         private const string CidNpcs = "20270302000000_Plateau_cid_npcs";
         private const string BlueFlu = "20270303000000_Plateau_blue_flu";
         private const string MurderMostFoul = "20270304000000_Plateau_murder_most_foul";
+        private const string LookingForClues = "20270305000000_Plateau_looking_for_clues";
+        private const string BaileyNpcs = "20270306000000_Plateau_bailey_npcs";
+        private const string MysteryUnearthed = "20270307000000_Plateau_mystery_unearthed";
+        private const string Symbolism = "20270308000000_Plateau_symbolism";
 
         [TestMethod]
         public void TheMissionsAreEnabledAndOperationalAtTheirGiversAndReceiversAndLevels()
@@ -142,7 +148,10 @@ namespace Rasa.Test.Missions.Plateau
                 (PlateauBloodhoundV1.MissionId, PlateauBloodhoundV1.Garde, null),
                 (PlateauBlueFluV1.MissionId, PlateauCidNpcsV1.Parkman, PlateauCidNpcsV1.Norton),
                 (PlateauMurderMostFoulV1.MissionId, PlateauCidNpcsV1.Norton, PlateauCidNpcsV1.Crais),
-                (PlateauLookingForCluesV1.MissionId, PlateauCidNpcsV1.Crais, PlateauCidNpcsV1.Crais)
+                (PlateauLookingForCluesV1.MissionId, PlateauCidNpcsV1.Crais, PlateauCidNpcsV1.Crais),
+                (PlateauMysteryUnearthedV1.MissionId, PlateauMysteryUnearthedV1.Topper, PlateauBaileyNpcsV1.Bailey),
+                (PlateauSymbolismV1.MissionId, PlateauBaileyNpcsV1.Bailey, PlateauMysteryUnearthedV1.Topper),
+                (PlateauLogosVortexV1.MissionId, PlateauBaileyNpcsV1.Ridout, PlateauBaileyNpcsV1.Ridout)
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             var enabled = harness.World.MissionContentDefinitionEntries.AsNoTracking()
@@ -153,7 +162,7 @@ namespace Rasa.Test.Missions.Plateau
                 var entry = enabled.Single(row => row.MissionId == mission);
                 Assert.AreEqual<uint?>(giver, entry.GiverId, $"{mission} giver");
                 Assert.AreEqual<uint?>(receiver, entry.ReceiverId, $"{mission} receiver");
-                Assert.AreEqual<uint?>(mission switch { 1251 or 1015 or 1017 or 1027 or 1044 => 31U, 930 or 1825 or 557 or 934 or 905 or 929 or 936 or 719 => 32U, 2007 => 34U, _ => 30U },
+                Assert.AreEqual<uint?>(mission switch { 1251 or 1015 or 1017 or 1027 or 1044 => 31U, 930 or 1825 or 557 or 934 or 905 or 929 or 936 or 719 => 32U, 2007 => 34U, 2016 or 2017 => 50U, _ => 30U },
                     entry.Level,
                     $"{mission} level");
                 Assert.AreEqual<uint?>(PlateauMissionDataV1.CategoryId, entry.CategoryId);
@@ -232,7 +241,13 @@ namespace Rasa.Test.Missions.Plateau
                     (1, 5070, 6386, null), (4, 5075, 6387, null), (6, 5081, 6384, null), (5, 5083, 6385, null),
                     (2, 5071, 6388, null), (8, 5090, 6389, null), (9, 5091, 6390, null), (10, 5092, 6391, null),
                     (11, 5100, 6392, null)
-                })
+                }),
+                (2016, 21909, new (uint, uint, uint, uint?)[] { (1, 21914, 21915, null) }),
+                (2017, 21925, new (uint, uint, uint, uint?)[]
+                {
+                    (1, 21930, 21931, null), (2, 21933, 21934, null), (4, 21938, 21939, null), (6, 21943, 21944, null)
+                }),
+                (1659, 15972, new (uint, uint, uint, uint?)[] { (18, 15977, 15978, null) })
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             foreach (var (mission, title, objectives) in expected)
@@ -266,7 +281,8 @@ namespace Rasa.Test.Missions.Plateau
         /// Trinity Bridge Logos: Past follows it. Clean Slate has none; Perdu's line follows it: Mind Bender, Photo
         /// Ops, The Results Are In, Mind Slayer. Bomb Voyage and Lookout Down Below have none; The Stainless Steel
         /// Bloodhound follows Lookout Down Below. Fort Defiance's murder case: Blue Flu follows The Defiant Ones, Murder
-        /// Most Foul Blue Flu, Looking For Clues Murder Most Foul.
+        /// Most Foul Blue Flu, Looking For Clues Murder Most Foul. A Mystery Unearthed and Logos: Vortex have none;
+        /// Symbolism follows A Mystery Unearthed.
         /// </summary>
         [TestMethod]
         public void EachMissionRequiresTheMissionOrDeliveryBeforeIt()
@@ -274,7 +290,7 @@ namespace Rasa.Test.Missions.Plateau
             using var harness = WildernessRuntimeTestHarness.Create();
             var prerequisites = harness.World.MissionPrerequisiteEntries.AsNoTracking()
                 .Where(entry => entry.ContentRevision == PlateauMissionDataV1.Revision).ToArray();
-            Assert.HasCount(19, prerequisites);
+            Assert.HasCount(20, prerequisites);
             var incommunicado = prerequisites.Single(entry => entry.MissionId == PlateauIncommunicadoV1.MissionId);
             Assert.AreEqual(MissionPrerequisiteKind.MissionCompleted, incommunicado.Kind);
             Assert.AreEqual<uint?>(PlateauGiantKillerV1.MissionId, incommunicado.RequiredMissionId);
@@ -309,9 +325,9 @@ namespace Rasa.Test.Missions.Plateau
             var stalkMarket = prerequisites.Single(entry => entry.MissionId == PlateauStalkMarketV1.MissionId);
             Assert.AreEqual((MissionPrerequisiteKind.MissionCompleted, (uint?)1015),
                 (stalkMarket.Kind, stalkMarket.RequiredMissionId));
-            foreach (var mission in new uint[] { 933, 1981, 930, 1034, 1825, 557, 2007, 887, 934, 1983, 931, 970 })
+            foreach (var mission in new uint[] { 933, 1981, 930, 1034, 1825, 557, 2007, 887, 934, 1983, 931, 970, 2016, 1659 })
                 Assert.IsFalse(prerequisites.Any(entry => entry.MissionId == mission), $"{mission}");
-            foreach (var (mission, required) in new (uint, uint)[] { (713, 887), (954, 887), (855, 713), (1027, 954), (1044, 934), (905, 1983), (929, 905), (936, 929), (719, 936), (867, 970), (1014, 887), (895, 1014), (928, 895) })
+            foreach (var (mission, required) in new (uint, uint)[] { (713, 887), (954, 887), (855, 713), (1027, 954), (1044, 934), (905, 1983), (929, 905), (936, 929), (719, 936), (867, 970), (1014, 887), (895, 1014), (928, 895), (2017, 2016) })
             {
                 var prerequisite = prerequisites.Single(entry => entry.MissionId == mission);
                 Assert.AreEqual((MissionPrerequisiteKind.MissionCompleted, (uint?)required),
@@ -399,7 +415,13 @@ namespace Rasa.Test.Missions.Plateau
                 (895, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
                     (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
                 (928, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
-                    (MissionEvidenceSourceKind.Reconstruction, 0.2) })
+                    (MissionEvidenceSourceKind.Reconstruction, 0.2) }),
+                (2016, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                (2017, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                (1659, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) })
             })
                 CollectionAssert.AreEqual(confidences, evidence.Where(entry => entry.MissionId == mission)
                     .OrderBy(entry => entry.EvidenceId).Select(entry => (entry.SourceKind, entry.Confidence)).ToArray(),
@@ -891,6 +913,51 @@ namespace Rasa.Test.Missions.Plateau
             foreach (var move in PlateauCidNpcsV1.Moves)
                 Assert.AreEqual(move.Before, At(move.Pool), $"{move.Pool} back at the dropship marker");
             Assert.IsTrue(Has(PlateauBloodhoundV1.MissionId));
+        }
+
+        /// <summary>
+        /// Bailey's and Ridout's missions roll back a migration at a time: Logos: Vortex; Symbolism; A Mystery
+        /// Unearthed; then their NPCs (Bailey, Ridout, the Hermit), and Retread McCormick goes back to Pools.
+        /// The murder case stays.
+        /// </summary>
+        [TestMethod]
+        public void BaileysAndRidoutsMissionsAndTheirNpcsRollBack()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            int Count(string sql) => world.Database.SqlQueryRaw<int>(sql).AsEnumerable().Single();
+            (int, int, int) Npcs() => (
+                Count($"SELECT COUNT(*) AS Value FROM creature WHERE id BETWEEN {PlateauBaileyNpcsV1.Bailey} AND {PlateauBaileyNpcsV1.Hermit}"),
+                Count($"SELECT COUNT(*) AS Value FROM spawnpool WHERE id BETWEEN {PlateauBaileyNpcsV1.BaileyPool} AND {PlateauBaileyNpcsV1.HermitPool}"),
+                Count($"SELECT COUNT(*) AS Value FROM npc_package WHERE id BETWEEN {PlateauBaileyNpcsV1.Bailey} AND {PlateauBaileyNpcsV1.Hermit}"));
+            (uint, double, double, double) McCormick()
+            {
+                var row = world.SpawnPoolEntries.AsNoTracking().Single(entry => entry.Id == PlateauBaileyNpcsV1.McCormick);
+                return (row.MapContextId, Math.Round(row.PosX, 2), Math.Round(row.PosY, 2), Math.Round(row.PosZ, 2));
+            }
+            bool Has(uint mission) => world.MissionContentDefinitionEntries.AsNoTracking().Any(entry => entry.MissionId == mission);
+
+            Assert.AreEqual((3, 3, 2), Npcs());
+            var at = PlateauBaileyNpcsV1.McCormickAt;
+            Assert.AreEqual((PlateauBaileyNpcsV1.MarshesMap, at.X, at.Y, at.Z), McCormick());
+            foreach (var (target, gone, stays) in new (string, uint, uint)[]
+            {
+                (Symbolism, PlateauLogosVortexV1.MissionId, PlateauSymbolismV1.MissionId),
+                (MysteryUnearthed, PlateauSymbolismV1.MissionId, PlateauMysteryUnearthedV1.MissionId),
+                (BaileyNpcs, PlateauMysteryUnearthedV1.MissionId, PlateauLookingForCluesV1.MissionId)
+            })
+            {
+                world.GetService<IMigrator>().Migrate(target);
+                Assert.IsFalse(Has(gone), $"{gone} rolled back");
+                Assert.IsTrue(Has(stays), $"{stays} stays");
+                Assert.AreEqual((3, 3, 2), Npcs(), $"the NPCs stay with their own migration ({target})");
+            }
+
+            world.GetService<IMigrator>().Migrate(LookingForClues);
+            Assert.AreEqual((0, 0, 0), Npcs());
+            var before = PlateauBaileyNpcsV1.McCormickBefore;
+            Assert.AreEqual((PlateauBaileyNpcsV1.PoolsMap, before.X, before.Y, before.Z), McCormick(), "McCormick back on Pools");
+            Assert.IsTrue(Has(PlateauLookingForCluesV1.MissionId));
         }
 
         /// <summary>
