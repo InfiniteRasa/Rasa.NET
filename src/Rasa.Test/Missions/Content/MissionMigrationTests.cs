@@ -93,12 +93,13 @@ namespace Rasa.Test.Missions.Content
         {
             using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true);
             // Bootcamp's five, the Wilderness outdoor release, the battlefields' Targets of
-            // Opportunity, and the Ojasa Atta Hive's five.
+            // Opportunity, the Ojasa Atta Hive's five and the Caves of Donn's six.
             var targets = Rasa.Services.Preloader.TargetsOfOpportunitySeed.Zones.Select(zone => zone.MissionId).ToArray();
             var expected = WildernessMissionCases.ProtectedBootcampMissionIds.Concat(
                 WildernessMissionCases.All.Where(entry => entry.Disposition == WildernessDisposition.OutdoorRelease)
                     .Select(entry => entry.MissionId)).ToArray();
-            CollectionAssert.AreEquivalent(expected.Concat(targets).Concat(Rasa.Services.Preloader.OjasaHiveContent.Missions).Distinct().ToArray(),
+            CollectionAssert.AreEquivalent(expected.Concat(targets).Concat(Rasa.Services.Preloader.OjasaHiveContent.Missions)
+                    .Concat(Rasa.Services.Preloader.CavesOfDonnContent.Missions).Distinct().ToArray(),
                 harness.WorldContext.MissionContentDefinitionEntries.Where(entry => entry.Enabled)
                     .Select(entry => entry.MissionId).ToArray());
             Assert.IsTrue(expected.All(id => harness.Manager.LoadedMissions[id].IsOperational));

@@ -220,6 +220,9 @@ namespace Rasa.Game.Missions
             // John turns on the Atta about him (OjasaHive).
             Managers.OjasaHive.MissionChanged(client, missionId, change);
 
+            // Nekala's two bombs with The Reason Why (CavesOfDonn).
+            Managers.CavesOfDonn.MissionChanged(client, missionId, change);
+
             if (change == "Rewarded" && client?.Player?.MapChannel is { } map &&
                 client.Player.Missions.TryGetValue(missionId, out var assignment))
             {

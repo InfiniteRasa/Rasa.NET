@@ -27,13 +27,14 @@ namespace Rasa.Test.Missions.Wilderness
                 479, 506, 508, 549, 570, 574, 623, 665, 666, 679, 682, 695, 696, 697, 698, 700,
                 701, 758, 769, 771, 776, 787, 795, 860, 1069, 1390, 1392, 1407
             };
+            // Body Count (691), which the client retired, is not one of them (CavesOfDonnContent).
             var instances = new uint[]
             {
-                859, 489, 450, 593, 674, 691, 692, 693, 1054, 1055, 1059, 1056, 711, 1065, 575, 1075, 321, 323, 446
+                859, 489, 450, 593, 674, 692, 693, 1054, 1055, 1059, 1056, 711, 1065, 575, 1075, 321, 323, 446
             };
             var definition = harness.Manager.LoadedMissions[1449].Objectives[55];
             Assert.IsNotNull(definition.HistoryAggregation);
-            Assert.AreEqual(63U, definition.HistoryAggregation.TargetCount);
+            Assert.AreEqual(62U, definition.HistoryAggregation.TargetCount);
             Assert.AreEqual(13685U, definition.ClientCounterTextIds[0].Value);
             CollectionAssert.AreEquivalent(outdoor.Concat(new uint[] { 791, 820, 1393 }).Concat(instances).ToArray(),
                 definition.HistoryAggregation.Groups.SelectMany(group => group).ToArray());
@@ -55,7 +56,7 @@ namespace Rasa.Test.Missions.Wilderness
             var gained = harness.Drain().OfType<MissionGainedPacket>().Single();
             var counter = gained.MissionInfo.ObjectivesList.Single(objective => objective.ObjectiveId == 55).Counters[0];
             Assert.AreEqual(44U, counter.CounterValue);
-            Assert.AreEqual(63U, counter.TargetValue);
+            Assert.AreEqual(62U, counter.TargetValue);
             foreach (var alternative in new uint[] { 791, 820, 1393 })
             {
                 using (var unit = harness.CreateChar())

@@ -36,9 +36,11 @@ namespace Rasa.Test.Missions.Wilderness
 
         /// <summary>
         /// Every mission enabled by a migration dated after the Wilderness ones: the
-        /// battlefields', and the Ojasa Atta Hive's five (Ojasa_hive).
+        /// battlefields', the Ojasa Atta Hive's five (Ojasa_hive) and the Caves of Donn's six
+        /// (Caves_of_donn).
         /// </summary>
-        private static readonly uint[] LaterMissions = BattlefieldMissions.Concat(OjasaHiveContent.Missions).ToArray();
+        private static readonly uint[] LaterMissions = BattlefieldMissions.Concat(OjasaHiveContent.Missions)
+            .Concat(CavesOfDonnContent.Missions).ToArray();
 
         [TestMethod]
         [DataRow(typeof(SqliteWorldContext))]
@@ -418,8 +420,8 @@ namespace Rasa.Test.Missions.Wilderness
             }
             Assert.AreEqual(69, expected.Count);
             harness.World.Initialize();
-            // Everything dated after the Wilderness migrations: the battlefields' missions and the
-            // Ojasa hive's come with it.
+            // Everything dated after the Wilderness migrations: the battlefields' missions, the
+            // Ojasa hive's and the Caves of Donn's come with it.
             expected.UnionWith(LaterMissions);
             CollectionAssert.AreEquivalent(expected.ToArray(),
                 harness.World.MissionContentDefinitionEntries.AsNoTracking()
@@ -583,14 +585,14 @@ namespace Rasa.Test.Missions.Wilderness
         }
 
         /// <summary>
-        /// The evidence of Bootcamp and the Wilderness missions. The battlefields' missions and
-        /// the Ojasa hive's have theirs from migrations dated after these, which come and go with
-        /// a rollback to one of them.
+        /// The evidence of Bootcamp and the Wilderness missions. The battlefields' missions, the
+        /// Ojasa hive's and the Caves of Donn's have theirs from migrations dated after these,
+        /// which come and go with a rollback to one of them.
         /// </summary>
         private static string[] EvidenceRows(WildernessRuntimeTestHarness harness) =>
             harness.World.MissionEvidenceEntries.AsNoTracking().AsEnumerable()
                 .Where(entry => entry.ContentRevision != TargetsOfOpportunitySeed.Revision &&
-                    entry.ContentRevision != OjasaHiveContent.Revision)
+                    entry.ContentRevision != OjasaHiveContent.Revision && entry.ContentRevision != CavesOfDonnContent.Revision)
                 // Wilderness_reward_consumables and Wilderness_reward_modules, dated after the
                 // Wilderness migrations, add their own.
                 .Where(entry => entry.SourceUri != "repository:WildernessRewardConsumables" &&
@@ -606,9 +608,10 @@ namespace Rasa.Test.Missions.Wilderness
         public void OnlyIndicatorsKeyedByTheClientsIdsAreSentWithAName()
         {
             using var harness = WildernessRuntimeTestHarness.Create();
-            // The Ojasa hive's are keyed by the client's ids where it has one (OjasaHiveTests).
+            // The Ojasa hive's and the Caves of Donn's are keyed by the client's ids where it has
+            // one (OjasaHiveTests, CavesOfDonnTests).
             var rows = harness.World.MissionIndicatorEntries.AsNoTracking().AsEnumerable()
-                .Where(row => row.ContentRevision != OjasaHiveContent.Revision).ToArray();
+                .Where(row => row.ContentRevision != OjasaHiveContent.Revision && row.ContentRevision != CavesOfDonnContent.Revision).ToArray();
             var bootcamp = rows.Where(row => row.ContentRevision == "deployment_11").ToArray();
             var wilderness = rows.Where(row => row.ContentRevision == WildernessMissionDataV1.Revision).ToArray();
 

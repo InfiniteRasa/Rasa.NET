@@ -822,6 +822,10 @@ namespace Rasa.Managers
             if (live.Placement.Kind == Kind.DestroyedSpawner)
                 Release(live, by as Manifestation);
 
+            // A Caves of Donn egg cluster: Bugged to Death (CavesOfDonn).
+            if (!live.Placement.IsPutDown)
+                CavesOfDonn.Destroyed(map, live.Placement.Id);
+
             return 0;
         }
 

@@ -88,7 +88,8 @@ namespace Rasa.Test.Missions.Wilderness
                 Assert.AreEqual(10000044U, mission.CategoryId);
                 CollectionAssert.AreEqual(pair.Value, mission.Objectives.Keys.OrderBy(id => id).ToArray());
             }
-            foreach (var excluded in new uint[] { 593, 923, 924, 751, 780, 767 })
+            // 923, Logos: Feeling, Trap, Heal, is the Caves of Donn's (CavesOfDonnContent).
+            foreach (var excluded in new uint[] { 593, 924, 751, 780, 767 })
                 Assert.IsFalse(harness.Manager.TryGetOperationalMission(excluded, out _),
                     $"W5 must not enable excluded or instance-only mission {excluded}.");
         }

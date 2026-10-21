@@ -181,9 +181,11 @@ namespace Rasa.Test.Missions.Wilderness
                     Assert.AreEqual(kill.Count, trigger.TargetValue, kill.Title);
                 }
 
-                // The rules' binding, and the caves' title put on it since (Oneoff_titles).
+                // The rules' binding, the caves' title put on it since (Oneoff_titles), and Body Count
+                // out of its story missions (Caves_of_donn).
                 Assert.AreEqual(
-                    JsonSerializer.Serialize(TargetsOfOpportunitySeed.OneOffs.WildernessScene(), MissionContentCodec.Options),
+                    JsonSerializer.Serialize(CavesOfDonnContent.TargetsOfOpportunityScene(
+                        CavesOfDonnContent.StoryGroupsWithout(CavesOfDonnContent.BodyCount)), MissionContentCodec.Options),
                     world.Set<MissionSceneBindingEntry>().AsNoTracking().Single(row => row.MissionId == Mission).Bindings);
 
                 // The other fourteen battlefields' are untouched.

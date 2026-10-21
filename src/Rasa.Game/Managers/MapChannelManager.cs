@@ -462,6 +462,9 @@ namespace Rasa.Managers
                     // The Ojasa Atta Hive's story, in each copy of it.
                     Guard("OjasaHive.Worker", mapChannel, () => OjasaHive.Worker(mapChannel));
 
+                    // The Caves of Donn's story, in each copy of them.
+                    Guard("CavesOfDonn.Worker", mapChannel, () => CavesOfDonn.Worker(mapChannel));
+
                     // Maws come up at whoever comes near, and the ones gone back down are taken off.
                     Guard("MawLurk.Worker", mapChannel, () => MawLurk.Worker(mapChannel));
 

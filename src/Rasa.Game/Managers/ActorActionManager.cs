@@ -189,6 +189,13 @@ namespace Rasa.Managers
                     // does next (a control point changing hands) goes out.
                     DynamicObjectManager.Instance.ReleaseUseLock(action, false);
 
+                    // One of the Caves of Donn's usables (CavesOfDonn), whatever its arg.
+                    if (CavesOfDonn.IsUseOf(mapChannel, action))
+                    {
+                        CavesOfDonn.UseRecovery(mapChannel, action);
+                        break;
+                    }
+
                     // A usable of the client's .map (MapUsables), whatever its arg: no object of
                     // the server's has its id.
                     if (MapUsables.IsUseOf(action))

@@ -313,6 +313,12 @@ namespace Rasa.Managers
                     $"{client.Player.FamilyName} sent {packet.ActionId}/{packet.ActionArgId} to use object {packet.EntityId}; an object is used with {ActionId.UseObject}. Ignored.");
                 return;
             }
+            // A Caves of Donn cave-in wants a bomb, its gate the three Logos (CavesOfDonn).
+            if (CavesOfDonn.Refusal(client, obj) is { } refusal)
+            {
+                ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, refusal);
+                return;
+            }
             if (obj.MissionUseAction != null &&
                 !(_missionManager ?? MissionApplication.Instance).Scenes.CanUseObject(client, obj, packet.ActionArgId))
             {

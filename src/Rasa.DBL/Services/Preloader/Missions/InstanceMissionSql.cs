@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Json;
 using Rasa.Data;
 using Rasa.Missions.Content;
+using Rasa.Missions.Definitions;
 using Rasa.Missions.Scenes;
 using Rasa.Structures.World;
 
@@ -36,11 +37,11 @@ namespace Rasa.Services.Preloader.Missions
         }
 
         public void Objective(uint id, uint nameTextId, uint bodyTextId, uint ordinal,
-            MissionObjectiveState initial = MissionObjectiveState.Inactive, bool required = true)
+            MissionObjectiveState initial = MissionObjectiveState.Inactive, bool required = true, uint? counterTextId = null)
         {
             Insert("mission_objective_definition",
                 ("objective_id", id), ("client_name_text_id", nameTextId), ("client_body_text_id", bodyTextId),
-                ("client_counter_0_text_id", null), ("client_counter_1_text_id", null), ("client_counter_2_text_id", null),
+                ("client_counter_0_text_id", counterTextId), ("client_counter_1_text_id", null), ("client_counter_2_text_id", null),
                 ("ordinal", ordinal), ("initial_state", (byte)initial), ("is_required", required),
                 ("comment", $"Native objective {_missionId}.{id}"));
         }
@@ -81,6 +82,22 @@ namespace Rasa.Services.Preloader.Missions
             Action(objective, firstAction, MissionActionKind.RevealObjective, next, transition: transition);
             Action(objective, firstAction + 1, MissionActionKind.ActivateObjective, next,
                 transition: transition, state: MissionObjectiveState.Incomplete);
+        }
+
+        /// <summary>
+        /// Taken from its giver, turned in by radio: the mission's channels (acceptance by NPC,
+        /// completion by radio, no radio offer) and the client told it can be radioed in. The
+        /// mission is to have no receiver.
+        /// </summary>
+        public void RadioTurnIn()
+        {
+            _sql.Add(Statement("mission_channel_policy", new (string, object)[]
+            {
+                ("mission_id", _missionId), ("content_revision", _revision),
+                ("acceptance_channel", (int)MissionChannel.Npc), ("completion_channel", (int)MissionChannel.Radio),
+                ("radio_sources", "[]")
+            }));
+            _sql.Add($"UPDATE mission_content_definition SET radio_completeable = 1 WHERE mission_id = {_missionId} AND content_revision = {S(_revision)};");
         }
 
         public void Prerequisite(uint mission, uint id = 1) =>
