@@ -19,7 +19,7 @@ namespace Rasa.Test.World
     public class QuassoStationRegionsTests
     {
         private const string Migration = "20270214000000_Quasso_station_regions";
-        private const string Previous = "20270212000000_Outpost_tower_teleporters";
+        private const string Previous = "20270213000000_Penumbra_hq_regions";
 
         /// <summary>The station's regions, as the .map has them: priority.</summary>
         private static readonly Dictionary<uint, int> Priority = new()
