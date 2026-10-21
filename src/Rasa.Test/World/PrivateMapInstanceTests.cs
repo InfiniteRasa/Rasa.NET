@@ -49,6 +49,23 @@ namespace Rasa.Test.World
                 maps.FindOwnedPrivateInstance(publicMap.MapInfo.MapContextId, 8));
         }
 
+        // A private instance sees the walls its template does. Without the template's cover, a
+        // private map (Bootcamp) let creatures shoot through every wall on it.
+        [TestMethod]
+        public void PrivateInstanceSharesTheTemplatesCover()
+        {
+            var service = new PrivateMapInstanceService();
+            var maps = new MapChannelManager(null, privateInstances: service);
+            var publicMap = CreateMap();
+            publicMap.Cover = Rasa.Navigation.CoverMesh.Build(
+                new float[] { -10, 0, 10, -10, 10, 10, 10, 10, 10, 10, 0, 10 }, new[] { 0, 1, 2, 0, 2, 3 });
+            maps.MapChannelArray.Add(publicMap.MapInfo.MapContextId, publicMap);
+
+            var instance = maps.GetOrCreatePrivateInstance(publicMap.MapInfo.MapContextId, 7);
+
+            Assert.AreSame(publicMap.Cover, instance.Cover);
+        }
+
         // A private instance has the floor its template does. Without it, a player who fell out of
         // a private map (Bootcamp) was never put back.
         [TestMethod]

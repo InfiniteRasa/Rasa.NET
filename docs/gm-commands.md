@@ -110,6 +110,7 @@ These change nothing in the world, except where noted.
 | `.navmesh` | Observer | Whether this map has a navmesh, and the navmesh ground height under you. |
 | `.navmesh path <x> <y> <z>` | Observer | The route the AI would take from you to that point: complete or partial, number of corners, length. |
 | `.cover` | Observer | Cover between you and your target in both directions: body points visible and the ranged damage multiplier. Needs `navmesh/<map>.cover`. |
+| `.memory [map\|full]` | Admin | What the server holds now, briefly in chat: process and heap memory, maps, instances, creatures and players. `map` (the default) adds the map you are on; `full` adds the five busiest maps, and writes every map to the **server console** (tagged `[.memory]`). Navigation (navmesh and cover sizes, the largest part of memory) is only in the startup report after `Server ready!`: measuring it walks millions of navmesh objects, and it doesn't change while the server runs. |
 | `.los [entityId]` | Observer | The server's line-of-sight report to your target or to the id given. The LOS slash commands send the same `RequestLOSReport`, but they are in the unshipped developer module, so a retail client never sends them. |
 | `.camerascript list` | Observer | This map's camera scripts: keyframes, length, where the camera starts and ends, and how far it comes from you. Scripts have no names; where the camera stands and looks is what there is to go on. |
 | `.camerascript near [n]` | Observer | This map's camera scripts nearest you first (5 unless you say). |
