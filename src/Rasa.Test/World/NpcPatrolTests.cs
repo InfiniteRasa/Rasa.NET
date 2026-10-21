@@ -1083,6 +1083,58 @@ namespace Rasa.Test.World
             CollectionAssert.AreEquivalent(new[] { 0, 1 }, guards.Select(guard => guard.Controller.ActionFollow.FormationSlot).ToArray());
         }
 
+        [TestMethod]
+        public void WithAnActingLeaderTheGuardOfTheFirstPlaceTakesTheBeatOnFromItsDeadLeader()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0)), new PatrolStep(new Vector3(30, 0, 0)) });
+            var pool = leader.SpawnPool;
+
+            pool.ActingLeader = true;
+
+            Record(world, watcher, leader, 8);
+            Assert.AreEqual(1, leader.Controller.ActionPatrol.Step);
+
+            leader.State = CharacterState.Dead;
+            leader.Attributes[Attributes.Health].Current = 0;
+            Record(world, watcher, guards[0], 1);
+
+            var first = guards.Single(guard => guard.Patrol != null);
+            var other = guards.Single(guard => guard != first);
+
+            Assert.AreSame(guards[0], first, "The guard of place 0 leads.");
+            Assert.AreSame(first, pool.Leader);
+            Assert.AreEqual(1, first.Controller.ActionPatrol.Step, "From the step its leader was walking to.");
+            Assert.AreEqual(first.EntityId, other.Controller.ActionFollow.FollowTargetId);
+
+            Record(world, watcher, first, 20);
+
+            Assert.AreEqual(BehaviorManager.BehaviorActionPatrol, first.Controller.CurrentAction);
+            Assert.IsGreaterThan(0f, first.Controller.LastMovement.Velocity);
+            Assert.AreEqual(BehaviorManager.BehaviorActionFollow, other.Controller.CurrentAction);
+            Assert.AreEqual(first.EntityId, other.Controller.ActionFollow.FollowTargetId);
+        }
+
+        [TestMethod]
+        public void WithoutAnActingLeaderNoGuardTakesTheBeatOn()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0)), new PatrolStep(new Vector3(30, 0, 0)) });
+
+            Record(world, watcher, leader, 4);
+            leader.State = CharacterState.Dead;
+            leader.Attributes[Attributes.Health].Current = 0;
+            Record(world, watcher, leader, 8);
+
+            foreach (var guard in guards)
+            {
+                Assert.IsNull(guard.Patrol);
+                Assert.AreEqual(BehaviorManager.BehaviorActionWander, guard.Controller.CurrentAction);
+            }
+        }
+
         /// <summary>A leader on <paramref name="beat"/> at x 10 facing east, walking 2 m/s, and two guards of its pool behind it, put in behind it as its pool does.</summary>
         private static (Creature Leader, Creature[] Guards) Group(WorldTestContext world, PatrolStep[] beat)
         {

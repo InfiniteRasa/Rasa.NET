@@ -190,7 +190,8 @@ namespace Rasa.Managers
                     Mode = data.Mode,
                     RespawnTime = respawnMilliseconds,
                     UpdateTimer = respawnMilliseconds,
-                    SpawnSlot = spawnPoolSlots
+                    SpawnSlot = spawnPoolSlots,
+                    FirstSlotEmpty = data.Creature1Id == 0
                 };
 
                 LoadedSpawnPools.Add(data.Id, spawnPool);
@@ -240,6 +241,18 @@ namespace Rasa.Managers
 
                 pool.DrawCount = row.Count;
                 draws++;
+            }
+
+            // Pools whose group has an acting leader (spawnpool_patrol_group; PatrolGroups).
+            foreach (var row in unitOfWork.Spawnpools.GetPatrolGroups())
+            {
+                if (!LoadedSpawnPools.TryGetValue(row.Id, out var pool))
+                {
+                    Logger.WriteLog(LogType.Error, $"spawnpool_patrol_group {row.Id} names a spawnpool that is not loaded.");
+                    continue;
+                }
+
+                pool.ActingLeader = row.ActingLeader;
             }
 
             // The beat a pool's creature walks (spawnpool_patrol; Patrols).
@@ -607,8 +620,11 @@ namespace Rasa.Managers
                 try
                 {
                     // Its beat (Patrols), for the one of the pool that walks it (PatrolGroups):
-                    // given before it is placed, as it starts on the pool's own point.
-                    var leads = PatrolGroups.Leads(spawnPool, creature);
+                    // given before it is placed, as it starts on the pool's own point. With an
+                    // acting leader, the first of a group set down with no leader standing leads it.
+                    var acting = PatrolGroups.LeaderOf(mapChannel, spawnPool);
+                    var leads = PatrolGroups.Leads(spawnPool, creature)
+                        || spawnPool.ActingLeader && acting == null && PatrolGroups.IsGroup(spawnPool);
 
                     if (leads)
                         creature.Patrol = spawnPool.Patrol;
@@ -646,7 +662,13 @@ namespace Rasa.Managers
                         CellManager.Instance.AddToWorld(mapChannel, creature);
 
                     if (leads)
+                    {
                         spawnPool.Leader = creature;
+
+                        // Its own leader back, the one that led in its place falls in behind it.
+                        if (acting != null && acting != creature)
+                            PatrolGroups.StepDown(mapChannel, acting, creature);
+                    }
 
                     if (arrival != null)
                         BehaviorManager.Instance.WalkIn(creature, SpawnPoint(mapChannel, spawnPool, creatureList.Count, creature));
@@ -1156,6 +1178,8 @@ namespace Rasa.Managers
                 Radius = template.Radius,
                 Pose = template.Pose,
                 Patrol = template.Patrol,
+                ActingLeader = template.ActingLeader,
+                FirstSlotEmpty = template.FirstSlotEmpty,
                 DrawCount = template.DrawCount,
                 SpawnSlot = template.SpawnSlot?.Select(slot =>
                     new SpawnPoolSlot(slot.CreatureId, slot.CountMin, slot.CountMax)).ToList() ?? new List<SpawnPoolSlot>(),

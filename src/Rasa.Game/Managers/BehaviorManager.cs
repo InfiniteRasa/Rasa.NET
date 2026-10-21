@@ -568,10 +568,14 @@ namespace Rasa.Managers
                         return;
                     }
 
-                    // The rest of a group falls in behind its leader once there is one standing (PatrolGroups).
-                    if (PatrolGroups.Follows(creature) && PatrolGroups.LeaderOf(mapChannel, creature.SpawnPool) is Creature leader)
+                    // The rest of a group falls in behind its leader once there is one standing,
+                    // or, with an acting leader, one of them takes the beat on (PatrolGroups).
+                    if (PatrolGroups.Follows(creature)
+                        && (PatrolGroups.LeaderOf(mapChannel, creature.SpawnPool) ?? PatrolGroups.Succeed(mapChannel, creature.SpawnPool)) is Creature leader)
                     {
-                        PatrolGroups.Attach(mapChannel, creature, leader);
+                        if (leader != creature)
+                            PatrolGroups.Attach(mapChannel, creature, leader);
+
                         return;
                     }
 
@@ -1740,6 +1744,15 @@ namespace Rasa.Managers
         {
             var follow = creature.Controller.ActionFollow;
             var leader = PatrolGroups.LeaderOf(map, creature.SpawnPool);
+
+            // With an acting leader, one of the group takes the beat on: it, or the one to follow.
+            if (leader == null && PatrolGroups.Succeed(map, creature.SpawnPool) is Creature acting)
+            {
+                if (acting != creature)
+                    PatrolGroups.Attach(map, creature, acting);
+
+                return;
+            }
 
             if (leader == null)
             {

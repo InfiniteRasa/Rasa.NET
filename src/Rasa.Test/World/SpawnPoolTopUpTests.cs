@@ -92,6 +92,44 @@ namespace Rasa.Test.World
             }
         }
 
+        [TestMethod]
+        public void AGroupWithAnActingLeaderGivesTheBeatBackToItsOwnLeaderWhenItIsToppedUp()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var pool = PoolOf(harness);
+
+            pool.SpawnSlot = new List<SpawnPoolSlot> { new SpawnPoolSlot(First, 1, 1), new SpawnPoolSlot(Second, 2, 2) };
+            pool.Patrol = new[] { new PatrolStep(pool.Position), new PatrolStep(pool.Position + new Vector3(10, 0, 0)) };
+            pool.ActingLeader = true;
+
+            harness.SpawnWorld(Pool);
+            var guards = Standing(harness, pool).Where(creature => creature.DbId == Second).ToList();
+
+            Kill(harness, pool, First, 1);
+            harness.Tick();
+
+            var acting = guards.Single(guard => guard.Patrol != null);
+
+            Assert.AreSame(acting, pool.Leader, "One of its guards leads in its stead.");
+            Assert.AreEqual(acting.EntityId, guards.Single(guard => guard != acting).Controller.ActionFollow.FollowTargetId);
+
+            harness.SpawnWorldAfter(pool.RespawnTime, Pool);
+
+            var boss = Standing(harness, pool).Single(creature => creature.DbId == First);
+
+            Assert.AreSame(boss, pool.Leader);
+            Assert.AreSame(pool.Patrol, boss.Patrol);
+
+            foreach (var guard in guards)
+            {
+                Assert.IsNull(guard.Patrol, "The acting leader gives the beat back.");
+                Assert.AreEqual(BehaviorManager.BehaviorActionFollow, guard.Controller.CurrentAction);
+                Assert.AreEqual(boss.EntityId, guard.Controller.ActionFollow.FollowTargetId);
+            }
+
+            CollectionAssert.AreEquivalent(new[] { 0, 1 }, guards.Select(guard => guard.Controller.ActionFollow.FormationSlot).ToArray());
+        }
+
         private static void Kill(WildernessRuntimeTestHarness harness, SpawnPool pool, uint creatureId, int count)
         {
             foreach (var creature in Standing(harness, pool).Where(creature => creature.DbId == creatureId).Take(count).ToList())

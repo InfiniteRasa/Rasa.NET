@@ -3221,6 +3221,21 @@ namespace Rasa.Migrations.SqliteWorld
                     b.ToTable("spawnpool_patrol");
                 });
 
+            modelBuilder.Entity("Rasa.Structures.World.SpawnPoolPatrolGroupEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("ActingLeader")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("acting_leader");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("spawnpool_patrol_group");
+                });
+
             modelBuilder.Entity("Rasa.Structures.World.SpawnPoolPoseEntry", b =>
                 {
                     b.Property<uint>("Id")
