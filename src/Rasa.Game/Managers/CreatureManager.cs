@@ -516,6 +516,10 @@ namespace Rasa.Managers
             if (damage > 0 && Pvp.Controller(source) is Manifestation hitter)
                 target.LastPlayerHit = hitter;
 
+            // A brawler below the Ojasa hive's Queen: a player's first hit takes a side (OjasaHive).
+            if (damage > 0)
+                OjasaHive.Hit(map, target, source);
+
             if (damage <= 0 || !Game.Missions.World.CreatureGameplayRules.TracksParticipation(target) || !IsHostileTarget(map, source, target))
                 return;
             var client = source is Manifestation player

@@ -459,6 +459,9 @@ namespace Rasa.Managers
                     // Fithik egg clusters someone has walked onto hatch, and grow back.
                     Guard("FithikEggClusters.Worker", mapChannel, () => FithikEggClusters.Worker(mapChannel));
 
+                    // The Ojasa Atta Hive's story, in each copy of it.
+                    Guard("OjasaHive.Worker", mapChannel, () => OjasaHive.Worker(mapChannel));
+
                     // Maws come up at whoever comes near, and the ones gone back down are taken off.
                     Guard("MawLurk.Worker", mapChannel, () => MawLurk.Worker(mapChannel));
 

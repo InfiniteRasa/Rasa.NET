@@ -217,6 +217,9 @@ namespace Rasa.Game.Missions
 
         internal void MissionChanged(Client client, uint missionId, string change)
         {
+            // John turns on the Atta about him (OjasaHive).
+            Managers.OjasaHive.MissionChanged(client, missionId, change);
+
             if (change == "Rewarded" && client?.Player?.MapChannel is { } map &&
                 client.Player.Missions.TryGetValue(missionId, out var assignment))
             {

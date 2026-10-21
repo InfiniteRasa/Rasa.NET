@@ -45,6 +45,17 @@ namespace Rasa.Test.Missions.Wilderness
             Directory.CreateDirectory(_directory);
         }
 
+        /// <summary>
+        /// The maps other than the Wilderness a harness can stand on: name, version, and where a
+        /// player is put on it.
+        /// </summary>
+        private static readonly Dictionary<uint, (string Name, uint Version, Vector3 Start)> OtherMaps = new()
+        {
+            [1865] = ("adv_arieki_torden_incline_ojasaattahive", 222, new Vector3(553.7f, 88.6f, 146.5f))
+        };
+
+        private uint _mapContextId = 1220;
+
         private void Initialize(Action<MigrationBuilder> additionalContent, string targetWorldMigration,
             Func<int, int, int> lootRoll, Action<Item> beforeItemPublication,
             Action<LootDispenser> beforeCorpsePublication)
@@ -96,13 +107,20 @@ namespace Rasa.Test.Missions.Wilderness
             else
                 throw new InvalidOperationException("Fully migrated Wilderness fixture is missing the ordinary loot schema.");
             Map = Context.Map;
+            var mapName = "adv_foreas_concordia_wilderness";
+            if (OtherMaps.TryGetValue(_mapContextId, out var other))
+            {
+                mapName = other.Name;
+                Map.MapInfo = new MapInfo(_mapContextId, other.Name, other.Version, 0);
+                Client.Player.MapContextId = _mapContextId;
+            }
             Map.NavMesh = TestNavMeshes.Query(
-                NavMeshFile.PathFor(Path.Combine(RepositoryRoot(), "navmesh"), "adv_foreas_concordia_wilderness"));
+                NavMeshFile.PathFor(Path.Combine(RepositoryRoot(), "navmesh"), mapName));
 
             var manifestations = new ManifestationManager(this);
             Maps = new MapChannelManager(this, refreshStats: (_, _) => { }, assignPlayer: _ => { },
                 enterMapChannels: _ => { });
-            Maps.MapChannelArray.Add(1220, Map);
+            Maps.MapChannelArray.Add(_mapContextId, Map);
             Manager = new MissionApplication(this, new Dictionary<uint, Mission>(),
                 new Dictionary<uint, MissionRewardDefinition>(), manifestations, utcNow: () => UtcNow);
             Creatures = new CreatureManager(this, manifestations, Manager);
@@ -141,9 +159,12 @@ namespace Rasa.Test.Missions.Wilderness
 
         internal static WildernessRuntimeTestHarness Create(Action<MigrationBuilder> additionalContent = null,
             string targetWorldMigration = null, Func<int, int, int> lootRoll = null,
-            Action<Item> beforeItemPublication = null, Action<LootDispenser> beforeCorpsePublication = null)
+            Action<Item> beforeItemPublication = null, Action<LootDispenser> beforeCorpsePublication = null,
+            uint mapContextId = 1220)
         {
-            var harness = new WildernessRuntimeTestHarness();
+            if (mapContextId != 1220 && !OtherMaps.ContainsKey(mapContextId))
+                throw new ArgumentException($"No harness for map {mapContextId}.", nameof(mapContextId));
+            var harness = new WildernessRuntimeTestHarness { _mapContextId = mapContextId };
             try
             {
                 harness.Initialize(additionalContent, targetWorldMigration, lootRoll,
@@ -371,7 +392,7 @@ namespace Rasa.Test.Missions.Wilderness
                 (Attributes.Regen, 0), (Attributes.Armor, 0)
             })
                 Client.Player.Attributes[kind] = new ActorAttributes(kind, value, value, value, 0, 0);
-            MoveTo(new Vector3(884.11f, 305.8f, 347.81f));
+            MoveTo(OtherMaps.TryGetValue(_mapContextId, out var other) ? other.Start : new Vector3(884.11f, 305.8f, 347.81f));
             Drain();
         }
 

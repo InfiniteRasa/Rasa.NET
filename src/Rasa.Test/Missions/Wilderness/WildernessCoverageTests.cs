@@ -23,12 +23,14 @@ namespace Rasa.Test.Missions.Wilderness
                 enabled.Where(entry => entry.ContentRevision == WildernessMissionCases.ContentRevision)
                     .Select(entry => entry.MissionId).ToArray());
             // And the battlefields' Targets of Opportunity (TargetsOfOpportunitySeed): fourteen, the
-            // fifteenth being the Wilderness missions' own 1449.
+            // fifteenth being the Wilderness missions' own 1449. And the Ojasa Atta Hive's five
+            // (OjasaHiveContent), which are an instance's.
             var battlefields = Rasa.Services.Preloader.TargetsOfOpportunitySeed.Zones.Select(zone => zone.MissionId).ToArray();
+            var ojasa = Rasa.Services.Preloader.OjasaHiveContent.Missions;
             CollectionAssert.AreEquivalent(expected.Concat(WildernessMissionCases.ProtectedBootcampMissionIds)
-                    .Concat(battlefields).ToArray(),
+                    .Concat(battlefields).Concat(ojasa).ToArray(),
                 enabled.Select(entry => entry.MissionId).ToArray());
-            Assert.AreEqual(69 + battlefields.Length, enabled.Length);
+            Assert.AreEqual(69 + battlefields.Length + ojasa.Length, enabled.Length);
             Assert.IsTrue(expected.All(id => harness.Manager.LoadedMissions[id].IsOperational),
                 "An enabled but nonoperational definition is not outdoor coverage.");
         }

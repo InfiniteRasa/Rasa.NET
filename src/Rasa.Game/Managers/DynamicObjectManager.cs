@@ -1360,6 +1360,11 @@ namespace Rasa.Managers
                             $"{client.Player.FamilyName} was no longer at object {obj.EntityId} when the use finished; nothing given.");
                         return;
                     }
+
+                    // The Ojasa hive's Shocking Device (OjasaHive).
+                    if (OjasaHive.Used(mapChannel, client, obj))
+                        return;
+
                     if (obj.MissionUseAction != null)
                     {
                         (_missionManager ?? MissionApplication.Instance).Scenes.UseObject(client, obj, action.ActionArgId);
