@@ -493,6 +493,9 @@ namespace Rasa.Managers
                     // A Bane base's cameras looking, and the alarm's reinforcements.
                     Guard("BaneAlarms.Worker", mapChannel, () => BaneAlarms.Worker(mapChannel));
 
+                    // Minos Caverns' captives, walked out by whoever freed them.
+                    Guard("MinosCaverns.Worker", mapChannel, () => MinosCaverns.Worker(mapChannel));
+
                     // The lootable containers the server put down: openings due to reset closed again.
                     Guard("WorldContainers.Worker", mapChannel, () => WorldContainers.Worker(mapChannel));
 

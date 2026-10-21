@@ -71,12 +71,12 @@ namespace Rasa.Services.Preloader.Missions
 
         public void Action(uint objective, uint id, MissionActionKind kind, uint? targetObjective = null,
             uint? reward = null, uint transition = 1, MissionObjectiveState? state = null,
-            CharacterIntent itemIntent = null)
+            CharacterIntent itemIntent = null, uint? scenario = null)
         {
             Insert("mission_action",
                 ("objective_id", objective), ("transition_id", transition), ("action_id", id),
                 ("kind", (byte)kind), ("sequence", id), ("target_objective_id", targetObjective),
-                ("objective_state", state.HasValue ? (byte)state.Value : null), ("reward_id", reward),
+                ("objective_state", state.HasValue ? (byte)state.Value : null), ("reward_id", reward), ("scenario_id", scenario),
                 ("item_intent", itemIntent == null ? null : JsonSerializer.Serialize(itemIntent, MissionContentCodec.Options)),
                 ("comment", $"Objective {objective} action {id}"));
         }
