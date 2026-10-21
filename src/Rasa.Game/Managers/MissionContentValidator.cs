@@ -177,6 +177,38 @@ namespace Rasa.Managers
                 .WithModules(() => (unitOfWork?.ItemModules?.GetModuleClasses(), unitOfWork?.ItemModules?.GetModifiableClasses()));
         }
 
+        /// <summary>
+        /// A radio source "mission.rewarded:{id}" must name a mission in the content, and its
+        /// mission must have a MissionCompleted prerequisite on that mission. Both diagnostics
+        /// have no mission id on purpose: they are logged as errors but neither disable the
+        /// mission nor block readiness, so a wrong id takes away only that one follow-up offer
+        /// instead of the Game server. A key that does not parse is invalid-mission-channel.
+        /// </summary>
+        private static void ValidateMissionRewardedSources(
+            MissionContentSnapshot snapshot,
+            MissionContentDefinition definition,
+            ICollection<MissionValidationDiagnostic> diagnostics)
+        {
+            foreach (var source in definition.Mission.RadioSources)
+            {
+                if (source?.Kind != Rasa.Missions.Definitions.MissionOfferSourceKind.ServerEvent ||
+                    !Rasa.Missions.Definitions.MissionOfferSourceDefinition.TryParseMissionRewarded(source.Key, out var trigger))
+                    continue;
+                if (!snapshot.Definitions.ContainsKey(trigger))
+                    diagnostics.Add(new MissionValidationDiagnostic("missing-radio-source-mission",
+                        $"Mission {definition.MissionId} radio source {source.Key} names mission {trigger}, which is not in the enabled content; the follow-up offer is never sent.",
+                        contentRevision: definition.ContentRevision));
+                if (!definition.Prerequisites.Any(prerequisite =>
+                        prerequisite.Kind == MissionPrerequisiteKind.MissionCompleted &&
+                        prerequisite.RequiredMissionId == trigger &&
+                        (prerequisite.RequiredMissionStateValue is null ||
+                            prerequisite.RequiredMissionStateValue == (byte)MissionState.Completed)))
+                    diagnostics.Add(new MissionValidationDiagnostic("missing-radio-source-prerequisite",
+                        $"Mission {definition.MissionId} radio source {source.Key} has no MissionCompleted prerequisite on mission {trigger}; its map-arrival offer can come before that mission is done.",
+                        contentRevision: definition.ContentRevision));
+            }
+        }
+
         private static void ValidateMission(
             MissionContentSnapshot snapshot,
             MissionContentDefinition definition,
@@ -191,6 +223,7 @@ namespace Rasa.Managers
                     diagnostics.Add(new MissionValidationDiagnostic("missing-radio-source-map",
                         $"Radio source {source.Key} references unavailable map context {map}.",
                         definition.MissionId, definition.ContentRevision));
+            ValidateMissionRewardedSources(snapshot, definition, diagnostics);
             if (definition.Mission.RepeatPolicy.ValidationError is { } repeatError)
                 diagnostics.Add(new MissionValidationDiagnostic("invalid-repeat-policy", repeatError,
                     definition.MissionId, definition.ContentRevision));

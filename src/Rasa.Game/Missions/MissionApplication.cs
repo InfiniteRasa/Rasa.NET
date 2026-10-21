@@ -231,6 +231,41 @@ namespace Rasa.Managers
             }
         }
 
+        /// <summary>
+        /// Offers by radio the missions that follow a turn-in, as Headquarters calls with the next
+        /// order when the character is rewarded for an earlier mission (Plateau 555 after 867).
+        /// Those missions have a ServerEvent source keyed "mission.rewarded:{id}". Called only after
+        /// the reward is committed, so the rewarded mission already counts as completed for the
+        /// follow-up's prerequisite. A follow-up with more than one trigger has a prerequisite on
+        /// each, so it is offered at the turn-in of the last of them. An offer the player does not
+        /// take comes again by the mission's map-arrival source.
+        /// </summary>
+        internal void OfferAfterTurnIn(Client client, uint rewardedMissionId)
+        {
+            if (!IsActivePlayer(client))
+                return;
+            var key = global::Rasa.Missions.Definitions.MissionOfferSourceDefinition.MissionRewardedKey(rewardedMissionId);
+            using var unit = _gameUnitOfWorkFactory.CreateChar();
+            foreach (var definition in _catalog.Missions.Values
+                .Where(mission => mission.IsOperational &&
+                    mission.AcceptanceChannel.HasFlag(global::Rasa.Missions.Definitions.MissionChannel.Radio))
+                .OrderBy(mission => mission.MissionId))
+            {
+                var source = definition.RadioSources.SingleOrDefault(candidate =>
+                    candidate.Kind == global::Rasa.Missions.Definitions.MissionOfferSourceKind.ServerEvent &&
+                    candidate.Key == key);
+                if (source == null ||
+                    source.MapContextId.HasValue && source.MapContextId != client.Player.MapChannel.MapInfo.MapContextId ||
+                    !CanAdmit(client.Player, definition, unit, out _) ||
+                    !HasJournalCapacity(client.Player.Id, definition.MissionId, unit) ||
+                    !_requirements.Evaluate(client.Player, source.Requirement, unit) ||
+                    !ArePrerequisitesSatisfied(client.Player, definition.MissionId, unit, out _))
+                    continue;
+                Offers.TryOffer(client, definition.MissionId,
+                    global::Rasa.Missions.Definitions.MissionOfferSourceIdentity.ServerEvent(key));
+            }
+        }
+
         private void ReconcileExistingFacts(Client client)
         {
             if (client?.Player == null || client.AccountEntry == null)
@@ -1425,6 +1460,8 @@ namespace Rasa.Managers
                         $"mission {missionId} hybrid unlock");
                     _protocol.PublishAudio(client, missionId, Rasa.Missions.Content.MissionAudioEvent.Completed);
                     RefreshNpcConversationStatuses(client);
+                    TryPublish(() => OfferAfterTurnIn(client, missionId),
+                        $"mission {missionId} follow-up radio offers");
                     return true;
                 }
                 finally
@@ -1538,6 +1575,8 @@ namespace Rasa.Managers
                             client.Player.EntityId,
                             new MissionRewardedPacket(missionId)),
                         $"mission {missionId} reward reconciliation");
+                    TryPublish(() => OfferAfterTurnIn(client, missionId),
+                        $"mission {missionId} follow-up radio offers after reconciliation");
                     break;
             }
         }

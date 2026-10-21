@@ -21,6 +21,34 @@ namespace Rasa.Test.Missions.Wilderness
         }
 
         [TestMethod]
+        public void NpcTurnInOffersAFollowUpByRadioWhenItsContentNamesTheTurnIn()
+        {
+            // A fixture policy: 1069 (requires 1407 completed) is also offered by radio after 1407
+            // is rewarded, as Headquarters offers Plateau 555 after 867.
+            var sources = System.Text.Json.JsonSerializer.Serialize(new[]
+            {
+                Rasa.Missions.Definitions.MissionOfferSourceDefinition.MissionRewarded(1407),
+                new Rasa.Missions.Definitions.MissionOfferSourceDefinition(
+                    Rasa.Missions.Definitions.MissionOfferSourceKind.ServerEvent,
+                    Rasa.Missions.Definitions.MissionOfferSourceDefinition.MapArrivalKey, WildernessMissionDataV1.MapContextId)
+            });
+            using var harness = WildernessRuntimeTestHarness.Create(migration => migration.InsertData("mission_channel_policy",
+                new[] { "mission_id", "content_revision", "acceptance_channel", "completion_channel", "radio_sources" },
+                new object[] { 1069U, WildernessMissionDataV1.Revision,
+                    (byte)Rasa.Missions.Definitions.MissionChannel.Mixed, (byte)Rasa.Missions.Definitions.MissionChannel.Npc, sources }));
+            harness.Manager.OfferArrivalMissions(harness.Client);
+            Assert.IsFalse(harness.Drain().OfType<Rasa.Packets.Mission.Server.DispenseRadioMissionPacket>()
+                .Any(offer => offer.MissionId == 1069), "No offer before 1407 is done.");
+
+            CompleteEscort(harness);
+
+            var offer = harness.Drain().OfType<Rasa.Packets.Mission.Server.DispenseRadioMissionPacket>().Single();
+            Assert.AreEqual(1069U, offer.MissionId);
+            Assert.IsTrue(harness.Manager.TryAcceptRadioMission(harness.Client, 1069));
+            Assert.AreEqual(MissionState.Active, harness.Client.Player.Missions[1069].State);
+        }
+
+        [TestMethod]
         public void TwoCharactersCanAcceptAndCompleteIndependentEscortsAtTheSameTime()
         {
             using var harness=WildernessRuntimeTestHarness.Create();
