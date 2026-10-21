@@ -209,7 +209,7 @@ namespace Rasa.Managers
 
             // More than one topic: the client opens its topic list, which is headed by the NPC's
             // greeting, and by "ERROR: 7: No greeting" if it was sent none (NpcGreetings).
-            NpcGreetings.AddTo(convoDataDict, creature);
+            NpcGreetings.AddTo(convoDataDict, client.Player, creature);
 
             // Nothing to talk about. A player gets here through an NPC whose only status is
             // Unavailable: npc.py offers CONVERSE on any status but None, and an empty dictionary
@@ -234,10 +234,10 @@ namespace Rasa.Managers
 
             if (convoDataDict.Count == 0)
             {
-                if (NpcGreetings.HasOwn(creature))
+                if (NpcGreetings.HasOwn(client.Player, creature))
                 {
                     unread = NpcGreetings.IsUnread(client.Player, creature);
-                    convoDataDict.Add(unread ? ConversationType.ImportantGreering : ConversationType.Greeting, NpcGreetings.For(creature));
+                    convoDataDict.Add(unread ? ConversationType.ImportantGreering : ConversationType.Greeting, NpcGreetings.For(client.Player, creature));
                 }
                 else
                     convoDataDict.Add(ConversationType.EndConversation, true);
@@ -532,7 +532,7 @@ namespace Rasa.Managers
             // One whose line is marked important has the important greeting status instead:
             // the same, with OVERHEAD_DIALOG_AVAILABLE over its head - the grey speech bubble.
             // That is until this character has read the line; then it is the plain status.
-            if (statusSet == false && NpcGreetings.HasOwn(creature))
+            if (statusSet == false && NpcGreetings.HasOwn(client.Player, creature))
             {
                 client.CallMethod(creature.EntityId, new NPCConversationStatusPacket(
                     NpcGreetings.IsUnread(client.Player, creature) ? ConversationStatus.ImportantGreeting : ConversationStatus.Greeting, new List<uint>()));

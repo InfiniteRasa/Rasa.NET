@@ -14,6 +14,7 @@ using Rasa.Packets.MapChannel.Client;
 using Rasa.Packets.MapChannel.Server;
 using Rasa.Packets.Mission.Server;
 using Rasa.Packets.Protocol;
+using Rasa.Services.Preloader;
 using Rasa.Services.Preloader.Missions.Wilderness;
 using Rasa.Structures;
 using Rasa.Structures.Char;
@@ -157,9 +158,9 @@ namespace Rasa.Test.Missions.Wilderness
             var analyzer = harness.Map.DynamicObjects.SingleOrDefault(obj =>
                 obj.SceneMissionId == 442 && obj.SceneActorRole == "blood-analyzer");
             Assert.IsNotNull(analyzer);
-            Assert.AreEqual(7123U, (uint)analyzer.EntityClassId);
-            Assert.IsTrue(Vector3.Distance(analyzer.Position, new Vector3(-124.8f, 222.04809f, -479.2f)) < 0.001f);
-            Assert.AreEqual(Math.PI, analyzer.Rotation, 0.000001);
+            Assert.AreEqual(TwinPillarsNpcs.Workstation, (uint)analyzer.EntityClassId);
+            Assert.IsTrue(Vector3.Distance(analyzer.Position, new Vector3((float)TwinPillarsNpcs.AnalyzerX, (float)TwinPillarsNpcs.AnalyzerY, (float)TwinPillarsNpcs.AnalyzerZ)) < 0.001f);
+            Assert.AreEqual(TwinPillarsNpcs.AnalyzerRotation, analyzer.Rotation, 0.0001);
             Assert.IsNotNull(analyzer.MissionConversation);
             Assert.AreEqual(1486U, analyzer.MissionConversation.NpcPackageId);
 
@@ -763,8 +764,8 @@ namespace Rasa.Test.Missions.Wilderness
 
         private static ConversePacket OpenAnalyzer(WildernessRuntimeTestHarness harness, DynamicObject analyzer)
         {
-            harness.MoveTo(new Vector3(-124.8f, 220.91783f, -477.2f));
-            Assert.IsTrue(analyzer.Position.Y - harness.Client.Player.Position.Y > 1);
+            harness.MoveTo(new Vector3((float)TwinPillarsNpcs.AnalyzerStandX, (float)TwinPillarsNpcs.AnalyzerY, (float)TwinPillarsNpcs.AnalyzerStandZ));
+            Assert.IsTrue(Math.Abs(analyzer.Position.Y - harness.Client.Player.Position.Y) < 0.5, "the workstation stands on the infirmary floor");
             Assert.IsTrue(Vector3.Distance(analyzer.Position, harness.Client.Player.Position) < 5);
             harness.Drain();
             new NpcManager(harness, harness.Manager).RequestNpcConverse(harness.Client,

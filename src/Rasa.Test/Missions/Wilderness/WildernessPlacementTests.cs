@@ -57,8 +57,9 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.AreEqual(10604U, harness.World.Set<CreatureEntry>().Single(row => row.Id == 510006).NameId);
             harness.Client.Player.Level = 5;
             harness.Client.Player.Class = (uint)CharacterClass.Recruit;
-            // Alia Das's own class trainers are gone (Alia_das_npcs); Twin Pillars' stand.
-            foreach (var (spawnId, dialogId) in new[] { (510006U, 337), (501007U, 9), (501008U, 17) })
+            // Alia Das's own class trainers are gone (Alia_das_npcs), and Twin Pillars' specialty
+            // trainers (Twin_pillars_npcs); its Class Trainer stands, a trainer of every class.
+            foreach (var (spawnId, dialogId) in new[] { (510006U, 337), (500002U, 337) })
             {
                 harness.SpawnWorld(spawnId);
                 var trainer = harness.Npc(spawnId);

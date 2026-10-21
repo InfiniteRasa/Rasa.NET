@@ -600,7 +600,9 @@ namespace Rasa.Test.Missions.Wilderness
 
         private static Creature Accept(WildernessRuntimeTestHarness harness)
         {
-            var definition = harness.World.CreatureEntries.SingleOrDefault(creature => creature.NameId == 3097);
+            // Not the second Pierre, standing at the Alia Das hospital as she is after her rescue (TwinPillarsNpcs).
+            var definition = harness.World.CreatureEntries.SingleOrDefault(creature => creature.NameId == 3097 &&
+                creature.Id != Rasa.Services.Preloader.TwinPillarsNpcs.RescuedPierre);
             Assert.IsNotNull(definition, "The coordinator-owned World migration must provide native Sgt. Pierre.");
             Assert.AreEqual(630070U, definition.Id);
             Assert.AreEqual(6340U, definition.ClassId);

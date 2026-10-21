@@ -560,7 +560,7 @@ namespace Rasa.Test.World
                 using (var context = (WorldContext)PersistenceIntegrationTests.CreateContext(typeof(SqliteWorldContext), database))
                 {
                     MigratedDatabaseTemplates.Migrate(context, () => context.Database.Migrate());
-                    Assert.IsTrue(new WorldUsableRepository(context).Get().All(Seeded), "only the Arieki vents' eruptions, the Lightning Fields' strikes, the Wilderness terminals and the Omega Missile are seeded");
+                    Assert.IsTrue(new WorldUsableRepository(context).Get().All(Seeded), "only the Arieki vents' eruptions, the Lightning Fields' strikes, the Wilderness terminals and fire pits and the Omega Missile are seeded");
                     Assert.IsFalse(context.Database.HasPendingModelChanges());
                 }
 
@@ -624,6 +624,7 @@ namespace Rasa.Test.World
         private static bool Seeded(WorldUsableEntry row) => Vent(row) ||
             row.Id is >= LightningFieldsStrikes.FirstId and <= LightningFieldsStrikes.LastId ||
             row.Id >= WildernessPostNpcs.FirstUsable && row.Id < WildernessPostNpcs.FirstUsable + WildernessPostNpcs.Usables.Length ||
+            row.Id >= TwinPillarsNpcs.FirstUsable && row.Id < TwinPillarsNpcs.FirstUsable + TwinPillarsNpcs.Usables.Length ||
             row.Id == OmegaLabsMissile.Id;
 
         private static void Run(WorldContext context, MigrationBuilder builder)

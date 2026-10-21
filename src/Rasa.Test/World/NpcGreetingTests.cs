@@ -268,8 +268,8 @@ namespace Rasa.Test.World
                     CollectionAssert.AreEqual(new[] { (510002u, 488u) }, NpcGreetingSeed.Marked.ToList(), "Brigadier General Beacham");
                     Assert.IsFalse(NpcGreetingSeed.Rows.Any(row => row.CreatureId == 510002), "he had no line before");
                     Assert.IsTrue(NpcGreetings.IsLine(488));
-                    CollectionAssert.AreEqual(new[] { (510002u, 488u) },
-                        rows.Where(row => row.Important).Select(row => (row.Id, row.GreetingId)).ToList());
+                    CollectionAssert.AreEquivalent(new[] { (510002u, 488u) }.Concat(TwinPillarsMarked.Select(row => (row.Item1, row.Item2))).ToList(),
+                        rows.Where(row => row.Important).Select(row => (row.Id, row.GreetingId)).ToList(), "and Twin_pillars_npcs' marked ones");
 
                     // Every one is a creature row of a class with the NPC augmentation (52).
                     var creatures = repository.Get().ToDictionary(creature => creature.Id);
@@ -304,11 +304,12 @@ namespace Rasa.Test.World
                     var repository = new CreatureRepository(context);
                     var rows = repository.GetNpcGreetings().ToDictionary(row => row.Id, row => row.GreetingId);
 
-                    Assert.AreEqual(84 + AliaDasNpcs.Greetings.Count(g => g.Was == null) + VanValkenbergLine, rows.Count, "one added, two changed");
+                    Assert.AreEqual(84 + AliaDasNpcs.Greetings.Count(g => g.Was == null) + VanValkenbergLine + TwinPillarsLines, rows.Count, "one added, two changed");
                     Assert.AreEqual(146u, rows[101]);
                     Assert.AreEqual(19u, rows[100]);
                     Assert.AreEqual(466u, rows[99]);
-                    CollectionAssert.AreEquivalent(new[] { 99u, 510002u }, repository.GetNpcGreetings().Where(row => row.Important).Select(row => row.Id).ToList());
+                    CollectionAssert.AreEquivalent(new[] { 99u, 510002u }.Concat(TwinPillarsMarked.Select(row => row.Item1)).ToList(),
+                        repository.GetNpcGreetings().Where(row => row.Important).Select(row => row.Id).ToList());
 
                     Assert.IsTrue(repository.DeleteNpcGreeting(101));
                     Assert.IsFalse(repository.DeleteNpcGreeting(101), "it has none now");
@@ -700,8 +701,8 @@ namespace Rasa.Test.World
             // there: it is the line the mark is for, and he is marked. Nobody else is.
             stopped.World.Initialize();
 
-            CollectionAssert.AreEqual(new[] { (Beacham, 488u, true) }, Lines().Where(row => row.Item3).ToList());
-            Assert.AreEqual(83 + AliaDasNpcs.Greetings.Count(g => g.Was == null) + VanValkenbergLine, Lines().Count);
+            CollectionAssert.AreEquivalent(new[] { (Beacham, 488u, true) }.Concat(TwinPillarsMarked).ToList(), Lines().Where(row => row.Item3).ToList());
+            Assert.AreEqual(83 + AliaDasNpcs.Greetings.Count(g => g.Was == null) + VanValkenbergLine + TwinPillarsLines, Lines().Count);
 
             // And over another line a game master gave him: it is left as it is, not marked.
             Down();
@@ -709,8 +710,8 @@ namespace Rasa.Test.World
             stopped.World.Initialize();
 
             Assert.AreEqual((Beacham, 1620u, false), Lines().Single(row => row.Item1 == Beacham));
-            Assert.IsFalse(Lines().Any(row => row.Item3));
-            Assert.AreEqual(83 + AliaDasNpcs.Greetings.Count(g => g.Was == null) + VanValkenbergLine, Lines().Count);
+            CollectionAssert.AreEquivalent(TwinPillarsMarked.ToList(), Lines().Where(row => row.Item3).ToList(), "Twin_pillars_npcs' own marks only");
+            Assert.AreEqual(83 + AliaDasNpcs.Greetings.Count(g => g.Was == null) + VanValkenbergLine + TwinPillarsLines, Lines().Count);
         }
 
         /// <summary>Corporal Van Valkenberg's line (Bootcamp_van_valkenberg), in a world migrated to the end.</summary>
@@ -728,7 +729,14 @@ namespace Rasa.Test.World
                     ? (row.Creature, change.Is, row.Important)
                     : (row.Creature, row.Greeting, row.Important))
                 .Concat(AliaDasNpcs.Greetings.Where(g => g.Was == null).Select(g => (g.Creature, g.Is, false)))
-                .Append((BootcampVanValkenberg.VanValkenberg, BootcampVanValkenberg.Greeting, false));
+                .Append((BootcampVanValkenberg.VanValkenberg, BootcampVanValkenberg.Greeting, false))
+                .Concat(TwinPillarsNpcs.Lines.Select(line => (line.Creature, line.GreetingId, line.Important)));
+
+        /// <summary>The lines Twin_pillars_npcs gives, and the ones of them it marks.</summary>
+        private static int TwinPillarsLines => TwinPillarsNpcs.Lines.Length;
+
+        private static IEnumerable<(uint, uint, bool)> TwinPillarsMarked =>
+            TwinPillarsNpcs.Lines.Where(line => line.Important).Select(line => (line.Creature, line.GreetingId, true));
 
         private static List<(uint, uint, bool)> Marks(string database)
         {

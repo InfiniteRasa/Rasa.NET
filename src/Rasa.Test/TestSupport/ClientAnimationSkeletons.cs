@@ -31,6 +31,7 @@ namespace Rasa.Test.TestSupport
             [49675] = 13999,
             [30281] = 14000,
             [49221] = 23,       // Redshirt_Human_Soldier_Heavy_Female, on the female human skeleton
+            [49677] = 14003,    // Bane_Thrax_Soldier_Grunt_Rifle, on the Thrax rifle soldier's skeleton
         };
 
         /// <summary>Action animation families with no animation on any skeleton: the client's own gap, played by nothing.</summary>

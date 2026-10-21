@@ -196,7 +196,10 @@ namespace Rasa.Test.Database
                     Assert.IsTrue(equipment.Contains(classId));
                     Assert.IsTrue(requirements.TryGetValue(classId, out var requirement));
                     Assert.AreEqual(1, (int)requirement.RequirementType);
-                    foreach (var binding in content.Bindings.Where(row => row.ProfileKey == item.ProfileKey))
+                    // Not the level 4 Thrax Trainees Twin_pillars_npcs gives the level 5 to 9 Thrax loot, the
+                    // nearest the Wilderness has: they can drop gear a level above their own.
+                    foreach (var binding in content.Bindings.Where(row => row.ProfileKey == item.ProfileKey &&
+                                 row.CreatureId != TwinPillarsNpcs.ThraxTraineeYoung))
                         Assert.IsTrue(requirement.RequirementValue <= creatures[binding.CreatureId].Level,
                             $"{binding.CreatureId}/{item.ProfileKey}/{item.ItemTemplateId}: class {classId} level requirement");
                     Assert.IsTrue(skills[classId].All(row => row.SkillLevel == 1));
@@ -240,8 +243,10 @@ namespace Rasa.Test.Database
             var missing = error.Diagnostics.Where(message => message.Contains("required ordinary loot profile binding is missing"))
                 .Select(message => uint.Parse(message.Split("creature ")[1].Split(':')[0])).Distinct().OrderBy(id => id).ToArray();
             // And this fork's Wilderness Bane turret, which Bind_control_point_turret_loot binds,
-            // and its Wilderness Bane mortar, which Bane_mortars binds.
-            CollectionAssert.AreEqual(RequiredCreatures.Append(ControlPointTurretLoot.Creature).Append(BaneMortars.LootCreature).OrderBy(id => id).ToArray(), missing);
+            // its Wilderness Bane mortar, which Bane_mortars binds, and the Thrax of the drop-offs
+            // Twin_pillars_npcs adds.
+            CollectionAssert.AreEqual(RequiredCreatures.Append(ControlPointTurretLoot.Creature).Append(BaneMortars.LootCreature)
+                .Concat(TwinPillarsNpcs.LootedCreatures).OrderBy(id => id).ToArray(), missing);
             StringAssert.Contains(error.Message, "mission 682@");
             StringAssert.Contains(error.Message, "actor xanx-1, map 1220, creature 87");
             StringAssert.Contains(error.Message, "control point 3");
@@ -426,10 +431,11 @@ namespace Rasa.Test.Database
             rows.Groups.Where(row => row.ProfileKey.StartsWith("wilderness_v1_", StringComparison.Ordinal)),
             rows.Items.Where(row => row.ProfileKey.StartsWith("wilderness_v1_", StringComparison.Ordinal)),
             // The v1 content's own: not the bindings this fork adds after it (Bind_control_point_turret_loot,
-            // Bane_mortars).
+            // Bane_mortars, Twin_pillars_npcs).
             rows.Bindings.Where(row => row.MapContextId == 1220 &&
                 !(row.MapContextId == ControlPointTurretLoot.Map && row.CreatureId == ControlPointTurretLoot.Creature) &&
-                !(row.MapContextId == BaneMortars.LootMap && row.CreatureId == BaneMortars.LootCreature)),
+                !(row.MapContextId == BaneMortars.LootMap && row.CreatureId == BaneMortars.LootCreature) &&
+                !(row.MapContextId == TwinPillarsNpcs.Map && TwinPillarsNpcs.LootedCreatures.Contains(row.CreatureId))),
             rows.MapPolicies.Where(row => row.MapContextId == 1220));
 
         private static string Serialize(OrdinaryLootContentSnapshot rows) => JsonSerializer.Serialize(rows);
