@@ -953,6 +953,54 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void AfterTheFightTheLeaderRejoinsItsBeatAndItsGuardsFormUpBehindItAgain()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[]
+            {
+                new PatrolStep(new Vector3(10, 0, 0)),
+                new PatrolStep(new Vector3(30, 0, 0), pauseMs: 60000)
+            });
+
+            Record(world, watcher, leader, 6);
+            Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(leader, watcher.Player.EntityId));
+
+            // The fight carried them all off the line, and is over.
+            leader.Position = new Vector3(15, 0, 6);
+            guards[0].Position = new Vector3(12, 0, 12);
+            guards[1].Position = new Vector3(18, 0, 10);
+            BehaviorManager.Instance.GiveUp(leader);
+
+            foreach (var guard in guards)
+            {
+                BehaviorManager.Instance.GiveUp(guard);
+                Assert.AreEqual(BehaviorManager.BehaviorActionFollow, guard.Controller.CurrentAction, "Out of the fight, back to following.");
+            }
+
+            Record(world, watcher, leader, 2);
+
+            Assert.AreEqual(BehaviorManager.BehaviorActionPatrol, leader.Controller.CurrentAction);
+            Assert.AreEqual(1, leader.Controller.ActionPatrol.Step, "Its place on the beat is kept.");
+
+            Record(world, watcher, leader, 60);
+
+            Assert.AreEqual(new Vector3(30, 0, 0), leader.Position);
+            Assert.IsTrue(leader.Controller.ActionPatrol.Arrived);
+
+            foreach (var guard in guards)
+                Assert.AreEqual(BehaviorManager.BehaviorActionFollow, guard.Controller.CurrentAction);
+
+            // It came back onto the step from off the line, and stands facing the way it came:
+            // its guards form up behind it as it faces.
+            var facing = (float)leader.Rotation;
+
+            Assert.AreNotEqual(East, facing, 0.1f);
+            AtPlace(leader, guards[0], PatrolGroups.Offset(0, facing));
+            AtPlace(leader, guards[1], PatrolGroups.Offset(1, facing));
+        }
+
+        [TestMethod]
         public void TheLeaderLeashedBackToItsBeatTakesItsGuardsOutOfTheFightWithIt()
         {
             using var world = new WorldTestContext();
