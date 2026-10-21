@@ -5,7 +5,7 @@ Generated 2026-10-18, extended 2026-10-20 (Wayback round 2: official site + patc
 | Source | Label in entries | Missions |
 | --- | --- | ---: |
 | Client tables (title, log summary, objectives) | **Client** | 1168 |
-| This server, `data/rasaworld.db` enabled `mission_content_definition` rows | **Local server** | 88 |
+| This server, `data/rasaworld.db` enabled `mission_content_definition` rows | **Local server** | 91 |
 | [TaRapedia (Fandom)](https://tabularasa.fandom.com/wiki/Category:Missions) | **TaRapedia** | 941 |
 | [Ellatha / DaOpa mission DB](https://www.ellatha.com/tr/missionslist.asp) | **Ellatha** | 93 |
 | [tabularasawiki.org (Wayback 2007-08)](https://web.archive.org/web/20080511080212/http://www.tabularasawiki.org/action/view/Main_Page) | **TRWiki archive** | 7 |
@@ -37,9 +37,9 @@ Generated 2026-10-18, extended 2026-10-20 (Wayback round 2: official site + patc
 | [TR MMO DB (tr.mmodb.com, Wayback)](https://web.archive.org/web/2008/http://tr.mmodb.com/quests/) quest pages (level / start NPC / zone / mobs / objectives) + bestiary | **TR MMO DB** | 317 |
 | Web search by research agents (mostly TaRapedia patch notes, NPC lists, alternate titles) | **Web** | 88 |
 
-**Implemented** (enabled on the local server, `data/rasaworld.db`; marked `[implemented]` in the entry heading): 88 missions. Per zone: Wilderness 64, Plateau 6, Bootcamp 5, Abyss 1, Ashen Desert 1, Crucible 1, Descent 1, Divide 1, Howling Maw 1, Incline 1, Marshes 1, Mires 1, Palisades 1, Plains 1, Pools 1, Thunderhead 1. Search for `[implemented]` to find them; entries without the mark are not implemented yet.
+**Implemented** (enabled on the local server, `data/rasaworld.db`; marked `[implemented]` in the entry heading): 91 missions. Per zone: Wilderness 64, Plateau 9, Bootcamp 5, Abyss 1, Ashen Desert 1, Crucible 1, Descent 1, Divide 1, Howling Maw 1, Incline 1, Marshes 1, Mires 1, Palisades 1, Plains 1, Pools 1, Thunderhead 1. Search for `[implemented]` to find them; entries without the mark are not implemented yet.
 
-**Needs playtest** (implemented, not yet played through in the game client; marked `[needs playtest]`, list in `tools/mission-crossref/NOTES-playtest.md`): 3 missions.
+**Needs playtest** (implemented, not yet played through in the game client; marked `[needs playtest]`, list in `tools/mission-crossref/NOTES-playtest.md`): 6 missions.
 
 
 **Instance** (the mission takes place in a client instance map, a "mission context" in gamecontext.pyo; marked `[instance]` in the entry heading): from an objective NPC package that spawns in an instance (local DB), a TaRapedia NPC page in an instance, or client objective text placing it there. "Instance mentioned" lines only name an instance (ESTIMATE). Refresh with instance_export.py.
@@ -19089,17 +19089,23 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Chain** (explicit prerequisite links): The Defiant Ones chain (8 missions), step 2
   - Requires: The Defiant Ones (id 887) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Blue_Flu), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Defiant_Ones)
   - Leads to: Murder Most Foul (id 895) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Blue_Flu), [TaRapedia](https://tabularasa.fandom.com/wiki/Murder_Most_Foul)
-### 1015 — Scavenger Hunt
+### 1015 — Scavenger Hunt [implemented] [needs playtest]
 
+- **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Rebuild summary:**
-  - level: 32 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Scavenger_Hunt); 25 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
+  - level: 31 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 32 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Scavenger_Hunt); 25 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
   - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 51 missions in this file with a sourced level
+  - reward: 50000 XP; Carton of Cigarettes — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 50,000 XP; None credits — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Scavenger_Hunt)
   - drops / mission items: These items randomly drop from any type of Thrax in Plateau — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Scavenger_Hunt)
   - location: NPC Private "Scrounger" Scarpelo: Plateau, AFS Camp Resistance, /loc -622, 442, -227 — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Private_%22Scrounger%22_Scarpelo)
 - **Client:** Private Scrounger Scarpelli wants you to get five Thrax Insignia Patches and a Thrax Ceremonial Dagger. He'll trade them for the carton of Hillsboro Lights that Major Lulu Lonigan requested.
   - objectives (client): Collect 5 Insignia Patches. — Collect five Thrax Insignia Patches for Private Scrounger, to trade for Major Lonigan's cigarettes.; Get a Thrax Ceremonial Dagger. — Obtain a Thrax Ceremonial Dagger for Private Scrounger, to trade for Major Lonigan's cigarettes.
+- **Local server:** revision `plateau_1_16_5`, level 31, solo, category 10000056 (Battlefield (Plateau)), giver Private "Scrounger" Scarpelo
+  - reward: 50000 XP; items: Carton of Cigarettes
+  - prerequisites: Requires the Scrounger's talk in Comic Relief (objective 10)
 - **TaRapedia** [Scavenger Hunt](https://tabularasa.fandom.com/wiki/Scavenger_Hunt) [stub]: giver: Private "Scrounger" Scarpelo; at: AFS Camp Resistance; zone: Plateau; level: 32 (possibly less); requires: Comic Relief (one objective); follow-up: The Stalk Market; XP: 50,000; credits: None; reward from: Private "Scrounger" Scarpelo
   - overview: Private Scrounger Scarpelli wants you to get five Thrax Insignia Patches and a Thrax Ceremonial Dagger. He'll trade them for the carton of Hillsboro Lights that Major Lulu Lonigan requested.
   - objectives: Collect 5 Insignia Patches. • Collect five Thrax Insignia Patches for Private Scrounger, to trade for Major Lonigan's cigarettes. • x 5; Get a Thrax Ceremonial Dagger. • Obtain a Thrax Ceremonial Dagger for Private Scrounger, to trade for Major Lonigan's cigarettes. • x 1
@@ -19112,18 +19118,24 @@ Notes: client text is shipped presentation only; it does not prove availability,
 
 - **Chain** (explicit prerequisite links): Comic Relief chain (3 missions), step 2
   - Requires: Comic Relief (id 1251) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Scavenger_Hunt)
-  - Leads to: The Stalk Market (id 1017) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Scavenger_Hunt), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Stalk_Market)
-### 1017 — The Stalk Market
+  - Leads to: The Stalk Market (id 1017) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Scavenger_Hunt), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Stalk_Market), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
+### 1017 — The Stalk Market [implemented] [needs playtest]
 
+- **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Rebuild summary:**
-  - level: 31 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Stalk_Market)
+  - level: 31 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 31 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Stalk_Market)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
   - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 51 missions in this file with a sourced level
+  - reward: 100000 XP; 6600 credits; choose 1 of: Electric Blade, Kinetic Staff, Pulse Pistol, Direct Healing Disc — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 100,000 XP; 6,600 credits — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Stalk_Market)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: NPC Private "Scrounger" Scarpelo: Plateau, AFS Camp Resistance, /loc -622, 442, -227 — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Private_%22Scrounger%22_Scarpelo)
 - **Client:** Hunt Bane Stalkers on the battlefield, south of Trinity Bridge, and collect the following parts for Private "Scrounger" Scarpeli at Camp Resistance: 6 Actuators, 4 Gyrostabilizers and 4 Protonic Fuel Cells.
   - objectives (client): Obtain 6 Stalker Actuators. — Obtain 6 Stalker Actuators for Private Scrounger.; Obtain 4 Gyrostabilizers. — Obtain 4 Stalker Gyrostabilizers for Private Scrounger.; Obtain 4 Fuel Cells. — Obtain 4 Protonic Fuel Cells for Private Scrounger.
+- **Local server:** revision `plateau_1_16_5`, level 31, solo, category 10000056 (Battlefield (Plateau)), giver Private "Scrounger" Scarpelo
+  - reward: 100000 XP; 6600 credits; choose 1 of: Electric Blade, Kinetic Staff, Pulse Pistol, Direct Healing Disc
+  - prerequisites: Requires completed mission 1015
 - **TaRapedia** [The Stalk Market](https://tabularasa.fandom.com/wiki/The_Stalk_Market): giver: Private "Scrounger" Scarpelo; at: AFS Camp Resistance; zone: Plateau; level: 31; requires: Scavenger Hunt; XP: 100,000; credits: 6,600; reward from: Private "Scrounger" Scarpelo
   - overview: Hunt Bane Stalkers on the battlefield, south of Trinity Bridge, and collect the following parts for Private "Scrounger" Scarpeli at Camp Resistance: 6 Actuators, 4 Gyrostabilizers and 4 Protonic Fuel Cells.
   - objectives: Obtain 6 Stalker Actuators. • Obtain 6 Stalker Actuators for Private Scrounger. • 0/6; Obtain 4 Gyrostabilizers. • Obtain 4 Stalker Gyrostabilizers for Private Scrounger. • 0/4 -- yes, Geo; Obtain 4 Fuel Cells. • Obtain 4 Protonic Fuel Cells for Private Scrounger. • 0/4
@@ -19132,7 +19144,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [Private "Scrounger" Scarpelo](https://tabularasa.fandom.com/wiki/Private_%22Scrounger%22_Scarpelo): Plateau, AFS Camp Resistance, /loc -622, 442, -227 (named as giver/receiver)
 
 - **Chain** (explicit prerequisite links): Comic Relief chain (3 missions), step 3
-  - Requires: Scavenger Hunt (id 1015) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Scavenger_Hunt), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Stalk_Market)
+  - Requires: Scavenger Hunt (id 1015) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Scavenger_Hunt), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Stalk_Market), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 1027 — Alpha Mox
 
 - **Rebuild summary:**
@@ -19665,17 +19677,22 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Leads to: Monkey Wrench (id 1188) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Interception%21), [TaRapedia](https://tabularasa.fandom.com/wiki/Monkey_Wrench)
 - **TR MMO DB quest series:** "Silent But Deadly", row 1 of 3 ([list](https://web.archive.org/web/20120731163805/http://tr.mmodb.com/quests/seriesname-silent_but_deadly/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 - **Requires an instance mission:** Silent But Deadly (1187) — source: the chain links above
-### 1251 — Comic Relief
+### 1251 — Comic Relief [implemented] [needs playtest]
 
+- **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Rebuild summary:**
-  - level: 31 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Comic_Relief)
+  - level: 31 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 31 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Comic_Relief)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
   - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 51 missions in this file with a sourced level
+  - reward: 50000 XP; 4950 credits; choose 1 of: Bio Armor Vest, Graviton Armor Vest, Mech Armor Vest, Stealth Armor Vest — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 50,000 XP; 4,950 credits; Equipment — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Comic_Relief)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: NPC Corporal "Relay" O'Brien: Plateau, AFS Camp Resistance, /loc -621, 441, -234 — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Corporal_%22Relay%22_O%27Brien)
 - **Client:** Corporal "Relay" O'Brien lost a valuable comic book to Major Lulu Lonigan in a poker game. Get it back and he'll trade you some valuable equipment for it.
   - objectives (client): Speak to Major Lonigan. — Ask Major Lulu Lonigan about Relay's comic book.; Trade with Major Lonigan. — Trade the cigarettes to Major Lulu Lonigan for Relay's comic book.; Get Relay's comic back. — Get Relay O'Brien's Comic Book back from Major Lulu Lonigan.; Get Lulu's Cigarettes. — Obtain a Carton of Cigarettes from Private Scrounger, for Major Lulu Lonigan.; Talk to "Scrounger." — Ask Private "Scrounger" Scarpello if he can get you a carton of Hillsboro cigarettes for Major Lulu Lonigan.
+- **Local server:** revision `plateau_1_16_5`, level 31, solo, category 10000056 (Battlefield (Plateau)), giver Corporal "Relay" O'Brien
+  - reward: 50000 XP; 4950 credits; choose 1 of: Bio Armor Vest, Graviton Armor Vest, Mech Armor Vest, Stealth Armor Vest
 - **TaRapedia** [Comic Relief](https://tabularasa.fandom.com/wiki/Comic_Relief): giver: Corporal "Relay" O'Brien; at: AFS Camp Resistance; zone: Plateau; level: 31; requires: None; follow-up: Scavenger Hunt (sub-mission); XP: 50,000; credits: 4,950; items: Equipment; reward from: Corporal "Relay" O'Brien
   - overview: Corporal "Relay" O'Brien lost a valuable comic book to Major Lulu Lonigan in a poker game. Get it back and he'll trade you some valuable equipment for it.
   - objectives: Get Relay's comic back. • Get Relay O'Brien's Comic Book back from Major Lulu Lonigan. • 0/1; Speak to Major Lonigan. • Ask Major Lulu Lonigan about Relay's comic book.; Get Lulu's Cigarettes. • Obtain a Carton of Cigarettes from Private Scrounger, for Major Lulu Lonigan. • 0/1; Talk to "Scrounger." • Ask Private "Scrounger" Scarpello if he can get you a carton of Hillsboro cigarettes for Major …
