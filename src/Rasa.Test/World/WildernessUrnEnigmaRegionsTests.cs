@@ -18,8 +18,8 @@ namespace Rasa.Test.World
     [DoNotParallelize]
     public class WildernessUrnEnigmaRegionsTests
     {
-        private const string Migration = "20270306000000_Wilderness_urn_enigma_regions";
-        private const string Previous = "20270305000000_Devils_den";
+        private const string Migration = "20270307000000_Wilderness_urn_enigma_regions";
+        private const string Previous = "20270306000000_Pravus_research";
 
         private const int Sky = 1, Env = 2, Ambient = 4, Music = 8, Name = 16;
 
