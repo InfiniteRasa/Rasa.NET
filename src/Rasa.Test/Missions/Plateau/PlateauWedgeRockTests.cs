@@ -230,6 +230,47 @@ namespace Rasa.Test.Missions.Plateau
             return harness.Drain().OfType<ConversePacket>().LastOrDefault();
         }
 
+        /// <summary>
+        /// Thibodeau, Devinchy, McKinley and Remick stand in the outpost, on its floor, not on the rock's top; no
+        /// hostile pool reaches them; Cryptic Messages' markers point at McKinley and Devinchy where they now are.
+        /// </summary>
+        [TestMethod]
+        public void TheOutpostsNpcsStandInTheOutpostWithCrypticMessagesMarkersOnThem()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var plateau = EnterPlateau(harness);
+            Spawn(plateau, PlateauWedgeRockNpcsV1.Moves.Select(move => move.Pool).ToArray());
+            foreach (var move in PlateauWedgeRockNpcsV1.Moves)
+            {
+                var npc = RequireNpc(plateau, move.Pool);
+                Assert.IsTrue(Vector2.Distance(new Vector2(npc.Position.X, npc.Position.Z), new Vector2((float)move.At.X, (float)move.At.Z)) < 0.5f,
+                    $"{move.Pool}: {npc.Position}");
+                Assert.IsTrue(npc.Position.Y < 380f, $"{move.Pool} below the rock's top: {npc.Position}");
+                var ground = plateau.NavMesh.GroundHeight(new Vector3((float)move.At.X, (float)move.At.Y, (float)move.At.Z));
+                Assert.IsNotNull(ground, $"{move.Pool} has navmesh under it");
+                Assert.IsTrue(System.Math.Abs(ground.Value - move.At.Y) < 0.5f, $"{move.Pool} at {move.At.Y}, ground {ground}");
+            }
+
+            var hostile = harness.World.SpawnPoolEntries.AsNoTracking()
+                .Where(pool => pool.MapContextId == PlateauMissionDataV1.MapContextId).ToArray()
+                .Where(pool => harness.World.CreatureEntries.AsNoTracking().Single(row => row.Id == pool.Creature1Id).Faction == 0)
+                .ToArray();
+            foreach (var move in PlateauWedgeRockNpcsV1.Moves)
+                foreach (var pool in hostile)
+                    Assert.IsTrue(Vector2.Distance(new Vector2((float)move.At.X, (float)move.At.Z), new Vector2((float)pool.PosX, (float)pool.PosZ))
+                        - (float)pool.Radius >= SpawnPoolManager.SafeClearance, $"hostile pool {pool.Id} reaches {move.Pool}");
+
+            foreach (var marker in PlateauWedgeRockNpcsV1.Markers)
+            {
+                var row = harness.World.MissionIndicatorEntries.AsNoTracking().Single(entry => entry.MissionId == CrypticMessages &&
+                    entry.ObjectiveId == marker.Objective && entry.IndicatorId == Rasa.Structures.MissionIndicator.UnnamedFrom + marker.Indicator);
+                Assert.AreEqual(marker.At, (row.PosX, row.PosY, row.PosZ), $"objective {marker.Objective}'s marker");
+            }
+            Assert.AreEqual(PlateauWedgeRockNpcsV1.McKinley, McKinley);
+            Assert.AreEqual(PlateauWedgeRockNpcsV1.Devinchy, Devinchy);
+            Assert.AreEqual(PlateauWedgeRockNpcsV1.Thibodeau, Thibodeau);
+        }
+
         /// <summary>Kills the living creature of this kind as the player; returns its corpse.</summary>
         private static LootDispenser Kill(WildernessRuntimeTestHarness harness, MapChannel plateau, uint kind)
         {

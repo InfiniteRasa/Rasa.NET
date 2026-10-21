@@ -91,6 +91,7 @@ namespace Rasa.Test.Missions.Plateau
         private const string MindBender = "20270221000000_Plateau_mind_bender";
         private const string PhotoOps = "20270222000000_Plateau_photo_ops";
         private const string ResultsAreIn = "20270223000000_Plateau_results_are_in";
+        private const string MindSlayer = "20270224000000_Plateau_mind_slayer";
 
         [TestMethod]
         public void TheMissionsAreEnabledAndOperationalAtTheirGiversAndReceiversAndLevels()
@@ -761,6 +762,40 @@ namespace Rasa.Test.Missions.Plateau
             foreach (var move in PlateauPerduNpcsV1.Moves)
                 Assert.AreEqual(move.Before, At(move.Pool), $"{move.Pool} back where the NPC seed had it");
             Assert.IsTrue(Has(PlateauTrinityLogosPastV1.MissionId));
+        }
+
+        /// <summary>
+        /// Wedge Rock's four NPCs and Cryptic Messages' two markers go back to the rock's top when their
+        /// migration rolls back; Perdu's missions stay.
+        /// </summary>
+        [TestMethod]
+        public void WedgeRocksNpcsAndMarkersRollBackToTheRock()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            (double, double, double) At(uint pool)
+            {
+                var row = world.SpawnPoolEntries.AsNoTracking().Single(entry => entry.Id == pool);
+                return (Math.Round(row.PosX, 2), Math.Round(row.PosY, 2), Math.Round(row.PosZ, 2));
+            }
+            (double, double, double) Marker(uint objective, uint indicator)
+            {
+                var row = world.MissionIndicatorEntries.AsNoTracking().Single(entry => entry.MissionId == PlateauCrypticMessagesV1.MissionId &&
+                    entry.ObjectiveId == objective && entry.IndicatorId == Rasa.Structures.MissionIndicator.UnnamedFrom + indicator);
+                return (row.PosX, row.PosY, row.PosZ);
+            }
+
+            foreach (var move in PlateauWedgeRockNpcsV1.Moves)
+                Assert.AreEqual(move.At, At(move.Pool), $"{move.Pool}");
+            foreach (var marker in PlateauWedgeRockNpcsV1.Markers)
+                Assert.AreEqual(marker.At, Marker(marker.Objective, marker.Indicator), $"marker {marker.Objective}");
+
+            world.GetService<IMigrator>().Migrate(MindSlayer);
+            foreach (var move in PlateauWedgeRockNpcsV1.Moves)
+                Assert.AreEqual(move.Before, At(move.Pool), $"{move.Pool} back on the rock");
+            foreach (var marker in PlateauWedgeRockNpcsV1.Markers)
+                Assert.AreEqual(marker.Before, Marker(marker.Objective, marker.Indicator), $"marker {marker.Objective} back");
+            Assert.IsTrue(world.MissionContentDefinitionEntries.AsNoTracking().Any(entry => entry.MissionId == PlateauMindSlayerV1.MissionId));
         }
     }
 }
