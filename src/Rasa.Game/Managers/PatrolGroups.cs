@@ -64,11 +64,14 @@ namespace Rasa.Managers
         /// <summary>A follower that cannot stand at its place keeps this far behind the leader instead. MinionManager.FollowDistance.</summary>
         public const float TrailDistance = 4f;
 
-        /// <summary>Further than this from its place, a follower runs to it: at the leader's pace it would never close the gap.</summary>
+        /// <summary>Further than this from its place - and as far again as its leader walks in a think - a follower runs to it: at the leader's pace it would never close the gap.</summary>
         public const float RunDistance = 2f;
 
-        /// <summary>Back within this of its place, a running follower walks again.</summary>
+        /// <summary>Back within this of its place - and as far again as its leader walks in a think - a running follower walks again.</summary>
         public const float WalkDistance = 0.5f;
+
+        /// <summary>A leader heading this far off the leg of the beat it walks is not walking it: coming onto it from a fight, say. An eighth of a turn.</summary>
+        public const float LegTolerance = MathF.PI / 4f;
 
         /// <summary>Within this of its place, while the leader stands, a follower stands too.</summary>
         public const float PlaceReached = 0.5f;
@@ -83,15 +86,20 @@ namespace Rasa.Managers
         /// <summary>Whether the pool is a group on a beat: a patrol, and more than its leader to walk it - or no leader of its own, so one of them leads.</summary>
         public static bool IsGroup(SpawnPool pool) =>
             pool?.Patrol != null && pool.SpawnSlot != null
-            && (!HasLeaderSlot(pool) || pool.SpawnSlot.Sum(slot => (int)slot.CountMax) > 1);
+            && (!HasLeaderSlot(pool) || pool.SpawnSlot.Sum(slot => slot?.CountMax ?? 0) > 1);
 
         /// <summary>Whether the creature is its pool's own leader: the creature of the pool's first slot.</summary>
         public static bool Leads(SpawnPool pool, Creature creature) =>
-            pool?.Patrol != null && HasLeaderSlot(pool) && pool.SpawnSlot?.Count > 0 && creature != null && pool.SpawnSlot[0].CreatureId == creature.DbId;
+            pool?.Patrol != null && HasLeaderSlot(pool) && pool.SpawnSlot?.Count > 0 && creature != null && pool.SpawnSlot[0]?.CreatureId == creature.DbId;
 
-        /// <summary>Whether the creature keeps a place round its pool's leader: of a group's pool, not leading it, and no one's minion.</summary>
+        /// <summary>
+        /// Whether the creature keeps a place round its pool's leader: of a group's pool, not
+        /// leading it, no one's minion, and not under a player's Mind Control, which has it
+        /// follow them instead (AbilityManager.MindControl).
+        /// </summary>
         public static bool Follows(Creature creature) =>
-            creature != null && creature.MasterEntityId == 0 && creature.Patrol == null && IsGroup(creature.SpawnPool);
+            creature != null && creature.MasterEntityId == 0 && creature.Patrol == null && IsGroup(creature.SpawnPool)
+            && AbilityManager.MindControlPumpOf(creature) == 0;
 
         /// <summary>
         /// Why a pool with a beat cannot be walked by a group, or null when it can. The leader
@@ -108,13 +116,16 @@ namespace Rasa.Managers
 
             var leader = pool.SpawnSlot[0];
 
+            if (leader == null || leader.CreatureId == 0)
+                return "its first slot, the leader, holds no creature";
+
             if (leader.CountMin != 1 || leader.CountMax != 1)
                 return $"its first slot, the leader, is {leader.CountMin}-{leader.CountMax} creatures, not 1";
 
             if (pool.DrawCount > 0)
                 return "it draws its creatures at random (spawnpool_draw)";
 
-            if (pool.SpawnSlot.Skip(1).Any(slot => slot.CreatureId == leader.CreatureId))
+            if (pool.SpawnSlot.Skip(1).Any(slot => slot?.CreatureId == leader.CreatureId))
                 return $"another slot holds its leader's creature {leader.CreatureId}";
 
             return null;
@@ -198,13 +209,36 @@ namespace Rasa.Managers
             next.Patrol = pool.Patrol;
             next.LastYaw = (float)next.Rotation;
             next.Controller.ActionPatrol.Step = step;
-            pool.Leader = next;
+            SetLeader(pool, next);
 
             // Idle, it sets off on the beat at its next think; in a fight, once that is over.
             if (next.Controller.CurrentAction != BehaviorManager.BehaviorActionFighting && !BehaviorManager.IsReturning(next))
                 BehaviorManager.StartWandering(next, false);
 
             return next;
+        }
+
+        /// <summary>
+        /// The creature now leads the pool's group: its own leader set down, or an acting one.
+        /// Its formation starts afresh, not mirrored for a beat its last leader walked.
+        /// </summary>
+        public static void SetLeader(SpawnPool pool, Creature leader)
+        {
+            pool.Leader = leader;
+            pool.FormationYaw = null;
+            pool.FormationMirrored = false;
+        }
+
+        /// <summary>
+        /// The follower drops its fight as it is - the target too far from its group, or out of
+        /// its reach - and goes back to its place. Unlike a leash it is not made whole, and it is
+        /// not drawn back into its leader's fight with that target.
+        /// </summary>
+        public static void DropFight(Creature follower)
+        {
+            follower.Controller.ActionFollow.DroppedTargetId = follower.Controller.ActionFighting.TargetEntityId;
+            follower.LastRestTime = 0;
+            BehaviorManager.Instance.GiveUp(follower);
         }
 
         /// <summary>
@@ -257,38 +291,57 @@ namespace Rasa.Managers
 
         /// <summary>
         /// Where the follower stands round its leader: its formation place, turned with the
-        /// leader while the leader walks and held while it stands, on the navmesh; a point
-        /// <see cref="TrailDistance"/> behind the leader, on its side, when the place is off
-        /// the mesh; where it stands when that is off it too.
+        /// leader while the leader walks and held while it stands, on the navmesh. A place off
+        /// the mesh - a cliff, a wall the beat runs along - is taken on the other side of the
+        /// leader; that off the mesh too, a point <see cref="TrailDistance"/> straight behind
+        /// it; and that too, the leader's own ground.
         /// </summary>
         public static Vector3 PlaceOf(MapChannel map, Creature follower, Creature leader)
         {
             var follow = follower.Controller.ActionFollow;
             var walking = leader.Controller.LastMovement?.Velocity > 0f;
+            var yaw = (float)leader.Rotation;
+            var slot = Math.Max(0, follow.FormationSlot);
 
             if (walking || follow.PlaceOffset == null)
-                follow.PlaceOffset = Offset(Math.Max(0, follow.FormationSlot), (float)leader.Rotation, SideOf(leader.SpawnPool, (float)leader.Rotation));
+                follow.PlaceOffset = Offset(slot, yaw, SideOf(leader));
 
             if (Spacing.Placed(map, leader.Position + follow.PlaceOffset.Value) is Vector3 place)
                 return place;
 
-            var away = new Vector3(follower.Position.X - leader.Position.X, 0, follower.Position.Z - leader.Position.Z);
+            if (Spacing.Placed(map, leader.Position + Offset(slot, yaw, !leader.SpawnPool.FormationMirrored)) is Vector3 across)
+                return across;
 
-            if (away.LengthSquared() < 0.01f)
-                return follower.Position;
+            var behind = new Vector3(MathF.Sin(yaw), 0, MathF.Cos(yaw)) * TrailDistance;
 
-            return Spacing.Placed(map, leader.Position + Vector3.Normalize(away) * TrailDistance) ?? follower.Position;
+            return Spacing.Placed(map, leader.Position + behind) ?? Spacing.Placed(map, leader.Position) ?? leader.Position;
         }
 
         /// <summary>
-        /// Whether the formation is mirrored as the leader faces <paramref name="yaw"/>. Each
-        /// time the leader is seen walking more than a quarter turn from the way it last walked
-        /// - the about-turn at the end of a beat walked there and back - the formation is
-        /// mirrored over, so each follower stays on the side of the beat it was on. A corner of a
-        /// circuit, taken a step at a time, turns it with the leader.
+        /// Whether the leader's formation is mirrored. Each time the leader is seen walking a leg
+        /// of its beat more than a quarter turn from the way it last walked one - the about-turn
+        /// at the end of a beat walked there and back - the formation is mirrored over, so each
+        /// follower stays on the side of the beat it was on. A corner of a circuit, taken a step
+        /// at a time, turns it with the leader. Walking anything else - a chase, the way back
+        /// onto its beat, from wherever that brings it to the step - it is left as it is.
         /// </summary>
-        public static bool SideOf(SpawnPool pool, float yaw)
+        public static bool SideOf(Creature leader)
         {
+            var pool = leader.SpawnPool;
+            var steps = leader.Patrol;
+            var patrol = leader.Controller.ActionPatrol;
+
+            if (leader.Controller.CurrentAction != BehaviorManager.BehaviorActionPatrol || patrol.Rejoining
+                || steps == null || steps.Count < 2 || patrol.Step < 0 || patrol.Step >= steps.Count)
+                return pool.FormationMirrored;
+
+            var yaw = (float)leader.Rotation;
+            var from = steps[(patrol.Step + steps.Count - 1) % steps.Count].Position;
+            var leg = AbilityManager.YawTowards(from, steps[patrol.Step].Position);
+
+            if (MathF.Abs(Patrols.Turn(yaw, leg)) > LegTolerance)
+                return pool.FormationMirrored;
+
             if (pool.FormationYaw is float last && MathF.Abs(Patrols.Turn(last, yaw)) > MathF.PI / 2f)
                 pool.FormationMirrored = !pool.FormationMirrored;
 
@@ -300,12 +353,13 @@ namespace Rasa.Managers
         /// <summary>The living creatures of the pool on the map: its leader and its followers.</summary>
         public static IEnumerable<Creature> MembersOf(MapChannel map, SpawnPool pool) =>
             EntityManager.Instance.Creatures.Values.Where(creature =>
-                ReferenceEquals(creature.SpawnPool, pool) && creature.MasterEntityId == 0 && CreatureManager.IsLivingOnMap(map, creature));
+                ReferenceEquals(creature.SpawnPool, pool) && creature.MasterEntityId == 0
+                && AbilityManager.MindControlPumpOf(creature) == 0 && CreatureManager.IsLivingOnMap(map, creature));
 
         /// <summary>
         /// One of a group has started a fight with <paramref name="targetEntityId"/>: the rest of
-        /// the group not in one go into it too. One running home after a leash does not
-        /// (BehaviorManager.CanSetActionFighting).
+        /// the group not in one go into it too, knowing whom it hates. One running home after a
+        /// leash does not (BehaviorManager.CanSetActionFighting), nor one a mission scene moves.
         /// </summary>
         public static void Assist(MapChannel map, Creature creature, ulong targetEntityId)
         {
@@ -316,13 +370,64 @@ namespace Rasa.Managers
 
             try
             {
+                var grudges = creature.Hate.Ranked();
+
                 foreach (var other in MembersOf(map, creature.SpawnPool).Where(other => other != creature).ToList())
-                    if (other.Controller.CurrentAction != BehaviorManager.BehaviorActionFighting)
-                        BehaviorManager.Instance.TrySetActionFighting(other, targetEntityId);
+                {
+                    if (other.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting
+                        || other.Controller.CurrentAction == BehaviorManager.BehaviorActionScriptedMove)
+                        continue;
+
+                    foreach (var grudge in grudges)
+                        other.Hate.Ensure(grudge.Key, Threat.NoticedThreat);
+
+                    BehaviorManager.Instance.TrySetActionFighting(other, targetEntityId);
+                }
             }
             finally
             {
                 _assisting = false;
+            }
+        }
+
+        /// <summary>
+        /// One of a group has been hit by someone it did not know of: the rest of the group know
+        /// of them too, and may turn on them - a healer behind the one they fight, a second
+        /// attacker. Only a newcomer to its table is passed on, so a hit is not a search of the
+        /// group each time.
+        /// </summary>
+        public static void ShareHate(Creature victim, ulong attackerId, bool newcomer)
+        {
+            if (!newcomer || victim.MasterEntityId != 0 || !IsGroup(victim.SpawnPool))
+                return;
+
+            var map = victim.RuntimeMapChannel ?? MapChannelManager.Instance.FindByContextId(victim.MapContextId);
+
+            if (map == null)
+                return;
+
+            foreach (var other in MembersOf(map, victim.SpawnPool))
+                if (other != victim && other.Controller.CurrentAction != BehaviorManager.BehaviorActionScriptedMove)
+                    other.Hate.Ensure(attackerId, Threat.NoticedThreat);
+        }
+
+        /// <summary>
+        /// The leader is home again after a leash, put there if it took too long: its followers
+        /// not in a fight and further than <see cref="StrayDistance"/> from it are put on their
+        /// places, rather than left to find their own way back.
+        /// </summary>
+        public static void Regroup(MapChannel map, Creature leader)
+        {
+            if (map == null || leader.Patrol == null || !IsGroup(leader.SpawnPool) || LeaderOf(map, leader.SpawnPool) != leader)
+                return;
+
+            foreach (var follower in FollowersOf(map, leader).ToList())
+            {
+                if (follower.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting || BehaviorManager.IsReturning(follower)
+                    || Spacing.AcrossGround(follower.Position, leader.Position) <= StrayDistance)
+                    continue;
+
+                BehaviorManager.Instance.PutAtPlace(map, follower, PlaceOf(map, follower, leader));
             }
         }
 

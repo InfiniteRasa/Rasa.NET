@@ -128,6 +128,9 @@ namespace Rasa.Structures
 
         /// <summary>How long a patrol group follower has been further than PatrolGroups.StrayDistance from its place, milliseconds.</summary>
         internal long StrayMs { get; set; }
+
+        /// <summary>A target a patrol group follower dropped, too far off or out of its reach: it is not drawn back into its leader's fight with it (Managers.PatrolGroups.DropFight); 0 for none.</summary>
+        internal ulong DroppedTargetId { get; set; }
     }
 
     /// <summary>

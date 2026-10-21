@@ -332,6 +332,23 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void APoolWhoseFirstSlotHoldsNoCreatureHasNoLeaderToWalkItsBeat()
+        {
+            var pool = CreatePool();
+            pool.Patrol = new[] { new PatrolStep(new Vector3(5, 1, 3)) };
+            pool.SpawnSlot.Add(new SpawnPoolSlot(0, 1, 1));
+            pool.SpawnSlot.Add(new SpawnPoolSlot(4, 2, 2));
+
+            Assert.IsNotNull(PatrolGroups.Refuses(pool));
+
+            pool.SpawnSlot[0] = null;
+
+            Assert.IsNotNull(PatrolGroups.Refuses(pool));
+            Assert.IsTrue(PatrolGroups.IsGroup(pool));
+            Assert.IsFalse(PatrolGroups.Leads(pool, new Creature { DbId = 4 }));
+        }
+
+        [TestMethod]
         [DataRow(Data.NpcPose.WeaponOut)]
         [DataRow(Data.NpcPose.Sitting)]
         public void ACreatureOfAPosedPoolIsMadeInItsPoseFacingThePoolsWay(Data.NpcPose pose)

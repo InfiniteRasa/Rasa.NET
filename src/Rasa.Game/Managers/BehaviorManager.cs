@@ -965,6 +965,22 @@ namespace Rasa.Managers
                         return;
                     }
                 }
+                else if (PatrolGroups.Follows(creature))
+                {
+                    // One of a group on a beat is leashed to its leader as a minion is to its
+                    // master, by where its target is: a fight that far from the group it drops,
+                    // as it is, and goes back to its place. Its leader runs home for the group.
+                    var leader = PatrolGroups.LeaderOf(mapChannel, creature.SpawnPool);
+                    var centre = leader?.Position ?? creature.HomePos.Position;
+                    var leaderDistX = centre.X - targetPosition.X;
+                    var leaderDistZ = centre.Z - targetPosition.Z;
+
+                    if (leaderDistX * leaderDistX + leaderDistZ * leaderDistZ >= MaxChaseDistance * MaxChaseDistance)
+                    {
+                        PatrolGroups.DropFight(creature);
+                        return;
+                    }
+                }
                 else if (ChasedTooFar(creature))
                 {
                     // Dragged too far from home: it runs back, forgetting the fight, and is whole
@@ -977,10 +993,15 @@ namespace Rasa.Managers
 
                 // Free to act, yet for StallEvadeMs it has neither struck nor gained ground - its
                 // target where the navmesh gives no route, or inside the reach of every attack it
-                // has - it gives the fight up and goes home whole (Stalled).
+                // has - it gives the fight up and goes home whole (Stalled). One of a group drops
+                // it as it is and goes back to its place: it would only be drawn back into it.
                 if (Stalled(creature, delta))
                 {
-                    Leash(mapChannel, creature);
+                    if (PatrolGroups.Follows(creature))
+                        PatrolGroups.DropFight(creature);
+                    else
+                        Leash(mapChannel, creature);
+
                     return;
                 }
 
@@ -1766,17 +1787,25 @@ namespace Rasa.Managers
                 return;
             }
 
-            follow.FollowTargetId = leader.EntityId;
+            // A new leader - topped up, or acting - while it was out of following: it takes a
+            // place of the new one's formation, not one another holds.
+            if (follow.FollowTargetId != leader.EntityId)
+                PatrolGroups.Attach(map, creature, leader);
 
             // Its home goes with the leader: a fight is measured from the group, and a run home
             // ends in the formation.
             creature.HomePos.Position = leader.Position;
 
-            // Out of a fight its leader is still in, it goes back into it.
+            // Out of a fight its leader is still in, it goes back into it - unless it dropped
+            // that target, too far off or out of its reach (PatrolGroups.DropFight).
             if (leader.Controller.CurrentAction == BehaviorActionFighting
-                && leader.Controller.ActionFighting.TargetEntityId is var leaderTarget && leaderTarget != 0
-                && TrySetActionFighting(creature, leaderTarget))
-                return;
+                && leader.Controller.ActionFighting.TargetEntityId is var leaderTarget && leaderTarget != 0)
+            {
+                if (leaderTarget != follow.DroppedTargetId && TrySetActionFighting(creature, leaderTarget))
+                    return;
+            }
+            else
+                follow.DroppedTargetId = 0;
 
             var place = PatrolGroups.PlaceOf(map, creature, leader);
             var gap = Spacing.AcrossGround(creature.Position, place);
@@ -1790,13 +1819,7 @@ namespace Rasa.Managers
 
                 if (follow.StrayMs >= ReturnTimeoutFor(gap, creature.RunSpeed))
                 {
-                    follow.StrayMs = 0;
-                    follow.CatchUpRunning = false;
-                    creature.Controller.Path.Clear();
-                    creature.Controller.PathIndex = 0;
-                    creature.Position = NavMeshManager.SnapToGround(map, place);
-                    SynchronizeMovementCell(map, creature);
-                    StopMoving(creature);
+                    PutAtPlace(map, creature, place);
                     return;
                 }
             }
@@ -1820,9 +1843,13 @@ namespace Rasa.Managers
                 return;
             }
 
-            if (gap > PatrolGroups.RunDistance)
+            // A follower thinks before or after its leader: a think of the leader's walk behind
+            // is keeping up, not falling behind.
+            var think = leader.WalkSpeed * delta / 1000f;
+
+            if (gap > PatrolGroups.RunDistance + think)
                 follow.CatchUpRunning = true;
-            else if (gap <= PatrolGroups.WalkDistance)
+            else if (gap <= PatrolGroups.WalkDistance + think)
                 follow.CatchUpRunning = false;
 
             // At the leader's pace at least: at its own slower walk it would drop out of its place.
@@ -1833,7 +1860,21 @@ namespace Rasa.Managers
             if (leaderWalks || creature.Controller.PathIndex >= creature.Controller.Path.Count)
                 follow.PathUpdateTime = 0;
 
-            FollowGrounded(map, creature, place, speed, delta, leaderWalks ? 0f : PatrolGroups.PlaceReached / 2);
+            FollowGrounded(map, creature, place, speed, delta, leaderWalks ? 0f : PatrolGroups.PlaceReached / 2, follow.CatchUpRunning);
+        }
+
+        /// <summary>Puts a patrol group's follower on its place round its leader, standing (PatrolGroups).</summary>
+        internal void PutAtPlace(MapChannel map, Creature creature, Vector3 place)
+        {
+            var follow = creature.Controller.ActionFollow;
+
+            follow.StrayMs = 0;
+            follow.CatchUpRunning = false;
+            creature.Controller.Path.Clear();
+            creature.Controller.PathIndex = 0;
+            creature.Position = NavMeshManager.SnapToGround(map, place);
+            SynchronizeMovementCell(map, creature);
+            StopMoving(creature);
         }
 
         /// <summary>
@@ -2063,8 +2104,9 @@ namespace Rasa.Managers
             CellManager.Instance.CellMoveObject(creature, movement);
         }
 
+        /// <param name="running">Whether it is shown running; null: when it goes faster than its walk.</param>
         private static void FollowGrounded(MapChannel map, Creature creature, Vector3 destination,
-            float speed, long delta, float stopDistance)
+            float speed, long delta, float stopDistance, bool? running = null)
         {
             var controller = creature.Controller;
             controller.ActionFollow.PathUpdateTime -= delta;
@@ -2116,16 +2158,21 @@ namespace Rasa.Managers
             var direction = creature.Position - previous;
             if (direction.LengthSquared() > 0.0001f)
                 creature.Rotation = Math.Atan2(-direction.X, -direction.Z);
-            var running = travelled > 0 && speed > creature.WalkSpeed;
-            if (creature.IsRunning != running)
+            var shownRunning = travelled > 0 && (running ?? speed > creature.WalkSpeed);
+            if (creature.IsRunning != shownRunning)
             {
-                creature.IsRunning = running;
-                CellManager.Instance.CellCallMethod(map, creature, new IsRunningPacket(running));
+                creature.IsRunning = shownRunning;
+                CellManager.Instance.CellCallMethod(map, creature, new IsRunningPacket(shownRunning));
             }
             SynchronizeMovementCell(map, creature);
-            PublishMovement(creature,
-                new Movement(creature.Position, travelled * 1000 / delta, 0x08,
-                    new Vector2((float)creature.Rotation, 0)));
+
+            // Standing where it stood, as it was last shown: nothing to send.
+            var view = new Vector2((float)creature.Rotation, 0);
+            var last = creature.Controller.LastMovement;
+            if (travelled <= 0 && last?.Velocity == 0 && last.Position == creature.Position && last.ViewDirection == view)
+                return;
+
+            PublishMovement(creature, new Movement(creature.Position, travelled * 1000 / delta, 0x08, view));
         }
 
         private void RestorePassiveAction(Creature creature)
@@ -3155,6 +3202,9 @@ namespace Rasa.Managers
             creature.LastRestTime = 0;
             creature.LastAgression = 0;
             SetActionWander(creature);
+
+            // A group's leader home again: its followers left far behind are put back round it (PatrolGroups).
+            PatrolGroups.Regroup(mapChannel, creature);
         }
 
         /// <summary>Health and armour back to their maximum, told to everyone around.</summary>
