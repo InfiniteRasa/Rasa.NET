@@ -41,6 +41,14 @@ namespace Rasa.Managers
     ///    rest of the group into it (<see cref="Assist"/>), and a follower out of a fight its
     ///    leader is still in goes back into it. When the leader is drawn too far off its beat
     ///    and runs back (BehaviorManager.Leash), its followers give the fight up with it.
+    ///  - A follower fights on a tether to its leader (<see cref="TetherDistance"/>), not a
+    ///    leash: it chases no further from it, and at the tether's end, with nothing it can
+    ///    strike its target with, it holds and evades (<see cref="HoldsAtTether"/>), then goes
+    ///    back to its place (<see cref="TetherHoldMs"/>). So the guards stay by a boss that is
+    ///    stunned or rooted, rather than dropping the fight, and are not shot down from beyond
+    ///    their reach. Ours, decided 2026-10-21 (group-patrol-plan.md, "Tether"): the retail
+    ///    server's rule is not known; evading where a mob cannot reach its attacker is what
+    ///    other MMOs do (World of Warcraft's Evade).
     ///  - A follower that cannot get to its place - no route there - is put on it after
     ///    as long as a run there would take twice over (<see cref="StrayDistance"/>).
     /// </summary>
@@ -77,11 +85,24 @@ namespace Rasa.Managers
         public const float PlaceReached = 0.5f;
 
         /// <summary>
-        /// A follower goes back into its leader's fight only with a target this near the leader:
-        /// well inside BehaviorManager.MaxChaseDistance, where it drops one, so a target at the
-        /// edge does not draw it in and out of the fight each think.
+        /// How far from its leader a follower goes in a fight. A guess, to be tuned in play:
+        /// enough to reach whoever stands by the boss, short of leaving it - half the 60 m a
+        /// lone creature chases (BehaviorManager.MaxChaseDistance).
         /// </summary>
-        public const float RejoinFightDistance = 45f;
+        public const float TetherDistance = 30f;
+
+        /// <summary>Within this of the tether's end a follower counts as at it.</summary>
+        public const float TetherSlack = 1.5f;
+
+        /// <summary>How long a follower holds at its tether's end, evading, before it gives the fight up and goes back to its place.</summary>
+        public const long TetherHoldMs = 10_000;
+
+        /// <summary>
+        /// A follower goes back into its leader's fight only with a target this near the leader:
+        /// inside the tether, so it can get to it, and short of its end, so a target there does
+        /// not draw it in and out of the fight.
+        /// </summary>
+        public const float RejoinFightDistance = TetherDistance - 5f;
 
         /// <summary>Within this of its place, on the navmesh, a follower steps straight onto it rather than along a route. Two of Abreast: the width of the formation.</summary>
         public const float DirectDistance = 2 * Abreast;
@@ -299,9 +320,9 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// The follower drops its fight as it is - the target too far from its group, or out of
-        /// its reach - and goes back to its place. Unlike a leash it is not made whole. A target
-        /// too far off it goes for again once it is back within <see cref="RejoinFightDistance"/>
+        /// The follower drops its fight as it is - held at its tether's end too long, or the
+        /// target out of its reach - and goes back to its place. Unlike a leash it is not made
+        /// whole. A target beyond its tether it goes for again once it is within <see cref="RejoinFightDistance"/>
         /// of the leader; one out of its reach it is not drawn back into its leader's fight with
         /// (<paramref name="outOfReach"/>): it would only stand stalled again.
         /// </summary>
@@ -580,6 +601,34 @@ namespace Rasa.Managers
         /// </summary>
         public static bool LeadsOnBeat(Creature creature) =>
             creature.Controller.CurrentAction == BehaviorManager.BehaviorActionPatrol && IsGroup(creature.SpawnPool);
+
+        /// <summary>The leader a follower in a fight is tethered to: its standing leader, not under Mind Control; null for any other creature.</summary>
+        public static Creature TetherOf(MapChannel map, Creature creature) =>
+            Follows(creature) ? LeaderOf(map, creature.SpawnPool) : null;
+
+        /// <summary>
+        /// Whether the follower is at the end of its tether with its target beyond it: it can
+        /// get no nearer to it. Asked once it has found no attack it can make from where it is.
+        /// </summary>
+        public static bool HoldsAtTether(Creature follower, Creature leader, Vector3 targetPosition) =>
+            Spacing.AcrossGround(targetPosition, leader.Position) > TetherDistance
+            && Spacing.AcrossGround(follower.Position, leader.Position) >= TetherDistance - TetherSlack;
+
+        /// <summary>The point, or where the tether lets the follower get to on the way there from its leader: no further than <see cref="TetherDistance"/> from it.</summary>
+        public static Vector3 Tether(MapChannel map, Creature leader, Vector3 point)
+        {
+            var across = new Vector3(point.X - leader.Position.X, 0, point.Z - leader.Position.Z);
+            var length = across.Length();
+
+            if (length <= TetherDistance)
+                return point;
+
+            return NavMeshManager.SnapToGround(map, leader.Position + across * (TetherDistance / length));
+        }
+
+        /// <summary>Whether the creature is a follower holding at its tether's end in a fight: it takes no damage, nor any debuff (DamageImmunity, GameEffectManager).</summary>
+        public static bool Evades(Creature creature) =>
+            creature.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting && creature.Controller.ActionFighting.TetherHeldMs > 0;
 
         /// <summary>A follower's part in its group, for a GM: .npcinfo.</summary>
         public static string Describe(MapChannel map, Creature creature)

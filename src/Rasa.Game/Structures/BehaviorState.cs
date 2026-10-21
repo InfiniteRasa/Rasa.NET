@@ -65,6 +65,13 @@ namespace Rasa.Structures
         /// </summary>
         public bool RouteIncomplete { get; set; }
 
+        /// <summary>
+        /// Milliseconds a patrol group follower has held at the end of its tether to its leader
+        /// this fight, with no attack it could make (Managers.PatrolGroups.HoldsAtTether); 0 while
+        /// it is not holding. While it holds, it evades: it takes no damage.
+        /// </summary>
+        public long TetherHeldMs { get; set; }
+
         /// <summary>The place round its target it is stepping off to, out of a crowd of its side (Spacing); null when it is not.</summary>
         public Vector3? SpreadingTo { get; set; }
 

@@ -964,20 +964,12 @@ namespace Rasa.Managers
                         return;
                     }
                 }
-                else if (PatrolGroups.Follows(creature) && PatrolGroups.LeaderOf(mapChannel, creature.SpawnPool) is Creature groupLeader)
+                else if (PatrolGroups.TetherOf(mapChannel, creature) != null)
                 {
-                    // One of a group on a beat is leashed to its leader as a minion is to its
-                    // master, by where its target is: a fight that far from the group it drops,
-                    // as it is, and goes back to its place. Its leader runs home for the group.
+                    // One of a group on a beat is not leashed by distance: it is tethered to its
+                    // leader, and holds at the tether's end for a target beyond it (the chase,
+                    // below; PatrolGroups.TetherDistance). Its leader runs home for the group.
                     // With no leader to go back to, it is leashed as any creature (ChasedTooFar).
-                    var leaderDistX = groupLeader.Position.X - targetPosition.X;
-                    var leaderDistZ = groupLeader.Position.Z - targetPosition.Z;
-
-                    if (leaderDistX * leaderDistX + leaderDistZ * leaderDistZ >= MaxChaseDistance * MaxChaseDistance)
-                    {
-                        PatrolGroups.DropFight(creature, outOfReach: false);
-                        return;
-                    }
                 }
                 else if (ChasedTooFar(creature))
                 {
@@ -1243,6 +1235,36 @@ namespace Rasa.Managers
                     return;
                 }
 
+                // One of a group on a beat goes no further from its leader than the tether: at
+                // its end, with nothing it can strike its target with from there, it holds, facing
+                // it, and evades - it takes no damage, as one running home does not, so it is not
+                // shot down where it cannot answer. Held too long, it goes back to its place
+                // (PatrolGroups.TetherHoldMs).
+                var tether = PatrolGroups.TetherOf(mapChannel, creature);
+
+                if (tether != null && PatrolGroups.HoldsAtTether(creature, tether, targetPosition))
+                {
+                    var fighting = creature.Controller.ActionFighting;
+
+                    if (fighting.TetherHeldMs == 0)
+                    {
+                        creature.Controller.Path.Clear();
+                        creature.Controller.PathIndex = 0;
+                        creature.Rotation = Math.Atan2(-(targetPosition.X - creature.Position.X), -(targetPosition.Z - creature.Position.Z));
+                    }
+
+                    StopIfMoving(creature);
+                    fighting.StalledMs = 0;
+                    fighting.TetherHeldMs += Math.Max(1, delta);
+
+                    if (fighting.TetherHeldMs >= PatrolGroups.TetherHoldMs)
+                        PatrolGroups.DropFight(creature, outOfReach: false);
+
+                    return;
+                }
+
+                creature.Controller.ActionFighting.TetherHeldMs = 0;
+
                 var standoff = ChaseStandoffFor(creature);
 
                 // After checking for melee and ranged attacks without success, chase.
@@ -1307,6 +1329,10 @@ namespace Rasa.Managers
                     if (!sightBlocked && Spacing.Keeps(creature))
                         pathTarget = Spacing.AroundClear(mapChannel, targetPosition, pathTarget,
                             Spacing.Taken(mapChannel, creature, targetPosition)) ?? pathTarget;
+
+                    // No further than the tether from its leader.
+                    if (tether != null)
+                        pathTarget = PatrolGroups.Tether(mapChannel, tether, pathTarget);
 
                     creature.Controller.ActionFighting.RouteIncomplete = !BuildPath(mapChannel, creature, pathTarget, bounded: true);
 
@@ -2850,6 +2876,7 @@ namespace Rasa.Managers
             creature.Controller.TimerPathUpdateLock = 0;
             creature.Controller.ActionFighting.TargetEntityId = targetEntityId;
             creature.Controller.ActionFighting.StalledMs = 0;
+            creature.Controller.ActionFighting.TetherHeldMs = 0;
             creature.Controller.ActionFighting.RouteIncomplete = false;
             creature.Controller.ActionFighting.SpreadingTo = null;
             creature.Controller.ActionFighting.SettleMs = 0;
@@ -3115,6 +3142,7 @@ namespace Rasa.Managers
         internal static void MadeProgress(Creature creature)
         {
             creature.Controller.ActionFighting.StalledMs = 0;
+            creature.Controller.ActionFighting.TetherHeldMs = 0;
         }
 
         #region Leash
