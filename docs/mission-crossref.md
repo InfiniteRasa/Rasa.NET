@@ -5,7 +5,7 @@ Generated 2026-10-18, extended 2026-10-20 (Wayback round 2: official site + patc
 | Source | Label in entries | Missions |
 | --- | --- | ---: |
 | Client tables (title, log summary, objectives) | **Client** | 1168 |
-| This server, `data/rasaworld.db` enabled `mission_content_definition` rows | **Local server** | 91 |
+| This server, `data/rasaworld.db` enabled `mission_content_definition` rows | **Local server** | 95 |
 | [TaRapedia (Fandom)](https://tabularasa.fandom.com/wiki/Category:Missions) | **TaRapedia** | 941 |
 | [Ellatha / DaOpa mission DB](https://www.ellatha.com/tr/missionslist.asp) | **Ellatha** | 93 |
 | [tabularasawiki.org (Wayback 2007-08)](https://web.archive.org/web/20080511080212/http://www.tabularasawiki.org/action/view/Main_Page) | **TRWiki archive** | 7 |
@@ -37,9 +37,9 @@ Generated 2026-10-18, extended 2026-10-20 (Wayback round 2: official site + patc
 | [TR MMO DB (tr.mmodb.com, Wayback)](https://web.archive.org/web/2008/http://tr.mmodb.com/quests/) quest pages (level / start NPC / zone / mobs / objectives) + bestiary | **TR MMO DB** | 317 |
 | Web search by research agents (mostly TaRapedia patch notes, NPC lists, alternate titles) | **Web** | 88 |
 
-**Implemented** (enabled on the local server, `data/rasaworld.db`; marked `[implemented]` in the entry heading): 91 missions. Per zone: Wilderness 64, Plateau 9, Bootcamp 5, Abyss 1, Ashen Desert 1, Crucible 1, Descent 1, Divide 1, Howling Maw 1, Incline 1, Marshes 1, Mires 1, Palisades 1, Plains 1, Pools 1, Thunderhead 1. Search for `[implemented]` to find them; entries without the mark are not implemented yet.
+**Implemented** (enabled on the local server, `data/rasaworld.db`; marked `[implemented]` in the entry heading): 95 missions. Per zone: Wilderness 64, Plateau 13, Bootcamp 5, Abyss 1, Ashen Desert 1, Crucible 1, Descent 1, Divide 1, Howling Maw 1, Incline 1, Marshes 1, Mires 1, Palisades 1, Plains 1, Pools 1, Thunderhead 1. Search for `[implemented]` to find them; entries without the mark are not implemented yet.
 
-**Needs playtest** (implemented, not yet played through in the game client; marked `[needs playtest]`, list in `tools/mission-crossref/NOTES-playtest.md`): 6 missions.
+**Needs playtest** (implemented, not yet played through in the game client; marked `[needs playtest]`, list in `tools/mission-crossref/NOTES-playtest.md`): 10 missions.
 
 
 **Instance** (the mission takes place in a client instance map, a "mission context" in gamecontext.pyo; marked `[instance]` in the entry heading): from an objective NPC package that spawns in an instance (local DB), a TaRapedia NPC page in an instance, or client objective text placing it there. "Instance mentioned" lines only name an instance (ESTIMATE). Refresh with instance_export.py.
@@ -18806,18 +18806,23 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Chain** (explicit prerequisite links): Clean Slate chain (6 missions), step 3
   - Requires: Mind Bender (id 905) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mind_Bender), [TaRapedia](https://tabularasa.fandom.com/wiki/Photo_Ops)
   - Leads to: The Results Are In (id 936) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Photo_Ops), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Results_Are_In)
-### 930 — The Book Of Velonar
+### 930 — The Book Of Velonar [implemented] [needs playtest]
 
+- **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Rebuild summary:**
-  - level: 32 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Book_of_Velonar); 30 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
+  - level: 32 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 32 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Book_of_Velonar); 30 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
   - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 51 missions in this file with a sourced level
+  - reward: 40000 XP; 4650 credits; choose 1 of: Armor Module: Health Bonus [4], Armor Module: Power Bonus [4], Weapon Module: Crit Hit Bonus [4], Weapon Module: Armor Piercing [4] — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 40,000 XP; 4,650 credits; Modifications — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Book_of_Velonar)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: NPC Luminary Sampei: Plateau, New Velon Village, /loc 259, 352, 619 — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Luminary_Sampei)
   - location: - Inside North most hut (locketed at small crate at coordinates -473, 393, -8) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Book_of_Velonar)
 - **Client:** A sacred Forean text, The Book Of Velonar, was lost in the attack on Velon Das. Travel to the ruins of the village, recover the text, and return it safely to Luminary Sampei at New Velon Village. The ruins are located on the far side of Valverde Chasm, southwest of Trinity Bridge.
   - objectives (client): Retrieve the Book of Velonar. — Travel to the ruins of Velon Das and locate the lost Book Of Velonar.
+- **Local server:** revision `plateau_1_16_5`, level 32, solo, category 10000056 (Battlefield (Plateau)), giver Luminary Sampei
+  - reward: 40000 XP; 4650 credits; choose 1 of: Armor Module: Health Bonus [4], Armor Module: Power Bonus [4], Weapon Module: Crit Hit Bonus [4], Weapon Module: Armor Piercing [4]
 - **TaRapedia** [The Book of Velonar](https://tabularasa.fandom.com/wiki/The_Book_of_Velonar): giver: Luminary Sampei; at: New Velon Village; zone: Plateau; level: 32 (possibly less); requires: None; follow-up: None; XP: 40,000; credits: 4,650; items: Modifications; reward from: Luminary Sampei
   - overview: A sacred Forean text, The Book Of Velonar, was lost in the attack on Velon Das. Travel to the ruins of the village, recover the text, and return it safely to Luminary Sampei at New Velon Village. The ruins are located on the far side of Valverde Chasm, southwest of Trinity Bridge.
   - objectives: Retrieve the Book of Velonar. • Travel to the ruins of Velon Das and locate the lost Book Of Velonar. • 0/1
@@ -18850,17 +18855,22 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Outpost Cmdr. Russ](https://tabularasa.fandom.com/wiki/Outpost_Cmdr._Russ): Plateau, Wedge Rock Outpost, /loc 449, 378, 367 (NPC page lists this mission)
 
-### 933 — Graveyard Shift
+### 933 — Graveyard Shift [implemented] [needs playtest]
 
+- **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Rebuild summary:**
-  - level: 30 (unconfirmed) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Graveyard_Shift); 30 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
+  - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 30 (unconfirmed) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Graveyard_Shift); 30 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
   - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 51 missions in this file with a sourced level
+  - reward: 45000 XP; 4800 credits; choose 1 of: Bio Armor Gloves, Graviton Armor Gloves, Mech Armor Gloves, Stealth Armor Gloves — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 45,000 XP; 4,800 credits; Equipment — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Graveyard_Shift)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: NPC Loremaster Talisen: Plateau, New Velon Village, /loc 292, 349, 563 — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Loremaster_Talisen)
 - **Client:** Kill twelve Tomb Miasmas and six Elder Tomb Miasmas at the Forean burial ground atop Mount Reverence. Return to Loremaster Talisen at New Velon Village when you have complete the task.
   - objectives (client): Kill 12 Tomb Miasmas. — Kill 12 Tomb Miasmas at the Mount Reverence burial grounds.; Kill 6 Tomb Miasma Bulls. — Kill 6 Tomb Miasma Bulls at the Mount Reverence burial grounds.
+- **Local server:** revision `plateau_1_16_5`, level 30, solo, category 10000056 (Battlefield (Plateau)), giver Loremaster Talisen
+  - reward: 45000 XP; 4800 credits; choose 1 of: Bio Armor Gloves, Graviton Armor Gloves, Mech Armor Gloves, Stealth Armor Gloves
 - **TaRapedia** [Graveyard Shift](https://tabularasa.fandom.com/wiki/Graveyard_Shift): giver: Loremaster Talisen; at: New Velon Village; zone: Plateau; level: 30 (unconfirmed); requires: None; follow-up: None; XP: 45,000; credits: 4,800; items: Equipment; reward from: Loremaster Talisen
   - overview: Kill twelve Tomb Miasmas and six Elder Tomb Miasmas at the Forean burial ground atop Mount Reverance. Return to Loremaster Talisen at New Velon Village when you have complete the task.
   - objectives: Kill 12 Tomb Miasmas • Tomb Miasmas killed 0/12; Kill 6 Tomb Miasma Bulls • Tomb Miasma Bulls killed 0/6
@@ -19176,17 +19186,22 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Chain** (explicit prerequisite links): The Defiant Ones chain (8 missions), step 3
   - Requires: Crystal Blue Persuasion (id 954) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Alpha_Mox), [TaRapedia](https://tabularasa.fandom.com/wiki/Crystal_Blue_Persuasion)
 - **TR MMO DB quest series:** "Crystal Blue Persuasion", row 1 of 2 ([list](https://web.archive.org/web/20120731160528/http://tr.mmodb.com/quests/seriesname-crystal_blue_persuasion/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
-### 1034 — Going Postal
+### 1034 — Going Postal [implemented] [needs playtest]
 
+- **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Rebuild summary:**
-  - level: 30 (unconfirmed) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Going_Postal)
+  - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 30 (unconfirmed) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Going_Postal)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
   - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 51 missions in this file with a sourced level
+  - reward: 45000 XP; 4800 credits; choose 1 of: Bio Armor Boots, Graviton Armor Boots, Mech Armor Boots, Stealth Armor Boots — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 45,000 XP; 4,800 credits; Equipment — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Going_Postal)
   - drops / mission items: Porthus can be found on the cliff overlooking Valverde chasm — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Going_Postal)
   - location: NPC Ranger Kaely: New Velon Village, /loc 286, 349, 569 — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Ranger_Kaely)
 - **Client:** Rendevous with Ranger Porthus on the far side of Valverde Chasm, near Desolation Quarry, and obtain a satchel of letters from the Forean Village of Palados. Bring the satchel to Ranger Kaely at New Velon Village.
   - objectives (client): Locate Ranger Porthus. — Redezvous with Ranger Porthus and get the satchel of letters from the village of Palados.; Get mail satchel. — Obtain the mail satchel for the Velon Das Refugees.
+- **Local server:** revision `plateau_1_16_5`, level 30, solo, category 10000056 (Battlefield (Plateau)), giver Ranger Kaely
+  - reward: 45000 XP; 4800 credits; choose 1 of: Bio Armor Boots, Graviton Armor Boots, Mech Armor Boots, Stealth Armor Boots
 - **TaRapedia** [Going Postal](https://tabularasa.fandom.com/wiki/Going_Postal) [stub]: giver: Ranger Kaely; at: New Velon Village; zone: Plateau; level: 30 (unconfirmed); requires: None; follow-up: None; XP: 45,000; credits: 4,800; items: Equipment; reward from: Ranger Kaely
   - overview: Rendevous with Ranger Porthus on the far side of Valverde Chasm, near Desolation Quarry, and obtain a satchel of letters from the Forean Village of Palados. Bring the satchel to Ranger Kaely at New Velon Village.
   - objectives: Locate Ranger Porthus. • Redezvous with Ranger Porthus and get the satchel of letters from the village of Palados.; Get mail satchel. • Obtain the mail satchel for the Velon Das Refugees. • 0/1
@@ -20020,17 +20035,22 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Requires: Village Of The Damned (id 1981) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mountain_Spring_Toxins)
   - Requires: Choosing Sides (id 1554) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Choosing_Sides)
 - **Requires an instance mission:** Choosing Sides (1554) — source: the chain links above
-### 1981 — Village Of The Damned
+### 1981 — Village Of The Damned [implemented] [needs playtest]
 
+- **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Rebuild summary:**
-  - level: 30 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Village_Of_The_Damned)
+  - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 30 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Village_Of_The_Damned)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
   - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 51 missions in this file with a sourced level
+  - reward: 40000 XP; choose 1 of: Bio Armor Legs, Graviton Armor Legs, Mech Armor Helmet, Stealth Armor Helmet — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 40,000 XP; None credits; OR; OR; OR — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Village_Of_The_Damned)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: NPC Luminary Sampei: Plateau, New Velon Village, /loc 259, 352, 619 — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Luminary_Sampei)
 - **Client:** Luminary Sampai wants you to kill 10 Infected Foreans in the ruins of Velon Das.
   - objectives (client): Kill 10 Infected Foreans. — Kill 10 Infected Foreans among the Ruins of Velon Das.
+- **Local server:** revision `plateau_1_16_5`, level 30, solo, category 10000056 (Battlefield (Plateau)), giver Luminary Sampei
+  - reward: 40000 XP; choose 1 of: Bio Armor Legs, Graviton Armor Legs, Mech Armor Helmet, Stealth Armor Helmet
 - **TaRapedia** [Village Of The Damned](https://tabularasa.fandom.com/wiki/Village_Of_The_Damned): giver: Luminary Sampei; at: New Velon Village; zone: Plateau; level: 30; requires: None; follow-up: None; XP: 40,000; credits: None; items: OR; OR; OR; reward from: Luminary Sampei
   - overview: Luminary Sampei wants you to kill 10 Infected Foreans among the Ruins of Velon Das.
   - objectives: Kill 10 Infected Foreans. • Kill 10 Infected Foreans among the Ruins of Velon Das.
