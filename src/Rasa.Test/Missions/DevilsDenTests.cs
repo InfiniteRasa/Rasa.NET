@@ -28,7 +28,7 @@ namespace Rasa.Test.Missions
     [DoNotParallelize]
     public class DevilsDenTests
     {
-        private const string Migration = "20270305000000_Devils_den", Previous = "20270223000000_Foreas_base_wormhole_region";
+        private const string Migration = "20270305000000_Devils_den", Previous = "20270224000000_Logos_shrine_heights";
 
         private long _now = 1_000_000;
 
