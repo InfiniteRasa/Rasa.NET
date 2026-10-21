@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -17,7 +18,9 @@ namespace Rasa.Test.Missions.Plateau
     /// squads (PlateauReconSquadsV1); the commanders' Canyon Sweep (1045, Plateau_canyon_sweep, with
     /// the Maligo Elite Guards of PlateauMaligoGuardsV1 and the flags of PlateauIncommunicadoFlagsV1),
     /// Blueprint For Victory (1046, Plateau_blueprint_for_victory) and Toxic Detox (1053,
-    /// Plateau_toxic_detox).
+    /// Plateau_toxic_detox); the Scrounger's chain (1251, 1015, 1017); New Velon Village's Graveyard Shift
+    /// (933, Plateau_graveyard_shift), Village Of The Damned (1981, Plateau_village_of_the_damned), The
+    /// Book Of Velonar (930, Plateau_book_of_velonar) and Going Postal (1034, Plateau_going_postal).
     /// </summary>
     [TestClass]
     [DoNotParallelize]
@@ -28,14 +31,16 @@ namespace Rasa.Test.Missions.Plateau
         {
             PlateauGiantKillerV1.MissionId, PlateauIncommunicadoV1.MissionId, PlateauCanyonSweepV1.MissionId,
             PlateauBlueprintForVictoryV1.MissionId, PlateauToxicDetoxV1.MissionId, PlateauComicReliefV1.MissionId,
-            PlateauScavengerHuntV1.MissionId, PlateauStalkMarketV1.MissionId
+            PlateauScavengerHuntV1.MissionId, PlateauStalkMarketV1.MissionId, PlateauGraveyardShiftV1.MissionId,
+            PlateauVillageOfTheDamnedV1.MissionId, PlateauBookOfVelonarV1.MissionId, PlateauGoingPostalV1.MissionId
         };
 
         /// <summary>
         /// Giant Killer's two indicators, Incommunicado's three, Canyon Sweep's one, Blueprint For Victory's two,
         /// Toxic Detox's one, Comic Relief's three, The Stalk Market's three; Scavenger Hunt has none.
+        /// Graveyard Shift's two, Village Of The Damned's, The Book Of Velonar's and Going Postal's one each.
         /// </summary>
-        internal const int Indicators = 15;
+        internal const int Indicators = 20;
 
         private const string Before = "20270123000000_Thunderhead_base_teleporters";
         private const string GiantKiller = "20270125000000_Plateau_giant_killer";
@@ -45,6 +50,10 @@ namespace Rasa.Test.Missions.Plateau
         private const string ToxicDetox = "20270129000000_Plateau_toxic_detox";
         private const string ComicRelief = "20270130000000_Plateau_comic_relief";
         private const string ScavengerHunt = "20270131000000_Plateau_scavenger_hunt";
+        private const string StalkMarket = "20270201000000_Plateau_stalk_market";
+        private const string GraveyardShift = "20270202000000_Plateau_graveyard_shift";
+        private const string VillageOfTheDamned = "20270203000000_Plateau_village_of_the_damned";
+        private const string BookOfVelonar = "20270204000000_Plateau_book_of_velonar";
 
         [TestMethod]
         public void TheMissionsAreEnabledAndOperationalAtTheirGiversAndReceiversAndLevels()
@@ -58,7 +67,11 @@ namespace Rasa.Test.Missions.Plateau
                 (PlateauToxicDetoxV1.MissionId, PlateauReconSquadsV1.Locke, PlateauReconSquadsV1.Locke),
                 (PlateauComicReliefV1.MissionId, PlateauScroungerNpcsV1.OBrien, PlateauScroungerNpcsV1.OBrien),
                 (PlateauScavengerHuntV1.MissionId, PlateauScroungerNpcsV1.Scarpelo, PlateauScroungerNpcsV1.Scarpelo),
-                (PlateauStalkMarketV1.MissionId, PlateauScroungerNpcsV1.Scarpelo, PlateauScroungerNpcsV1.Scarpelo)
+                (PlateauStalkMarketV1.MissionId, PlateauScroungerNpcsV1.Scarpelo, PlateauScroungerNpcsV1.Scarpelo),
+                (PlateauGraveyardShiftV1.MissionId, PlateauGraveyardShiftV1.Talisen, PlateauGraveyardShiftV1.Talisen),
+                (PlateauVillageOfTheDamnedV1.MissionId, PlateauVillageOfTheDamnedV1.Sampei, PlateauVillageOfTheDamnedV1.Sampei),
+                (PlateauBookOfVelonarV1.MissionId, PlateauVillageOfTheDamnedV1.Sampei, PlateauVillageOfTheDamnedV1.Sampei),
+                (PlateauGoingPostalV1.MissionId, PlateauGoingPostalV1.Kaely, PlateauGoingPostalV1.Kaely)
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             var enabled = harness.World.MissionContentDefinitionEntries.AsNoTracking()
@@ -69,7 +82,8 @@ namespace Rasa.Test.Missions.Plateau
                 var entry = enabled.Single(row => row.MissionId == mission);
                 Assert.AreEqual<uint?>(giver, entry.GiverId, $"{mission} giver");
                 Assert.AreEqual<uint?>(receiver, entry.ReceiverId, $"{mission} receiver");
-                Assert.AreEqual<uint?>(mission is 1251 or 1015 or 1017 ? 31U : 30U, entry.Level, $"{mission} level");
+                Assert.AreEqual<uint?>(mission switch { 1251 or 1015 or 1017 => 31U, 930 => 32U, _ => 30U }, entry.Level,
+                    $"{mission} level");
                 Assert.AreEqual<uint?>(PlateauMissionDataV1.CategoryId, entry.CategoryId);
             }
 
@@ -82,8 +96,8 @@ namespace Rasa.Test.Missions.Plateau
         /// <summary>
         /// The client's own texts, as WildernessContentInventoryTests checks the Wilderness ones: the
         /// ids are written out here from the client tables (missionconversation, missionobjective),
-        /// not taken from the data classes, so a wrong id in those fails. Only Canyon Sweep and
-        /// Toxic Detox have a counter text in the client.
+        /// not taken from the data classes, so a wrong id in those fails. Only Canyon Sweep, Toxic
+        /// Detox, Graveyard Shift and Village Of The Damned have a counter text in the client.
         /// </summary>
         [TestMethod]
         public void TitlesAndObjectivesUseTheClientsTexts()
@@ -101,7 +115,11 @@ namespace Rasa.Test.Missions.Plateau
                     (10, 10020, 10021, null)
                 }),
                 (1015, 5555, new (uint, uint, uint, uint?)[] { (3, 5563, 6445, null), (4, 5564, 6446, null) }),
-                (1017, 5587, new (uint, uint, uint, uint?)[] { (1, 5605, 6458, null), (2, 5606, 6459, null), (3, 5607, 6460, null) })
+                (1017, 5587, new (uint, uint, uint, uint?)[] { (1, 5605, 6458, null), (2, 5606, 6459, null), (3, 5607, 6460, null) }),
+                (933, 5016, new (uint, uint, uint, uint?)[] { (1, 5021, 6365, 5022), (2, 5023, 6366, 5024) }),
+                (1981, 20858, new (uint, uint, uint, uint?)[] { (1, 20863, 20864, 20865) }),
+                (930, 4983, new (uint, uint, uint, uint?)[] { (1, 4987, 6330, null) }),
+                (1034, 5776, new (uint, uint, uint, uint?)[] { (1, 5785, 6363, null), (2, 8093, 8094, null) })
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             foreach (var (mission, title, objectives) in expected)
@@ -129,7 +147,7 @@ namespace Rasa.Test.Missions.Plateau
         /// Incommunicado follows Giant Killer; each commander's mission follows his own delivery: the
         /// flag that Incommunicado's delivery objective sets (action 3, SetPlayerFlag to 1). Scavenger
         /// Hunt follows the Scrounger's talk in Comic Relief (objective 10, action 1, the same way);
-        /// The Stalk Market follows Scavenger Hunt.
+        /// The Stalk Market follows Scavenger Hunt. New Velon Village's four have no requirement.
         /// </summary>
         [TestMethod]
         public void EachMissionRequiresTheMissionOrDeliveryBeforeIt()
@@ -172,13 +190,16 @@ namespace Rasa.Test.Missions.Plateau
             var stalkMarket = prerequisites.Single(entry => entry.MissionId == PlateauStalkMarketV1.MissionId);
             Assert.AreEqual((MissionPrerequisiteKind.MissionCompleted, (uint?)1015),
                 (stalkMarket.Kind, stalkMarket.RequiredMissionId));
+            foreach (var mission in new uint[] { 933, 1981, 930, 1034 })
+                Assert.IsFalse(prerequisites.Any(entry => entry.MissionId == mission), $"{mission}");
         }
 
         /// <summary>
         /// The missions' sources and how far each is trusted: the client's tables 1.0, TaRapedia 0.5
-        /// (0.4 for Blueprint For Victory, whose page gives no drop rate, and for Scavenger Hunt, a stub
-        /// page with no rate), and what this repository reconstructed 0.3 (the guards, the drop rates,
-        /// the pumps, the NPCs' looks and Lonigan's place, the Stalkers).
+        /// (0.4 for Blueprint For Victory, whose page gives no drop rate, and for Scavenger Hunt and Going
+        /// Postal, stub pages), and what this repository reconstructed 0.3 (the guards, the drop rates,
+        /// the pumps, the NPCs' looks and Lonigan's place, the Stalkers, the miasmas, the Infected
+        /// Foreans, the book's place, Porthus's place).
         /// </summary>
         [TestMethod]
         public void TheCommandersMissionsTrustWhatIsReconstructedLeast()
@@ -199,6 +220,14 @@ namespace Rasa.Test.Missions.Plateau
                 (1015, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.4),
                     (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
                 (1017, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                (933, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                (1981, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                (930, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                (1034, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.4),
                     (MissionEvidenceSourceKind.Reconstruction, 0.3) })
             })
                 CollectionAssert.AreEqual(confidences, evidence.Where(entry => entry.MissionId == mission)
@@ -338,6 +367,66 @@ namespace Rasa.Test.Missions.Plateau
             Assert.IsFalse(Has(PlateauComicReliefV1.MissionId));
             Assert.AreEqual((0, 0, 0, 0), (Count(npcs), Count(looks), Count(npcPools), Count(packages)));
             Assert.IsTrue(Has(PlateauToxicDetoxV1.MissionId));
+        }
+
+        /// <summary>
+        /// New Velon Village's missions roll back a migration at a time: Going Postal puts Porthus back on
+        /// the chasm's floor; The Book Of Velonar; Village Of The Damned with its Infected Forean
+        /// (creature, stats, look, action, four pools); Graveyard Shift with the Tomb Miasma and the Bull
+        /// (creatures, stats, four actions, five pools). The Stalk Market stays.
+        /// </summary>
+        [TestMethod]
+        public void NewVelonVillagesMissionsTheirCreaturesAndPorthusRollBack()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            int Count(string sql) => world.Database.SqlQueryRaw<int>(sql).AsEnumerable().Single();
+            string Ids(string table, uint first, uint last) =>
+                $"SELECT COUNT(*) AS Value FROM {table} WHERE id BETWEEN {first} AND {last}";
+            var miasmas = (Ids("creature", PlateauTombMiasmasV1.TombMiasma, PlateauTombMiasmasV1.Bull),
+                Ids("creature_stat", PlateauTombMiasmasV1.TombMiasma, PlateauTombMiasmasV1.Bull),
+                Ids("creature_action", PlateauTombMiasmasV1.FirstAction, PlateauTombMiasmasV1.LastAction),
+                Ids("spawnpool", PlateauTombMiasmasV1.FirstPool, PlateauTombMiasmasV1.LastPool) +
+                    $" AND map_context_id = {PlateauMissionDataV1.MapContextId}");
+            var infected = (Ids("creature", PlateauInfectedForeansV1.Infected, PlateauInfectedForeansV1.Infected),
+                Ids("creature_stat", PlateauInfectedForeansV1.Infected, PlateauInfectedForeansV1.Infected),
+                Ids("creature_appearance", PlateauInfectedForeansV1.Infected, PlateauInfectedForeansV1.Infected),
+                Ids("creature_action", PlateauInfectedForeansV1.Weapon, PlateauInfectedForeansV1.Weapon),
+                Ids("spawnpool", PlateauInfectedForeansV1.FirstPool, PlateauInfectedForeansV1.LastPool) +
+                    $" AND creature_1_Id = {PlateauInfectedForeansV1.Infected}");
+            (int, int, int, int) Miasmas() => (Count(miasmas.Item1), Count(miasmas.Item2), Count(miasmas.Item3), Count(miasmas.Item4));
+            (int, int, int, int, int) Infected() => (Count(infected.Item1), Count(infected.Item2), Count(infected.Item3),
+                Count(infected.Item4), Count(infected.Item5));
+            (double, double, double) Porthus()
+            {
+                var pool = world.SpawnPoolEntries.AsNoTracking().Single(row => row.Id == PlateauGoingPostalV1.Porthus);
+                return (Math.Round(pool.PosX, 2), Math.Round(pool.PosY, 2), Math.Round(pool.PosZ, 2));
+            }
+            bool Has(uint mission) => world.MissionContentDefinitionEntries.AsNoTracking().Any(entry => entry.MissionId == mission);
+
+            Assert.AreEqual((2, 2, 4, 5), Miasmas());
+            Assert.AreEqual((1, 1, 1, 1, 4), Infected());
+            Assert.AreEqual(PlateauGoingPostalV1.PorthusAt, Porthus());
+
+            world.GetService<IMigrator>().Migrate(BookOfVelonar);
+            Assert.IsFalse(Has(PlateauGoingPostalV1.MissionId));
+            Assert.AreEqual(PlateauGoingPostalV1.PorthusBefore, Porthus());
+            Assert.IsTrue(Has(PlateauBookOfVelonarV1.MissionId));
+
+            world.GetService<IMigrator>().Migrate(VillageOfTheDamned);
+            Assert.IsFalse(Has(PlateauBookOfVelonarV1.MissionId));
+            Assert.IsTrue(Has(PlateauVillageOfTheDamnedV1.MissionId));
+            Assert.AreEqual((1, 1, 1, 1, 4), Infected(), "the Infected Foreans stay with Village Of The Damned");
+
+            world.GetService<IMigrator>().Migrate(GraveyardShift);
+            Assert.IsFalse(Has(PlateauVillageOfTheDamnedV1.MissionId));
+            Assert.AreEqual((0, 0, 0, 0, 0), Infected());
+            Assert.IsTrue(Has(PlateauGraveyardShiftV1.MissionId));
+
+            world.GetService<IMigrator>().Migrate(StalkMarket);
+            Assert.IsFalse(Has(PlateauGraveyardShiftV1.MissionId));
+            Assert.AreEqual((0, 0, 0, 0), Miasmas());
+            Assert.IsTrue(Has(PlateauStalkMarketV1.MissionId));
         }
     }
 }
