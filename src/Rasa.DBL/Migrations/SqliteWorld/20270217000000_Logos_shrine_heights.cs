@@ -6,7 +6,7 @@ using JetBrains.Annotations;
 using Rasa.Context.World;
 using Rasa.Services.Preloader;
 
-namespace Rasa.Migrations.MySqlWorld
+namespace Rasa.Migrations.SqliteWorld
 {
     /// <summary>
     /// Eight logos shrines put back over their pedestals as the rest stand (LogosShrineHeights).
@@ -16,8 +16,8 @@ namespace Rasa.Migrations.MySqlWorld
     /// </summary>
     // ReSharper disable once InconsistentNaming
     [UsedImplicitly]
-    [DbContext(typeof(MySqlWorldContext))]
-    [Migration("20270213000000_Logos_shrine_heights")]
+    [DbContext(typeof(SqliteWorldContext))]
+    [Migration("20270217000000_Logos_shrine_heights")]
     public class Logos_shrine_heights : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
