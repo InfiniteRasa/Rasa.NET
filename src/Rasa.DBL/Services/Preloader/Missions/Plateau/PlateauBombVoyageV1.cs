@@ -26,7 +26,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
     /// Quarry, right next to the Stalker". TR MMO DB: level 30.
     ///
     /// Reconstructed (ESTIMATE): level 30. Russ gives six bombs on accept; each crate (personal, on the
-    /// ground around the pad) takes one, counts once and closes. "Equipment" read as the four Uncommon V04
+    /// ground around the pad) takes one, counts once and closes, and a bomb prop (ArchHumBombV01) appears beside it. "Equipment" read as the four Uncommon V04
     /// vests of the 30-34 band, one of each armor type (the lowest template of each class).
     /// </summary>
     public static class PlateauBombVoyageV1
@@ -38,6 +38,9 @@ namespace Rasa.Services.Preloader.Missions.Plateau
         public const uint Bomb = 42499, BombClass = 21573, Bombs = 6;
         public const uint CrateClass = 21568, UseArgument = 3, CrateState = 44;
         public const string BombKey = "altitude-bomb";
+        /// <summary>The planted bomb the player sees beside each used crate: ArchHumBombV01, a prop (client entityclass 7284).</summary>
+        public const uint PlantedBombClass = 7284;
+        public const float PlantedBombOffset = 1f;
 
         public const uint Experience = 45000;
         public const uint Credits = 4800;
@@ -55,6 +58,11 @@ namespace Rasa.Services.Preloader.Missions.Plateau
         };
 
         public static string CrateRole(int index) => $"crate-{index + 1}";
+        public static string PlantedBombRole(int index) => $"bomb-{index + 1}";
+
+        /// <summary>On the ground beside the crate (ESTIMATE: the crate's size is not known), not usable.</summary>
+        public static ScenePosition PlantedBomb(int index) =>
+            new(Crates[index].X + PlantedBombOffset, Crates[index].Y, Crates[index].Z);
 
         public static void Up(MigrationBuilder migration)
         {
@@ -103,10 +111,13 @@ namespace Rasa.Services.Preloader.Missions.Plateau
                 var sequence = (uint)index + 1;
                 scene.Actors[role] = new SceneActorDefinition(role, SceneActorKind.Object, CrateClass, Crates[index],
                     InitialObjectState: CrateState, UseAction: new SceneObjectAction(MissionId, Plant, sequence, UseArgument));
+                var bomb = PlantedBombRole(index);
+                scene.Actors[bomb] = new SceneActorDefinition(bomb, SceneActorKind.Object, PlantedBombClass, PlantedBomb(index),
+                    InitiallyInteractable: false);
                 scene.Sequences[0].World.Add(new EnsureActorIntent($"create-{role}", role));
                 scene.Sequences[sequence] = new SceneSequenceDefinition
                 {
-                    World = { new SetInteractionIntent($"close-{role}", role, false) },
+                    World = { new SetInteractionIntent($"close-{role}", role, false), new EnsureActorIntent($"plant-{bomb}", bomb) },
                     Character = { new ConsumeMissionItemIntent($"bomb-in-{role}", MissionId, BombKey, 1, MissionItemScope.AssignmentIssued) },
                     Signals = { new SceneMissionSignal(MissionId, 1, sequence) }
                 };

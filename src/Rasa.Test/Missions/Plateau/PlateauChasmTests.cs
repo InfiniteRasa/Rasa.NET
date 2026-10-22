@@ -149,6 +149,8 @@ namespace Rasa.Test.Missions.Plateau
                 Assert.IsTrue(System.Math.Abs(ground.Value - at.Y) < 1f, $"crate {index + 1} at {at.Y}, ground {ground}");
             }
 
+            Assert.AreEqual(0, PlantedBombs(plateau).Length, "no bomb shows before it is planted");
+
             var mission = harness.Client.Player.Missions[BombVoyage];
             harness.MoveTo(crates[0].Position + new Vector3(0, 0, 1));
             Use(harness, plateau, crates[0], 1, recovers: false);
@@ -158,10 +160,17 @@ namespace Rasa.Test.Missions.Plateau
             Assert.IsFalse(crates[0].IsEnabled, "a crate takes one bomb");
             Use(harness, plateau, crates[0], PlateauBombVoyageV1.UseArgument, recovers: false);
             Assert.AreEqual(5U, WildernessRanjaGorgeTests.Held(harness, Bomb), "the same crate counts once");
+            var planted = PlantedBombs(plateau).Single();
+            Assert.AreEqual(PlateauBombVoyageV1.PlantedBombRole(0), planted.SceneActorRole, "the bomb shows at the first crate");
+            Assert.AreEqual(PlateauBombVoyageV1.PlantedBombClass, (uint)planted.EntityClassId);
+            var beside = PlateauBombVoyageV1.PlantedBomb(0);
+            Assert.AreEqual(new Vector3(beside.X, beside.Y, beside.Z), planted.Position);
+            Assert.IsFalse(planted.IsEnabled, "the bomb is only to see");
 
             WildernessRanjaGorgeTests.Reload(harness);
             harness.Drain();
             Assert.AreEqual(5U, WildernessRanjaGorgeTests.Held(harness, Bomb));
+            Assert.AreEqual(PlateauBombVoyageV1.PlantedBombRole(0), PlantedBombs(plateau).Single().SceneActorRole, "still there after a reload");
 
             for (var index = 1; index < crates.Length; index++)
             {
@@ -172,6 +181,8 @@ namespace Rasa.Test.Missions.Plateau
             }
             mission = harness.Client.Player.Missions[BombVoyage];
             Assert.AreEqual(0U, WildernessRanjaGorgeTests.Held(harness, Bomb), "all six planted");
+            CollectionAssert.AreEquivalent(Enumerable.Range(0, crates.Length).Select(PlateauBombVoyageV1.PlantedBombRole).ToArray(),
+                PlantedBombs(plateau).Select(obj => obj.SceneActorRole).ToArray(), "one bomb shows at each crate");
             Assert.AreEqual(MissionObjectiveState.Completed, mission.Objectives[PlateauBombVoyageV1.Plant].State);
             Assert.AreEqual(MissionObjectiveState.Incomplete, mission.Objectives[PlateauBombVoyageV1.Report].State);
             Assert.IsFalse(mission.Completeable, "Russ wants to hear it first");
@@ -202,7 +213,13 @@ namespace Rasa.Test.Missions.Plateau
             harness.Drain();
             Assert.AreEqual(0U, WildernessRanjaGorgeTests.Held(harness, Bomb), "the bombs go with the mission");
             Assert.IsFalse(plateau.DynamicObjects.Any(obj => obj.SceneMissionId == BombVoyage && obj.IsEnabled), "no crate to use");
+            Assert.AreEqual(0, PlantedBombs(plateau).Length, "the planted bomb goes with the mission");
         }
+
+        /// <summary>The planted bomb props of Bomb Voyage in the world.</summary>
+        private static DynamicObject[] PlantedBombs(MapChannel plateau) =>
+            plateau.DynamicObjects.Where(obj => obj.SceneMissionId == BombVoyage && obj.IsInWorld &&
+                obj.EntityClassId == (EntityClasses)PlateauBombVoyageV1.PlantedBombClass).ToArray();
 
         [TestMethod]
         public void LookoutDownBelowSendsThePlayerToGardeWhoseBloodhoundFollows()
