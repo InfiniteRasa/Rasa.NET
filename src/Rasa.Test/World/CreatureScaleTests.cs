@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Numerics;
 using Microsoft.EntityFrameworkCore;
@@ -95,6 +96,28 @@ namespace Rasa.Test.World
             Assert.AreEqual(2.0 / 6.0, Cover.Visible(world.Map.Cover, Cover.EyeOf(player), Cover.SamplePoints(big, player.Position)), 1e-9);
             Assert.AreEqual(1.0 / 3.0, Cover.Modifier(world.Map, player, big), 1e-9, "two of six points in the clear");
             Assert.AreEqual(2.7f, Cover.HeightOf(big), 1e-5f);
+        }
+
+        /// <summary>
+        /// The side sample points lie on the body's width at its size, as the others lie on its
+        /// height: 0.3 m either side of its middle at its model's size, 0.45 m half again as big.
+        /// </summary>
+        [TestMethod]
+        public void ABiggerCreaturesSidePointsAreOnItsWiderBody()
+        {
+            var from = Vector3.Zero;
+            float Widest(Creature creature) =>
+                Cover.SamplePoints(creature, from).Max(point => MathF.Abs(point.X - creature.Position.X));
+
+            var plain = new Creature { Position = new Vector3(0, 0, -20) };
+            var big = new Creature { Position = new Vector3(0, 0, -20), Scale = 1.5 };
+
+            Assert.AreEqual(0.3f, Widest(plain), 1e-5f);
+            Assert.AreEqual(0.45f, Widest(big), 1e-5f);
+            Assert.AreEqual(0.45f, Cover.HalfWidthOf(big), 1e-5f);
+
+            big.IsCrouching = true;
+            Assert.AreEqual(0.45f, Widest(big), 1e-5f, "crouching lowers the points, not their width");
         }
 
         /// <summary>
