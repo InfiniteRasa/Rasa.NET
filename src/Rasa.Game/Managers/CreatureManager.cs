@@ -870,6 +870,14 @@ namespace Rasa.Managers
             var actorNames = new Dictionary<uint, string>();
             foreach (var entry in unitOfWork.Creatures.GetActorNames())
                 actorNames[entry.Id] = entry.ActorName;
+            var scales = new Dictionary<uint, double>();
+            foreach (var entry in unitOfWork.Creatures.GetScales())
+            {
+                if (entry.Scale > 0 && double.IsFinite(entry.Scale))
+                    scales[entry.Id] = entry.Scale;
+                else
+                    Logger.WriteLog(LogType.Error, $"creature_scale {entry.Id}: scale {entry.Scale} is no size; the model's own is used.");
+            }
             var greetings = new Dictionary<uint, Structures.World.NpcGreetingEntry>();
             foreach (var entry in unitOfWork.Creatures.GetNpcGreetings())
                 greetings[entry.Id] = entry;
@@ -952,6 +960,10 @@ namespace Rasa.Managers
                 // An NPC named by the server rather than by the client's creaturenamelanguage.
                 if (actorNames.TryGetValue(data.Id, out var actorName) && !string.IsNullOrWhiteSpace(actorName))
                     creature.ActorName = actorName;
+
+                // A body bigger or smaller than its class's model (creature_scale; BodyAttributes).
+                if (scales.TryGetValue(data.Id, out var scale))
+                    creature.Scale = scale;
 
                 // load Creature Actions
                 if (data.Action1 != 0)

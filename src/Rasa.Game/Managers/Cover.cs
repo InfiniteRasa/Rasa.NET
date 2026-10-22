@@ -54,7 +54,7 @@ namespace Rasa.Managers
         /// <summary>A crouched target's height, as a share of its standing height.</summary>
         public const float CrouchedHeightFactor = 0.55f;
 
-        /// <summary>Half a body's width, for the points either side of its middle.</summary>
+        /// <summary>Half a body's width at scale 1, for the points either side of its middle.</summary>
         public const float HalfWidth = 0.3f;
 
         /// <summary>Where an attacker sees from, as a share of its height.</summary>
@@ -73,10 +73,20 @@ namespace Rasa.Managers
 
         public static float HeightOf(Actor actor)
         {
-            var height = actor is Creature creature ? CreatureHeight * (float)Math.Max(0.1, creature.Scale) : PlayerHeight;
+            var height = (actor is Creature ? CreatureHeight : PlayerHeight) * SizeOf(actor);
 
             return IsCrouching(actor) ? height * CrouchedHeightFactor : height;
         }
+
+        /// <summary>
+        /// Half the actor's width, for the points either side of its middle: <see cref="HalfWidth"/>
+        /// at its size, as its height is, so the points lie on the body the client draws
+        /// (creature_scale). Crouching leaves it as it is.
+        /// </summary>
+        public static float HalfWidthOf(Actor actor) => HalfWidth * SizeOf(actor);
+
+        /// <summary>A creature's body size (Creature.Scale, at least 0.1); a player's points are laid on the standing player's, 1.</summary>
+        private static float SizeOf(Actor actor) => actor is Creature creature ? (float)Math.Max(0.1, creature.Scale) : 1f;
 
         public static bool IsCrouching(Actor actor) => actor != null && actor.IsCrouching;
 
@@ -87,12 +97,13 @@ namespace Rasa.Managers
         {
             var layout = IsCrouching(target) ? CrouchedPoints : StandingPoints;
             var height = HeightOf(target);
+            var halfWidth = HalfWidthOf(target);
             var toTarget = new Vector3(target.Position.X - from.X, 0f, target.Position.Z - from.Z);
             var side = toTarget.LengthSquared() < 1e-4f ? Vector3.UnitX : Vector3.Normalize(new Vector3(-toTarget.Z, 0f, toTarget.X));
             var points = new Vector3[layout.Length];
 
             for (var i = 0; i < layout.Length; i++)
-                points[i] = target.Position + new Vector3(0f, height * layout[i].Up, 0f) + side * (HalfWidth * layout[i].Side);
+                points[i] = target.Position + new Vector3(0f, height * layout[i].Up, 0f) + side * (halfWidth * layout[i].Side);
 
             return points;
         }

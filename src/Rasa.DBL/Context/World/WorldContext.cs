@@ -112,6 +112,7 @@ namespace Rasa.Context.World
         public DbSet<VendorItemEntry> VendorItemEntries { get; set; }
         public DbSet<VendorPriceEntry> VendorPriceEntries { get; set; }
         public DbSet<CreatureActorNameEntry> CreatureActorNameEntries { get; set; }
+        public DbSet<CreatureScaleEntry> CreatureScaleEntries { get; set; }
         public DbSet<NpcGreetingEntry> NpcGreetingEntries { get; set; }
         public DbSet<NpcBarkEntry> NpcBarkEntries { get; set; }
         public DbSet<WeaponClassEntry> WeaponClassEntries { get; set; }
