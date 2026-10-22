@@ -11,14 +11,17 @@ using Rasa.Data;
 using Rasa.Game;
 using Rasa.Managers;
 using Rasa.Navigation;
+using Rasa.Packets.Game.Server;
 using Rasa.Packets.LootDispenser.Client;
 using Rasa.Packets.MapChannel.Client;
 using Rasa.Packets.MapChannel.Server;
 using Rasa.Packets.Mission.Server;
+using Rasa.Packets.Protocol;
 using Rasa.Services.Preloader.Missions.Plateau;
 using Rasa.Structures;
 using Rasa.Structures.Char;
 using Rasa.Test.Missions.Wilderness;
+using Rasa.Test.World;
 
 namespace Rasa.Test.Missions.Plateau
 {
@@ -80,6 +83,36 @@ namespace Rasa.Test.Missions.Plateau
             var guards = pack.Count(creature => creature.DbId == PlateauGiantKillerV1.KaelGuard);
             Assert.IsTrue(guards >= PlateauGiantKillerV1.GuardsMin && guards <= PlateauGiantKillerV1.GuardsMax,
                 $"{guards} Kael with Goliath");
+        }
+
+        /// <summary>
+        /// Goliath stands half again as tall as his Kael (PlateauGiantKillerScaleV1): his body goes
+        /// to the client at 1.5 (BodyAttributes scale), theirs at their models' own size.
+        /// </summary>
+        [TestMethod]
+        public void GoliathIsHalfAgainTheSizeOfHisKael()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var plateau = EnterPlateau(harness);
+            Spawn(plateau, Goliath);
+
+            var pack = Living(plateau).Where(creature => creature.SpawnPool?.DbId == PlateauGiantKillerV1.GoliathPool).ToArray();
+            double SentScale(Creature creature)
+            {
+                WorldTestContext.Drain(harness.Client);
+                CreatureManager.Instance.CreateCreatureOnClient(harness.Client, creature);
+                return WorldTestContext.Drain(harness.Client)
+                    .Select(packet => packet.Message).OfType<CallMethodMessage>().Select(message => message.Packet)
+                    .OfType<CreatePhysicalEntityPacket>().Single(packet => packet.EntityId == creature.EntityId)
+                    .EntityData.OfType<BodyAttributesPacket>().Single().Scale;
+            }
+
+            var goliath = pack.Single(creature => creature.DbId == Goliath);
+            Assert.AreEqual(1.5, goliath.Scale);
+            Assert.AreEqual(1.5, SentScale(goliath));
+
+            foreach (var guard in pack.Where(creature => creature.DbId == PlateauGiantKillerV1.KaelGuard))
+                Assert.AreEqual(1.0, SentScale(guard), "a guard is its model's size");
         }
 
         /// <summary>

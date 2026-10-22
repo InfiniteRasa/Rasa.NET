@@ -1033,6 +1033,10 @@ namespace Rasa.Test.Missions.Plateau
             Assert.AreEqual((false, true, (double?)2.0, (double?)5.0), (group.ActingLeader, group.LeaderTopUp, group.Pace, group.Spacing),
                 "Goliath leads, comes back with the top-up, the group walks at 2 m/s (PlateauGiantKillerPaceV1), 5 m apart (PlateauGiantKillerSpacingV1)");
 
+            Assert.AreEqual(1.5, world.CreatureScaleEntries.AsNoTracking().Single(row => row.Id == PlateauGiantKillerV1.Goliath).Scale,
+                "Goliath is half again his model's size (PlateauGiantKillerScaleV1)");
+            Assert.AreEqual(1, world.CreatureScaleEntries.AsNoTracking().Count(), "no other creature has a size of its own");
+
             MissionEvidenceEntry Evidence() => world.MissionEvidenceEntries.AsNoTracking().SingleOrDefault(entry =>
                 entry.MissionId == PlateauGiantKillerV1.MissionId && entry.ContentRevision == PlateauMissionDataV1.Revision && entry.EvidenceId == 4);
             Assert.AreEqual((MissionEvidenceSourceKind.Reconstruction, 0.3), (Evidence().SourceKind, Evidence().Confidence));
@@ -1040,6 +1044,9 @@ namespace Rasa.Test.Missions.Plateau
             world.GetService<IMigrator>().Migrate(MislaidPlans);
             Assert.IsFalse(world.SpawnPoolPatrolEntries.AsNoTracking().Any(row => row.PoolId == pool));
             Assert.IsFalse(world.SpawnPoolPatrolGroupEntries.AsNoTracking().Any(row => row.Id == pool), "its pace too");
+            Assert.AreEqual(0, world.Database.SqlQueryRaw<int>(
+                "SELECT COUNT(*) AS Value FROM sqlite_master WHERE type = 'table' AND name = 'creature_scale'").AsEnumerable().Single(),
+                "and Goliath's size, with the table (Add_creature_scale)");
             Assert.IsNull(Evidence());
             Assert.IsTrue(world.MissionContentDefinitionEntries.AsNoTracking().Any(entry => entry.MissionId == PlateauGiantKillerV1.MissionId));
             Assert.AreEqual(PlateauGiantKillerV1.KaelGuard,

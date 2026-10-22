@@ -557,6 +557,21 @@ namespace Rasa.Migrations.SqliteWorld
                     b.ToTable("legacy_flat_creature_loot_group");
                 });
 
+            modelBuilder.Entity("Rasa.Structures.World.CreatureScaleEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<double>("Scale")
+                        .HasColumnType("REAL")
+                        .HasColumnName("scale");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("creature_scale");
+                });
+
             modelBuilder.Entity("Rasa.Structures.World.CreatureStatEntry", b =>
                 {
                     b.Property<uint>("Id")

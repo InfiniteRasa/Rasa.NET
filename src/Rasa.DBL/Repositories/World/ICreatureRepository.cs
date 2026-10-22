@@ -31,6 +31,9 @@ namespace Rasa.Repositories.World
         List<VendorPriceEntry> GetVendorPrices();
         List<CreatureActorNameEntry> GetActorNames();
 
+        /// <summary>The size of each creature that has one of its own (creature_scale). One with no row is 1.0.</summary>
+        List<CreatureScaleEntry> GetScales() => new List<CreatureScaleEntry>();
+
         /// <summary>The greeting each NPC has been given (npc_greeting). An NPC with no row has the default.</summary>
         List<NpcGreetingEntry> GetNpcGreetings() => new List<NpcGreetingEntry>();
 
