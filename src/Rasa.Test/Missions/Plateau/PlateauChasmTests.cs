@@ -22,7 +22,7 @@ namespace Rasa.Test.Missions.Plateau
     /// <summary>
     /// Outpost Cmdr. Russ's missions into the quarry and the chasm, Plateau, played through as a player plays
     /// them: Bomb Voyage (931), Lookout Down Below (970), and Field Sgt. Garde's The Stainless Steel Bloodhound
-    /// (867, turned in by radio).
+    /// (867, turned in by radio), after which Headquarters calls with Behind Enemy Lines (555, to Colonel Bosley).
     ///
     /// Why these tests: as PlateauPerduTests. The crates are used as Soyuz Salvage's debris
     /// (PlateauWedgeRockTests); the sentinel walks as Clean Slate's soldier (PlateauPerduTests); the radio
@@ -39,6 +39,82 @@ namespace Rasa.Test.Missions.Plateau
         private const uint Bloodhound = PlateauBloodhoundV1.MissionId;
         private const uint Garde = PlateauBloodhoundV1.Garde;      // creature and pool
         private const uint Bomb = PlateauBombVoyageV1.Bomb;
+        private const uint BehindEnemyLines = PlateauBehindEnemyLinesV1.MissionId;
+        private const uint Bosley = PlateauBehindEnemyLinesV1.Bosley;   // creature and pool
+
+        [TestMethod]
+        public void HeadquartersCallsAfterTheBloodhoundAndBosleyTakesTheReport()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var plateau = EnterPlateau(harness);
+            Spawn(plateau, Bosley);
+            var bosley = RequireNpc(plateau, Bosley);
+            Assert.IsFalse(Offers(harness, bosley, BehindEnemyLines), "no NPC offers it");
+            SeedCompleteable(harness, Bloodhound);
+            Assert.IsTrue(harness.Client.Player.Missions[Bloodhound].Completeable);
+            harness.Manager.OfferArrivalMissions(harness.Client);
+            Assert.IsFalse(Called(harness), "not before the Bloodhound is turned in");
+
+            Assert.IsTrue(harness.Manager.TryCompleteRadioMission(harness.Client, Bloodhound, 0, null));
+            var packets = harness.Drain().ToList();
+            Assert.AreEqual(BehindEnemyLines, packets.OfType<DispenseRadioMissionPacket>().Single().MissionId);
+            Assert.IsLessThan(packets.FindIndex(packet => packet is DispenseRadioMissionPacket),
+                packets.FindIndex(packet => packet is MissionRewardedPacket), "the call comes after the reward");
+
+            Assert.IsTrue(harness.Manager.TryAcceptRadioMission(harness.Client, BehindEnemyLines));
+            Assert.AreEqual(BehindEnemyLines, harness.Drain().OfType<MissionGainedPacket>().Single().MissionId);
+            var mission = harness.Client.Player.Missions[BehindEnemyLines];
+            Assert.AreEqual(MissionObjectiveState.Incomplete, mission.Objectives[PlateauBehindEnemyLinesV1.Report].State);
+            Assert.IsFalse(mission.Completeable);
+
+            WildernessRanjaGorgeTests.Reload(harness);
+            Talk(harness, bosley, BehindEnemyLines, PlateauBehindEnemyLinesV1.Report);
+            Assert.IsTrue(harness.Client.Player.Missions[BehindEnemyLines].Completeable);
+            WildernessRanjaGorgeTests.CompleteAndCheckReward(harness, bosley, BehindEnemyLines, 2,
+                PlateauBehindEnemyLinesV1.Experience, PlateauBehindEnemyLinesV1.Credits);
+            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, PlateauBehindEnemyLinesV1.MechVest), "the selected vest");
+        }
+
+        [TestMethod]
+        public void ACallNotTakenComesAgainOnArrivalOnThePlateau()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            EnterPlateau(harness);
+            harness.Manager.OfferArrivalMissions(harness.Client);
+            Assert.IsFalse(Called(harness), "nothing before the Bloodhound");
+
+            SeedCompleted(harness, Bloodhound);
+            harness.Manager.OfferArrivalMissions(harness.Client);
+            Assert.IsTrue(Called(harness), "called on arrival");
+            Assert.IsTrue(harness.Manager.TryAcceptRadioMission(harness.Client, BehindEnemyLines));
+            harness.Drain();
+
+            harness.Manager.OfferArrivalMissions(harness.Client);
+            Assert.IsFalse(Called(harness), "not while the player holds it");
+        }
+
+        /// <summary>Headquarters offered Behind Enemy Lines by radio (another Plateau mission, 1586, is offered on arrival too).</summary>
+        private static bool Called(WildernessRuntimeTestHarness harness) =>
+            harness.Drain().OfType<DispenseRadioMissionPacket>().Any(offer => offer.MissionId == BehindEnemyLines);
+
+        /// <summary>An active mission with its required objectives done, ready to turn in (BootcampRuntimeTestHarness.SeedMission).</summary>
+        private static void SeedCompleteable(WildernessRuntimeTestHarness harness, uint missionId)
+        {
+            var characterId = harness.Client.Player.Id;
+            var definition = harness.Manager.LoadedMissions[missionId];
+            using (var unit = harness.CreateChar())
+                unit.ExecuteTransaction(() =>
+                {
+                    unit.CharacterMissions.Add(new CharacterMissionEntry(characterId, missionId, (uint)MissionState.Active)
+                    {
+                        Completeable = true
+                    });
+                    unit.CharacterMissionProgress.AddObjectives(definition.Objectives.Values.Select(objective =>
+                        new CharacterMissionObjectiveEntry(characterId, missionId, objective.ObjectiveId,
+                            (byte)(objective.IsRequired.Value ? MissionObjectiveState.Completed : objective.InitialState.Value))));
+                });
+            WildernessRanjaGorgeTests.Reload(harness);
+        }
 
         [TestMethod]
         public void BombVoyagePlantsOneOfRusssSixBombsInEachOfSixCrates()
@@ -205,6 +281,8 @@ namespace Rasa.Test.Missions.Plateau
 
             var before = harness.Context.ReadRewardTotals();
             Assert.IsTrue(harness.Manager.TryCompleteRadioMission(harness.Client, Bloodhound, 1, null));
+            Assert.AreEqual(BehindEnemyLines, harness.Drain().OfType<DispenseRadioMissionPacket>().Single().MissionId,
+                "Headquarters calls with Behind Enemy Lines");
             Assert.AreEqual(MissionState.Completed, harness.Client.Player.Missions[Bloodhound].State);
             Assert.AreEqual(before.Credits + PlateauBloodhoundV1.Credits, harness.Context.ReadRewardTotals().Credits);
             Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, PlateauBloodhoundV1.PulseChaingun), "the second choice");

@@ -55,7 +55,11 @@ namespace Rasa.Test.Missions.Wilderness
             {
                 Assert.AreEqual(disposition, WildernessMissionCases.All.Single(entry => entry.MissionId == id).Disposition,
                     $"Native mission {id} must keep its evidence-backed boundary disposition.");
-                Assert.IsFalse(harness.World.MissionContentDefinitionEntries.Any(entry => entry.Enabled && entry.MissionId == id),
+                // A mission of another zone may be enabled with that zone's content (A Mystery Unearthed and
+                // Symbolism with the Plateau's), never as a Wilderness quest.
+                Assert.IsFalse(harness.World.MissionContentDefinitionEntries.Any(entry => entry.Enabled && entry.MissionId == id &&
+                        !(disposition == WildernessDisposition.OtherZone &&
+                          entry.ContentRevision == Rasa.Services.Preloader.Missions.Plateau.PlateauMissionDataV1.Revision)),
                     $"Excluded or conditional mission {id} must not become an ordinary enabled quest.");
             }
         }

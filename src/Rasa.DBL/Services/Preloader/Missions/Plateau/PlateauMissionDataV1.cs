@@ -44,7 +44,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
         public static PlateauMissionDataV1 Existing(MigrationBuilder migration, uint missionId) => new(migration, missionId);
 
         public PlateauMissionDataV1(MigrationBuilder migration, uint missionId, string name,
-            uint nameTextId, uint giverId, uint? receiverId, uint level, bool shareable = false)
+            uint nameTextId, uint? giverId, uint? receiverId, uint level, bool shareable = false)
             : this(migration, missionId)
         {
             Insert("mission_content_definition",
@@ -90,6 +90,15 @@ namespace Rasa.Services.Preloader.Missions.Plateau
                 new[] { "mission_id", "content_revision", "acceptance_channel", "completion_channel", "radio_sources" },
                 new object[] { _missionId, Revision, (int)MissionChannel.Npc, (int)MissionChannel.Radio, "[]" });
         }
+
+        /// <summary>
+        /// Offered by radio, not by an NPC (channel Radio, mission_channel_policy), from
+        /// <paramref name="sources"/>; turned in at the receiver (channel Npc). Construct the mission with no giver.
+        /// </summary>
+        public void RadioOffer(params MissionOfferSourceDefinition[] sources) =>
+            _migration.InsertData("mission_channel_policy",
+                new[] { "mission_id", "content_revision", "acceptance_channel", "completion_channel", "radio_sources" },
+                new object[] { _missionId, Revision, (int)MissionChannel.Radio, (int)MissionChannel.Npc, JsonSerializer.Serialize(sources) });
 
         public void Prerequisite(uint mission, uint id = 1) =>
             Insert("mission_prerequisite",

@@ -22,7 +22,7 @@ namespace Rasa.Test.Missions.Plateau
     /// <summary>
     /// General Bailey's and Liaison Ridout's missions, played through as a player plays them: A Mystery Unearthed
     /// (2016) from Topper on the Wilderness to Bailey on the Plateau, Symbolism (2017) across Pools, the Marshes
-    /// and the Wilderness, and Logos: Vortex (1659) on the Plateau.
+    /// and the Wilderness, Logos: Vortex (1659) on the Plateau, and Mislaid Plans (965) at Pinnacle Watchtower.
     ///
     /// Why these tests: as PlateauPerduTests. Symbolism's talks are on three other maps, so the player goes from
     /// map to map as EnterPlateau puts them on the Plateau; the Logos are used at the server's own shrines, as
@@ -38,6 +38,7 @@ namespace Rasa.Test.Missions.Plateau
         private const uint Symbolism = PlateauSymbolismV1.MissionId;
         private const uint Vortex = PlateauLogosVortexV1.MissionId;
         private const uint Topper = PlateauMysteryUnearthedV1.Topper;
+        private const uint Plans = PlateauMislaidPlansV1.MissionId;
 
         [TestMethod]
         public void TopperSendsThePlayerToBaileyWhoSendsThemAfterTheEarthLogos()
@@ -145,6 +146,90 @@ namespace Rasa.Test.Missions.Plateau
             Assert.IsTrue(mission.Completeable);
             WildernessRanjaGorgeTests.CompleteAndCheckReward(harness, ridout, Vortex, null,
                 PlateauLogosVortexV1.Experience, PlateauLogosVortexV1.Credits);
+        }
+
+        [TestMethod]
+        public void TheBattlePlansLieInTheCourierBagBesideTheWreckedWatchtower()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var plateau = EnterPlateau(harness);
+            Spawn(plateau, PlateauBaileyNpcsV1.BaileyPool);
+            var bailey = Npc(plateau, PlateauBaileyNpcsV1.BaileyPool, PlateauBaileyNpcsV1.Bailey);
+            Assert.IsFalse(plateau.DynamicObjects.Any(obj => obj.SceneMissionId == Plans), "no bag before the mission");
+
+            var offer = WildernessRanjaGorgeTests.Offer(harness, bailey, Plans);
+            Assert.AreEqual(0, offer.SelectableReward.Count, "no choice");
+            Assert.AreEqual(PlateauMislaidPlansV1.Credits, offer.FixedReward.Credits[CurencyType.Credits]);
+            harness.MoveTo(bailey.Position);
+            Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, bailey.EntityId, Plans));
+            harness.Drain();
+            CollectionAssert.AreEquivalent(new[] { PlateauMislaidPlansV1.Retrieve },
+                harness.Client.Player.Missions[Plans].Objectives.Keys.ToArray(), "no radiation objective (missing mechanic)");
+
+            var bag = plateau.DynamicObjects.Single(obj => obj.SceneMissionId == Plans && obj.SceneActorRole == "bag");
+            Assert.AreEqual(PlateauMislaidPlansV1.BagClass, (uint)bag.EntityClassId);
+            Assert.AreEqual((UseObjectState)PlateauMislaidPlansV1.ReadyState, bag.StateId);
+            Assert.AreEqual(new Vector3(-552, 395.3f, 174), bag.Position, "south-west of the tower");
+            Assert.AreEqual(harness.Client.Player.Id, bag.SceneOwnerCharacterId, "the player's own");
+            var ground = plateau.NavMesh.GroundHeight(bag.Position);
+            Assert.IsNotNull(ground, "the bag has navmesh under it");
+            Assert.IsTrue(System.Math.Abs(ground.Value - bag.Position.Y) < 0.5f, $"the bag at {bag.Position.Y}, ground {ground}");
+
+            harness.MoveTo(bag.Position + new Vector3(0, 0, 1));
+            Use(harness, plateau, bag, 1, recovers: false);
+            Assert.AreEqual(0U, WildernessRanjaGorgeTests.Held(harness, PlateauMislaidPlansV1.PlansTemplate), "not with another argument");
+            Use(harness, plateau, bag, PlateauMislaidPlansV1.UseArgument, recovers: true);
+            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, PlateauMislaidPlansV1.PlansTemplate));
+            Assert.AreEqual(MissionObjectiveState.Completed, harness.Client.Player.Missions[Plans].Objectives[PlateauMislaidPlansV1.Retrieve].State);
+            Assert.AreEqual((UseObjectState)PlateauMislaidPlansV1.TakenState, bag.StateId);
+            Assert.IsFalse(bag.IsEnabled);
+            Use(harness, plateau, bag, PlateauMislaidPlansV1.UseArgument, recovers: false);
+            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, PlateauMislaidPlansV1.PlansTemplate), "one set of plans");
+
+            WildernessRanjaGorgeTests.Reload(harness);
+            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, PlateauMislaidPlansV1.PlansTemplate));
+            Assert.IsTrue(harness.Client.Player.Missions[Plans].Completeable);
+            harness.Drain();
+
+            WildernessRanjaGorgeTests.CompleteAndCheckReward(harness, bailey, Plans, null,
+                PlateauMislaidPlansV1.Experience, PlateauMislaidPlansV1.Credits);
+            Assert.AreEqual(0U, WildernessRanjaGorgeTests.Held(harness, PlateauMislaidPlansV1.PlansTemplate), "Bailey keeps the plans");
+        }
+
+        [TestMethod]
+        public void AbandonedPlansGoBackWithTheBag()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var plateau = EnterPlateau(harness);
+            Spawn(plateau, PlateauBaileyNpcsV1.BaileyPool);
+            var bailey = Npc(plateau, PlateauBaileyNpcsV1.BaileyPool, PlateauBaileyNpcsV1.Bailey);
+            harness.MoveTo(bailey.Position);
+            Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, bailey.EntityId, Plans));
+            harness.Drain();
+            var bag = plateau.DynamicObjects.Single(obj => obj.SceneMissionId == Plans && obj.SceneActorRole == "bag");
+            harness.MoveTo(bag.Position + new Vector3(0, 0, 1));
+            Use(harness, plateau, bag, PlateauMislaidPlansV1.UseArgument, recovers: true);
+            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, PlateauMislaidPlansV1.PlansTemplate));
+
+            Assert.IsTrue(harness.Manager.TryAbandon(harness.Client, Plans));
+            harness.Drain();
+            Assert.AreEqual(0U, WildernessRanjaGorgeTests.Held(harness, PlateauMislaidPlansV1.PlansTemplate), "the plans go");
+            Assert.IsFalse(plateau.DynamicObjects.Any(obj => obj.SceneMissionId == Plans && obj.IsEnabled), "no bag left to use");
+        }
+
+        private static void Use(WildernessRuntimeTestHarness harness, MapChannel plateau, DynamicObject obj, uint argument, bool recovers)
+        {
+            var count = plateau.PerformRecovery.Count;
+            harness.Objects.RequestUseObjectPacket(harness.Client, new RequestUseObjectPacket
+            {
+                EntityId = obj.EntityId, ActionId = ActionId.UseObject, ActionArgId = argument
+            });
+            Assert.AreEqual(count + (recovers ? 1 : 0), plateau.PerformRecovery.Count, $"argument {argument}");
+            if (!recovers)
+                return;
+            var recovery = plateau.PerformRecovery.Last();
+            plateau.PerformRecovery.Remove(recovery);
+            ActorActionManager.Instance.PerformRecovery(plateau, recovery);
         }
 
         /// <summary>The player on another map of the server, as EnterPlateau puts them on the Plateau.</summary>

@@ -49,7 +49,8 @@ namespace Rasa.Test.Missions.Plateau
             PlateauPhotoOpsV1.MissionId, PlateauResultsAreInV1.MissionId, PlateauMindSlayerV1.MissionId,
             PlateauBombVoyageV1.MissionId, PlateauLookoutDownBelowV1.MissionId, PlateauBloodhoundV1.MissionId,
             PlateauBlueFluV1.MissionId, PlateauMurderMostFoulV1.MissionId, PlateauLookingForCluesV1.MissionId,
-            PlateauMysteryUnearthedV1.MissionId, PlateauSymbolismV1.MissionId, PlateauLogosVortexV1.MissionId
+            PlateauMysteryUnearthedV1.MissionId, PlateauSymbolismV1.MissionId, PlateauLogosVortexV1.MissionId,
+            PlateauBehindEnemyLinesV1.MissionId, PlateauMislaidPlansV1.MissionId
         };
 
         /// <summary>
@@ -62,9 +63,9 @@ namespace Rasa.Test.Missions.Plateau
         /// eight, Photo Ops' five, The Results Are In's and Mind Slayer's one each. Bomb Voyage's two, Lookout Down
         /// Below's one, The Stainless Steel Bloodhound's two. Blue Flu's two, Murder Most Foul's seven, Looking For
         /// Clues' eight. Logos: Vortex's one; A Mystery Unearthed and Symbolism have none (their objectives are on other
-        /// maps, and a marker carries no map).
+        /// maps, and a marker carries no map). Behind Enemy Lines' and Mislaid Plans' one each.
         /// </summary>
-        internal const int Indicators = 80;
+        internal const int Indicators = 82;
 
         private const string Before = "20270123000000_Thunderhead_base_teleporters";
         private const string GiantKiller = "20270125000000_Plateau_giant_killer";
@@ -110,11 +111,13 @@ namespace Rasa.Test.Missions.Plateau
         private const string BaileyNpcs = "20270306000000_Plateau_bailey_npcs";
         private const string MysteryUnearthed = "20270307000000_Plateau_mystery_unearthed";
         private const string Symbolism = "20270308000000_Plateau_symbolism";
+        private const string LogosVortex = "20270309000000_Plateau_logos_vortex";
+        private const string BehindEnemyLines = "20270310000000_Plateau_behind_enemy_lines";
 
         [TestMethod]
         public void TheMissionsAreEnabledAndOperationalAtTheirGiversAndReceiversAndLevels()
         {
-            var expected = new (uint Mission, uint Giver, uint? Receiver)[]
+            var expected = new (uint Mission, uint? Giver, uint? Receiver)[]
             {
                 (PlateauGiantKillerV1.MissionId, PlateauGiantKillerV1.Bosley, PlateauGiantKillerV1.Bosley),
                 (PlateauIncommunicadoV1.MissionId, PlateauGiantKillerV1.Bosley, PlateauGiantKillerV1.Bosley),
@@ -151,7 +154,9 @@ namespace Rasa.Test.Missions.Plateau
                 (PlateauLookingForCluesV1.MissionId, PlateauCidNpcsV1.Crais, PlateauCidNpcsV1.Crais),
                 (PlateauMysteryUnearthedV1.MissionId, PlateauMysteryUnearthedV1.Topper, PlateauBaileyNpcsV1.Bailey),
                 (PlateauSymbolismV1.MissionId, PlateauBaileyNpcsV1.Bailey, PlateauMysteryUnearthedV1.Topper),
-                (PlateauLogosVortexV1.MissionId, PlateauBaileyNpcsV1.Ridout, PlateauBaileyNpcsV1.Ridout)
+                (PlateauLogosVortexV1.MissionId, PlateauBaileyNpcsV1.Ridout, PlateauBaileyNpcsV1.Ridout),
+                (PlateauBehindEnemyLinesV1.MissionId, null, PlateauGiantKillerV1.Bosley),
+                (PlateauMislaidPlansV1.MissionId, PlateauBaileyNpcsV1.Bailey, PlateauBaileyNpcsV1.Bailey)
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             var enabled = harness.World.MissionContentDefinitionEntries.AsNoTracking()
@@ -247,7 +252,9 @@ namespace Rasa.Test.Missions.Plateau
                 {
                     (1, 21930, 21931, null), (2, 21933, 21934, null), (4, 21938, 21939, null), (6, 21943, 21944, null)
                 }),
-                (1659, 15972, new (uint, uint, uint, uint?)[] { (18, 15977, 15978, null) })
+                (1659, 15972, new (uint, uint, uint, uint?)[] { (18, 15977, 15978, null) }),
+                (555, 1548, new (uint, uint, uint, uint?)[] { (1, 3388, 6303, null) }),
+                (965, 5269, new (uint, uint, uint, uint?)[] { (1, 5277, 6412, null) })
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             foreach (var (mission, title, objectives) in expected)
@@ -282,7 +289,8 @@ namespace Rasa.Test.Missions.Plateau
         /// Ops, The Results Are In, Mind Slayer. Bomb Voyage and Lookout Down Below have none; The Stainless Steel
         /// Bloodhound follows Lookout Down Below. Fort Defiance's murder case: Blue Flu follows The Defiant Ones, Murder
         /// Most Foul Blue Flu, Looking For Clues Murder Most Foul. A Mystery Unearthed and Logos: Vortex have none;
-        /// Symbolism follows A Mystery Unearthed.
+        /// Symbolism follows A Mystery Unearthed. Behind Enemy Lines follows The Stainless Steel Bloodhound; Mislaid
+        /// Plans has none.
         /// </summary>
         [TestMethod]
         public void EachMissionRequiresTheMissionOrDeliveryBeforeIt()
@@ -290,7 +298,7 @@ namespace Rasa.Test.Missions.Plateau
             using var harness = WildernessRuntimeTestHarness.Create();
             var prerequisites = harness.World.MissionPrerequisiteEntries.AsNoTracking()
                 .Where(entry => entry.ContentRevision == PlateauMissionDataV1.Revision).ToArray();
-            Assert.HasCount(20, prerequisites);
+            Assert.HasCount(21, prerequisites);
             var incommunicado = prerequisites.Single(entry => entry.MissionId == PlateauIncommunicadoV1.MissionId);
             Assert.AreEqual(MissionPrerequisiteKind.MissionCompleted, incommunicado.Kind);
             Assert.AreEqual<uint?>(PlateauGiantKillerV1.MissionId, incommunicado.RequiredMissionId);
@@ -325,9 +333,9 @@ namespace Rasa.Test.Missions.Plateau
             var stalkMarket = prerequisites.Single(entry => entry.MissionId == PlateauStalkMarketV1.MissionId);
             Assert.AreEqual((MissionPrerequisiteKind.MissionCompleted, (uint?)1015),
                 (stalkMarket.Kind, stalkMarket.RequiredMissionId));
-            foreach (var mission in new uint[] { 933, 1981, 930, 1034, 1825, 557, 2007, 887, 934, 1983, 931, 970, 2016, 1659 })
+            foreach (var mission in new uint[] { 933, 1981, 930, 1034, 1825, 557, 2007, 887, 934, 1983, 931, 970, 2016, 1659, 965 })
                 Assert.IsFalse(prerequisites.Any(entry => entry.MissionId == mission), $"{mission}");
-            foreach (var (mission, required) in new (uint, uint)[] { (713, 887), (954, 887), (855, 713), (1027, 954), (1044, 934), (905, 1983), (929, 905), (936, 929), (719, 936), (867, 970), (1014, 887), (895, 1014), (928, 895), (2017, 2016) })
+            foreach (var (mission, required) in new (uint, uint)[] { (713, 887), (954, 887), (855, 713), (1027, 954), (1044, 934), (905, 1983), (929, 905), (936, 929), (719, 936), (867, 970), (1014, 887), (895, 1014), (928, 895), (2017, 2016), (555, 867) })
             {
                 var prerequisite = prerequisites.Single(entry => entry.MissionId == mission);
                 Assert.AreEqual((MissionPrerequisiteKind.MissionCompleted, (uint?)required),
@@ -421,6 +429,10 @@ namespace Rasa.Test.Missions.Plateau
                 (2017, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
                     (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
                 (1659, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                (555, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.4),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                (965, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
                     (MissionEvidenceSourceKind.Reconstruction, 0.3) })
             })
                 CollectionAssert.AreEqual(confidences, evidence.Where(entry => entry.MissionId == mission)
@@ -958,6 +970,36 @@ namespace Rasa.Test.Missions.Plateau
             var before = PlateauBaileyNpcsV1.McCormickBefore;
             Assert.AreEqual((PlateauBaileyNpcsV1.PoolsMap, before.X, before.Y, before.Z), McCormick(), "McCormick back on Pools");
             Assert.IsTrue(Has(PlateauLookingForCluesV1.MissionId));
+        }
+
+        /// <summary>
+        /// Behind Enemy Lines is offered by radio and turned in at Bosley (mission_channel_policy); Mislaid Plans
+        /// and then Behind Enemy Lines roll back a migration at a time, with the channel policy; Logos: Vortex stays.
+        /// </summary>
+        [TestMethod]
+        public void BehindEnemyLinesIsARadioCallAndBothRollBack()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            bool Has(uint mission) => world.MissionContentDefinitionEntries.AsNoTracking().Any(entry => entry.MissionId == mission);
+            int Policies() => world.Database.SqlQueryRaw<int>(
+                $"SELECT COUNT(*) AS Value FROM mission_channel_policy WHERE mission_id = {PlateauBehindEnemyLinesV1.MissionId}").AsEnumerable().Single();
+
+            var definition = harness.Manager.LoadedMissions[PlateauBehindEnemyLinesV1.MissionId];
+            Assert.AreEqual((Rasa.Missions.Definitions.MissionChannel.Radio, Rasa.Missions.Definitions.MissionChannel.Npc),
+                (definition.AcceptanceChannel, definition.CompletionChannel));
+            CollectionAssert.AreEquivalent(new[] { ("mission.rewarded:867", (uint?)null), ("map.arrival", (uint?)PlateauMissionDataV1.MapContextId) },
+                definition.RadioSources.Select(source => (source.Key, source.MapContextId)).ToArray());
+            Assert.IsFalse(definition.RadioCompletable == true, "turned in at Bosley");
+            Assert.AreEqual(1, Policies());
+
+            world.GetService<IMigrator>().Migrate(BehindEnemyLines);
+            Assert.IsFalse(Has(PlateauMislaidPlansV1.MissionId), "Mislaid Plans rolled back");
+            Assert.IsTrue(Has(PlateauBehindEnemyLinesV1.MissionId), "Behind Enemy Lines stays");
+            world.GetService<IMigrator>().Migrate(LogosVortex);
+            Assert.IsFalse(Has(PlateauBehindEnemyLinesV1.MissionId), "Behind Enemy Lines rolled back");
+            Assert.AreEqual(0, Policies(), "its channel policy too");
+            Assert.IsTrue(Has(PlateauLogosVortexV1.MissionId));
         }
 
         /// <summary>
