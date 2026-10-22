@@ -48,6 +48,12 @@ namespace Rasa.Structures
         /// </summary>
         public bool LeaderTopUp { get; set; } = true;
 
+        /// <summary>
+        /// The pace its beat is walked at, metres a second (spawnpool_patrol_group.pace); null for
+        /// the default (Managers.Patrols.Pace).
+        /// </summary>
+        public float? PatrolPace { get; set; }
+
         /// <summary>How long its group's own leader has been down, up to its respawn time, for a pool without its leader's top-up. Not copied to a clone.</summary>
         internal long LeaderDownMs { get; set; }
 
