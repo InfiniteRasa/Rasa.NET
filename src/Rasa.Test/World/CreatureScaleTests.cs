@@ -155,13 +155,14 @@ namespace Rasa.Test.World
                 .AsEnumerable().Single();
 
             Assert.AreEqual(1, Tables());
-            Assert.AreEqual(0, world.Set<CreatureScaleEntry>().AsNoTracking().Count(), "no creature has a size of its own yet");
 
             world.GetService<IMigrator>().Migrate(Before);
             Assert.AreEqual(0, Tables());
 
+            // Its migration makes the table and puts no size in it: a later one may (content).
             world.GetService<IMigrator>().Migrate(Migration);
             Assert.AreEqual(1, Tables());
+            Assert.AreEqual(0, world.Set<CreatureScaleEntry>().AsNoTracking().Count(), "no creature has a size of its own from it");
         }
     }
 }
