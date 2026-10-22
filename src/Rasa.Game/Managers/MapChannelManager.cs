@@ -474,6 +474,9 @@ namespace Rasa.Managers
                     // Torcastra Prison's alarm, gate, consoles and Airman Hamilton, in each copy of it.
                     Guard("TorcastraPrison.Worker", mapChannel, () => TorcastraPrison.Worker(mapChannel));
 
+                    // Players held in a corner the client's collision will not let them out of are taken out.
+                    Guard("StuckSpots.Worker", mapChannel, () => StuckSpots.Worker(mapChannel));
+
                     // Maws come up at whoever comes near, and the ones gone back down are taken off.
                     Guard("MawLurk.Worker", mapChannel, () => MawLurk.Worker(mapChannel));
 

@@ -422,6 +422,23 @@ namespace Rasa.Navigation
                 : (Vector3?)null;
         }
 
+        /// <summary>
+        /// How far the point is from the nearest edge of the mesh around it - a wall, a drop -
+        /// looking no further than <paramref name="maxRadius"/>: that when nothing is nearer.
+        /// Null off the mesh.
+        /// </summary>
+        public float? DistanceToWall(Vector3 position, float maxRadius)
+        {
+            var poly = FindPoly(position, out var point);
+
+            if (poly == 0)
+                return null;
+
+            var status = _query.FindDistanceToWall(poly, point, maxRadius, _filter, out var distance, out _, out _);
+
+            return status.Succeeded() ? Math.Min(distance, maxRadius) : (float?)null;
+        }
+
         // The netstandard build of DotRecast has no Vector3 conversions.
         private static RcVec3f ToRc(Vector3 v) => new RcVec3f(v.X, v.Y, v.Z);
         private static Vector3 ToVector(RcVec3f v) => new Vector3(v.X, v.Y, v.Z);
