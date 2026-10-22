@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Numerics;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -124,6 +125,41 @@ namespace Rasa.Test.World
 
             Unstick.Request(harness.Client);
             Assert.AreEqual(PlayerMessage.PmCannotPerformActionNow, harness.Drain().OfType<UserActionFailedPacket>().Single().MsgId);
+        }
+
+        /// <summary>The log says where they were stuck: the position and the map it is on.</summary>
+        [TestMethod]
+        public void TheLogSaysWhichMapTheyWereStuckOn()
+        {
+            using var harness = Create();
+            var player = harness.Client.Player;
+            player.State = CharacterState.Idle;
+            player.PlaceAt(Stuck);
+            harness.Drain();
+
+            var previousOutput = Console.Out;
+            var previousLogging = Logger.Config;
+            using var output = new StringWriter();
+            Logger.UpdateConfig(new Logger.LoggerConfig { IsDebugMode = true, LogToFile = false });
+            global::Rasa.Logger.Flush();
+            Console.SetOut(output);
+
+            try
+            {
+                Unstick.Request(harness.Client);
+                var pending = harness.Map.PerformRecovery.Single(a => a.Actor == player && a.ActionId == ActionId.Unstick);
+                harness.Map.PerformRecovery.Remove(pending);
+                ActorActionManager.Instance.PerformRecovery(harness.Map, pending);
+                global::Rasa.Logger.Flush();
+            }
+            finally
+            {
+                Console.SetOut(previousOutput);
+                Logger.UpdateConfig(previousLogging);
+            }
+
+            var line = output.ToString().Split('\n').Single(l => l.Contains($"Character {player.Id} unstuck from"));
+            StringAssert.Contains(line, $"from {Stuck} on map {harness.Map.MapInfo.MapContextId} to {player.Position}");
         }
 
         [TestMethod]
