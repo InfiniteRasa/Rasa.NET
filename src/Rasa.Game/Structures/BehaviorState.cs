@@ -185,6 +185,15 @@ namespace Rasa.Structures
 
         /// <summary>Where the patrol last left it. Anywhere else, something moved it, and it rejoins.</summary>
         public Vector3 LeftAt { get; set; }
+
+        /// <summary>
+        /// A group's leader turned about on a step: it waits there, once its pause is out, until
+        /// its followers have walked round to their new places (Managers.PatrolGroups.Reform).
+        /// </summary>
+        public bool Reforming { get; set; }
+
+        /// <summary>How long it has waited for its group, past its pause; up to PatrolGroups.ReformHoldMs.</summary>
+        public long ReformMs { get; set; }
     }
 
     public class ActionWander
