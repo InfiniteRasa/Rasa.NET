@@ -1889,7 +1889,7 @@ namespace Rasa.Managers
             // navmesh, built again at the chase's pace, and at once when it leaves the straight step.
             var controller = creature.Controller;
 
-            if (placed && gap <= PatrolGroups.DirectDistance && PatrolGroups.StraightTo(map, creature, place))
+            if (placed && gap <= PatrolGroups.DirectDistanceOf(leader.SpawnPool) && PatrolGroups.StraightTo(map, creature, place))
             {
                 controller.Path.Clear();
                 controller.Path.Add(place);
