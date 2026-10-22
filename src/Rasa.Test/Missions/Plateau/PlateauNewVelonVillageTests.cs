@@ -118,7 +118,13 @@ namespace Rasa.Test.Missions.Plateau
             harness.Drain();
 
             for (var kill = 3; kill <= PlateauGraveyardShiftV1.Miasmas; kill++)
-                Kill(harness, plateau, kill % 2 == 0 ? GeneralMiasma : TombMiasma);
+            {
+                // The pools hold a random count each (min to max): bring them back when one kind runs out.
+                var kind = kill % 2 == 0 ? GeneralMiasma : TombMiasma;
+                if (!Living(plateau).Any(creature => creature.DbId == kind && creature.Npc == null))
+                    Respawn(plateau, kind == GeneralMiasma ? GeneralMiasmaPools : MiasmaPools);
+                Kill(harness, plateau, kind);
+            }
             Assert.AreEqual(MissionObjectiveState.Completed, harness.Client.Player.Missions[GraveyardShift].Objectives[1].State);
             Assert.IsFalse(harness.Client.Player.Missions[GraveyardShift].Completeable, "the Bulls are not done");
             for (var kill = 2; kill <= PlateauGraveyardShiftV1.Bulls; kill++)
