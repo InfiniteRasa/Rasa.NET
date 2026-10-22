@@ -39,7 +39,8 @@ namespace Rasa.Managers
             var type = damageType == 0 ? DamageType.Physical : damageType;
 
             if (target is Creature creature &&
-                (Game.Missions.World.CreatureGameplayRules.IsInvulnerable(creature) || BehaviorManager.IsReturning(creature)))
+                (Game.Missions.World.CreatureGameplayRules.IsInvulnerable(creature) || BehaviorManager.IsReturning(creature)
+                 || PatrolGroups.Evades(creature)))
                 return true;
 
             if (target.ImmuneToAllDamage || target.DamageImmunities.Contains(type) || CreatureImmunities.IsImmune(target, type))

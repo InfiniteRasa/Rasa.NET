@@ -65,6 +65,13 @@ namespace Rasa.Structures
         /// </summary>
         public bool RouteIncomplete { get; set; }
 
+        /// <summary>
+        /// Milliseconds a patrol group follower has held at the end of its tether to its leader
+        /// this fight, with no attack it could make (Managers.PatrolGroups.HoldsAtTether); 0 while
+        /// it is not holding. While it holds, it evades: it takes no damage.
+        /// </summary>
+        public long TetherHeldMs { get; set; }
+
         /// <summary>The place round its target it is stepping off to, out of a crowd of its side (Spacing); null when it is not.</summary>
         public Vector3? SpreadingTo { get; set; }
 
@@ -120,8 +127,34 @@ namespace Rasa.Structures
         internal bool CatchUpRunning { get; set; }
         internal Creature OwnerAttackTarget { get; set; }
 
-        /// <summary>A mission escort's place round its owner, from the owner (BehaviorManager.EscortPlace); null until it takes one.</summary>
+        /// <summary>A mission escort's place round its owner (BehaviorManager.EscortPlace), or a patrol group follower's round its leader (Managers.PatrolGroups), from them; null until it takes one.</summary>
         internal Vector3? PlaceOffset { get; set; }
+
+        /// <summary>A patrol group follower's place in the formation round its leader (Managers.PatrolGroups); -1 when it has none.</summary>
+        internal int FormationSlot { get; set; } = -1;
+
+        /// <summary>How long a patrol group follower has been further than PatrolGroups.StrayDistance from its place, milliseconds.</summary>
+        internal long StrayMs { get; set; }
+
+        /// <summary>A target a patrol group follower dropped, too far off or out of its reach: it is not drawn back into its leader's fight with it (Managers.PatrolGroups.DropFight); 0 for none.</summary>
+        internal ulong DroppedTargetId { get; set; }
+
+        /// <summary>
+        /// A patrol group follower's place as last put on the navmesh, and where its leader stood
+        /// and faced then (Managers.PatrolGroups.PlaceFor): moved with the leader until it is put
+        /// again. Whether it was its formation place on the navmesh, and how long ago it was put.
+        /// </summary>
+        internal Vector3? PlacedAt { get; set; }
+        internal Vector3 PlacedLeaderAt { get; set; }
+        internal float PlacedLeaderYaw { get; set; }
+        internal bool PlacedOnMesh { get; set; }
+        internal long PlacedMs { get; set; }
+
+        /// <summary>Whether a straight walk to a patrol group follower's place, as last put, meets nothing on the navmesh (Managers.PatrolGroups.StraightTo); null until it is looked at.</summary>
+        internal bool? StraightClear { get; set; }
+
+        /// <summary>A patrol group follower stepping straight onto its place, not along a route (BehaviorManager.AdvanceGroupFollower).</summary>
+        internal bool SteppingDirect { get; set; }
     }
 
     /// <summary>

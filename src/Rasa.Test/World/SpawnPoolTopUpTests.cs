@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Rasa.Test.World
@@ -43,6 +44,187 @@ namespace Rasa.Test.World
             Assert.AreEqual(2500L, pool.RespawnTime);
 
             return pool;
+        }
+
+        [TestMethod]
+        public void AGroupOnABeatGetsItsLeaderBackAndItsGuardsFallInBehindIt()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var pool = PoolOf(harness);
+
+            // Made a group on a beat (PatrolGroups): one of 51 leads, two of 53 follow it.
+            pool.SpawnSlot = new List<SpawnPoolSlot> { new SpawnPoolSlot(First, 1, 1), new SpawnPoolSlot(Second, 2, 2) };
+            pool.Patrol = new[] { new PatrolStep(pool.Position), new PatrolStep(pool.Position + new Vector3(10, 0, 0)) };
+
+            harness.SpawnWorld(Pool);
+
+            var leader = Standing(harness, pool).Single(creature => creature.DbId == First);
+            var guards = Standing(harness, pool).Where(creature => creature.DbId == Second).ToList();
+
+            Assert.HasCount(2, guards);
+            Assert.AreSame(leader, pool.Leader);
+
+            Kill(harness, pool, First, 1);
+            harness.Tick();
+
+            foreach (var guard in guards)
+            {
+                Assert.AreEqual(BehaviorManager.BehaviorActionWander, guard.Controller.CurrentAction, "Leaderless, it strolls where it is.");
+                Assert.AreEqual(0UL, guard.Controller.ActionFollow.FollowTargetId);
+            }
+
+            // Its respawn time after the loss, the pool tops its leader back up.
+            harness.SpawnWorldAfter(pool.RespawnTime, Pool);
+
+            var next = Standing(harness, pool).Single(creature => creature.DbId == First);
+
+            Assert.AreNotSame(leader, next);
+            Assert.AreSame(next, pool.Leader);
+            Assert.AreSame(pool.Patrol, next.Patrol);
+            Assert.AreEqual(3, pool.AliveCreatures);
+
+            harness.Tick();
+
+            foreach (var guard in guards)
+            {
+                Assert.AreEqual(BehaviorManager.BehaviorActionFollow, guard.Controller.CurrentAction);
+                Assert.AreEqual(next.EntityId, guard.Controller.ActionFollow.FollowTargetId);
+            }
+        }
+
+        [TestMethod]
+        public void AGroupWithAnActingLeaderGivesTheBeatBackToItsOwnLeaderWhenItIsToppedUp()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var pool = PoolOf(harness);
+
+            pool.SpawnSlot = new List<SpawnPoolSlot> { new SpawnPoolSlot(First, 1, 1), new SpawnPoolSlot(Second, 2, 2) };
+            pool.Patrol = new[] { new PatrolStep(pool.Position), new PatrolStep(pool.Position + new Vector3(10, 0, 0)) };
+            pool.ActingLeader = true;
+
+            harness.SpawnWorld(Pool);
+            var guards = Standing(harness, pool).Where(creature => creature.DbId == Second).ToList();
+
+            Kill(harness, pool, First, 1);
+            harness.Tick();
+
+            var acting = guards.Single(guard => guard.Patrol != null);
+
+            Assert.AreSame(acting, pool.Leader, "One of its guards leads in its stead.");
+            Assert.AreEqual(acting.EntityId, guards.Single(guard => guard != acting).Controller.ActionFollow.FollowTargetId);
+
+            harness.SpawnWorldAfter(pool.RespawnTime, Pool);
+
+            var boss = Standing(harness, pool).Single(creature => creature.DbId == First);
+
+            Assert.AreSame(boss, pool.Leader);
+            Assert.AreSame(pool.Patrol, boss.Patrol);
+
+            foreach (var guard in guards)
+            {
+                Assert.IsNull(guard.Patrol, "The acting leader gives the beat back.");
+                Assert.AreEqual(BehaviorManager.BehaviorActionFollow, guard.Controller.CurrentAction);
+                Assert.AreEqual(boss.EntityId, guard.Controller.ActionFollow.FollowTargetId);
+            }
+
+            CollectionAssert.AreEquivalent(new[] { 0, 1 }, guards.Select(guard => guard.Controller.ActionFollow.FormationSlot).ToArray());
+        }
+
+        [TestMethod]
+        public void AGroupWithoutItsLeadersTopUpGetsItsLeaderBackItsRespawnTimeAfterItsOwnDeath()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var pool = PoolOf(harness);
+
+            pool.SpawnSlot = new List<SpawnPoolSlot> { new SpawnPoolSlot(First, 1, 1), new SpawnPoolSlot(Second, 2, 2) };
+            pool.Patrol = new[] { new PatrolStep(pool.Position), new PatrolStep(pool.Position + new Vector3(10, 0, 0)) };
+            pool.LeaderTopUp = false;
+
+            harness.SpawnWorld(Pool);
+            Assert.AreEqual(3, pool.AliveCreatures);
+
+            // A guard first, then - late in the fight - its leader.
+            Kill(harness, pool, Second, 1);
+            harness.SpawnWorldAfter(1500, Pool);
+            Kill(harness, pool, First, 1);
+            Assert.AreEqual(1, pool.AliveCreatures);
+
+            // The pool's time from its first loss is up: the guard comes back, its leader does not.
+            harness.SpawnWorldAfter(1000, Pool);
+            Assert.AreEqual((0, 2), Rows(Standing(harness, pool)));
+
+            harness.SpawnWorldAfter(1499, Pool);
+            Assert.AreEqual((0, 2), Rows(Standing(harness, pool)), "not yet: its own death was only 2.499 s ago");
+
+            harness.SpawnWorldAfter(1, Pool);
+            var boss = Standing(harness, pool).Single(creature => creature.DbId == First);
+
+            Assert.AreSame(boss, pool.Leader);
+            Assert.AreSame(pool.Patrol, boss.Patrol);
+            Assert.AreEqual(3, pool.AliveCreatures);
+
+            // Whole again: nothing more comes.
+            harness.SpawnWorldAfter(10_000, Pool);
+            Assert.AreEqual(3, pool.AliveCreatures);
+        }
+
+        [TestMethod]
+        public void AGuardToppedUpWhileItsLeaderIsUnderMindControlDoesNotTakeTheBeat()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var pool = PoolOf(harness);
+
+            pool.SpawnSlot = new List<SpawnPoolSlot> { new SpawnPoolSlot(First, 1, 1), new SpawnPoolSlot(Second, 2, 2) };
+            pool.Patrol = new[] { new PatrolStep(pool.Position), new PatrolStep(pool.Position + new Vector3(10, 0, 0)) };
+            pool.ActingLeader = true;
+
+            harness.SpawnWorld(Pool);
+            var boss = Standing(harness, pool).Single(creature => creature.DbId == First);
+
+            boss.ActiveEffects[1] = new GameEffect { TypeId = AbilityManager.MindControlTypeId, EffectId = 1, MindControlPump = AbilityManager.MindControlEnslavement };
+            Kill(harness, pool, Second, 1);
+            harness.SpawnWorldAfter(pool.RespawnTime, Pool);
+
+            var guards = Standing(harness, pool).Where(creature => creature.DbId == Second).ToList();
+
+            Assert.HasCount(2, guards);
+            Assert.AreSame(boss, pool.Leader, "Held for a time, it is still the leader.");
+            Assert.IsTrue(guards.All(guard => guard.Patrol == null), "No second patroller.");
+        }
+
+        [TestMethod]
+        public void AGuardDoesNotStepStraightThroughAWallToItsPlace()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var nav = harness.Map.NavMesh;
+            var pool = Spawned(harness);
+            var guard = Standing(harness, pool).First();
+
+            // Two points on the navmesh round the pool, 5 m apart and level, with a wall or a
+            // drop between them: found, as the map's walls are not written down here.
+            (Vector3 From, Vector3 To)? blocked = null;
+
+            for (var x = -40f; x <= 40f && blocked == null; x += 2f)
+                for (var z = -40f; z <= 40f && blocked == null; z += 2f)
+                {
+                    var from = nav.Nearest(pool.Position + new Vector3(x, 0, z));
+                    var to = from == null ? null : nav.Nearest(from.Value + new Vector3(5, 0, 0));
+
+                    if (from == null || to == null || System.Math.Abs(to.Value.Y - from.Value.Y) > 1f
+                        || Spacing.AcrossGround(from.Value + new Vector3(5, 0, 0), to.Value) > 0.2f)
+                        continue;
+
+                    if (!nav.IsWalkClear(from.Value, to.Value))
+                        blocked = (from.Value, to.Value);
+                }
+
+            if (blocked == null)
+                Assert.Inconclusive("No wall within 40 m of the pool to test against.");
+
+            guard.Position = blocked.Value.From;
+            guard.Controller.ActionFollow.StraightClear = null;
+
+            Assert.IsFalse(PatrolGroups.StraightTo(harness.Map, guard, blocked.Value.To));
         }
 
         private static void Kill(WildernessRuntimeTestHarness harness, SpawnPool pool, uint creatureId, int count)

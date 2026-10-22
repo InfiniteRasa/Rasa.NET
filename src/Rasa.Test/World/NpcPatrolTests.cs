@@ -310,6 +310,22 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void ItsHomeGoesAlongTheBeatSoAFightFarFromThePoolsPointIsNoChaseTooFar()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 80);
+            var sentry = Spawn(world, x: 10, walkSpeed: 2, facing: East);
+
+            sentry.Patrol = new[] { new PatrolStep(new Vector3(10, 0, 0)), new PatrolStep(new Vector3(75, 0, 0), pauseMs: 60000) };
+
+            Record(world, watcher, sentry, 140);
+
+            Assert.AreEqual(new Vector3(75, 0, 0), sentry.Position, $"at {sentry.Position}");
+            Assert.AreEqual(sentry.Position, sentry.HomePos.Position);
+            Assert.IsFalse(BehaviorManager.ChasedTooFar(sentry), "65 m from where it started, and at home.");
+        }
+
+        [TestMethod]
         public void AHitOnItsBeatStartsAFightAsOneOnAStrollDoes()
         {
             using var world = new WorldTestContext();
@@ -798,6 +814,835 @@ namespace Rasa.Test.World
 
                 Assert.IsGreaterThan(2f, away, $"creature {other.DbId} at {other.Position}");
             }
+        }
+
+        #endregion
+
+        #region A group on the beat
+
+        [TestMethod]
+        public void ItsGuardsWalkTheirPlacesBehindTheLeaderAndStandWhenItStands()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[]
+            {
+                new PatrolStep(new Vector3(10, 0, 0)),
+                new PatrolStep(new Vector3(30, 0, 0), pauseMs: 60000)
+            });
+
+            Record(world, watcher, leader, 30);
+
+            Assert.AreEqual(BehaviorManager.BehaviorActionPatrol, leader.Controller.CurrentAction);
+            Assert.IsGreaterThan(20f, leader.Position.X);
+
+            // Walking east: the two of the first rank 1.5 m behind it, 3 m to each side.
+            AtPlace(leader, guards[0], new Vector3(-1.5f, 0, -3));
+            AtPlace(leader, guards[1], new Vector3(-1.5f, 0, 3));
+            Assert.AreEqual(leader.Position, leader.HomePos.Position, "Its home goes along the beat with it.");
+            Assert.IsLessThan(0.51f, Vector3.Distance(leader.Position, guards[0].HomePos.Position), "A guard's home is its leader, as of its last think.");
+
+            Record(world, watcher, leader, 30);
+
+            Assert.AreEqual(new Vector3(30, 0, 0), leader.Position);
+            Assert.IsTrue(leader.Controller.ActionPatrol.Arrived);
+
+            foreach (var guard in guards)
+            {
+                Assert.AreEqual(BehaviorManager.BehaviorActionFollow, guard.Controller.CurrentAction);
+                Assert.AreEqual(0f, guard.Controller.LastMovement.Velocity, "It stands when its leader does.");
+            }
+
+            AtPlace(leader, guards[0], new Vector3(-1.5f, 0, -3));
+            AtPlace(leader, guards[1], new Vector3(-1.5f, 0, 3));
+        }
+
+        [TestMethod]
+        public void ItsGuardsHoldTheirPlacesWhileTheLeaderTurnsAboutAndFallInBehindItWhenItWalksBack()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[]
+            {
+                new PatrolStep(new Vector3(10, 0, 0), pauseMs: 60000),
+                new PatrolStep(new Vector3(20, 0, 0), pauseMs: 5000)
+            });
+
+            // Start it on its way to the far end.
+            leader.Controller.ActionPatrol.Step = 1;
+
+            Record(world, watcher, leader, 30);
+
+            // On the far step, sitting out its pause: its guards where they were, behind it to the west.
+            Assert.AreEqual(new Vector3(20, 0, 0), leader.Position);
+            AtPlace(leader, guards[0], new Vector3(-1.5f, 0, -3));
+            AtPlace(leader, guards[1], new Vector3(-1.5f, 0, 3));
+
+            // Standing at their places, they face the way it does.
+            foreach (var guard in guards)
+                Assert.AreEqual(East, (float)guard.Rotation, 0.0001f);
+
+            Record(world, watcher, leader, 25);
+
+            // Turned about and walking back west: they are behind it again, on its east side,
+            // each on the side of the beat it was on - not crossed over behind it.
+            Assert.AreEqual(West, leader.LastYaw, 0.0001f);
+            Assert.IsLessThan(20f, leader.Position.X);
+            Assert.IsGreaterThan(10f, leader.Position.X);
+            Assert.IsGreaterThan(0f, leader.Controller.LastMovement.Velocity);
+
+            foreach (var guard in guards)
+                Assert.IsGreaterThan(leader.Position.X, guard.Position.X);
+
+            AtPlace(leader, guards[0], new Vector3(1.5f, 0, -3));
+            AtPlace(leader, guards[1], new Vector3(1.5f, 0, 3));
+        }
+
+        [TestMethod]
+        public void AHitOnAGuardTakesTheLeaderAndTheOtherGuardIntoTheFight()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0)), new PatrolStep(new Vector3(30, 0, 0)) });
+
+            Record(world, watcher, leader, 6);
+            Assert.AreEqual(BehaviorManager.BehaviorActionFollow, guards[1].Controller.CurrentAction);
+
+            Threat.FromDamage(guards[1], watcher.Player, 10);
+
+            foreach (var member in new[] { leader, guards[0], guards[1] })
+            {
+                Assert.AreEqual(BehaviorManager.BehaviorActionFighting, member.Controller.CurrentAction);
+                Assert.AreEqual(watcher.Player.EntityId, member.Controller.ActionFighting.TargetEntityId);
+            }
+        }
+
+        [TestMethod]
+        public void TheLeaderStartingAFightTakesItsGuardsIntoIt()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0)), new PatrolStep(new Vector3(30, 0, 0)) });
+
+            Record(world, watcher, leader, 6);
+
+            Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(leader, watcher.Player.EntityId));
+
+            foreach (var guard in guards)
+                Assert.AreEqual(BehaviorManager.BehaviorActionFighting, guard.Controller.CurrentAction);
+        }
+
+        [TestMethod]
+        public void AGuardOutOfAFightItsLeaderIsStillInGoesBackIntoIt()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0)), new PatrolStep(new Vector3(30, 0, 0)) });
+
+            Record(world, watcher, leader, 6);
+            Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(leader, watcher.Player.EntityId));
+
+            // Its own fight given up, the guard is back to following - with the target by its leader.
+            watcher.Player.Position = leader.Position + new Vector3(0, 0, 10);
+            BehaviorManager.Instance.GiveUp(guards[0]);
+            Assert.AreEqual(BehaviorManager.BehaviorActionFollow, guards[0].Controller.CurrentAction);
+
+            Record(world, watcher, leader, 1);
+
+            Assert.AreEqual(BehaviorManager.BehaviorActionFighting, guards[0].Controller.CurrentAction);
+            Assert.AreEqual(watcher.Player.EntityId, guards[0].Controller.ActionFighting.TargetEntityId);
+        }
+
+        [TestMethod]
+        public void AfterTheFightTheLeaderRejoinsItsBeatAndItsGuardsFormUpBehindItAgain()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[]
+            {
+                new PatrolStep(new Vector3(10, 0, 0)),
+                new PatrolStep(new Vector3(30, 0, 0), pauseMs: 60000)
+            });
+
+            Record(world, watcher, leader, 6);
+            Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(leader, watcher.Player.EntityId));
+
+            // The fight carried them all off the line, and is over.
+            leader.Position = new Vector3(15, 0, 6);
+            guards[0].Position = new Vector3(12, 0, 12);
+            guards[1].Position = new Vector3(18, 0, 10);
+            BehaviorManager.Instance.GiveUp(leader);
+
+            foreach (var guard in guards)
+            {
+                BehaviorManager.Instance.GiveUp(guard);
+                Assert.AreEqual(BehaviorManager.BehaviorActionFollow, guard.Controller.CurrentAction, "Out of the fight, back to following.");
+            }
+
+            Record(world, watcher, leader, 2);
+
+            Assert.AreEqual(BehaviorManager.BehaviorActionPatrol, leader.Controller.CurrentAction);
+            Assert.AreEqual(1, leader.Controller.ActionPatrol.Step, "Its place on the beat is kept.");
+
+            Record(world, watcher, leader, 60);
+
+            Assert.AreEqual(new Vector3(30, 0, 0), leader.Position);
+            Assert.IsTrue(leader.Controller.ActionPatrol.Arrived);
+
+            foreach (var guard in guards)
+                Assert.AreEqual(BehaviorManager.BehaviorActionFollow, guard.Controller.CurrentAction);
+
+            // It came back onto the step from off the line, and stands facing the way it came:
+            // its guards form up behind it as it faces.
+            var facing = (float)leader.Rotation;
+
+            Assert.AreNotEqual(East, facing, 0.1f);
+            AtPlace(leader, guards[0], PatrolGroups.Offset(0, facing));
+            AtPlace(leader, guards[1], PatrolGroups.Offset(1, facing));
+        }
+
+        [TestMethod]
+        public void TheLeaderLeashedBackToItsBeatTakesItsGuardsOutOfTheFightWithIt()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0)), new PatrolStep(new Vector3(30, 0, 0)) });
+
+            Record(world, watcher, leader, 6);
+            Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(leader, watcher.Player.EntityId));
+
+            BehaviorManager.Instance.Leash(world.Map, leader);
+
+            Assert.IsTrue(BehaviorManager.IsReturning(leader));
+
+            foreach (var guard in guards)
+            {
+                Assert.IsTrue(BehaviorManager.IsReturning(guard), "It gives the fight up with its leader.");
+                Assert.IsFalse(BehaviorManager.Instance.TrySetActionFighting(guard, watcher.Player.EntityId), "Nothing pulls it back on the way.");
+            }
+        }
+
+        [TestMethod]
+        public void AGuardThatCannotGetToItsPlaceIsPutOnIt()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0), pauseMs: 600000), new PatrolStep(new Vector3(30, 0, 0)) });
+
+            // Cut off far from its leader, all but legless: it keeps up with its leader's walk at
+            // least, and its leader barely walks.
+            leader.WalkSpeed = 0.01f;
+            guards[0].Position = new Vector3(10, 0, 60);
+            guards[0].WalkSpeed = 0;
+            guards[0].RunSpeed = 0;
+
+            Record(world, watcher, leader, 4);
+            Assert.IsGreaterThan(PatrolGroups.StrayDistance, Spacing.AcrossGround(guards[0].Position, leader.Position));
+
+            // Twice a run of about 61 m at the 1 m/s it is taken to run at least: about 123 s.
+            Record(world, watcher, leader, 520);
+
+            AtPlace(leader, guards[0], new Vector3(-1.5f, 0, -3));
+        }
+
+        [TestMethod]
+        public void GuardsOfADeadLeaderStrollWhereTheyAreAndFallInBehindTheNextOne()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var beat = new[] { new PatrolStep(new Vector3(10, 0, 0)), new PatrolStep(new Vector3(30, 0, 0)) };
+            var (leader, guards) = Group(world, beat);
+
+            Record(world, watcher, leader, 4);
+
+            leader.State = CharacterState.Dead;
+            leader.Attributes[Attributes.Health].Current = 0;
+            Record(world, watcher, leader, 1);
+
+            foreach (var guard in guards)
+            {
+                Assert.AreEqual(BehaviorManager.BehaviorActionWander, guard.Controller.CurrentAction);
+                Assert.AreEqual(0UL, guard.Controller.ActionFollow.FollowTargetId);
+                Assert.AreEqual(guard.Position, guard.HomePos.Position, "It strolls where it stands.");
+            }
+
+            // The pool tops its leader back up.
+            var next = Spawn(world, x: 10, walkSpeed: 2, facing: East);
+            next.DbId = leader.DbId;
+            next.SpawnPool = leader.SpawnPool;
+            next.Patrol = beat;
+            leader.SpawnPool.Leader = next;
+
+            Record(world, watcher, next, 2);
+
+            foreach (var guard in guards)
+            {
+                Assert.AreEqual(BehaviorManager.BehaviorActionFollow, guard.Controller.CurrentAction);
+                Assert.AreEqual(next.EntityId, guard.Controller.ActionFollow.FollowTargetId);
+            }
+
+            CollectionAssert.AreEquivalent(new[] { 0, 1 }, guards.Select(guard => guard.Controller.ActionFollow.FormationSlot).ToArray());
+        }
+
+        [TestMethod]
+        public void WithAnActingLeaderTheGuardOfTheFirstPlaceTakesTheBeatOnFromItsDeadLeader()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0)), new PatrolStep(new Vector3(30, 0, 0)) });
+            var pool = leader.SpawnPool;
+
+            pool.ActingLeader = true;
+
+            Record(world, watcher, leader, 8);
+            Assert.AreEqual(1, leader.Controller.ActionPatrol.Step);
+            pool.FormationMirrored = true;
+
+            leader.State = CharacterState.Dead;
+            leader.Attributes[Attributes.Health].Current = 0;
+            Record(world, watcher, guards[0], 1);
+
+            var first = guards.Single(guard => guard.Patrol != null);
+            var other = guards.Single(guard => guard != first);
+
+            Assert.AreSame(guards[0], first, "The guard of place 0 leads.");
+            Assert.AreSame(first, pool.Leader);
+            Assert.AreEqual(1, first.Controller.ActionPatrol.Step, "From the step its leader was walking to.");
+            Assert.IsFalse(pool.FormationMirrored, "A new leader's formation starts afresh.");
+            Assert.AreEqual(first.EntityId, other.Controller.ActionFollow.FollowTargetId);
+
+            Record(world, watcher, first, 20);
+
+            Assert.AreEqual(BehaviorManager.BehaviorActionPatrol, first.Controller.CurrentAction);
+            Assert.IsGreaterThan(0f, first.Controller.LastMovement.Velocity);
+            Assert.AreEqual(BehaviorManager.BehaviorActionFollow, other.Controller.CurrentAction);
+            Assert.AreEqual(first.EntityId, other.Controller.ActionFollow.FollowTargetId);
+        }
+
+        [TestMethod]
+        public void WithoutAnActingLeaderNoGuardTakesTheBeatOn()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0)), new PatrolStep(new Vector3(30, 0, 0)) });
+
+            Record(world, watcher, leader, 4);
+            leader.State = CharacterState.Dead;
+            leader.Attributes[Attributes.Health].Current = 0;
+            Record(world, watcher, leader, 8);
+
+            foreach (var guard in guards)
+            {
+                Assert.IsNull(guard.Patrol);
+                Assert.AreEqual(BehaviorManager.BehaviorActionWander, guard.Controller.CurrentAction);
+            }
+        }
+
+        [TestMethod]
+        public void AGuardHoldsEvadingAtItsTethersEndForATargetBeyondItAndGoesBackToItsPlaceAfterAWhile()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var far = Watch(world, x: 80);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0), pauseMs: 600000), new PatrolStep(new Vector3(30, 0, 0)) });
+
+            Record(world, watcher, leader, 4);
+
+            // The leader cannot move - rooted, stunned - and is shot at from 70 m.
+            leader.WalkSpeed = 0;
+            leader.RunSpeed = 0;
+            Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(leader, far.Player.EntityId));
+            Assert.AreEqual(BehaviorManager.BehaviorActionFighting, guards[0].Controller.CurrentAction);
+            guards[0].Attributes[Attributes.Health].Current = 50;
+
+            // It chases as far as its tether, and holds there, in the fight.
+            for (var tick = 0; tick < 80 && !PatrolGroups.Evades(guards[0]); tick++)
+                Record(world, watcher, leader, 1);
+
+            Assert.AreEqual(BehaviorManager.BehaviorActionFighting, guards[0].Controller.CurrentAction, "It does not drop the fight.");
+            Assert.IsTrue(PatrolGroups.Evades(guards[0]));
+            Assert.IsLessThanOrEqualTo(PatrolGroups.TetherDistance + 0.5f, Spacing.AcrossGround(guards[0].Position, leader.Position), "By its leader.");
+            Assert.IsGreaterThanOrEqualTo(PatrolGroups.TetherDistance - PatrolGroups.TetherSlack, Spacing.AcrossGround(guards[0].Position, leader.Position));
+
+            // Holding where it cannot answer, it is not shot down.
+            Assert.IsTrue(DamageImmunity.IsImmune(guards[0], DamageType.Physical));
+
+            // Held too long: back to its place, as it is - not run home and made whole.
+            for (var tick = 0; tick < 60 && guards[0].Controller.CurrentAction == BehaviorManager.BehaviorActionFighting; tick++)
+                Record(world, watcher, leader, 1);
+
+            Assert.AreEqual(BehaviorManager.BehaviorActionFollow, guards[0].Controller.CurrentAction);
+            Assert.IsFalse(PatrolGroups.Evades(guards[0]));
+            Assert.AreEqual(0ul, guards[0].Controller.ActionFollow.DroppedTargetId, "Beyond its tether is no bar for good.");
+            Assert.AreEqual(50, guards[0].Attributes[Attributes.Health].Current);
+
+            Record(world, watcher, leader, 4);
+
+            Assert.AreEqual(BehaviorManager.BehaviorActionFighting, leader.Controller.CurrentAction, "Its leader fights on.");
+            Assert.AreNotEqual(BehaviorManager.BehaviorActionFighting, guards[0].Controller.CurrentAction, "Not drawn back in while the target is beyond its tether.");
+
+            // The target comes in close to the leader: the guard is not left standing.
+            far.Player.Position = leader.Position + new Vector3(0, 0, 20);
+            Record(world, watcher, leader, 2);
+
+            Assert.AreEqual(BehaviorManager.BehaviorActionFighting, guards[0].Controller.CurrentAction, "Back into its leader's fight.");
+            Assert.AreEqual(far.Player.EntityId, guards[0].Controller.ActionFighting.TargetEntityId);
+        }
+
+        [TestMethod]
+        public void AGuardThatDroppedATargetOutOfItsReachIsNotDrawnBackIntoItsLeadersFightWithItUntilItHasANewLeader()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0), pauseMs: 600000), new PatrolStep(new Vector3(30, 0, 0)) });
+
+            Record(world, watcher, leader, 4);
+            Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(leader, watcher.Player.EntityId));
+            Assert.AreEqual(BehaviorManager.BehaviorActionFighting, guards[0].Controller.CurrentAction);
+
+            PatrolGroups.DropFight(guards[0], outOfReach: true);
+            Record(world, watcher, leader, 2);
+
+            Assert.AreEqual(watcher.Player.EntityId, guards[0].Controller.ActionFollow.DroppedTargetId);
+            Assert.AreNotEqual(BehaviorManager.BehaviorActionFighting, guards[0].Controller.CurrentAction, "It would only stand stalled again.");
+
+            // A new leader: the bar does not go with it.
+            PatrolGroups.Attach(world.Map, guards[0], leader);
+            Assert.AreEqual(0ul, guards[0].Controller.ActionFollow.DroppedTargetId);
+        }
+
+        [TestMethod]
+        public void TheGroupDoesNotTakeOneAMissionSceneMovesIntoItsFight()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0)), new PatrolStep(new Vector3(30, 0, 0)) });
+
+            Record(world, watcher, leader, 4);
+            guards[1].Controller.CurrentAction = BehaviorManager.BehaviorActionScriptedMove;
+
+            Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(leader, watcher.Player.EntityId));
+
+            Assert.AreEqual(BehaviorManager.BehaviorActionFighting, guards[0].Controller.CurrentAction);
+            Assert.AreEqual(BehaviorManager.BehaviorActionScriptedMove, guards[1].Controller.CurrentAction);
+        }
+
+        [TestMethod]
+        public void AGuardUnderMindControlFollowsThePlayerNotItsLeader()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0)), new PatrolStep(new Vector3(30, 0, 0)) });
+
+            Record(world, watcher, leader, 4);
+            guards[0].ActiveEffects[1] = new GameEffect { TypeId = AbilityManager.MindControlTypeId, EffectId = 1, MindControlPump = AbilityManager.MindControlEnslavement };
+            BehaviorManager.Instance.SetActionFollow(guards[0], watcher.Player.EntityId);
+
+            Assert.IsFalse(PatrolGroups.Follows(guards[0]));
+
+            Record(world, watcher, leader, 3);
+
+            Assert.AreEqual(watcher.Player.EntityId, guards[0].Controller.ActionFollow.FollowTargetId);
+
+            // Its leader's fight does not take it: it is the player's.
+            Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(leader, watcher.Player.EntityId));
+            Assert.AreNotEqual(BehaviorManager.BehaviorActionFighting, guards[0].Controller.CurrentAction);
+            Assert.AreEqual(BehaviorManager.BehaviorActionFighting, guards[1].Controller.CurrentAction);
+        }
+
+        [TestMethod]
+        public void AGuardOutOfAFightWhenANewLeaderCameTakesAPlaceNoOtherHolds()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var beat = new[] { new PatrolStep(new Vector3(10, 0, 0)), new PatrolStep(new Vector3(30, 0, 0)) };
+            var (leader, guards) = Group(world, beat);
+
+            Record(world, watcher, leader, 4);
+
+            // One guard in a fight of its own as its leader dies.
+            guards[0].Controller.CurrentAction = BehaviorManager.BehaviorActionFighting;
+            leader.State = CharacterState.Dead;
+            leader.Attributes[Attributes.Health].Current = 0;
+
+            var next = Spawn(world, x: 10, walkSpeed: 2, facing: East);
+            next.DbId = leader.DbId;
+            next.SpawnPool = leader.SpawnPool;
+            next.Patrol = beat;
+            PatrolGroups.SetLeader(leader.SpawnPool, next);
+
+            Record(world, watcher, next, 2);
+            Assert.AreEqual(next.EntityId, guards[1].Controller.ActionFollow.FollowTargetId);
+
+            // Its fight over, it comes back to following with its old place and its old leader.
+            BehaviorManager.Instance.GiveUp(guards[0]);
+            Record(world, watcher, next, 2);
+
+            Assert.AreEqual(next.EntityId, guards[0].Controller.ActionFollow.FollowTargetId);
+            CollectionAssert.AreEquivalent(new[] { 0, 1 }, guards.Select(guard => guard.Controller.ActionFollow.FormationSlot).ToArray());
+        }
+
+        [TestMethod]
+        public void TheLeaderComingBackOntoItsBeatFromAFightDoesNotMirrorItsFormation()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 60);
+            var (leader, guards) = Group(world, new[]
+            {
+                new PatrolStep(new Vector3(10, 0, 0)),
+                new PatrolStep(new Vector3(30, 0, 0), pauseMs: 600000)
+            });
+            var pool = leader.SpawnPool;
+
+            Record(world, watcher, leader, 10);
+            Assert.IsFalse(pool.FormationMirrored);
+
+            // A fight carried it east past the far step: it walks back onto the beat westwards.
+            Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(leader, watcher.Player.EntityId));
+            leader.Position = new Vector3(45, 0, 0);
+            BehaviorManager.Instance.GiveUp(leader);
+
+            foreach (var guard in guards)
+                BehaviorManager.Instance.GiveUp(guard);
+
+            Record(world, watcher, leader, 50);
+
+            Assert.AreEqual(new Vector3(30, 0, 0), leader.Position);
+            Assert.IsFalse(pool.FormationMirrored, "The way back onto the beat is not the beat.");
+        }
+
+        [TestMethod]
+        public void AHitOnOneOfTheGroupIsKnownToAllOfIt()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var second = Watch(world, x: 45);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0)), new PatrolStep(new Vector3(30, 0, 0)) });
+
+            Record(world, watcher, leader, 4);
+
+            Threat.FromDamage(guards[1], watcher.Player, 10);
+
+            Assert.IsTrue(leader.Hate.Contains(watcher.Player.EntityId));
+            Assert.IsTrue(guards[0].Hate.Contains(watcher.Player.EntityId));
+
+            // A second attacker, on the leader while they all fight.
+            Threat.FromDamage(leader, second.Player, 10);
+
+            foreach (var guard in guards)
+                Assert.IsTrue(guard.Hate.Contains(second.Player.EntityId), "They know of the second too.");
+        }
+
+        [TestMethod]
+        public void TheLeaderHomeAfterALeashHasItsGuardsLeftFarBehindPutBackRoundIt()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0), pauseMs: 600000), new PatrolStep(new Vector3(30, 0, 0)) });
+
+            Record(world, watcher, leader, 4);
+
+            // Left far behind, and in no state to come back on its own.
+            guards[0].Position = new Vector3(10, 0, 70);
+            guards[0].WalkSpeed = 0;
+            guards[0].RunSpeed = 0;
+
+            BehaviorManager.Instance.Leash(world.Map, leader);
+            Record(world, watcher, leader, 1);
+
+            Assert.IsFalse(BehaviorManager.IsReturning(leader));
+            Assert.IsLessThan(PatrolGroups.StrayDistance, Spacing.AcrossGround(guards[0].Position, leader.Position));
+        }
+
+        [TestMethod]
+        public void AnActingLeaderTakesTheGuardsStillFightingAndTheyGiveTheFightUpWithItWhenItIsLeashed()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0), pauseMs: 600000), new PatrolStep(new Vector3(30, 0, 0)) });
+            var pool = leader.SpawnPool;
+
+            pool.ActingLeader = true;
+            Record(world, watcher, leader, 4);
+            Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(leader, watcher.Player.EntityId));
+            Assert.IsTrue(guards.All(guard => guard.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting));
+
+            leader.State = CharacterState.Dead;
+            leader.Attributes[Attributes.Health].Current = 0;
+
+            var acting = PatrolGroups.Succeed(world.Map, pool);
+            var other = guards.Single(guard => guard != acting);
+
+            Assert.AreSame(guards[0], acting);
+            Assert.AreEqual(BehaviorManager.BehaviorActionFighting, other.Controller.CurrentAction, "It stays in its fight.");
+            Assert.AreEqual(acting.EntityId, other.Controller.ActionFollow.FollowTargetId, "But it is the acting leader's now.");
+            Assert.AreEqual(0, other.Controller.ActionFollow.FormationSlot);
+
+            BehaviorManager.Instance.Leash(world.Map, acting);
+
+            Assert.IsTrue(BehaviorManager.IsReturning(other), "It gives the fight up with its acting leader.");
+        }
+
+        [TestMethod]
+        public void GuardsDoNotTrailALeaderUnderMindControlAndNoneActsForIt()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0), pauseMs: 600000), new PatrolStep(new Vector3(30, 0, 0)) });
+            var pool = leader.SpawnPool;
+
+            pool.ActingLeader = true;
+            Record(world, watcher, leader, 4);
+
+            leader.ActiveEffects[1] = new GameEffect { TypeId = AbilityManager.MindControlTypeId, EffectId = 1, MindControlPump = AbilityManager.MindControlEnslavement };
+            BehaviorManager.Instance.SetActionFollow(leader, watcher.Player.EntityId);
+
+            Assert.IsNull(PatrolGroups.LeaderOf(world.Map, pool));
+            Assert.AreSame(leader, PatrolGroups.StandingLeader(world.Map, pool));
+
+            Record(world, watcher, leader, 3);
+
+            Assert.AreSame(leader, pool.Leader, "Held for a time, it is still the leader.");
+
+            foreach (var guard in guards)
+            {
+                Assert.IsNull(guard.Patrol, "None takes the beat on in its place.");
+                Assert.AreNotEqual(leader.EntityId, guard.Controller.ActionFollow.FollowTargetId, "Not trailed to the player.");
+            }
+
+            leader.ActiveEffects.Remove(1);
+
+            Assert.AreSame(leader, PatrolGroups.LeaderOf(world.Map, pool), "Free again, it leads.");
+        }
+
+        [TestMethod]
+        public void OnlyAGroupsLeaderOnItsBeatIsKeptFromBeingPushedApart()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0)), new PatrolStep(new Vector3(30, 0, 0)) });
+            var lone = Spawn(world, x: 20, walkSpeed: 2, facing: East);
+
+            lone.Patrol = new[] { new PatrolStep(new Vector3(20, 0, 0)), new PatrolStep(new Vector3(20, 0, 20)) };
+            Record(world, watcher, leader, 2);
+
+            Assert.AreEqual(BehaviorManager.BehaviorActionPatrol, leader.Controller.CurrentAction);
+            Assert.AreEqual(BehaviorManager.BehaviorActionPatrol, lone.Controller.CurrentAction);
+            Assert.IsTrue(PatrolGroups.LeadsOnBeat(leader));
+            Assert.IsFalse(PatrolGroups.LeadsOnBeat(lone), "A lone patroller is pushed as any creature, and rejoins its beat.");
+            Assert.IsFalse(PatrolGroups.LeadsOnBeat(guards[0]));
+        }
+
+        [TestMethod]
+        public void TheLeaderHomeAfterALeashMakesItsGuardsOutOfTheFightWholeToo()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0), pauseMs: 600000), new PatrolStep(new Vector3(30, 0, 0)) });
+
+            Record(world, watcher, leader, 4);
+
+            // One dropped its fight as it was, hurt, and is back at its place.
+            guards[1].Attributes[Attributes.Health].Current = 40;
+            guards[1].Hate.Ensure(watcher.Player.EntityId, Threat.NoticedThreat);
+
+            BehaviorManager.Instance.Leash(world.Map, leader);
+            Record(world, watcher, leader, 1);
+
+            Assert.IsFalse(BehaviorManager.IsReturning(leader));
+            Assert.AreEqual(100, guards[1].Attributes[Attributes.Health].Current, "The pack resets together.");
+            Assert.IsEmpty(guards[1].Hate.Ranked());
+        }
+
+        [TestMethod]
+        public void AGuardWithNoLeaderStandingChasesAndIsLeashedWholeAsAnyCreatureIs()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var far = Watch(world, x: 80);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0), pauseMs: 600000), new PatrolStep(new Vector3(30, 0, 0)) });
+
+            Record(world, watcher, leader, 4);
+            leader.State = CharacterState.Dead;
+            leader.Attributes[Attributes.Health].Current = 0;
+            Record(world, watcher, guards[0], 1);
+            Assert.AreEqual(BehaviorManager.BehaviorActionWander, guards[0].Controller.CurrentAction);
+
+            // Shot from 70 m: no group to drop the fight for - it does not stand and take it.
+            guards[0].Attributes[Attributes.Health].Current = 50;
+            var start = guards[0].Position;
+            Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(guards[0], far.Player.EntityId));
+            Record(world, watcher, guards[0], 2);
+
+            Assert.AreEqual(BehaviorManager.BehaviorActionFighting, guards[0].Controller.CurrentAction, "It fights.");
+            Assert.IsGreaterThan(start.X, guards[0].Position.X, "It chases.");
+
+            // Drawn too far from home: run back and made whole, as any creature.
+            guards[0].Position = guards[0].HomePos.Position + new Vector3(65, 0, 0);
+            Record(world, watcher, guards[0], 1);
+
+            Assert.IsTrue(BehaviorManager.IsReturning(guards[0]));
+        }
+
+        [TestMethod]
+        public void AGroupsFightDoesNotTakeAGuardBackToATargetItDroppedAsOutOfItsReach()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0), pauseMs: 600000), new PatrolStep(new Vector3(30, 0, 0)) });
+
+            Record(world, watcher, leader, 4);
+            Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(leader, watcher.Player.EntityId));
+            PatrolGroups.DropFight(guards[0], outOfReach: true);
+
+            PatrolGroups.Assist(world.Map, guards[1], watcher.Player.EntityId);
+
+            Assert.AreNotEqual(BehaviorManager.BehaviorActionFighting, guards[0].Controller.CurrentAction);
+        }
+
+        [TestMethod]
+        public void NoGuardAMissionSceneMovesTakesTheBeatOnAsActingLeader()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0)), new PatrolStep(new Vector3(30, 0, 0)) });
+            var pool = leader.SpawnPool;
+
+            pool.ActingLeader = true;
+            Record(world, watcher, leader, 4);
+            guards[0].Controller.CurrentAction = BehaviorManager.BehaviorActionScriptedMove;
+            leader.State = CharacterState.Dead;
+            leader.Attributes[Attributes.Health].Current = 0;
+
+            Assert.AreSame(guards[1], PatrolGroups.Succeed(world.Map, pool));
+            Assert.IsNull(guards[0].Patrol);
+            Assert.AreEqual(BehaviorManager.BehaviorActionScriptedMove, guards[0].Controller.CurrentAction);
+        }
+
+        [TestMethod]
+        public void GuardsNearTheirPlacesStepStraightOntoThemAndPutThemOnTheGroundOnlyNowAndThen()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0)), new PatrolStep(new Vector3(30, 0, 0)) });
+
+            Record(world, watcher, leader, 8);
+            Assert.IsGreaterThan(0f, leader.Controller.LastMovement.Velocity, "The leader walks.");
+
+            foreach (var guard in guards)
+            {
+                var follow = guard.Controller.ActionFollow;
+
+                Assert.IsTrue(follow.SteppingDirect, "No route built while it keeps its place.");
+                Assert.HasCount(1, guard.Controller.Path);
+                Assert.IsTrue(follow.PlacedOnMesh);
+            }
+
+            // Between times the place moves with the leader, and is not put on the ground again.
+            var kept = 0;
+
+            for (var tick = 0; tick < 8; tick++)
+            {
+                var placedAt = guards[0].Controller.ActionFollow.PlacedAt;
+                Record(world, watcher, leader, 1);
+
+                if (guards[0].Controller.ActionFollow.PlacedAt == placedAt)
+                    kept++;
+            }
+
+            Assert.IsGreaterThan(0, kept, "Not put on the ground every think.");
+            Assert.IsLessThan(8, kept, "But again as the leader walks on.");
+
+            // Drawn far off its place: a route again.
+            guards[0].Position = leader.Position + new Vector3(-20, 0, 0);
+            Record(world, watcher, leader, 1);
+
+            Assert.IsFalse(guards[0].Controller.ActionFollow.SteppingDirect);
+        }
+
+        [TestMethod]
+        public void AGuardFarAboveOrBelowItsPlaceTakesARouteRatherThanFloatingStraightToIt()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[] { new PatrolStep(new Vector3(10, 0, 0)), new PatrolStep(new Vector3(30, 0, 0)) });
+
+            Record(world, watcher, leader, 8);
+            Assert.IsTrue(guards[0].Controller.ActionFollow.SteppingDirect);
+
+            var place = PatrolGroups.PlaceOf(world.Map, guards[0], leader);
+
+            Assert.IsTrue(PatrolGroups.StraightTo(world.Map, guards[0], place));
+
+            // Down a bank, 3 m below its place, near it across the ground.
+            guards[0].Position = place + new Vector3(0, -PatrolGroups.DirectClimb - 1, 0);
+
+            Assert.IsFalse(PatrolGroups.StraightTo(world.Map, guards[0], place));
+        }
+
+        [TestMethod]
+        public void GuardsStandingAtTheirPlacesSendNoMovesAndWalkingAtTheirLeadersPaceAreNotShownRunning()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 60);
+            var (leader, guards) = Group(world, new[]
+            {
+                new PatrolStep(new Vector3(10, 0, 0)),
+                new PatrolStep(new Vector3(40, 0, 0), pauseMs: 600000)
+            });
+
+            // The leader walks faster than its guards do: they keep its pace, walking.
+            leader.WalkSpeed = 3;
+
+            Record(world, watcher, leader, 20);
+
+            Assert.IsGreaterThan(0f, leader.Controller.LastMovement.Velocity);
+
+            foreach (var guard in guards)
+                Assert.IsFalse(guard.IsRunning, "In its place at its leader's walk, it is shown walking.");
+
+            Record(world, watcher, leader, 30);
+            Assert.AreEqual(new Vector3(40, 0, 0), leader.Position);
+
+            foreach (var guard in guards)
+                Assert.IsEmpty(Record(world, watcher, guard, 10), "Standing at its place, nothing is sent of it.");
+        }
+
+        /// <summary>A leader on <paramref name="beat"/> at x 10 facing east, walking 2 m/s, and two guards of its pool behind it, put in behind it as its pool does.</summary>
+        private static (Creature Leader, Creature[] Guards) Group(WorldTestContext world, PatrolStep[] beat)
+        {
+            var pool = new SpawnPool
+            {
+                DbId = 77,
+                MapContextId = world.Map.MapInfo.MapContextId,
+                Patrol = beat,
+                SpawnSlot = new List<SpawnPoolSlot> { new SpawnPoolSlot(1, 1, 1), new SpawnPoolSlot(2, 2, 2) }
+            };
+
+            var leader = Spawn(world, x: 10, walkSpeed: 2, facing: East);
+            leader.DbId = 1;
+            leader.SpawnPool = pool;
+            leader.Patrol = beat;
+            pool.Leader = leader;
+
+            var guards = new[] { Spawn(world, x: 8, walkSpeed: 2, facing: East), Spawn(world, x: 6, walkSpeed: 2, facing: East) };
+
+            foreach (var guard in guards)
+            {
+                guard.DbId = 2;
+                guard.SpawnPool = pool;
+                PatrolGroups.Attach(world.Map, guard, leader);
+            }
+
+            return (leader, guards);
+        }
+
+        /// <summary>The guard stands within a metre of its place: <paramref name="offset"/> from its leader.</summary>
+        private static void AtPlace(Creature leader, Creature guard, Vector3 offset)
+        {
+            var place = leader.Position + offset;
+
+            Assert.IsLessThan(1f, Spacing.AcrossGround(guard.Position, place), $"guard at {guard.Position}, place {place}");
         }
 
         #endregion
