@@ -170,6 +170,46 @@ namespace Rasa.Test.Missions
         }
 
         [TestMethod]
+        public void MissionRewardedSourcesAreLoggedWithoutBlockingReadiness()
+        {
+            WithDisposableSqliteWorld((context, _) =>
+            {
+                context.Database.Migrate();
+                // 1992 requires 1990 completed (BootcampWorldContentPreloaders); it has no
+                // prerequisite on 1994, and mission 4000000 does not exist.
+                var policy = context.Set<MissionChannelPolicyEntry>().SingleOrDefault(entry =>
+                    entry.MissionId == 1992 && entry.ContentRevision == BootcampRevision);
+                if (policy == null)
+                    context.Add(policy = new MissionChannelPolicyEntry { MissionId = 1992, ContentRevision = BootcampRevision });
+                policy.AcceptanceChannel = Rasa.Missions.Definitions.MissionChannel.Mixed;
+                policy.CompletionChannel = Rasa.Missions.Definitions.MissionChannel.Npc;
+                policy.RadioSources = System.Text.Json.JsonSerializer.Serialize(new[]
+                {
+                    Rasa.Missions.Definitions.MissionOfferSourceDefinition.MissionRewarded(1990),
+                    Rasa.Missions.Definitions.MissionOfferSourceDefinition.MissionRewarded(1994),
+                    Rasa.Missions.Definitions.MissionOfferSourceDefinition.MissionRewarded(4000000)
+                });
+                context.SaveChanges();
+
+                var report = Validate(LoadSnapshot(context), context);
+
+                Assert.IsFalse(report.BlocksReadiness, string.Join("; ", report.Diagnostics.Select(d => d.ToOperatorMessage())));
+                Assert.IsFalse(report.HasErrorsForMission(1992), "A wrong follow-up reference must not disable the mission.");
+                var radio = report.Diagnostics
+                    .Where(diagnostic => diagnostic.Code.StartsWith("missing-radio-source-", StringComparison.Ordinal))
+                    .Select(diagnostic => (diagnostic.Code, diagnostic.MissionId, Key: diagnostic.Message.Split(' ')[4]))
+                    .OrderBy(entry => entry.Code, StringComparer.Ordinal).ThenBy(entry => entry.Key, StringComparer.Ordinal)
+                    .ToArray();
+                CollectionAssert.AreEqual(new[]
+                {
+                    ("missing-radio-source-mission", (uint?)null, "mission.rewarded:4000000"),
+                    ("missing-radio-source-prerequisite", (uint?)null, "mission.rewarded:1994"),
+                    ("missing-radio-source-prerequisite", (uint?)null, "mission.rewarded:4000000")
+                }, radio);
+            });
+        }
+
+        [TestMethod]
         [DataRow(false)]
         [DataRow(true)]
         public void RadioSchemaChangesKeepDataInASubsequentMigration(bool mysql)
