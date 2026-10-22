@@ -64,6 +64,17 @@ namespace Rasa.Managers
         /// <summary>Further than this from where the patrol left it, something else has moved the creature.</summary>
         public const float MovedTolerance = 0.05f;
 
+        /// <summary>
+        /// The pace a beat is walked at, metres a second: its pool's own (spawnpool_patrol_group.pace),
+        /// else the creature's walk speed capped at the wander pace (BehaviorManager.WanderWalkSpeed).
+        /// creature.walk_speed is 5 for nearly every row - a jog, as the client shows it - so
+        /// Goliath's pack jogged its beat (user playtest 2026-10-22); a hand-set slower walk (the
+        /// Training Officer's 1 m/s) is kept. A group's followers keep their places at their
+        /// pool's pace, the same as their leader's.
+        /// </summary>
+        public static float Pace(Creature creature) =>
+            creature.SpawnPool?.PatrolPace ?? Math.Min(creature.WalkSpeed, BehaviorManager.WanderWalkSpeed);
+
         /// <summary>Whether the creature has a beat it can walk.</summary>
         public static bool Has(Creature creature) =>
             creature?.Patrol != null && creature.Patrol.Count > 0 && creature.WalkSpeed >= 0.01f;

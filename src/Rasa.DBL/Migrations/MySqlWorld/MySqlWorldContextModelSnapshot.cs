@@ -3305,6 +3305,10 @@ namespace Rasa.Migrations.MySqlWorld
                         .HasColumnType("tinyint(1)")
                         .HasColumnName("leader_top_up");
 
+                    b.Property<double?>("Pace")
+                        .HasColumnType("double")
+                        .HasColumnName("pace");
+
                     b.HasKey("Id");
 
                     b.ToTable("spawnpool_patrol_group");

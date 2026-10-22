@@ -91,6 +91,38 @@ namespace Rasa.Test.World
                 "It sets off up the beat again.");
         }
 
+        /// <summary>
+        /// The beat's pace (Patrols.Pace): with no pace of its pool's own, the creature's walk speed
+        /// capped at a stroll - the 5 m/s nearly every creature row has is a jog - and a slower one
+        /// kept; with one, the pool's, either side of the creature's walk. Never shown running.
+        /// </summary>
+        [TestMethod]
+        public void ABeatIsWalkedAtItsPoolsPaceOrAtTheCreaturesWalkCappedAtAStroll()
+        {
+            BeatWalkedAt(walkSpeed: 5, poolPace: null, expected: BehaviorManager.WanderWalkSpeed);
+            BeatWalkedAt(walkSpeed: 1, poolPace: null, expected: 1f);
+            BeatWalkedAt(walkSpeed: 5, poolPace: 2, expected: 2f);
+            BeatWalkedAt(walkSpeed: 1, poolPace: 2, expected: 2f);
+        }
+
+        private static void BeatWalkedAt(float walkSpeed, float? poolPace, float expected)
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var sentry = Spawn(world, x: 10, walkSpeed: walkSpeed, facing: East);
+
+            sentry.SpawnPool.PatrolPace = poolPace;
+            sentry.Patrol = new[] { new PatrolStep(new Vector3(10, 0, 0)), new PatrolStep(new Vector3(30, 0, 0)) };
+
+            var walking = Record(world, watcher, sentry, 20).Where(move => move.Movement.Velocity > 0).ToList();
+
+            Assert.IsNotEmpty(walking, $"walk {walkSpeed}, pace {poolPace}");
+            Assert.IsTrue(walking.All(move => move.Movement.Velocity == expected),
+                $"walk {walkSpeed}, pace {poolPace}: {string.Join(", ", walking.Select(move => move.Movement.Velocity).Distinct())}");
+            Assert.AreEqual(10f + expected * 0.25f * walking.Count, sentry.Position.X, 0.001f, "the distance a think is the pace's");
+            Assert.IsFalse(sentry.IsRunning, "a beat is walked");
+        }
+
         [TestMethod]
         public void ItTurnsAboutWhereItStandsBeforeItWalksBack()
         {
@@ -1591,17 +1623,22 @@ namespace Rasa.Test.World
                 new PatrolStep(new Vector3(40, 0, 0), pauseMs: 600000)
             });
 
-            // The leader walks faster than its guards do: they keep its pace, walking.
+            // The leader walks faster than its guards do: they keep its pace, walking. No pace of
+            // the pool's own: the leader strolls at the cap (Patrols.Pace), the guards' walk is slower.
+            leader.SpawnPool.PatrolPace = null;
             leader.WalkSpeed = 3;
+
+            foreach (var guard in guards)
+                guard.WalkSpeed = 1;
 
             Record(world, watcher, leader, 20);
 
-            Assert.IsGreaterThan(0f, leader.Controller.LastMovement.Velocity);
+            Assert.AreEqual(BehaviorManager.WanderWalkSpeed, leader.Controller.LastMovement.Velocity);
 
             foreach (var guard in guards)
                 Assert.IsFalse(guard.IsRunning, "In its place at its leader's walk, it is shown walking.");
 
-            Record(world, watcher, leader, 30);
+            Record(world, watcher, leader, 60);
             Assert.AreEqual(new Vector3(40, 0, 0), leader.Position);
 
             foreach (var guard in guards)
@@ -1616,6 +1653,7 @@ namespace Rasa.Test.World
                 DbId = 77,
                 MapContextId = world.Map.MapInfo.MapContextId,
                 Patrol = beat,
+                PatrolPace = 2,
                 SpawnSlot = new List<SpawnPoolSlot> { new SpawnPoolSlot(1, 1, 1), new SpawnPoolSlot(2, 2, 2) }
             };
 
@@ -1695,7 +1733,10 @@ namespace Rasa.Test.World
                 AggroRange = 0,
                 WalkSpeed = walkSpeed,
                 RunSpeed = walkSpeed * 2,
-                AppearanceData = new Dictionary<EquipmentData, AppearanceData>()
+                AppearanceData = new Dictionary<EquipmentData, AppearanceData>(),
+                // Its beat at its own walk speed: these tests were written for a 2 m/s walk, over
+                // the default stroll's cap (Patrols.Pace).
+                SpawnPool = new SpawnPool { PatrolPace = walkSpeed }
             };
 
             creature.HomePos.Position = creature.Position;

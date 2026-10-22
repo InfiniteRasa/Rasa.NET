@@ -1713,7 +1713,7 @@ namespace Rasa.Managers
                     if (controller.Path.Count > 0)
                     {
                         // The end of the route is as near the step as the mesh goes.
-                        if (FollowPath(mapChannel, creature, creature.WalkSpeed, delta))
+                        if (FollowPath(mapChannel, creature, Patrols.Pace(creature), delta))
                             patrol.Rejoining = false;
 
                         creature.Rotation = creature.LastYaw;
@@ -1744,7 +1744,7 @@ namespace Rasa.Managers
                     return;
                 }
 
-                moved = UpdateEntityMovement(to.X, to.Y, to.Z, creature, mapChannel, creature.WalkSpeed, true, delta, grounded: false);
+                moved = UpdateEntityMovement(to.X, to.Y, to.Z, creature, mapChannel, Patrols.Pace(creature), true, delta, grounded: false);
                 creature.Rotation = creature.LastYaw;
             }
 
@@ -1873,7 +1873,7 @@ namespace Rasa.Managers
 
             // A follower thinks before or after its leader: a think of the leader's walk behind
             // is keeping up, not falling behind.
-            var think = leader.WalkSpeed * delta / 1000f;
+            var think = Patrols.Pace(leader) * delta / 1000f;
 
             if (gap > PatrolGroups.RunDistance + think)
                 follow.CatchUpRunning = true;
@@ -1881,7 +1881,7 @@ namespace Rasa.Managers
                 follow.CatchUpRunning = false;
 
             // At the leader's pace at least: at its own slower walk it would drop out of its place.
-            var speed = follow.CatchUpRunning ? Math.Max(creature.RunSpeed, leader.WalkSpeed) : Math.Max(creature.WalkSpeed, leader.WalkSpeed);
+            var speed = follow.CatchUpRunning ? Math.Max(creature.RunSpeed, Patrols.Pace(leader)) : Math.Max(Patrols.Pace(creature), Patrols.Pace(leader));
 
             // Near its place, and that on the navmesh, level with it and nothing between, it steps
             // straight onto it: the ground beside its leader is walked as the leader walks its

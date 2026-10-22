@@ -20,6 +20,8 @@ namespace Rasa.Structures.World
     /// started (the game server's SpawnPoolManager.TopUp), but its respawn time after its own
     /// death: a boss killed late in a long fight does not stand again moments after.
     ///
+    /// With a pace, the group walks its beat at that pace rather than the default stroll.
+    ///
     /// A table of its own rather than a column on spawnpool, as spawnpool_pose is: the preloaders
     /// of earlier migrations insert spawnpool by its entity's columns.
     /// </summary>
@@ -47,5 +49,13 @@ namespace Rasa.Structures.World
         [Column("leader_top_up")]
         [Required]
         public bool LeaderTopUp { get; set; } = true;
+
+        /// <summary>
+        /// The pace its beat is walked at, metres a second, by its leader and by its followers
+        /// keeping their places; null for the default, its creatures' walk speed capped at a
+        /// stroll (the game server's Patrols.Pace). Chases and catching up are run as before.
+        /// </summary>
+        [Column("pace")]
+        public double? Pace { get; set; }
     }
 }

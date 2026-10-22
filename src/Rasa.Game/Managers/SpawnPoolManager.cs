@@ -243,7 +243,7 @@ namespace Rasa.Managers
                 draws++;
             }
 
-            // Pools whose group has an acting leader (spawnpool_patrol_group; PatrolGroups).
+            // Pools whose group has an acting leader, no leader top-up or a pace of its own (spawnpool_patrol_group; PatrolGroups).
             foreach (var row in unitOfWork.Spawnpools.GetPatrolGroups())
             {
                 if (!LoadedSpawnPools.TryGetValue(row.Id, out var pool))
@@ -254,6 +254,14 @@ namespace Rasa.Managers
 
                 pool.ActingLeader = row.ActingLeader;
                 pool.LeaderTopUp = row.LeaderTopUp;
+
+                if (row.Pace is double pace)
+                {
+                    if (pace > 0 && double.IsFinite(pace))
+                        pool.PatrolPace = (float)pace;
+                    else
+                        Logger.WriteLog(LogType.Error, $"spawnpool_patrol_group {row.Id}: pace {pace} is not a speed; the default pace is used.");
+                }
             }
 
             // The beat a pool's creature walks (spawnpool_patrol; Patrols).
@@ -1209,6 +1217,7 @@ namespace Rasa.Managers
                 ActingLeader = template.ActingLeader,
                 FirstSlotEmpty = template.FirstSlotEmpty,
                 LeaderTopUp = template.LeaderTopUp,
+                PatrolPace = template.PatrolPace,
                 DrawCount = template.DrawCount,
                 SpawnSlot = template.SpawnSlot?.Select(slot =>
                     new SpawnPoolSlot(slot.CreatureId, slot.CountMin, slot.CountMax)).ToList() ?? new List<SpawnPoolSlot>(),
