@@ -26,7 +26,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
     /// Quarry, right next to the Stalker". TR MMO DB: level 30.
     ///
     /// Reconstructed (ESTIMATE): level 30. Russ gives six bombs on accept; each crate (personal, on the
-    /// ground around the pad) takes one, counts once and closes, and a bomb prop (ArchHumBombV01) appears beside it. "Equipment" read as the four Uncommon V04
+    /// ground around the pad) takes one, counts once and closes, and an Explosive Charge (UsableBombHumV01) appears beside it. "Equipment" read as the four Uncommon V04
     /// vests of the 30-34 band, one of each armor type (the lowest template of each class).
     /// </summary>
     public static class PlateauBombVoyageV1
@@ -38,8 +38,9 @@ namespace Rasa.Services.Preloader.Missions.Plateau
         public const uint Bomb = 42499, BombClass = 21573, Bombs = 6;
         public const uint CrateClass = 21568, UseArgument = 3, CrateState = 44;
         public const string BombKey = "altitude-bomb";
-        /// <summary>The planted bomb the player sees beside each used crate: ArchHumBombV01, a prop (client entityclass 7284).</summary>
-        public const uint PlantedBombClass = 7284;
+        /// <summary>The planted bomb the player sees beside each used crate: UsableBombHumV01 "Explosive Charge" (client
+        /// entityclass 7870), not usable here. ArchHumBombV01 (7284) has no model in the client (playtest 2026-10-22).</summary>
+        public const uint PlantedBombClass = 7870;
         public const float PlantedBombOffset = 1f;
 
         public const uint Experience = 45000;
