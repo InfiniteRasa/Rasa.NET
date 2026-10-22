@@ -176,6 +176,191 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void InAPoolWithAPatrolTheFirstSlotLeadsOnThePoolsPointAndTheRestFallInBehindIt()
+        {
+            using var world = new WorldTestContext();
+            using var runtime = new SpawnRuntime(world.Map, new SpawnData());
+            var kaelClass = unchecked((Data.EntityClasses)(-2));
+            world.AddClass(kaelClass);
+            EntityClassManager.Instance.LoadedEntityClasses[kaelClass].Augmentations.Add(Data.AugmentationType.Creature);
+
+            runtime.Creatures.LoadedCreatures[3] = new Creature { DbId = 3, EntityClass = kaelClass, WalkSpeed = 1, AppearanceData = new() };
+            runtime.Creatures.LoadedCreatures[4] = new Creature { DbId = 4, EntityClass = kaelClass, WalkSpeed = 1, AppearanceData = new() };
+
+            var beat = new[] { new PatrolStep(new Vector3(10, 0, 10)), new PatrolStep(new Vector3(14, 0, 10)) };
+            var pool = CreatePool();
+            pool.UpdateTimer = pool.RespawnTime;
+            pool.Position = new Vector3(10, 0, 10);
+            pool.Rotation = 1.5;
+            pool.Patrol = beat;
+            pool.SpawnSlot.Add(new SpawnPoolSlot(3, 1, 1));
+            pool.SpawnSlot.Add(new SpawnPoolSlot(4, 2, 2));
+            var manager = new SpawnPoolManager(null);
+            manager.LoadedSpawnPools.Add(pool.DbId, pool);
+
+            manager.SpawnPoolWorker(world.Map, 0);
+
+            var spawned = EntityManager.Instance.Creatures.Values.Where(creature => creature.SpawnPool?.DbId == pool.DbId).ToList();
+            var leader = spawned.Single(creature => creature.DbId == 3);
+            var guards = spawned.Where(creature => creature.DbId == 4).ToList();
+
+            Assert.HasCount(2, guards);
+            Assert.AreSame(beat, leader.Patrol);
+            Assert.AreEqual(new Vector3(10, 0, 10), leader.Position, "The leader starts its beat on the pool's point.");
+            Assert.AreEqual(1.5f, leader.LastYaw);
+            Assert.AreSame(leader, leader.SpawnPool.Leader);
+            Assert.IsTrue(PatrolGroups.IsGroup(leader.SpawnPool));
+
+            foreach (var guard in guards)
+            {
+                Assert.IsNull(guard.Patrol, "One walks the beat; the rest follow it.");
+                Assert.IsTrue(PatrolGroups.Follows(guard));
+                Assert.AreEqual(BehaviorManager.BehaviorActionFollow, guard.Controller.CurrentAction);
+                Assert.AreEqual(leader.EntityId, guard.Controller.ActionFollow.FollowTargetId);
+                Assert.AreEqual(0UL, guard.MasterEntityId, "No one's minion.");
+                Assert.AreNotEqual(leader.Position, guard.Position);
+            }
+
+            CollectionAssert.AreEquivalent(new[] { 0, 1 }, guards.Select(guard => guard.Controller.ActionFollow.FormationSlot).ToArray());
+        }
+
+        [TestMethod]
+        public void LoaderReadsWhichPoolsHaveAnActingLeaderAndLetsOneWithAnEmptyFirstSlotPatrol()
+        {
+            var data = new SpawnData();
+            // 64: no leader of its own, three of 4. 65: no leader of its own, drawn at random.
+            // 66: a leader, and an acting one while it is dead. 67: an empty first slot, no acting leader.
+            data.Pools.Add(new SpawnPoolEntry { Id = 64, MapContextId = 1220, Creature2Id = 4, Creature2MinCount = 3, Creature2MaxCount = 3 });
+            data.Pools.Add(new SpawnPoolEntry { Id = 65, MapContextId = 1220, Creature2Id = 4, Creature2MinCount = 1, Creature2MaxCount = 4 });
+            data.Pools.Add(new SpawnPoolEntry { Id = 66, MapContextId = 1220, Creature1Id = 3, Creature1MinCount = 1, Creature1MaxCount = 1, Creature2Id = 4, Creature2MinCount = 2, Creature2MaxCount = 2 });
+            data.Pools.Add(new SpawnPoolEntry { Id = 67, MapContextId = 1220, Creature2Id = 4, Creature2MinCount = 3, Creature2MaxCount = 3 });
+            data.Draws.Add(new SpawnPoolDrawEntry { Id = 65, Count = 3 });
+            data.PatrolGroups.Add(new SpawnPoolPatrolGroupEntry { Id = 64, ActingLeader = true, Pace = 2.0, Spacing = 5.0 });
+            data.PatrolGroups.Add(new SpawnPoolPatrolGroupEntry { Id = 65, ActingLeader = true, Pace = -1, Spacing = 0 });
+            data.PatrolGroups.Add(new SpawnPoolPatrolGroupEntry { Id = 66, ActingLeader = true });
+            data.PatrolGroups.Add(new SpawnPoolPatrolGroupEntry { Id = 99, ActingLeader = true });
+
+            foreach (var poolId in new uint[] { 64, 65, 66, 67 })
+                data.Patrols.Add(new SpawnPoolPatrolEntry { PoolId = poolId, Step = 0, PosX = 5, PosY = 1, PosZ = 3 });
+
+            var manager = new SpawnPoolManager(data);
+
+            manager.SpawnPoolInit();
+
+            var leaderless = manager.LoadedSpawnPools[64];
+
+            Assert.IsTrue(leaderless.ActingLeader);
+            Assert.IsTrue(leaderless.FirstSlotEmpty);
+            Assert.IsFalse(PatrolGroups.HasLeaderSlot(leaderless));
+            Assert.IsNotNull(leaderless.Patrol, "Three of a kind, with no leader of their own: one of them leads.");
+            Assert.IsTrue(PatrolGroups.IsGroup(leaderless));
+
+            Assert.IsNotNull(manager.LoadedSpawnPools[65].Patrol, "With no leader of its own, a pool may draw its creatures.");
+
+            Assert.IsTrue(manager.LoadedSpawnPools[66].ActingLeader);
+            Assert.IsTrue(PatrolGroups.HasLeaderSlot(manager.LoadedSpawnPools[66]));
+            Assert.IsNotNull(manager.LoadedSpawnPools[66].Patrol);
+
+            // No acting leader: its first creature is the second slot's, three of them - no one leader.
+            Assert.IsFalse(manager.LoadedSpawnPools[67].ActingLeader);
+            Assert.IsNull(manager.LoadedSpawnPools[67].Patrol);
+
+            // Its own pace (Patrols.Pace); none, or one that is no speed, is the default.
+            Assert.AreEqual(2f, manager.LoadedSpawnPools[64].PatrolPace);
+            Assert.IsNull(manager.LoadedSpawnPools[65].PatrolPace, "a pace of -1 is no speed");
+            Assert.IsNull(manager.LoadedSpawnPools[66].PatrolPace);
+            Assert.IsNull(manager.LoadedSpawnPools[67].PatrolPace);
+
+            // Its own spacing (PatrolGroups.AbreastOf); none, or one that is no distance, is the default.
+            Assert.AreEqual(5f, manager.LoadedSpawnPools[64].FormationSpacing);
+            Assert.IsNull(manager.LoadedSpawnPools[65].FormationSpacing, "a spacing of 0 is no distance");
+            Assert.IsNull(manager.LoadedSpawnPools[66].FormationSpacing);
+            Assert.AreEqual(PatrolGroups.Abreast, PatrolGroups.AbreastOf(manager.LoadedSpawnPools[66]));
+        }
+
+        [TestMethod]
+        public void APoolWithNoLeaderOfItsOwnSetsOneOfItsCreaturesOnThePointToLeadAndTheRestBehindIt()
+        {
+            using var world = new WorldTestContext();
+            using var runtime = new SpawnRuntime(world.Map, new SpawnData());
+            var kaelClass = unchecked((Data.EntityClasses)(-2));
+            world.AddClass(kaelClass);
+            EntityClassManager.Instance.LoadedEntityClasses[kaelClass].Augmentations.Add(Data.AugmentationType.Creature);
+
+            runtime.Creatures.LoadedCreatures[4] = new Creature { DbId = 4, EntityClass = kaelClass, WalkSpeed = 1, AppearanceData = new() };
+
+            var beat = new[] { new PatrolStep(new Vector3(10, 0, 10)), new PatrolStep(new Vector3(14, 0, 10)) };
+            var pool = CreatePool();
+            pool.UpdateTimer = pool.RespawnTime;
+            pool.Position = new Vector3(10, 0, 10);
+            pool.Patrol = beat;
+            pool.ActingLeader = true;
+            pool.FirstSlotEmpty = true;
+            pool.SpawnSlot.Add(new SpawnPoolSlot(4, 3, 3));
+            var manager = new SpawnPoolManager(null);
+            manager.LoadedSpawnPools.Add(pool.DbId, pool);
+
+            manager.SpawnPoolWorker(world.Map, 0);
+
+            var spawned = EntityManager.Instance.Creatures.Values.Where(creature => creature.SpawnPool?.DbId == pool.DbId).ToList();
+            var leader = spawned.Single(creature => creature.Patrol != null);
+            var rest = spawned.Where(creature => creature != leader).ToList();
+
+            Assert.HasCount(3, spawned);
+            Assert.AreSame(leader, leader.SpawnPool.Leader);
+            Assert.AreEqual(new Vector3(10, 0, 10), leader.Position);
+            Assert.IsFalse(PatrolGroups.Leads(leader.SpawnPool, leader), "It leads acting: the pool has no leader of its own.");
+
+            foreach (var creature in rest)
+            {
+                Assert.AreEqual(BehaviorManager.BehaviorActionFollow, creature.Controller.CurrentAction);
+                Assert.AreEqual(leader.EntityId, creature.Controller.ActionFollow.FollowTargetId);
+            }
+        }
+
+        [TestMethod]
+        public void LoaderGivesNoPatrolToAPoolWhoseLeaderIsNotOneCreature()
+        {
+            var data = new SpawnData();
+            // 60: a leader and two guards. 61: two of the first slot. 62: drawn at random. 63: the leader's creature in a later slot too.
+            data.Pools.Add(new SpawnPoolEntry { Id = 60, MapContextId = 1220, Creature1Id = 3, Creature1MinCount = 1, Creature1MaxCount = 1, Creature2Id = 4, Creature2MinCount = 2, Creature2MaxCount = 4 });
+            data.Pools.Add(new SpawnPoolEntry { Id = 61, MapContextId = 1220, Creature1Id = 3, Creature1MinCount = 1, Creature1MaxCount = 2 });
+            data.Pools.Add(new SpawnPoolEntry { Id = 62, MapContextId = 1220, Creature1Id = 3, Creature1MinCount = 1, Creature1MaxCount = 1, Creature2Id = 4, Creature2MinCount = 1, Creature2MaxCount = 1 });
+            data.Pools.Add(new SpawnPoolEntry { Id = 63, MapContextId = 1220, Creature1Id = 3, Creature1MinCount = 1, Creature1MaxCount = 1, Creature2Id = 3, Creature2MinCount = 1, Creature2MaxCount = 1 });
+            data.Draws.Add(new SpawnPoolDrawEntry { Id = 62, Count = 1 });
+
+            foreach (var poolId in new uint[] { 60, 61, 62, 63 })
+                data.Patrols.Add(new SpawnPoolPatrolEntry { PoolId = poolId, Step = 0, PosX = 5, PosY = 1, PosZ = 3 });
+
+            var manager = new SpawnPoolManager(data);
+
+            manager.SpawnPoolInit();
+
+            Assert.IsNotNull(manager.LoadedSpawnPools[60].Patrol);
+            Assert.IsTrue(PatrolGroups.IsGroup(manager.LoadedSpawnPools[60]));
+            Assert.IsNull(manager.LoadedSpawnPools[61].Patrol);
+            Assert.IsNull(manager.LoadedSpawnPools[62].Patrol);
+            Assert.IsNull(manager.LoadedSpawnPools[63].Patrol);
+        }
+
+        [TestMethod]
+        public void APoolWhoseFirstSlotHoldsNoCreatureHasNoLeaderToWalkItsBeat()
+        {
+            var pool = CreatePool();
+            pool.Patrol = new[] { new PatrolStep(new Vector3(5, 1, 3)) };
+            pool.SpawnSlot.Add(new SpawnPoolSlot(0, 1, 1));
+            pool.SpawnSlot.Add(new SpawnPoolSlot(4, 2, 2));
+
+            Assert.IsNotNull(PatrolGroups.Refuses(pool));
+
+            pool.SpawnSlot[0] = null;
+
+            Assert.IsNotNull(PatrolGroups.Refuses(pool));
+            Assert.IsTrue(PatrolGroups.IsGroup(pool));
+            Assert.IsFalse(PatrolGroups.Leads(pool, new Creature { DbId = 4 }));
+        }
+
+        [TestMethod]
         [DataRow(Data.NpcPose.WeaponOut)]
         [DataRow(Data.NpcPose.Sitting)]
         public void ACreatureOfAPosedPoolIsMadeInItsPoseFacingThePoolsWay(Data.NpcPose pose)
@@ -862,6 +1047,8 @@ namespace Rasa.Test.World
             public List<SpawnPoolDrawEntry> GetDraws() => Draws;
             public List<SpawnPoolPatrolEntry> Patrols { get; } = new();
             public List<SpawnPoolPatrolEntry> GetPatrols() => Patrols;
+            public List<SpawnPoolPatrolGroupEntry> PatrolGroups { get; } = new();
+            public List<SpawnPoolPatrolGroupEntry> GetPatrolGroups() => PatrolGroups;
             public Action<uint> ReadStats { get; set; }
             public ISpawnpoolRepository Spawnpools => this;
             public IMapEmitterRepository MapEmitters => null;

@@ -24,6 +24,50 @@ namespace Rasa.Structures
         public IReadOnlyList<PatrolStep> Patrol { get; set; }
 
         /// <summary>
+        /// The creature walking its beat with the rest of the pool round it (Managers.PatrolGroups),
+        /// as last set down on its map channel; it may since have died. Not copied to a clone.
+        /// </summary>
+        internal Creature Leader { get; set; }
+
+        /// <summary>
+        /// Whether one of its followers leads its group on the beat while it has no leader of its
+        /// own (spawnpool_patrol_group; Managers.PatrolGroups).
+        /// </summary>
+        public bool ActingLeader { get; set; }
+
+        /// <summary>
+        /// Whether its first slot (spawnpool.creature_1_id) is empty. With an acting leader, it
+        /// then has no leader of its own: one of its creatures always leads.
+        /// </summary>
+        public bool FirstSlotEmpty { get; set; }
+
+        /// <summary>
+        /// Whether its group's own leader comes back by its top-up with the rest of what it lost
+        /// (Managers.SpawnPoolManager.TopUp); if not, its respawn time after its own death
+        /// (spawnpool_patrol_group.leader_top_up).
+        /// </summary>
+        public bool LeaderTopUp { get; set; } = true;
+
+        /// <summary>
+        /// The pace its beat is walked at, metres a second (spawnpool_patrol_group.pace); null for
+        /// the default (Managers.Patrols.Pace).
+        /// </summary>
+        public float? PatrolPace { get; set; }
+
+        /// <summary>
+        /// How far to each side of its leader its group walks, metres (spawnpool_patrol_group.spacing);
+        /// null for the default (Managers.PatrolGroups.AbreastOf).
+        /// </summary>
+        public float? FormationSpacing { get; set; }
+
+        /// <summary>How long its group's own leader has been down, up to its respawn time, for a pool without its leader's top-up. Not copied to a clone.</summary>
+        internal long LeaderDownMs { get; set; }
+
+        /// <summary>The way its leader last walked, and whether its formation is mirrored for it (Managers.PatrolGroups.SideOf). Not copied to a clone.</summary>
+        internal float? FormationYaw { get; set; }
+        internal bool FormationMirrored { get; set; }
+
+        /// <summary>
         /// How many it sends at a time, each drawn from its slots at random, weighted by the slot's
         /// max count (spawnpool_draw); 0 for a pool that sends each slot's own count.
         /// </summary>

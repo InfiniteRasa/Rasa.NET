@@ -85,14 +85,17 @@ namespace Rasa.Managers
             hate = ToSummon(victim, attacker, hate);
             hate = ToMaster(victim, attacker, hate);
 
-            // A hit for nothing still says who is shooting.
+            // A hit for nothing still says who is shooting - to the rest of its group too (PatrolGroups).
+            var newcomer = !victim.Hate.Contains(attacker.EntityId);
             victim.Hate.Ensure(attacker.EntityId, NoticedThreat);
             victim.Hate.Add(attacker.EntityId, hate);
+            PatrolGroups.ShareHate(victim, attacker.EntityId, newcomer);
 
             if (victim.Controller != null
                 && (victim.Controller.CurrentAction == BehaviorManager.BehaviorActionWander
                     || victim.Controller.CurrentAction == BehaviorManager.BehaviorActionPatrol
-                    || victim.Controller.CurrentAction == BehaviorManager.BehaviorActionFollowingPath))
+                    || victim.Controller.CurrentAction == BehaviorManager.BehaviorActionFollowingPath
+                    || victim.Controller.CurrentAction == BehaviorManager.BehaviorActionFollow && PatrolGroups.Follows(victim)))
                 BehaviorManager.Instance.SetActionFighting(victim, attacker.EntityId);
         }
 
