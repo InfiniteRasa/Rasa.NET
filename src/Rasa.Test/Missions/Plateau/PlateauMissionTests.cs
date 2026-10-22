@@ -113,6 +113,7 @@ namespace Rasa.Test.Missions.Plateau
         private const string Symbolism = "20270308000000_Plateau_symbolism";
         private const string LogosVortex = "20270309000000_Plateau_logos_vortex";
         private const string BehindEnemyLines = "20270310000000_Plateau_behind_enemy_lines";
+        private const string MislaidPlans = "20270311000000_Plateau_mislaid_plans";
 
         [TestMethod]
         public void TheMissionsAreEnabledAndOperationalAtTheirGiversAndReceiversAndLevels()
@@ -1000,6 +1001,44 @@ namespace Rasa.Test.Missions.Plateau
             Assert.IsFalse(Has(PlateauBehindEnemyLinesV1.MissionId), "Behind Enemy Lines rolled back");
             Assert.AreEqual(0, Policies(), "its channel policy too");
             Assert.IsTrue(Has(PlateauLogosVortexV1.MissionId));
+        }
+
+        /// <summary>
+        /// Goliath's pool walks a beat there and back (PlateauGiantKillerPatrolV1): the 31 points out,
+        /// then the 29 between the ends back, 10 s at each end, no facing; its evidence is the least
+        /// trusted. Both roll back with their migration; Giant Killer and its guards stay.
+        /// </summary>
+        [TestMethod]
+        public void GoliathsBeatGoesToTheRuinsAndBackAndRollsBack()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            const uint pool = 520051;
+            var steps = world.SpawnPoolPatrolEntries.AsNoTracking().Where(row => row.PoolId == pool)
+                .OrderBy(row => row.Step).ToArray();
+
+            Assert.AreEqual(60, steps.Length);
+            CollectionAssert.AreEqual(Enumerable.Range(0, 60).Select(step => (uint)step).ToArray(), steps.Select(row => row.Step).ToArray());
+            Assert.AreEqual((-440.0, 442.37, -230.0), (steps[0].PosX, steps[0].PosY, steps[0].PosZ), "west end: the pool point, on its floor");
+            Assert.AreEqual((-254.0, 442.87, -346.0), (steps[30].PosX, steps[30].PosY, steps[30].PosZ), "east end, near the ruins");
+            for (var i = 1; i < 30; i++)
+                Assert.AreEqual((steps[i].PosX, steps[i].PosY, steps[i].PosZ), (steps[60 - i].PosX, steps[60 - i].PosY, steps[60 - i].PosZ),
+                    $"step {60 - i} is step {i} on the way back");
+            CollectionAssert.AreEqual(new uint[] { 0, 30 }, steps.Where(row => row.PauseMs > 0).Select(row => row.Step).ToArray());
+            Assert.IsTrue(steps.Where(row => row.PauseMs > 0).All(row => row.PauseMs == 10000));
+            Assert.IsTrue(steps.All(row => row.Facing == null));
+            Assert.IsFalse(world.SpawnPoolPatrolGroupEntries.AsNoTracking().Any(row => row.Id == pool), "default group: Goliath leads, top-up");
+
+            MissionEvidenceEntry Evidence() => world.MissionEvidenceEntries.AsNoTracking().SingleOrDefault(entry =>
+                entry.MissionId == PlateauGiantKillerV1.MissionId && entry.ContentRevision == PlateauMissionDataV1.Revision && entry.EvidenceId == 4);
+            Assert.AreEqual((MissionEvidenceSourceKind.Reconstruction, 0.3), (Evidence().SourceKind, Evidence().Confidence));
+
+            world.GetService<IMigrator>().Migrate(MislaidPlans);
+            Assert.IsFalse(world.SpawnPoolPatrolEntries.AsNoTracking().Any(row => row.PoolId == pool));
+            Assert.IsNull(Evidence());
+            Assert.IsTrue(world.MissionContentDefinitionEntries.AsNoTracking().Any(entry => entry.MissionId == PlateauGiantKillerV1.MissionId));
+            Assert.AreEqual(PlateauGiantKillerV1.KaelGuard,
+                world.SpawnPoolEntries.AsNoTracking().Single(row => row.Id == pool).Creature2Id, "the guards stay");
         }
 
         /// <summary>

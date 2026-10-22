@@ -43,7 +43,7 @@ Generated 2026-10-18, extended 2026-10-20 (Wayback round 2: official site + patc
 
 **Goal in instance** (given on a public map, but cannot be completed without an objective inside an instance map; marked `[goal in instance]`, list in `tools/mission-crossref/NOTES-instance-goals.md`): 5 missions.
 
-**Needs playtest** (implemented, not yet played through in the game client; marked `[needs playtest]`, list in `tools/mission-crossref/NOTES-playtest.md`): 36 missions.
+**Needs playtest** (implemented, not yet played through in the game client; marked `[needs playtest]`, list in `tools/mission-crossref/NOTES-playtest.md`): 37 missions.
 
 
 **Instance** (the mission takes place in a client instance map, a "mission context" in gamecontext.pyo; marked `[instance]` in the entry heading): from an objective NPC package that spawns in an instance (local DB), a TaRapedia NPC page in an instance, or client objective text placing it there. "Instance mentioned" lines only name an instance (ESTIMATE). Refresh with instance_export.py.
@@ -19070,9 +19070,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Chain** (explicit prerequisite links): Clean Slate chain (6 missions), step 4
   - Requires: Photo Ops (id 929) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Photo_Ops), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Results_Are_In), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - Leads to: Mind Slayer (id 719) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Results_Are_In), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
-### 939 — Giant Killer [implemented]
+### 939 — Giant Killer [implemented] [needs playtest]
 
 - **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Instance mentioned:** Maligo Base — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
 - **Rebuild summary:**
   - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 30 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Giant_Killer); 25 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)

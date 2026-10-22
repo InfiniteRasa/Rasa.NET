@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Rasa.Data;
@@ -79,6 +80,52 @@ namespace Rasa.Test.Missions.Plateau
             var guards = pack.Count(creature => creature.DbId == PlateauGiantKillerV1.KaelGuard);
             Assert.IsTrue(guards >= PlateauGiantKillerV1.GuardsMin && guards <= PlateauGiantKillerV1.GuardsMax,
                 $"{guards} Kael with Goliath");
+        }
+
+        /// <summary>
+        /// Goliath leads his Kael along his beat (PlateauGiantKillerPatrolV1) on the Plateau's own
+        /// navmesh: he walks it, they follow him (PatrolGroups) and keep up with him the whole way.
+        /// </summary>
+        [TestMethod]
+        public void GoliathLeadsHisKaelAlongHisBeat()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var plateau = EnterPlateau(harness);
+            Spawn(plateau, Goliath);
+
+            var pack = Living(plateau).Where(creature => creature.SpawnPool?.DbId == PlateauGiantKillerV1.GoliathPool).ToArray();
+            var goliath = pack.Single(creature => creature.DbId == Goliath);
+            var guards = pack.Where(creature => creature.DbId == PlateauGiantKillerV1.KaelGuard).ToArray();
+            var start = goliath.Position;
+
+            Assert.AreEqual(60, goliath.Patrol?.Count, "Goliath has the beat");
+            Assert.AreSame(goliath, goliath.SpawnPool.Leader);
+            foreach (var guard in guards)
+            {
+                Assert.IsTrue(PatrolGroups.Follows(guard), "a guard follows");
+                Assert.IsNull(guard.Patrol, "a guard has no beat of its own");
+            }
+
+            // 100 s: his 10 s at the west end, then most of the way east. The guards keep up.
+            var farthest = 0f;
+            for (var tick = 0; tick < 400; tick++)
+            {
+                BehaviorManager.Instance.MapChannelThink(plateau, 250);
+                farthest = Math.Max(farthest, Vector3.Distance(start, goliath.Position));
+
+                if (tick < 8)
+                    continue;
+
+                foreach (var guard in guards)
+                {
+                    Assert.IsLessThan(12f, Spacing.AcrossGround(guard.Position, goliath.Position),
+                        $"tick {tick}: guard at {guard.Position}, Goliath at {goliath.Position}");
+                    Assert.IsLessThan(2.5f, Math.Abs(guard.Position.Y - goliath.Position.Y), $"tick {tick}: guard on Goliath's ground");
+                }
+            }
+
+            Assert.AreEqual(BehaviorManager.BehaviorActionPatrol, goliath.Controller.CurrentAction);
+            Assert.IsGreaterThan(150f, farthest, $"Goliath walked {farthest:0} m");
         }
 
         [TestMethod]
