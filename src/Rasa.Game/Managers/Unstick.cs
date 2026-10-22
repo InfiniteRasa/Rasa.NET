@@ -130,7 +130,9 @@ namespace Rasa.Managers
                     new DisplayClientMessagePacket(PlayerMessage.PmStuckBugReportSent, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
             }
 
-            Logger.WriteLog(LogType.Debug, $"Character {player.Id} unstuck from {from} to {destination.Value} ({Vector3.Distance(from, destination.Value):F1} m).");
+            // The map as well as the position, as the refusal above reports it: where players get
+            // stuck is worth collecting, and a position alone does not say which map it is on.
+            Logger.WriteLog(LogType.Debug, $"Character {player.Id} unstuck from {from} on map {mapChannel.MapInfo?.MapContextId} to {destination.Value} ({Vector3.Distance(from, destination.Value):F1} m).");
         }
 
         private static void Refuse(MapChannel mapChannel, Client client, Manifestation player, PlayerMessage message)
