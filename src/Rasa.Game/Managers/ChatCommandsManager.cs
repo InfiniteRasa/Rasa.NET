@@ -288,6 +288,7 @@ namespace Rasa.Managers
             RegisterCommand(".destructible", GmLevel.GameMaster, DestructibleCommand, "action", "arg1", "arg2", "arg3", "arg4", "arg5");
             RegisterCommand(".worldusable", GmLevel.GameMaster, WorldUsableCommand, "action", "arg1", "arg2", "arg3", "arg4", "arg5", "arg6", "arg7", "arg8");
             RegisterCommand(".torcastra", GmLevel.GameMaster, TorcastraCommand, "alarm | strike | secure <n|all> | gate | unlock <n|all> | reset");
+            RegisterCommand(".squad", GmLevel.GameMaster, SquadCommand, "[types|paths|spawns|export] | type ... | path ... | point [pause] | spawn ...");
             RegisterCommand(".worldcontainer", GmLevel.GameMaster, WorldContainerCommand, "action", "arg1", "arg2", "arg3", "arg4", "arg5", "arg6");
             RegisterCommand(".removeobj", GmLevel.GameMaster, RemoveObjectCommand, "entityId");
             RegisterCommand(".moveobj", GmLevel.GameMaster, MoveObjectCommand, "entityId", "x", "y", "z", "rotation");
@@ -965,6 +966,13 @@ namespace Rasa.Managers
         private void TorcastraCommand(string[] parts)
         {
             foreach (var line in TorcastraPrison.Command(_client.Player.MapChannel, _client.Player, parts))
+                CommunicatorManager.Instance.SystemMessage(_client, line);
+        }
+
+        /// <summary>.squad: NPC squads - their types, paths and spawns, made and changed in game (NpcSquads.Command).</summary>
+        private void SquadCommand(string[] parts)
+        {
+            foreach (var line in NpcSquads.Command(_client.Player.MapChannel, _client.Player, parts))
                 CommunicatorManager.Instance.SystemMessage(_client, line);
         }
 

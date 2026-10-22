@@ -163,6 +163,12 @@ namespace Rasa.Structures
         /// </summary>
         public IReadOnlyList<PatrolStep> Patrol { get; set; }
 
+        /// <summary>
+        /// Its place in a squad out in the world (NpcSquads), which moves it when it is not
+        /// fighting; null for a creature in none, and not copied from a template.
+        /// </summary>
+        internal Managers.NpcSquads.Member SquadMember { get; set; }
+
         /// <summary>What Battlecries keeps about it between thinks; null until its first, and not copied from a template.</summary>
         public Managers.BattlecryState Cries;
 

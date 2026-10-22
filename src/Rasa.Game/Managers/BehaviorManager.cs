@@ -83,6 +83,14 @@ namespace Rasa.Managers
         public const byte BehaviorActionReturning = 6;
 
         /// <summary>
+        /// In a squad out in the world (NpcSquads; <see cref="AdvanceSquad"/>): going where the
+        /// squad puts it - the leader along the squad's route, the others to their places about
+        /// him. It notices a fight as a wandering creature does, at the squad's range, and comes
+        /// back to the squad from wandering when the fight is over.
+        /// </summary>
+        public const byte BehaviorActionSquad = 8;
+
+        /// <summary>
         /// How far a creature with no master follows a fight from its home before it gives up and
         /// goes back (<see cref="Leash"/>): its own distance, across the ground. The target's
         /// does not matter - a sniper at home shooting someone forty metres off is not chasing.
@@ -558,6 +566,13 @@ namespace Rasa.Managers
                 {
                     wander.IdleMs += delta;
 
+                    // One of a squad goes back to it (NpcSquads).
+                    if (creature.SquadMember != null)
+                    {
+                        SetActionSquad(creature);
+                        return;
+                    }
+
                     // A creature with a beat walks it whenever it has nothing else to do (Patrols).
                     if (Patrols.Has(creature))
                     {
@@ -740,6 +755,15 @@ namespace Rasa.Managers
                 var speed = gap > MinionManager.MaxFollowTargetDistance ? creature.RunSpeed : creature.WalkSpeed;
 
                 FollowPath(mapChannel, creature, speed, delta);
+            }
+            else if (creature.Controller.CurrentAction == BehaviorActionSquad)
+            {
+                // It notices a fight as a wandering creature does, as far off as its squad looks.
+                if (creature.LastAgression >= AggroScanDelayMs && ScansForEnemies(creature)
+                    && CheckForAttackableEntityInRange(mapChannel, creature, NpcSquads.EngageRange(creature)))
+                    return;
+
+                AdvanceSquad(mapChannel, creature, delta);
             }
             else if (creature.Controller.CurrentAction == BehaviorActionPatrol)
             {
@@ -1542,6 +1566,107 @@ namespace Rasa.Managers
             wander.MovingMs = 0;
             wander.Arriving = true;
             wander.ArrivalTimeoutMs = ReturnTimeoutFor(Vector3.Distance(creature.Position, destination), creature.WalkSpeed);
+        }
+
+        #endregion
+
+        #region Squad
+
+        /// <summary>Puts one of a squad (NpcSquads) to going where the squad puts it, from wherever it is.</summary>
+        public void SetActionSquad(Creature creature)
+        {
+            var member = creature.SquadMember;
+
+            if (member == null || creature.Controller == null)
+                return;
+
+            creature.Controller.CurrentAction = BehaviorActionSquad;
+            creature.Controller.Path.Clear();
+            creature.Controller.PathIndex = 0;
+            member.PathGoal = null;
+            member.RepathMs = 0;
+            member.Stopped = false;
+            member.Stuck = false;
+        }
+
+        /// <summary>A squad member this near its goal, across the ground, is there.</summary>
+        private const float SquadGoalReached = 0.6f;
+
+        /// <summary>A goal that has moved this far since the route to it was made gets a new route.</summary>
+        private const float SquadRepathDistance = 1.5f;
+
+        /// <summary>The least time between two routes a squad member makes, and how near it goes straight.</summary>
+        private const long SquadRepathMs = 500;
+        private const float SquadStraightDistance = 3f;
+
+        /// <summary>
+        /// One think of a squad member: the walk to where its squad puts it (NpcSquads.Worker), at
+        /// the squad's pace or running to catch up; across the navmesh, or straight when it is
+        /// close. There, or given nowhere to go, it stands, facing the squad's way.
+        /// </summary>
+        private void AdvanceSquad(MapChannel mapChannel, Creature creature, long delta)
+        {
+            var member = creature.SquadMember;
+
+            if (member == null)
+            {
+                SetActionWander(creature);
+                return;
+            }
+
+            var controller = creature.Controller;
+
+            member.RepathMs -= delta;
+
+            var goal = member.Goal;
+            var gap = goal is Vector3 g ? Vector2.Distance(new Vector2(g.X, g.Z), new Vector2(creature.Position.X, creature.Position.Z)) : 0f;
+
+            if (goal == null || creature.WalkSpeed < 0.01f || gap <= SquadGoalReached)
+            {
+                // It stands, and turns to the squad's way when that is well off its own.
+                var turn = MathF.Abs(MathF.IEEERemainder(creature.LastYaw - member.Facing, MathF.PI * 2));
+
+                if (!member.Stopped || turn > 0.35f)
+                {
+                    controller.Path.Clear();
+                    controller.PathIndex = 0;
+                    member.PathGoal = null;
+                    creature.LastYaw = member.Facing;
+                    creature.Rotation = creature.LastYaw;
+                    StopWalking(creature);
+                    member.Stopped = true;
+                }
+
+                return;
+            }
+
+            var target = goal.Value;
+            var moved = member.PathGoal is Vector3 was && Vector3.Distance(was, target) > SquadRepathDistance;
+
+            if (controller.Path.Count == 0 || moved)
+            {
+                if (gap <= SquadStraightDistance)
+                {
+                    controller.Path.Clear();
+                    controller.PathIndex = 0;
+                    controller.Path.Add(target);
+                    member.PathGoal = target;
+                }
+                else if (member.RepathMs <= 0)
+                {
+                    member.Stuck = !BuildPath(mapChannel, creature, target);
+                    member.PathGoal = target;
+                    member.RepathMs = SquadRepathMs;
+                }
+
+                if (controller.Path.Count == 0)
+                    return;
+            }
+
+            member.Stopped = false;
+
+            if (FollowPath(mapChannel, creature, Math.Max(0.5f, member.Speed), delta))
+                member.PathGoal = null;
         }
 
         #endregion
