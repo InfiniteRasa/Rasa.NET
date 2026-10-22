@@ -30,7 +30,8 @@ namespace Rasa.Test.Missions.Plateau
     /// Agent Perdu's Clean Slate (1983, Plateau_clean_slate), Mind Bender (905, Plateau_mind_bender), Photo Ops
     /// (929, Plateau_photo_ops), The Results Are In (936, Plateau_results_are_in) and Mind Slayer (719,
     /// Plateau_mind_slayer); the hologram's five instanced Trinity Bridge Logos (1047, 1048, 1049, 1051, 1057,
-    /// Plateau_trinity_bridge_logos) and Sampei's The Order Of Velon (1982, Plateau_order_of_velon).
+    /// Plateau_trinity_bridge_logos) and Sampei's The Order Of Velon (1982, Plateau_order_of_velon); the Temporal Chamber's Array Of Hope (935),
+    /// Future Sacrifice (1171) and The Final Assault (1167) (Plateau_temporal_chamber).
     /// </summary>
     [TestClass]
     [DoNotParallelize]
@@ -54,7 +55,8 @@ namespace Rasa.Test.Missions.Plateau
             PlateauBehindEnemyLinesV1.MissionId, PlateauMislaidPlansV1.MissionId,
             PlateauTrinityBridgeLogosV1.Future.MissionId, PlateauTrinityBridgeLogosV1.Disperse.MissionId,
             PlateauTrinityBridgeLogosV1.LogosElement.MissionId, PlateauTrinityBridgeLogosV1.Far.MissionId,
-            PlateauTrinityBridgeLogosV1.Distance.MissionId, PlateauOrderOfVelonV1.MissionId
+            PlateauTrinityBridgeLogosV1.Distance.MissionId, PlateauOrderOfVelonV1.MissionId,
+            PlateauArrayOfHopeV1.MissionId, PlateauFutureSacrificeV1.MissionId, PlateauFinalAssaultV1.MissionId
         };
 
         /// <summary>
@@ -69,8 +71,10 @@ namespace Rasa.Test.Missions.Plateau
         /// Clues' eight. Logos: Vortex's one; A Mystery Unearthed and Symbolism have none (their objectives are on other
         /// maps, and a marker carries no map). Behind Enemy Lines' and Mislaid Plans' one each. The five instanced
         /// Trinity Bridge Logos and The Order Of Velon have none: their goals are in instances, for the same reason.
+        /// Array Of Hope's one, on Trinity Bridge (its conduits and the portal); Future Sacrifice and The Final
+        /// Assault have none (instance).
         /// </summary>
-        internal const int Indicators = 82;
+        internal const int Indicators = 83;
 
         private const string Before = "20270123000000_Thunderhead_base_teleporters";
         private const string GiantKiller = "20270125000000_Plateau_giant_killer";
@@ -121,6 +125,7 @@ namespace Rasa.Test.Missions.Plateau
         private const string MislaidPlans = "20270311000000_Plateau_mislaid_plans";
         private const string GiantKillerScale = "20270316000000_Plateau_giant_killer_scale";
         private const string TrinityBridgeLogos = "20270317000000_Plateau_trinity_bridge_logos";
+        private const string OrderOfVelon = "20270318000000_Plateau_order_of_velon";
 
         [TestMethod]
         public void TheMissionsAreEnabledAndOperationalAtTheirGiversAndReceiversAndLevels()
@@ -170,7 +175,10 @@ namespace Rasa.Test.Missions.Plateau
                 (1049, PlateauVogrenNpcsV1.Hologram, PlateauVogrenNpcsV1.Hologram),
                 (1051, PlateauVogrenNpcsV1.Hologram, PlateauVogrenNpcsV1.Hologram),
                 (1057, PlateauVogrenNpcsV1.Hologram, PlateauVogrenNpcsV1.Hologram),
-                (PlateauOrderOfVelonV1.MissionId, PlateauVillageOfTheDamnedV1.Sampei, PlateauOrderOfVelonV1.Hathen)
+                (PlateauOrderOfVelonV1.MissionId, PlateauVillageOfTheDamnedV1.Sampei, PlateauOrderOfVelonV1.Hathen),
+                (PlateauArrayOfHopeV1.MissionId, PlateauVogrenNpcsV1.Hologram, PlateauTemporalChamberNpcsV1.Veryin),
+                (PlateauFutureSacrificeV1.MissionId, PlateauTemporalChamberNpcsV1.Veryin, PlateauTemporalChamberNpcsV1.Hudson),
+                (PlateauFinalAssaultV1.MissionId, PlateauTemporalChamberNpcsV1.Hudson, PlateauTemporalChamberNpcsV1.Veryin)
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             var enabled = harness.World.MissionContentDefinitionEntries.AsNoTracking()
@@ -274,7 +282,11 @@ namespace Rasa.Test.Missions.Plateau
                 (1049, 5895, new (uint, uint, uint, uint?)[] { (1, 5899, 6382, null) }),
                 (1051, 5905, new (uint, uint, uint, uint?)[] { (1, 5909, 6376, null) }),
                 (1057, 5935, new (uint, uint, uint, uint?)[] { (1, 5939, 6374, null) }),
-                (1982, 20866, new (uint, uint, uint, uint?)[] { (1, 20889, 20890, null) })
+                (1982, 20866, new (uint, uint, uint, uint?)[] { (1, 20889, 20890, null) }),
+                (935, 5030, new (uint, uint, uint, uint?)[] { (1, 9156, 9157, null), (2, 9156, 9157, null) }),
+                (1171, 8729, new (uint, uint, uint, uint?)[] { (1, 8751, 8752, null) }),
+                (1167, 8577, new (uint, uint, uint, uint?)[] { (1, 8604, 8605, 8606), (2, 8607, 8608, null), (3, 11034, 11035, 11036),
+                    (4, 11037, 11038, 11039), (5, 8604, 8605, null) })
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             foreach (var (mission, title, objectives) in expected)
@@ -311,7 +323,8 @@ namespace Rasa.Test.Missions.Plateau
         /// Most Foul Blue Flu, Looking For Clues Murder Most Foul. A Mystery Unearthed and Logos: Vortex have none;
         /// Symbolism follows A Mystery Unearthed. Behind Enemy Lines follows The Stainless Steel Bloodhound; Mislaid
         /// Plans has none. The five instanced Trinity Bridge Logos follow Trinity Bridge Logos: Past; The Order Of
-        /// Velon follows Village Of The Damned.
+        /// Velon follows Village Of The Damned. Array Of Hope follows all six Trinity Bridge Logos; Future
+        /// Sacrifice follows Array Of Hope, The Final Assault Future Sacrifice.
         /// </summary>
         [TestMethod]
         public void EachMissionRequiresTheMissionOrDeliveryBeforeIt()
@@ -319,7 +332,7 @@ namespace Rasa.Test.Missions.Plateau
             using var harness = WildernessRuntimeTestHarness.Create();
             var prerequisites = harness.World.MissionPrerequisiteEntries.AsNoTracking()
                 .Where(entry => entry.ContentRevision == PlateauMissionDataV1.Revision).ToArray();
-            Assert.HasCount(27, prerequisites);
+            Assert.HasCount(35, prerequisites);
             var incommunicado = prerequisites.Single(entry => entry.MissionId == PlateauIncommunicadoV1.MissionId);
             Assert.AreEqual(MissionPrerequisiteKind.MissionCompleted, incommunicado.Kind);
             Assert.AreEqual<uint?>(PlateauGiantKillerV1.MissionId, incommunicado.RequiredMissionId);
@@ -356,12 +369,16 @@ namespace Rasa.Test.Missions.Plateau
                 (stalkMarket.Kind, stalkMarket.RequiredMissionId));
             foreach (var mission in new uint[] { 933, 1981, 930, 1034, 1825, 557, 2007, 887, 934, 1983, 931, 970, 2016, 1659, 965 })
                 Assert.IsFalse(prerequisites.Any(entry => entry.MissionId == mission), $"{mission}");
-            foreach (var (mission, required) in new (uint, uint)[] { (713, 887), (954, 887), (855, 713), (1027, 954), (1044, 934), (905, 1983), (929, 905), (936, 929), (719, 936), (867, 970), (1014, 887), (895, 1014), (928, 895), (2017, 2016), (555, 867), (1047, 1044), (1048, 1044), (1049, 1044), (1051, 1044), (1057, 1044), (1982, 1981) })
+            foreach (var (mission, required) in new (uint, uint)[] { (713, 887), (954, 887), (855, 713), (1027, 954), (1044, 934), (905, 1983), (929, 905), (936, 929), (719, 936), (867, 970), (1014, 887), (895, 1014), (928, 895), (2017, 2016), (555, 867), (1047, 1044), (1048, 1044), (1049, 1044), (1051, 1044), (1057, 1044), (1982, 1981), (1171, 935), (1167, 1171) })
             {
                 var prerequisite = prerequisites.Single(entry => entry.MissionId == mission);
                 Assert.AreEqual((MissionPrerequisiteKind.MissionCompleted, (uint?)required),
                     (prerequisite.Kind, prerequisite.RequiredMissionId), $"{mission}");
             }
+            var arrayOfHope = prerequisites.Where(entry => entry.MissionId == PlateauArrayOfHopeV1.MissionId).ToArray();
+            Assert.IsTrue(arrayOfHope.All(entry => entry.Kind == MissionPrerequisiteKind.MissionCompleted));
+            CollectionAssert.AreEquivalent(new uint?[] { 1044, 1047, 1048, 1049, 1051, 1057 },
+                arrayOfHope.Select(entry => entry.RequiredMissionId).ToArray(), "Array Of Hope: the six Trinity Bridge Logos");
         }
 
         /// <summary>
@@ -374,6 +391,7 @@ namespace Rasa.Test.Missions.Plateau
         /// Salvage, whose places, XP and credits no source gives. The Defiant Ones', The Beer Hunter's and
         /// Crystal Blue Persuasion's pages are stubs (0.4), as are A Voice From The Past's, Mind Bender's and
         /// Mind Slayer's. The Order Of Velon has no page: the client and the reconstruction only.
+        /// The Temporal Chamber's three are sourced as the Logos (0.5).
         /// </summary>
         [TestMethod]
         public void TheCommandersMissionsTrustWhatIsReconstructedLeast()
@@ -465,7 +483,13 @@ namespace Rasa.Test.Missions.Plateau
                     (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
                 (1057, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
                     (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
-                (1982, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Reconstruction, 0.3) })
+                (1982, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                (935, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                (1171, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                (1167, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) })
             })
                 CollectionAssert.AreEqual(confidences, evidence.Where(entry => entry.MissionId == mission)
                     .OrderBy(entry => entry.EvidenceId).Select(entry => (entry.SourceKind, entry.Confidence)).ToArray(),
@@ -1114,6 +1138,42 @@ namespace Rasa.Test.Missions.Plateau
             Assert.IsFalse(logos.Any(AnyRow), "no row of the Logos missions is left");
             Assert.IsTrue(Has(PlateauTrinityLogosPastV1.MissionId));
             Assert.IsTrue(Has(PlateauVillageOfTheDamnedV1.MissionId));
+        }
+
+        /// <summary>
+        /// The Temporal Chamber (Plateau_temporal_chamber) goes with its migration: its three missions, Veryin,
+        /// Hudson and the teleporter pair; The Order Of Velon and the Logos missions stay.
+        /// </summary>
+        [TestMethod]
+        public void TheTemporalChamberRollsBackWithItsMigration()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            var missions = new[] { PlateauArrayOfHopeV1.MissionId, PlateauFutureSacrificeV1.MissionId, PlateauFinalAssaultV1.MissionId };
+            bool Has(uint mission) => world.MissionContentDefinitionEntries.AsNoTracking()
+                .Any(entry => entry.MissionId == mission && entry.ContentRevision == PlateauMissionDataV1.Revision);
+            bool AnyRow(uint mission) => world.MissionObjectiveDefinitionEntries.AsNoTracking().Any(entry => entry.MissionId == mission) ||
+                world.MissionTriggerEntries.AsNoTracking().Any(entry => entry.MissionId == mission) ||
+                world.MissionActionEntries.AsNoTracking().Any(entry => entry.MissionId == mission) ||
+                world.MissionEvidenceEntries.AsNoTracking().Any(entry => entry.MissionId == mission) ||
+                world.MissionPrerequisiteEntries.AsNoTracking().Any(entry => entry.MissionId == mission);
+            var creatures = new[] { PlateauTemporalChamberNpcsV1.Veryin, PlateauTemporalChamberNpcsV1.Hudson };
+            var pools = new[] { PlateauTemporalChamberNpcsV1.VeryinPool, PlateauTemporalChamberNpcsV1.HudsonPool };
+            var pads = new[] { PlateauTemporalChamberNpcsV1.ChamberPad, PlateauTemporalChamberNpcsV1.AliaDasPad };
+
+            Assert.IsTrue(missions.All(Has));
+            Assert.HasCount(2, world.CreatureEntries.AsNoTracking().Where(row => creatures.Contains(row.Id)).ToArray());
+            Assert.HasCount(2, world.SpawnPoolEntries.AsNoTracking().Where(row => pools.Contains(row.Id)).ToArray());
+            Assert.HasCount(2, world.TeleporterEntries.AsNoTracking().Where(row => pads.Contains(row.Id)).ToArray());
+
+            world.GetService<IMigrator>().Migrate(OrderOfVelon);
+            Assert.IsFalse(missions.Any(Has));
+            Assert.IsFalse(missions.Any(AnyRow), "no row of the chamber's missions is left");
+            Assert.IsFalse(world.CreatureEntries.AsNoTracking().Any(row => creatures.Contains(row.Id)));
+            Assert.IsFalse(world.SpawnPoolEntries.AsNoTracking().Any(row => pools.Contains(row.Id)));
+            Assert.IsFalse(world.TeleporterEntries.AsNoTracking().Any(row => pads.Contains(row.Id)));
+            Assert.IsTrue(Has(PlateauOrderOfVelonV1.MissionId));
+            Assert.IsTrue(Has(PlateauTrinityLogosPastV1.MissionId));
         }
 
         /// <summary>
