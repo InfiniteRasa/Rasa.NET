@@ -1006,7 +1006,8 @@ namespace Rasa.Test.Missions.Plateau
         /// <summary>
         /// Goliath's pool walks a beat there and back (PlateauGiantKillerPatrolV1): the 31 points out,
         /// then the 29 between the ends back, 10 s at each end, no facing; its evidence is the least
-        /// trusted. Both roll back with their migration; Giant Killer and its guards stay.
+        /// trusted. Its group walks it at 2 m/s (PlateauGiantKillerPaceV1). All roll back with their
+        /// migrations; Giant Killer and its guards stay.
         /// </summary>
         [TestMethod]
         public void GoliathsBeatGoesToTheRuinsAndBackAndRollsBack()
@@ -1027,7 +1028,9 @@ namespace Rasa.Test.Missions.Plateau
             CollectionAssert.AreEqual(new uint[] { 0, 30 }, steps.Where(row => row.PauseMs > 0).Select(row => row.Step).ToArray());
             Assert.IsTrue(steps.Where(row => row.PauseMs > 0).All(row => row.PauseMs == 10000));
             Assert.IsTrue(steps.All(row => row.Facing == null));
-            Assert.IsFalse(world.SpawnPoolPatrolGroupEntries.AsNoTracking().Any(row => row.Id == pool), "default group: Goliath leads, top-up");
+            var group = world.SpawnPoolPatrolGroupEntries.AsNoTracking().Single(row => row.Id == pool);
+            Assert.AreEqual((false, true, (double?)2.0), (group.ActingLeader, group.LeaderTopUp, group.Pace),
+                "Goliath leads, comes back with the top-up, and the group walks at 2 m/s (PlateauGiantKillerPaceV1)");
 
             MissionEvidenceEntry Evidence() => world.MissionEvidenceEntries.AsNoTracking().SingleOrDefault(entry =>
                 entry.MissionId == PlateauGiantKillerV1.MissionId && entry.ContentRevision == PlateauMissionDataV1.Revision && entry.EvidenceId == 4);
@@ -1035,6 +1038,7 @@ namespace Rasa.Test.Missions.Plateau
 
             world.GetService<IMigrator>().Migrate(MislaidPlans);
             Assert.IsFalse(world.SpawnPoolPatrolEntries.AsNoTracking().Any(row => row.PoolId == pool));
+            Assert.IsFalse(world.SpawnPoolPatrolGroupEntries.AsNoTracking().Any(row => row.Id == pool), "its pace too");
             Assert.IsNull(Evidence());
             Assert.IsTrue(world.MissionContentDefinitionEntries.AsNoTracking().Any(entry => entry.MissionId == PlateauGiantKillerV1.MissionId));
             Assert.AreEqual(PlateauGiantKillerV1.KaelGuard,

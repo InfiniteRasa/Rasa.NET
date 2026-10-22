@@ -84,7 +84,8 @@ namespace Rasa.Test.Missions.Plateau
 
         /// <summary>
         /// Goliath leads his Kael along his beat (PlateauGiantKillerPatrolV1) on the Plateau's own
-        /// navmesh: he walks it, they follow him (PatrolGroups) and keep up with him the whole way.
+        /// navmesh: he walks it at his group's 2 m/s (PlateauGiantKillerPaceV1), not the jog of his
+        /// walk_speed; they follow him (PatrolGroups), walking, and keep up with him the whole way.
         /// </summary>
         [TestMethod]
         public void GoliathLeadsHisKaelAlongHisBeat()
@@ -106,12 +107,15 @@ namespace Rasa.Test.Missions.Plateau
                 Assert.IsNull(guard.Patrol, "a guard has no beat of its own");
             }
 
-            // 100 s: his 10 s at the west end, then most of the way east. The guards keep up.
+            // 120 s: his 10 s at the west end, then most of the way east at 2 m/s. The guards keep up.
             var farthest = 0f;
-            for (var tick = 0; tick < 400; tick++)
+            var fastest = 0f;
+            for (var tick = 0; tick < 480; tick++)
             {
+                var before = goliath.Position;
                 BehaviorManager.Instance.MapChannelThink(plateau, 250);
                 farthest = Math.Max(farthest, Vector3.Distance(start, goliath.Position));
+                fastest = Math.Max(fastest, Spacing.AcrossGround(before, goliath.Position) * 4);
 
                 if (tick < 8)
                     continue;
@@ -126,6 +130,8 @@ namespace Rasa.Test.Missions.Plateau
 
             Assert.AreEqual(BehaviorManager.BehaviorActionPatrol, goliath.Controller.CurrentAction);
             Assert.IsGreaterThan(150f, farthest, $"Goliath walked {farthest:0} m");
+            Assert.AreEqual(2f, fastest, 0.05f, "his pace, m/s");
+            Assert.IsFalse(guards.Any(guard => guard.IsRunning), "the guards walk at the end, in their places");
         }
 
         [TestMethod]
