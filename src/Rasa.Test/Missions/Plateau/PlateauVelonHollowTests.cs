@@ -70,8 +70,74 @@ namespace Rasa.Test.Missions.Plateau
             Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, PlateauOrderOfVelonV1.MedPack));
         }
 
-        private static bool Offers(WildernessRuntimeTestHarness harness, Creature npc) =>
+        /// <summary>
+        /// Deadly Silence (1974): Hathen is found by a talk, the three corrupted leaders by killing them at
+        /// their sites in the squad's copy; the mission waits for all four and goes back to Sampei.
+        /// </summary>
+        [TestMethod]
+        public void DeadlySilenceFindsHathenAndKillsTheThreeCorruptedLeaders()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var plateau = EnterPlateau(harness);
+            Spawn(plateau, PlateauVillageOfTheDamnedV1.Sampei);
+            var sampei = RequireNpc(plateau, PlateauVillageOfTheDamnedV1.Sampei);
+            Assert.IsFalse(Offers(harness, sampei, DeadlySilence), "it waits for Village Of The Damned");
+            SeedCompleted(harness, PlateauVillageOfTheDamnedV1.MissionId);
+
+            var offer = WildernessRanjaGorgeTests.Offer(harness, sampei, DeadlySilence);
+            CollectionAssert.AreEqual(new[]
+                {
+                    PlateauDeadlySilenceV1.BioBoots, PlateauDeadlySilenceV1.GravitonBoots,
+                    PlateauDeadlySilenceV1.MechBoots, PlateauDeadlySilenceV1.StealthBoots
+                },
+                offer.SelectableReward.Select(item => item.ItemTemplateId).ToArray());
+            harness.MoveTo(sampei.Position);
+            Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, sampei.EntityId, DeadlySilence));
+            harness.Drain();
+
+            LoadMap(harness, PlateauOrderOfVelonV1.VelonHollow);
+            var copy = ThroughTheDoor(harness, PlateauOrderOfVelonV1.VelonHollow);
+            Spawn(copy, PlateauOrderOfVelonV1.Hathen);
+            Spawn(copy, PlateauVelonElderBossesV1.All.Select(boss => boss.Pool).ToArray());
+            var hathen = RequireNpc(copy, PlateauOrderOfVelonV1.Hathen);
+
+            AssertHandInTopic(Conversation(harness, hathen), DeadlySilence, 1);
+            harness.MoveTo(hathen.Position);
+            harness.Drain();
+            Assert.IsTrue(harness.Manager.CompleteOfferedObjective(harness.Client, hathen.EntityId, DeadlySilence, 1, 1));
+            harness.Drain();
+            Assert.IsFalse(harness.Client.Player.Missions[DeadlySilence].Completeable, "three are still to be found");
+
+            foreach (var (objective, boss, _, _) in PlateauDeadlySilenceV1.Leaders)
+            {
+                var creature = Living(copy).Single(candidate => candidate.DbId == boss.Id);
+                Assert.IsNull(creature.Npc, $"{boss.Name} is no NPC");
+                Assert.AreEqual(PlateauVelonElderBossesV1.Level, creature.Level);
+                Assert.AreEqual(boss.NameId, creature.NameId);
+                Assert.AreEqual((int)PlateauVelonElderBossesV1.HitPoints, (int)creature.Attributes[Attributes.Health].Current, $"{boss.Name} hit points");
+                var ground = copy.NavMesh.GroundHeight(creature.Position);
+                Assert.IsNotNull(ground, $"{boss.Name} has no navmesh under it");
+                Assert.AreEqual(ground.Value, creature.Position.Y, 1f, $"{boss.Name} on the ground");
+
+                Assert.AreNotEqual(MissionObjectiveState.Completed, harness.Client.Player.Missions[DeadlySilence].Objectives[objective].State);
+                harness.MoveTo(creature.Position);
+                creature.Attributes[Attributes.Health].Current = 0;
+                harness.Creatures.HandleCreatureKill(copy, creature, harness.Client.Player);
+                harness.Drain();
+                Assert.AreEqual(MissionObjectiveState.Completed, harness.Client.Player.Missions[DeadlySilence].Objectives[objective].State, boss.Name);
+            }
+            Assert.IsTrue(harness.Client.Player.Missions[DeadlySilence].Completeable);
+
+            Return(harness, plateau);
+            WildernessRanjaGorgeTests.CompleteAndCheckReward(harness, sampei, DeadlySilence, 3,
+                PlateauDeadlySilenceV1.Experience, PlateauDeadlySilenceV1.Credits);
+            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, PlateauDeadlySilenceV1.StealthBoots), "the fourth choice");
+        }
+
+        private const uint DeadlySilence = PlateauDeadlySilenceV1.MissionId;
+
+        private static bool Offers(WildernessRuntimeTestHarness harness, Creature npc, uint mission = OrderOfVelon) =>
             Conversation(harness, npc).TryGetValue(ConversationType.MissionDispense, out var offered) &&
-            ((System.Collections.Generic.Dictionary<uint, MissionInfo>)offered).ContainsKey(OrderOfVelon);
+            ((System.Collections.Generic.Dictionary<uint, MissionInfo>)offered).ContainsKey(mission);
     }
 }
