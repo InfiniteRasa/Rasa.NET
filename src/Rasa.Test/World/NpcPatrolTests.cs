@@ -883,10 +883,13 @@ namespace Rasa.Test.World
             {
                 Assert.AreEqual(BehaviorManager.BehaviorActionFollow, guard.Controller.CurrentAction);
                 Assert.AreEqual(0f, guard.Controller.LastMovement.Velocity, "It stands when its leader does.");
+                Assert.AreEqual(West, (float)guard.Rotation, 0.0001f, "facing the way it faces");
             }
 
-            AtPlace(leader, guards[0], new Vector3(-1.5f, 0, -3));
-            AtPlace(leader, guards[1], new Vector3(-1.5f, 0, 3));
+            // The far end of a beat walked there and back: it turned about there, and its guards
+            // walked round it to their places behind it for the way back, each on its side (PatrolGroups.Reform).
+            AtPlace(leader, guards[0], new Vector3(1.5f, 0, -3));
+            AtPlace(leader, guards[1], new Vector3(1.5f, 0, 3));
         }
 
         /// <summary>
@@ -917,7 +920,7 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
-        public void ItsGuardsHoldTheirPlacesWhileTheLeaderTurnsAboutAndFallInBehindItWhenItWalksBack()
+        public void ItsGuardsWalkRoundTheLeaderAsItTurnsAboutAndFallInBehindItWhenItWalksBack()
         {
             using var world = new WorldTestContext();
             var watcher = Watch(world, x: 40);
@@ -932,14 +935,17 @@ namespace Rasa.Test.World
 
             Record(world, watcher, leader, 30);
 
-            // On the far step, sitting out its pause: its guards where they were, behind it to the west.
+            // On the far step, sitting out its pause, turned about as it came onto it: its guards
+            // have walked round it to their places behind it the new way, east of it, each on the
+            // side of the beat it was on (PatrolGroups.Reform).
             Assert.AreEqual(new Vector3(20, 0, 0), leader.Position);
-            AtPlace(leader, guards[0], new Vector3(-1.5f, 0, -3));
-            AtPlace(leader, guards[1], new Vector3(-1.5f, 0, 3));
+            Assert.AreEqual(West, leader.LastYaw, 0.0001f);
+            AtPlace(leader, guards[0], new Vector3(1.5f, 0, -3));
+            AtPlace(leader, guards[1], new Vector3(1.5f, 0, 3));
 
             // Standing at their places, they face the way it does.
             foreach (var guard in guards)
-                Assert.AreEqual(East, (float)guard.Rotation, 0.0001f);
+                Assert.AreEqual(West, (float)guard.Rotation, 0.0001f);
 
             Record(world, watcher, leader, 25);
 
@@ -955,6 +961,102 @@ namespace Rasa.Test.World
 
             AtPlace(leader, guards[0], new Vector3(1.5f, 0, -3));
             AtPlace(leader, guards[1], new Vector3(1.5f, 0, 3));
+        }
+
+        /// <summary>
+        /// At an about-turn the group countermarches (PatrolGroups.Reform): the leader turns about as
+        /// it comes onto the step; its guards walk on past it the way they faced - walking, never
+        /// running, never moving one way while facing the other - to their places behind it the
+        /// new way, the ranks reversed so none walks through another; there each turns about once;
+        /// and the leader sets off only when the last has made its turn. Before, they turned with
+        /// it and ran back round it facing the wrong way (user playtest 2026-10-22: "slide").
+        /// </summary>
+        [TestMethod]
+        public void AtAnAboutTurnTheGuardsWalkRoundTheLeaderToTheirPlacesAndTurnOnceBeforeItWalksOn()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var beat = new[] { new PatrolStep(new Vector3(10, 0, 0), pauseMs: 60000), new PatrolStep(new Vector3(30, 0, 0), pauseMs: 3000) };
+            var pool = new SpawnPool
+            {
+                DbId = 77, MapContextId = world.Map.MapInfo.MapContextId, Patrol = beat, PatrolPace = 2, FormationSpacing = 5,
+                SpawnSlot = new List<SpawnPoolSlot> { new SpawnPoolSlot(1, 1, 1), new SpawnPoolSlot(2, 4, 4) }
+            };
+            var leader = Spawn(world, x: 10, walkSpeed: 5, facing: East);
+            leader.DbId = 1;
+            leader.SpawnPool = pool;
+            leader.Patrol = beat;
+            pool.Leader = leader;
+
+            var guards = Enumerable.Range(0, 4).Select(i => Spawn(world, x: 8 - 2 * i, walkSpeed: 5, facing: East)).ToArray();
+            foreach (var guard in guards)
+            {
+                guard.RunSpeed = 9;
+                guard.DbId = 2;
+                guard.SpawnPool = pool;
+                PatrolGroups.Attach(world.Map, guard, leader);
+            }
+
+            leader.Controller.ActionPatrol.Step = 1;
+
+            int? arrived = null, turned = null, setOff = null;
+            var front = guards.Where(guard => guard.Controller.ActionFollow.FormationSlot < 2).ToArray();
+            var yaws = guards.ToDictionary(guard => guard, _ => new List<float>());
+            var standingTurned = new Dictionary<Creature, int>();
+
+            for (var tick = 0; tick < 120 && setOff == null; tick++)
+            {
+                var before = guards.ToDictionary(guard => guard, guard => guard.Position);
+                BehaviorManager.Instance.MapChannelThink(world.Map, Tick);
+                var moves = WorldTestContext.Drain(watcher).Select(packet => packet.Message).OfType<MoveObjectMessage>().ToList();
+
+                if (arrived == null && leader.Position == new Vector3(30, 0, 0))
+                    arrived = tick;
+                if (arrived != null && turned == null && MathF.Abs(leader.LastYaw - West) < 0.0001f)
+                    turned = tick;
+                if (turned != null && leader.Position.X < 30f)
+                    setOff = tick;
+
+                if (arrived == null)
+                    continue;
+
+                foreach (var guard in guards)
+                {
+                    foreach (var move in moves.Where(move => move.EntityId == guard.EntityId))
+                    {
+                        yaws[guard].Add(move.Movement.ViewDirection.X);
+
+                        if (move.Movement.Velocity > 0 && setOff == null)
+                        {
+                            Assert.IsLessThanOrEqualTo(2f + 0.001f, move.Movement.Velocity, $"tick {tick}: a guard walks round, at the group's pace");
+                            var travel = AbilityManager.YawTowards(before[guard], move.Movement.Position);
+                            Assert.IsLessThan(0.01f, MathF.Abs(Patrols.Turn(travel, move.Movement.ViewDirection.X)),
+                                $"tick {tick}: a guard faces the way it walks");
+                        }
+                    }
+
+                    Assert.IsFalse(guard.IsRunning, $"tick {tick}: no guard runs");
+                }
+            }
+
+            Assert.IsNotNull(turned);
+            Assert.IsLessThanOrEqualTo(arrived.Value + 1, turned.Value, "The leader turns about as it comes onto the step, at its next think.");
+            Assert.IsNotNull(setOff, "and sets off again");
+
+            // Behind it the new way, east of it, each on the side of the beat it was on; the front rank now the back one.
+            foreach (var guard in guards)
+                Assert.IsGreaterThan(30f, guard.Position.X);
+            foreach (var guard in front)
+                Assert.AreEqual(37.5f, guard.Position.X, 0.6f, "the first rank countermarched to the back");
+
+            // Each turned once: from facing east, the way it came, to west, the leader's way - and before the leader set off.
+            foreach (var guard in guards)
+            {
+                var turns = yaws[guard].Zip(yaws[guard].Skip(1), (a, b) => MathF.Abs(Patrols.Turn(a, b)) > 0.01f).Count(changed => changed);
+
+                Assert.AreEqual(1, turns, $"guard turns: {string.Join(", ", yaws[guard].Select(yaw => yaw.ToString("0.00")))}");
+                Assert.AreEqual(West, (float)guard.Rotation, 0.0001f);
+            }
         }
 
         [TestMethod]
@@ -1051,13 +1153,16 @@ namespace Rasa.Test.World
             foreach (var guard in guards)
                 Assert.AreEqual(BehaviorManager.BehaviorActionFollow, guard.Controller.CurrentAction);
 
-            // It came back onto the step from off the line, and stands facing the way it came:
-            // its guards form up behind it as it faces.
+            // It came back onto the far step from off the line and turned about there, for the
+            // way back (PatrolGroups.Reform): its guards form up behind it as it faces, each on
+            // the side of the beat it walked on before the fight.
             var facing = (float)leader.Rotation;
+            var mirrored = leader.SpawnPool.FormationMirrored;
 
-            Assert.AreNotEqual(East, facing, 0.1f);
-            AtPlace(leader, guards[0], PatrolGroups.Offset(0, facing));
-            AtPlace(leader, guards[1], PatrolGroups.Offset(1, facing));
+            Assert.AreEqual(West, facing, 0.0001f);
+            AtPlace(leader, guards[0], PatrolGroups.Offset(0, facing, mirrored));
+            AtPlace(leader, guards[1], PatrolGroups.Offset(1, facing, mirrored));
+            Assert.IsLessThan(-2f, guards[0].Position.Z - leader.Position.Z, "guard 0 still on its side, south of the leader");
         }
 
         [TestMethod]
@@ -1667,6 +1772,9 @@ namespace Rasa.Test.World
 
             Record(world, watcher, leader, 60);
             Assert.AreEqual(new Vector3(40, 0, 0), leader.Position);
+
+            // Turned about on the far step, it waits while they walk round it to their new places.
+            Record(world, watcher, leader, 30);
 
             foreach (var guard in guards)
                 Assert.IsEmpty(Record(world, watcher, guard, 10), "Standing at its place, nothing is sent of it.");

@@ -21,7 +21,14 @@ namespace Rasa.Managers
     ///    the leader, <see cref="Abreast"/> to each side and a rank every <see cref="RankSpacing"/>
     ///    back. Its place is turned with the leader while the leader walks, and held where it is
     ///    while the leader stands - on a step, turning, sitting out a pause - so the pack does
-    ///    not swing round at each about-turn of a beat walked there and back.
+    ///    not swing round at a corner.
+    ///  - At an about-turn - the end of a beat walked there and back - the group countermarches
+    ///    (<see cref="Reform"/>): the leader turns about as it comes onto the step, its
+    ///    followers walk past it, facing the way they came, to their places behind it the new
+    ///    way, and turn about there; and it walks on once they are in place
+    ///    (<see cref="Formed"/>, at most <see cref="ReformHoldMs"/> after its pause). Turning
+    ///    with it and then running back to the far side of it, as they did, they slid there
+    ///    facing the wrong way (user playtest 2026-10-22).
     ///  - The place is put on the navmesh and walked to across it (BehaviorManager.FollowGrounded):
     ///    the leader's steps are floor heights it walks between in straight lines, the
     ///    followers walk the ground beside it. A place off the mesh is given up for a point
@@ -92,6 +99,17 @@ namespace Rasa.Managers
         public const float PlaceReached = 0.5f;
 
         /// <summary>
+        /// The longest a leader that turned about waits on its step, past its pause, for its
+        /// followers to reach their new places (<see cref="Reform"/>): one that cannot does not
+        /// hold the beat up. A guess (ESTIMATE): the countermarch of two ranks 5 m apart is 10 m,
+        /// 5 s at 2 m/s.
+        /// </summary>
+        public const long ReformHoldMs = 10000;
+
+        /// <summary>A turn of the leader's further than this, where it stands, is an about-turn: its group countermarches (<see cref="Reform"/>). A quarter turn.</summary>
+        public const float AboutTurn = MathF.PI / 2f;
+
+        /// <summary>
         /// How far from its leader a follower goes in a fight. A guess, to be tuned in play:
         /// enough to reach whoever stands by the boss, short of leaving it - half the 60 m a
         /// lone creature chases (BehaviorManager.MaxChaseDistance).
@@ -116,6 +134,61 @@ namespace Rasa.Managers
 
         /// <summary><see cref="DirectDistance"/> for the pool's own spacing: the width of its formation.</summary>
         public static float DirectDistanceOf(SpawnPool pool) => 2 * AbreastOf(pool);
+
+        /// <summary>
+        /// Within this of its place while its leader stands, a follower walks there rather than
+        /// running: the leader waits for it. Four of the pool's spacing: a countermarch of up to
+        /// four ranks.
+        /// </summary>
+        public static float ReformWalkDistanceOf(SpawnPool pool) => 4 * AbreastOf(pool);
+
+        /// <summary>Whether the creature leads a group on its beat with someone following it.</summary>
+        public static bool LeadsFollowers(MapChannel map, Creature leader) =>
+            IsGroup(leader.SpawnPool) && FollowersOf(map, leader).Any();
+
+        /// <summary>
+        /// The leader has turned about where it stands, to <paramref name="yaw"/>: the formation is
+        /// set for the new way at once, as it would be once the leader walks it - mirrored, each
+        /// follower on the side of the beat it was on, when the new way is more than a quarter turn
+        /// from the leg it last walked, as <see cref="SideOf"/> has it - and the ranks are reversed - the
+        /// first rank goes to the back and the last comes to the front - so the followers walking
+        /// round, each the same way, do not walk through one another. Their places are put anew.
+        /// </summary>
+        public static void Reform(MapChannel map, Creature leader, float yaw)
+        {
+            var pool = leader.SpawnPool;
+            var followers = FollowersOf(map, leader).ToList();
+
+            if (pool.FormationYaw is float last && MathF.Abs(Patrols.Turn(last, yaw)) > MathF.PI / 2f)
+                pool.FormationMirrored = !pool.FormationMirrored;
+
+            pool.FormationYaw = yaw;
+
+            if (followers.Count == 0)
+                return;
+
+            var ranks = followers.Max(follower => Math.Max(0, follower.Controller.ActionFollow.FormationSlot)) / 2 + 1;
+
+            foreach (var follower in followers)
+            {
+                var follow = follower.Controller.ActionFollow;
+                var slot = Math.Max(0, follow.FormationSlot);
+
+                follow.FormationSlot = 2 * (ranks - 1 - slot / 2) + slot % 2;
+                follow.PlaceOffset = null;
+            }
+        }
+
+        /// <summary>
+        /// Whether each follower keeping a place round the leader stands at it, turned the way the
+        /// leader faces: the leader that turned about walks on once the last of them has made its
+        /// turn (<see cref="Reform"/>). One in a fight, or not following, is not waited for.
+        /// </summary>
+        public static bool Formed(MapChannel map, Creature leader) =>
+            FollowersOf(map, leader).All(follower =>
+                follower.Controller.CurrentAction != BehaviorManager.BehaviorActionFollow
+                || (Spacing.AcrossGround(follower.Position, PlaceOf(map, follower, leader)) <= PlaceReached + 0.05f
+                    && MathF.Abs(Patrols.Turn((float)follower.Rotation, (float)leader.Rotation)) < Patrols.FacingTolerance));
 
         /// <summary>A leader this far from where the follower's place was last put on the navmesh has the place put on it again; nearer, the place is moved with it.</summary>
         public const float ReplaceDistance = 1f;
