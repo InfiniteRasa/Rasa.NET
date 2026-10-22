@@ -883,13 +883,10 @@ namespace Rasa.Test.World
             {
                 Assert.AreEqual(BehaviorManager.BehaviorActionFollow, guard.Controller.CurrentAction);
                 Assert.AreEqual(0f, guard.Controller.LastMovement.Velocity, "It stands when its leader does.");
-                Assert.AreEqual(West, (float)guard.Rotation, 0.0001f, "facing the way it faces");
             }
 
-            // The far end of a beat walked there and back: it turned about there, and its guards
-            // walked round it to their places behind it for the way back, each on its side (PatrolGroups.Reform).
-            AtPlace(leader, guards[0], new Vector3(1.5f, 0, -3));
-            AtPlace(leader, guards[1], new Vector3(1.5f, 0, 3));
+            AtPlace(leader, guards[0], new Vector3(-1.5f, 0, -3));
+            AtPlace(leader, guards[1], new Vector3(-1.5f, 0, 3));
         }
 
         /// <summary>
@@ -920,7 +917,7 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
-        public void ItsGuardsWalkRoundTheLeaderAsItTurnsAboutAndFallInBehindItWhenItWalksBack()
+        public void ItsGuardsHoldTheirPlacesWhileTheLeaderTurnsAboutAndFallInBehindItWhenItWalksBack()
         {
             using var world = new WorldTestContext();
             var watcher = Watch(world, x: 40);
@@ -935,17 +932,14 @@ namespace Rasa.Test.World
 
             Record(world, watcher, leader, 30);
 
-            // On the far step, sitting out its pause, turned about as it came onto it: its guards
-            // have walked round it to their places behind it the new way, east of it, each on the
-            // side of the beat it was on (PatrolGroups.Reform).
+            // On the far step, sitting out its pause: its guards where they were, behind it to the west.
             Assert.AreEqual(new Vector3(20, 0, 0), leader.Position);
-            Assert.AreEqual(West, leader.LastYaw, 0.0001f);
-            AtPlace(leader, guards[0], new Vector3(1.5f, 0, -3));
-            AtPlace(leader, guards[1], new Vector3(1.5f, 0, 3));
+            AtPlace(leader, guards[0], new Vector3(-1.5f, 0, -3));
+            AtPlace(leader, guards[1], new Vector3(-1.5f, 0, 3));
 
             // Standing at their places, they face the way it does.
             foreach (var guard in guards)
-                Assert.AreEqual(West, (float)guard.Rotation, 0.0001f);
+                Assert.AreEqual(East, (float)guard.Rotation, 0.0001f);
 
             Record(world, watcher, leader, 25);
 
@@ -964,8 +958,9 @@ namespace Rasa.Test.World
         }
 
         /// <summary>
-        /// At an about-turn the group countermarches (PatrolGroups.Reform): the leader turns about as
-        /// it comes onto the step; its guards walk on past it the way they faced - walking, never
+        /// At an about-turn the group countermarches (PatrolGroups.Reform): the leader stands out its
+        /// pause facing the way it came, its guards standing at their places, then turns about; its
+        /// guards walk on past it the way they faced - walking, never
         /// running, never moving one way while facing the other - to their places behind it the
         /// new way, the ranks reversed so none walks through another; there each turns about once;
         /// and the leader sets off only when the last has made its turn. Before, they turned with
@@ -1020,6 +1015,12 @@ namespace Rasa.Test.World
                 if (arrived == null)
                     continue;
 
+                // Through the pause the guards stand at their places (the first thinks: their last step in).
+                if (turned == null && tick > arrived + 2)
+                    foreach (var guard in guards)
+                        Assert.IsFalse(moves.Any(move => move.EntityId == guard.EntityId && move.Movement.Velocity > 0),
+                            $"tick {tick}: a guard stands through the pause");
+
                 foreach (var guard in guards)
                 {
                     foreach (var move in moves.Where(move => move.EntityId == guard.EntityId))
@@ -1040,7 +1041,8 @@ namespace Rasa.Test.World
             }
 
             Assert.IsNotNull(turned);
-            Assert.IsLessThanOrEqualTo(arrived.Value + 1, turned.Value, "The leader turns about as it comes onto the step, at its next think.");
+            Assert.IsGreaterThanOrEqualTo(arrived.Value + 12, turned.Value, "The leader stands out its 3 s pause before it turns about.");
+            Assert.IsLessThanOrEqualTo(arrived.Value + 13, turned.Value, "and turns about as the pause ends.");
             Assert.IsNotNull(setOff, "and sets off again");
 
             // Behind it the new way, east of it, each on the side of the beat it was on; the front rank now the back one.
@@ -1153,16 +1155,13 @@ namespace Rasa.Test.World
             foreach (var guard in guards)
                 Assert.AreEqual(BehaviorManager.BehaviorActionFollow, guard.Controller.CurrentAction);
 
-            // It came back onto the far step from off the line and turned about there, for the
-            // way back (PatrolGroups.Reform): its guards form up behind it as it faces, each on
-            // the side of the beat it walked on before the fight.
+            // It came back onto the step from off the line, and stands facing the way it came:
+            // its guards form up behind it as it faces.
             var facing = (float)leader.Rotation;
-            var mirrored = leader.SpawnPool.FormationMirrored;
 
-            Assert.AreEqual(West, facing, 0.0001f);
-            AtPlace(leader, guards[0], PatrolGroups.Offset(0, facing, mirrored));
-            AtPlace(leader, guards[1], PatrolGroups.Offset(1, facing, mirrored));
-            Assert.IsLessThan(-2f, guards[0].Position.Z - leader.Position.Z, "guard 0 still on its side, south of the leader");
+            Assert.AreNotEqual(East, facing, 0.1f);
+            AtPlace(leader, guards[0], PatrolGroups.Offset(0, facing));
+            AtPlace(leader, guards[1], PatrolGroups.Offset(1, facing));
         }
 
         [TestMethod]
@@ -1772,9 +1771,6 @@ namespace Rasa.Test.World
 
             Record(world, watcher, leader, 60);
             Assert.AreEqual(new Vector3(40, 0, 0), leader.Position);
-
-            // Turned about on the far step, it waits while they walk round it to their new places.
-            Record(world, watcher, leader, 30);
 
             foreach (var guard in guards)
                 Assert.IsEmpty(Record(world, watcher, guard, 10), "Standing at its place, nothing is sent of it.");
