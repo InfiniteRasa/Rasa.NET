@@ -1,4 +1,5 @@
 using System.Linq;
+using System.Numerics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -8,6 +9,7 @@ namespace Rasa.Test.World
 {
     using Rasa.Data;
     using Rasa.Managers;
+    using Rasa.Navigation;
     using Rasa.Packets.Game.Server;
     using Rasa.Packets.MapChannel.Server;
     using Rasa.Packets.Protocol;
@@ -67,6 +69,58 @@ namespace Rasa.Test.World
 
             Assert.AreEqual(1.5, created.EntityData.OfType<BodyAttributesPacket>().Single().Scale);
         }
+
+        /// <summary>
+        /// Cover (Managers.Cover) lays its sample points on a creature's height and sees from its
+        /// eyes at it, its size times Cover.CreatureHeight. A wall 1.75 m high, halfway between
+        /// two actors 20 m apart: a creature of its model's size is wholly behind it; one half
+        /// again as big shows its top two sample points of six over it (2.57 m and 2.03 m: the
+        /// rays from a player's eyes at 1.62 m clear the wall at 2.09 m and 1.82 m), so a hit on
+        /// it does a third of its damage, not the tenth that gets through full cover.
+        /// </summary>
+        [TestMethod]
+        public void ABiggerCreatureShowsMoreOfItselfOverCover()
+        {
+            using var world = new WorldTestContext();
+            world.Map.Cover = Wall(1.75f);
+            var player = world.CreateClient().Player;
+            player.Position = Vector3.Zero;
+
+            var plain = new Creature { Position = new Vector3(0, 0, -20) };
+            var big = new Creature { Position = new Vector3(0, 0, -20), Scale = 1.5 };
+
+            Assert.AreEqual(0.0, Cover.Visible(world.Map.Cover, Cover.EyeOf(player), Cover.SamplePoints(plain, player.Position)));
+            Assert.AreEqual(Cover.MinModifier, Cover.Modifier(world.Map, player, plain), 1e-9, "full cover");
+
+            Assert.AreEqual(2.0 / 6.0, Cover.Visible(world.Map.Cover, Cover.EyeOf(player), Cover.SamplePoints(big, player.Position)), 1e-9);
+            Assert.AreEqual(1.0 / 3.0, Cover.Modifier(world.Map, player, big), 1e-9, "two of six points in the clear");
+            Assert.AreEqual(2.7f, Cover.HeightOf(big), 1e-5f);
+        }
+
+        /// <summary>
+        /// A creature sees from its eyes (Cover.EyeOf, 0.9 of its height): of its model's size, at
+        /// 1.62 m, it cannot see a player behind that wall (the top of the player, 1.71 m, is
+        /// behind it at 1.67 m); half again as big, at 2.43 m, it sees the player's head over it.
+        /// </summary>
+        [TestMethod]
+        public void ABiggerCreatureSeesOverCover()
+        {
+            using var world = new WorldTestContext();
+            var wall = Wall(1.75f);
+            var player = world.CreateClient().Player;
+            player.Position = new Vector3(0, 0, -20);
+
+            var plain = new Creature { Position = Vector3.Zero };
+            var big = new Creature { Position = Vector3.Zero, Scale = 1.5 };
+
+            Assert.IsFalse(BehaviorManager.Sees(wall, plain, player));
+            Assert.IsTrue(BehaviorManager.Sees(wall, big, player));
+            Assert.AreEqual(2.43f, Cover.EyeOf(big).Y, 1e-5f);
+        }
+
+        /// <summary>A wall across z = -10, 20 m wide, <paramref name="height"/> high.</summary>
+        private static CoverMesh Wall(float height) =>
+            CoverMesh.Build(new float[] { -10, 0, -10, -10, height, -10, 10, height, -10, 10, 0, -10 }, new[] { 0, 1, 2, 0, 2, 3 });
 
         [TestMethod]
         public void TheTableComesWithItsMigrationAndGoesWithIt()
