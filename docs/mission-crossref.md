@@ -5,7 +5,7 @@ Generated 2026-10-18, extended 2026-10-20 (Wayback round 2: official site + patc
 | Source | Label in entries | Missions |
 | --- | --- | ---: |
 | Client tables (title, log summary, objectives) | **Client** | 1168 |
-| This server, `data/rasaworld.db` enabled `mission_content_definition` rows | **Local server** | 119 |
+| This server, `data/rasaworld.db` enabled `mission_content_definition` rows | **Local server** | 121 |
 | [TaRapedia (Fandom)](https://tabularasa.fandom.com/wiki/Category:Missions) | **TaRapedia** | 941 |
 | [Ellatha / DaOpa mission DB](https://www.ellatha.com/tr/missionslist.asp) | **Ellatha** | 93 |
 | [tabularasawiki.org (Wayback 2007-08)](https://web.archive.org/web/20080511080212/http://www.tabularasawiki.org/action/view/Main_Page) | **TRWiki archive** | 7 |
@@ -37,13 +37,13 @@ Generated 2026-10-18, extended 2026-10-20 (Wayback round 2: official site + patc
 | [TR MMO DB (tr.mmodb.com, Wayback)](https://web.archive.org/web/2008/http://tr.mmodb.com/quests/) quest pages (level / start NPC / zone / mobs / objectives) + bestiary | **TR MMO DB** | 317 |
 | Web search by research agents (mostly TaRapedia patch notes, NPC lists, alternate titles) | **Web** | 88 |
 
-**Implemented** (enabled on the local server, `data/rasaworld.db`; marked `[implemented]` in the entry heading): 119 missions. Per zone: Wilderness 64, Plateau 37, Bootcamp 5, Abyss 1, Ashen Desert 1, Crucible 1, Descent 1, Divide 1, Howling Maw 1, Incline 1, Marshes 1, Mires 1, Palisades 1, Plains 1, Pools 1, Thunderhead 1. Search for `[implemented]` to find them; entries without the mark are not implemented yet.
+**Implemented** (enabled on the local server, `data/rasaworld.db`; marked `[implemented]` in the entry heading): 121 missions. Per zone: Wilderness 64, Plateau 39, Bootcamp 5, Abyss 1, Ashen Desert 1, Crucible 1, Descent 1, Divide 1, Howling Maw 1, Incline 1, Marshes 1, Mires 1, Palisades 1, Plains 1, Pools 1, Thunderhead 1. Search for `[implemented]` to find them; entries without the mark are not implemented yet.
 
-**Missing mechanic** (cannot be built or completed as in the original game until the server has the mechanic; marked `[missing mechanic]`, list in `tools/mission-crossref/NOTES-missing-mechanics.md`): 35 missions.
+**Missing mechanic** (cannot be built or completed as in the original game until the server has the mechanic; marked `[missing mechanic]`, list in `tools/mission-crossref/NOTES-missing-mechanics.md`): 34 missions.
 
 **Goal in instance** (given on a public map, but cannot be completed without an objective inside an instance map; marked `[goal in instance]`, list in `tools/mission-crossref/NOTES-instance-goals.md`): 5 missions.
 
-**Needs playtest** (implemented, not yet played through in the game client; marked `[needs playtest]`, list in `tools/mission-crossref/NOTES-playtest.md`): 34 missions.
+**Needs playtest** (implemented, not yet played through in the game client; marked `[needs playtest]`, list in `tools/mission-crossref/NOTES-playtest.md`): 36 missions.
 
 
 **Instance** (the mission takes place in a client instance map, a "mission context" in gamecontext.pyo; marked `[instance]` in the entry heading): from an objective NPC package that spawns in an instance (local DB), a TaRapedia NPC page in an instance, or client objective text placing it there. "Instance mentioned" lines only name an instance (ESTIMATE). Refresh with instance_export.py.
@@ -18455,17 +18455,23 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Requires an instance mission:** Bug Hugger (1939) — source: the chain links above
 ## Plateau
 
-### 555 — Behind Enemy Lines [missing mechanic]
+### 555 — Behind Enemy Lines [implemented] [needs playtest]
 
-- **Missing mechanic:** radio offer after turn-in - Headquarters calls after The Stainless Steel Bloodhound (867) — source: tools/mission-crossref/NOTES-missing-mechanics.md
+- **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Rebuild summary:**
+  - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
+  - reward: 40000 XP; 4850 credits; choose 1 of: Bio Armor Vest, Graviton Armor Vest, Mech Armor Vest, Stealth Armor Vest — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 40,000 XP; 4,850 credits; lvl 30; lvl 29; lvl 28; lvl 29 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Behind_Enemy_Lines)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: NPC Colonel Bosley: Plateau, AFS Camp Resistance — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Colonel_Bosley)
 - **Client:** General Thaddeus T. Bailey wants you to use the secret tunnel to sneak behind enemy lines, locate the AFS MASH unit at Camp Resistance, and report to Colonel Bosley, the camp's C.O.
   - objectives (client): Report to Col. Bosley. — Locate Camp Resistance and report to Colonel Bosley.
+- **Local server:** revision `plateau_1_16_5`, level 30, solo, category 10000056 (Battlefield (Plateau))
+  - reward: 40000 XP; 4850 credits; choose 1 of: Bio Armor Vest, Graviton Armor Vest, Mech Armor Vest, Stealth Armor Vest
+  - prerequisites: Requires completed mission 867
 - **TaRapedia** [Behind Enemy Lines](https://tabularasa.fandom.com/wiki/Behind_Enemy_Lines) [stub]: giver: Headquarters; at: Radio; zone: Plateau; requires: The Stainless Steel Bloodhound; follow-up: None; XP: 40,000; credits: 4,850; items: lvl 30; lvl 29; lvl 28; lvl 29; reward from: Colonel Bosley
   - overview: Objectives: • Report to Col. Bosley.
   - objectives: • Report to Col. Bosley.
@@ -18476,7 +18482,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - [General Thaddeus T. Bailey](https://tabularasa.fandom.com/wiki/General_Thaddeus_T._Bailey): Plateau, Fort Defiance, /loc -68, 404, 949 (named in client text)
 
 - **Chain** (explicit prerequisite links): Lookout Down Below chain (3 missions), step 3
-  - Requires: The Stainless Steel Bloodhound (id 867) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Behind_Enemy_Lines), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Stainless_Steel_Bloodhound)
+  - Requires: The Stainless Steel Bloodhound (id 867) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Behind_Enemy_Lines), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Stainless_Steel_Bloodhound), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 557 — Cryptic Messages [implemented] [needs playtest]
 
 - **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
@@ -18485,7 +18491,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 32 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 32 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Cryptic_Messages); 30 — source: [TR MMO DB](https://web.archive.org/web/20081202023242/http://tr.mmodb.com/quests/cryptic-messages-247.php)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 45000 XP; 4800 credits; choose 1 of: Bio Armor Legs, Graviton Armor Legs, Mech Armor Legs, Stealth Armor Legs — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 45,000 XP; 4,800 credits; Equipment — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Cryptic_Messages)
   - reward: 4800 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20081202023242/http://tr.mmodb.com/quests/cryptic-messages-247.php)
@@ -18517,7 +18523,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 30 — source: [TR MMO DB](https://web.archive.org/web/20120731174048/http://tr.mmodb.com/quests/a-bridge-too-far-238.php)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 45000 XP; 6200 credits; choose 1 of: Bio Armor Legs, Mech Armor Vest, Stealth Armor Boots, Reflective Armor Gloves — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 45,000 XP; 6,200 credits; or; or; or — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Bridge_Too_Far)
   - reward: 6200 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20120731174048/http://tr.mmodb.com/quests/a-bridge-too-far-238.php)
@@ -18562,7 +18568,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 29 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Clean_Slate); 30 — source: [TR MMO DB](https://web.archive.org/web/20120731174215/http://tr.mmodb.com/quests/clean-slate-233.php)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 40,000 XP; 4,650 credits; Equipment — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Clean_Slate)
   - reward: 0 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB quest series list](https://web.archive.org/web/20120731165006/http://tr.mmodb.com/quests/seriesname-clean_slate/)
   - drops / mission items: not found (not critical, or not a collect mission)
@@ -18597,7 +18603,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 32 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 32 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mind_Slayer); 30 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 100000 XP; 6600 credits; choose 1 of: Cryogenic Blade, Cryogenic Disperser, Virulent Injector Gun, Virulent Leech Gun — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 100,000 XP; 6,600 credits; Equipment — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mind_Slayer)
   - reward: 6600 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB quest series list](https://web.archive.org/web/20120731165006/http://tr.mmodb.com/quests/seriesname-clean_slate/)
@@ -18633,7 +18639,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 30 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 40000 XP; 4650 credits; choose 1 of: Pulse Disperser, Cryogenic Injector Gun, Incendiary Leech Gun, Incendiary Shotgun — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 40,000 XP; 4,650 credits; lvl 30 Vextronics Pulse Disperser or; lvl 27 ChiTech Cryogenic Injector Gun or; lvl 29 Vextronics Incendiary Leech Gun or; lvl 27 Animatics Incendiary Shotgun — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Beer_Hunter)
   - reward: 4650 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB quest series list](https://web.archive.org/web/20120731160614/http://tr.mmodb.com/quests/seriesname-the_defiant_ones/)
@@ -18669,7 +18675,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 30 — source: [TR MMO DB](https://web.archive.org/web/20081204222709/http://tr.mmodb.com/quests/the-stainless-steel-bloodhound-246.php)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 40000 XP; 4650 credits; choose 1 of: Virulent Injector Gun, Pulse Chaingun, Pulse Pistol, Laser Cannon — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 40,000 XP; 4650 credits; AccuMax Virulent Injector Gun rarity=green level=32; ChiTech Pulse Chaingun rarity=green level=33; Teleract Pulse Pistol rarity=green level=30; Vitalius Laser Cannon rarity=green level=29 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Stainless_Steel_Bloodhound)
   - reward: 4650 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20081204222709/http://tr.mmodb.com/quests/the-stainless-steel-bloodhound-246.php)
@@ -18698,7 +18704,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 
 - **Chain** (explicit prerequisite links): Lookout Down Below chain (3 missions), step 2
   - Requires: Lookout Down Below (id 970) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Stainless_Steel_Bloodhound), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
-  - Leads to: Behind Enemy Lines (id 555) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Behind_Enemy_Lines), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Stainless_Steel_Bloodhound)
+  - Leads to: Behind Enemy Lines (id 555) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Behind_Enemy_Lines), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Stainless_Steel_Bloodhound), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 ### 877 — One Way Trip [instance]
 
 - **Instance:** Maligo Base — client objective/log text: "Search Maligo Base for the location of the prototype Wormhole device that the Bane are working on."
@@ -18706,7 +18712,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 33 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/One_Way_Trip); 25 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 90,000 XP; 8,000 credits; lvl 30; lvl 30; lvl 30; lvl 30 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/One_Way_Trip)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: NPC Colonel Bosley: Plateau, AFS Camp Resistance — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Colonel_Bosley)
@@ -18738,7 +18744,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 30 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Defiant_Ones); 30 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 22500 XP; 3200 credits; Class VI Standard Med Pack, Class VI Res Trauma Kit — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 22,500 XP; 3,200 credits; Consumables — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Defiant_Ones)
   - reward: 0 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB quest series list](https://web.archive.org/web/20120731160614/http://tr.mmodb.com/quests/seriesname-the_defiant_ones/)
@@ -18777,7 +18783,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 40000 XP; 4650 credits; choose 1 of: Stealth Armor Helmet, Graviton Armor Gloves, Hazmat Armor Gloves, Motor Assist Armor Gloves — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 40000 XP — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Murder_Most_Foul)
   - reward: “Report back to Crais who will reward you with 4650 credits and your choice of HellStorm Stealth Armor Helmet, Vitalius Gravitron Armor Gloves, Wellcare Hazmat Gloves, or Pulsar Motor Assist Armor Gloves.” — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/fort-defiance-part-1)
@@ -18808,7 +18814,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 32 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 32 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mind_Bender); 30 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 45000 XP; 4800 credits; choose 1 of: Bio Armor Gloves, Graviton Armor Gloves, Mech Armor Gloves, Stealth Armor Gloves — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 45,000 XP; 4,800 credits; Equipment — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mind_Bender)
   - reward: 4800 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB quest series list](https://web.archive.org/web/20120731165006/http://tr.mmodb.com/quests/seriesname-clean_slate/)
@@ -18843,7 +18849,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 30 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 40000 XP; 4650 credits; choose 1 of: Stealth Armor Helmet, Hazmat Armor Boots, Reflective Armor Vest, Motor Assist Armor Boots — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 40,000 XP; or; or; or — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Looking_For_Clues)
   - drops / mission items: not found (not critical, or not a collect mission)
@@ -18874,7 +18880,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 32 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 32 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Photo_Ops); 30 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 45000 XP; 4800 credits; choose 1 of: Bio Armor Boots, Graviton Armor Boots, Mech Armor Boots, Stealth Armor Boots — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 45,000 XP; 4,800 credits; Equipment — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Photo_Ops)
   - drops / mission items: not found (not critical, or not a collect mission)
@@ -18904,7 +18910,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 32 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 32 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Book_of_Velonar); 30 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 40000 XP; 4650 credits; choose 1 of: Armor Module: Health Bonus [4], Armor Module: Power Bonus [4], Weapon Module: Crit Hit Bonus [4], Weapon Module: Armor Piercing [4] — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 40,000 XP; 4,650 credits; Modifications — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Book_of_Velonar)
   - drops / mission items: not found (not critical, or not a collect mission)
@@ -18932,7 +18938,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 32 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bomb_Voyage); 30 — source: [TR MMO DB](https://web.archive.org/web/20080310011543/http://tr.mmodb.com:80/quests/bomb-voyage-248.php)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 45000 XP; 4800 credits; choose 1 of: Bio Armor Vest, Graviton Armor Vest, Mech Armor Vest, Stealth Armor Vest — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 45,000 XP; 4,800 credits; Equipment — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Bomb_Voyage)
   - reward: 4800 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20080310011543/http://tr.mmodb.com:80/quests/bomb-voyage-248.php)
@@ -18958,7 +18964,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 30 (unconfirmed) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Graveyard_Shift); 30 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 45000 XP; 4800 credits; choose 1 of: Bio Armor Gloves, Graviton Armor Gloves, Mech Armor Gloves, Stealth Armor Gloves — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 45,000 XP; 4,800 credits; Equipment — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Graveyard_Shift)
   - drops / mission items: not found (not critical, or not a collect mission)
@@ -18982,7 +18988,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 32 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 32 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Voice_From_The_Past)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 22500 XP; 3200 credits; Class VI Standard Med Pack, Class VI Res Trauma Kit — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 22,500 XP; 3,200 credits; Consumables — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Voice_From_The_Past)
   - drops / mission items: not found (not critical, or not a collect mission)
@@ -19006,7 +19012,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 30 — source: [TR MMO DB](https://web.archive.org/web/20080907092249/http://tr.mmodb.com/quests/array-of-hope-255.php)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 42,500 XP; 4,000 credits; Class VIII Standard Med Pack (3); Class VIII Incendiary Grenade (3); Class VIII Advanced Med Pack (2); Class VIII EMP Grenade (3) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Array_of_Hope)
   - reward: 4000 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20080907092249/http://tr.mmodb.com/quests/array-of-hope-255.php)
   - drops / mission items: not found (not critical, or not a collect mission)
@@ -19041,7 +19047,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 32 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 30 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 22500 XP; 3200 credits; Class VI Standard Med Pack, Class VI Res Trauma Kit — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 22,500 XP; 3,200 credits; Consumables — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Results_Are_In)
   - drops / mission items: not found (not critical, or not a collect mission)
@@ -19071,7 +19077,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 30 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Giant_Killer); 25 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 50000 XP; 4950 credits; choose 1 of: Cryogenic Blade, Cryogenic Disperser, Virulent Injector Gun, Virulent Leech Gun — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 50,000 XP; 4,950 credits; Vextronics Cryogenic Blade OR; Vextronics Cryogenic Disperser OR; Vextronics Virulent Injector Gun OR; Vextronics Virulent Leech Gun — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Giant_Killer)
   - reward: 0 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB quest series list](https://web.archive.org/web/20120731163753/http://tr.mmodb.com/quests/seriesname-giant_killer/)
@@ -19107,7 +19113,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 30 — source: [TR MMO DB](https://web.archive.org/web/20081202022733/http://tr.mmodb.com/quests/crystal-blue-persuasion-241.php)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 40000 XP; choose 1 of: High Grade Cartridges, High Grade Power Cells, High Grade Canister Ammunition, High Grade Rockets — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 40,000 XP; 100 Cartridges or; 100 Cartridges or; 100 Cartridges or; 100 Cartridges — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Crystal_Blue_Persuasion)
   - reward: 0 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB quest series list](https://web.archive.org/web/20120731160528/http://tr.mmodb.com/quests/seriesname-crystal_blue_persuasion/)
@@ -19133,18 +19139,23 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Requires: The Defiant Ones (id 887) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Crystal_Blue_Persuasion), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Defiant_Ones), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - Leads to: Alpha Mox (id 1027) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Alpha_Mox), [TaRapedia](https://tabularasa.fandom.com/wiki/Crystal_Blue_Persuasion), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 - **TR MMO DB quest series:** "Crystal Blue Persuasion", row 2 of 2 ([list](https://web.archive.org/web/20120731160528/http://tr.mmodb.com/quests/seriesname-crystal_blue_persuasion/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
-### 965 — Mislaid Plans [missing mechanic]
+### 965 — Mislaid Plans [implemented] [needs playtest] [missing mechanic]
 
-- **Missing mechanic:** radiation zone - Pinnacle Watchtower ruins (-551, 387, Plateau) damage the player while they search for the courier bag (UsableItemDispCourierBag 21841, plans item 44835) — source: tools/mission-crossref/NOTES-missing-mechanics.md
+- **Implemented:** enabled on the local server (content revision plateau_1_16_5) — source: data/rasaworld.db, mission_content_definition
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
+- **Missing mechanic:** radiation zone - built without it (2026-10-22): the Pinnacle Watchtower ruins (destroyed tower at -544, 394, 181, Plateau) do not damage the player while they search for the courier bag (UsableItemDispCourierBag 21841, plans item 44835), and the "RADIATION WARNING!" objective 3 is left out — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Rebuild summary:**
-  - level: 30 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
+  - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 30 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
+  - reward: 45000 XP; 4650 credits — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 45,000 XP — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mislaid_Plans)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: NPC General Thaddeus T. Bailey: Plateau, Fort Defiance, /loc -68, 404, 949 — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/General_Thaddeus_T._Bailey)
 - **Client:** Retrieve the missing battle plans at Pinnacle Watchtower and return them to General Bailey at Fort Defiance.
   - objectives (client): Retrive the battle plans. — Retrieve the missing battle plans from the ruins of Pinnacle Watchtower.; RADIATION WARNING! — You are taking damage from radiation in the area! Complete the mission quickly!
+- **Local server:** revision `plateau_1_16_5`, level 30, solo, category 10000056 (Battlefield (Plateau)), giver General Thaddeus T. Bailey
+  - reward: 45000 XP; 4650 credits
 - **TaRapedia** [Mislaid Plans](https://tabularasa.fandom.com/wiki/Mislaid_Plans) [stub]: giver: General Thaddeus T. Bailey; at: Fort Defiance; zone: Plateau; XP: 45,000
   - overview: Retrieve the missing battle plans at Pinnacle Watchtower and return them to General Bailey at Fort Defiance.
   - objectives: • Retrieve the battle plans.
@@ -19164,7 +19175,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 30 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 20000 XP; 3100 credits; Class VI Advanced Med Pack, Class VI Armor Charger, Class VI Incendiary Grenade, Class VI EMP Grenade — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 20000 XP; 3100 credits; Class VI Advanced Med Pack (2); Class VI Armor Charger (2); Class VI Incendiary Grenade (4); Class VI EMP Grenade (4) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Lookout_Down_Below)
   - drops / mission items: not found (not critical, or not a collect mission)
@@ -19191,7 +19202,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); guide mentions “Blue Flu. You'll need to be level 30 to begin and it's a fairly simple FedEx” (context only; may be a creature or item level) — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/plateau-targets-of-opportunity)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 20000 XP; 3100 credits; choose 1 of: Class VI Advanced Med Pack, Class VI EMP Grenade, Class VI Res Trauma Kit, Class VI Concussion Grenade — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 20000 XP; Pathogex Motor Assist Armor Helmet v7 or; Pathogex Hazmat Armor Helmet v3 or; Pathogex Reflective Armor Helmet v2 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Blue_Flu)
   - reward: “Interacting with his corpse will reward you with 3100 credits and your choice of a Class VI Advanced MedPak, Class VI Emp Grenade, Class VI Res Trauma Kit, or Class VI Concussions Grenade” — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/fort-defiance-part-1)
@@ -19231,7 +19242,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 31 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 32 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Scavenger_Hunt); 25 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 50000 XP; Carton of Cigarettes — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 50,000 XP; None credits — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Scavenger_Hunt)
   - drops / mission items: These items randomly drop from any type of Thrax in Plateau — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Scavenger_Hunt)
@@ -19261,7 +19272,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 31 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 31 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Stalk_Market)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 100000 XP; 6600 credits; choose 1 of: Electric Blade, Kinetic Staff, Pulse Pistol, Direct Healing Disc — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 100,000 XP; 6,600 credits — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Stalk_Market)
   - drops / mission items: not found (not critical, or not a collect mission)
@@ -19287,7 +19298,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 31 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 31 — source: [TR MMO DB](https://web.archive.org/web/20120731170930/http://tr.mmodb.com/quests/alpha-mox-242.php)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 45000 XP; 4800 credits — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 45,000 XP; 4,800 credits — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Alpha_Mox)
   - reward: 4800 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20120731170930/http://tr.mmodb.com/quests/alpha-mox-242.php)
@@ -19324,7 +19335,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 30 (unconfirmed) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Going_Postal)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 45000 XP; 4800 credits; choose 1 of: Bio Armor Boots, Graviton Armor Boots, Mech Armor Boots, Stealth Armor Boots — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 45,000 XP; 4,800 credits; Equipment — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Going_Postal)
   - drops / mission items: Porthus can be found on the cliff overlooking Valverde chasm — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Going_Postal)
@@ -19350,7 +19361,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 32 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Incommunicado); 25 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 100000 XP; 6600 credits; choose 1 of: Laser Chaingun, Electric Net Gun, Laser Pistol, Endothermic Polarity Gun — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 100,000 XP; 6,600 credits; Shinobi Laser Chaingun rarity=green level=33; Teleract Electric Net Gun rarity=green level=31; Shinobi Laser Pistol rarity=green level=30; Shinobi Endothermic Polarity Gun rarity=green level=33 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Incommunicado)
   - reward: 6600 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB quest series list](https://web.archive.org/web/20120731163753/http://tr.mmodb.com/quests/seriesname-giant_killer/)
@@ -19386,7 +19397,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 31 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 31 (unconfirmed) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Past)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 50000 XP; 4950 credits — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 50,000 XP; 4,950 credits — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Past)
   - drops / mission items: not found (not critical, or not a collect mission)
@@ -19420,7 +19431,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 32 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Canyon_Sweep)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 55000 XP; 5100 credits; choose 1 of: Electric Injector Gun, Electric Chaingun, Sonic Cannon, Sonic Shotgun — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 55,000 XP; 5,100 credits; Eclipse Electric Injector Gun rarity=green level=32; Teleract Electric Chaingun rarity=green level=33; Animatics Sonic Cannon rarity=green level=34; Shinobi Sonic Shotgun rarity=green level=32 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Canyon_Sweep)
   - drops / mission items: not found (not critical, or not a collect mission)
@@ -19448,7 +19459,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 32 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Blueprint_For_Victory)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 55000 XP; 5100 credits; choose 1 of: Bio Armor Legs, Graviton Armor Legs, Mech Armor Helmet, Stealth Armor Helmet — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 55,000 XP; 5,100 credits — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Blueprint_For_Victory)
   - drops / mission items: not found (not critical, or not a collect mission)
@@ -19477,7 +19488,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 33 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Future)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 5,700 credits — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Future)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: NPC Vogren's Hologram: Plateau, Vogren's Tomb, /loc -673, 466, 539 — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Vogren%27s_Hologram)
@@ -19500,7 +19511,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Goal in instance:** P'reo Das (1743) - objective 1 gets the Logos "Disperse" in the instance, hand-in at Vogren's Tomb. — source: tools/mission-crossref/NOTES-instance-goals.md
 - **Rebuild summary:**
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 5,400 credits — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Disperse)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: NPC Vogren's Hologram: Plateau, Vogren's Tomb, /loc -673, 466, 539 — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Vogren%27s_Hologram)
@@ -19525,7 +19536,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 33 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Logos)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 5,400 credits — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Logos)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: NPC Vogren's Hologram: Plateau, Vogren's Tomb, /loc -673, 466, 539 — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Vogren%27s_Hologram)
@@ -19549,7 +19560,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 33 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Far)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 65,000 XP; 5,400 credits — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Far)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: NPC Vogren's Hologram: Plateau, Vogren's Tomb, /loc -673, 466, 539 — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Vogren%27s_Hologram)
@@ -19573,7 +19584,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 32 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Toxic_Detox)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 50000 XP; 4950 credits; choose 1 of: Area Repair Tool, Sonic Disperser, Rifle, Sonic Torqueshell Rifle — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 50,000 XP; 4,950 credits; Dynamic Radial Repair Tool; ChiTech Sonic Disperser rarity=green level=32; Vextronics Rifle rarity=green level=31; Vitalius Sonic Torqueshell Rifle rarity=green level=33 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Toxic_Detox)
   - drops / mission items: not found (not critical, or not a collect mission)
@@ -19600,7 +19611,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 33 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Distance)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 65,000 XP; 5,400 credits; lvl 35; lvl 35; lvl 35; lvl 35 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Distance)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: NPC Vogren's Hologram: Plateau, Vogren's Tomb, /loc -673, 466, 539 — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Vogren%27s_Hologram)
@@ -19622,7 +19633,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 25 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 25,000 XP; 3,300 credits; Class VI Advanced Med Pack (2); Class VI Power Charger (2); Class VI Concussion Grenade (4); Class VI EMP Grenade (4) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/South_Of_The_Border)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: NPC Colonel Bosley: Plateau, AFS Camp Resistance — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Colonel_Bosley)
@@ -19645,7 +19656,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 30 — source: [TR MMO DB](https://web.archive.org/web/20080404145832/http://tr.mmodb.com:80/quests/the-final-assault-257.php)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 140,000 XP; 9,250 credits; Eclipse Rocket Launcher; Vextronics Rifle; Vextronics Incendiary Net Gun; Vextronics Pulse Pistol — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Final_Assault)
   - reward: 9250 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20080404145832/http://tr.mmodb.com:80/quests/the-final-assault-257.php)
   - drops / mission items: not found (not critical, or not a collect mission)
@@ -19674,7 +19685,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Instance:** Temporal Chamber — client log 8730 / objective 8752: go through the teleporter and speak to Colonel Hudson on the other side — checked by hand
 - **Rebuild summary:**
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 35,000 XP; 5,550 credits; Class VII Res Trauma Kit; Class VII Cuncussion Grenade (3); Class VII Advanced Med Pack (6); Class VII Fragmentation Grenade (3) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Future_Sacrifice)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: zone Plateau only
@@ -19696,7 +19707,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 30 — source: [TR MMO DB](https://web.archive.org/web/20080404145822/http://tr.mmodb.com:80/quests/foreas-base-past-258.php)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 140,000 XP; 9,250 credits — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Foreas_Base_Past)
   - reward: 9250 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20080404145822/http://tr.mmodb.com:80/quests/foreas-base-past-258.php)
   - drops / mission items: not found (not critical, or not a collect mission)
@@ -19723,7 +19734,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 30 — source: [TR MMO DB](https://web.archive.org/web/20080404145827/http://tr.mmodb.com:80/quests/send-a-message-259.php)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 140,000 XP; 9,250 credits — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Send_a_Message)
   - reward: 9250 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20080404145827/http://tr.mmodb.com:80/quests/send-a-message-259.php)
   - drops / mission items: not found (not critical, or not a collect mission)
@@ -19750,7 +19761,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 32 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731173712/http://tr.mmodb.com/quests/startingzone-ustor_yard/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 40000 XP; 500 credits; Vitalius Electric Injector Gun; Animatics Pulse Pistol; Vextronics Incendiary Net Gun; Teleract Sonic Cannon — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Silent_But_Deadly)
   - reward: 5000 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB quest series list](https://web.archive.org/web/20120731163805/http://tr.mmodb.com/quests/seriesname-silent_but_deadly/)
   - drops / mission items: not found (not critical, or not a collect mission)
@@ -19778,7 +19789,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 32 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731173712/http://tr.mmodb.com/quests/startingzone-ustor_yard/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 50,000 XP; 6,600 credits; Modification: Steal Armor; Modification: Regen Bonus; Modification: Debuff to Electric Resist; Modification: Electric Resistance — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Monkey_Wrench)
   - reward: 6600 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB quest series list](https://web.archive.org/web/20120731163805/http://tr.mmodb.com/quests/seriesname-silent_but_deadly/)
   - drops / mission items: not found (not critical, or not a collect mission)
@@ -19806,7 +19817,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 20 — source: [TR MMO DB](https://web.archive.org/web/20080407025651/http://tr.mmodb.com:80/quests/interception-438.php)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 40,000 XP; 4,650 credits; Class VI Basic Med Pack (3); Class VI Fragmentation Grenade (3); Class VI EMP Bomb; Class VI Cryogenic Grenade (3) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Interception%21)
   - reward: 2100 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20080407025651/http://tr.mmodb.com:80/quests/interception-438.php)
   - drops / mission items: not found (not critical, or not a collect mission)
@@ -19841,7 +19852,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 31 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 31 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Comic_Relief)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 50000 XP; 4950 credits; choose 1 of: Bio Armor Vest, Graviton Armor Vest, Mech Armor Vest, Stealth Armor Vest — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 50,000 XP; 4,950 credits; Equipment — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Comic_Relief)
   - drops / mission items: not found (not critical, or not a collect mission)
@@ -19868,7 +19879,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 20 — source: [TR MMO DB](https://web.archive.org/web/20080407025651/http://tr.mmodb.com:80/quests/interception-438.php)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 40,000 XP; 4,650 credits; Class VI Basic Med Pack (3); Class VI Fragmentation Grenade (3); Class VI EMP Bomb; Class VI Cryogenic Grenade (3) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Interception%21)
   - reward: 2100 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20080407025651/http://tr.mmodb.com:80/quests/interception-438.php)
   - reward: “Dekay in Irendas Penal Facility for your reward of a clone credit and the Title: Master of Plains.” — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/targets-of-opportunity-torden-plains)
@@ -19910,7 +19921,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 
 - **Rebuild summary:**
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 55,000 XP; 5,100 credits; lvl 34; lvl 33; lvl 34; lvl 35 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/New_Orders_From_The_General)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: NPC Colonel Bosley: Plateau, AFS Camp Resistance — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Colonel_Bosley)
@@ -19936,7 +19947,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 27 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: AND; Master of Plateau — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Plateau_Targets_of_Opportunity)
   - reward: “Plateau Targets of Opportunity 21 hours 44 min ago by RadarX Updated Guide To Armor 3 days 2 hours ago by RadarX New Hybrid Video 3 days 12 min ago by RadarX Brann Hybrid Access Mission Guide 3 days 2 hours ago by Taea …” — source: [Ten Ton Hammer](https://web.archive.org/web/2008/http://www.tentonhammer.com/node/15165)
   - reward: “Plateau Targets of Opportunity 21 hours 44 min ago by RadarX Updated Guide To Armor 3 days 2 hours ago by RadarX New Hybrid Video 3 days 12 min ago by RadarX Brann Hybrid Access Mission Guide 3 days 2 hours ago by Taea …” — source: [Ten Ton Hammer](https://web.archive.org/web/2008/http://www.tentonhammer.com/node/15217)
@@ -19978,7 +19989,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 30 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Logos%3A_Vortex); 30 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 100000 XP; 4950 credits — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 100,000 XP; 4,950 credits — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Logos%3A_Vortex)
   - drops / mission items: not found (not critical, or not a collect mission)
@@ -20008,7 +20019,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 49 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731172600/http://tr.mmodb.com/quests/startingzone-howling_death_burrow/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 90,000 XP; 6,400 credits; Purifier Vest — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mountain_Spring_Toxins)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: NPC Elder Orivos: Howling Maw, Gangus Outpost, /loc -638.0, 199.8, -985.3 — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Elder_Orivos)
@@ -20036,7 +20047,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 32 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 32 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/All_Along_The_Watchtowers)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 45000 XP; 4800 credits; choose 1 of: Bio Armor Helmet, Graviton Armor Helmet, Mech Armor Helmet, Stealth Armor Helmet — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 45,000 XP; 4,800 credits; Equipment — source: [TaRapedia](https://tabularasa.fandom.com/wiki/All_Along_The_Watchtowers)
   - drops / mission items: not found (not critical, or not a collect mission)
@@ -20059,7 +20070,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Instance:** Velon Hollow — an objective conversation's NPC package 2263 spawns in this instance (map 2136) — source: client objectiveconversation + data/rasaworld.db
 - **Rebuild summary:**
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 90000 XP; 6400 credits; Prodigy/Titan Boots — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Deadly_Silence)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: NPC Luminary Sampei: Plateau, New Velon Village, /loc 259, 352, 619 — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Luminary_Sampei)
@@ -20081,7 +20092,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Instance:** Velon Hollow — client objective/log text: "Tala Clark was sent into Velon Hollow to investigate the Foreans living there and report back with their status. …"
 - **Rebuild summary:**
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 90,000 XP; 6,400 credits; Purifier Helmet — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Better_Half)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: NPC Science Officer Clark: Plateau, Wedge Rock Outpost, /loc 464, 378, 366 — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Science_Officer_Clark)
@@ -20103,7 +20114,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Instance:** Velon Hollow — client objective/log text: "Elder Hathen is the highest ranking survivor of the Seekers of Velon. He demands to come with you into Velon Hollow, …"
 - **Rebuild summary:**
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 45000 XP; 4800 credits; Prodigy/Titan Gloves — source: [TaRapedia](https://tabularasa.fandom.com/wiki/These_Old_Bones)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: zone Plateau only
@@ -20122,7 +20133,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Instance:** Velon Hollow — client objective/log text: "Clear the outer part of the Bane Outpost established inside Velon Hollow."
 - **Rebuild summary:**
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 45000 XP; 4800 credits; Purifier Legs — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Holy_Vengeance)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: NPC Luminary Sampei: Plateau, New Velon Village, /loc 259, 352, 619 — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Luminary_Sampei)
@@ -20144,7 +20155,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Instance:** Velon Hollow — client objective/log text: "Recover the artifacts from Bane officers in Velon Hollow before they are lost forever."
 - **Rebuild summary:**
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 4800 credits; 45000 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Ancient_Mysteries)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: zone Plateau only
@@ -20166,7 +20177,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 49 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731172600/http://tr.mmodb.com/quests/startingzone-howling_death_burrow/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 90,000 XP; 6,400 credits; Purifier Vest — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Mountain_Spring_Toxins)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: NPC Elder Orivos: Howling Maw, Gangus Outpost, /loc -638.0, 199.8, -985.3 — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Elder_Orivos)
@@ -20194,7 +20205,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 30 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Village_Of_The_Damned)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 40000 XP; choose 1 of: Bio Armor Legs, Graviton Armor Legs, Mech Armor Helmet, Stealth Armor Helmet — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 40,000 XP; None credits; OR; OR; OR — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Village_Of_The_Damned)
   - drops / mission items: not found (not critical, or not a collect mission)
@@ -20226,7 +20237,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Instance:** Velon Hollow — an objective conversation's NPC package 2263 spawns in this instance (map 2136) — source: client objectiveconversation + data/rasaworld.db
 - **Rebuild summary:**
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level; zone was inferred, see above)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level (zone was inferred, see above)
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level (zone was inferred, see above)
   - reward: not found (not critical)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: zone Plateau only
@@ -20244,7 +20255,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 30 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 29 (possibly less) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Clean_Slate); 30 — source: [TR MMO DB](https://web.archive.org/web/20120731174215/http://tr.mmodb.com/quests/clean-slate-233.php)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 40000 XP; 4650 credits; choose 1 of: Bio Armor Helmet, Graviton Armor Helmet, Mech Armor Helmet, Stealth Armor Helmet — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 40,000 XP; 4,650 credits; Equipment — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Clean_Slate)
   - reward: 0 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB quest series list](https://web.archive.org/web/20120731165006/http://tr.mmodb.com/quests/seriesname-clean_slate/)
@@ -20282,7 +20293,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 34 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`); 30 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Soyuz_Salvage%3A_Plateau)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 50000 XP; 5000 credits; Soyuz ISS Model Rocket — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: NPC Commander Grissom: Plateau, Fort Defiance, /loc -92, 399, 914 — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Commander_Grissom)
@@ -20303,7 +20314,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 50 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 7500 XP — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 7500 XP; none credits — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Mystery_Unearthed)
   - drops / mission items: not found (not critical, or not a collect mission)
@@ -20333,7 +20344,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Rebuild summary:**
   - level: 50 — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 50000 XP — source: local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - reward: 50000 XP; 0 credits — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Symbolism)
   - drops / mission items: not found (not critical, or not a collect mission)
@@ -28178,7 +28189,7 @@ Notes: client text is shipped presentation only; it does not prove availability,
 
 - **Rebuild summary:**
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
-  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 55 missions in this file with a sourced level
+  - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 56 missions in this file with a sourced level
   - reward: 45000 XP — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Devinchy%27s_Code)
   - drops / mission items: not found (not critical, or not a collect mission)
   - location: NPC Comm Officer Devinchy: Plateau, Wedge Rock Outpost, /loc 363, 369, 360 — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Comm_Officer_Devinchy)
