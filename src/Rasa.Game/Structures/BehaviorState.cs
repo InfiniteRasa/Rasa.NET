@@ -187,12 +187,12 @@ namespace Rasa.Structures
         public Vector3 LeftAt { get; set; }
 
         /// <summary>
-        /// A group's leader turned about on a step: it waits there, once its pause is out, until
-        /// its followers have walked round to their new places (Managers.PatrolGroups.Reform).
+        /// A group's leader turned about on a step, its pause out: it waits there, once its turn is
+        /// made, until its followers have walked round to their new places (Managers.PatrolGroups.Reform).
         /// </summary>
         public bool Reforming { get; set; }
 
-        /// <summary>How long it has waited for its group, past its pause; up to PatrolGroups.ReformHoldMs.</summary>
+        /// <summary>How long it has waited for its group, past its turn; up to PatrolGroups.ReformHoldMs.</summary>
         public long ReformMs { get; set; }
     }
 
