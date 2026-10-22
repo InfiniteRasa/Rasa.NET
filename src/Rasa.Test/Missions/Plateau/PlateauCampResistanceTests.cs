@@ -85,7 +85,8 @@ namespace Rasa.Test.Missions.Plateau
         /// <summary>
         /// Goliath leads his Kael along his beat (PlateauGiantKillerPatrolV1) on the Plateau's own
         /// navmesh: he walks it at his group's 2 m/s (PlateauGiantKillerPaceV1), not the jog of his
-        /// walk_speed; they follow him (PatrolGroups), walking, and keep up with him the whole way.
+        /// walk_speed; they follow him (PatrolGroups), walking, and keep up with him the whole way,
+        /// mostly at their places 5 m to his side (PlateauGiantKillerSpacingV1) - not the default 3 m.
         /// </summary>
         [TestMethod]
         public void GoliathLeadsHisKaelAlongHisBeat()
@@ -110,6 +111,7 @@ namespace Rasa.Test.Missions.Plateau
             // 120 s: his 10 s at the west end, then most of the way east at 2 m/s. The guards keep up.
             var farthest = 0f;
             var fastest = 0f;
+            var sideways = new List<float>();
             for (var tick = 0; tick < 480; tick++)
             {
                 var before = goliath.Position;
@@ -120,17 +122,31 @@ namespace Rasa.Test.Missions.Plateau
                 if (tick < 8)
                     continue;
 
+                var walking = goliath.Controller.LastMovement?.Velocity > 0f;
                 foreach (var guard in guards)
                 {
-                    Assert.IsLessThan(12f, Spacing.AcrossGround(guard.Position, goliath.Position),
+                    if (walking)
+                    {
+                        // Across his heading: how far to his side the guard walks.
+                        var ahead = new Vector2(-MathF.Sin((float)goliath.Rotation), -MathF.Cos((float)goliath.Rotation));
+                        var from = new Vector2(guard.Position.X - goliath.Position.X, guard.Position.Z - goliath.Position.Z);
+                        sideways.Add(MathF.Abs(ahead.X * from.Y - ahead.Y * from.X));
+                    }
+
+                    Assert.IsLessThan(14f, Spacing.AcrossGround(guard.Position, goliath.Position),
                         $"tick {tick}: guard at {guard.Position}, Goliath at {goliath.Position}");
-                    Assert.IsLessThan(2.5f, Math.Abs(guard.Position.Y - goliath.Position.Y), $"tick {tick}: guard on Goliath's ground");
+                    var ground = plateau.NavMesh.GroundHeight(guard.Position);
+                    Assert.IsTrue(ground is float floor && Math.Abs(guard.Position.Y - floor) < 0.5f,
+                        $"tick {tick}: guard at {guard.Position} on the navmesh ({ground}); 5 m to his side the ground may be a bank above or below his");
                 }
             }
 
             Assert.AreEqual(BehaviorManager.BehaviorActionPatrol, goliath.Controller.CurrentAction);
             Assert.IsGreaterThan(150f, farthest, $"Goliath walked {farthest:0} m");
             Assert.AreEqual(2f, fastest, 0.05f, "his pace, m/s");
+            sideways.Sort();
+            var median = sideways[sideways.Count / 2];
+            Assert.AreEqual(5f, median, 0.6f, $"to his side, median of {sideways.Count}: {median:0.00} m");
             Assert.IsFalse(guards.Any(guard => guard.IsRunning), "the guards walk at the end, in their places");
         }
 

@@ -1006,7 +1006,8 @@ namespace Rasa.Test.Missions.Plateau
         /// <summary>
         /// Goliath's pool walks a beat there and back (PlateauGiantKillerPatrolV1): the 31 points out,
         /// then the 29 between the ends back, 10 s at each end, no facing; its evidence is the least
-        /// trusted. Its group walks it at 2 m/s (PlateauGiantKillerPaceV1). All roll back with their
+        /// trusted. Its group walks it at 2 m/s (PlateauGiantKillerPaceV1), 5 m apart
+        /// (PlateauGiantKillerSpacingV1). All roll back with their
         /// migrations; Giant Killer and its guards stay.
         /// </summary>
         [TestMethod]
@@ -1029,8 +1030,8 @@ namespace Rasa.Test.Missions.Plateau
             Assert.IsTrue(steps.Where(row => row.PauseMs > 0).All(row => row.PauseMs == 10000));
             Assert.IsTrue(steps.All(row => row.Facing == null));
             var group = world.SpawnPoolPatrolGroupEntries.AsNoTracking().Single(row => row.Id == pool);
-            Assert.AreEqual((false, true, (double?)2.0), (group.ActingLeader, group.LeaderTopUp, group.Pace),
-                "Goliath leads, comes back with the top-up, and the group walks at 2 m/s (PlateauGiantKillerPaceV1)");
+            Assert.AreEqual((false, true, (double?)2.0, (double?)5.0), (group.ActingLeader, group.LeaderTopUp, group.Pace, group.Spacing),
+                "Goliath leads, comes back with the top-up, the group walks at 2 m/s (PlateauGiantKillerPaceV1), 5 m apart (PlateauGiantKillerSpacingV1)");
 
             MissionEvidenceEntry Evidence() => world.MissionEvidenceEntries.AsNoTracking().SingleOrDefault(entry =>
                 entry.MissionId == PlateauGiantKillerV1.MissionId && entry.ContentRevision == PlateauMissionDataV1.Revision && entry.EvidenceId == 4);
