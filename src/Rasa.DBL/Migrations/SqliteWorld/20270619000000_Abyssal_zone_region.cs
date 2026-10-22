@@ -30,6 +30,9 @@ namespace Rasa.Migrations.SqliteWorld
         {
             foreach (var sql in AbyssalZoneRegion.Down())
                 migrationBuilder.Sql(sql);
+
+            // The rows' ids given back, so a reapply brings them back with the same ones (MapRegionSequence).
+            migrationBuilder.Sql(MapRegionSequence.Sqlite);
         }
     }
 }
