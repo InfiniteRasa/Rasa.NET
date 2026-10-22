@@ -1,0 +1,215 @@
+extern alias RasaGame;
+
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Numerics;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Rasa.Data;
+using Rasa.Game;
+using Rasa.Managers;
+using Rasa.Navigation;
+using Rasa.Packets.MapChannel.Client;
+using Rasa.Services.Preloader.Missions.Plateau;
+using Rasa.Structures;
+using Rasa.Test.Missions.Wilderness;
+
+namespace Rasa.Test.Missions.Plateau
+{
+    using static PlateauCampResistanceTests;
+
+    /// <summary>
+    /// Vogren's hologram's five instanced Trinity Bridge Logos (1047 Future, 1048 Disperse, 1049 Logos,
+    /// 1051 Far, 1057 Distance), played through as a player plays them: offered at Vogren's Tomb after
+    /// Trinity Bridge Logos: Past, the Logos taken in the squad's own copy of its map, turned in back
+    /// at the tomb.
+    ///
+    /// Why these tests: the Logos are the server's shrines (table logos) of maps other than the
+    /// Plateau, and the player gets them in a squad instance, a copy of the map that MapChannelManager
+    /// makes as they go through its door (EnterMap). A copy that left the shrines out would leave the
+    /// missions unfinishable; one that shared them would take one squad's use for another's. So the
+    /// door is walked through as MapLinkManager walks it, and the shrine used is the copy's.
+    ///
+    /// [TestCategory]: none, as PlateauCampResistanceTests.
+    /// </summary>
+    [TestClass]
+    [DoNotParallelize]
+    public class PlateauTrinityBridgeLogosTests
+    {
+        private const uint LogosPast = PlateauTrinityLogosPastV1.MissionId;
+
+        public static IEnumerable<object[]> Missions =>
+            PlateauTrinityBridgeLogosV1.All.Select(logos => new object[] { logos.MissionId });
+
+        private static PlateauTrinityBridgeLogosV1.Logos Of(uint mission) =>
+            PlateauTrinityBridgeLogosV1.All.Single(logos => logos.MissionId == mission);
+
+        [TestMethod]
+        [DynamicData(nameof(Missions))]
+        public void TheLogosIsTakenInTheSquadsOwnCopyOfItsMapAndTurnedInAtTheTomb(uint missionId)
+        {
+            var logos = Of(missionId);
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var plateau = EnterPlateau(harness);
+            SeedCompleted(harness, PlateauVoiceFromThePastV1.MissionId, LogosPast);
+            var hologram = Hologram(plateau);
+
+            var offer = WildernessRanjaGorgeTests.Offer(harness, hologram, missionId);
+            Assert.AreEqual(0, offer.SelectableReward.Count, "no item: the Logos is the reward");
+            Assert.AreEqual(0, offer.FixedReward.FixedItems.Count);
+            harness.MoveTo(hologram.Position);
+            Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, hologram.EntityId, missionId));
+            harness.Drain();
+            Assert.IsFalse(harness.Client.Player.Missions[missionId].Completeable);
+
+            var template = LoadMap(harness, logos.MapContextId);
+            var copy = ThroughTheDoor(harness, logos.MapContextId);
+            Assert.AreNotSame(template, copy, "the squad's own copy, not the map's channel");
+            Assert.IsTrue(copy.IsSquadInstance);
+
+            var shrine = copy.DynamicObjects.OfType<Logos>().Single(entry => entry.Id == logos.LogosId);
+            Assert.AreNotSame(template.DynamicObjects.OfType<Logos>().Single(entry => entry.Id == logos.LogosId), shrine,
+                "the copy has a shrine of its own");
+            UseShrine(harness, copy, shrine);
+            Assert.IsTrue(harness.Client.Player.Logos.Contains(logos.LogosId));
+            Assert.IsTrue(harness.Client.Player.Missions[missionId].Completeable, "the Logos completes it, in the instance");
+
+            Return(harness, plateau);
+            WildernessRanjaGorgeTests.CompleteAndCheckReward(harness, hologram, missionId, null,
+                PlateauTrinityBridgeLogosV1.Experience, logos.Credits);
+        }
+
+        [TestMethod]
+        public void TheFiveWaitForTrinityBridgeLogosPast()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var plateau = EnterPlateau(harness);
+            SeedCompleted(harness, PlateauVoiceFromThePastV1.MissionId);
+            var hologram = Hologram(plateau);
+
+            var offered = Offered(harness, hologram);
+            Assert.IsTrue(offered.Contains(LogosPast));
+            foreach (var logos in PlateauTrinityBridgeLogosV1.All)
+                Assert.IsFalse(offered.Contains(logos.MissionId), $"{logos.MissionId} waits for Past");
+
+            SeedCompleted(harness, LogosPast);
+            offered = Offered(harness, hologram);
+            foreach (var logos in PlateauTrinityBridgeLogosV1.All)
+                Assert.IsTrue(offered.Contains(logos.MissionId), $"{logos.MissionId} after Past");
+        }
+
+        [TestMethod]
+        public void ALogosAlreadyLearnedCounts()
+        {
+            var logos = PlateauTrinityBridgeLogosV1.Distance;
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var plateau = EnterPlateau(harness);
+            SeedCompleted(harness, PlateauVoiceFromThePastV1.MissionId, LogosPast);
+            var hologram = Hologram(plateau);
+
+            LoadMap(harness, logos.MapContextId);
+            var copy = ThroughTheDoor(harness, logos.MapContextId);
+            UseShrine(harness, copy, copy.DynamicObjects.OfType<Logos>().Single(entry => entry.Id == logos.LogosId));
+            Assert.IsTrue(harness.Client.Player.Logos.Contains(logos.LogosId));
+            Return(harness, plateau);
+
+            harness.MoveTo(hologram.Position);
+            harness.Drain();
+            Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, hologram.EntityId, logos.MissionId));
+            harness.Drain();
+            Assert.IsTrue(harness.Client.Player.Missions[logos.MissionId].Completeable, "the Logos the player has counts");
+        }
+
+        /// <summary>The hologram in Vogren's Tomb, spawned from its pool.</summary>
+        internal static Creature Hologram(MapChannel plateau)
+        {
+            Spawn(plateau, PlateauVogrenNpcsV1.HologramPool);
+            var hologram = Living(plateau).Single(candidate => candidate.SpawnPool?.DbId == PlateauVogrenNpcsV1.HologramPool && candidate.Npc != null);
+            Assert.AreEqual(PlateauVogrenNpcsV1.Hologram, hologram.DbId);
+            return hologram;
+        }
+
+        private static HashSet<uint> Offered(WildernessRuntimeTestHarness harness, Creature npc) =>
+            Conversation(harness, npc).TryGetValue(ConversationType.MissionDispense, out var offered)
+                ? ((Dictionary<uint, MissionInfo>)offered).Keys.ToHashSet()
+                : new HashSet<uint>();
+
+        /// <summary>
+        /// A map of the World as the server loads it, beside the harness's: its map_info row, its navmesh,
+        /// its spawn pools and its Logos shrines (LogosManager.LogosInit), placed on it. The map's own
+        /// channel, which a squad's copy is made from.
+        /// </summary>
+        internal static MapChannel LoadMap(WildernessRuntimeTestHarness harness, uint mapContextId)
+        {
+            var info = harness.World.MapInfoEntries.AsNoTracking().Single(row => row.Id == mapContextId);
+            var map = new MapChannel
+            {
+                MapInfo = new MapInfo(info.Id, info.MapName, info.MapVersion, 0),
+                ClientList = new List<Client>(),
+                PlayerLimit = 128,
+                NavMesh = TestNavMeshes.Query(NavMeshFile.PathFor(Path.Combine(RepositoryRoot(), "navmesh"), info.MapName))
+            };
+            harness.Maps.MapChannelArray.Add(mapContextId, map);
+            SpawnPoolManager.Instance.InitializeMapChannel(map);
+            foreach (var entry in harness.World.LogosEntries.AsNoTracking().Where(row => row.MapContextId == mapContextId).ToArray())
+                map.DynamicObjects.Add(new Logos(entry));
+            harness.Objects.DynamicObjectWorker(map, 0);
+            return map;
+        }
+
+        /// <summary>
+        /// Through the map's door from the public map, as MapLinkManager sends a player who walks into it
+        /// (MapChannelManager.EnterMap), and arrived (MapLoaded): the channel the player is on then.
+        /// </summary>
+        internal static MapChannel ThroughTheDoor(WildernessRuntimeTestHarness harness, uint mapContextId)
+        {
+            var door = harness.World.MapLinkEntries.AsNoTracking().Single(row => row.DestMapContextId == mapContextId);
+            var at = new Vector3((float)door.DestPosX, (float)door.DestPosY, (float)door.DestPosZ);
+            Assert.IsTrue(harness.Maps.EnterMap(harness.Client, mapContextId, at, (float)door.DestRotation), "through the door");
+            harness.Maps.MapLoaded(harness.Client);
+            harness.Drain();
+            var map = harness.Client.Player.MapChannel;
+            Assert.AreEqual(mapContextId, map.MapInfo.MapContextId);
+            harness.Objects.DynamicObjectWorker(map, 0);
+            harness.Drain();
+            return map;
+        }
+
+        /// <summary>The player back on the Plateau, as EnterPlateau puts them there.</summary>
+        internal static void Return(WildernessRuntimeTestHarness harness, MapChannel plateau)
+        {
+            var client = harness.Client;
+            CellManager.Instance.RemoveFromWorld(client);
+            client.Player.MapChannel.ClientList.Remove(client);
+            client.Player.MapChannel = plateau;
+            client.Player.RuntimeMapChannel = plateau;
+            client.Player.MapContextId = PlateauMissionDataV1.MapContextId;
+            plateau.ClientList.Add(client);
+            CellManager.Instance.AddToWorld(client);
+            harness.Drain();
+        }
+
+        /// <summary>The shrine used, from where it stands, and the use's ten seconds run out (LogosShrineUseArgTests).</summary>
+        private static void UseShrine(WildernessRuntimeTestHarness harness, MapChannel map, Logos shrine)
+        {
+            harness.MoveTo(shrine.Position);
+            harness.Drain();
+            harness.Objects.RequestUseObjectPacket(harness.Client, new RequestUseObjectPacket
+            {
+                EntityId = shrine.EntityId, ActionId = ActionId.UseObject, ActionArgId = DynamicObjectManager.LogosUseArgId
+            });
+            ActorActionManager.Instance.DoWork(map, 10001);
+            harness.Drain();
+        }
+
+        private static string RepositoryRoot()
+        {
+            var directory = new DirectoryInfo(AppContext.BaseDirectory);
+            while (directory != null && !Directory.Exists(Path.Combine(directory.FullName, "navmesh")))
+                directory = directory.Parent;
+            return directory?.FullName ?? AppContext.BaseDirectory;
+        }
+    }
+}
