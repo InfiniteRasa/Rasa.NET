@@ -23,12 +23,12 @@ namespace Rasa.Managers
     ///    while the leader stands - on a step, turning, sitting out a pause - so the pack does
     ///    not swing round at a corner.
     ///  - At an about-turn - the end of a beat walked there and back - the group countermarches
-    ///    (<see cref="Reform"/>): the leader turns about as it comes onto the step, its
-    ///    followers walk past it, facing the way they came, to their places behind it the new
-    ///    way, and turn about there; and it walks on once they are in place
-    ///    (<see cref="Formed"/>, at most <see cref="ReformHoldMs"/> after its pause). Turning
-    ///    with it and then running back to the far side of it, as they did, they slid there
-    ///    facing the wrong way (user playtest 2026-10-22).
+    ///    (<see cref="Reform"/>): the leader stands out the step's pause facing the way it came,
+    ///    then turns about; its followers walk past it, facing the way they came, to their
+    ///    places behind it the new way, and turn about there; and it walks on once they are in
+    ///    place (<see cref="Formed"/>, at most <see cref="ReformHoldMs"/> after its turn).
+    ///    Turning with it and then running back to the far side of it, as they did, they slid
+    ///    there facing the wrong way (user playtest 2026-10-22).
     ///  - The place is put on the navmesh and walked to across it (BehaviorManager.FollowGrounded):
     ///    the leader's steps are floor heights it walks between in straight lines, the
     ///    followers walk the ground beside it. A place off the mesh is given up for a point
@@ -99,7 +99,7 @@ namespace Rasa.Managers
         public const float PlaceReached = 0.5f;
 
         /// <summary>
-        /// The longest a leader that turned about waits on its step, past its pause, for its
+        /// The longest a leader that turned about waits on its step, past its turn, for its
         /// followers to reach their new places (<see cref="Reform"/>): one that cannot does not
         /// hold the beat up. A guess (ESTIMATE): the countermarch of two ranks 5 m apart is 10 m,
         /// 5 s at 2 m/s.

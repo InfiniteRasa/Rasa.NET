@@ -1683,7 +1683,7 @@ namespace Rasa.Managers
                 patrol.WaitMs = 0;
             }
 
-            // A group's leader that turned about waits, its pause out, for the group to re-form.
+            // A group's leader that turned about waits, its turn made, for the group to re-form.
             if (patrol.Reforming)
             {
                 if (patrol.ReformMs < PatrolGroups.ReformHoldMs && !PatrolGroups.Formed(mapChannel, creature))
@@ -1707,8 +1707,7 @@ namespace Rasa.Managers
                     var here = steps[patrol.Step];
 
                     patrol.Faced = true;
-                    patrol.WaitMs = (here.Facing is float facing ? TurnTo(creature, facing) : TurnAboutOnArrival(mapChannel, creature, steps, patrol.Step))
-                                    + here.PauseMs;
+                    patrol.WaitMs = (here.Facing is float facing ? TurnTo(creature, facing) : 0) + here.PauseMs;
 
                     if (patrol.WaitMs > 0)
                         return;
@@ -1954,34 +1953,6 @@ namespace Rasa.Managers
             creature.Position = NavMeshManager.SnapToGround(map, place);
             SynchronizeMovementCell(map, creature);
             StopMoving(creature);
-        }
-
-        /// <summary>
-        /// A group's leader coming onto a step where its beat turns about: it turns now, not as
-        /// it leaves, so its followers countermarch while it stands out the step's pause
-        /// (PatrolGroups.Reform). Returns how long the turn is given; nothing, and no turn, for
-        /// any other step or creature.
-        /// </summary>
-        private static long TurnAboutOnArrival(MapChannel map, Creature creature, IReadOnlyList<PatrolStep> steps, int step)
-        {
-            var here = steps[step].Position;
-            var next = steps[(step + 1) % steps.Count].Position;
-
-            if (AcrossGround(here, next) <= 0.01f || !PatrolGroups.LeadsFollowers(map, creature))
-                return 0;
-
-            var heading = AbilityManager.YawTowards(here, next);
-
-            if (MathF.Abs(Patrols.Turn(creature.LastYaw, heading)) <= PatrolGroups.AboutTurn)
-                return 0;
-
-            var turn = TurnTo(creature, heading);
-
-            PatrolGroups.Reform(map, creature, heading);
-            creature.Controller.ActionPatrol.Reforming = true;
-            creature.Controller.ActionPatrol.ReformMs = 0;
-
-            return turn;
         }
 
         /// <summary>
