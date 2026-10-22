@@ -137,6 +137,23 @@ namespace Rasa.Managers
         /// nearest the line, up to 8 m above or below it, and at a cliff edge that was the mesh
         /// built inside the hill under it - in Lower Eloh Creek, layers of it 8 m under the ground,
         /// joined to nothing. A player thrown there was inside the hill.
+        ///
+        /// From off the mesh - a slope too steep for it, the top of a rock, the edge of a ledge -
+        /// the walk starts at the nearest walkable point on the floor they stand on: within
+        /// <see cref="OffMeshReach"/> across, and no more than <see cref="OffMeshClimb"/> plus that
+        /// distance up or down, so never on a floor above or below theirs. A walk from where they
+        /// stood, off the mesh, was stopped at its first step, and a player standing there was
+        /// held for the whole knockback but never thrown (PlayerCrowdControl.Knockback sends no
+        /// throw under 0.1 m) - on the slope beside the hollow rock on Bootcamp's hill, about
+        /// (-9, 97, 177), in every direction.
+        ///
+        /// And not through anything in the way: the client flies the throw in one arc from where
+        /// they stand to where it ends, and what it does on the way is not looked at
+        /// (ManifestationManager sets a thrown player's moves aside). The walk stops at the last
+        /// step whose line from where they stand, at <see cref="FlightHeight"/>, crosses no
+        /// collision mesh (Navigation.CoverMesh.GeometryBlocks): a rock the walk climbs over or
+        /// skirts, which the straight flight would pass through. The ground is not looked at; its
+        /// grid there is too coarse.
         /// </summary>
         public static Vector3 KnockbackDestination(MapChannel mapChannel, Vector3 from, Vector3 dir, float distance)
         {
@@ -145,20 +162,40 @@ namespace Rasa.Managers
             if (navMesh == null)
                 return from + dir * distance;
 
+            if (navMesh.Nearest(from) is not Vector3 start)
+                return from;
+
+            var across = new Vector2(start.X - from.X, start.Z - from.Z).Length();
+
+            if (across > OffMeshReach || MathF.Abs(start.Y - from.Y) > OffMeshClimb + across)
+                return from;
+
+            var cover = mapChannel.Cover;
+            var lift = new Vector3(0f, FlightHeight, 0f);
             var end = from;
+            var at = start;
 
             for (var d = PathStep; d <= distance + 0.001f; d += PathStep)
             {
-                var ground = navMesh.WalkTo(end, from + dir * d);
+                var ground = navMesh.WalkTo(at, start + dir * d);
 
-                if (ground == null)
+                if (ground == null || cover != null && cover.GeometryBlocks(from + lift, ground.Value + lift))
                     break;
 
-                end = ground.Value;
+                end = at = ground.Value;
             }
 
             return end;
         }
+
+        /// <summary>How far across from where they stand the walk of a knockback from off the navmesh may start.</summary>
+        public const float OffMeshReach = 3f;
+
+        /// <summary>How far up or down from where they stand, beyond the distance across, that start may be.</summary>
+        public const float OffMeshClimb = 1f;
+
+        /// <summary>The height over the ground of the line a thrown body flies along, for what is in its way: about its middle.</summary>
+        public const float FlightHeight = 1f;
 
         /// <summary>
         /// Where a creature carried in a straight line from one point to another stops: at the
