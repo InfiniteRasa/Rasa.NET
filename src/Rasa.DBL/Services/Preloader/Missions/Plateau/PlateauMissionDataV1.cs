@@ -192,6 +192,21 @@ namespace Rasa.Services.Preloader.Missions.Plateau
                 ("radius", radius), ("show_3d_effect", false), ("comment", "Plateau navigation"));
 
         /// <summary>
+        /// An upright cylinder on map <paramref name="map"/> (a squad instance's too: its copies keep the map's
+        /// context id) that <see cref="EnterArea"/> waits for, as WildernessMissionDataV1.Area.
+        /// </summary>
+        public void Area(uint id, uint map, double x, double y, double z, double radius, double height = 8) =>
+            Insert("mission_area",
+                ("area_id", id), ("map_context_id", map), ("shape", (byte)MissionAreaShape.Cylinder),
+                ("pos_x", x), ("pos_y", y), ("pos_z", z), ("radius", radius),
+                ("extent_x", null), ("extent_y", height), ("extent_z", null),
+                ("comment", "Plateau mission volume"));
+
+        /// <summary>Completes <paramref name="objective"/> once the player walks into area <paramref name="area"/>.</summary>
+        public void EnterArea(uint objective, uint area) =>
+            Trigger(objective, MissionTriggerKind.AreaEntered, ("area_id", area));
+
+        /// <summary>
         /// One source of the mission. Confidence: <paramref name="confidence"/>, else 1.0 for the
         /// client's data and 0.5 for anything else; lower it where little is known.
         /// </summary>
