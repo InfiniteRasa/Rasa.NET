@@ -60,14 +60,21 @@ namespace Rasa.Managers
         /// <summary>Set while one of a group takes the rest into its fight: their own fights starting do not do it over again.</summary>
         private static bool _assisting;
 
-        /// <summary>How far to each side of the leader the two of a rank walk. Spacing.Distance.</summary>
+        /// <summary>How far to each side of the leader the two of a rank walk, by default: Spacing.Distance. A pool may set its own (<see cref="AbreastOf"/>).</summary>
         public const float Abreast = 3f;
 
-        /// <summary>How far behind the leader the first rank walks.</summary>
-        public const float FirstRank = 1.5f;
+        /// <summary>How far behind the leader the first rank walks: half of <see cref="Abreast"/>, or of a pool's own spacing.</summary>
+        public const float FirstRank = Abreast / 2;
 
-        /// <summary>How far behind each rank the next one walks.</summary>
-        public const float RankSpacing = 3f;
+        /// <summary>How far behind each rank the next one walks: <see cref="Abreast"/>, or a pool's own spacing.</summary>
+        public const float RankSpacing = Abreast;
+
+        /// <summary>
+        /// How far to each side of the leader its group walks: the pool's own spacing
+        /// (spawnpool_patrol_group.spacing) - for creatures too big for the default - else
+        /// <see cref="Abreast"/>. The ranks behind scale with it.
+        /// </summary>
+        public static float AbreastOf(SpawnPool pool) => pool?.FormationSpacing ?? Abreast;
 
         /// <summary>A follower that cannot stand at its place keeps this far behind the leader instead. MinionManager.FollowDistance.</summary>
         public const float TrailDistance = 4f;
@@ -106,6 +113,9 @@ namespace Rasa.Managers
 
         /// <summary>Within this of its place, on the navmesh, a follower steps straight onto it rather than along a route. Two of Abreast: the width of the formation.</summary>
         public const float DirectDistance = 2 * Abreast;
+
+        /// <summary><see cref="DirectDistance"/> for the pool's own spacing: the width of its formation.</summary>
+        public static float DirectDistanceOf(SpawnPool pool) => 2 * AbreastOf(pool);
 
         /// <summary>A leader this far from where the follower's place was last put on the navmesh has the place put on it again; nearer, the place is moved with it.</summary>
         public const float ReplaceDistance = 1f;
@@ -375,11 +385,13 @@ namespace Rasa.Managers
         /// <summary>
         /// A formation place, from the leader, as it faces <paramref name="yaw"/>: slot 0 behind
         /// on one side, 1 on the other, then the next rank back. Mirrored, each on the other side.
+        /// <paramref name="abreast"/>: how far to each side (<see cref="AbreastOf"/>); the first rank
+        /// is half that behind, each next one that further back.
         /// </summary>
-        public static Vector3 Offset(int slot, float yaw, bool mirrored = false)
+        public static Vector3 Offset(int slot, float yaw, bool mirrored = false, float abreast = Abreast)
         {
-            var right = (slot % 2 == 0) != mirrored ? -Abreast : Abreast;
-            var back = FirstRank + RankSpacing * (slot / 2);
+            var right = (slot % 2 == 0) != mirrored ? -abreast : abreast;
+            var back = abreast / 2 + abreast * (slot / 2);
 
             // A walk along (dx, dz) has the yaw atan2(-dx, -dz): ahead is (-sin, -cos).
             var ahead = new Vector3(-MathF.Sin(yaw), 0, -MathF.Cos(yaw));
@@ -443,14 +455,14 @@ namespace Rasa.Managers
             var slot = Math.Max(0, follow.FormationSlot);
 
             if (walking || follow.PlaceOffset == null)
-                follow.PlaceOffset = Offset(slot, yaw, SideOf(leader));
+                follow.PlaceOffset = Offset(slot, yaw, SideOf(leader), AbreastOf(leader.SpawnPool));
 
             placed = true;
 
             if (Spacing.Placed(map, leader.Position + follow.PlaceOffset.Value) is Vector3 place)
                 return place;
 
-            if (Spacing.Placed(map, leader.Position + Offset(slot, yaw, !leader.SpawnPool.FormationMirrored)) is Vector3 across)
+            if (Spacing.Placed(map, leader.Position + Offset(slot, yaw, !leader.SpawnPool.FormationMirrored, AbreastOf(leader.SpawnPool))) is Vector3 across)
                 return across;
 
             placed = false;

@@ -20,7 +20,8 @@ namespace Rasa.Structures.World
     /// started (the game server's SpawnPoolManager.TopUp), but its respawn time after its own
     /// death: a boss killed late in a long fight does not stand again moments after.
     ///
-    /// With a pace, the group walks its beat at that pace rather than the default stroll.
+    /// With a pace, the group walks its beat at that pace rather than the default stroll; with a
+    /// spacing, its followers walk that far apart rather than the default 3 m.
     ///
     /// A table of its own rather than a column on spawnpool, as spawnpool_pose is: the preloaders
     /// of earlier migrations insert spawnpool by its entity's columns.
@@ -57,5 +58,13 @@ namespace Rasa.Structures.World
         /// </summary>
         [Column("pace")]
         public double? Pace { get; set; }
+
+        /// <summary>
+        /// How far to each side of its leader its followers walk, metres; the first rank is half
+        /// that behind the leader, each next rank that further back. Null for the default, 3 m
+        /// (the game server's PatrolGroups.AbreastOf). For creatures too big for the default.
+        /// </summary>
+        [Column("spacing")]
+        public double? Spacing { get; set; }
     }
 }
