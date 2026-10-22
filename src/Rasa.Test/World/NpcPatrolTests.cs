@@ -889,6 +889,33 @@ namespace Rasa.Test.World
             AtPlace(leader, guards[1], new Vector3(-1.5f, 0, 3));
         }
 
+        /// <summary>
+        /// A pool with a spacing of its own (spawnpool_patrol_group.spacing), for creatures too big
+        /// for the default 3 m: its guards walk that far to each side, the first rank half that behind.
+        /// </summary>
+        [TestMethod]
+        public void AGroupWithASpacingOfItsOwnWalksThatFarApart()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 40);
+            var (leader, guards) = Group(world, new[]
+            {
+                new PatrolStep(new Vector3(10, 0, 0)),
+                new PatrolStep(new Vector3(30, 0, 0), pauseMs: 60000)
+            });
+
+            leader.SpawnPool.FormationSpacing = 5;
+            foreach (var guard in guards)
+                guard.Controller.ActionFollow.PlaceOffset = null;
+
+            Record(world, watcher, leader, 30);
+
+            Assert.IsGreaterThan(20f, leader.Position.X);
+            AtPlace(leader, guards[0], new Vector3(-2.5f, 0, -5));
+            AtPlace(leader, guards[1], new Vector3(-2.5f, 0, 5));
+            Assert.IsTrue(Near(new Vector3(-7.5f, 0, -5), PatrolGroups.Offset(2, East, abreast: 5)), "the second rank");
+        }
+
         [TestMethod]
         public void ItsGuardsHoldTheirPlacesWhileTheLeaderTurnsAboutAndFallInBehindItWhenItWalksBack()
         {

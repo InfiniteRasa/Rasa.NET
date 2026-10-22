@@ -3254,6 +3254,10 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnType("REAL")
                         .HasColumnName("pace");
 
+                    b.Property<double?>("Spacing")
+                        .HasColumnType("REAL")
+                        .HasColumnName("spacing");
+
                     b.HasKey("Id");
 
                     b.ToTable("spawnpool_patrol_group");

@@ -3324,6 +3324,10 @@ namespace Rasa.Migrations.MySqlWorld
                         .HasColumnType("double")
                         .HasColumnName("pace");
 
+                    b.Property<double?>("Spacing")
+                        .HasColumnType("double")
+                        .HasColumnName("spacing");
+
                     b.HasKey("Id");
 
                     b.ToTable("spawnpool_patrol_group");

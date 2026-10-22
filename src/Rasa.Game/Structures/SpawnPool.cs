@@ -54,6 +54,12 @@ namespace Rasa.Structures
         /// </summary>
         public float? PatrolPace { get; set; }
 
+        /// <summary>
+        /// How far to each side of its leader its group walks, metres (spawnpool_patrol_group.spacing);
+        /// null for the default (Managers.PatrolGroups.AbreastOf).
+        /// </summary>
+        public float? FormationSpacing { get; set; }
+
         /// <summary>How long its group's own leader has been down, up to its respawn time, for a pool without its leader's top-up. Not copied to a clone.</summary>
         internal long LeaderDownMs { get; set; }
 

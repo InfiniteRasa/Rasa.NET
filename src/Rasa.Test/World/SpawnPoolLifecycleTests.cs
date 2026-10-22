@@ -235,8 +235,8 @@ namespace Rasa.Test.World
             data.Pools.Add(new SpawnPoolEntry { Id = 66, MapContextId = 1220, Creature1Id = 3, Creature1MinCount = 1, Creature1MaxCount = 1, Creature2Id = 4, Creature2MinCount = 2, Creature2MaxCount = 2 });
             data.Pools.Add(new SpawnPoolEntry { Id = 67, MapContextId = 1220, Creature2Id = 4, Creature2MinCount = 3, Creature2MaxCount = 3 });
             data.Draws.Add(new SpawnPoolDrawEntry { Id = 65, Count = 3 });
-            data.PatrolGroups.Add(new SpawnPoolPatrolGroupEntry { Id = 64, ActingLeader = true, Pace = 2.0 });
-            data.PatrolGroups.Add(new SpawnPoolPatrolGroupEntry { Id = 65, ActingLeader = true, Pace = -1 });
+            data.PatrolGroups.Add(new SpawnPoolPatrolGroupEntry { Id = 64, ActingLeader = true, Pace = 2.0, Spacing = 5.0 });
+            data.PatrolGroups.Add(new SpawnPoolPatrolGroupEntry { Id = 65, ActingLeader = true, Pace = -1, Spacing = 0 });
             data.PatrolGroups.Add(new SpawnPoolPatrolGroupEntry { Id = 66, ActingLeader = true });
             data.PatrolGroups.Add(new SpawnPoolPatrolGroupEntry { Id = 99, ActingLeader = true });
 
@@ -270,6 +270,12 @@ namespace Rasa.Test.World
             Assert.IsNull(manager.LoadedSpawnPools[65].PatrolPace, "a pace of -1 is no speed");
             Assert.IsNull(manager.LoadedSpawnPools[66].PatrolPace);
             Assert.IsNull(manager.LoadedSpawnPools[67].PatrolPace);
+
+            // Its own spacing (PatrolGroups.AbreastOf); none, or one that is no distance, is the default.
+            Assert.AreEqual(5f, manager.LoadedSpawnPools[64].FormationSpacing);
+            Assert.IsNull(manager.LoadedSpawnPools[65].FormationSpacing, "a spacing of 0 is no distance");
+            Assert.IsNull(manager.LoadedSpawnPools[66].FormationSpacing);
+            Assert.AreEqual(PatrolGroups.Abreast, PatrolGroups.AbreastOf(manager.LoadedSpawnPools[66]));
         }
 
         [TestMethod]
