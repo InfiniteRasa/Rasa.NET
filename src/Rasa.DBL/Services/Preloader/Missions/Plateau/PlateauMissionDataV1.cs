@@ -154,6 +154,13 @@ namespace Rasa.Services.Preloader.Missions.Plateau
                 ("event_kind", (byte)kind), ("subject_id", subject),
                 ("counter_id", counter), ("initial_value", target.HasValue ? 0U : null), ("target_value", target));
 
+        /// <summary>The progress rule of <paramref name="objective"/>'s transition <paramref name="transition"/>.</summary>
+        public void Progress(uint objective, uint transition, MissionProgressEventKind kind, uint subject, uint? target,
+            uint? counter = null, uint trigger = 1) =>
+            Trigger(objective, transition, MissionTriggerKind.ProgressEvent, trigger,
+                ("event_kind", (byte)kind), ("subject_id", subject),
+                ("counter_id", counter), ("initial_value", target.HasValue ? 0U : null), ("target_value", target));
+
         public void Action(uint objective, uint id, MissionActionKind kind, uint? targetObjective = null,
             uint? reward = null, MissionObjectiveState? state = null, CharacterIntent itemIntent = null,
             uint? playerFlag = null, uint? playerFlagValue = null, string comment = null, uint? scenario = null,
@@ -201,6 +208,17 @@ namespace Rasa.Services.Preloader.Missions.Plateau
                 ("pos_x", x), ("pos_y", y), ("pos_z", z), ("radius", radius),
                 ("extent_x", null), ("extent_y", height), ("extent_z", null),
                 ("comment", "Plateau mission volume"));
+
+        /// <summary>
+        /// The whole of map <paramref name="map"/> (MissionAreaShape.Map), entered by arriving on it (a squad
+        /// instance's copy too), as TargetsOfOpportunityOneOffs' operations: no position or extent is read.
+        /// </summary>
+        public void MapArea(uint id, uint map) =>
+            Insert("mission_area",
+                ("area_id", id), ("map_context_id", map), ("shape", (byte)MissionAreaShape.Map),
+                ("pos_x", 0.0), ("pos_y", 0.0), ("pos_z", 0.0), ("radius", null),
+                ("extent_x", null), ("extent_y", null), ("extent_z", null),
+                ("comment", "Plateau mission map"));
 
         /// <summary>Completes <paramref name="objective"/> once the player walks into area <paramref name="area"/>.</summary>
         public void EnterArea(uint objective, uint area) =>

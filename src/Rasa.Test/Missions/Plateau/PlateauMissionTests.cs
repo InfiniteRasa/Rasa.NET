@@ -32,7 +32,9 @@ namespace Rasa.Test.Missions.Plateau
     /// Plateau_mind_slayer); the hologram's five instanced Trinity Bridge Logos (1047, 1048, 1049, 1051, 1057,
     /// Plateau_trinity_bridge_logos) and Sampei's The Order Of Velon (1982, Plateau_order_of_velon); the Temporal Chamber's Array Of Hope (935),
     /// Future Sacrifice (1171) and The Final Assault (1167) (Plateau_temporal_chamber); Sampei's Deadly Silence (1974, Plateau_deadly_silence);
-    /// Ustor Yard's Silent But Deadly (1187), Interception! (1189) and Monkey Wrench (1188) (Plateau_ustor_yard).
+    /// Ustor Yard's Silent But Deadly (1187), Interception! (1189) and Monkey Wrench (1188) (Plateau_ustor_yard);
+    /// Velon Hollow's Ancient Mysteries (1978) and Mountain Spring Toxins (1979) (Plateau_velon_hollow_bane); Clark's
+    /// The Better Half (1975, Plateau_better_half).
     /// </summary>
     [TestClass]
     [DoNotParallelize]
@@ -59,7 +61,8 @@ namespace Rasa.Test.Missions.Plateau
             PlateauTrinityBridgeLogosV1.Distance.MissionId, PlateauOrderOfVelonV1.MissionId,
             PlateauArrayOfHopeV1.MissionId, PlateauFutureSacrificeV1.MissionId, PlateauFinalAssaultV1.MissionId,
             PlateauDeadlySilenceV1.MissionId, PlateauSilentButDeadlyV1.MissionId, PlateauInterceptionV1.MissionId,
-            PlateauMonkeyWrenchV1.MissionId
+            PlateauMonkeyWrenchV1.MissionId, PlateauAncientMysteriesV1.MissionId, PlateauMountainSpringToxinsV1.MissionId,
+            PlateauBetterHalfV1.MissionId
         };
 
         /// <summary>
@@ -131,6 +134,8 @@ namespace Rasa.Test.Missions.Plateau
         private const string OrderOfVelon = "20270318000000_Plateau_order_of_velon";
         private const string TemporalChamber = "20270319000000_Plateau_temporal_chamber";
         private const string DeadlySilence = "20270320000000_Plateau_deadly_silence";
+        private const string UstorYard = "20270321000000_Plateau_ustor_yard";
+        private const string VelonHollowBane = "20270322000000_Plateau_velon_hollow_bane";
 
         [TestMethod]
         public void TheMissionsAreEnabledAndOperationalAtTheirGiversAndReceiversAndLevels()
@@ -187,7 +192,10 @@ namespace Rasa.Test.Missions.Plateau
                 (PlateauDeadlySilenceV1.MissionId, PlateauVillageOfTheDamnedV1.Sampei, PlateauVillageOfTheDamnedV1.Sampei),
                 (PlateauSilentButDeadlyV1.MissionId, PlateauUstorYardV1.Rapp, PlateauUstorYardV1.Rapp),
                 (PlateauInterceptionV1.MissionId, PlateauUstorYardV1.Rapp, PlateauUstorYardV1.Rapp),
-                (PlateauMonkeyWrenchV1.MissionId, PlateauUstorYardV1.Rapp, null)
+                (PlateauMonkeyWrenchV1.MissionId, PlateauUstorYardV1.Rapp, null),
+                (PlateauAncientMysteriesV1.MissionId, PlateauVelonHollowBaneV1.Hundra, PlateauVelonHollowBaneV1.Hundra),
+                (PlateauMountainSpringToxinsV1.MissionId, PlateauPerduNpcsV1.Russ, PlateauPerduNpcsV1.Russ),
+                (PlateauBetterHalfV1.MissionId, PlateauPerduNpcsV1.Clark, PlateauPerduNpcsV1.Clark)
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             var enabled = harness.World.MissionContentDefinitionEntries.AsNoTracking()
@@ -198,7 +206,7 @@ namespace Rasa.Test.Missions.Plateau
                 var entry = enabled.Single(row => row.MissionId == mission);
                 Assert.AreEqual<uint?>(giver, entry.GiverId, $"{mission} giver");
                 Assert.AreEqual<uint?>(receiver, entry.ReceiverId, $"{mission} receiver");
-                Assert.AreEqual<uint?>(mission switch { 1251 or 1015 or 1017 or 1027 or 1044 => 31U, 930 or 1825 or 557 or 934 or 905 or 929 or 936 or 719 => 32U, 2007 => 34U, 2016 or 2017 => 50U, 1974 or 1187 or 1188 or 1189 => 32U, 1047 or 1048 or 1049 or 1051 or 1057 => 33U, _ => 30U },
+                Assert.AreEqual<uint?>(mission switch { 1251 or 1015 or 1017 or 1027 or 1044 => 31U, 930 or 1825 or 557 or 934 or 905 or 929 or 936 or 719 => 32U, 2007 => 34U, 2016 or 2017 => 50U, 1974 or 1187 or 1188 or 1189 or 1978 or 1979 or 1975 => 32U, 1047 or 1048 or 1049 or 1051 or 1057 => 33U, _ => 30U },
                     entry.Level,
                     $"{mission} level");
                 Assert.AreEqual<uint?>(PlateauMissionDataV1.CategoryId, entry.CategoryId);
@@ -302,7 +310,12 @@ namespace Rasa.Test.Missions.Plateau
                     (6, 9232, 9233, null), (8, 9228, 9229, null) }),
                 (1189, 9137, new (uint, uint, uint, uint?)[] { (1, 9241, 9242, null), (2, 9243, 9244, null), (3, 9245, 9246, 9249),
                     (4, 9247, 9248, 17888), (5, 9243, 9244, null) }),
-                (1188, 9132, new (uint, uint, uint, uint?)[] { (1, 9147, 9148, null), (2, 9151, 9152, null), (3, 9149, 9150, null) })
+                (1188, 9132, new (uint, uint, uint, uint?)[] { (1, 9147, 9148, null), (2, 9151, 9152, null), (3, 9149, 9150, null) }),
+                (1978, 20818, new (uint, uint, uint, uint?)[] { (1, 20835, 20836, null), (2, 20837, 20838, null), (3, 20929, 20930, null) }),
+                (1979, 20823, new (uint, uint, uint, uint?)[] { (1, 20906, 20907, null), (2, 20908, 20909, null), (3, 20910, 20911, null),
+                    (4, 20912, 20913, null), (5, 20914, 20915, null), (6, 20916, 20917, null), (7, 20908, 20909, null) }),
+                (1975, 20803, new (uint, uint, uint, uint?)[] { (1, 20871, 20872, null), (2, 20873, 20874, null), (3, 20875, 20876, null),
+                    (4, 20877, 20878, null), (5, 20879, 20880, null) })
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             foreach (var (mission, title, objectives) in expected)
@@ -341,7 +354,8 @@ namespace Rasa.Test.Missions.Plateau
         /// Plans has none. The five instanced Trinity Bridge Logos follow Trinity Bridge Logos: Past; The Order Of
         /// Velon follows Village Of The Damned. Array Of Hope follows all six Trinity Bridge Logos; Future
         /// Sacrifice follows Array Of Hope, The Final Assault Future Sacrifice. Deadly Silence follows Village
-        /// Of The Damned. Interception! follows Silent But Deadly, Monkey Wrench Interception!.
+        /// Of The Damned. Interception! follows Silent But Deadly, Monkey Wrench Interception!. Ancient Mysteries and
+        /// Mountain Spring Toxins and The Better Half follow Village Of The Damned.
         /// </summary>
         [TestMethod]
         public void EachMissionRequiresTheMissionOrDeliveryBeforeIt()
@@ -349,7 +363,7 @@ namespace Rasa.Test.Missions.Plateau
             using var harness = WildernessRuntimeTestHarness.Create();
             var prerequisites = harness.World.MissionPrerequisiteEntries.AsNoTracking()
                 .Where(entry => entry.ContentRevision == PlateauMissionDataV1.Revision).ToArray();
-            Assert.HasCount(38, prerequisites);
+            Assert.HasCount(41, prerequisites);
             var incommunicado = prerequisites.Single(entry => entry.MissionId == PlateauIncommunicadoV1.MissionId);
             Assert.AreEqual(MissionPrerequisiteKind.MissionCompleted, incommunicado.Kind);
             Assert.AreEqual<uint?>(PlateauGiantKillerV1.MissionId, incommunicado.RequiredMissionId);
@@ -386,7 +400,7 @@ namespace Rasa.Test.Missions.Plateau
                 (stalkMarket.Kind, stalkMarket.RequiredMissionId));
             foreach (var mission in new uint[] { 933, 1981, 930, 1034, 1825, 557, 2007, 887, 934, 1983, 931, 970, 2016, 1659, 965 })
                 Assert.IsFalse(prerequisites.Any(entry => entry.MissionId == mission), $"{mission}");
-            foreach (var (mission, required) in new (uint, uint)[] { (713, 887), (954, 887), (855, 713), (1027, 954), (1044, 934), (905, 1983), (929, 905), (936, 929), (719, 936), (867, 970), (1014, 887), (895, 1014), (928, 895), (2017, 2016), (555, 867), (1047, 1044), (1048, 1044), (1049, 1044), (1051, 1044), (1057, 1044), (1982, 1981), (1171, 935), (1167, 1171), (1974, 1981), (1189, 1187), (1188, 1189) })
+            foreach (var (mission, required) in new (uint, uint)[] { (713, 887), (954, 887), (855, 713), (1027, 954), (1044, 934), (905, 1983), (929, 905), (936, 929), (719, 936), (867, 970), (1014, 887), (895, 1014), (928, 895), (2017, 2016), (555, 867), (1047, 1044), (1048, 1044), (1049, 1044), (1051, 1044), (1057, 1044), (1982, 1981), (1171, 935), (1167, 1171), (1974, 1981), (1189, 1187), (1188, 1189), (1978, 1981), (1979, 1981), (1975, 1981) })
             {
                 var prerequisite = prerequisites.Single(entry => entry.MissionId == mission);
                 Assert.AreEqual((MissionPrerequisiteKind.MissionCompleted, (uint?)required),
@@ -514,7 +528,13 @@ namespace Rasa.Test.Missions.Plateau
                 (1189, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
                     (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
                 (1188, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
-                    (MissionEvidenceSourceKind.Reconstruction, 0.3) })
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                (1978, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                (1979, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                (1975, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.2) })
             })
                 CollectionAssert.AreEqual(confidences, evidence.Where(entry => entry.MissionId == mission)
                     .OrderBy(entry => entry.EvidenceId).Select(entry => (entry.SourceKind, entry.Confidence)).ToArray(),
@@ -1262,6 +1282,80 @@ namespace Rasa.Test.Missions.Plateau
             Assert.IsFalse(world.SpawnPoolEntries.AsNoTracking().Any(row => pools.Contains(row.Id)));
             Assert.IsFalse(world.MapLinkEntries.AsNoTracking().Any(row => links.Contains(row.Id)));
             Assert.IsTrue(Has(PlateauDeadlySilenceV1.MissionId));
+        }
+
+        /// <summary>
+        /// Velon Hollow's Bane, its officers and Mox, Markin, Hundra's package and the two missions
+        /// (Plateau_velon_hollow_bane) go with their migration, and the outpost's three pools get their Howling Maw
+        /// creatures back; Ustor Yard stays.
+        /// </summary>
+        [TestMethod]
+        public void VelonHollowBaneRollsBackWithItsMigration()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            bool Has(uint mission) => world.MissionContentDefinitionEntries.AsNoTracking()
+                .Any(entry => entry.MissionId == mission && entry.ContentRevision == PlateauMissionDataV1.Revision);
+            uint Slot(uint pool, int slot)
+            {
+                var row = world.SpawnPoolEntries.AsNoTracking().Single(entry => entry.Id == pool);
+                return slot switch
+                {
+                    1 => row.Creature1Id, 2 => row.Creature2Id, 3 => row.Creature3Id,
+                    4 => row.Creature4Id, 5 => row.Creature5Id, _ => row.Creature6Id
+                };
+            }
+            var missions = new[] { PlateauAncientMysteriesV1.MissionId, PlateauMountainSpringToxinsV1.MissionId };
+            var creatures = new[]
+            {
+                PlateauVelonHollowBaneV1.Soldier, PlateauVelonHollowBaneV1.Grenadier, PlateauVelonHollowBaneV1.Miasma,
+                PlateauVelonHollowBaneV1.Officer, PlateauVelonHollowBaneV1.MoxBoss, PlateauVelonHollowBaneV1.Commander,
+                PlateauVelonHollowBaneV1.Markin
+            };
+            var pools = new[]
+            {
+                PlateauVelonHollowBaneV1.ControlRoomPool, PlateauVelonHollowBaneV1.TunnelPool, PlateauVelonHollowBaneV1.MoxPool,
+                PlateauVelonHollowBaneV1.MarkinPool
+            };
+            var packages = new[] { PlateauVelonHollowBaneV1.Hundra, PlateauVelonHollowBaneV1.Markin };
+
+            Assert.IsTrue(missions.All(Has));
+            Assert.HasCount(7, world.CreatureEntries.AsNoTracking().Where(row => creatures.Contains(row.Id)).ToArray());
+            Assert.HasCount(4, world.SpawnPoolEntries.AsNoTracking().Where(row => pools.Contains(row.Id)).ToArray());
+            Assert.HasCount(2, world.NpcPackageEntries.AsNoTracking().Where(row => packages.Contains(row.Id)).ToArray());
+            foreach (var (pool, slot, _, replacement) in PlateauVelonHollowBaneV1.Outpost)
+                Assert.AreEqual(replacement, Slot(pool, slot), $"pool {pool} slot {slot}");
+
+            world.GetService<IMigrator>().Migrate(UstorYard);
+            Assert.IsFalse(missions.Any(Has));
+            Assert.IsFalse(world.MissionObjectiveDefinitionEntries.AsNoTracking().Any(entry => missions.Contains(entry.MissionId)));
+            Assert.IsFalse(world.MissionAreaEntries.AsNoTracking().Any(entry => missions.Contains(entry.MissionId)));
+            Assert.IsFalse(world.CreatureEntries.AsNoTracking().Any(row => creatures.Contains(row.Id)));
+            Assert.IsFalse(world.SpawnPoolEntries.AsNoTracking().Any(row => pools.Contains(row.Id)));
+            Assert.IsFalse(world.NpcPackageEntries.AsNoTracking().Any(row => packages.Contains(row.Id)));
+            foreach (var (pool, slot, old, _) in PlateauVelonHollowBaneV1.Outpost)
+                Assert.AreEqual(old, Slot(pool, slot), $"pool {pool} slot {slot} back");
+            Assert.IsTrue(Has(PlateauMonkeyWrenchV1.MissionId));
+        }
+
+        /// <summary>The Better Half, Quarsh and Tala (Plateau_better_half) go with their migration; Velon Hollow's Bane stays.</summary>
+        [TestMethod]
+        public void BetterHalfRollsBackWithItsMigration()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            bool Has(uint mission) => world.MissionContentDefinitionEntries.AsNoTracking()
+                .Any(entry => entry.MissionId == mission && entry.ContentRevision == PlateauMissionDataV1.Revision);
+            var creatures = new[] { PlateauBetterHalfV1.Quarsh, PlateauBetterHalfV1.Tala };
+
+            Assert.IsTrue(Has(PlateauBetterHalfV1.MissionId));
+            Assert.HasCount(2, world.CreatureEntries.AsNoTracking().Where(row => creatures.Contains(row.Id)).ToArray());
+            world.GetService<IMigrator>().Migrate(VelonHollowBane);
+            Assert.IsFalse(Has(PlateauBetterHalfV1.MissionId));
+            Assert.IsFalse(world.MissionAreaEntries.AsNoTracking().Any(entry => entry.MissionId == PlateauBetterHalfV1.MissionId));
+            Assert.IsFalse(world.CreatureEntries.AsNoTracking().Any(row => creatures.Contains(row.Id)));
+            Assert.IsTrue(Has(PlateauMountainSpringToxinsV1.MissionId));
+            Assert.IsTrue(world.CreatureEntries.AsNoTracking().Any(row => row.Id == PlateauVelonHollowBaneV1.Officer));
         }
 
         /// <summary>

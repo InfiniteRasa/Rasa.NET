@@ -22,7 +22,8 @@ namespace Rasa.Game.Missions.Integration
             {
                 var document = binding.Value;
                 if (document.Script != null)
-                    scenes.Bind(binding.Key, document.Script, document.Bindings(catalog.Missions[binding.Key].ContentRevision));
+                    scenes.Bind(binding.Key, document.Script, document.Bindings(catalog.Missions[binding.Key].ContentRevision),
+                        document.MapContextId);
             }
             foreach (var experience in catalog.Experiences)
             {

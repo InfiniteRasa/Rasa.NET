@@ -110,6 +110,8 @@ namespace Rasa.Game.Missions.Content
             if (scene.Titles != null && (missionId == 0 || scene.Titles.Any(title =>
                 title.Value == 0 || !objectiveIds.Contains(title.Key))))
                 throw new MissionRuleException($"Mission {missionId}: a title must name a title id and one of this mission's objectives.");
+            if (scene.MapContextId == 0 || scene.MapContextId != null && missionId == 0)
+                throw new MissionRuleException($"Mission {missionId}: a scene map must be a mission's, and not zero (an experience has its own).");
             if (scene.Category == 0 || scene.Category != null && missionId == 0)
                 throw new MissionRuleException($"Mission {missionId}: a category must be a mission's, and not zero.");
             if (scene.Audio is { } audio && (audio.Events == null || audio.Announcements == null ||
