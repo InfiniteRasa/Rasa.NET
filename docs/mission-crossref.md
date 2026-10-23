@@ -39,11 +39,11 @@ Generated 2026-10-18, extended 2026-10-20 (Wayback round 2: official site + patc
 
 **Implemented** (enabled on the local server, `data/rasaworld.db`; marked `[implemented]` in the entry heading): 134 missions. Per zone: Wilderness 64, Plateau 52, Bootcamp 5, Abyss 1, Ashen Desert 1, Crucible 1, Descent 1, Divide 1, Howling Maw 1, Incline 1, Marshes 1, Mires 1, Palisades 1, Plains 1, Pools 1, Thunderhead 1. Search for `[implemented]` to find them; entries without the mark are not implemented yet.
 
-**Missing mechanic** (cannot be built or completed as in the original game until the server has the mechanic; marked `[missing mechanic]`, list in `tools/mission-crossref/NOTES-missing-mechanics.md`): 37 missions.
+**Missing mechanic** (cannot be built or completed as in the original game until the server has the mechanic; marked `[missing mechanic]`, list in `tools/mission-crossref/NOTES-missing-mechanics.md`): 40 missions.
 
 **Goal in instance** (given on a public map, but cannot be completed without an objective inside an instance map; marked `[goal in instance]`, list in `tools/mission-crossref/NOTES-instance-goals.md`): 5 missions.
 
-**Needs playtest** (implemented, not yet played through in the game client; marked `[needs playtest]`, list in `tools/mission-crossref/NOTES-playtest.md`): 50 missions.
+**Needs playtest** (implemented, not yet played through in the game client; marked `[needs playtest]`, list in `tools/mission-crossref/NOTES-playtest.md`): 56 missions.
 
 
 **Instance** (the mission takes place in a client instance map, a "mission context" in gamecontext.pyo; marked `[instance]` in the entry heading): from an objective NPC package that spawns in an instance (local DB), a TaRapedia NPC page in an instance, or client objective text placing it there. "Instance mentioned" lines only name an instance (ESTIMATE). Refresh with instance_export.py.
@@ -10463,8 +10463,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 
 ## Maligo Base
 
-### 876 — Showdown
+### 876 — Showdown [needs playtest]
 
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Instance mentioned:** Maligo Base — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
 - **Rebuild summary:**
   - level: 30 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
@@ -10487,8 +10488,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 
 - **Chain** (explicit prerequisite links): Showdown chain (2 missions), step 1
   - Leads to: Coup (id 878) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Coup), [TaRapedia](https://tabularasa.fandom.com/wiki/Showdown)
-### 878 — Coup [instance]
+### 878 — Coup [needs playtest] [instance]
 
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Instance:** Maligo Base — NPC Downed Prisoner (named as giver/receiver) is in Maligo Base — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Downed_Prisoner)
 - **Rebuild summary:**
   - level: 30 — source: [TR MMO DB](https://web.archive.org/web/20120731174424/http://tr.mmodb.com/quests/coup-252.php)
@@ -10512,8 +10514,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 
 - **Chain** (explicit prerequisite links): Showdown chain (2 missions), step 2
   - Requires: Showdown (id 876) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Coup), [TaRapedia](https://tabularasa.fandom.com/wiki/Showdown)
-### 879 — Self Preservation
+### 879 — Self Preservation [needs playtest] [missing mechanic]
 
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
+- **Missing mechanic:** mission force field in a squad copy - Ten Ton Hammer: the three Security CPUs sit behind coloured switches (green, yellow, red) and force fields on Maligo Level 1; built without them, the three CPUs stand open — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Instance mentioned:** Maligo Base — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
 - **Rebuild summary:**
   - level: 30 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
@@ -18729,8 +18733,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Chain** (explicit prerequisite links): Lookout Down Below chain (3 missions), step 2
   - Requires: Lookout Down Below (id 970) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Stainless_Steel_Bloodhound), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - Leads to: Behind Enemy Lines (id 555) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Behind_Enemy_Lines), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Stainless_Steel_Bloodhound), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
-### 877 — One Way Trip [instance]
+### 877 — One Way Trip [needs playtest] [instance]
 
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Instance:** Maligo Base — client objective/log text: "Search Maligo Base for the location of the prototype Wormhole device that the Bane are working on."
 - **Instance:** Ustor Yard — client objective/log text: "Gain Access to Maligo Bridge Through Ustor Yard's Western Exit."
 - **Rebuild summary:**
@@ -19688,8 +19693,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **Chain** (explicit prerequisite links): A Voice From The Past chain (12 missions), step 3
   - Requires: Trinity Bridge Logos: Past (id 1044) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Distance), [TaRapedia](https://tabularasa.fandom.com/wiki/Trinity_Bridge_Logos%3A_Past), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - Leads to: Array Of Hope (id 935) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Array_of_Hope), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
-### 1068 — South Of The Border
+### 1068 — South Of The Border [needs playtest]
 
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Rebuild summary:**
   - level: 25 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731170730/http://tr.mmodb.com/quests/startingzone-plateau/)
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
@@ -19963,8 +19969,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 
 - **Chain** (explicit prerequisite links): Comic Relief chain (3 missions), step 1
   - Leads to: Scavenger Hunt (id 1015) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Scavenger_Hunt)
-### 1541 — New Orders From The General
+### 1541 — New Orders From The General [needs playtest]
 
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Rebuild summary:**
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
   - level ESTIMATE from zone: most Plateau missions are level 25–33 (median 30, 10th–90th percentile) — derived from 59 missions in this file with a sourced level
@@ -20163,8 +20170,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 
 - **Chain** (explicit prerequisite links): Special Deliveries chain (16 missions), step 2
   - Requires: Village Of The Damned (id 1981) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Better_Half)
-### 1976 — These Old Bones [instance]
+### 1976 — These Old Bones [missing mechanic] [instance]
 
+- **Missing mechanic:** escort across a split navmesh - Elder Hathen (objective 4, "must be protected as a VIP") cannot walk from the hospital (165, 77, -520) to the three temples; a follower stops at the outpost island's edge — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Instance:** Velon Hollow — client objective/log text: "Elder Hathen is the highest ranking survivor of the Seekers of Velon. He demands to come with you into Velon Hollow, …"
 - **Rebuild summary:**
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
@@ -20182,8 +20190,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 
 - **Chain** (explicit prerequisite links): These Old Bones chain (2 missions), step 1
   - Leads to: Holy Vengeance (id 1977) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Holy_Vengeance), [TaRapedia](https://tabularasa.fandom.com/wiki/These_Old_Bones)
-### 1977 — Holy Vengeance [instance]
+### 1977 — Holy Vengeance [missing mechanic] [instance]
 
+- **Missing mechanic:** spawn pool cleared - objectives 1/2 "Secure outer / Clear inner Bane Outpost" need the outpost pools (outer 531225, 531226; inner 531224, 650075, 650076) cleared in the owner's copy; also needs 1976 (its requirement and the Warrior Algona giver) — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Instance:** Velon Hollow — client objective/log text: "Clear the outer part of the Bane Outpost established inside Velon Hollow."
 - **Rebuild summary:**
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)

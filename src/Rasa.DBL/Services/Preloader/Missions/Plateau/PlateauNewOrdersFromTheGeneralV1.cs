@@ -29,7 +29,6 @@ namespace Rasa.Services.Preloader.Missions.Plateau
         public const uint Level = 33;
         public const uint Bosley = PlateauGiantKillerV1.Bosley;
         public const uint Amee = 510195, AmeePackage = 329;   // creature and pool, "Amee Corman", Valverde Pools
-        public const uint PoolsMapContextId = PlateauSnakePitV1.MapContextId;
         public const uint Question = 1;
 
         public const uint Experience = 55000;
