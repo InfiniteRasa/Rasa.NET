@@ -63,7 +63,7 @@ namespace Rasa.Managers
             var hasTargetValue = trigger.TargetValue.HasValue;
             var hasSourceSpawnResolved = trigger.SourceSpawnResolved.HasValue;
 
-            if (kind is MissionProgressEventKind.WaypointAcquired or MissionProgressEventKind.LogosAcquired)
+            if (MissionProgressRule.IsDistinctFact(kind))
                 return TryBuildDistinctSet(
                     progressTriggers,
                     out rule,
@@ -329,9 +329,9 @@ namespace Rasa.Managers
             diagnostic = null;
 
             progressTriggers[0].TryGetEventKind(out var aggregateKind);
-            if (aggregateKind is not MissionProgressEventKind.WaypointAcquired and not MissionProgressEventKind.LogosAcquired)
+            if (!MissionProgressRule.IsDistinctFact(aggregateKind))
             {
-                diagnostic = "multiple progress event triggers only support waypoint or Logos distinct-subject rules, or kill triggers that share one counter.";
+                diagnostic = "multiple progress event triggers only support waypoint, Logos or cleared spawn pool distinct-subject rules, or kill triggers that share one counter.";
                 return false;
             }
 

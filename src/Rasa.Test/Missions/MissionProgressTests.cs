@@ -640,6 +640,8 @@ namespace Rasa.Test.Missions
                         MissionProgressEvent.CreatureFlag(subject),
                     MissionProgressEventKind.CreatureClassKilled =>
                         MissionProgressEvent.CreatureClass(subject),
+                    MissionProgressEventKind.SpawnPoolCleared =>
+                        MissionProgressEvent.SpawnPoolCleared(subject),
                     _ => throw new AssertFailedException()
                 };
                 Assert.IsFalse(context.Manager.RecordProgress(context.Client, progress),
