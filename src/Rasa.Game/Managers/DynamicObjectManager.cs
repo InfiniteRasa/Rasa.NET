@@ -736,9 +736,23 @@ namespace Rasa.Managers
                 CreateDynamicObjectOnClient(client, dynamicObject);
         }
 
+        /// <summary>
+        /// Whether the client is given the object at all. A mission scene's object belongs to the
+        /// player whose scene put it down (SceneOwnerCharacterId): each player on the mission has
+        /// a copy of their own, in the same place - Hitting 'em Where It Hurts (432) puts three gas
+        /// harvesters down for each player who takes it - and only its owner can hit or use it
+        /// (PracticeTargetManager.CanHit, SceneApplication). Every copy used to go to everyone in
+        /// range, stacked on one another, and a player who locked on to another's copy had their
+        /// shot dropped and their Lightning refused with "no target". Now each player is sent their
+        /// own copy alone; what is nobody's (no scene, or no owner) goes to everyone as before.
+        /// </summary>
+        internal static bool IsShownTo(Client client, DynamicObject obj) =>
+            obj == null || obj.SceneRunId == null || obj.SceneOwnerCharacterId == 0 ||
+            client?.Player != null && client.Player.Id == obj.SceneOwnerCharacterId;
+
         internal void CreateDynamicObjectOnClient(Client client, DynamicObject dynamicObject)
         {
-            if (dynamicObject == null)
+            if (dynamicObject == null || !IsShownTo(client, dynamicObject))
                 return;
 
             // One this client holds from beyond its cells is taken off it first: made anew, not
@@ -959,7 +973,7 @@ namespace Rasa.Managers
 
         internal void CellDiscardDynamicObjectsToClient(Client client, List<DynamicObject> discardObjects)
         {
-            foreach (var dynamicObject in discardObjects)
+            foreach (var dynamicObject in discardObjects.Where(obj => IsShownTo(client, obj)))
                 client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(dynamicObject.EntityId));
         }
 

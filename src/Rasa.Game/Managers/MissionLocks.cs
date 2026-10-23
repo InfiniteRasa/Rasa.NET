@@ -71,7 +71,7 @@ namespace Rasa.Managers
 
             foreach (var obj in CellManager.CellsIn(mapChannel, player.Cells).SelectMany(cell => cell.DynamicObjectList).Distinct().ToList())
             {
-                if (obj.Lock == null || obj.Lock.MissionId == 0)
+                if (obj.Lock == null || obj.Lock.MissionId == 0 || !DynamicObjectManager.IsShownTo(client, obj))
                     continue;
 
                 inView.Add(obj.EntityId);

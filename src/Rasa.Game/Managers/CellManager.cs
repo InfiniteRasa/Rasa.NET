@@ -378,7 +378,8 @@ namespace Rasa.Managers
 
             foreach (var cellSeed in cellMatrix)
                 foreach (var client in mapChannel.MapCellInfo.Cells[cellSeed].ClientList)
-                    ListOfClients.Add(client);
+                    if (DynamicObjectManager.IsShownTo(client, dynObject))
+                        ListOfClients.Add(client);
 
             DynamicObjectManager.Instance.CellDiscardDynamicObjectToClients(dynObject.EntityId, ListOfClients);
 
@@ -709,7 +710,8 @@ namespace Rasa.Managers
             if (mapChannel == null || obj == null || !TryGetCellCoordinates(obj.CellPosition, out var cellPosX, out var cellPosZ))
                 return new List<Client>();
 
-            return GetClientsInCells(mapChannel, CreateCellMatrix(mapChannel, cellPosX, cellPosZ));
+            return GetClientsInCells(mapChannel, CreateCellMatrix(mapChannel, cellPosX, cellPosZ))
+                .Where(client => DynamicObjectManager.IsShownTo(client, obj)).ToList();
         }
 
         internal void CellCallMethod(DynamicObject obj, PythonPacket packet)
@@ -727,7 +729,8 @@ namespace Rasa.Managers
             var cellMatrix = CreateCellMatrix(mapChannel, cellPosX, cellPosZ);
 
             foreach (var client in GetClientsInCells(mapChannel, cellMatrix))
-                client.CallMethod(obj.EntityId, packet);
+                if (DynamicObjectManager.IsShownTo(client, obj))
+                    client.CallMethod(obj.EntityId, packet);
 
             // And whoever holds it from beyond its cells (Landmarks).
             Landmarks.Relay(obj, packet);

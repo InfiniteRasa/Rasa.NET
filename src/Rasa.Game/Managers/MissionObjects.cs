@@ -100,7 +100,8 @@ namespace Rasa.Managers
 
             var inView = new HashSet<ulong>();
 
-            foreach (var obj in CellManager.CellsIn(mapChannel, player.Cells).SelectMany(cell => cell.DynamicObjectList).Distinct().ToList())
+            foreach (var obj in CellManager.CellsIn(mapChannel, player.Cells).SelectMany(cell => cell.DynamicObjectList).Distinct()
+                         .Where(obj => DynamicObjectManager.IsShownTo(client, obj)).ToList())
             {
                 inView.Add(obj.EntityId);
 
