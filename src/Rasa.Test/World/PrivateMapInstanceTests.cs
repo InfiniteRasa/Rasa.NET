@@ -66,6 +66,24 @@ namespace Rasa.Test.World
             Assert.AreSame(publicMap.Cover, instance.Cover);
         }
 
+        // A private instance has the floor its template does. Without it, a player who fell out of
+        // a private map (Bootcamp) was never put back.
+        [TestMethod]
+        public void PrivateInstanceSharesTheTemplatesSafetyFloor()
+        {
+            var service = new PrivateMapInstanceService();
+            var maps = new MapChannelManager(null, privateInstances: service);
+            var publicMap = CreateMap();
+            publicMap.SafetyFloorY = -150f;
+            publicMap.TopWalkableY = 320f;
+            maps.MapChannelArray.Add(publicMap.MapInfo.MapContextId, publicMap);
+
+            var instance = maps.GetOrCreatePrivateInstance(publicMap.MapInfo.MapContextId, 7);
+
+            Assert.AreEqual(-150f, instance.SafetyFloorY);
+            Assert.AreEqual(320f, instance.TopWalkableY);
+        }
+
         // BR-198: an account whose body is still on a private instance's list - the connection
         // closed, the worker yet to take the character out - is held there as one on a base map
         // is. Let in before the removal, the new session was saved over by the old body's.
