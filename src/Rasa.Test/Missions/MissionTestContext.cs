@@ -157,7 +157,8 @@ namespace Rasa.Test.Missions
             Func<DateTime> utcNow = null,
             Action<PythonPacket> beforeMissionPacketPublication = null,
             global::Rasa.Missions.Runtime.MissionRepeatPolicy repeatPolicy = null,
-            MissionRewardDefinition reward = null)
+            MissionRewardDefinition reward = null,
+            bool recognizeExistingFacts = false)
         {
             counters ??= new Dictionary<uint, MissionObjectiveCounterDefinition>();
             var counterTextIds = new uint?[3];
@@ -178,7 +179,8 @@ namespace Rasa.Test.Missions
                 Array.Empty<uint>(),
                 Array.Empty<MissionIndicator>(),
                 progressRule,
-                creditPolicy: creditPolicy);
+                creditPolicy: creditPolicy,
+                recognizeExistingFacts: recognizeExistingFacts);
             var mission = new Mission(
                 missionId,
                 $"Mission {missionId}",
