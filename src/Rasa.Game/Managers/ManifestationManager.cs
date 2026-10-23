@@ -914,6 +914,15 @@ namespace Rasa.Managers
         /// <summary>gameeffectdata.SKILL_LIMITED_BY_TYPE_RELOAD_MODIFIER_EFFECT.</summary>
         public const int SkillLimitedReloadTypeId = 252;
 
+        /// <summary>
+        /// A skill's standing effect at the player's pump in it. Sent at the level the client has
+        /// visuals for (GameEffectFx.LevelFor): it looks an effect's FX up by type and level
+        /// exactly, and MEDIUM_ARMOR_SKILL, MEDIUM_ARMOR_SKILL_VISIBLE and MECH_ARMOR_SKILL_TARGET
+        /// have rows at level 1 alone. Sent at the pump, Reflective Armor from pump 2 sent its
+        /// damage back with no reflection to be seen (its Recv_AnnounceReflect plays the hidden
+        /// effect's FX), and the Mech aura had no visual. What the effect does is on the effect
+        /// itself, worked out from the pump, not its level.
+        /// </summary>
         /// <param name="shown">
         /// Announced, so the client posts its status icon and tooltip: the armour skills'
         /// visible effects. The weapon skills' effects and the hidden reflect effect are not.
@@ -924,7 +933,7 @@ namespace Rasa.Managers
             {
                 TypeId = typeId,
                 EffectId = GameEffectManager.Instance.NextEffectId(mapChannel),
-                EffectLevel = (uint)Math.Max(1, pump),
+                EffectLevel = GameEffectFx.LevelFor(typeId, (uint)Math.Max(1, pump)),
                 SourceId = player.EntityId,
                 Source = player,
                 SourceLevel = player.Level,
