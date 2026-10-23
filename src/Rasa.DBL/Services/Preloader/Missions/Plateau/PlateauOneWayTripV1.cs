@@ -51,8 +51,8 @@ namespace Rasa.Services.Preloader.Missions.Plateau
     ///  - 1: the area of the second laser beams (client ArchBaneTripWireEmitter at (-151, -88, 114..142)), by the
     ///    Special Projects region label (-289, -100, 128) on Level 2.
     ///  - 7: Overseer Kythura's keypass, a personal 100% drop while 7 is open, kept. CHANGE LATER: for every player.
-    ///  - 14: a personal computer bank (UsableStatelessBaneConsoleKeyboard 20631) by the client's command center
-    ///    console (-118, -98, 106.6) gives the powercube. 4: the personal socket (UsableTwoStateBaneConsoleKeycardSlot
+    ///  - 14: a personal computer bank (UsableStatelessBaneConsoleKeyboard 20631) on the floor by the client's
+    ///    command center console (-118, -98, 106.6; the navmesh there is cut off from Level 2) gives the powercube. 4: the personal socket (UsableTwoStateBaneConsoleKeycardSlot
     ///    11309) on the overlook above Special Projects takes it; Maybauer appears beside it.
     ///  - 16: Maybauer's talk starts objective 12, which fails the mission after <see cref="DeadlineSeconds"/> (15
     ///    minutes, the forum's HUD timer). Four Mind Controlled Soldiers walk slowly through the chamber to the
@@ -81,9 +81,9 @@ namespace Rasa.Services.Preloader.Missions.Plateau
         public const uint DeadlineSeconds = 900;
 
         /// <summary>Scene sequences: the scenarios' (started by actions), then the uses'.</summary>
-        public const uint BankAppears = 1, SocketAppears = 2, March = 3, Armed = 4, Results = 5;
+        public const uint BankAppears = 1, SocketAppears = 2, March = 3, Armed = 4, Results = 5, CubeTaken = 6, BombTaken = 7;
         public const uint BankUsed = 21, SocketUsed = 22, CrateUsed = 23, IntoChamber = 24, Planted = 25;
-        public const uint Socketed = 1;
+        public const uint Socketed = 1, Taken = 1;
 
         public const uint Pass = 42416, PassClass = 21054;
         public const uint Cube = 42448, CubeClass = 21443;
@@ -115,7 +115,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
         public static readonly (double X, double Y, double Z) BeamsAt = (-151, -90.28, 128);
         public const double BeamsRadius = 14;
 
-        public static readonly ScenePosition BankAt = new(-118, -99.8f, 110);
+        public static readonly ScenePosition BankAt = new(-111, -100.28f, 116);
         public static readonly ScenePosition SocketAt = new(-186.33f, -90.28f, 122.4f);
         public static readonly ScenePosition TerminalAt = new(-185.93f, -90.28f, 133.6f);
         public static readonly ScenePosition MaybauerAt = new(-176.73f, -90.28f, 128);
@@ -175,6 +175,8 @@ namespace Rasa.Services.Preloader.Missions.Plateau
             mission.Scenario(March, "The prisoners march; the bomb crate, the terminal and the device", 0);
             mission.Scenario(Armed, "The bomb in hand: the charge at the device", 0);
             mission.Scenario(Results, "The powercube in the socket", 1);
+            mission.Scenario(CubeTaken, "The powercube taken from the computer bank", 1);
+            mission.Scenario(BombTaken, "A bomb taken from the crate", 1);
             mission.Area(BridgeArea, PlateauMissionDataV1.MapContextId, BridgeAt.X, BridgeAt.Y, BridgeAt.Z, BridgeRadius);
             mission.Area(BeamsArea, PlateauMaligoBaseV1.MapContextId, BeamsAt.X, BeamsAt.Y, BeamsAt.Z, BeamsRadius);
 
@@ -204,7 +206,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
             mission.Action(Keypass, 3, MissionActionKind.StartScenario, scenario: BankAppears);
 
             mission.Transition(Powercube);
-            mission.Progress(Powercube, MissionProgressEventKind.ItemAcquired, CubeClass, 1);
+            mission.Progress(Powercube, MissionProgressEventKind.ScenarioEvent, Taken, null, counter: CubeTaken);
             PlateauSilentButDeadlyV1.Open(mission, Powercube, 1, PowerDown);
             mission.Action(Powercube, 3, MissionActionKind.StartScenario, scenario: SocketAppears);
 
@@ -220,7 +222,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
             mission.Action(Maybauer, 5, MissionActionKind.StartScenario, scenario: March);
 
             mission.Transition(Bomb);
-            mission.Progress(Bomb, MissionProgressEventKind.ItemAcquired, BombClass, 1);
+            mission.Progress(Bomb, MissionProgressEventKind.ScenarioEvent, Taken, null, counter: BombTaken);
             mission.Action(Bomb, 1, MissionActionKind.StartScenario, scenario: Armed);
 
             // 12: transition 1 fails it at the deadline; transition 2 is Homburg's talk, after the bomb.
@@ -271,6 +273,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
             var scene = new MissionSceneDefinition
             {
                 Script = "data.sequence",
+                MapContextId = PlateauMaligoBaseV1.MapContextId,   // accepted at Bosley on the Plateau, played in Maligo Base
                 ExistingFactObjectiveIds = new() { Keypass },
                 Items = new()
                 {
@@ -308,7 +311,8 @@ namespace Rasa.Services.Preloader.Missions.Plateau
             scene.Sequences[BankUsed] = new SceneSequenceDefinition
             {
                 World = { new SetInteractionIntent("bank-done", BankRole, false) },
-                Character = { new IssueMissionItemIntent("take-powercube", MissionId, CubeKey, Cube, 1) }
+                Character = { new IssueMissionItemIntent("take-powercube", MissionId, CubeKey, Cube, 1) },
+                Signals = { new SceneMissionSignal(MissionId, CubeTaken, Taken) }
             };
             scene.Sequences[SocketAppears] = new SceneSequenceDefinition { World = { new EnsureActorIntent("create-socket", SocketRole) } };
             scene.Sequences[SocketUsed] = new SceneSequenceDefinition
@@ -348,7 +352,8 @@ namespace Rasa.Services.Preloader.Missions.Plateau
             scene.Sequences[CrateUsed] = new SceneSequenceDefinition
             {
                 World = { new SetInteractionIntent("crate-done", CrateRole, false) },
-                Character = { new IssueMissionItemIntent("take-bomb", MissionId, BombKey, BombItem, 1) }
+                Character = { new IssueMissionItemIntent("take-bomb", MissionId, BombKey, BombItem, 1) },
+                Signals = { new SceneMissionSignal(MissionId, BombTaken, Taken) }
             };
             scene.Sequences[Armed] = new SceneSequenceDefinition { World = { new SetInteractionIntent("charge-ready", ChargeRole, true) } };
             scene.Sequences[IntoChamber] = new SceneSequenceDefinition

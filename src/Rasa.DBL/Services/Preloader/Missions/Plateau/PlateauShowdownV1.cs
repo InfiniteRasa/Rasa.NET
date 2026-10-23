@@ -70,6 +70,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
             var scene = new MissionSceneDefinition
             {
                 Script = "data.sequence",
+                MapContextId = PlateauMaligoBaseV1.MapContextId,
                 ExistingFactObjectiveIds = new() { Keypass },
                 Items = new()
                 {

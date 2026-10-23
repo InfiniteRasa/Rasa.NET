@@ -126,6 +126,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
             var scene = new MissionSceneDefinition
             {
                 Script = "data.sequence",
+                MapContextId = PlateauMaligoBaseV1.MapContextId,
                 Items = new()
                 {
                     new MissionItemBinding(SupplyKey, SupplyItem, MissionItemScope.AssignmentIssued, (uint)SuppliesAt.Length,
