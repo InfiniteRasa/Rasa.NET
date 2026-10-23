@@ -180,6 +180,10 @@ namespace Rasa.Structures
                 throw new ArgumentOutOfRangeException(
                     nameof(kind),
                     "Distinct completion supports waypoint, Logos or cleared spawn pool events.");
+            if (kind == MissionProgressEventKind.SpawnPoolCleared && counterId.HasValue)
+                throw new ArgumentException(
+                    "A cleared spawn pool set has no counter: a pool that comes back would make it go down.",
+                    nameof(counterId));
             return new MissionProgressRule(
                 MissionProgressRuleType.CompleteDistinctSet, kind, subjects, counterId);
         }
