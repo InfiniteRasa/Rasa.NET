@@ -44,6 +44,7 @@ namespace Rasa.Test.Missions.Plateau
         private const uint Showdown = PlateauShowdownV1.MissionId;
         private const uint Coup = PlateauCoupV1.MissionId;
         private const uint OneWayTrip = PlateauOneWayTripV1.MissionId;
+        private const uint SelfPreservation = PlateauSelfPreservationV1.MissionId;
 
         [TestMethod]
         public void UstorsWestExitLeadsOntoTheBridgeBeforeTheMaligoDoorAndBack()
@@ -199,6 +200,55 @@ namespace Rasa.Test.Missions.Plateau
 
             harness.Manager.OfferArrivalMissions(harness.Client);
             Assert.IsFalse(harness.Drain().OfType<DispenseRadioMissionPacket>().Any(packet => packet.MissionId == Showdown), "not called in again");
+        }
+
+        /// <summary>
+        /// Self Preservation comes by radio on arrival with Showdown; the three Security CPUs in the north of Level 1 are
+        /// shot down one by one (the counter), and it ends by radio.
+        /// </summary>
+        [TestMethod]
+        public void SelfPreservationIsCalledInOnArrivalAndEndsWithTheThreeCpusDown()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            EnterPlateau(harness);
+            var copy = IntoMaligo(harness);
+            var arrival = harness.Client.Player.Position;
+            harness.Manager.OfferArrivalMissions(harness.Client);
+            var offered = harness.Drain().OfType<DispenseRadioMissionPacket>().Select(packet => packet.MissionId).ToArray();
+            CollectionAssert.IsSubsetOf(new[] { Showdown, SelfPreservation }, offered, "both called in on arrival");
+            Assert.IsNull(FindSceneObject(harness, copy, SelfPreservation, PlateauSelfPreservationV1.CpuRole(1)), "no CPU before the mission");
+            Assert.IsTrue(harness.Manager.TryAcceptRadioMission(harness.Client, SelfPreservation));
+            harness.Drain();
+            Assert.IsTrue(harness.Manager.Scenes.TryGetSceneMap(SelfPreservation, out var bound));
+            Assert.AreEqual(Maligo, bound);
+            Tick(harness, copy, 250);
+
+            var cpus = PlateauSelfPreservationV1.Cpus.Select(cpu => (cpu, obj: SceneObject(harness, copy, SelfPreservation,
+                PlateauSelfPreservationV1.CpuRole(cpu.Sequence)))).ToArray();
+            foreach (var (cpu, obj) in cpus)
+            {
+                Assert.AreEqual(cpu.Class, (uint)obj.EntityClassId);
+                Assert.AreEqual(PlateauSelfPreservationV1.IntactState, (uint)obj.StateId);
+                AssertStandsOnNavMesh(copy, obj.Position, 0.5f);
+                AssertConnected(copy, arrival, obj.Position, $"CPU {cpu.Sequence}");
+                Assert.IsGreaterThan(250f, obj.Position.Z, $"CPU {cpu.Sequence} in the north of Level 1");
+            }
+
+            for (var index = 0; index < cpus.Length; index++)
+            {
+                Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, SelfPreservation, PlateauSelfPreservationV1.Destroy), $"before CPU {index + 1}");
+                Damage(harness, copy, cpus[index].obj, (int)PlateauSelfPreservationV1.CpuHitPoints);
+                Assert.AreEqual(PlateauSelfPreservationV1.DestroyedState, (uint)cpus[index].obj.StateId, $"CPU {index + 1} down");
+            }
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, SelfPreservation, PlateauSelfPreservationV1.Destroy));
+            Assert.IsTrue(harness.Client.Player.Missions[SelfPreservation].Completeable);
+
+            var before = harness.Context.ReadRewardTotals();
+            Assert.IsTrue(harness.Manager.TryCompleteRadioMission(harness.Client, SelfPreservation, 3, null));
+            Assert.AreEqual(MissionState.Completed, harness.Client.Player.Missions[SelfPreservation].State);
+            Assert.AreEqual(before.Experience + PlateauSelfPreservationV1.Experience, harness.Context.ReadRewardTotals().Experience);
+            Assert.AreEqual(before.Credits + (int)PlateauSelfPreservationV1.Credits, harness.Context.ReadRewardTotals().Credits);
+            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, PlateauSelfPreservationV1.StealthBoots), "the fourth choice");
         }
 
         [TestMethod]
@@ -649,6 +699,16 @@ namespace Rasa.Test.Missions.Plateau
             harness.UtcNow = harness.UtcNow.AddMilliseconds(milliseconds);
             BehaviorManager.Instance.MapChannelThink(map, System.Math.Min(milliseconds, 1000));
             harness.Manager.Scenes.Tick(map);
+            harness.Drain();
+        }
+
+        /// <summary>A weapon hit on the object, as PlateauUstorYardTests.Damage.</summary>
+        private static void Damage(WildernessRuntimeTestHarness harness, MapChannel map, DynamicObject obj, int damage)
+        {
+            harness.MoveTo(obj.Position + new Vector3(0, 0, 1));
+            var action = new ActionData(harness.Client.Player, ActionId.WeaponAttack, 133, 0) { TargetId = obj.EntityId };
+            MissileManager.Instance.MissileLaunch(map, action, damage);
+            MissileManager.Instance.DoWork(map, 1000);
             harness.Drain();
         }
 
