@@ -161,13 +161,13 @@ namespace Rasa.Test.Missions.Plateau
 
         /// <summary>
         /// Through the map's door from the public map, as MapLinkManager sends a player who walks into it
-        /// (MapChannelManager.EnterMap), and arrived (MapLoaded): the channel the player is on then. The Plateau's
-        /// door only: Ustor Yard has a second one, from the Ustor Bridge (PlateauMaligoBaseV1.BackIntoUstor).
+        /// (MapChannelManager.EnterMap), and arrived (MapLoaded): the channel the player is on then. Ustor Yard's
+        /// main door: its second one is from the Ustor Bridge (PlateauMaligoBaseV1.BackIntoUstor).
         /// </summary>
         internal static MapChannel ThroughTheDoor(WildernessRuntimeTestHarness harness, uint mapContextId)
         {
             var door = harness.World.MapLinkEntries.AsNoTracking().Single(row => row.DestMapContextId == mapContextId &&
-                row.MapContextId == PlateauMissionDataV1.MapContextId && row.Id != PlateauMaligoBaseV1.BackIntoUstor);
+                row.Id != PlateauMaligoBaseV1.BackIntoUstor);
             var at = new Vector3((float)door.DestPosX, (float)door.DestPosY, (float)door.DestPosZ);
             Assert.IsTrue(harness.Maps.EnterMap(harness.Client, mapContextId, at, (float)door.DestRotation), "through the door");
             harness.Maps.MapLoaded(harness.Client);
