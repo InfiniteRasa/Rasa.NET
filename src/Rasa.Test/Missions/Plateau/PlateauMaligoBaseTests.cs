@@ -475,7 +475,7 @@ namespace Rasa.Test.Missions.Plateau
             var transfer = harness.Client.PendingTransfer;
             Assert.IsNotNull(transfer, "the terminal takes the player");
             Assert.IsTrue(transfer.IsPassage);
-            Assert.IsTrue(transfer.DestinationMap == null || ReferenceEquals(transfer.DestinationMap, copy), "inside the squad's copy");
+            Assert.AreSame(copy, transfer.DestinationMap, "inside the squad's copy");
             Assert.IsLessThan(2f, Vector3.Distance(ToVector(PlateauOneWayTripV1.ChamberArrival), transfer.DestinationPosition), "to the chamber");
             // The passage's hold runs on the wall clock (DynamicObjectManager.PassageHoldMs): the player is set down as it lands.
             harness.Client.PendingTransfer = null;
