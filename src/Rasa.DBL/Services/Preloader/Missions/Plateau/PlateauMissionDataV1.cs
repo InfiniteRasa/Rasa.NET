@@ -100,6 +100,33 @@ namespace Rasa.Services.Preloader.Missions.Plateau
                 new[] { "mission_id", "content_revision", "acceptance_channel", "completion_channel", "radio_sources" },
                 new object[] { _missionId, Revision, (int)MissionChannel.Radio, (int)MissionChannel.Npc, JsonSerializer.Serialize(sources) });
 
+        /// <summary>
+        /// Offered by radio from <paramref name="sources"/> and turned in by radio (channel Radio both ways,
+        /// mission_channel_policy), as Headquarters' radio missions. Construct the mission with no giver or receiver.
+        /// </summary>
+        public void RadioOfferAndCompletion(params MissionOfferSourceDefinition[] sources)
+        {
+            _migration.UpdateData("mission_content_definition", new[] { "mission_id", "content_revision" },
+                new object[] { _missionId, Revision }, "radio_completeable", true);
+            _migration.InsertData("mission_channel_policy",
+                new[] { "mission_id", "content_revision", "acceptance_channel", "completion_channel", "radio_sources" },
+                new object[] { _missionId, Revision, (int)MissionChannel.Radio, (int)MissionChannel.Radio, JsonSerializer.Serialize(sources) });
+        }
+
+        /// <summary>
+        /// <paramref name="objective"/> fails, and the mission with it, when <paramref name="seconds"/> pass after it
+        /// becomes Incomplete (MissionDeadlineService), as WildernessDaghdasUrnV1's timed objectives: its transition
+        /// <paramref name="transition"/> to Failed on a timer trigger. The way it completes is another transition.
+        /// </summary>
+        public void FailOnDeadline(uint objective, uint seconds, uint transition = 1)
+        {
+            Insert("mission_objective_transition",
+                ("objective_id", objective), ("transition_id", transition), ("sequence", transition),
+                ("from_state", (byte)MissionObjectiveState.Incomplete), ("to_state", (byte)MissionObjectiveState.Failed),
+                ("comment", $"Objective {objective} fails at its deadline"));
+            Trigger(objective, transition, MissionTriggerKind.TimerElapsed, 1, ("duration_seconds", seconds));
+        }
+
         public void Prerequisite(uint mission, uint id = 1) =>
             Insert("mission_prerequisite",
                 ("prerequisite_id", id), ("kind", (byte)MissionPrerequisiteKind.MissionCompleted),

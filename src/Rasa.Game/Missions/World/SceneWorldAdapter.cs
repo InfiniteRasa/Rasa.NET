@@ -87,6 +87,14 @@ namespace Rasa.Game.Missions.World
             }
             if (intent is TransferIntent transfer)
             {
+                // To where the player already is: a move on this map, as a local teleporter takes them - on a
+                // squad instance their squad's copy, which the map's own channel (FindByContextId) is not.
+                if (world.Owner != null && ReferenceEquals(world.Owner.Player.MapChannel, world.Map) &&
+                    world.Map.MapInfo.MapContextId == transfer.MapContextId)
+                    return DynamicObjectManager.Instance.TakePassage(world.Owner,
+                        SceneRouteController.Position(transfer.Position), transfer.Orientation)
+                        ? WorldEffectResult.Applied()
+                        : WorldEffectResult.Failed("The owner cannot travel now.");
                 var destination = MapChannelManager.Instance.FindOwnedPrivateInstance(
                     transfer.MapContextId, run.OwnerCharacterId) ??
                     MapChannelManager.Instance.FindByContextId(transfer.MapContextId);
