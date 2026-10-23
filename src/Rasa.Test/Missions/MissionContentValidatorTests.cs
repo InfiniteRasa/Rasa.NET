@@ -714,6 +714,18 @@ namespace Rasa.Test.Missions
                 fixture.ItemTemplateClasses.Clear();
             }, "missing-item-template");
 
+            yield return Case("missing cleared spawn pool", fixture =>
+            {
+                ConfigurePureProgressObjective(fixture);
+                fixture.Triggers[0].EventKind = (byte)MissionProgressEventKind.SpawnPoolCleared;
+                fixture.Triggers[0].SubjectId = 531225;
+                fixture.Triggers[0].CounterId = null;
+                fixture.Triggers[0].InitialValue = null;
+                fixture.Triggers[0].TargetValue = null;
+                fixture.Triggers[0].SourceSpawnResolved = null;
+                fixture.SpawnPoolIds.Add(531226);
+            }, "missing-spawn-pool");
+
             yield return Case("missing ability target creature", fixture =>
             {
                 ConfigurePureProgressObjective(fixture);

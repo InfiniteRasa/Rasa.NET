@@ -338,6 +338,10 @@ namespace Rasa.Managers
         {
             BaneArrivals.TeleportWorker(mapChannel, timePassed);
 
+            // The pools of a squad's instance that died since the last pass, for the missions
+            // of the players in it (SpawnPoolClearedProgress).
+            SpawnPoolClearedProgress.Announce(mapChannel);
+
             var spawnPools = mapChannel.SpawnPools.Count > 0
                 ? mapChannel.SpawnPools
                 : LoadedSpawnPools.Values.Where(pool => pool.MapContextId == mapChannel.MapInfo.MapContextId).ToList();

@@ -176,11 +176,10 @@ namespace Rasa.Structures
             IReadOnlySet<uint> subjects,
             uint? counterId = null)
         {
-            if (kind != MissionProgressEventKind.WaypointAcquired &&
-                kind != MissionProgressEventKind.LogosAcquired)
+            if (!IsDistinctFact(kind))
                 throw new ArgumentOutOfRangeException(
                     nameof(kind),
-                    "Distinct completion supports waypoint or Logos events.");
+                    "Distinct completion supports waypoint, Logos or cleared spawn pool events.");
             return new MissionProgressRule(
                 MissionProgressRuleType.CompleteDistinctSet, kind, subjects, counterId);
         }
@@ -223,6 +222,15 @@ namespace Rasa.Structures
                 initialValue,
                 targetValue);
         }
+
+        /// <summary>
+        /// The facts a distinct-set rule is complete on, all of them held at once: waypoints and
+        /// Logos the character has, and the spawn pools that are dead in the squad's instance the
+        /// character stands in.
+        /// </summary>
+        public static bool IsDistinctFact(MissionProgressEventKind kind) =>
+            kind is MissionProgressEventKind.WaypointAcquired or MissionProgressEventKind.LogosAcquired or
+                MissionProgressEventKind.SpawnPoolCleared;
 
         /// <summary>The three ways a kill is named: the creature, a flag of its class, its class.</summary>
         public static bool IsKill(MissionProgressEventKind kind) =>

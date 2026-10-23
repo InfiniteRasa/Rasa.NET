@@ -174,6 +174,7 @@ namespace Rasa.Managers
         private readonly Action<uint, uint, long> _saveCleared;
         private readonly Action<uint, uint> _saveRespawned;
         private readonly Action<uint> _saveReset;
+        private readonly List<SpawnPool> _newlyCleared = new List<SpawnPool>();
 
         /// <summary>The squad_instance row; 0 for an instance that is not saved.</summary>
         public uint DbId { get; }
@@ -201,8 +202,30 @@ namespace Rasa.Managers
 
             pool.ClearedAtUtcMs = Math.Max(1, _utcNowMs());
 
+            lock (_newlyCleared)
+                if (!_newlyCleared.Contains(pool))
+                    _newlyCleared.Add(pool);
+
             if (DbId != 0 && pool.DbId != 0)
                 _saveCleared(DbId, pool.DbId, pool.ClearedAtUtcMs);
+        }
+
+        /// <summary>
+        /// The pools cleared since this was last asked, for the missions of the players in the
+        /// instance to hear of (SpawnPoolClearedProgress) - outside of the kill that cleared
+        /// each, not in the middle of it.
+        /// </summary>
+        internal IReadOnlyList<SpawnPool> TakeNewlyCleared()
+        {
+            lock (_newlyCleared)
+            {
+                if (_newlyCleared.Count == 0)
+                    return Array.Empty<SpawnPool>();
+
+                var cleared = _newlyCleared.ToArray();
+                _newlyCleared.Clear();
+                return cleared;
+            }
         }
 
         /// <summary>
@@ -237,6 +260,9 @@ namespace Rasa.Managers
         {
             foreach (var pool in pools ?? Enumerable.Empty<SpawnPool>())
                 pool.ClearedAtUtcMs = 0;
+
+            lock (_newlyCleared)
+                _newlyCleared.Clear();
 
             if (DbId != 0)
                 _saveReset(DbId);

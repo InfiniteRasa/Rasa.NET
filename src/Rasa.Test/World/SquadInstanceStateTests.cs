@@ -83,6 +83,27 @@ namespace Rasa.Test.World
         #region The respawn
 
         [TestMethod]
+        public void APoolWhoseLastCreatureDiesIsToBeToldToTheMissionsOnce()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            using var world = new WorldTestContext();
+            var fixture = World(harness, world, saved: false);
+            var instance = fixture.Into(fixture.Player());
+            var a = Pool(instance, PoolA);
+
+            Spawns(instance, 0);
+            Assert.AreEqual(0, instance.SquadState.TakeNewlyCleared().Count);
+
+            // One of two dead: not cleared.
+            Kill(instance, a, 1);
+            Assert.AreEqual(0, instance.SquadState.TakeNewlyCleared().Count);
+
+            Kill(instance, a);
+            CollectionAssert.AreEqual(new[] { a }, instance.SquadState.TakeNewlyCleared().ToArray());
+            Assert.AreEqual(0, instance.SquadState.TakeNewlyCleared().Count);
+        }
+
+        [TestMethod]
         public void AClearedPoolComesBackFortyFiveMinutesAfterItsLastCreatureDiedAndNotBefore()
         {
             using var harness = BootcampRuntimeTestHarness.Create();
