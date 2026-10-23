@@ -47,6 +47,9 @@ namespace Rasa.Test.Missions
         };
         internal HashSet<uint> MapContextIds { get; } = new() { 1220 };
 
+        /// <summary>The world's spawn pools (spawnpool), for cleared-pool rules to name.</summary>
+        internal HashSet<uint> SpawnPoolIds { get; } = new();
+
         internal static MissionContentFixture CreateValid()
         {
             var fixture = new MissionContentFixture();
@@ -431,7 +434,7 @@ namespace Rasa.Test.Missions
                 throw new NotSupportedException("This mission fixture must explicitly configure ordinary loot.");
             public INpcPackageRepository NpcPackages { get; }
             public IPlayerRandomNameRepository RandomNames => null;
-            public ISpawnpoolRepository Spawnpools => null;
+            public ISpawnpoolRepository Spawnpools => new FakeSpawnpoolRepository(_fixture);
             public IMapEmitterRepository MapEmitters => null;
             public ISpawnPoolArrivalRepository SpawnPoolArrivals => null;
             public ITeleporterRepository Teleporters => null;
@@ -494,6 +497,26 @@ namespace Rasa.Test.Missions
                         BaseRegion = 1
                     })
                     .ToList();
+        }
+
+        private sealed class FakeSpawnpoolRepository : ISpawnpoolRepository
+        {
+            private readonly MissionContentFixture _fixture;
+
+            internal FakeSpawnpoolRepository(MissionContentFixture fixture)
+            {
+                _fixture = fixture;
+            }
+
+            public List<SpawnPoolEntry> Get() =>
+                _fixture.SpawnPoolIds
+                    .OrderBy(id => id)
+                    .Select(id => new SpawnPoolEntry { Id = id })
+                    .ToList();
+
+            public List<SpawnPoolPoseEntry> GetPoses() => new();
+            public List<SpawnPoolDrawEntry> GetDraws() => new();
+            public List<SpawnPoolPatrolEntry> GetPatrols() => new();
         }
 
         private sealed class FakeEntityClassRepository : IEntityClassRepository

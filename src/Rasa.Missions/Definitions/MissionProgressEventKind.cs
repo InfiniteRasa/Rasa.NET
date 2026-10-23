@@ -31,6 +31,11 @@ namespace Rasa.Data
         /// destroyed: the subject is its entity class - "Destroy 8 warnet nests". Shared with the
         /// destroyer's squad as a kill is.
         /// </summary>
-        ObjectDestroyed
+        ObjectDestroyed,
+        /// A spawn pool of a squad's instance has nothing left alive, queued or on its way: the
+        /// subject is the spawn pool id. "Secure the outer Bane Outpost" is its pools cleared.
+        /// Only a squad's instance keeps which of its pools are dead (SquadInstanceState).
+        /// </summary>
+        SpawnPoolCleared
     }
 }

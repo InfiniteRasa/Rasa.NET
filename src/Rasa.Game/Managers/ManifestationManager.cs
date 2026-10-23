@@ -2147,7 +2147,8 @@ namespace Rasa.Managers
         /// <summary>
         /// The player has come onto a map and is in the world: the missions offered by radio
         /// to whoever arrives there (MissionApplication.OfferArrivalMissions), and the areas
-        /// of held missions that are the whole map (MissionAreaService.RecordArrival).
+        /// of held missions that are the whole map (MissionAreaService.RecordArrival), and the
+        /// spawn pools dead in a squad's instance (SpawnPoolClearedProgress.Arrived).
         /// </summary>
         private void MissionArrival(Client client)
         {
@@ -2164,6 +2165,9 @@ namespace Rasa.Managers
             {
                 Logger.WriteLog(LogType.Error, $"Mission areas on arrival, character {client.Player.Id}: {e.Message}");
             }
+
+            // The pools that are dead in a squad's instance come to one who arrives after they died.
+            SpawnPoolClearedProgress.Arrived(client);
         }
 
         public void AssignPlayer(Client client)

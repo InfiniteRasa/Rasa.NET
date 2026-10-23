@@ -291,6 +291,7 @@ namespace Rasa.Structures
             return rule != null && rule.ScopeId == null && rule.DetailId == null &&
                 (rule.Kind is MissionProgressEventKind.WaypointAcquired or MissionProgressEventKind.LogosAcquired &&
                     rule.RuleType is MissionProgressRuleType.CompleteDistinctSet or MissionProgressRuleType.CompleteExact ||
+                 rule.Kind == MissionProgressEventKind.SpawnPoolCleared && rule.RuleType == MissionProgressRuleType.CompleteDistinctSet ||
                  rule.Kind == MissionProgressEventKind.MissionCompleted && rule.RuleType == MissionProgressRuleType.CompleteExact ||
                  rule.Kind == MissionProgressEventKind.ItemAcquired && rule.RuleType == MissionProgressRuleType.IncrementExactItemCounter);
         }

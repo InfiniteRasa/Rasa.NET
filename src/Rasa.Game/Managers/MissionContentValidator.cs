@@ -173,7 +173,8 @@ namespace Rasa.Managers
                 creatureClasses,
                 (unitOfWork?.MapInfos?.Get() ?? new List<MapInfoEntry>()).Select(entry => entry.Id),
                 objectPackages, typedScenarios,
-                (unitOfWork?.Creatures?.GetClassFlags() ?? new List<CreatureClassFlagEntry>()).Select(entry => entry.FlagId))
+                (unitOfWork?.Creatures?.GetClassFlags() ?? new List<CreatureClassFlagEntry>()).Select(entry => entry.FlagId),
+                () => (unitOfWork?.Spawnpools?.Get() ?? new List<SpawnPoolEntry>()).Select(entry => entry.Id))
                 .WithModules(() => (unitOfWork?.ItemModules?.GetModuleClasses(), unitOfWork?.ItemModules?.GetModifiableClasses()));
         }
 
@@ -1009,6 +1010,19 @@ namespace Rasa.Managers
 
                             break;
 
+                        case MissionProgressEventKind.SpawnPoolCleared:
+                            if (!references.SpawnPoolIds.Contains(subjectId))
+                            {
+                                diagnostics.Add(new MissionValidationDiagnostic(
+                                    "missing-spawn-pool",
+                                    $"cleared spawn pool progress rule references missing spawn pool {subjectId}.",
+                                    definition.MissionId,
+                                    definition.ContentRevision,
+                                    objective.ObjectiveId));
+                            }
+
+                            break;
+
                         case MissionProgressEventKind.ItemAcquired:
                         case MissionProgressEventKind.ItemConsumed:
                         case MissionProgressEventKind.InteractionUsed:
@@ -1795,6 +1809,15 @@ namespace Rasa.Managers
             /// <summary>Every creature flag some creature class carries.</summary>
             public HashSet<uint> CreatureFlagIds { get; }
 
+            /// <summary>
+            /// Every spawn pool of the world (spawnpool), read the first time a cleared-pool rule
+            /// asks: content with none never reads the table.
+            /// </summary>
+            public HashSet<uint> SpawnPoolIds => _spawnPoolIds ??= new HashSet<uint>(_spawnPoolSource?.Invoke() ?? Array.Empty<uint>());
+
+            private readonly Func<IEnumerable<uint>> _spawnPoolSource;
+            private HashSet<uint> _spawnPoolIds;
+
             /// <summary>The modules (module_class): each one's class set and variant.</summary>
             public IReadOnlyDictionary<uint, (uint ClassSetId, uint VariantId)> ModuleClasses => LoadModules().Modules;
 
@@ -1841,9 +1864,11 @@ namespace Rasa.Managers
                 IEnumerable<uint> mapContextIds,
                 IReadOnlyDictionary<uint, IReadOnlySet<uint>> objectPackages,
                 IReadOnlyDictionary<uint, IReadOnlySet<uint>> typedScenarios,
-                IEnumerable<uint> creatureFlagIds = null)
+                IEnumerable<uint> creatureFlagIds = null,
+                Func<IEnumerable<uint>> spawnPoolIds = null)
             {
                 CreatureFlagIds = new HashSet<uint>(creatureFlagIds ?? Array.Empty<uint>());
+                _spawnPoolSource = spawnPoolIds;
                 NpcPackageIds = new HashSet<uint>(npcPackageIds ?? Array.Empty<uint>());
                 ObjectNpcPackages = objectPackages;
                 TypedScenarioIds = typedScenarios;
