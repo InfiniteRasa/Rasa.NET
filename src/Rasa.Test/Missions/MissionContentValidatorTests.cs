@@ -714,6 +714,42 @@ namespace Rasa.Test.Missions
                 fixture.ItemTemplateClasses.Clear();
             }, "missing-item-template");
 
+            yield return Case("missing cleared spawn pool", fixture =>
+            {
+                ConfigurePureProgressObjective(fixture);
+                fixture.Triggers[0].EventKind = (byte)MissionProgressEventKind.SpawnPoolCleared;
+                fixture.Triggers[0].SubjectId = 531225;
+                fixture.Triggers[0].CounterId = null;
+                fixture.Triggers[0].InitialValue = null;
+                fixture.Triggers[0].TargetValue = null;
+                fixture.Triggers[0].SourceSpawnResolved = null;
+                fixture.SpawnPools.Add(new SpawnPoolEntry { Id = 531226, MapContextId = 2136 });
+            }, "missing-spawn-pool");
+
+            yield return Case("cleared spawn pool that is not automatic", fixture =>
+            {
+                ConfigurePureProgressObjective(fixture);
+                fixture.Triggers[0].EventKind = (byte)MissionProgressEventKind.SpawnPoolCleared;
+                fixture.Triggers[0].SubjectId = 531225;
+                fixture.Triggers[0].CounterId = null;
+                fixture.Triggers[0].InitialValue = null;
+                fixture.Triggers[0].TargetValue = null;
+                fixture.Triggers[0].SourceSpawnResolved = null;
+                fixture.SpawnPools.Add(new SpawnPoolEntry { Id = 531225, Mode = 1, MapContextId = 2136 });
+            }, "spawn-pool-not-automatic");
+
+            yield return Case("cleared spawn pool off a squad instance", fixture =>
+            {
+                ConfigurePureProgressObjective(fixture);
+                fixture.Triggers[0].EventKind = (byte)MissionProgressEventKind.SpawnPoolCleared;
+                fixture.Triggers[0].SubjectId = 531225;
+                fixture.Triggers[0].CounterId = null;
+                fixture.Triggers[0].InitialValue = null;
+                fixture.Triggers[0].TargetValue = null;
+                fixture.Triggers[0].SourceSpawnResolved = null;
+                fixture.SpawnPools.Add(new SpawnPoolEntry { Id = 531225, MapContextId = 1497 });
+            }, "spawn-pool-not-in-squad-instance");
+
             yield return Case("missing ability target creature", fixture =>
             {
                 ConfigurePureProgressObjective(fixture);

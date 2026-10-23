@@ -118,7 +118,8 @@ namespace Rasa.Missions.Runtime
             IReadOnlyDictionary<uint, MissionLog> journal,
             IReadOnlyList<MissionProgressEvent> events,
             IReadOnlySet<uint> waypoints = null,
-            IReadOnlySet<uint> logos = null)
+            IReadOnlySet<uint> logos = null,
+            IReadOnlySet<uint> clearedPools = null)
         {
             LastRuleEvaluations = 0;
             var candidates = new Dictionary<(uint Mission, uint Objective), MissionProgressCandidate>();
@@ -142,7 +143,7 @@ namespace Rasa.Missions.Runtime
                     var rule = binding.Transition.ProgressRule;
                     if (!rule.Matches(progress) || rule.RuleType == MissionProgressRuleType.CompleteDistinctSet &&
                         !rule.CounterId.HasValue &&
-                        !rule.AreAllSubjectsObserved(Subjects(rule.Kind, waypoints, logos)))
+                        !rule.AreAllSubjectsObserved(Subjects(rule.Kind, waypoints, logos, clearedPools)))
                         continue;
                     var key = (binding.Mission.MissionId, binding.Objective.ObjectiveId);
                     if (candidates.TryGetValue(key, out var previous))
@@ -289,9 +290,14 @@ namespace Rasa.Missions.Runtime
             return count == current ? new ObjectiveDecision(state) : new ObjectiveDecision(state, counterId, count);
         }
 
-        private static IReadOnlySet<uint> Subjects(
-            MissionProgressEventKind kind, IReadOnlySet<uint> waypoints, IReadOnlySet<uint> logos) =>
-            (kind == MissionProgressEventKind.WaypointAcquired ? waypoints : logos) ?? new HashSet<uint>();
+        private static IReadOnlySet<uint> Subjects(MissionProgressEventKind kind, IReadOnlySet<uint> waypoints,
+            IReadOnlySet<uint> logos, IReadOnlySet<uint> clearedPools) =>
+            kind switch
+            {
+                MissionProgressEventKind.WaypointAcquired => waypoints,
+                MissionProgressEventKind.SpawnPoolCleared => clearedPools,
+                _ => logos
+            } ?? new HashSet<uint>();
 
         private static IReadOnlyList<MissionProgressEvent> Aggregate(IReadOnlyList<MissionProgressEvent> events)
         {

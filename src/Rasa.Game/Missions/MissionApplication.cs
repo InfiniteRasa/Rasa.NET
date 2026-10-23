@@ -2492,7 +2492,30 @@ namespace Rasa.Managers
             client?.Player == null ? Array.Empty<ProgressCandidate>() :
                 _runtime.SelectCandidates(client.Player.Missions, new[] { progress },
                     client.Player.GainedWaypoints.Select(entry => entry.WaypointId).ToHashSet(),
-                    client.Player.Logos.ToHashSet());
+                    client.Player.Logos.ToHashSet(), ClearedSpawnPools(client, new[] { progress }));
+
+        /// <summary>
+        /// The spawn pools that are dead in the squad's instance the character stands in
+        /// (SquadInstanceState): what a "clear the outpost" objective is complete on. None on a
+        /// map that is not a squad's instance, which keeps no such account; and none looked for
+        /// when no event of the batch is a pool's.
+        /// </summary>
+        internal static IReadOnlySet<uint> ClearedSpawnPools(Client client, IReadOnlyList<MissionProgressEvent> progress) =>
+            progress?.Any(entry => entry.Kind == MissionProgressEventKind.SpawnPoolCleared) == true
+                ? ClearedSpawnPools(client)
+                : new HashSet<uint>();
+
+        /// <inheritdoc cref="ClearedSpawnPools(Client, IReadOnlyList{MissionProgressEvent})"/>
+        internal static IReadOnlySet<uint> ClearedSpawnPools(Client client)
+        {
+            var map = client?.Player?.MapChannel;
+
+            if (map?.SquadState == null)
+                return new HashSet<uint>();
+
+            return map.SpawnPools.Where(pool => pool.ClearedAtUtcMs != 0 && pool.DbId != 0)
+                .Select(pool => pool.DbId).ToHashSet();
+        }
 
         internal bool IsObjectiveEligibleAtEvent(Client client, uint missionId, uint objectiveId, ICharUnitOfWork unit) =>
             TryGetOperationalMission(missionId, out var mission) && mission.Objectives.ContainsKey(objectiveId) &&
@@ -2506,7 +2529,7 @@ namespace Rasa.Managers
             // or quantity.
             return _runtime.SelectCandidates(client.Player.Missions, progress,
                 client.Player.GainedWaypoints.Select(entry => entry.WaypointId).ToHashSet(),
-                client.Player.Logos.ToHashSet()).Count > 0 ||
+                client.Player.Logos.ToHashSet(), ClearedSpawnPools(client, progress)).Count > 0 ||
                 _runtime.SelectHistoryAggregates(client.Player.Missions, progress).Count > 0;
         }
 
@@ -2540,7 +2563,7 @@ namespace Rasa.Managers
 
             var candidates = _runtime.SelectCandidates(client.Player.Missions, progressEvents,
                 client.Player.GainedWaypoints.Select(entry => entry.WaypointId).ToHashSet(),
-                client.Player.Logos.ToHashSet());
+                client.Player.Logos.ToHashSet(), ClearedSpawnPools(client, progressEvents));
             if (!requirementsFrozen)
                 candidates = candidates.Where(candidate => _requirements.Evaluate(client.Player,
                     candidate.Definition.ObjectiveRequirements.GetValueOrDefault(candidate.ObjectiveDefinition.ObjectiveId))).ToArray();
@@ -2666,6 +2689,10 @@ namespace Rasa.Managers
                                     });
                             durableSubjects = observed;
                         }
+                        // The pools of the instance are dead or not by the instance's own account,
+                        // which its squad_instance rows keep: there is nothing of the character's to read.
+                        else if (rule.Kind == MissionProgressEventKind.SpawnPoolCleared)
+                            durableSubjects = ClearedSpawnPools(client);
                         else
                             durableSubjects = rule.Kind == MissionProgressEventKind.WaypointAcquired
                                 ? durableWaypointIds ??= unitOfWork.CharacterTeleporters.Get(client.Player.Id)
@@ -2920,14 +2947,18 @@ namespace Rasa.Managers
                         .Where(entry => entry.MissionState is (uint)MissionState.Success or (uint)MissionState.Completed)
                         .Select(entry => entry.MissionId)).ToHashSet()
                 : new HashSet<uint>();
+            var clearedPools = kinds.Contains(MissionProgressEventKind.SpawnPoolCleared)
+                ? ClearedSpawnPools(client)
+                : new HashSet<uint>();
             var events = waypoints.Select(MissionProgressEvent.Waypoint)
                 .Concat(logos.Select(MissionProgressEvent.Logos))
-                .Concat(successfulMissions.Select(MissionProgressEvent.Mission)).ToArray();
+                .Concat(successfulMissions.Select(MissionProgressEvent.Mission))
+                .Concat(clearedPools.Select(MissionProgressEvent.SpawnPoolCleared)).ToArray();
             while (mission.MissionState == (uint)MissionState.Active)
             {
                 var snapshot = MissionStatePublication.Capture(mission, objectives);
                 var candidates = _runtime.SelectCandidates(
-                    new Dictionary<uint, MissionLog> { [definition.MissionId] = snapshot }, events, waypoints, logos)
+                    new Dictionary<uint, MissionLog> { [definition.MissionId] = snapshot }, events, waypoints, logos, clearedPools)
                     .Where(candidate => optedIn.Contains(candidate.ObjectiveDefinition.ObjectiveId) &&
                         _requirements.Evaluate(client.Player,
                             definition.ObjectiveRequirements.GetValueOrDefault(candidate.ObjectiveDefinition.ObjectiveId), unit))
@@ -3672,7 +3703,7 @@ namespace Rasa.Managers
             return false;
         }
 
-        private static bool IsActivePlayer(Client client)
+        internal static bool IsActivePlayer(Client client)
         {
             var player = client.Player;
             return client.State == ClientState.Ingame &&

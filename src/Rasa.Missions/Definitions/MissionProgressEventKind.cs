@@ -24,6 +24,13 @@ namespace Rasa.Data
         CreatureFlagKilled,
 
         /// <summary>A creature of an entity class was killed: the subject is the class id.</summary>
-        CreatureClassKilled
+        CreatureClassKilled,
+
+        /// <summary>
+        /// A spawn pool of a squad's instance has nothing left alive, queued or on its way: the
+        /// subject is the spawn pool id. "Secure the outer Bane Outpost" is its pools cleared.
+        /// Only a squad's instance keeps which of its pools are dead (SquadInstanceState).
+        /// </summary>
+        SpawnPoolCleared
     }
 }

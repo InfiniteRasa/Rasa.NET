@@ -63,7 +63,7 @@ namespace Rasa.Managers
             var hasTargetValue = trigger.TargetValue.HasValue;
             var hasSourceSpawnResolved = trigger.SourceSpawnResolved.HasValue;
 
-            if (kind is MissionProgressEventKind.WaypointAcquired or MissionProgressEventKind.LogosAcquired)
+            if (MissionProgressRule.IsDistinctFact(kind))
                 return TryBuildDistinctSet(
                     progressTriggers,
                     out rule,
@@ -329,9 +329,9 @@ namespace Rasa.Managers
             diagnostic = null;
 
             progressTriggers[0].TryGetEventKind(out var aggregateKind);
-            if (aggregateKind is not MissionProgressEventKind.WaypointAcquired and not MissionProgressEventKind.LogosAcquired)
+            if (!MissionProgressRule.IsDistinctFact(aggregateKind))
             {
-                diagnostic = "multiple progress event triggers only support waypoint or Logos distinct-subject rules, or kill triggers that share one counter.";
+                diagnostic = "multiple progress event triggers only support waypoint, Logos or cleared spawn pool distinct-subject rules, or kill triggers that share one counter.";
                 return false;
             }
 
@@ -343,6 +343,17 @@ namespace Rasa.Managers
                     !trigger.SourceSpawnResolved.HasValue))
             {
                 diagnostic = "distinct progress subject rules require one event_kind, non-zero subject_id values, and no spawn parameters.";
+                return false;
+            }
+
+            // A pool that comes back makes a count of cleared pools go down, which no counter
+            // does: a cleared-pool objective is complete or not, as its client objectives have it
+            // (none of them has a counter).
+            if (aggregateKind == MissionProgressEventKind.SpawnPoolCleared &&
+                progressTriggers.Any(trigger => trigger.CounterId.HasValue ||
+                    trigger.InitialValue.HasValue || trigger.TargetValue.HasValue))
+            {
+                diagnostic = "cleared spawn pool rules take subject_id only: no counter_id, initial_value or target_value.";
                 return false;
             }
 
