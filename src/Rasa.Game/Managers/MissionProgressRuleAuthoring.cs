@@ -346,6 +346,17 @@ namespace Rasa.Managers
                 return false;
             }
 
+            // A pool that comes back makes a count of cleared pools go down, which no counter
+            // does: a cleared-pool objective is complete or not, as its client objectives have it
+            // (none of them has a counter).
+            if (aggregateKind == MissionProgressEventKind.SpawnPoolCleared &&
+                progressTriggers.Any(trigger => trigger.CounterId.HasValue ||
+                    trigger.InitialValue.HasValue || trigger.TargetValue.HasValue))
+            {
+                diagnostic = "cleared spawn pool rules take subject_id only: no counter_id, initial_value or target_value.";
+                return false;
+            }
+
             var subjects = new HashSet<uint>(progressTriggers.Select(trigger => trigger.SubjectId.Value));
             var first = progressTriggers[0];
             if (progressTriggers.Any(trigger => trigger.CounterId.HasValue ||

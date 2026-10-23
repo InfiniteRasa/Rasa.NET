@@ -48,7 +48,7 @@ namespace Rasa.Test.Missions
         internal HashSet<uint> MapContextIds { get; } = new() { 1220 };
 
         /// <summary>The world's spawn pools (spawnpool), for cleared-pool rules to name.</summary>
-        internal HashSet<uint> SpawnPoolIds { get; } = new();
+        internal List<SpawnPoolEntry> SpawnPools { get; } = new();
 
         internal static MissionContentFixture CreateValid()
         {
@@ -509,9 +509,8 @@ namespace Rasa.Test.Missions
             }
 
             public List<SpawnPoolEntry> Get() =>
-                _fixture.SpawnPoolIds
-                    .OrderBy(id => id)
-                    .Select(id => new SpawnPoolEntry { Id = id })
+                _fixture.SpawnPools
+                    .OrderBy(entry => entry.Id)
                     .ToList();
 
             public List<SpawnPoolPoseEntry> GetPoses() => new();

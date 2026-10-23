@@ -1,3 +1,5 @@
+extern alias RasaGame;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -5,6 +7,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Rasa.Test.Missions
 {
+    using ClientState = RasaGame::Rasa.Data.ClientState;
     using Rasa.Data;
     using Rasa.Managers;
     using Rasa.Packets.Mission.Server;
@@ -26,6 +29,7 @@ namespace Rasa.Test.Missions
 
         // The outer Bane Outpost of Velon Hollow (NOTES-missing-mechanics.md, 1977).
         private const uint OuterA = 531225, OuterB = 531226, Inner = 531224;
+        private const uint VelonHollow = 2136;
 
         private Func<MissionApplication> _missions;
 
@@ -67,6 +71,24 @@ namespace Rasa.Test.Missions
 
             Assert.IsFalse(MissionProgressRuleAuthoring.TryBuild(triggers, out _, out _, out _, out var diagnostic));
             StringAssert.Contains(diagnostic, "one event_kind");
+        }
+
+        [TestMethod]
+        public void APoolRuleHasNoCounter()
+        {
+            var triggers = new[] { OuterA, OuterB }.Select((pool, index) =>
+            {
+                var entry = TriggerRow((uint)index + 1, MissionProgressEventKind.SpawnPoolCleared, pool);
+                entry.CounterId = 0;
+                entry.InitialValue = 0;
+                entry.TargetValue = 2;
+                return new MissionTriggerDefinition(entry);
+            }).ToArray();
+
+            Assert.IsFalse(MissionProgressRuleAuthoring.TryBuild(triggers, out _, out _, out _, out var diagnostic));
+            StringAssert.Contains(diagnostic, "no counter_id");
+            Assert.ThrowsExactly<ArgumentException>(() => MissionProgressRule.CompleteWhenAllDistinctSubjectsObserved(
+                MissionProgressEventKind.SpawnPoolCleared, new HashSet<uint> { OuterA }, counterId: 0));
         }
 
         [TestMethod]
@@ -114,7 +136,7 @@ namespace Rasa.Test.Missions
                 SubjectId = OuterA,
                 Comment = "Outer pool cleared"
             });
-            fixture.SpawnPoolIds.Add(OuterA);
+            fixture.SpawnPools.Add(new SpawnPoolEntry { Id = OuterA, MapContextId = VelonHollow });
 
             var snapshot = new MissionContentLoader().Load(fixture.CreateRepository());
             var report = new MissionContentValidator().Validate(snapshot, fixture.CreateWorldUnitOfWork());
@@ -201,10 +223,10 @@ namespace Rasa.Test.Missions
             squad.PoolCleared(Pool(context.Map, OuterA));
             squad.PoolCleared(Pool(context.Map, OuterB));
 
-            // Not inside the kill that cleared it.
+            // A pool cleared is only put by to be told: nothing is recorded where it died.
             Assert.AreEqual(MissionObjectiveState.Incomplete, State(context));
 
-            SpawnPoolClearedProgress.Announce(context.Map);
+            SpawnPoolManager.Instance.SpawnPoolWorker(context.Map, 0);
 
             Assert.AreEqual(MissionObjectiveState.Completed, State(context));
             Assert.AreEqual(1, context.Drain().OfType<ObjectiveCompletedPacket>().Count());
@@ -213,6 +235,61 @@ namespace Rasa.Test.Missions
             // Told once.
             SpawnPoolClearedProgress.Announce(context.Map);
             Assert.AreEqual(0, context.Drain().OfType<ObjectiveCompletedPacket>().Count());
+        }
+
+        [TestMethod]
+        public void EveryPlayerInTheInstanceIsTold()
+        {
+            using var context = Accepted(Rule(OuterA));
+            SpawnPoolClearedProgress.Missions = () => context.Manager;
+            var mate = context.CreateAdditionalClient(2);
+            var giver = context.AddNpc(77);
+            Assert.IsTrue(context.Manager.AcceptOfferedMission(mate, giver.EntityId, MissionId));
+            var squad = Squad(context.Map);
+
+            squad.PoolCleared(Pool(context.Map, OuterA));
+            SpawnPoolClearedProgress.Announce(context.Map);
+
+            Assert.AreEqual(MissionObjectiveState.Completed, State(context));
+            Assert.AreEqual(MissionObjectiveState.Completed, mate.Player.Missions[MissionId].Objectives[ObjectiveId].State);
+        }
+
+        [TestMethod]
+        public void OneNotInTheWorldAtThePassIsToldOnceTheyAre()
+        {
+            using var context = Accepted(Rule(OuterA, OuterB));
+            SpawnPoolClearedProgress.Missions = () => context.Manager;
+            var squad = Squad(context.Map);
+            context.Client.State = ClientState.Teleporting;
+
+            squad.PoolCleared(Pool(context.Map, OuterA));
+            squad.PoolCleared(Pool(context.Map, OuterB));
+            SpawnPoolClearedProgress.Announce(context.Map);
+
+            Assert.AreEqual(MissionObjectiveState.Incomplete, State(context));
+            CollectionAssert.Contains(squad.Untold.ToArray(), context.Client.Player.Id);
+
+            // Still not in: kept for later.
+            SpawnPoolClearedProgress.Announce(context.Map);
+            CollectionAssert.Contains(squad.Untold.ToArray(), context.Client.Player.Id);
+
+            context.Client.State = ClientState.Ingame;
+            SpawnPoolClearedProgress.Announce(context.Map);
+
+            Assert.AreEqual(MissionObjectiveState.Completed, State(context));
+            Assert.AreEqual(0, squad.Untold.Count);
+        }
+
+        [TestMethod]
+        public void OneWhoLeftTheInstanceUntoldIsForgotten()
+        {
+            using var context = Accepted(Rule(OuterA));
+            var squad = Squad(context.Map);
+            squad.Untold.Add(999);
+
+            SpawnPoolClearedProgress.Announce(context.Map);
+
+            Assert.AreEqual(0, squad.Untold.Count);
         }
 
         [TestMethod]
@@ -284,8 +361,24 @@ namespace Rasa.Test.Missions
             squad.PoolCleared(Pool(context.Map, OuterB));
             squad.TakeNewlyCleared();   // told to those who were there
 
-            SpawnPoolClearedProgress.Arrived(context.Client);
+            // The map change is over (ManifestationManager.FinishArrival), with the server's
+            // missions being the test's for the radio offers on arrival.
+            var singleton = typeof(MissionApplication).GetField("_instance",
+                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+            var previous = singleton.GetValue(null);
+            singleton.SetValue(null, context.Manager);
 
+            try
+            {
+                context.Client.MissionArrivalPending = true;
+                ManifestationManager.Instance.FinishArrival(context.Client);
+            }
+            finally
+            {
+                singleton.SetValue(null, previous);
+            }
+
+            Assert.IsFalse(context.Client.MissionArrivalPending);
             Assert.AreEqual(MissionObjectiveState.Completed, State(context));
         }
 
@@ -326,7 +419,14 @@ namespace Rasa.Test.Missions
             if (pool != null)
                 return pool;
 
-            pool = new SpawnPool { DbId = id, MapContextId = map.MapInfo.MapContextId, Mode = SpawnPoolManager.ModeAutomatic, RuntimeMapChannel = map };
+            pool = new SpawnPool
+            {
+                DbId = id,
+                MapContextId = map.MapInfo.MapContextId,
+                Mode = SpawnPoolManager.ModeAutomatic,
+                RuntimeMapChannel = map,
+                SpawnSlot = new List<SpawnPoolSlot>()
+            };
             map.SpawnPools.Add(pool);
 
             return pool;
@@ -344,7 +444,10 @@ namespace Rasa.Test.Missions
         }
 
         private static MissionTriggerDefinition Trigger(uint id, MissionProgressEventKind kind, uint subject) =>
-            new(new MissionTriggerEntry
+            new(TriggerRow(id, kind, subject));
+
+        private static MissionTriggerEntry TriggerRow(uint id, MissionProgressEventKind kind, uint subject) =>
+            new()
             {
                 MissionId = MissionId,
                 ContentRevision = "spawn-pool-cleared-test",
@@ -357,7 +460,7 @@ namespace Rasa.Test.Missions
                 EventKind = (byte)kind,
                 SubjectId = subject,
                 Comment = "Pool cleared"
-            });
+            };
 
         private static MissionObjectiveDefinition Objective(MissionProgressRule rule, bool recognizeExistingFacts) =>
             new(ObjectiveId, 1001, 1002, new uint?[3], 0, MissionObjectiveState.Incomplete, true,

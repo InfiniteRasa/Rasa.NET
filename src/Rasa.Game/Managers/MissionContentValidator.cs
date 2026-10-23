@@ -174,7 +174,7 @@ namespace Rasa.Managers
                 (unitOfWork?.MapInfos?.Get() ?? new List<MapInfoEntry>()).Select(entry => entry.Id),
                 objectPackages, typedScenarios,
                 (unitOfWork?.Creatures?.GetClassFlags() ?? new List<CreatureClassFlagEntry>()).Select(entry => entry.FlagId),
-                () => (unitOfWork?.Spawnpools?.Get() ?? new List<SpawnPoolEntry>()).Select(entry => entry.Id))
+                () => unitOfWork?.Spawnpools?.Get() ?? new List<SpawnPoolEntry>())
                 .WithModules(() => (unitOfWork?.ItemModules?.GetModuleClasses(), unitOfWork?.ItemModules?.GetModifiableClasses()));
         }
 
@@ -1010,12 +1010,33 @@ namespace Rasa.Managers
 
                             break;
 
+                        // Only an automatic pool on a map entered as a squad's instance is ever
+                        // cleared (SpawnPoolManager.Emptied, SquadInstanceState): any other is an
+                        // objective that cannot be completed.
                         case MissionProgressEventKind.SpawnPoolCleared:
-                            if (!references.SpawnPoolIds.Contains(subjectId))
+                            if (!references.SpawnPools.TryGetValue(subjectId, out var pool))
                             {
                                 diagnostics.Add(new MissionValidationDiagnostic(
                                     "missing-spawn-pool",
                                     $"cleared spawn pool progress rule references missing spawn pool {subjectId}.",
+                                    definition.MissionId,
+                                    definition.ContentRevision,
+                                    objective.ObjectiveId));
+                            }
+                            else if (pool.Mode != SpawnPoolManager.ModeAutomatic)
+                            {
+                                diagnostics.Add(new MissionValidationDiagnostic(
+                                    "spawn-pool-not-automatic",
+                                    $"cleared spawn pool progress rule references spawn pool {subjectId} of mode {pool.Mode}; only an automatic pool (mode 0) is cleared.",
+                                    definition.MissionId,
+                                    definition.ContentRevision,
+                                    objective.ObjectiveId));
+                            }
+                            else if (!SquadInstancePolicies.IsListedSquadMap(pool.MapContextId))
+                            {
+                                diagnostics.Add(new MissionValidationDiagnostic(
+                                    "spawn-pool-not-in-squad-instance",
+                                    $"cleared spawn pool progress rule references spawn pool {subjectId} on map {pool.MapContextId}, which is not entered as a squad's instance.",
                                     definition.MissionId,
                                     definition.ContentRevision,
                                     objective.ObjectiveId));
@@ -1809,13 +1830,16 @@ namespace Rasa.Managers
             public HashSet<uint> CreatureFlagIds { get; }
 
             /// <summary>
-            /// Every spawn pool of the world (spawnpool), read the first time a cleared-pool rule
-            /// asks: content with none never reads the table.
+            /// Every spawn pool of the world (spawnpool), its mode and its map, read the first
+            /// time a cleared-pool rule asks: content with none never reads the table.
             /// </summary>
-            public HashSet<uint> SpawnPoolIds => _spawnPoolIds ??= new HashSet<uint>(_spawnPoolSource?.Invoke() ?? Array.Empty<uint>());
+            public IReadOnlyDictionary<uint, (short Mode, uint MapContextId)> SpawnPools =>
+                _spawnPools ??= (_spawnPoolSource?.Invoke() ?? Enumerable.Empty<SpawnPoolEntry>())
+                    .GroupBy(entry => entry.Id)
+                    .ToDictionary(group => group.Key, group => ((short)group.First().Mode, group.First().MapContextId));
 
-            private readonly Func<IEnumerable<uint>> _spawnPoolSource;
-            private HashSet<uint> _spawnPoolIds;
+            private readonly Func<IEnumerable<SpawnPoolEntry>> _spawnPoolSource;
+            private Dictionary<uint, (short Mode, uint MapContextId)> _spawnPools;
 
             /// <summary>The modules (module_class): each one's class set and variant.</summary>
             public IReadOnlyDictionary<uint, (uint ClassSetId, uint VariantId)> ModuleClasses => LoadModules().Modules;
@@ -1864,10 +1888,10 @@ namespace Rasa.Managers
                 IReadOnlyDictionary<uint, IReadOnlySet<uint>> objectPackages,
                 IReadOnlyDictionary<uint, IReadOnlySet<uint>> typedScenarios,
                 IEnumerable<uint> creatureFlagIds = null,
-                Func<IEnumerable<uint>> spawnPoolIds = null)
+                Func<IEnumerable<SpawnPoolEntry>> spawnPools = null)
             {
                 CreatureFlagIds = new HashSet<uint>(creatureFlagIds ?? Array.Empty<uint>());
-                _spawnPoolSource = spawnPoolIds;
+                _spawnPoolSource = spawnPools;
                 NpcPackageIds = new HashSet<uint>(npcPackageIds ?? Array.Empty<uint>());
                 ObjectNpcPackages = objectPackages;
                 TypedScenarioIds = typedScenarios;
