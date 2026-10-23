@@ -243,9 +243,25 @@ namespace Rasa.Managers
                     : new List<PlayerDeadPacket.Graveyard> { new PlayerDeadPacket.Graveyard { Id = named.GraveyardId, Position = entrance.Value.Position, IsSafe = named.IsSafe } };
             }
 
-            return Hospitals.AvailableTo(victim, mapContextId)
+            return HospitalsFor(victim, mapContextId)
                 .Select(h => new PlayerDeadPacket.Graveyard { Id = h.GraveyardId, Position = h.Position, IsSafe = h.IsSafe })
                 .ToList();
+        }
+
+        /// <summary>
+        /// The hospitals a dead player may go back to (Hospitals.AvailableTo); after a /suicide,
+        /// only the nearest of them, so it is no way to any hospital they have gained (Suicide).
+        /// </summary>
+        private static List<Hospitals.Hospital> HospitalsFor(Manifestation player, uint mapContextId)
+        {
+            var available = Hospitals.AvailableTo(player, mapContextId);
+
+            if (!player.DiedBySuicide || available.Count <= 1)
+                return available;
+
+            var nearest = Hospitals.Nearest(available, player.Position);
+
+            return nearest == null ? available : new List<Hospitals.Hospital> { nearest };
         }
 
         #endregion
@@ -306,7 +322,7 @@ namespace Rasa.Managers
 
             if (entrance == null)
             {
-                var available = Hospitals.AvailableTo(player, mapChannel.MapInfo.MapContextId);
+                var available = HospitalsFor(player, mapChannel.MapInfo.MapContextId);
 
                 hospital = graveyardId.HasValue ? available.FirstOrDefault(h => h.GraveyardId == (uint)graveyardId.Value) : null;
                 hospital ??= Hospitals.Nearest(available, player.Position);
@@ -363,13 +379,28 @@ namespace Rasa.Managers
 
             player.State = player.StateBeforeDeath == CharacterState.Dead ? 0 : player.StateBeforeDeath;
 
+            var bySuicide = player.DiedBySuicide;
+            player.DiedBySuicide = false;
+
             // A death in a battleground's match costs nothing: its wargame has neither the
             // sickness nor the wear (WARGAME_FLAGS_TEAM).
             var penalised = penalties && player.Level >= PenaltyMinLevel && !Battlegrounds.Instance.NoDeathPenalty(player);
 
             if (penalised)
             {
-                AddRezTrauma(mapChannel, player);
+                // A /suicide costs the most a death can (Suicide), and no kit clears it: it is no quick way home.
+                if (bySuicide)
+                {
+                    AttachRezTrauma(mapChannel, player, RezSicknessMaxStack, RezSicknessMaxSeconds * 1000L);
+                    Suicide.TraumaAttached(player, RezSicknessMaxSeconds * 1000L);
+                }
+                else
+                {
+                    // An ordinary death on a /suicide's Rez Trauma leaves it kit-proof; one on none does not.
+                    if (CurrentRezTrauma(player) == null)
+                        Suicide.TraumaCleared(player);
+                    AddRezTrauma(mapChannel, player);
+                }
                 Durability.WearForDeath(client);
             }
 

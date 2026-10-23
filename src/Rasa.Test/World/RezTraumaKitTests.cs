@@ -6,6 +6,7 @@ namespace Rasa.Test.World
 {
     using Rasa.Data;
     using Rasa.Managers;
+    using Rasa.Packets.Communicator.Server;
     using Rasa.Packets.MapChannel.Server;
     using Rasa.Structures;
     using Rasa.Test.Missions;
@@ -83,6 +84,51 @@ namespace Rasa.Test.World
             Assert.AreEqual(PlayerMessage.PmCannotPerformActionNoRezSickness, harness.Drain().OfType<UserActionFailedPacket>().Single().MsgId);
             Assert.IsFalse(harness.BootcampMap.PerformRecovery.Any(action => action.ActionId == ActionId.ConsumableResTraumaKit));
             Assert.AreEqual(1U, kit.StackSize);
+        }
+
+        [TestCleanup]
+        public void ForgetSuicides() => Suicide.Reset();
+
+        [TestMethod]
+        public void TheRezTraumaOfASuicideIsRefusedAndTheKitKept()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var player = harness.Client.Player;
+            PlayerDeath.RestorePenalties(harness.BootcampMap, player, 3, 360_000, 0);
+            Suicide.TraumaAttached(player, 360_000);
+            var kit = ToyTests.Grant(harness, ClassOneKit);
+            var manager = ToyTests.CreateManager(harness, KitAction, 1, ClassOneKit);
+            harness.Drain();
+
+            manager.RequestPerformAbility(harness.Client, ToyTests.Request(KitAction, 1, kit.EntityId));
+
+            var packets = harness.Drain();
+            Assert.AreEqual(PlayerMessage.PmCannotPerformActionNow, packets.OfType<UserActionFailedPacket>().Single().MsgId);
+            CollectionAssert.AreEqual(new[] { Suicide.KitText }, packets.OfType<SystemMessagePacket>().Select(p => p.TextMessage).ToArray());
+            Assert.IsFalse(harness.BootcampMap.PerformRecovery.Any(action => action.ActionId == ActionId.ConsumableResTraumaKit));
+            Assert.AreEqual(1U, kit.StackSize);
+            Assert.AreEqual(3, PlayerDeath.CurrentRezTrauma(player).Stacks);
+        }
+
+        [TestMethod]
+        public void ASuicideInTheWindupLeavesTheKitUnspent()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var player = harness.Client.Player;
+            PlayerDeath.RestorePenalties(harness.BootcampMap, player, 1, 120_000, 0);
+            var kit = ToyTests.Grant(harness, ClassOneKit);
+            var manager = ToyTests.CreateManager(harness, KitAction, 1, ClassOneKit);
+
+            manager.RequestPerformAbility(harness.Client, ToyTests.Request(KitAction, 1, kit.EntityId));
+            var pending = harness.BootcampMap.PerformRecovery.Single(action => action.ActionId == ActionId.ConsumableResTraumaKit);
+            Suicide.TraumaAttached(player, 360_000);
+            harness.Drain();
+
+            ToyTests.Land(harness, manager, pending);
+
+            Assert.AreEqual(PlayerMessage.PmCannotPerformActionNow, harness.Drain().OfType<UserActionFailedPacket>().Single().MsgId);
+            Assert.AreEqual(1U, kit.StackSize);
+            Assert.AreEqual(1, PlayerDeath.CurrentRezTrauma(player).Stacks);
         }
 
         [TestMethod]

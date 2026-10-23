@@ -92,6 +92,9 @@ namespace Rasa.Managers
             if (player == null || player.State == CharacterState.Dead)
                 return;
 
+            // Any damage, armour's or health's, with a source or none, calls off a /suicide counting down.
+            Suicide.Damaged(player);
+
             // Conversion turns what the hit took into healing for the squad.
             ConvertDamage(mapChannel, player, damage);
 

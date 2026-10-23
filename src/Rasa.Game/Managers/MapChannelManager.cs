@@ -408,6 +408,9 @@ namespace Rasa.Managers
                 // A /killmap asked for since the last tick: done here, between thinks.
                 Guard("MapReset.Worker", mapChannel, () => MapReset.Worker(mapChannel));
 
+                // The /suicide countdowns on this map: run out, or called off (Suicide).
+                Guard("Suicide.Worker", mapChannel, () => Suicide.Worker(mapChannel));
+
                 // Everyone who has been sent into this map since the last tick goes onto its list.
                 //
                 // This used to move one client per map per second (a 1000 ms timer, one Dequeue),

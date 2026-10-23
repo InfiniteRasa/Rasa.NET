@@ -294,6 +294,9 @@ namespace Rasa.Managers
             if (GmAbilities.TryPerform(client, packet))
                 return;
 
+            // Any ability asked for calls off a /suicide counting down.
+            Suicide.Cancel(client, Suicide.AbilityReason);
+
             var actionId = packet.ActionId;
             var level = (uint)packet.ActionArgId;
 
@@ -376,9 +379,12 @@ namespace Rasa.Managers
                 return;
             }
 
-            // A Rez Trauma Kit with no Rez Trauma to take off (RezTraumaKitAction.CheckAction).
+            // A Rez Trauma Kit with no Rez Trauma to take off (RezTraumaKitAction.CheckAction), or a /suicide's.
             if (RezTraumaKitRefusal(player, action) is { } kitRefusal)
             {
+                if (Suicide.IsKitProof(player))
+                    CommunicatorManager.Instance.SystemMessage(client, Suicide.KitText);
+
                 Fail(client, actionId, level, kitRefusal);
                 return;
             }

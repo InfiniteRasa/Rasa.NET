@@ -5858,6 +5858,9 @@ namespace Rasa.Managers
             ["usermissions"] = new PrivilegedChatCommand(GmMissionCommands.Level, GmMissionCommands.ShowUserMissions),
             ["givemission"] = new PrivilegedChatCommand(GmMissionCommands.Level, GmMissionCommands.GiveMission),
 
+            // A player's own: kills their character after asking twice and a countdown (Suicide).
+            ["suicide"] = new PrivilegedChatCommand(GmLevel.Player, Suicide.Run),
+
             // A GM's menu on a player's name in chat: its two GM
             // entries, Teleport to Player and Kick Player, send these with the family name.
             ["gotouser"] = new PrivilegedChatCommand(GmLevel.GameMaster,

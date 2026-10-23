@@ -1925,6 +1925,9 @@ namespace Rasa.Managers
 
         public void StartAutoFire(Client client, double yaw)
         {
+            // Fire asked for calls off a /suicide counting down.
+            Suicide.Cancel(client, Suicide.WeaponReason);
+
             // ToDo:
             // yaw is probobly used to mach player and target orientation,
             // some creatures recive more damage from back then from front
@@ -3630,6 +3633,9 @@ namespace Rasa.Managers
 
             // Leaving dead: to their hospital first, so they come back alive there (PlayerDeath).
             PlayerDeath.PlayerLeaving(client);
+
+            // A /suicide asked for or counting down goes with them.
+            Suicide.Forget(client);
 
             // Called from MapChannelManager.RemovePlayer. A client that dropped while holding
             // fire stayed in the auto-fire list; once its items were destroyed CurrentWeapon

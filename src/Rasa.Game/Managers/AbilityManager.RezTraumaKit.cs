@@ -24,11 +24,20 @@ namespace Rasa.Managers
     {
         public const string RezTraumaKitModule = "abilities.reztraumakit";
 
-        /// <summary>Why a Rez Trauma Kit cannot be used now, or null: there is no Rez Trauma on the player.</summary>
-        private static PlayerMessage? RezTraumaKitRefusal(Manifestation player, ActionInfo action) =>
-            action.Module == RezTraumaKitModule && PlayerDeath.CurrentRezTrauma(player) == null
-                ? PlayerMessage.PmCannotPerformActionNoRezSickness
-                : null;
+        /// <summary>
+        /// Why a Rez Trauma Kit cannot be used now, or null: there is no Rez Trauma on the player,
+        /// or it is the one a /suicide gave (Suicide.IsKitProof), which no kit clears.
+        /// </summary>
+        private static PlayerMessage? RezTraumaKitRefusal(Manifestation player, ActionInfo action)
+        {
+            if (action.Module != RezTraumaKitModule)
+                return null;
+
+            if (PlayerDeath.CurrentRezTrauma(player) == null)
+                return PlayerMessage.PmCannotPerformActionNoRezSickness;
+
+            return Suicide.IsKitProof(player) ? PlayerMessage.PmCannotPerformActionNow : null;
+        }
 
         private static void UseRezTraumaKit(MapChannel mapChannel, Manifestation player, ActionData action)
         {
