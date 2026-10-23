@@ -436,13 +436,29 @@ Progress event values come from `MissionProgressEventKind`, not client opcodes:
 | 11 | `DeadlineElapsed` | Prefer `TimerElapsed`; runtime supplies mission/objective scope |
 | 12 | `ObjectiveStateReached` | Prefer the typed objective-state trigger |
 | 13 | `ObjectHit` | `SubjectId` is entity class; `CounterId` is action ID |
+| 14 | `CreatureFlagKilled` | `SubjectId` is a creature flag its class carries (`creature_class_flag`) |
+| 15 | `CreatureClassKilled` | `SubjectId` is the killed creature's entity class |
+| 16 | `SpawnPoolCleared` | `SubjectId` is a spawn pool ID; squad instances only (see below) |
 
 For item counters, set `InitialValue` and `TargetValue`, omit `CounterId`, and
 provide the native counter-text binding. Generic counters require all three.
 Targets must exceed initial values. Do not combine counter ranges with
 `SourceSpawnResolved`.
 
-Multiple waypoint or Logos triggers form an all-distinct-subject set. A scoped
+Multiple waypoint, Logos or `SpawnPoolCleared` triggers form an all-distinct-subject set.
+
+`SpawnPoolCleared` ("Secure the outer Bane Outpost") completes when every named
+pool is dead at the same time in the squad's instance the player is in: nothing
+of the pool alive, queued or on its way, whatever count it spawned. A pool that
+respawns must be cleared again. Off a squad's instance no pool is cleared. Each
+pool must be an automatic pool (`mode` 0) on a map listed in
+`SquadInstances.Maps` (validator: `missing-spawn-pool`,
+`spawn-pool-not-automatic`, `spawn-pool-not-in-squad-instance`). These rules
+take `SubjectId` only: no counter, because a respawning pool would make it go
+down. The players in the instance are told on the spawn pools' next pass; one
+who arrives after the pools died is told on arrival. With
+`RecognizeExistingFacts`, taking the mission inside the instance counts the
+pools already dead there. A scoped
 `ScenarioEvent` set uses one mission/scenario, distinct nonzero event IDs,
 `InitialValue = 0` and `TargetValue = number of events`. Its `CounterId` still
 names the scenario; native display counter `0` is derived from the set.

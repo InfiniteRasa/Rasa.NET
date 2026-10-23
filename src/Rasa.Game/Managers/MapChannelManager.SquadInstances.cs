@@ -67,6 +67,12 @@ namespace Rasa.Managers
         /// <summary>Whether a map is one of those entered as a squad's instance.</summary>
         public static bool IsSquadMap(uint mapContextId) => _config.Enabled && _maps.Contains(mapContextId);
 
+        /// <summary>
+        /// Whether a map is listed as a squad's instance, whether or not squad instances are
+        /// switched on: content that needs one is not wrong for the server's switch being off.
+        /// </summary>
+        public static bool IsListedSquadMap(uint mapContextId) => _maps.Contains(mapContextId);
+
         /// <summary>The day and time of day the weekly reset is set for. False when either does not read.</summary>
         public static bool TryWeeklyReset(SquadInstanceConfig config, out DayOfWeek day, out TimeSpan time)
         {
@@ -176,6 +182,13 @@ namespace Rasa.Managers
         private readonly Action<uint> _saveReset;
         private readonly List<SpawnPool> _newlyCleared = new List<SpawnPool>();
 
+        /// <summary>
+        /// The characters in the instance who were not in the world when its pools were last
+        /// told of - between maps, or not yet in - to be told of every pool dead there once they
+        /// are (SpawnPoolClearedProgress).
+        /// </summary>
+        internal HashSet<uint> Untold { get; } = new HashSet<uint>();
+
         /// <summary>The squad_instance row; 0 for an instance that is not saved.</summary>
         public uint DbId { get; }
 
@@ -205,9 +218,8 @@ namespace Rasa.Managers
 
             pool.ClearedAtUtcMs = Math.Max(1, _utcNowMs());
 
-            lock (_newlyCleared)
-                if (!_newlyCleared.Contains(pool))
-                    _newlyCleared.Add(pool);
+            if (!_newlyCleared.Contains(pool))
+                _newlyCleared.Add(pool);
 
             if (DbId != 0 && pool.DbId != 0)
                 _saveCleared(DbId, pool.DbId, pool.ClearedAtUtcMs);
@@ -220,15 +232,12 @@ namespace Rasa.Managers
         /// </summary>
         internal IReadOnlyList<SpawnPool> TakeNewlyCleared()
         {
-            lock (_newlyCleared)
-            {
-                if (_newlyCleared.Count == 0)
-                    return Array.Empty<SpawnPool>();
+            if (_newlyCleared.Count == 0)
+                return Array.Empty<SpawnPool>();
 
-                var cleared = _newlyCleared.ToArray();
-                _newlyCleared.Clear();
-                return cleared;
-            }
+            var cleared = _newlyCleared.ToArray();
+            _newlyCleared.Clear();
+            return cleared;
         }
 
         /// <summary>
@@ -264,8 +273,7 @@ namespace Rasa.Managers
             foreach (var pool in pools ?? Enumerable.Empty<SpawnPool>())
                 pool.ClearedAtUtcMs = 0;
 
-            lock (_newlyCleared)
-                _newlyCleared.Clear();
+            _newlyCleared.Clear();
 
             if (DbId != 0)
                 _saveReset(DbId);
