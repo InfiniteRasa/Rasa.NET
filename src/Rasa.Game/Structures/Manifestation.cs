@@ -443,6 +443,12 @@ namespace Rasa.Structures
         /// <summary>Killed by an enemy player across a wargame: back from a hospital with PvP Safety.</summary>
         public bool DiedInPvp { get; set; }
 
+        /// <summary>
+        /// Dead by their own /suicide (Suicide): the nearest of their hospitals is the only way
+        /// back, and they come back with the full Rez Trauma. Off when they are back up.
+        /// </summary>
+        public bool DiedBySuicide { get; set; }
+
         /// <summary>The state the player was in when they died, to go back to when revived.</summary>
         public CharacterState StateBeforeDeath { get; set; }
 
