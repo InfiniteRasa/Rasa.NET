@@ -93,6 +93,32 @@ namespace Rasa.Test.Gameplay
             Assert.AreEqual(14u, packets.OfType<PerformRecoveryPacket>().Single().Arg);
         }
 
+        /// <summary>
+        /// The scan of the pack and the save are one unit of work: the request's scan one, and
+        /// the reload's scan and save another - not one for each stack looked at.
+        /// </summary>
+        [TestMethod]
+        public void AReloadFromTwoStacksIsOneUnitOfWorkToAskAndOneToLoad()
+        {
+            using var context = new WeaponAmmoContext();
+            context.AddAmmo(3);
+            context.AddAmmo(4, 51);
+            var manager = new ManifestationManager(context);
+            var units = context.CharUnitsCreated;
+
+            manager.RequestWeaponReload(context.Client, true);
+
+            Assert.AreEqual(units + 1, context.CharUnitsCreated, "the request");
+            var action = context.World.Map.PerformRecovery.Single();
+            units = context.CharUnitsCreated;
+
+            manager.WeaponReload(action);
+
+            Assert.AreEqual(units + 1, context.CharUnitsCreated, "the reload");
+            Assert.AreEqual(14u, context.Read(context.Weapon).AmmoCount);
+            Assert.AreEqual(0, context.ReadInventory().Count(row => row.InventoryType == (uint)InventoryType.Personal));
+        }
+
         [TestMethod]
         [DataRow(false, true)]
         [DataRow(true, true)]

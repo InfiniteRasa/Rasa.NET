@@ -149,6 +149,30 @@ namespace Rasa.Test.Database
             Report("autosave, one player", perSave);
         }
 
+        /// <summary>A reload's end (ManifestationManager.WeaponReload): the clip filled from a stack in the pack, saved.</summary>
+        [TestMethod]
+        public void OneReload()
+        {
+            using var context = new Rasa.Test.Gameplay.WeaponAmmoContext(clip: 20);
+            context.AddAmmo(50000);
+            var manager = new ManifestationManager(context);
+            ActionData action = null;
+
+            var perReload = Measure(() =>
+            {
+                // Fired empty, the way a shot spends a clip (WeaponClips), and a reload asked for.
+                WeaponClips.Spend(context.Client, context.Weapon, 20, context);
+                context.Client.Player.CurrentAction = 0;
+                context.World.Map.PerformRecovery.Clear();
+                manager.RequestWeaponReload(context.Client, true);
+                action = context.World.Map.PerformRecovery.Single();
+                Rasa.Test.World.WorldTestContext.Drain(context.Client);
+            }, () => manager.WeaponReload(action));
+
+            Assert.AreEqual(20u, context.Read(context.Weapon).AmmoCount, "the reloads were saved");
+            Report("reload, one stack", perReload);
+        }
+
         /// <summary>
         /// What one character's progression write costs under each journal and synchronous
         /// setting, and what of it is the commit: a context opened, a transaction begun, the row

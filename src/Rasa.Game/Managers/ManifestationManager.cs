@@ -4383,6 +4383,10 @@ namespace Rasa.Managers
             if (!weapon.IsJammed && weapon.CurrentAmmo >= weaponClassInfo.ClipSize)
                 return;
 
+            // One unit of work for the whole scan's mission-item checks, made only if a stack
+            // needs one, rather than one for each stack (MissionItemProtection).
+            using var scan = new LazyCharUnit(_gameUnitOfWorkFactory);
+
             for (var i = 0; i < 50; i++)
             {
                 if (client.Player.Inventory.PersonalInventory[(int)InventoryOffset.CategoryConsumable + i] == 0)
@@ -4397,7 +4401,7 @@ namespace Rasa.Managers
                     continue;
 
                 if (weaponAmmo.ItemTemplate.Class == weaponClassInfo.AmmoClassId && weaponAmmo.StackSize > 0 &&
-                    !MissionItemProtection.IsProtected(weaponAmmo, _gameUnitOfWorkFactory))
+                    !scan.IsProtected(weaponAmmo))
                 {
                     // consume ammo
                     var ammoToGrab = Math.Min(weaponClassInfo.ClipSize - foundAmmo - weapon.CurrentAmmo, weaponAmmo.StackSize);
@@ -5158,6 +5162,10 @@ namespace Rasa.Managers
             var loaded = Math.Min(weapon.CurrentAmmo, weaponClassInfo.ClipSize);
             var consumed = new List<(Item Item, int Slot, uint Original, uint Remaining)>();
 
+            // The scan's mission-item checks and the save below in one unit of work: it used to
+            // be one for each stack looked at, and another for the save.
+            using var scan = new LazyCharUnit(_gameUnitOfWorkFactory);
+
             for (var i = 0; i < 50 && loaded < weaponClassInfo.ClipSize; i++)
             {
                 var entityId = client.Player.Inventory.PersonalInventory[(int)InventoryOffset.CategoryConsumable + i];
@@ -5168,7 +5176,7 @@ namespace Rasa.Managers
                 var weaponAmmo = EntityManager.Instance.GetItem(entityId);
 
                 if (weaponAmmo == null || weaponAmmo.ItemTemplate.Class != weaponClassInfo.AmmoClassId || weaponAmmo.StackSize == 0 ||
-                    MissionItemProtection.IsProtected(weaponAmmo, _gameUnitOfWorkFactory))
+                    scan.IsProtected(weaponAmmo))
                     continue;
 
                 var ammoToGrab = Math.Min(weaponClassInfo.ClipSize - loaded, weaponAmmo.StackSize);
@@ -5183,7 +5191,7 @@ namespace Rasa.Managers
 
             try
             {
-                using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+                var unitOfWork = scan.Unit;
                 unitOfWork.ExecuteTransaction(() =>
                 {
                     // The row is what it was when the rounds not yet written were spent
