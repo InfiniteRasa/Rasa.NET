@@ -2,6 +2,7 @@ extern alias RasaGame;
 
 using System.Linq;
 using System.Numerics;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Rasa.Data;
 using Rasa.Game;
@@ -35,6 +36,7 @@ namespace Rasa.Test.Missions.Plateau
     {
         private const uint WeaponsTrafficking = PlateauWeaponsTraffickingV1.MissionId;
         private const uint Armory = PlateauWeaponsTraffickingV1.MapContextId;
+        private const uint MissionItemFiller = 11519;   // as PlateauCampResistanceTests
 
         [TestMethod]
         public void WeaponsTraffickingTakesTheFivePrototypesInOrderFromTheArmorysFootlockers()
@@ -92,6 +94,16 @@ namespace Rasa.Test.Missions.Plateau
                     Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, prototype.Template), "after the reload");
                     Assert.AreEqual(MissionObjectiveState.Incomplete,
                         Objective(harness, PlateauWeaponsTraffickingV1.Prototypes[index + 1].Objective), "after the reload");
+
+                    // Out to the Pools and back: the taken footlockers stay open and empty, the rest full.
+                    OutOfArmory(harness, copy);
+                    copy = IntoArmory(harness);
+                    lockers = Lockers(harness, copy);
+                    for (var other = 0; other < lockers.Length; other++)
+                        Assert.AreEqual(other <= index ? PlateauWeaponsTraffickingV1.TakenState : PlateauWeaponsTraffickingV1.ReadyState,
+                            (uint)lockers[other].StateId, $"footlocker {other + 1} after the return");
+                    Use(harness, copy, lockers[index]);
+                    Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, prototype.Template), "no second one after the return");
                 }
             }
             Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, PlateauWeaponsTraffickingV1.GetThem));
@@ -157,6 +169,47 @@ namespace Rasa.Test.Missions.Plateau
             harness.Drain();
             Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, template), "the rifle stays");
             Assert.IsTrue(harness.Client.Player.Inventory.PersonalInventory.Contains(rifle.EntityId), "in its slot");
+        }
+
+        /// <summary>A full bag: the footlocker stays full and gives once a slot is free. A save that fails: the same, then the retry gives once.</summary>
+        [TestMethod]
+        public void WeaponsTraffickingFootlockerWaitsForAFreeSlotAndAFailedSave()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            EnterPlateau(harness);
+            var pools = OntoPools(harness);
+            var amee = Amee(pools);
+            SeedCompleted(harness, PlateauNewOrdersFromTheGeneralV1.MissionId);
+            Accept(harness, amee, WeaponsTrafficking);
+            var copy = IntoArmory(harness);
+            var lockers = Lockers(harness, copy);
+            var rifle = PlateauWeaponsTraffickingV1.Prototypes[0];
+
+            WildernessAliaBranchesTests.FillCategory(harness, MissionItemFiller, 50);
+            Use(harness, copy, lockers[0]);
+            Assert.AreEqual(PlateauWeaponsTraffickingV1.ReadyState, (uint)lockers[0].StateId, "full bag: the footlocker stays full");
+            Assert.AreEqual(0U, WildernessRanjaGorgeTests.Held(harness, rifle.Template));
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, rifle.Objective));
+            WildernessAliaBranchesTests.FreeOneSlot(harness, MissionItemFiller);
+
+            harness.Context.BeforeSave = _ => throw new DbUpdateException("Injected Weapons Trafficking footlocker failure.");
+            try
+            {
+                Use(harness, copy, lockers[0]);
+            }
+            finally
+            {
+                harness.Context.BeforeSave = null;
+            }
+            Assert.AreEqual(PlateauWeaponsTraffickingV1.ReadyState, (uint)lockers[0].StateId, "failed save: the footlocker stays full");
+            Assert.AreEqual(0U, WildernessRanjaGorgeTests.Held(harness, rifle.Template));
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, rifle.Objective));
+
+            Use(harness, copy, lockers[0]);
+            Assert.AreEqual(PlateauWeaponsTraffickingV1.TakenState, (uint)lockers[0].StateId);
+            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, rifle.Template));
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, rifle.Objective));
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, PlateauWeaponsTraffickingV1.Prototypes[1].Objective));
         }
 
         private static MapChannel IntoArmory(WildernessRuntimeTestHarness harness)
