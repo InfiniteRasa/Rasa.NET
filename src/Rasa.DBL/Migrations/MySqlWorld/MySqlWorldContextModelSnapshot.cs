@@ -506,7 +506,7 @@ namespace Rasa.Migrations.MySqlWorld
 
                     b.Property<string>("Comment")
                         .IsRequired()
-                        .HasColumnType("varchar(50)")
+                        .HasColumnType("text")
                         .HasColumnName("comment");
 
                     b.Property<uint>("Faction")
