@@ -378,8 +378,9 @@ namespace Rasa.Managers
                 // In a squad's instance a pool that has been cleared comes back a set time after
                 // the last of it died, by the clock on the wall, and its own respawn time is not
                 // waited for (SquadInstanceState). It is cleared no longer once something of it
-                // is queued or alive (Filled).
-                var squadState = spawnPool.Mode == ModeAutomatic ? mapChannel.SquadState : null;
+                // is queued or alive (Filled). A pool a mission stages (IsStaged) is no camp: its
+                // public NPC is back on its own respawn time, for the mission to be offered again.
+                var squadState = spawnPool.Mode == ModeAutomatic && !IsStaged(spawnPool.DbId) ? mapChannel.SquadState : null;
 
                 if (squadState != null)
                 {

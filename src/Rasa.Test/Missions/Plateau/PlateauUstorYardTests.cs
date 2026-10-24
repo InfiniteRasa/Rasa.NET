@@ -7,6 +7,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Rasa.Data;
 using Rasa.Game;
 using Rasa.Managers;
+using Rasa.Missions.Content.Plateau;
 using Rasa.Packets.MapChannel.Client;
 using Rasa.Packets.Mission.Server;
 using Rasa.Services.Preloader.Missions.Plateau;
@@ -41,6 +42,7 @@ namespace Rasa.Test.Missions.Plateau
         private const uint SilentButDeadly = PlateauSilentButDeadlyV1.MissionId;
         private const uint Interception = PlateauInterceptionV1.MissionId;
         private const uint MonkeyWrench = PlateauMonkeyWrenchV1.MissionId;
+        private const uint OutOfThinAir = PlateauOutOfThinAirV1.MissionId;
 
         [TestMethod]
         public void TheUstorDoorLeadsToRappAndBackToThePlateau()
@@ -279,6 +281,171 @@ namespace Rasa.Test.Missions.Plateau
             Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, PlateauMonkeyWrenchV1.RegenBonus), "the second choice");
         }
 
+        [TestMethod]
+        public void OutOfThinAirTakesThePatrolsStimPackToThePrisonerWhoWalksOutByTheWestExit()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            EnterPlateau(harness);
+            SeedCompleted(harness, SilentButDeadly, Interception);
+            var copy = IntoUstor(harness);
+            var prisoner = Prisoner(harness, copy);
+            Assert.AreEqual(PlateauMaligoPrisonerV1.PrisonerPackage, prisoner.Npc.NpcPackageId);
+            Assert.AreEqual(PlateauMaligoPrisonerV1.PrisonerName, prisoner.NameId);
+            AssertStandsOnNavMesh(copy, prisoner.Position);
+            Assert.IsFalse(Offers(harness, prisoner, OutOfThinAir), "waits for Monkey Wrench");
+            SeedCompleted(harness, MonkeyWrench);
+
+            var offer = WildernessRanjaGorgeTests.Offer(harness, prisoner, OutOfThinAir);
+            CollectionAssert.AreEqual(new[]
+                {
+                    PlateauOutOfThinAirV1.BioVest, PlateauOutOfThinAirV1.GravitonLegs,
+                    PlateauOutOfThinAirV1.ReflectiveVest, PlateauOutOfThinAirV1.MechGloves
+                },
+                offer.SelectableReward.Select(item => item.ItemTemplateId).ToArray());
+            Accept(harness, prisoner, OutOfThinAir);
+            Tick(harness, copy, 250);
+
+            // 2: the patrol south-east of the middle pond; one of them has the stim pack.
+            var pond = new Vector3(204, 174.3f, -36);
+            var patrol = Enumerable.Range(0, PlateauOutOfThinAirScene.PatrolSize)
+                .Select(index => SceneCreature(copy, PlateauOutOfThinAirScene.PatrolRole(index))).ToArray();
+            foreach (var thrax in patrol)
+            {
+                Assert.IsNotNull(thrax, "the patrol is there");
+                Assert.AreEqual(PlateauMaligoPrisonerV1.Patrol, thrax.DbId);
+                Assert.AreEqual(TargetCategory.Hostile, thrax.TargetCategory);
+                AssertStandsOnNavMesh(copy, thrax.Position);
+                Assert.IsTrue(thrax.Position.X > pond.X && thrax.Position.Z < pond.Z && Vector3.Distance(pond, thrax.Position) < 30,
+                    $"south-east of the pond: {thrax.Position}");
+                Assert.IsTrue(copy.NavMesh.FindPath(prisoner.Position, thrax.Position, out var reached) != null && reached, "walked to");
+            }
+            harness.MoveTo(prisoner.Position);
+            harness.Drain();
+            Assert.IsFalse(harness.Manager.CompleteOfferedObjective(harness.Client, prisoner.EntityId, OutOfThinAir,
+                PlateauOutOfThinAirV1.GiveIt, 1), "no stim pack yet");
+
+            var corpse = Kill(harness, copy, patrol[0]);
+            Assert.IsNotNull(corpse, "the Thrax leaves a corpse");
+            Assert.IsTrue(corpse.LootItems.Any(item => item.ItemTemplateId == PlateauOutOfThinAirV1.Stim), "the stim pack on him");
+            PickUp(harness, corpse);
+            harness.Drain();
+            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, PlateauOutOfThinAirV1.Stim));
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, OutOfThinAir, PlateauOutOfThinAirV1.StimPack));
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, OutOfThinAir, PlateauOutOfThinAirV1.GiveIt));
+
+            // A reload halfway keeps the stim pack and the objectives.
+            WildernessRanjaGorgeTests.Reload(harness);
+            Tick(harness, copy, 250);
+            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, PlateauOutOfThinAirV1.Stim), "after the reload");
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, OutOfThinAir, PlateauOutOfThinAirV1.GiveIt), "after the reload");
+
+            // 3, 1: she takes it and walks out; then the radio.
+            AssertHandInTopic(Conversation(harness, prisoner), OutOfThinAir, PlateauOutOfThinAirV1.GiveIt);
+            harness.MoveTo(prisoner.Position);
+            harness.Drain();
+            Assert.IsTrue(harness.Manager.CompleteOfferedObjective(harness.Client, prisoner.EntityId, OutOfThinAir, PlateauOutOfThinAirV1.GiveIt, 1));
+            harness.Drain();
+            Assert.AreEqual(0U, WildernessRanjaGorgeTests.Held(harness, PlateauOutOfThinAirV1.Stim), "she has it");
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, OutOfThinAir, PlateauOutOfThinAirV1.Escort));
+            for (var index = 0; index < PlateauOutOfThinAirV1.Route.Length; index++)
+                AssertStandsOnNavMesh(copy, new Vector3(PlateauOutOfThinAirV1.Route[index].X, PlateauOutOfThinAirV1.Route[index].Y,
+                    PlateauOutOfThinAirV1.Route[index].Z));
+
+            var start = prisoner.Position;
+            var furthest = 0f;
+            for (var tick = 0; tick < 400 && Objective(harness, OutOfThinAir, PlateauOutOfThinAirV1.Escort) != MissionObjectiveState.Completed; tick++)
+            {
+                if (prisoner.State != CharacterState.Dead && Here(copy).Contains(prisoner))
+                {
+                    furthest = System.Math.Max(furthest, Vector3.Distance(start, prisoner.Position));
+                    harness.MoveTo(prisoner.Position + Vector3.UnitZ);
+                }
+                Tick(harness, copy, 1000);
+            }
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, OutOfThinAir, PlateauOutOfThinAirV1.Escort),
+                $"she stalled at {prisoner.Position}");
+            Assert.IsTrue(furthest > 150, $"she walked the way out ({furthest:F0} m from her rock)");
+            // The public NPC goes back to her rock when her scene ends: gone from the exit, there for the next player.
+            var exit = PlateauOutOfThinAirV1.Route[^1];
+            for (var tick = 0; tick < 90 && !Here(copy).Any(creature => creature.SpawnPool?.DbId == PlateauMaligoPrisonerV1.PrisonerPool &&
+                     Vector3.Distance(ToVector(PlateauMaligoPrisonerV1.PrisonerAt), creature.Position) < 2 && creature.IsInteractable); tick++)
+                Tick(harness, copy, 1000);
+            Assert.IsFalse(Here(copy).Any(creature => creature.SpawnPool?.DbId == PlateauMaligoPrisonerV1.PrisonerPool &&
+                Vector3.Distance(new Vector3(exit.X, exit.Y, exit.Z), creature.Position) < 5), "gone from the exit");
+            Assert.IsTrue(Here(copy).Any(creature => creature.SpawnPool?.DbId == PlateauMaligoPrisonerV1.PrisonerPool &&
+                Vector3.Distance(ToVector(PlateauMaligoPrisonerV1.PrisonerAt), creature.Position) < 2 && creature.IsInteractable),
+                "back on her rock");
+            Assert.IsTrue(harness.Client.Player.Missions[OutOfThinAir].Completeable);
+            Assert.IsFalse(Conversation(harness, prisoner).ContainsKey(ConversationType.MissionComplete), "no NPC turn-in");
+
+            var before = harness.Context.ReadRewardTotals();
+            Assert.IsTrue(harness.Manager.TryCompleteRadioMission(harness.Client, OutOfThinAir, 0, null));
+            Assert.AreEqual(MissionState.Completed, harness.Client.Player.Missions[OutOfThinAir].State);
+            Assert.AreEqual(before.Credits + PlateauOutOfThinAirV1.Credits, harness.Context.ReadRewardTotals().Credits);
+            Assert.AreEqual(before.Experience + PlateauOutOfThinAirV1.Experience, harness.Context.ReadRewardTotals().Experience);
+            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, PlateauOutOfThinAirV1.BioVest), "the first choice");
+        }
+
+        [TestMethod]
+        public void OutOfThinAirFailsWhenThePrisonerDiesOnTheWay()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            EnterPlateau(harness);
+            SeedCompleted(harness, SilentButDeadly, Interception, MonkeyWrench);
+            var copy = IntoUstor(harness);
+            var prisoner = Prisoner(harness, copy);
+            WildernessRanjaGorgeTests.Offer(harness, prisoner, OutOfThinAir);
+            Accept(harness, prisoner, OutOfThinAir);
+            Tick(harness, copy, 250);
+            PickUp(harness, Kill(harness, copy, SceneCreature(copy, PlateauOutOfThinAirScene.PatrolRole(1))));
+            harness.Drain();
+            harness.MoveTo(prisoner.Position);
+            harness.Drain();
+            Assert.IsTrue(harness.Manager.CompleteOfferedObjective(harness.Client, prisoner.EntityId, OutOfThinAir, PlateauOutOfThinAirV1.GiveIt, 1));
+            harness.Drain();
+            for (var tick = 0; tick < 6; tick++)
+            {
+                harness.MoveTo(prisoner.Position + Vector3.UnitZ);
+                Tick(harness, copy, 1000);
+            }
+            Assert.IsTrue(Vector3.Distance(ToVector(PlateauMaligoPrisonerV1.PrisonerAt), prisoner.Position) > 3, "she is on her way");
+
+            prisoner.Attributes[Attributes.Health].Current = 0;
+            harness.Creatures.HandleCreatureKill(copy, prisoner, null);
+            Tick(harness, copy, 250);
+            var mission = harness.Client.Player.Missions[OutOfThinAir];
+            Assert.AreEqual(MissionObjectiveState.Failed, mission.Objectives[PlateauOutOfThinAirV1.Escort].State);
+            Assert.AreEqual(MissionState.Failed, mission.State);
+            Assert.IsFalse(mission.Completeable);
+
+            // She comes back to her rock (upstream's release through the respawn), for the mission to be taken again.
+            AwaitRelease(harness, copy);
+            Assert.IsTrue(Offers(harness, Prisoner(harness, copy), OutOfThinAir), "she offers it again");
+        }
+
+        [TestMethod]
+        public void OutOfThinAirAbandonedTakesThePatrolAndIsOfferedAgain()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            EnterPlateau(harness);
+            SeedCompleted(harness, SilentButDeadly, Interception, MonkeyWrench);
+            var copy = IntoUstor(harness);
+            var prisoner = Prisoner(harness, copy);
+            WildernessRanjaGorgeTests.Offer(harness, prisoner, OutOfThinAir);
+            Accept(harness, prisoner, OutOfThinAir);
+            Tick(harness, copy, 250);
+            var patrol = Enumerable.Range(0, PlateauOutOfThinAirScene.PatrolSize)
+                .Select(index => SceneCreature(copy, PlateauOutOfThinAirScene.PatrolRole(index))).ToArray();
+            Assert.IsTrue(patrol.All(thrax => thrax != null), "the patrol is there");
+
+            Assert.IsTrue(harness.Manager.TryAbandon(harness.Client, OutOfThinAir));
+            Tick(harness, copy, 250);
+            Assert.IsFalse(harness.Client.Player.Missions.ContainsKey(OutOfThinAir), "gone from the log");
+            Assert.IsFalse(patrol.Any(thrax => Here(copy).Contains(thrax)), "the patrol is gone");
+            AwaitRelease(harness, copy);
+            Assert.IsTrue(Offers(harness, Prisoner(harness, copy), OutOfThinAir), "she offers it again");
+        }
+
         /// <summary>Ustor Yard as the server loads it, then the player through the Plateau's door into the squad's copy.</summary>
         private static MapChannel IntoUstor(WildernessRuntimeTestHarness harness)
         {
@@ -288,6 +455,55 @@ namespace Rasa.Test.Missions.Plateau
             Assert.IsTrue(copy.IsSquadInstance);
             return copy;
         }
+
+        /// <summary>
+        /// Until the prisoner's public lease is released and she stands on her rock again, as upstream's Escape Velocity
+        /// tests wait for Pierre (WildernessEscapeVelocityTests.AwaitRelease): the scene's reset, then her pool's respawn.
+        /// A squad copy outlives a test, so the tests after a death or an abandon wait for her too.
+        /// </summary>
+        private static void AwaitRelease(WildernessRuntimeTestHarness harness, MapChannel copy)
+        {
+            bool Back() => harness.Manager.PublicActors.Handle(copy, PlateauMaligoPrisonerV1.PrisonerPool) == null &&
+                Here(copy).Any(creature => creature.SpawnPool?.DbId == PlateauMaligoPrisonerV1.PrisonerPool && creature.Npc != null &&
+                    creature.IsInteractable && creature.State != CharacterState.Dead);
+            var all = copy.SpawnPools.ToArray();
+            try
+            {
+                copy.SpawnPools.Clear();
+                copy.SpawnPools.AddRange(all.Where(pool => pool.DbId == PlateauMaligoPrisonerV1.PrisonerPool));
+                for (var tick = 0; tick < 1800 && !Back(); tick++)
+                {
+                    SpawnPoolManager.Instance.SpawnPoolWorker(copy, 250);
+                    Tick(harness, copy, 250);
+                }
+            }
+            finally
+            {
+                copy.SpawnPools.Clear();
+                copy.SpawnPools.AddRange(all);
+            }
+            Assert.IsTrue(Back(), "the prisoner is released and back on her rock");
+        }
+
+        /// <summary>
+        /// The prisoner on her rock. A squad copy outlives a test: one of an earlier test has the combat gate of that
+        /// test's mission manager, so it is bound again to this one's (as a respawn binds it, ActorAvailable).
+        /// </summary>
+        private static Creature Prisoner(WildernessRuntimeTestHarness harness, MapChannel copy)
+        {
+            if (!Here(copy).Any(creature => creature.DbId == PlateauMaligoPrisonerV1.Prisoner))
+                Spawn(copy, PlateauMaligoPrisonerV1.PrisonerPool);
+            harness.Manager.PublicActors.ActorAvailable(copy);
+            var prisoner = Here(copy).SingleOrDefault(creature => creature.SpawnPool?.DbId == PlateauMaligoPrisonerV1.PrisonerPool && creature.Npc != null);
+            Assert.IsNotNull(prisoner, "the prisoner stands in the copy");
+            return prisoner;
+        }
+
+        private static bool Offers(WildernessRuntimeTestHarness harness, Creature npc, uint mission) =>
+            Conversation(harness, npc).TryGetValue(ConversationType.MissionDispense, out var offered) &&
+            ((System.Collections.Generic.Dictionary<uint, MissionInfo>)offered).ContainsKey(mission);
+
+        private static Vector3 ToVector((double X, double Y, double Z) at) => new((float)at.X, (float)at.Y, (float)at.Z);
 
         private static Creature Rapp(MapChannel copy)
         {
