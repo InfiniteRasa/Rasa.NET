@@ -10,6 +10,7 @@ namespace Rasa
     using Auth;
     using Binding;
     using Configuration;
+    using Context;
     using Context.Auth;
     using Hosting;
     using Initialization;
@@ -30,6 +31,13 @@ namespace Rasa
 
             try
             {
+                if (args.Length == 1 && args[0] == "--migrate")
+                {
+                    using var scope = host.Services.CreateScope();
+                    DatabaseMigrationRunner.MigrateMySql(scope.ServiceProvider.GetRequiredService<AuthContext>());
+                    return 0;
+                }
+
                 host.Services.GetService<IInitializer>().Execute();
                 await host.RunAsync();
 
@@ -48,7 +56,8 @@ namespace Rasa
         {
             configurationBuilder
                 .AddJsonFile("databasesettings.json", false, false)
-                .AddJsonFile("databasesettings.env.json", true, false);
+                .AddJsonFile("databasesettings.env.json", true, false)
+                .AddEnvironmentVariables();
         }
 
         private static void ConfigureServices(HostBuilderContext context, IServiceCollection services)

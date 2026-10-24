@@ -1,9 +1,12 @@
+using System;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Rasa.Services.Preloader;
+using Rasa.Structures.World;
 
 namespace Rasa.Test.Database
 {
@@ -14,6 +17,46 @@ namespace Rasa.Test.Database
     {
         private const string Migration = "20261222000000_Boss_weapons";
         private const string Previous = "20261221000000_Family_abilities";
+
+        [TestMethod]
+        public void MySqlWidensCreatureActionDescriptionBeforeInsertingBossWeapons()
+        {
+            const string widen = "20261221050000_WidenCreatureActionDescriptionBeforeBossWeapons";
+            using var context = PersistenceIntegrationTests.CreateContext(typeof(Rasa.Context.World.MySqlWorldContext), "unused");
+            var migrations = context.Database.GetMigrations().ToArray();
+            Assert.AreEqual("text", context.Model.FindEntityType(typeof(CreatureActionEntry))?
+                .FindProperty(nameof(CreatureActionEntry.Description))?.GetColumnType(),
+                "The MySQL runtime EF model must agree with the widened column.");
+            var family = Array.IndexOf(migrations, Previous);
+            var widening = Array.IndexOf(migrations, widen);
+            var boss = Array.IndexOf(migrations, Migration);
+            Assert.IsTrue(family >= 0 && widening > family && boss > widening,
+                "The MySQL column must widen after Family_abilities but before Boss_weapons.");
+
+            var change = new Rasa.Migrations.MySqlWorld.WidenCreatureActionDescriptionBeforeBossWeapons();
+            var operation = change.UpOperations.Single();
+            Assert.IsInstanceOfType<AlterColumnOperation>(operation);
+            var column = (AlterColumnOperation)operation;
+            Assert.AreEqual("creature_action", column.Table);
+            Assert.AreEqual("description", column.Name);
+            Assert.AreEqual("varchar(50)", column.OldColumn.ColumnType);
+            Assert.AreEqual("text", column.ColumnType);
+            Assert.IsFalse(column.IsNullable);
+            Assert.IsEmpty(change.DownOperations, "A rollback must not silently truncate stored action descriptions.");
+
+            Assert.IsTrue(BossWeapons.Weapons.Any(w => w.Description.Length > 50),
+                "The widen protects an actual boss description, not an artificial example.");
+        }
+
+        [TestMethod]
+        public void SqliteKeepsTheSameMigrationIdWithoutChangingItsTextStorage()
+        {
+            // SQLite stores this column as unconstrained TEXT already; this counterpart
+            // retains provider migration parity without changing SQLite data.
+            var twin = new Rasa.Migrations.SqliteWorld.WidenCreatureActionDescriptionBeforeBossWeapons();
+            Assert.IsEmpty(twin.UpOperations);
+            Assert.IsEmpty(twin.DownOperations);
+        }
 
         [TestMethod]
         [DataRow(520044u, 77001L, 10L, 190L, 285L, 540007u, DisplayName = "Shahrbaraz over the Palisades Boargar")]

@@ -29,17 +29,15 @@ namespace Rasa.Migrations.MySqlWorld
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.CreateTable(
-                name: SpawnPoolDrawEntry.TableName,
-                columns: table => new
-                {
-                    id = table.Column<uint>(type: "int unsigned", nullable: false),
-                    count = table.Column<byte>(type: "tinyint unsigned", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_spawnpool_draw", x => x.id);
-                });
+            // MySQL DDL commits independently from the seed DML. If a prior attempt failed
+            // while inserting a creature, the table can already exist even though the
+            // migration is absent from __EFMigrationsHistory. Retry without dropping its rows.
+            migrationBuilder.Sql(
+                "CREATE TABLE IF NOT EXISTS `spawnpool_draw` (" +
+                "`id` int unsigned NOT NULL, " +
+                "`count` tinyint unsigned NOT NULL, " +
+                "CONSTRAINT `PK_spawnpool_draw` PRIMARY KEY (`id`)" +
+                ") CHARACTER SET utf8mb4;");
 
             foreach (var sql in ProvingGroundsFrontSquads.Up())
                 migrationBuilder.Sql(sql);
