@@ -157,14 +157,14 @@ namespace Rasa.Test.Missions.Plateau
             return snake;
         }
 
-        private static Creature Amee(MapChannel pools)
+        internal static Creature Amee(MapChannel pools)
         {
             Spawn(pools, PlateauNewOrdersFromTheGeneralV1.Amee);
             return RequireNpc(pools, PlateauNewOrdersFromTheGeneralV1.Amee);
         }
 
         /// <summary>Valverde Pools as the server loads it, the player on it (as Return puts them on the Plateau).</summary>
-        private static MapChannel OntoPools(WildernessRuntimeTestHarness harness)
+        internal static MapChannel OntoPools(WildernessRuntimeTestHarness harness)
         {
             var pools = harness.Maps.MapChannelArray.TryGetValue(Pools, out var loaded) ? loaded : LoadMap(harness, Pools);
             var client = harness.Client;
