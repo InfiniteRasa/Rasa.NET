@@ -36,7 +36,8 @@ namespace Rasa.Test.Missions.Plateau
     /// Velon Hollow's Ancient Mysteries (1978) and Mountain Spring Toxins (1979) (Plateau_velon_hollow_bane); Clark's
     /// The Better Half (1975, Plateau_better_half); Maligo Base's Showdown (876), Coup (878) and One Way Trip (877)
     /// (Plateau_maligo_base); Bosley's South Of The Border (1068) and New Orders From The General (1541) and Maligo's Self
-    /// Preservation (879) (Plateau_bosley_followups).
+    /// Preservation (879) (Plateau_bosley_followups); the Temporal Chamber's Foreas Base Past (1178) and Send a Message
+    /// (1181) (Plateau_temporal_past).
     /// </summary>
     [TestClass]
     [DoNotParallelize]
@@ -65,7 +66,8 @@ namespace Rasa.Test.Missions.Plateau
             PlateauDeadlySilenceV1.MissionId, PlateauSilentButDeadlyV1.MissionId, PlateauInterceptionV1.MissionId,
             PlateauMonkeyWrenchV1.MissionId, PlateauAncientMysteriesV1.MissionId, PlateauMountainSpringToxinsV1.MissionId,
             PlateauBetterHalfV1.MissionId, PlateauShowdownV1.MissionId, PlateauCoupV1.MissionId, PlateauOneWayTripV1.MissionId,
-            PlateauSouthOfTheBorderV1.MissionId, PlateauNewOrdersFromTheGeneralV1.MissionId, PlateauSelfPreservationV1.MissionId
+            PlateauSouthOfTheBorderV1.MissionId, PlateauNewOrdersFromTheGeneralV1.MissionId, PlateauSelfPreservationV1.MissionId,
+            PlateauForeasBasePastV1.MissionId, PlateauSendAMessageV1.MissionId
         };
 
         /// <summary>
@@ -143,6 +145,7 @@ namespace Rasa.Test.Missions.Plateau
         private const string VelonHollowBane = "20270322000000_Plateau_velon_hollow_bane";
         private const string BetterHalf = "20270323000000_Plateau_better_half";
         private const string MaligoBase = "20270324000000_Plateau_maligo_base";
+        private const string BosleyFollowups = "20270325000000_Plateau_bosley_followups";
 
         [TestMethod]
         public void TheMissionsAreEnabledAndOperationalAtTheirGiversAndReceiversAndLevels()
@@ -208,7 +211,9 @@ namespace Rasa.Test.Missions.Plateau
                 (PlateauOneWayTripV1.MissionId, PlateauGiantKillerV1.Bosley, PlateauGiantKillerV1.Bosley),
                 (PlateauSouthOfTheBorderV1.MissionId, PlateauGiantKillerV1.Bosley, PlateauSnakePitV1.Snake),
                 (PlateauNewOrdersFromTheGeneralV1.MissionId, PlateauGiantKillerV1.Bosley, PlateauNewOrdersFromTheGeneralV1.Amee),
-                (PlateauSelfPreservationV1.MissionId, null, null)
+                (PlateauSelfPreservationV1.MissionId, null, null),
+                (PlateauForeasBasePastV1.MissionId, PlateauTemporalChamberNpcsV1.Veryin, PlateauTemporalChamberNpcsV1.Veryin),
+                (PlateauSendAMessageV1.MissionId, PlateauTemporalChamberNpcsV1.Veryin, PlateauTemporalChamberNpcsV1.Veryin)
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             var enabled = harness.World.MissionContentDefinitionEntries.AsNoTracking()
@@ -338,7 +343,10 @@ namespace Rasa.Test.Missions.Plateau
                     (16, 19230, 19231, null) }),
                 (1068, 6032, new (uint, uint, uint, uint?)[] { (1, 6036, 6453, null) }),
                 (1541, 13931, new (uint, uint, uint, uint?)[] { (1, 13936, 13937, null) }),
-                (879, 4603, new (uint, uint, uint, uint?)[] { (1, 4824, 11142, 4825) })
+                (879, 4603, new (uint, uint, uint, uint?)[] { (1, 4824, 11142, 4825) }),
+                (1178, 8846, new (uint, uint, uint, uint?)[] { (1, 8856, 8857, null), (3, 8915, 8916, null), (4, 8947, 8948, null),
+                    (5, 8950, 8951, 8953), (6, 8954, 8955, null), (7, 8957, 8958, null) }),
+                (1181, 8966, new (uint, uint, uint, uint?)[] { (2, 8976, 8977, null) })
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             foreach (var (mission, title, objectives) in expected)
@@ -388,7 +396,7 @@ namespace Rasa.Test.Missions.Plateau
             using var harness = WildernessRuntimeTestHarness.Create();
             var prerequisites = harness.World.MissionPrerequisiteEntries.AsNoTracking()
                 .Where(entry => entry.ContentRevision == PlateauMissionDataV1.Revision).ToArray();
-            Assert.HasCount(45, prerequisites);
+            Assert.HasCount(47, prerequisites);
             var incommunicado = prerequisites.Single(entry => entry.MissionId == PlateauIncommunicadoV1.MissionId);
             Assert.AreEqual(MissionPrerequisiteKind.MissionCompleted, incommunicado.Kind);
             Assert.AreEqual<uint?>(PlateauGiantKillerV1.MissionId, incommunicado.RequiredMissionId);
@@ -425,7 +433,7 @@ namespace Rasa.Test.Missions.Plateau
                 (stalkMarket.Kind, stalkMarket.RequiredMissionId));
             foreach (var mission in new uint[] { 933, 1981, 930, 1034, 1825, 557, 2007, 887, 934, 1983, 931, 970, 2016, 1659, 965, 876, 879 })
                 Assert.IsFalse(prerequisites.Any(entry => entry.MissionId == mission), $"{mission}");
-            foreach (var (mission, required) in new (uint, uint)[] { (713, 887), (954, 887), (855, 713), (1027, 954), (1044, 934), (905, 1983), (929, 905), (936, 929), (719, 936), (867, 970), (1014, 887), (895, 1014), (928, 895), (2017, 2016), (555, 867), (1047, 1044), (1048, 1044), (1049, 1044), (1051, 1044), (1057, 1044), (1982, 1981), (1171, 935), (1167, 1171), (1974, 1981), (1189, 1187), (1188, 1189), (1978, 1981), (1979, 1981), (1975, 1981), (878, 876), (877, 1046), (1068, 877), (1541, 877) })
+            foreach (var (mission, required) in new (uint, uint)[] { (713, 887), (954, 887), (855, 713), (1027, 954), (1044, 934), (905, 1983), (929, 905), (936, 929), (719, 936), (867, 970), (1014, 887), (895, 1014), (928, 895), (2017, 2016), (555, 867), (1047, 1044), (1048, 1044), (1049, 1044), (1051, 1044), (1057, 1044), (1982, 1981), (1171, 935), (1167, 1171), (1974, 1981), (1189, 1187), (1188, 1189), (1978, 1981), (1979, 1981), (1975, 1981), (878, 876), (877, 1046), (1068, 877), (1541, 877), (1178, 1167), (1181, 1178) })
             {
                 var prerequisite = prerequisites.Single(entry => entry.MissionId == mission);
                 Assert.AreEqual((MissionPrerequisiteKind.MissionCompleted, (uint?)required),
@@ -571,6 +579,10 @@ namespace Rasa.Test.Missions.Plateau
                 (1541, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
                     (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
                 (879, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                (1178, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                (1181, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
                     (MissionEvidenceSourceKind.Reconstruction, 0.3) })
             })
                 CollectionAssert.AreEqual(confidences, evidence.Where(entry => entry.MissionId == mission)
@@ -1464,6 +1476,52 @@ namespace Rasa.Test.Missions.Plateau
                 Assert.AreEqual(0, Count($"SELECT COUNT(*) AS Value FROM {table} WHERE id = {snake}"), table);
             Assert.IsTrue(Has(PlateauOneWayTripV1.MissionId));
             Assert.AreEqual(1, Count($"SELECT COUNT(*) AS Value FROM spawnpool WHERE id = {PlateauNewOrdersFromTheGeneralV1.Amee}"), "Amee stays");
+        }
+
+        /// <summary>
+        /// Colonel Fonseca, the Foreas Base past templates and actions, the pads on Veryin's left and north of HQ, and
+        /// Foreas Base Past and Send a Message (Plateau_temporal_past) go with their migration; Veryin, Hudson and the
+        /// Bosley follow-ups stay.
+        /// </summary>
+        [TestMethod]
+        public void TemporalPastRollsBackWithItsMigration()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            bool Has(uint mission) => world.MissionContentDefinitionEntries.AsNoTracking()
+                .Any(entry => entry.MissionId == mission && entry.ContentRevision == PlateauMissionDataV1.Revision);
+            int Count(string sql) => world.Database.SqlQueryRaw<int>(sql).AsEnumerable().Single();
+            var missions = new[] { PlateauForeasBasePastV1.MissionId, PlateauSendAMessageV1.MissionId };
+            var ids = $"BETWEEN {PlateauForeasBasePastNpcsV1.Fonseca} AND {PlateauForeasBasePastNpcsV1.SpecialForces}";
+            var actions = $"BETWEEN {PlateauForeasBasePastNpcsV1.DefenderPistol} AND {PlateauForeasBasePastNpcsV1.StriderLaser}";
+            var pads = $"({PlateauForeasBasePastNpcsV1.ChamberPad}, {PlateauForeasBasePastNpcsV1.PastPad})";
+
+            Assert.IsTrue(missions.All(Has));
+            Assert.AreEqual(7, Count($"SELECT COUNT(*) AS Value FROM creature WHERE id {ids}"));
+            Assert.AreEqual(6, Count($"SELECT COUNT(*) AS Value FROM creature_stat WHERE id {ids}"), "all but Fonseca");
+            Assert.AreEqual(3, Count($"SELECT COUNT(*) AS Value FROM creature_action WHERE id {actions}"));
+            Assert.AreEqual(1, Count($"SELECT COUNT(*) AS Value FROM npc_package WHERE id = {PlateauForeasBasePastNpcsV1.Fonseca} " +
+                $"AND package_id = {PlateauForeasBasePastNpcsV1.FonsecaPackage}"));
+            Assert.AreEqual(1, Count($"SELECT COUNT(*) AS Value FROM spawnpool WHERE id = {PlateauForeasBasePastNpcsV1.FonsecaPool} " +
+                $"AND map_context_id = {PlateauForeasBasePastNpcsV1.MapContextId}"));
+            Assert.IsTrue(Count($"SELECT COUNT(*) AS Value FROM creature_appearance WHERE id = {PlateauForeasBasePastNpcsV1.Fonseca}") > 0,
+                "Fonseca wears the officer uniform");
+            Assert.AreEqual(2, Count($"SELECT COUNT(*) AS Value FROM teleporter WHERE id IN {pads}"));
+            Assert.AreEqual(2, Count($"SELECT COUNT(*) AS Value FROM local_teleporter_link WHERE from_teleporter_id IN {pads}"));
+
+            world.GetService<IMigrator>().Migrate(BosleyFollowups);
+            Assert.IsFalse(missions.Any(Has));
+            Assert.IsFalse(world.MissionObjectiveDefinitionEntries.AsNoTracking().Any(entry => missions.Contains(entry.MissionId)));
+            Assert.IsFalse(world.MissionTriggerEntries.AsNoTracking().Any(entry => missions.Contains(entry.MissionId)));
+            foreach (var table in new[] { "creature", "creature_appearance", "creature_stat", "spawnpool", "npc_package" })
+                Assert.AreEqual(0, Count($"SELECT COUNT(*) AS Value FROM {table} WHERE id {ids}"), table);
+            Assert.AreEqual(0, Count($"SELECT COUNT(*) AS Value FROM creature_action WHERE id {actions}"));
+            Assert.AreEqual(0, Count($"SELECT COUNT(*) AS Value FROM teleporter WHERE id IN {pads}"));
+            Assert.AreEqual(0, Count($"SELECT COUNT(*) AS Value FROM local_teleporter_link WHERE from_teleporter_id IN {pads}"));
+            Assert.IsTrue(Has(PlateauFinalAssaultV1.MissionId));
+            Assert.IsTrue(Has(PlateauSelfPreservationV1.MissionId));
+            Assert.AreEqual(2, Count($"SELECT COUNT(*) AS Value FROM spawnpool WHERE id IN ({PlateauTemporalChamberNpcsV1.VeryinPool}, " +
+                $"{PlateauTemporalChamberNpcsV1.HudsonPool})"), "Veryin and Hudson stay");
         }
 
         /// <summary>
