@@ -437,6 +437,11 @@ namespace Rasa.Managers
 
             lock (CastsLock)
             {
+                // Nothing being cast anywhere, which is every tick of almost every map: the filter
+                // below found nothing, and its closure, iterator and list were all it did.
+                if (Casts.Count == 0)
+                    return;
+
                 due = Casts.Where(c => c.MapChannel == mapChannel && now >= c.LandsAt).ToList();
 
                 foreach (var cast in due)

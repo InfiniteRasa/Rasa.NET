@@ -310,6 +310,11 @@ namespace Rasa.Managers
 
             lock (ChargesLock)
             {
+                // Nothing charging anywhere, which is every tick of almost every map: the filter
+                // below found nothing, and its closure, iterator and list were all it did.
+                if (Charges.Count == 0)
+                    return;
+
                 leaping = Charges.Where(c => c.MapChannel == mapChannel && !c.Leapt && now >= c.LeapAt && Standing(c.Kael)).ToList();
                 due = Charges.Where(c => c.MapChannel == mapChannel && (now >= c.LandsAt || !Standing(c.Kael))).ToList();
 

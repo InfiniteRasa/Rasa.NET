@@ -391,6 +391,11 @@ namespace Rasa.Managers
 
             lock (SummonsLock)
             {
+                // Nothing summoned, cocooned or hatching anywhere, which is every tick of almost every map: the filter
+                // below found nothing, and its closure, iterator and list were all it did.
+                if (Summons.Count == 0 && Cocoons.Count == 0 && Hatching.Count == 0)
+                    return;
+
                 summons = Summons.Where(s => s.MapChannel == mapChannel).ToList();
                 due = Cocoons.Where(c => c.MapChannel == mapChannel && now >= c.EmergeAt).ToList();
 

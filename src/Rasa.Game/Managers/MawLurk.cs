@@ -133,6 +133,12 @@ namespace Rasa.Managers
 
             lock (Sync)
             {
+                // Nothing going down or coming up anywhere and nothing buried here, which is every
+                // tick of almost every map: the filters below found nothing, and their closures,
+                // iterators and lists were all they did.
+                if (Sinking.Count == 0 && Emerging.Count == 0 && !Buried.ContainsKey(mapChannel))
+                    return;
+
                 down = Sinking.Where(s => s.Value.Map == mapChannel && now >= s.Value.Until).Select(s => s.Key).ToList();
 
                 foreach (var creature in down)

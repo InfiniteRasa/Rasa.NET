@@ -263,7 +263,14 @@ namespace Rasa.Managers
             List<Trap> traps;
 
             lock (TrapsLock)
+            {
+                // Nothing set anywhere, which is every tick of almost every map: the filter
+                // below found nothing, and its closure, iterator and list were all it did.
+                if (Traps.Count == 0)
+                    return;
+
                 traps = Traps.Where(t => t.MapChannel == mapChannel).ToList();
+            }
 
             if (traps.Count == 0)
                 return;
