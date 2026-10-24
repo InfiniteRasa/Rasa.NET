@@ -76,6 +76,8 @@
             throw new System.NotSupportedException("This character unit of work has no store of the greetings read.");
         SquadInstance.ISquadInstanceRepository SquadInstances =>
             throw new System.NotSupportedException("This character unit of work has no squad instance store.");
+        Apartment.IApartmentRepository Apartments =>
+            throw new System.NotSupportedException("This character unit of work has no apartment store.");
         ICharacterMissionDeadlineRepository CharacterMissionDeadlines { get; }
         ICharacterMissionProgressRepository CharacterMissionProgress { get; }
         ICharacterMissionScenarioRepository CharacterMissionScenario { get; }

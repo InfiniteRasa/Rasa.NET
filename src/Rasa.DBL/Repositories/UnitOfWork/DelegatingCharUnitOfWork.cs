@@ -78,6 +78,7 @@ namespace Rasa.Repositories.UnitOfWork
         public Char.CharacterBossKill.ICharacterBossKillRepository CharacterBossKills => _parent.CharacterBossKills;
         public Char.CharacterGreetingRead.ICharacterGreetingReadRepository CharacterGreetingReads => _parent.CharacterGreetingReads;
         public Char.SquadInstance.ISquadInstanceRepository SquadInstances => _parent.SquadInstances;
+        public Char.Apartment.IApartmentRepository Apartments => _parent.Apartments;
 
         public ICharacterMissionDeadlineRepository CharacterMissionDeadlines =>
             _parent.CharacterMissionDeadlines;

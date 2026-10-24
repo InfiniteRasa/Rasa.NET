@@ -22,6 +22,177 @@ namespace Rasa.Migrations.MySqlChar
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
+            modelBuilder.Entity("Rasa.Structures.Char.ApartmentEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("FriendsMayEnter")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("friends_may_enter");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("varchar(48)")
+                        .HasColumnName("name");
+
+                    b.Property<uint>("NextItemNumber")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("next_item_number");
+
+                    b.Property<uint>("OwnerId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("owner_id");
+
+                    b.Property<byte>("OwnerKind")
+                        .HasColumnType("tinyint unsigned")
+                        .HasColumnName("owner_kind");
+
+                    b.Property<string>("PasscodeHash")
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("passcode_hash");
+
+                    b.Property<uint>("PlotId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("plot_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex(new[] { "OwnerKind", "OwnerId" }, "apartment_index_owner")
+                        .IsUnique();
+
+                    b.ToTable("apartment");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.Char.ApartmentItemEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
+                    b.Property<uint>("ApartmentId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("apartment_id");
+
+                    b.Property<uint>("ClassId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("class_id");
+
+                    b.Property<uint>("Number")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("number");
+
+                    b.Property<bool>("Packed")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("packed");
+
+                    b.Property<long>("PlacedAt")
+                        .HasColumnType("bigint")
+                        .HasColumnName("placed_at");
+
+                    b.Property<uint>("PlacedBy")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("placed_by");
+
+                    b.Property<double>("PosX")
+                        .HasColumnType("double")
+                        .HasColumnName("pos_x");
+
+                    b.Property<double>("PosY")
+                        .HasColumnType("double")
+                        .HasColumnName("pos_y");
+
+                    b.Property<double>("PosZ")
+                        .HasColumnType("double")
+                        .HasColumnName("pos_z");
+
+                    b.Property<double>("Rotation")
+                        .HasColumnType("double")
+                        .HasColumnName("rotation");
+
+                    b.Property<double>("Scale")
+                        .HasColumnType("double")
+                        .HasColumnName("scale");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex(new[] { "ApartmentId", "Number" }, "apartment_item_index_apartment_number")
+                        .IsUnique();
+
+                    b.ToTable("apartment_item");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.Char.ApartmentReturnEntry", b =>
+                {
+                    b.Property<uint>("CharacterId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("character_id");
+
+                    b.Property<uint>("ApartmentId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("apartment_id");
+
+                    b.Property<uint>("MapContextId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("map_context_id");
+
+                    b.Property<double>("PosX")
+                        .HasColumnType("double")
+                        .HasColumnName("pos_x");
+
+                    b.Property<double>("PosY")
+                        .HasColumnType("double")
+                        .HasColumnName("pos_y");
+
+                    b.Property<double>("PosZ")
+                        .HasColumnType("double")
+                        .HasColumnName("pos_z");
+
+                    b.Property<double>("Rotation")
+                        .HasColumnType("double")
+                        .HasColumnName("rotation");
+
+                    b.HasKey("CharacterId");
+
+                    b.ToTable("apartment_return");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.Char.ApartmentVisitorEntry", b =>
+                {
+                    b.Property<uint>("ApartmentId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("apartment_id");
+
+                    b.Property<uint>("CharacterId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("character_id");
+
+                    b.Property<long>("AddedAt")
+                        .HasColumnType("bigint")
+                        .HasColumnName("added_at");
+
+                    b.Property<bool>("MayBuild")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("may_build");
+
+                    b.HasKey("ApartmentId", "CharacterId");
+
+                    b.HasIndex(new[] { "CharacterId" }, "apartment_visitor_index_character");
+
+                    b.ToTable("apartment_visitor");
+                });
+
             modelBuilder.Entity("Rasa.Structures.Char.ApiLogEntry", b =>
                 {
                     b.Property<uint>("Id")
@@ -1600,6 +1771,7 @@ namespace Rasa.Migrations.MySqlChar
 
                     b.ToTable("economy_log");
                 });
+
             modelBuilder.Entity("Rasa.Structures.Char.FriendEntry", b =>
                 {
                     b.Property<uint>("AccountId")
@@ -2101,6 +2273,9 @@ namespace Rasa.Migrations.MySqlChar
                         .HasColumnName("version");
 
                     b.HasKey("RunId");
+
+                    b.HasIndex("AssignmentId")
+                        .HasDatabaseName("mission_scene_index_assignment");
 
                     b.HasIndex("MapKey", "Status");
 

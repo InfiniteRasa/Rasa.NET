@@ -18,6 +18,173 @@ namespace Rasa.Migrations.SqliteChar
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.20");
 
+            modelBuilder.Entity("Rasa.Structures.Char.ApartmentEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("FriendsMayEnter")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("friends_may_enter");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("varchar(48)")
+                        .HasColumnName("name");
+
+                    b.Property<uint>("NextItemNumber")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("next_item_number");
+
+                    b.Property<uint>("OwnerId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("owner_id");
+
+                    b.Property<byte>("OwnerKind")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("owner_kind");
+
+                    b.Property<string>("PasscodeHash")
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("passcode_hash");
+
+                    b.Property<uint>("PlotId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("plot_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex(new[] { "OwnerKind", "OwnerId" }, "apartment_index_owner")
+                        .IsUnique();
+
+                    b.ToTable("apartment");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.Char.ApartmentItemEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<uint>("ApartmentId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("apartment_id");
+
+                    b.Property<uint>("ClassId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("class_id");
+
+                    b.Property<uint>("Number")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("number");
+
+                    b.Property<bool>("Packed")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("packed");
+
+                    b.Property<long>("PlacedAt")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("placed_at");
+
+                    b.Property<uint>("PlacedBy")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("placed_by");
+
+                    b.Property<double>("PosX")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_x");
+
+                    b.Property<double>("PosY")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_y");
+
+                    b.Property<double>("PosZ")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_z");
+
+                    b.Property<double>("Rotation")
+                        .HasColumnType("REAL")
+                        .HasColumnName("rotation");
+
+                    b.Property<double>("Scale")
+                        .HasColumnType("REAL")
+                        .HasColumnName("scale");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex(new[] { "ApartmentId", "Number" }, "apartment_item_index_apartment_number")
+                        .IsUnique();
+
+                    b.ToTable("apartment_item");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.Char.ApartmentReturnEntry", b =>
+                {
+                    b.Property<uint>("CharacterId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("character_id");
+
+                    b.Property<uint>("ApartmentId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("apartment_id");
+
+                    b.Property<uint>("MapContextId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("map_context_id");
+
+                    b.Property<double>("PosX")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_x");
+
+                    b.Property<double>("PosY")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_y");
+
+                    b.Property<double>("PosZ")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_z");
+
+                    b.Property<double>("Rotation")
+                        .HasColumnType("REAL")
+                        .HasColumnName("rotation");
+
+                    b.HasKey("CharacterId");
+
+                    b.ToTable("apartment_return");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.Char.ApartmentVisitorEntry", b =>
+                {
+                    b.Property<uint>("ApartmentId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("apartment_id");
+
+                    b.Property<uint>("CharacterId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("character_id");
+
+                    b.Property<long>("AddedAt")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("added_at");
+
+                    b.Property<bool>("MayBuild")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("may_build");
+
+                    b.HasKey("ApartmentId", "CharacterId");
+
+                    b.HasIndex(new[] { "CharacterId" }, "apartment_visitor_index_character");
+
+                    b.ToTable("apartment_visitor");
+                });
+
             modelBuilder.Entity("Rasa.Structures.Char.ApiLogEntry", b =>
                 {
                     b.Property<uint>("Id")
@@ -1572,6 +1739,7 @@ namespace Rasa.Migrations.SqliteChar
 
                     b.ToTable("economy_log");
                 });
+
             modelBuilder.Entity("Rasa.Structures.Char.FriendEntry", b =>
                 {
                     b.Property<uint>("AccountId")
@@ -2069,6 +2237,9 @@ namespace Rasa.Migrations.SqliteChar
                         .HasColumnName("version");
 
                     b.HasKey("RunId");
+
+                    b.HasIndex("AssignmentId")
+                        .HasDatabaseName("mission_scene_index_assignment");
 
                     b.HasIndex("MapKey", "Status");
 
