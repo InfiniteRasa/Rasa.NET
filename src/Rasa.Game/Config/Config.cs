@@ -43,5 +43,11 @@ namespace Rasa.Config
 
         /// <summary>The chances of the weapon modules that fire on a hit (Managers.ItemModuleBonuses).</summary>
         public ItemModulesConfig ItemModules { get; set; } = new ItemModulesConfig();
+
+        /// <summary>How the creature think is spread over the loop's passes, and how far a creature searches for a route (Managers.BehaviorManager).</summary>
+        public CreatureAiConfig CreatureAi { get; set; } = new CreatureAiConfig();
+
+        /// <summary>When each map's navmesh and cover are read, and let go of (Managers.LazyNavigation).</summary>
+        public NavigationConfig Navigation { get; set; } = new NavigationConfig();
     }
 }

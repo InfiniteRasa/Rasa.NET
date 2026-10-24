@@ -41,7 +41,8 @@ namespace Rasa.Game.Missions.World
                     return WorldEffectResult.Failed("Route contains a non-finite/out-of-world point.");
                 if (map.NavMesh != null)
                 {
-                    var path = map.NavMesh.FindPath(previous, destination, out var complete);
+                    // Bounded: a point no route reaches fails as it did, without the whole region searched.
+                    var path = map.NavMesh.FindPathBounded(previous, destination, out var complete);
                     if (!complete || path == null || path.Count == 0 || Vector3.Distance(path[^1], destination) > 0.5f ||
                         Math.Abs(path[^1].Y - destination.Y) >= 0.5f)
                         return WorldEffectResult.Failed($"Route {route.Key} has no complete grounded path to {destination}.");

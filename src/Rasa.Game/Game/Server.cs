@@ -186,6 +186,12 @@ namespace Rasa.Game
             // How often a Steal or a Debuff Resist module fires on a hit.
             ItemModuleBonuses.Config = Config.ItemModules ?? new ItemModulesConfig();
 
+            // The creature think spread over the loop's passes, and the path searches bounded.
+            BehaviorManager.Config = Config.CreatureAi ?? new CreatureAiConfig();
+
+            // When the maps' navmeshes and cover are read, and let go of. Lazy is read at the start only.
+            LazyNavigation.Config = Config.Navigation ?? new NavigationConfig();
+
             // A message changed by editing the file goes to everyone in the world, from the loop;
             // the first load is before anyone is here.
             if (MessageOfTheDay.Apply(Config.MessageOfTheDay) && _motdApplied)
@@ -603,6 +609,20 @@ namespace Rasa.Game
             Timer.Add("AuctionExpire", 300000, true, () => AuctionHouseManager.Instance.ExpireAuctions());
 
             Timer.Add("PreLoginExpire", 5000, true, ExpirePreLogin);
+
+            // Navigation.Lazy: the navmeshes of the maps players are on or on the way to read, the
+            // MapLoadeds that waited for one answered, and the ones nobody needs let go of. Every
+            // pass, from the timers, which run when nobody is online as well; under the Clients
+            // lock, as the world's pass is, since an answer puts a player into the world.
+            Timer.Add("LazyNavigation", MainLoopTime, true, () =>
+            {
+                if (!LazyNavigation.Active)
+                    return;
+
+                lock (Clients)
+                    LazyNavigation.Worker(Environment.TickCount64, Clients,
+                        MapChannelManager.Instance.MapChannelArray.Values, MapChannelManager.Instance.MapLoaded);
+            });
 
             Timer.Add("QueueManagerUpdate", Config.QueueConfig.UpdateInterval, true, () =>
             {

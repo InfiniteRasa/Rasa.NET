@@ -738,6 +738,11 @@ namespace Rasa.Managers
 
         public void MapLoaded(Client client)
         {
+            // The map's navmesh and cover still being read (Navigation.Lazy): answered once they
+            // are, by LazyNavigation.Worker, which calls this again.
+            if (LazyNavigation.Hold(client))
+                return;
+
             lock (client.SyncRoot)
                 InitializeLoadedMap(client);
         }

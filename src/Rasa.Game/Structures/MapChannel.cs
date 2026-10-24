@@ -63,6 +63,16 @@ namespace Rasa.Structures
         internal long SkyHoldSentTick { get; set; }
         /// <summary>Milliseconds since this map's creatures last ran BehaviorManager.CreatureThink.</summary>
         public long ControllerElapsed { get; set; }
+
+        /// <summary>
+        /// When each group of this map's creatures thinks, with CreatureAi.StaggeredThink on
+        /// (Managers.CreatureThinkSchedule); made by the first think that needs it, and made
+        /// again when the config's groups change. ControllerElapsed is not used then.
+        /// </summary>
+        internal Managers.CreatureThinkSchedule ThinkSchedule { get; set; }
+
+        /// <summary>The creatures already thought on this pass of a staggered think: reused, one pass at a time.</summary>
+        internal readonly HashSet<Creature> ThoughtCreatures = new HashSet<Creature>(ReferenceEqualityComparer.Instance);
         //public int TimerPlayerUpdate { get; set; }
         // player
         public int PlayerLimit { get; set; }
@@ -74,20 +84,98 @@ namespace Rasa.Structures
         // cell
         public MapCellInfo MapCellInfo = new MapCellInfo();
 
-        /// <summary>The map's navmesh, or null when no navmesh/&lt;map&gt;.nav was built for it. See NavMeshManager.</summary>
-        public Navigation.NavMeshQuery NavMesh { get; set; }
+        /// <summary>
+        /// The map's navmesh, or null when no navmesh/&lt;map&gt;.nav was built for it. See NavMeshManager.
+        /// With Navigation.Lazy, the map's <see cref="NavigationFiles"/>'s, read for the asker if it is
+        /// not yet (Managers.LazyNavigation); one that is set here is the map's whatever that has.
+        /// </summary>
+        public Navigation.NavMeshQuery NavMesh
+        {
+            get => _navMeshSet || NavigationFiles == null ? _navMesh : NavigationFiles.NavMesh;
+            set { _navMesh = value; _navMeshSet = true; }
+        }
 
         /// <summary>
         /// The height below which a player has fallen out of the world and is put back
         /// (Managers.SafetyFloor); null when the map has no navmesh. Set with the navmesh.
         /// </summary>
-        public float? SafetyFloorY { get; set; }
+        public float? SafetyFloorY
+        {
+            get => _safetyFloorSet || NavigationFiles == null ? _safetyFloorY : NavigationFiles.SafetyFloorY;
+            set { _safetyFloorY = value; _safetyFloorSet = true; }
+        }
 
         /// <summary>The highest walkable surface on the map, from its navmesh; null without one.</summary>
-        public float? TopWalkableY { get; set; }
+        public float? TopWalkableY
+        {
+            get => _topWalkableSet || NavigationFiles == null ? _topWalkableY : NavigationFiles.TopWalkableY;
+            set { _topWalkableY = value; _topWalkableSet = true; }
+        }
 
         /// <summary>What stands between two points on the map, for cover; null when no navmesh/&lt;map&gt;.cover was built. See Managers.Cover.</summary>
-        public Navigation.CoverMesh Cover { get; set; }
+        public Navigation.CoverMesh Cover
+        {
+            get => _coverSet || NavigationFiles == null ? _cover : NavigationFiles.Cover;
+            set { _cover = value; _coverSet = true; }
+        }
+
+        private Navigation.NavMeshQuery _navMesh;
+        private Navigation.CoverMesh _cover;
+        private float? _safetyFloorY, _topWalkableY;
+        private bool _navMeshSet, _coverSet, _safetyFloorSet, _topWalkableSet;
+
+        /// <summary>
+        /// The map's navmesh and cover files under Navigation.Lazy, read when a player is on the way
+        /// (Managers.LazyNavigation): the map's own, and shared by every copy of it. Null otherwise.
+        /// </summary>
+        public Managers.MapNavigation NavigationFiles { get; internal set; }
+
+        /// <summary>The map's navigation from here on is <paramref name="navigation"/>'s: what was set on the map before is forgotten.</summary>
+        internal void UseNavigation(Managers.MapNavigation navigation)
+        {
+            NavigationFiles = navigation;
+            _navMesh = null;
+            _cover = null;
+            _safetyFloorY = _topWalkableY = null;
+            _navMeshSet = _coverSet = _safetyFloorSet = _topWalkableSet = false;
+        }
+
+        /// <summary>
+        /// A copy of <paramref name="template"/> (PrivateMapInstanceService) takes its navigation:
+        /// the one navmesh and cover, without reading them for it. <paramref name="heights"/>: the
+        /// safety floor and highest ground as well, which a private instance has never taken.
+        /// </summary>
+        internal void ShareNavigationOf(MapChannel template, bool heights)
+        {
+            NavigationFiles = template.NavigationFiles;
+            _navMesh = template._navMesh;
+            _navMeshSet = template._navMeshSet;
+            _cover = template._cover;
+            _coverSet = template._coverSet;
+
+            if (!heights)
+            {
+                // As it always was: a private instance has no safety floor of its own.
+                SafetyFloorY = null;
+                TopWalkableY = null;
+                return;
+            }
+
+            _safetyFloorY = template._safetyFloorY;
+            _safetyFloorSet = template._safetyFloorSet;
+            _topWalkableY = template._topWalkableY;
+            _topWalkableSet = template._topWalkableSet;
+        }
+
+        /// <summary>The map's navigation when it is held to be read and is not read yet: what LazyNavigation.SnapToGroundOnceRead waits on. Null otherwise.</summary>
+        internal Managers.MapNavigation WaitingNavigation =>
+            !_navMeshSet && NavigationFiles != null && !NavigationFiles.Settled ? NavigationFiles : null;
+
+        /// <summary>The navmesh if it is there now, without reading it: for a report over every map (MemoryReport).</summary>
+        public Navigation.NavMeshQuery NavMeshIfRead => _navMeshSet || NavigationFiles == null ? _navMesh : NavigationFiles.NavMeshIfRead;
+
+        /// <summary>The cover if it is there now, without reading it.</summary>
+        public Navigation.CoverMesh CoverIfRead => _coverSet || NavigationFiles == null ? _cover : NavigationFiles.CoverIfRead;
         // effect
         public int CurrentEffectId { get; set; } // increases with every spawned game effect
 

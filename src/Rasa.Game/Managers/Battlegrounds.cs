@@ -585,9 +585,19 @@ namespace Rasa.Managers
             {
                 if (!map.ControlPoints.TryGetValue(source.Id, out var obj))
                 {
+                    // On the ground once the map's navmesh is read (LazyNavigation.SnapToGroundOnceRead):
+                    // with Navigation.Lazy, for the start's matches, when a player first comes.
+                    var id = source.Id;
+                    var unsnapped = source.Position;
+                    var position = LazyNavigation.SnapToGroundOnceRead(map, source.Position, grounded =>
+                    {
+                        if (map.ControlPoints.TryGetValue(id, out var placed) && placed.Position == unsnapped)
+                            placed.Position = grounded;
+                    });
+
                     obj = new DynamicObject
                     {
-                        Position = NavMeshManager.SnapToGround(map, source.Position),
+                        Position = position,
                         Rotation = source.Rotation,
                         MapContextId = source.MapContextId,
                         EntityClassId = source.ClassId,
