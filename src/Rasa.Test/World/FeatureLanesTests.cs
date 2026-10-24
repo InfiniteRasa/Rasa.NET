@@ -130,12 +130,10 @@ namespace Rasa.Test.World
             var kinds = harness.World.SpawnPoolArrivalEntries.Select(arrival => arrival.Kind).Distinct().OrderBy(kind => kind).ToList();
 
             CollectionAssert.AreEqual(new List<byte> { SpawnPoolArrivalEntry.KindDropship, SpawnPoolArrivalEntry.KindTeleporter }, kinds);
-            CollectionAssert.AllItemsAreUnique(new[]
+            CollectionAssert.AreEqual(new byte[] { 1, 2, 3, 4 }, new[]
             {
                 SpawnPoolArrivalEntry.KindDropship, SpawnPoolArrivalEntry.KindTeleporter, SpawnPoolArrivalEntry.KindAfsDropship, SpawnPoolArrivalEntry.KindBeamIn
             });
-            Assert.AreEqual((byte)3, SpawnPoolArrivalEntry.KindAfsDropship);
-            Assert.AreEqual((byte)4, SpawnPoolArrivalEntry.KindBeamIn);
         }
 
         /// <summary>
