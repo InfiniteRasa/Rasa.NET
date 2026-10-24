@@ -359,6 +359,20 @@ For a GM answering a player: find them, go to them or bring them over, get them 
 | `.inventory <player> [backpack\|equipped\|lockbox\|inbox]` | Admin | Their credits, prestige and lockbox credits, and the items in each part (or the one named): name, stack, template and item id. Read only. |
 | Teleport to Player, Kick Player | GameMaster | The two GM entries on the menu a GM gets by clicking a player's name in chat (the client sends `/gotouser` and `/kickuser`): the same as `.goto` and `.kick` with no reason. |
 
+## Apartments
+
+Players' apartments are run from chat at account level 0 (`.apartment`, `.decor`, `.leave`); see
+[apartments](apartments.md). A game master can look at and take a hand in a character's apartment. The character
+is named by character name, a player's family name, or `#characterId`; they need not be online.
+
+| Command | Level | What it does |
+|---|---|---|
+| `.aptadmin <character> [info]` | GameMaster | Their apartment: id, plot and map, items put down and packed against its budget, visitors and how many may build, friends, passcode (the code's id), and whether its copy is open and who is in it. |
+| `.aptadmin <character> goto` | GameMaster | Into it, as a passcode holder comes in: until you leave. You may not build there. |
+| `.aptadmin <character> kick` | GameMaster | Sends everyone but the owner back to where they came from, and drops the passcode holders. |
+| `.aptadmin <character> reset` | GameMaster | Everyone inside is sent back where they came from and the copy closes; then the apartment is as new: no items, nobody invited, no passcode or name, friends kept out, on the first plot. Logged in the server log as well as the audit log. |
+| `.aptadmin <character> plot <id>` | GameMaster | Moves it to another apartment plot, packing what does not fit, as `.apartment plot` does for its owner. |
+
 ## Moderation
 
 Commands that act on other players. A GM can only use them on accounts **below their own level**; the console can use them on anyone. Each one is also on the game server console without the dot (see Console: game server). Kicks, silences and lifted silences are logged as `Security`, with who did it and the reason.
