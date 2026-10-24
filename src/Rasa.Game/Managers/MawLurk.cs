@@ -175,7 +175,7 @@ namespace Rasa.Managers
             }
 
             creature.Cells = CellsAt(mapChannel, creature);
-            mapChannel.MapCellInfo.Cells[creature.Cells[2, 2]].CreatureList.Add(creature);
+            CellManager.PutInCell(mapChannel.MapCellInfo.Cells[creature.Cells[2, 2]], creature);
             CreatureManager.Instance.CellIntroduceCreatureToClients(mapChannel, creature,
                 CellManager.Instance.GetClientsInCells(mapChannel, creature.Cells));
 
@@ -230,8 +230,7 @@ namespace Rasa.Managers
             foreach (var client in CellManager.Instance.GetClientsInCells(mapChannel, creature.Cells))
                 client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(creature.EntityId));
 
-            foreach (var cell in mapChannel.MapCellInfo.Cells.Values)
-                cell.CreatureList.RemoveAll(candidate => candidate == creature);
+            CellManager.TakeOutOfCells(mapChannel, creature);
 
             if (creature.Attributes.TryGetValue(Attributes.Health, out var health))
                 health.Current = health.CurrentMax;

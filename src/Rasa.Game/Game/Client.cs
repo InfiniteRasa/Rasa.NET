@@ -159,6 +159,9 @@ namespace Rasa.Game
         /// <summary>Environment.TickCount64 at which <see cref="FarContacts"/> is next checked without a mission event asking.</summary>
         internal long NextContactSync { get; set; }
 
+        /// <summary>Which cell's ClientList it is on (CellManager): where DetachClient looks.</summary>
+        internal CellMembership CellMembership;
+
         /// <summary>
         /// The players this client has been given from beyond its player's cells: the members of
         /// their squad, and of their team in a battleground's match, elsewhere on the map, so

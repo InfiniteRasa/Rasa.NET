@@ -9,6 +9,9 @@ namespace Rasa.Structures
     public class Creature : Actor, ICloneable
     {
         public uint DbId { get; set; }
+
+        /// <summary>Which cell's CreatureList it is on (CellManager); not copied by Clone, which is on none.</summary>
+        internal CellMembership CellMembership;
         // npc data (only if creature is a NPC)
         public Npc Npc { get; set; }
         // loot data (only if creature is harvestable)
