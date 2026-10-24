@@ -1285,6 +1285,8 @@ namespace Rasa.Managers
         /// <param name="objects">The waypoints and pads to leave; DynamicObjectManager.Instance if not given.</param>
         internal void LeaveForTransfer(Client client, MapChannel origin, DynamicObjectManager objects = null)
         {
+            client.CallMethod(SysEntity.ClientMethodId, new SetControlledActorIdPacket(null));
+
             client.Player.Target = 0;
             LootDispenserManager.Instance.RemoveForOwner(origin, client);
             ManifestationManager.Instance.RemovePlayerCharacter(client);
