@@ -644,6 +644,8 @@ namespace Rasa.Managers
 
                     if (FollowPath(mapChannel, creature, wanderSpeed, delta) || wander.MovingMs >= timeout)
                     {
+                        var walkedIn = wander.Arriving;
+
                         wander.Arriving = false;
 
                         // There, or as near as it is going to get: it stops, and the interval
@@ -656,6 +658,10 @@ namespace Rasa.Managers
                             wander.Errand = false;
                             CreatureHabits.Arrived(mapChannel, creature);
                         }
+
+                        // Back at its post after a fight: it faces the way the post does (Defenders).
+                        if (walkedIn)
+                            Defenders.AtPost(creature);
 
                         wander.State = WanderIdle;
                         wander.IdleMs = 0;
@@ -947,6 +953,15 @@ namespace Rasa.Managers
                         return;
                     }
                 }
+                else if (Defenders.LetsGo(creature, targetPosition))
+                {
+                    // A defender holds its post: a target gone too far from it is let go, and it
+                    // turns to whoever it hates next or goes back (Defenders).
+                    if (!Threat.Retarget(creature))
+                        GiveUp(creature);
+
+                    return;
+                }
                 else if (ChasedTooFar(creature))
                 {
                     // Dragged too far from home: it runs back, forgetting the fight, and is whole
@@ -1152,8 +1167,9 @@ namespace Rasa.Managers
                     // Feedback on it burns it for acting: this is the hostile action the server has.
                     AbilityManager.OnCreatureActed(mapChannel, creature, true);
 
-                    // set cooldown, lengthened by whatever slows its attacks (Called Shot: Arm)
-                    action.CooldownTimer = NextCooldown(creature, action);
+                    // set cooldown, lengthened by whatever slows its attacks (Called Shot: Arm); an
+                    // AFS turret's by where it is in its burst (Emplacements)
+                    action.CooldownTimer = Emplacements.Cooldown(creature, NextCooldown(creature, action));
                     MadeProgress(creature);
 
                     // creature used action, break loop
@@ -1162,6 +1178,10 @@ namespace Rasa.Managers
 
                 if (needToMove == false)
                 {
+                    // A turret between its shots stays turned to a target that moves (Emplacements).
+                    if (Emplacements.KeepsFacing(creature, targetDistX, targetDistZ))
+                        UpdateEntityMovement(targetDistX, targetDistY, targetDistZ, creature, mapChannel, 0.0f, false, delta);
+
                     // Holding here - an attack cooling down with nothing closer to use, the
                     // opening roll - after a think that stepped: the clients carry the last
                     // movement on at its speed until they are told otherwise.
@@ -2771,6 +2791,9 @@ namespace Rasa.Managers
 
             // Its target, to everyone who can see it: the guns that aim, aim (Targets).
             Targets.Sync(creature.RuntimeMapChannel ?? MapChannelManager.Instance.FindByContextId(creature.MapContextId), creature);
+
+            // A defender's fight is its base's: the others near it are called (Defenders).
+            Defenders.FightStarted(creature, targetEntityId);
             return true;
         }
 
@@ -2962,6 +2985,9 @@ namespace Rasa.Managers
         {
             creature.Hate.Clear();
             StopFighting(creature);
+
+            // A defender off its post walks back to it (Defenders).
+            Defenders.FightOver(creature);
         }
 
         /// <summary>
@@ -3386,13 +3412,16 @@ namespace Rasa.Managers
             // so a large step cannot carry the creature past its node.
             var step = (float)Math.Min(velocity * elapsedMs / 1000.0d, remaining);
 
-            // A force field that stops it (ForceFields): no further, walking or carried.
-            if (isMoved && step > 0f && ForceFields.Stops(mapChannel, creature, creature.Position,
-                    creature.Position + new Vector3((float)(difX * step), (float)(difY * step), (float)(difZ * step))))
+            // A force field that stops it (ForceFields): no further, walking or carried - and a
+            // control point's gate shield is struck at by a fighting creature it stops (ControlPointFields).
+            if (isMoved && step > 0f && ForceFields.Blocking(mapChannel, creature, creature.Position,
+                    creature.Position + new Vector3((float)(difX * step), (float)(difY * step), (float)(difZ * step))) is { } blocking)
             {
                 isMoved = false;
                 velocity = 0f;
                 step = 0f;
+
+                ControlPointFields.Blocked(mapChannel, creature, blocking);
             }
 
             if (isMoved)

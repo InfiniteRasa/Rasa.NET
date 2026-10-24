@@ -92,6 +92,10 @@ namespace Rasa.Managers
     ///  - A point may have a clan lockbox (control_point_link, a footlocker row; ".cp &lt;id&gt;
     ///    lockbox"): on the map only while a clan holds the point, and that clan's alone to open.
     ///
+    /// The gates of a point's outpost are closed by shields (control_point_link kind 7, a placed force
+    /// field each): their holder's, back whole when the point changes hands and two minutes after they
+    /// are brought down (ControlPointFields).
+    ///
     /// Control points are the open world's alone: they stand on a map's own channel, and a
     /// copy of the map - private or shared - has the objects out of service. The points of a map
     /// that has a match (Battlegrounds) are in the same tables and are its teams' to fight over:
@@ -201,6 +205,9 @@ namespace Rasa.Managers
             public HashSet<uint> Waypoints { get; } = new HashSet<uint>();
             public HashSet<uint> Bosses { get; } = new HashSet<uint>();
 
+            /// <summary>The world_destructible rows of the shields in its outpost's gates (ControlPointFields).</summary>
+            public HashSet<uint> FieldRows { get; } = new HashSet<uint>();
+
             /// <summary>The usable on its map's own channel, once the map has it.</summary>
             public DynamicObject Object { get; set; }
 
@@ -251,6 +258,7 @@ namespace Rasa.Managers
         private readonly Dictionary<uint, Point> _byPool = new Dictionary<uint, Point>();
         private readonly Dictionary<ulong, Point> _byObject = new Dictionary<ulong, Point>();
         private readonly Dictionary<ulong, Point> _byLockbox = new Dictionary<ulong, Point>();
+        private readonly Dictionary<uint, Point> _byField = new Dictionary<uint, Point>();
 
         private string _resetSetting;
         private bool _missedResetLookedFor;
@@ -335,6 +343,7 @@ namespace Rasa.Managers
             _byPool.Clear();
             _byObject.Clear();
             _byLockbox.Clear();
+            _byField.Clear();
             _resetSetting = null;
             _missedResetLookedFor = false;
             NextClanReset = null;
@@ -376,6 +385,7 @@ namespace Rasa.Managers
                         case ControlPointLinkEntry.KindHospital: point.Hospitals.Add(link.ObjectId); break;
                         case ControlPointLinkEntry.KindWaypoint: point.Waypoints.Add(link.ObjectId); break;
                         case ControlPointLinkEntry.KindBoss: point.Bosses.Add(link.ObjectId); break;
+                        case ControlPointLinkEntry.KindField: point.FieldRows.Add(link.ObjectId); break;
                     }
 
                     continue;
@@ -405,6 +415,11 @@ namespace Rasa.Managers
 
                     case ControlPointLinkEntry.KindBoss:
                         point.Bosses.Add(link.ObjectId);
+                        break;
+
+                    case ControlPointLinkEntry.KindField:
+                        point.FieldRows.Add(link.ObjectId);
+                        _byField[link.ObjectId] = point;
                         break;
 
                     case ControlPointLinkEntry.KindClanLockbox:
@@ -523,6 +538,12 @@ namespace Rasa.Managers
         #region Lookups
 
         public Point ById(uint id) => _points.TryGetValue(id, out var point) ? point : null;
+
+        /// <summary>The point a world_destructible row is a gate shield of, or null.</summary>
+        public Point FieldPointOf(uint rowId) => _byField.TryGetValue(rowId, out var point) ? point : null;
+
+        /// <summary>The side of the force fields a point's holder has: the AFS's (A) or the Bane's (B).</summary>
+        public static ForceFields.Side SideOf(byte owner) => owner == Afs ? ForceFields.Side.A : ForceFields.Side.B;
 
         public Point PointOf(DynamicObject obj) => obj != null && _byObject.TryGetValue(obj.EntityId, out var point) ? point : null;
 
@@ -682,6 +703,9 @@ namespace Rasa.Managers
         {
             if (mapChannel?.MapInfo == null || mapChannel.IsCopy || _points.Count == 0)
                 return;
+
+            // The gate shields that have been left alone power up.
+            ControlPointFields.Worker(mapChannel);
 
             foreach (var point in _points.Values.Where(p => p.MapContextId == mapChannel.MapInfo.MapContextId && !p.IsBattleground).ToList())
             {
@@ -858,7 +882,12 @@ namespace Rasa.Managers
                 return true;
 
             if (sideChanged)
+            {
                 ApplyPools(mapChannel, point, takeOff: true);
+
+                // Its gate shields are the new holder's, and whole.
+                ControlPointFields.HolderChanged(point);
+            }
 
             if (wasClans != point.HeldByClan)
             {

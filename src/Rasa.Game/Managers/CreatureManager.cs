@@ -656,6 +656,9 @@ namespace Rasa.Managers
             // Ambient wildlife (AmbientCreatures): NEUTRAL, one hit of health, no armour.
             AmbientCreatures.Apply(creature);
 
+            // A defender of a place notices by its role, a turret out to its gun's reach (Defenders).
+            Defenders.Apply(creature);
+
             BehaviorManager.StartWandering(creature, true);
 
             if (spawnPool != null)
