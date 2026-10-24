@@ -945,7 +945,7 @@ namespace Rasa.Test.World
                 StringAssert.Contains(Say(".instance reset").Single(), "Closed 1 squad instance(s); 1 left with players in them");
                 CollectionAssert.AreEqual(new[] { mine }, fixture.Maps.SquadInstancesOf().ToArray());
                 StringAssert.Contains(Say(".instance reset").Single(), "Closed 0 squad instance(s); 1 left");
-                StringAssert.Contains(Say(".instance nonsense").Single(), ".instance squads | .instance reset");
+                StringAssert.Contains(Say(".instance nonsense").Single(), ".instance squads / .instance reset");
             }
         }
 

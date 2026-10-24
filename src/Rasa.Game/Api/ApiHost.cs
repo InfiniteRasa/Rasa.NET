@@ -43,6 +43,9 @@ namespace Rasa.Api
         /// <summary>POST /kickuser; Server gives it its way onto the world loop.</summary>
         public KickUserEndpoint KickUser { get; } = new KickUserEndpoint();
 
+        /// <summary>POST /sendmessage; Server gives it its way onto the world loop.</summary>
+        public SendMessageEndpoint SendMessage { get; } = new SendMessageEndpoint();
+
         /// <summary>GET /getopenpetitions and /getallpetitions; Server gives them their store.</summary>
         public PetitionsEndpoint OpenPetitions { get; } = new PetitionsEndpoint(openOnly: true);
         public PetitionsEndpoint AllPetitions { get; } = new PetitionsEndpoint(openOnly: false);
@@ -90,6 +93,7 @@ namespace Rasa.Api
             Rest.Register(new IngameNpcGreetingUpdateEndpoint(IngameSessions));
             Rest.Register(new UsersOnlineEndpoint(Users));
             Rest.Register(KickUser);
+            Rest.Register(SendMessage);
             Rest.Register(OpenPetitions);
             Rest.Register(AllPetitions);
             Rest.Register(RespondPetition);

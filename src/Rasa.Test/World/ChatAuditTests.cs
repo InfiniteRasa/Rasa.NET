@@ -121,7 +121,7 @@ namespace Rasa.Test.World
 
             chat.RadialChat(speaker, "hello there");
 
-            Assert.AreEqual("hello there", Sent<RadialChatPacket>(near).Single().TextMsg, "it is said as it was");
+            Assert.AreEqual(ChatMarkup.PlainGmTag + "hello there", Sent<RadialChatPacket>(near).Single().TextMsg, "said as it was, behind a GM's plain [GM] (say has a bubble)");
 
             var row = _store.Rows.Single();
 

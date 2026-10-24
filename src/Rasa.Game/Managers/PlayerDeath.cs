@@ -330,10 +330,29 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// Back to life: penalties on, then health (and at a hospital, full armour and the move
+        /// A game master's revive (.revive): up where they lie, at full health and armour, with
+        /// none of a death's penalties - it puts right a death that should not have happened.
+        /// </summary>
+        /// <returns>false when they are not dead, or not on a map.</returns>
+        public static bool ReviveInPlace(Client client)
+        {
+            var player = client?.Player;
+            var mapChannel = player?.MapChannel;
+
+            if (player == null || mapChannel == null || player.State != CharacterState.Dead)
+                return false;
+
+            var health = player.Attributes.TryGetValue(Attributes.Health, out var attribute) ? attribute.CurrentMax : 1;
+
+            Revive(mapChannel, client, player.Position, health, player, atHospital: true, penalties: false);
+            return player.State != CharacterState.Dead;
+        }
+
+        /// <summary>
+        /// Back to life: penalties on (unless a GM said otherwise), then health (and at a hospital, full armour and the move
         /// there), and everyone told.
         /// </summary>
-        private static void Revive(MapChannel mapChannel, Client client, Vector3 at, int health, Actor reviver, bool atHospital)
+        private static void Revive(MapChannel mapChannel, Client client, Vector3 at, int health, Actor reviver, bool atHospital, bool penalties = true)
         {
             var player = client.Player;
 
@@ -346,7 +365,7 @@ namespace Rasa.Managers
 
             // A death in a battleground's match costs nothing: its wargame has neither the
             // sickness nor the wear (WARGAME_FLAGS_TEAM).
-            var penalised = player.Level >= PenaltyMinLevel && !Battlegrounds.Instance.NoDeathPenalty(player);
+            var penalised = penalties && player.Level >= PenaltyMinLevel && !Battlegrounds.Instance.NoDeathPenalty(player);
 
             if (penalised)
             {

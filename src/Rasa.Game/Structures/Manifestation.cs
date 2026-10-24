@@ -425,6 +425,18 @@ namespace Rasa.Structures
         /// </summary>
         public bool GmInvisible { get; set; }
 
+        /// <summary>
+        /// Held in place by a GM (.freeze): where they were frozen, or null. Not saved - logging
+        /// out ends it - and the server refuses any move away from it (ManifestationManager).
+        /// </summary>
+        public System.Numerics.Vector3? GmFrozenAt { get; set; }
+
+        /// <summary>A GM's Equip Anything (GM_EQUIP_ANYTHING, .equipanything): level, race and skill requirements pass them by. Not saved.</summary>
+        public bool GmEquipAnything { get; set; }
+
+        /// <summary>A GM's Untargetable (GM_UNTARGETABLE, .untargetable): nobody can select, hit or notice them. Not saved.</summary>
+        public bool GmUntargetable { get; set; }
+
         /// <summary>The accounts this GM has whispered while invisible: they can whisper back.</summary>
         public HashSet<uint> GmInvisibleWhispered { get; } = new HashSet<uint>();
 

@@ -122,6 +122,12 @@ namespace Rasa.Api
         /// <summary>The answer, for /respondpetition; null for /closepetition.</summary>
         public string Response { get; set; }
 
+        /// <summary>/respondpetition's "close": answer and close it at once, with one notice.</summary>
+        public bool Close { get; set; }
+
+        /// <summary>/respondpetition's "important": a player in the world gets the modal dialog in place of the AFS Message.</summary>
+        public bool Important { get; set; }
+
         /// <summary>The address the request came from.</summary>
         public string From { get; set; }
     }
@@ -294,6 +300,20 @@ namespace Rasa.Api
                     return null;
                 }
 
+                foreach (var (field, set) in new (string, Action<bool>)[] { ("close", v => order.Close = v), ("important", v => order.Important = v) })
+                {
+                    if (!Present(root, field, out var flag))
+                        continue;
+
+                    if (flag.ValueKind != JsonValueKind.True && flag.ValueKind != JsonValueKind.False)
+                    {
+                        problem = $"{field} must be true or false";
+                        return null;
+                    }
+
+                    set(flag.ValueKind == JsonValueKind.True);
+                }
+
                 return order;
             }
         }
@@ -302,7 +322,7 @@ namespace Rasa.Api
         public static PetitionResult Act(PetitionOrder order) =>
             order.Response == null
                 ? PetitionManager.Instance.Close(order.PetitionId)
-                : PetitionManager.Instance.Respond(order.PetitionId, order.Response);
+                : PetitionManager.Instance.Respond(order.PetitionId, order.Response, order.Close, order.Important);
 
         private ApiResponse Refused(string error) =>
             ApiResponse.Ok(ServerStatus.Json(writer =>

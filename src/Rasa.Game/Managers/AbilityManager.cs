@@ -91,7 +91,9 @@ namespace Rasa.Managers
             "abilities.tectonicstrike", "abilities.stun", "abilities.concussivewave", "abilities.energywave",
             "abilities.vortex", "abilities.deathdamage", "abilities.stalkereggattack", GrenadeModule,
             // Polymorph's creature attacks (AbilityManager.MorphAbilities).
-            KaelSmashModule, KaelGroundPoundModule, CaretakerAttackModule
+            KaelSmashModule, KaelGroundPoundModule, CaretakerAttackModule,
+            // The PAUs' (.pau): the AFS Mech's and the Grendel's missiles and ground pound.
+            MechMissilesModule, MechGroundPoundModule
         };
 
         /// <summary>
@@ -286,6 +288,10 @@ namespace Rasa.Managers
 
             // Loading: the player is between maps, and their cells still belong to the old one.
             if (mapChannel == null || client.State != ClientState.Ingame)
+                return;
+
+            // A GM's GM ability (GmAbilities): the command it stands for, not an ordinary action.
+            if (GmAbilities.TryPerform(client, packet))
                 return;
 
             var actionId = packet.ActionId;
@@ -1378,6 +1384,16 @@ namespace Rasa.Managers
         {
             if (info.ReuseMs <= 0)
                 return;
+
+            // A GM in a PAU (.pau): its abilities come round in GmPauReuseMs, not the minutes the
+            // mechs had in Edmund Range. The client has started its own sweep from its data, and
+            // is told the shorter time in its place (ActionReuseTimes).
+            if (GmAbilities.IsGm(client) && IsMorphAbility(player, info.ActionId, info.Level))
+            {
+                player.ActionReuseUntil[info.ActionId] = Environment.TickCount64 + GmAbilities.GmPauReuseMs - 150;
+                client.CallMethod(player.EntityId, new ActionReuseTimesPacket(new List<(ActionId, int)> { (info.ActionId, GmAbilities.GmPauReuseMs) }));
+                return;
+            }
 
             var total = info.ReuseMs + (info.StartReuseOnPerform ? info.RecoveryMs : 0);
             player.ActionReuseUntil[info.ActionId] = Environment.TickCount64 + Math.Max(0, total - 150);
