@@ -227,23 +227,80 @@ namespace Rasa.Test.Missions.Content
                 "Check genuine authored Bootcamp provenance, not a synthetic fixture.");
         }
 
-        // The historical initial seed writes one SQL INSERT per Bootcamp evidence row.
-        // reconstruction_note is its final column; extract the final SQL text literal,
-        // including doubled apostrophes, rather than mistaking it for EF InsertData.
+        // The historical Bootcamp preloader emits raw SQL INSERTs. Find the
+        // reconstruction_note value by its named column, without assuming any
+        // particular column order. SQL text can contain commas and doubled quotes.
         private static string[] InitialBootcampEvidenceNotes(IEnumerable<MigrationOperation> operations)
         {
-            return operations.OfType<SqlOperation>()
-                .Select(operation => operation.Sql)
-                .Where(sql => sql.StartsWith("insert into mission_evidence (", StringComparison.OrdinalIgnoreCase))
-                .Select(sql =>
+            var notes = new List<string>();
+            foreach (var sql in operations.OfType<SqlOperation>().Select(operation => operation.Sql)
+                .Where(sql => sql.StartsWith("insert into mission_evidence (", StringComparison.OrdinalIgnoreCase)))
+            {
+                var insert = Regex.Match(sql,
+                    @"^\s*insert\s+into\s+mission_evidence\s*\((?<columns>[^)]*)\)\s*values\s*\((?<values>.*)\)\s*;\s*$",
+                    RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant);
+                Assert.IsTrue(insert.Success, "Unexpected initial evidence INSERT SQL: " + sql);
+
+                var columns = insert.Groups["columns"].Value.Split(',', StringSplitOptions.TrimEntries);
+                var values = SplitSqlInsertValues(insert.Groups["values"].Value);
+                Assert.AreEqual(columns.Length, values.Length, "Evidence INSERT columns/values differ: " + sql);
+                var noteIndex = Array.FindIndex(columns, column =>
+                    column.Equals("reconstruction_note", StringComparison.OrdinalIgnoreCase));
+                Assert.IsTrue(noteIndex >= 0, "Evidence INSERT must include reconstruction_note: " + sql);
+                var literal = values[noteIndex];
+                Assert.IsTrue(literal.Length >= 2 && literal[0] == '\'' && literal[^1] == '\'',
+                    "Expected a quoted evidence note in: " + sql);
+                notes.Add(literal.Substring(1, literal.Length - 2).Replace("''", "'"));
+            }
+            return notes.ToArray();
+        }
+
+        private static string[] SplitSqlInsertValues(string values)
+        {
+            var result = new List<string>();
+            var start = 0;
+            var inQuote = false;
+            for (var i = 0; i < values.Length; i++)
+            {
+                if (values[i] == '\'')
                 {
-                    Assert.IsTrue(sql.Contains("reconstruction_note) values ("),
-                        "Initial evidence SQL must keep the reconstruction_note as its final column.");
-                    var match = Regex.Match(sql, @"'((?:''|[^'])*)'\);\s*$", RegexOptions.Singleline);
-                    Assert.IsTrue(match.Success, "Cannot parse the initial evidence note: " + sql);
-                    return match.Groups[1].Value.Replace("''", "'");
-                })
-                .ToArray();
+                    if (inQuote && i + 1 < values.Length && values[i + 1] == '\'')
+                    {
+                        i++; // A doubled apostrophe is part of the SQL string literal.
+                        continue;
+                    }
+                    inQuote = !inQuote;
+                }
+                else if (values[i] == ',' && !inQuote)
+                {
+                    result.Add(values.Substring(start, i - start).Trim());
+                    start = i + 1;
+                }
+            }
+            Assert.IsFalse(inQuote, "Unterminated quoted SQL evidence value.");
+            result.Add(values.Substring(start).Trim());
+            return result.ToArray();
+        }
+
+        [TestMethod]
+        public void InitialBootcampEvidenceNotesUseNamedColumnAndPreserveQuotedText()
+        {
+            var operations = new MigrationOperation[]
+            {
+                new SqlOperation
+                {
+                    Sql = "insert into mission_evidence (reconstruction_note, mission_id, content_revision) " +
+                        "values ('A note, with Bob''s apostrophe', 1990, 'deployment_11');"
+                },
+                new SqlOperation
+                {
+                    Sql = "insert into mission_evidence (mission_id, reconstruction_note, content_revision) " +
+                        "values (1992, 'Another note, with comma', 'deployment_11');"
+                }
+            };
+            CollectionAssert.AreEqual(
+                new[] { "A note, with Bob's apostrophe", "Another note, with comma" },
+                InitialBootcampEvidenceNotes(operations));
         }
 
         [TestMethod]
