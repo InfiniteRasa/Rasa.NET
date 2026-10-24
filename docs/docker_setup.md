@@ -232,6 +232,8 @@ docker compose --env-file mysql.env -f compose.mysql.yml run --rm mysql-game-mig
 docker compose --env-file mysql.env -f compose.mysql.yml up -d
 ```
 
+If a previous MySQL image failed while seeding World with `Data too long for column 'reconstruction_note'`, rebuild the image with the pre-seed widening migration (`20260926190348_WidenMissionEvidenceNotesBeforeSeed`) and rerun `mysql-game-migrate`. Check `rasaworld.__EFMigrationsHistory` to see which migrations completed; do **not** delete the MySQL volume or manually mark failed migrations as applied. If a previous failure left partial seed rows, inspect the affected data and migration history before retrying, rather than dropping databases.
+
 For a local development build, insert `-f compose.mysql.dev.yml` after `-f compose.mysql.yml` in these commands so the migration job runs against the local image too. Do not run migrations concurrently with live gameplay. See [Applying migrations](setup.md#applying-migrations) for schema history, review/backup requirements, and the ordinary-loot readiness boundary.
 
 MySQL remains private to the Docker network; if you need Workbench/CLI access from the host, explicitly add a loopback-only mapping (`127.0.0.1:3306:3306`) to the `mysql` service, keeping it off the public interface. Never expose MySQL port 3306 directly to the internet.

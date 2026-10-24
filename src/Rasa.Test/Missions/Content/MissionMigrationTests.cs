@@ -195,6 +195,40 @@ namespace Rasa.Test.Missions.Content
         }
 
         [TestMethod]
+        public void MySqlBootcampEvidenceColumnIsWidenedBeforeItsFirstSeed()
+        {
+            const string schema = "20260926190344_ConsolidatedWorldSchema";
+            const string widen = "20260926190348_WidenMissionEvidenceNotesBeforeSeed";
+            const string seed = "20260926190349_SeedWorldContent";
+            using var context = Database.PersistenceIntegrationTests.CreateContext(typeof(MySqlWorldContext), "unused");
+            var migrations = context.Database.GetMigrations().ToArray();
+            Assert.IsTrue(Array.IndexOf(migrations, schema) < Array.IndexOf(migrations, widen));
+            Assert.IsTrue(Array.IndexOf(migrations, widen) < Array.IndexOf(migrations, seed));
+            Assert.IsTrue(migrations.Contains(widen), "A fresh MySQL installation needs an early evidence-capacity migration.");
+
+            var operation = new Rasa.Migrations.MySqlWorld.WidenMissionEvidenceNotesBeforeSeed()
+                .UpOperations.Single();
+            Assert.IsInstanceOfType<AlterColumnOperation>(operation);
+            var column = (AlterColumnOperation)operation;
+            Assert.AreEqual("mission_evidence", column.Table);
+            Assert.AreEqual("reconstruction_note", column.Name);
+            Assert.AreEqual("varchar(256)", column.OldColumn.ColumnType);
+            Assert.AreEqual("text", column.ColumnType);
+            Assert.IsFalse(column.IsNullable);
+            Assert.IsEmpty(new Rasa.Migrations.MySqlWorld.WidenMissionEvidenceNotesBeforeSeed().DownOperations);
+
+            var notes = new Rasa.Migrations.MySqlWorld.SeedWorldContent().UpOperations
+                .OfType<InsertDataOperation>()
+                .Where(insert => insert.Table == "mission_evidence")
+                .SelectMany(insert => Enumerable.Range(0, insert.Values.GetLength(0))
+                    .Select(index => insert.Values[index, Array.IndexOf(insert.Columns, "reconstruction_note")]))
+                .OfType<string>()
+                .ToArray();
+            Assert.IsTrue(notes.Any(note => note.Length > 256),
+                "The early widen protects real Bootcamp provenance, not a synthetic note.");
+        }
+
+        [TestMethod]
         public void MySqlEvidenceMigrationValuesFitTheColumnAtTheirInsertionBoundary()
         {
             using var context = Database.PersistenceIntegrationTests.CreateContext(typeof(MySqlWorldContext), "unused");

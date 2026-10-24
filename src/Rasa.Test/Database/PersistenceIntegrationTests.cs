@@ -261,7 +261,7 @@ namespace Rasa.Test.Database
         [DataRow(typeof(SqliteCharContext), 1, "20260926185812_ConsolidatedCharacterSchema")]
         [DataRow(typeof(MySqlCharContext), 1, "20260926190339_ConsolidatedCharacterSchema")]
         [DataRow(typeof(SqliteWorldContext), 2, "20260926190153_SeedWorldContent")]
-        [DataRow(typeof(MySqlWorldContext), 2, "20260926190349_SeedWorldContent")]
+        [DataRow(typeof(MySqlWorldContext), 3, "20260926190349_SeedWorldContent")]
         public void ConsolidatedBaselineRetainsExpectedDatabaseMigrations(
             Type contextType, int expectedCount, string consolidationBoundary)
         {
@@ -284,10 +284,12 @@ namespace Rasa.Test.Database
             }
             if (expectedCount == 1)
                 StringAssert.EndsWith(baseline[0], "_ConsolidatedCharacterSchema");
-            if (expectedCount == 2)
+            if (expectedCount == 2 || expectedCount == 3)
             {
                 StringAssert.EndsWith(baseline[0], "_ConsolidatedWorldSchema");
-                StringAssert.EndsWith(baseline[1], "_SeedWorldContent");
+                StringAssert.EndsWith(baseline[^1], "_SeedWorldContent");
+                if (expectedCount == 3)
+                    StringAssert.EndsWith(baseline[1], "_WidenMissionEvidenceNotesBeforeSeed");
             }
         }
 
