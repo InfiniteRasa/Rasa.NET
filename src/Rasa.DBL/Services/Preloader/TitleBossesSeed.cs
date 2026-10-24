@@ -28,6 +28,8 @@ namespace Rasa.Services.Preloader
     /// The positions are our choice, not retail spawn points: the client's data names these bosses and their missions
     /// but holds no spawn point for any of them.
     ///
+    /// Preceptor Kai Zul, a Bane Hunter, carries the Hunter's shield in its weapon slot as every Hunter does (HunterShields).
+    ///
     /// Only retail entity classes. Every boss stands alone on an automatic point pool with the respawn upstream's boss
     /// pools have (BossSpawnpoolPreloader: respown_time 500, in tenths of a second).
     /// </summary>
@@ -44,7 +46,7 @@ namespace Rasa.Services.Preloader
             "insert into creature_stat (id, body, mind, spirit, health, armor) values (9300001, 15, 15, 15, 5100, 430);",
             "insert into spawnpool (id, mode, anim_type, respown_time, pos_x, pos_y, pos_z, rotation, map_context_id, creature_1_Id, creature_1_min_count, creature_1_max_count, creature_2_Id, creature_2_min_count, creature_2_max_count, creature_3_Id, creature_3_min_count, creature_3_max_count, creature_4_Id, creature_4_min_count, creature_4_max_count, creature_5_Id, creature_5_min_count, creature_5_max_count, creature_6_Id, creature_6_min_count, creature_6_max_count, radius) values (9300001, 0, 0, 500, 288.9, 542.31, -164.7, 0, 2028, 9300001, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);",
             "insert into creature_action (id, description, action_id, action_arg_id, range_min, range_max, cooldown, windup, min_damage, max_damage, damage_type) values (9310002, 'Granitour Colony King granitour_melee', 471, 1, 0.5, 4, 1000, 0, 301, 501, 1);",
-            "insert into creature_action (id, description, action_id, action_arg_id, range_min, range_max, cooldown, windup, min_damage, max_damage, damage_type) values (9310003, 'Granitour Colony King granitour_v1_spit', 472, 1, 1, 20, 4000, 466, 382, 632, 2);",
+            "insert into creature_action (id, description, action_id, action_arg_id, range_min, range_max, cooldown, windup, min_damage, max_damage, damage_type) values (9310003, 'Granitour Colony King granitour_v2_spit', 470, 1, 1, 40, 4000, 466, 382, 632, 2);",
             "insert into creature (id, comment, class_id, faction, level, max_hp, name_id, run_speed, walk_speed, action1, action2, action3, action4, action5, action6, action7, action8) values (9300002, 'Granitour Colony King - Abyss', 25620, 0, 46, 5100, 9850, 9, 5, 9310002, 9310003, 0, 0, 0, 0, 0, 0);",
             "insert into creature_stat (id, body, mind, spirit, health, armor) values (9300002, 15, 15, 15, 5100, 430);",
             "insert into spawnpool (id, mode, anim_type, respown_time, pos_x, pos_y, pos_z, rotation, map_context_id, creature_1_Id, creature_1_min_count, creature_1_max_count, creature_2_Id, creature_2_min_count, creature_2_max_count, creature_3_Id, creature_3_min_count, creature_3_max_count, creature_4_Id, creature_4_min_count, creature_4_max_count, creature_5_Id, creature_5_min_count, creature_5_max_count, creature_6_Id, creature_6_min_count, creature_6_max_count, radius) values (9300002, 0, 0, 500, 409, 550.83, -234.9, 0, 2028, 9300002, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);",
@@ -146,6 +148,7 @@ namespace Rasa.Services.Preloader
             "insert into spawnpool (id, mode, anim_type, respown_time, pos_x, pos_y, pos_z, rotation, map_context_id, creature_1_Id, creature_1_min_count, creature_1_max_count, creature_2_Id, creature_2_min_count, creature_2_max_count, creature_3_Id, creature_3_min_count, creature_3_max_count, creature_4_Id, creature_4_min_count, creature_4_max_count, creature_5_Id, creature_5_min_count, creature_5_max_count, creature_6_Id, creature_6_min_count, creature_6_max_count, radius) values (9300019, 0, 0, 500, -430, 715.38, 20, 0, 2047, 9300019, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);",
             "insert into creature (id, comment, class_id, faction, level, max_hp, name_id, run_speed, walk_speed, action1, action2, action3, action4, action5, action6, action7, action8) values (9300020, 'Preceptor Kai Zul - Descent', 10166, 0, 40, 4500, 9337, 9, 5, 53082, 53083, 65032, 0, 0, 0, 0, 0);",
             "insert into creature_stat (id, body, mind, spirit, health, armor) values (9300020, 15, 15, 15, 4500, 400);",
+            "insert into creature_appearance (id, slot_id, Class_id, color) values (9300020, 13, 10171, 1);",
             "insert into spawnpool (id, mode, anim_type, respown_time, pos_x, pos_y, pos_z, rotation, map_context_id, creature_1_Id, creature_1_min_count, creature_1_max_count, creature_2_Id, creature_2_min_count, creature_2_max_count, creature_3_Id, creature_3_min_count, creature_3_max_count, creature_4_Id, creature_4_min_count, creature_4_max_count, creature_5_Id, creature_5_min_count, creature_5_max_count, creature_6_Id, creature_6_min_count, creature_6_max_count, radius) values (9300020, 0, 0, 500, 279.21, 329, -13.77, 0, 2047, 9300020, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);",
             "insert into creature (id, comment, class_id, faction, level, max_hp, name_id, run_speed, walk_speed, action1, action2, action3, action4, action5, action6, action7, action8) values (9300021, 'Preceptor Maalev - Descent', 10321, 0, 40, 4500, 9338, 9, 5, 16, 62035, 62036, 0, 0, 0, 0, 0);",
             "insert into creature_stat (id, body, mind, spirit, health, armor) values (9300021, 15, 15, 15, 4500, 400);",
@@ -224,6 +227,7 @@ namespace Rasa.Services.Preloader
             "delete from spawnpool where id = 9300002;",
             "delete from spawnpool where id = 9300001;",
             "delete from creature_appearance where id = 9300022;",
+            "delete from creature_appearance where id = 9300020;",
             "delete from creature_appearance where id = 9300011;",
             "delete from creature_appearance where id = 9300010;",
             "delete from creature_appearance where id = 9300009;",
