@@ -28,7 +28,7 @@ namespace Rasa.Test.Missions.Plateau
     /// crate must give only once the inner outpost is clear; the followers must never fail the mission.
     ///
     /// The shipped Velon Hollow navmesh cuts the hospital and the control room off (a bug report is filed upstream):
-    /// there the followers' path check is Inconclusive.
+    /// there HolyVengeanceFollowersHaveAPathToTheControlRoom is Inconclusive; the playthrough puts the player at each place.
     ///
     /// [TestCategory]: none, as PlateauCampResistanceTests.
     /// </summary>
@@ -67,9 +67,6 @@ namespace Rasa.Test.Missions.Plateau
             Assert.AreEqual(PlateauHolyVengeanceV1.CrateClass, (uint)crate.EntityClassId);
             Assert.AreEqual(PlateauHolyVengeanceScene.ReadyState, (uint)crate.StateId);
             AssertStandsOnNavMesh(copy, crate.Position, 0.5f);
-            var path = copy.NavMesh.FindPath(ToVector(PlateauHolyVengeanceV1.FollowersAt[0]), crate.Position, out var joined);
-            if (path == null || !joined)
-                Assert.Inconclusive("No navmesh path from the hospital to the control room: the Velon Hollow navmesh is split (upstream bug report).");
 
             // The crate waits for the inner outpost.
             Use(harness, copy, crate);
@@ -106,6 +103,24 @@ namespace Rasa.Test.Missions.Plateau
                 PlateauHolyVengeanceV1.Experience, PlateauHolyVengeanceV1.Credits);
             Assert.AreEqual(0U, WildernessRanjaGorgeTests.Held(harness, PlateauHolyVengeanceV1.BookTemplate), "Sampei keeps the book");
             Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, PlateauHolyVengeanceV1.BioLegs), "the second choice");
+        }
+
+        /// <summary>The followers can walk from the hospital to the crate in the control room and back.</summary>
+        [TestMethod]
+        public void HolyVengeanceFollowersHaveAPathToTheControlRoom()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            EnterPlateau(harness);
+            var copy = IntoVelonHollow(harness);
+            var crate = ToVector(PlateauHolyVengeanceV1.CrateAt);
+            foreach (var home in PlateauHolyVengeanceV1.FollowersAt)
+            {
+                var path = copy.NavMesh.FindPath(ToVector(home), crate, out var joined);
+                if (path == null || !joined)
+                    Assert.Inconclusive("No navmesh path from the hospital to the control room: the Velon Hollow navmesh is split (upstream bug report).");
+                path = copy.NavMesh.FindPath(crate, ToVector(home), out joined);
+                Assert.IsTrue(joined && path != null && Vector3.Distance(path[^1], ToVector(home)) <= 0.5f, $"back to {ToVector(home)}");
+            }
         }
 
         /// <summary>A follower killed: nothing fails, and he does not come back.</summary>
