@@ -628,6 +628,13 @@ namespace Rasa.Test.World
             Assert.IsTrue(Say(".cp 4 raid stop").Single().Contains("is over"));
             Assert.IsNull(BaneRaids.Instance.Of(point.Id));
             Assert.IsTrue(Say(".cp 4 raid stop").Single().Contains("is not being raided"));
+
+            var said = Say($".dropship {SoldierId} 2");
+            Assert.IsTrue(said.Single().StartsWith("An AFS dropship"), string.Join(" | ", said));
+            var ship = DynamicObjectManager.Instance.Dropships.Values.Single(s => s.SpawnPool != null && s.SpawnPool.SpawnSlot.Any(slot => slot.CreatureId == SoldierId) && Reinforcements.IsTransient(s.SpawnPool));
+            Assert.AreEqual(EntityClasses.UsableCrSpawnerHumDropshipV01, ship.EntityClassId, "the soldier's side's ship");
+            Assert.AreEqual(2, ship.SpawnPool.QueuedCreatures);
+            Assert.IsTrue(Vector3.Distance(ship.Position, client.Player.Position) <= GmRaidCommands.DropAhead + GmRaidCommands.DropSearch + 1);
         }
 
         #region Fixtures
