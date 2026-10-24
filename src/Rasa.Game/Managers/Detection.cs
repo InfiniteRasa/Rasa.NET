@@ -78,10 +78,19 @@ namespace Rasa.Managers
             return false;
         }
 
+        /// <summary>
+        /// Whether creatures pass this player by: out of sight (<see cref="IsHidden"/>), or a GM's
+        /// Untargetable (GmAbilities), who players still see. Noticing, keeping at a fight and
+        /// staying on a threat table all ask this.
+        /// </summary>
+        public static bool UnnoticedByCreatures(Manifestation player) =>
+            IsHidden(player) || player is { GmUntargetable: true };
+
         /// <summary>Whether a creature can see a target at all - before any question of range.</summary>
         public static bool CanSee(Creature creature, Actor target)
         {
-            return !IsBlind(creature) && !IsHidden(target);
+            // A GM's Untargetable (GmAbilities): seen by players, never by a creature.
+            return !IsBlind(creature) && !IsHidden(target) && target is not Manifestation { GmUntargetable: true };
         }
 
         /// <summary>
@@ -191,10 +200,48 @@ namespace Rasa.Managers
                 }
             }
 
+            if (invisible)
+                ShowGmStealth(gm);
+            else
+                gm.CallMethod(player.EntityId, new GameEffectDetachedPacket { EffectId = GmStealthEffectId });
+
             SocialManager.Instance.GmVisibilityChanged(gm);
             ClanManager.Instance.GmVisibilityChanged(gm);
 
             return true;
+        }
+
+        /// <summary>The client's GM Stealth effect (gameeffectdata.GM_STEALTH).</summary>
+        public const int GmStealthEffectTypeId = 81;
+
+        /// <summary>The GM Stealth marker's effect id: far above any the server hands out.</summary>
+        public const int GmStealthEffectId = 2_000_000_081;
+
+        /// <summary>
+        /// An invisible GM's reminder that they are: the client's own GM Stealth effect (a
+        /// stealth effect), its icon on their buff bar, on their client alone. It is
+        /// not a server effect - nothing else sees it, and it does nothing - so it is sent again
+        /// on every map they arrive on (EffectCarry.Restore), as the new map's client starts bare.
+        /// </summary>
+        public static void ShowGmStealth(Client gm)
+        {
+            var player = gm?.Player;
+
+            if (player == null || !player.GmInvisible)
+                return;
+
+            gm.CallMethod(player.EntityId, new GameEffectAttachedPacket
+            {
+                EffectTypeId = GmStealthEffectTypeId,
+                EffectId = GmStealthEffectId,
+                EffectLevel = 1,
+                SourceId = player.EntityId,
+                // The buff bar only takes an effect that is announced (BaseGameEffect.AnnounceAttach
+                // posts UI_ADD_STATUS_EFFECT); unannounced, it is attached and never shown.
+                Announced = true,
+                IsActive = true,
+                IsBuff = true
+            });
         }
 
         /// <summary>A player's entity, taken off one client.</summary>

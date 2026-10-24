@@ -303,6 +303,11 @@ namespace Rasa.Managers
                     packets.Add(new GameEffectPausePacket(effect.EffectId, true));
             }
 
+            // Frozen by a GM (.freeze): the net is no server effect, so it is added here for
+            // anyone who meets them later, or meets them again after losing sight of them.
+            if (actor is Manifestation { GmFrozenAt: not null } frozen)
+                packets.Add(GmSupportCommands.FrozenPacket(frozen));
+
             return packets;
         }
 
