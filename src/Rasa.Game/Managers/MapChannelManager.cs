@@ -400,10 +400,7 @@ namespace Rasa.Managers
             // on top of the whole-refire reset AutoFireTimerDoWork used to make.
             Guard("ManifestationManager.AutoFireTimerDoWork", null, () => ManifestationManager.Instance.AutoFireTimerDoWork(delta));
 
-            foreach (var mapChannel in MapChannelArray.Values
-                         .Concat(_privateInstances.Snapshot())
-                         .Distinct()
-                         .ToArray())
+            foreach (var mapChannel in MapsToTick())
             {
 
                 mapChannel.MapChannelElapsed += delta;
@@ -655,6 +652,53 @@ namespace Rasa.Managers
                     LoopPhases.End("MapChannelManager.RemoveFlaggedPlayers", unguarded);
                 }
             }
+        }
+
+        /// <summary>The list MapsToTick last made, what MapChannelArray held then, and the instances' version it was made at.</summary>
+        private MapChannel[] _mapsToTick = Array.Empty<MapChannel>();
+        private MapChannel[] _mapsToTickLoaded = Array.Empty<MapChannel>();
+        private long _mapsToTickVersion = -1;
+
+        /// <summary>
+        /// Every map the worker goes through: the loaded maps, then every private, shared and squad
+        /// instance, each once - MapChannelArray.Values.Concat(the instances).Distinct().ToArray().
+        ///
+        /// That expression was built afresh every tick: an array of the instances, the Concat and
+        /// Distinct iterators, a set and the array, for a list that changes when a map is loaded or
+        /// an instance opens or closes. It is kept now, and made again when either has changed:
+        /// the instances' list has a version (PrivateMapInstanceService.Version), and the loaded
+        /// maps - a dictionary anyone may add to - are compared with the ones it was made from,
+        /// which costs a look at each. A list handed out is never changed, so a tick going through
+        /// one while a map opens goes through the maps as they were when it began, as before.
+        /// </summary>
+        internal MapChannel[] MapsToTick()
+        {
+            var version = _privateInstances.Version;
+
+            if (version == _mapsToTickVersion && LoadedMapsAsBefore())
+                return _mapsToTick;
+
+            var loaded = MapChannelArray.Values.ToArray();
+
+            _mapsToTick = loaded.Concat(_privateInstances.Snapshot()).Distinct().ToArray();
+            _mapsToTickLoaded = loaded;
+            _mapsToTickVersion = version;
+
+            return _mapsToTick;
+        }
+
+        private bool LoadedMapsAsBefore()
+        {
+            if (MapChannelArray.Count != _mapsToTickLoaded.Length)
+                return false;
+
+            var i = 0;
+
+            foreach (var map in MapChannelArray.Values)
+                if (!ReferenceEquals(map, _mapsToTickLoaded[i++]))
+                    return false;
+
+            return true;
         }
 
         /// <summary>

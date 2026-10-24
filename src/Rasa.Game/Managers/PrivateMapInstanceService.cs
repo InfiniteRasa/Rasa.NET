@@ -15,6 +15,22 @@ namespace Rasa.Managers
         private readonly Dictionary<(uint ContextId, uint OwnerCharacterId), MapChannel> _squadByOwner = new();
         private uint _nextInstanceId = 2;
 
+        /// <summary>
+        /// Moved on by every change to the list of instances, so that a caller that keeps a copy
+        /// of it (MapChannelManager.MapsToTick) knows when its copy is out of date.
+        /// </summary>
+        private long _version;
+
+        /// <summary>The list's version: a different number from the last one read means the list has changed since.</summary>
+        internal long Version
+        {
+            get
+            {
+                lock (_syncRoot)
+                    return _version;
+            }
+        }
+
         internal static PrivateMapInstanceService Instance
         {
             get
@@ -64,6 +80,7 @@ namespace Rasa.Managers
                 initialize?.Invoke(map);
 
                 _instancesByKey.Add(privateKey, map);
+                _version++;
                 _keysByOwner.Add(ownerKey, privateKey);
                 return map;
             }
@@ -119,6 +136,7 @@ namespace Rasa.Managers
                 initialize?.Invoke(map);
 
                 _instancesByKey.Add(new PrivateMapInstanceKey(template.MapInfo.MapContextId, instanceId), map);
+                _version++;
                 return map;
             }
         }
@@ -156,6 +174,7 @@ namespace Rasa.Managers
                 initialize?.Invoke(map);
 
                 _instancesByKey.Add(new PrivateMapInstanceKey(template.MapInfo.MapContextId, instanceId), map);
+                _version++;
                 _squadByOwner.Add(ownerKey, map);
                 return map;
             }
@@ -224,6 +243,7 @@ namespace Rasa.Managers
 
                 _squadByOwner.Remove(ownerKey);
                 _instancesByKey.Remove(new PrivateMapInstanceKey(map.MapInfo.MapContextId, map.InstanceId));
+                _version++;
                 return true;
             }
         }
@@ -248,7 +268,11 @@ namespace Rasa.Managers
             {
                 var key = new PrivateMapInstanceKey(map.MapInfo.MapContextId, map.InstanceId);
 
-                return _instancesByKey.TryGetValue(key, out var listed) && ReferenceEquals(listed, map) && _instancesByKey.Remove(key);
+                if (!_instancesByKey.TryGetValue(key, out var listed) || !ReferenceEquals(listed, map) || !_instancesByKey.Remove(key))
+                    return false;
+
+                _version++;
+                return true;
             }
         }
 
@@ -265,7 +289,10 @@ namespace Rasa.Managers
                 var released = new List<MapChannel>(owned.Length);
                 foreach (var key in owned)
                     if (_instancesByKey.Remove(key, out var map))
+                    {
                         released.Add(map);
+                        _version++;
+                    }
 
                 foreach (var ownerKey in _keysByOwner.Keys
                              .Where(entry => entry.OwnerCharacterId == ownerCharacterId)
