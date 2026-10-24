@@ -231,6 +231,8 @@ namespace Rasa.Test.World
 
             f.Command(guest, ".decor place floor lamp");
             StringAssert.Contains(f.Said(guest).Last(), "may not build");
+            f.Command(guest, ".decor near");
+            StringAssert.Contains(f.Said(guest).Last(), "No items within 10 metres", "anyone inside may look");
 
             f.Command(owner, ".apartment invite Bob build");
             f.Command(guest, ".decor place floor lamp");

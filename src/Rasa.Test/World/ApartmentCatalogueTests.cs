@@ -10,6 +10,8 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace Rasa.Test.World
 {
     using Rasa.Managers;
+    using Rasa.Memory;
+    using Rasa.Packets.MapChannel.Client;
     using Rasa.Structures.Char;
 
     /// <summary>
@@ -170,6 +172,25 @@ namespace Rasa.Test.World
             Assert.IsTrue(catalogue.Problems.Any(p => p.Contains("map 9999")));
             Assert.IsTrue(catalogue.Problems.Any(p => p.Contains("entry is outside")));
             Assert.IsTrue(catalogue.Problems.Any(p => p.Contains("world database")));
+        }
+
+        [TestMethod]
+        public void SendMeToMyApartmentIsReadWithOrWithoutArguments()
+        {
+            foreach (var arguments in new[] { 0, 2 })
+            {
+                using var stream = new MemoryStream();
+                var writer = new PythonWriter(new BinaryWriter(stream));
+
+                writer.WriteTuple(arguments);
+                for (var i = 0; i < arguments; i++)
+                    writer.WriteInt(7 + i);
+
+                stream.Position = 0;
+                new SendMeToMyApartmentPacket().Read(new PythonReader(new BinaryReader(stream)));
+
+                Assert.AreEqual(stream.Length, stream.Position, $"{arguments} arguments: all read");
+            }
         }
 
         [TestMethod]

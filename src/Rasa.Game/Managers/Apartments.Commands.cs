@@ -557,6 +557,15 @@ namespace Rasa.Managers
                 case "find":
                     FindItems(client, string.Join(" ", rest));
                     return;
+                case "near":
+                    // Anyone inside may look.
+                    if (LiveOf(client.Player.MapChannel) is { } here)
+                    {
+                        Near(client, here, rest.FirstOrDefault());
+                        return;
+                    }
+
+                    break;
             }
 
             var live = BuildingIn(client);
@@ -569,9 +578,6 @@ namespace Rasa.Managers
                 case "place":
                 case "add":
                     Place(client, live, rest);
-                    return;
-                case "near":
-                    Near(client, live, rest.FirstOrDefault());
                     return;
                 case "sel":
                 case "select":
