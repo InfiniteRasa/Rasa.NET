@@ -212,6 +212,21 @@ namespace Rasa.Test.Missions.Plateau
             Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, PlateauWeaponsTraffickingV1.Prototypes[1].Objective));
         }
 
+        /// <summary>Objective 1's marker stands on the Armory door in the Pools, the only one of the mission.</summary>
+        [TestMethod]
+        public void WeaponsTraffickingMarksTheArmoryDoorOnThePools()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var door = harness.World.MapLinkEntries.AsNoTracking().Single(row => row.MapContextId == PlateauSnakePitV1.MapContextId &&
+                row.DestMapContextId == Armory);
+            var markers = harness.World.MissionIndicatorEntries.AsNoTracking().Where(entry => entry.MissionId == WeaponsTrafficking).ToArray();
+            Assert.HasCount(1, markers);
+            Assert.AreEqual(PlateauWeaponsTraffickingV1.GetThem, markers[0].ObjectiveId);
+            Assert.AreEqual(door.PosX, markers[0].PosX, 0.01);
+            Assert.AreEqual(door.PosY, markers[0].PosY, 0.01);
+            Assert.AreEqual(door.PosZ, markers[0].PosZ, 0.01);
+        }
+
         private static MapChannel IntoArmory(WildernessRuntimeTestHarness harness)
         {
             if (!harness.Maps.MapChannelArray.ContainsKey(Armory))

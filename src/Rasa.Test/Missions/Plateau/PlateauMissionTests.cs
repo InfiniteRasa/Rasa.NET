@@ -89,7 +89,7 @@ namespace Rasa.Test.Missions.Plateau
         /// on Bosley; Showdown and Coup have none (instance). South Of The Border and New Orders From The General none (their
         /// goals are on Valverde Pools), Self Preservation none (instance).
         /// </summary>
-        internal const int Indicators = 85;
+        internal const int Indicators = 86;
 
         private const string Before = "20270123000000_Thunderhead_base_teleporters";
         private const string GiantKiller = "20270125000000_Plateau_giant_killer";

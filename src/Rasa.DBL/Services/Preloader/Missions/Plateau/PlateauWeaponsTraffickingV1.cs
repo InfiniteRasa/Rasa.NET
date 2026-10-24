@@ -34,7 +34,8 @@ namespace Rasa.Services.Preloader.Missions.Plateau
     ///  - Their places: five Armory rooms on the navmesh, not in path order, so a player passes later ones.
     ///  - 1 completes with the fifth prototype; Amee takes the five at the turn-in.
     ///  - Rewards: the nearest Uncommon template of each kind (manufacturer names are not in the client tables).
-    ///    No indicators: instance.
+    ///  - One marker: objective 1 on the Armory door in Valverde Pools (map_link 28; user decision 2026-10-24, no source).
+    ///    2-6 none: instance.
     /// </summary>
     public static class PlateauWeaponsTraffickingV1
     {
@@ -65,6 +66,9 @@ namespace Rasa.Services.Preloader.Missions.Plateau
             (6, 5968, 7353, "prototype-grenade-launcher", 47459, new(184, -24.19f, -107)),   // south control room, 447 m
         };
 
+        /// <summary>The Armory door on Valverde Pools (map_link 28, pools -> pools_test_weapons_center).</summary>
+        public static readonly ScenePosition DoorAt = new(-246.6428f, 685.739f, -288.124f);
+
         public static string CrateRole(int index) => $"footlocker-{index + 1}";
 
         public static void Up(MigrationBuilder migration)
@@ -93,6 +97,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
             mission.Transition(GetThem);
             mission.ObjectiveState(GetThem, Prototypes[^1].Objective, MissionObjectiveState.Completed);
             mission.Action(GetThem, 1, MissionActionKind.GrantReward, reward: 1);
+            mission.Indicator(GetThem, 1, DoorAt.X, DoorAt.Y, DoorAt.Z);   // the Armory door on the Pools
 
             var scene = new MissionSceneDefinition
             {
