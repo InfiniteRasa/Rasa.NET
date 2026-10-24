@@ -160,6 +160,11 @@ namespace Rasa.Repositories.World
             return creatureStat;
         }
 
+        public List<CreatureStatEntry> GetAllCreatureStats()
+        {
+            return _worldContext.CreateNoTrackingQuery(_worldContext.CreatureStatEntries).ToList();
+        }
+
         public CreatureActionEntry GetCreatureActionById(uint id)
         {
             var query = _worldContext.CreateNoTrackingQuery(_worldContext.CreatureActionEntries);
