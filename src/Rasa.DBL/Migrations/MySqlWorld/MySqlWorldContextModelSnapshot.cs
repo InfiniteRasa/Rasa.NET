@@ -358,7 +358,7 @@ namespace Rasa.Migrations.MySqlWorld
 
                     b.Property<string>("Description")
                         .IsRequired()
-                        .HasColumnType("varchar(50)")
+                        .HasColumnType("text")
                         .HasColumnName("description");
 
                     b.Property<uint>("MaxDamage")
