@@ -43,7 +43,7 @@ Generated 2026-10-18, extended 2026-10-20 (Wayback round 2: official site + patc
 
 **Goal in instance** (given on a public map, but cannot be completed without an objective inside an instance map; marked `[goal in instance]`, list in `tools/mission-crossref/NOTES-instance-goals.md`): 5 missions.
 
-**Needs playtest** (implemented, not yet played through in the game client; marked `[needs playtest]`, list in `tools/mission-crossref/NOTES-playtest.md`): 56 missions.
+**Needs playtest** (implemented, not yet played through in the game client; marked `[needs playtest]`, list in `tools/mission-crossref/NOTES-playtest.md`): 58 missions.
 
 
 **Instance** (the mission takes place in a client instance map, a "mission context" in gamecontext.pyo; marked `[instance]` in the entry heading): from an objective NPC package that spawns in an instance (local DB), a TaRapedia NPC page in an instance, or client objective text placing it there. "Instance mentioned" lines only name an instance (ESTIMATE). Refresh with instance_export.py.
@@ -19781,8 +19781,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Requires: Array Of Hope (id 935) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Array_of_Hope), [TaRapedia](https://tabularasa.fandom.com/wiki/Future_Sacrifice), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
   - Leads to: The Final Assault (id 1167) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Future_Sacrifice), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Final_Assault), local server `rasaworld.db` (`mission_content_definition` / `mission_reward_*`)
 - **Requires an instance mission:** Array Of Hope (935) — source: the chain links above
-### 1178 — Foreas Base Past [instance]
+### 1178 — Foreas Base Past [needs playtest] [instance]
 
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Instance:** Temporal Chamber — client objective/log text: "Return to the Temporal Chamber"
 - **Rebuild summary:**
   - level: 30 — source: [TR MMO DB](https://web.archive.org/web/20080404145822/http://tr.mmodb.com:80/quests/foreas-base-past-258.php)
@@ -19808,8 +19809,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
   - Leads to: Send a Message (id 1181) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Foreas_Base_Past), [TaRapedia](https://tabularasa.fandom.com/wiki/Send_a_Message)
 - **TR MMO DB quest series:** "Array Of Hope", row 3 of 5 ([list](https://web.archive.org/web/20120731161907/http://tr.mmodb.com/quests/seriesname-array_of_hope/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 - **Requires an instance mission:** The Final Assault (1167) — source: the chain links above
-### 1181 — Send a Message [instance]
+### 1181 — Send a Message [needs playtest] [instance]
 
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Instance:** Temporal Chamber — client log 8967: use the Communications Array in the Communications Room; follows 1178 Foreas Base Past (instance) — checked by hand
 - **Rebuild summary:**
   - level: 30 — source: [TR MMO DB](https://web.archive.org/web/20080404145827/http://tr.mmodb.com:80/quests/send-a-message-259.php)
