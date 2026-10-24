@@ -767,6 +767,13 @@ namespace Rasa.Managers
                 return;
             }
 
+            // An apartment's item: scenery the player may pick out, at its size (Apartments).
+            if (dynamicObject.DynamicObjectType == DynamicObjectType.ApartmentItem)
+            {
+                client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(dynamicObject.EntityId, dynamicObject.EntityClassId, Apartments.EntityData(dynamicObject)));
+                return;
+            }
+
             // An ambient figure is a usable nobody can use: its one state, which is what starts its animation.
             if (dynamicObject.DynamicObjectType == DynamicObjectType.AmbientNpc)
             {

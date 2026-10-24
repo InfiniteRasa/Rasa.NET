@@ -13,6 +13,7 @@ namespace Rasa.Managers
         private readonly Dictionary<PrivateMapInstanceKey, MapChannel> _instancesByKey = new();
         private readonly Dictionary<(uint ContextId, uint OwnerCharacterId), PrivateMapInstanceKey> _keysByOwner = new();
         private readonly Dictionary<(uint ContextId, uint OwnerCharacterId), MapChannel> _squadByOwner = new();
+        private readonly Dictionary<uint, MapChannel> _apartments = new();
         private uint _nextInstanceId = 2;
 
         internal static PrivateMapInstanceService Instance
@@ -223,6 +224,72 @@ namespace Rasa.Managers
                     return false;
 
                 _squadByOwner.Remove(ownerKey);
+                _instancesByKey.Remove(new PrivateMapInstanceKey(map.MapInfo.MapContextId, map.InstanceId));
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// An apartment's copy of a map (Managers.Apartments): found by its instance id as the
+        /// others are, ticked and cleaned up with them. One per apartment, whoever goes in.
+        /// </summary>
+        internal MapChannel CreateApartment(MapChannel template, uint apartmentId, System.Action<MapChannel> initialize = null)
+        {
+            if (template == null || apartmentId == 0)
+                return null;
+
+            lock (_syncRoot)
+            {
+                if (_apartments.TryGetValue(apartmentId, out var existing))
+                    return existing;
+
+                var instanceId = _nextInstanceId++;
+                var map = new MapChannel
+                {
+                    MapInfo = template.MapInfo,
+                    InstanceId = instanceId,
+                    PlayerLimit = template.PlayerLimit,
+                    ClientList = new List<Game.Client>(),
+                    NavMesh = template.NavMesh,
+                    Cover = template.Cover,
+                    SafetyFloorY = template.SafetyFloorY,
+                    TopWalkableY = template.TopWalkableY,
+                    ApartmentId = apartmentId
+                };
+                initialize?.Invoke(map);
+
+                _instancesByKey.Add(new PrivateMapInstanceKey(template.MapInfo.MapContextId, instanceId), map);
+                _apartments.Add(apartmentId, map);
+                return map;
+            }
+        }
+
+        /// <summary>The copy of an apartment that stands, or null.</summary>
+        internal MapChannel FindApartment(uint apartmentId)
+        {
+            lock (_syncRoot)
+                return _apartments.TryGetValue(apartmentId, out var map) ? map : null;
+        }
+
+        /// <summary>The apartment copies that stand, oldest first.</summary>
+        internal IReadOnlyList<MapChannel> Apartments()
+        {
+            lock (_syncRoot)
+                return _apartments.Values.OrderBy(map => map.InstanceId).ToArray();
+        }
+
+        /// <summary>Takes an apartment's copy off the lists. False when it is not one, or not on them.</summary>
+        internal bool ReleaseApartment(MapChannel map)
+        {
+            if (map == null || !map.IsApartment)
+                return false;
+
+            lock (_syncRoot)
+            {
+                if (!_apartments.TryGetValue(map.ApartmentId, out var listed) || !ReferenceEquals(listed, map))
+                    return false;
+
+                _apartments.Remove(map.ApartmentId);
                 _instancesByKey.Remove(new PrivateMapInstanceKey(map.MapInfo.MapContextId, map.InstanceId));
                 return true;
             }

@@ -104,7 +104,7 @@ namespace Rasa.Managers
             var player = client?.Player;
             var map = player?.MapChannel;
 
-            if (map?.MapInfo == null || player.Id == 0 || map.IsPrivateInstance)
+            if (map?.MapInfo == null || player.Id == 0 || map.IsPrivateInstance || map.IsApartment)
                 return;
 
             // A squad's instance is remembered as a shared copy is (PlaceSquadLogin).
@@ -136,7 +136,8 @@ namespace Rasa.Managers
             var player = client?.Player;
             var own = player?.MapChannel;
 
-            if (own?.MapInfo == null || own.IsPrivateInstance)
+            // An apartment's copy is placed by Apartments.PlaceLogin, which runs first.
+            if (own?.MapInfo == null || own.IsPrivateInstance || own.IsApartment)
                 return;
 
             var mapContextId = own.MapInfo.MapContextId;

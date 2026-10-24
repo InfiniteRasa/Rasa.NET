@@ -381,6 +381,9 @@ namespace Rasa.Managers
 
                 // The clans' control points: their pay, and their weekly reset.
                 Guard("ControlPoints.ClanWorker", null, () => ControlPoints.Instance.ClanWorker());
+
+                // The apartments: who has arrived, who may no longer be inside, which have stood empty long enough.
+                Guard("Apartments.Worker", null, () => Apartments.Instance.Worker());
             }
 
             // Server-wide lists, ticked once. These used to run inside the per-map loop below,

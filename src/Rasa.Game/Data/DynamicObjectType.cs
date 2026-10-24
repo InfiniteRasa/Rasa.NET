@@ -24,6 +24,7 @@
         Destructible        = 20,   // a destructible world object the server put down, shot down by players and back again (PlacedDestructibles)
         PlacedUsable        = 21,   // a usable world object the server put down: a switch, a door, a dispenser, an explosion (PlacedUsables)
         Gibblet             = 22,   // what a corpse leaves its loot on when it goes with loot still on it (LootDispenserManager.LeaveGibblet)
-        Container           = 23    // a lootable container the server put down: a crate, a locker, a corpse (WorldContainers)
+        Container           = 23,   // a lootable container the server put down: a crate, a locker, a corpse (WorldContainers)
+        ApartmentItem       = 24    // an item placed in an apartment: a retail class shown as scenery that may be targeted (Apartments)
     }
 }

@@ -337,6 +337,12 @@ namespace Rasa.Managers
             RegisterCommand(".reloadcreatures", GmLevel.Admin, ReloadCreaturesCommand);
             RegisterCommand(".inventory", GmLevel.Admin, parts => GmSupportCommands.ShowInventory(_client, parts), "familyName/#characterId", "backpack/equipped/lockbox/inbox");
             RegisterCommand(".memory", GmLevel.Admin, MemoryCommand, "map|full");
+
+            // Player: apartments (Apartments.Commands). .apartment help and .decor help list the rest.
+            RegisterCommand(".apartment", GmLevel.Player, parts => Apartments.Instance.ApartmentCommand(_client, parts), "help|visit|code|list|info|invite|uninvite|friends|passcode|name|plot");
+            RegisterCommand(".decor", GmLevel.Player, parts => Apartments.Instance.DecorCommand(_client, parts), "help|cats|list|find|place|near|sel|move|push|here|turn|face|scale|copy|del|undo");
+            RegisterCommand(".leave", GmLevel.Player, parts => Apartments.Instance.Leave(_client));
+            RegisterCommand(".aptadmin", GmLevel.GameMaster, parts => Apartments.Instance.AdminCommand(_client, parts), "name/#characterId", "info|goto|kick|reset|plot");
         }
 
         #region RegularUser
