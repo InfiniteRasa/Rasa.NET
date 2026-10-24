@@ -41,6 +41,9 @@ namespace Rasa.Config
         /// <summary>Clan-owned control points: whether there are any, what one pays and when it is given back (Managers.ControlPoints).</summary>
         public ControlPointConfig ControlPoints { get; set; } = new ControlPointConfig();
 
+        /// <summary>How the control points' outposts defend themselves: gate shields, defenders, turret bursts (Managers.ControlPointFields, Defenders, Emplacements).</summary>
+        public ControlPointDefenceConfig ControlPointDefence { get; set; } = new ControlPointDefenceConfig();
+
         /// <summary>The chances of the weapon modules that fire on a hit (Managers.ItemModuleBonuses).</summary>
         public ItemModulesConfig ItemModules { get; set; } = new ItemModulesConfig();
     }

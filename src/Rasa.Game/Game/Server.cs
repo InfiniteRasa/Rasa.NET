@@ -179,6 +179,9 @@ namespace Rasa.Game
             // Clan-owned control points: a point a clan already holds is as the new values have it from the next pass.
             ControlPoints.Instance.Config = Config.ControlPoints ?? new ControlPointConfig();
 
+            // The control points' defences: their shields, defenders and turrets, from the next think.
+            ControlPointFields.Config = Config.ControlPointDefence ?? new ControlPointDefenceConfig();
+
             // Off, log or refuse for each of the three movement checks, and the three weapon checks.
             MovementChecks.Config = Config.MovementChecks ?? new MovementChecksConfig();
             WeaponChecks.Config = Config.WeaponChecks ?? new WeaponChecksConfig();
