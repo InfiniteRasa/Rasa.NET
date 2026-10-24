@@ -537,6 +537,9 @@ namespace Rasa.Managers
                         // control points: in service once the garrison is down, lost when its own is
                         Guard("ControlPoints.Worker", mapChannel, () => ControlPoints.Instance.Worker(mapChannel));
 
+                        // the raids on them: begun when due, their waves, claims and defence
+                        Guard("BaneRaids.Worker", mapChannel, () => BaneRaids.Instance.Worker(mapChannel));
+
                         // a battleground's match: its teams kept where they may be, its clock and its points
                         Guard("Battlegrounds.Worker", mapChannel, () => Battlegrounds.Instance.Worker(mapChannel));
 

@@ -24,6 +24,12 @@ namespace Rasa.Structures.World
         /// <summary>The creatures come through the map's teleporter at the point, which is switched on for it.</summary>
         public const byte KindTeleporter = 2;
 
+        /// <summary>The AFS dropship (UsableCrSpawnerHumDropshipV01) lands at the point, and its soldiers step off there.</summary>
+        public const byte KindAfsDropship = 3;
+
+        /// <summary>The creatures beam in at the point (their class's CREATURE_BIRTH), with no ship and no teleporter.</summary>
+        public const byte KindBeamIn = 4;
+
         [Key]
         [Column("id")]
         [Required]

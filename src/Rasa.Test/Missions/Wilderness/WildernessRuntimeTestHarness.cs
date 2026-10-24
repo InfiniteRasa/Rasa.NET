@@ -183,11 +183,28 @@ namespace Rasa.Test.Missions.Wilderness
                     Map.SpawnPools.AddRange(selected);
                 }
                 SpawnPoolManager.Instance.SpawnPoolWorker(Map, milliseconds);
+                LandShips();
             }
             finally
             {
                 Map.SpawnPools.Clear();
                 Map.SpawnPools.AddRange(pools);
+            }
+        }
+
+        /// <summary>
+        /// A camp that restocks comes by dropship on the open world (Reinforcements): the ships the spawn
+        /// worker has just sent are flown until their troops are down and they have gone, as the server's
+        /// loop would fly them, so that what was respawned stands when this returns.
+        /// </summary>
+        internal void LandShips()
+        {
+            for (var elapsed = 0; elapsed < 60_000; elapsed += 250)
+            {
+                if (!DynamicObjectManager.Instance.Dropships.Values.Any(ship => ReferenceEquals(ship.RuntimeMapChannel, Map) && ship.DropshipType == DropshipType.Spawner))
+                    return;
+
+                DynamicObjectManager.Instance.DropshipsWorker(Map, 250);
             }
         }
 

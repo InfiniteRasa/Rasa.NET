@@ -43,5 +43,11 @@ namespace Rasa.Config
 
         /// <summary>The chances of the weapon modules that fire on a hit (Managers.ItemModuleBonuses).</summary>
         public ItemModulesConfig ItemModules { get; set; } = new ItemModulesConfig();
+
+        /// <summary>The raids on the control points, the Bane's and the AFS's (Managers.BaneRaids).</summary>
+        public RaidConfig Raids { get; set; } = new RaidConfig();
+
+        /// <summary>How fresh troops come into the open world: by dropship or beamed in (Managers.Reinforcements).</summary>
+        public ReinforcementConfig Reinforcements { get; set; } = new ReinforcementConfig();
     }
 }

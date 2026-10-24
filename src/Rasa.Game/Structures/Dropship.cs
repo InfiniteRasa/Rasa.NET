@@ -58,6 +58,29 @@ namespace Rasa.Structures
             PhaseTimeleft = OverheadBeamMs;
         }
 
+        /// <summary>
+        /// How long a spawner ship stays in each of its states (DynamicObjectManager.DropshipsWorker), with
+        /// Reinforcements.ClipTimings on: never less than the clip its class plays there - the Bane ship's
+        /// bane_vehicle_dropship_flyin / landed / flyout_v01 are 5.73, 8.23 and 5.97 s, the AFS ship's 4.83,
+        /// 4.53 and 5.63 s - nor than the five seconds every state had before. Cut at five seconds, the
+        /// Bane ship jumped from its fly-in into its landing, and lifted off two seconds into a landing
+        /// eight seconds long; a state longer than its clip only holds the clip's last pose. Off, every
+        /// state is as it was.
+        /// </summary>
+        internal long SpawnerFlyInMs => ClipTimed ? Math.Max(StateMs, IsBaneShip ? 5750 : 4850) : StateMs;
+
+        /// <summary>The landing in all, from the beam coming on to the lift-off (phases 2 and 3).</summary>
+        internal long SpawnerLandedMs => ClipTimed ? Math.Max(StateMs, IsBaneShip ? 8250 : 4550) : StateMs;
+
+        internal long SpawnerFlyOutMs => ClipTimed ? Math.Max(StateMs, IsBaneShip ? 6000 : 5650) : StateMs;
+
+        /// <summary>How long every state of a ship took before its clips were looked at.</summary>
+        private const long StateMs = 5000;
+
+        private bool ClipTimed => DropshipType == DropshipType.Spawner && Managers.Reinforcements.Config.ClipTimings;
+
+        private bool IsBaneShip => EntityClassId == Data.EntityClasses.UsableCrSpawnerBaneDropshipV01;
+
         /// <param name="side">Whose ship: FRIENDLY for the AFS (human) dropship, HOSTILE for the Bane one.</param>
         public Dropship(TargetCategory side, DropshipType dropshipType, SpawnPool spawnPool = null)
         {
@@ -66,9 +89,9 @@ namespace Rasa.Structures
             EntityClassId = side == TargetCategory.Friendly ? Data.EntityClasses.UsableCrSpawnerHumDropshipV01 : Data.EntityClasses.UsableCrSpawnerBaneDropshipV01;
             TargetCategory = side;
             StateId = UseObjectState.CsStateBegin;
-            PhaseTimeleft = 5000;
-            Phase = 0;
             DropshipType = dropshipType;
+            PhaseTimeleft = SpawnerFlyInMs;
+            Phase = 0;
             SpawnPool = spawnPool;
             MapContextId = spawnPool.MapContextId;
             Position = new Vector3(

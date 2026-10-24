@@ -46,6 +46,27 @@ namespace Rasa.Structures
         public bool Suspended { get; set; }
 
         /// <summary>
+        /// Its control point is being raided (Managers.BaneRaids): a point under attack gets no
+        /// reinforcements until the raid is over, so the pools of the side holding it are not restocked
+        /// meanwhile. Without it the Landing Zone's soldiers, back two seconds after each fell, held the
+        /// point against every raid.
+        /// </summary>
+        public bool Besieged { get; set; }
+
+        /// <summary>
+        /// Its next spawn comes by ship or beamed in even if it is its first (Managers.Reinforcements): a
+        /// control point's garrison when the point has just changed hands - "a number of Bane will be
+        /// dropshipped in". Cleared as it is sent.
+        /// </summary>
+        public bool ShipNextArrival { get; set; }
+
+        /// <summary>
+        /// The level its creatures are brought to as they are set down (CreatureSummons.Rescale); 0: as
+        /// their rows are. An AFS raid's soldiers come at a level by the point's Bane (Managers.BaneRaids).
+        /// </summary>
+        public uint Level { get; set; }
+
+        /// <summary>
         /// A place on a player's private map they have taken back (a mission scene's
         /// QuietSpawnPoolsIntent): it spawns nothing more there, and does not top up what it lost.
         /// </summary>

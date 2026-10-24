@@ -179,6 +179,10 @@ namespace Rasa.Game
             // Clan-owned control points: a point a clan already holds is as the new values have it from the next pass.
             ControlPoints.Instance.Config = Config.ControlPoints ?? new ControlPointConfig();
 
+            // The raids on the points and how troops come: a raid under way keeps what it was begun with.
+            BaneRaids.Instance.Config = Config.Raids ?? new RaidConfig();
+            Reinforcements.Config = Config.Reinforcements ?? new ReinforcementConfig();
+
             // Off, log or refuse for each of the three movement checks, and the three weapon checks.
             MovementChecks.Config = Config.MovementChecks ?? new MovementChecksConfig();
             WeaponChecks.Config = Config.WeaponChecks ?? new WeaponChecksConfig();
