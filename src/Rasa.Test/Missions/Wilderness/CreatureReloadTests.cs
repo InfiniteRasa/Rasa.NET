@@ -81,7 +81,7 @@ namespace Rasa.Test.Missions.Wilderness
                 .Where(stats => harness.Creatures.LoadedCreatures.Keys.Contains(stats.Id))
                 .OrderBy(stats => stats.Id)
                 .First();
-            harness.World.Database.ExecuteSqlRaw($"UPDATE creature_stat SET body = {row.Body + 7} WHERE id = {row.Id}");
+            harness.World.Database.ExecuteSqlInterpolated($"UPDATE creature_stat SET body = {row.Body + 7} WHERE id = {row.Id}");
 
             var spawned = harness.Creatures.CreateCreature(row.Id, null);
 
