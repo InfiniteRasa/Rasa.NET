@@ -34,7 +34,9 @@ A private or shared copy of the map has the rows as plain placed fields on their
 For the raids (and anything else): `ControlPointFields.Of(point)`, `AnyUp`, `AllUp`, `PointOf(field)`,
 `RebuildsInMs(field)`, `Opening(field)` (the gate's middle and the way through), the events
 `Broken(field, point, byEntityId)` and `Rebuilt(field, point)`, `Strike(map, creature, field)` and
-the `StrikesFields` predicate (default: a creature of no player's that is fighting).
+the `StrikesFields` predicate (default: a creature of no player's that is fighting; widened at
+start-up to every raider of a raid under way by `RaidDefences.Join`, which also makes these shields
+the raids' gates and has a raider held at a gate strike it: [raids](raids.md)).
 
 ## Garrisons
 
