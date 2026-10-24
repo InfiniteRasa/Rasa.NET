@@ -91,6 +91,7 @@ namespace Rasa.Repositories.Char
             CharacterBossKills = new CharacterBossKill.CharacterBossKillRepository(dbContext);
             CharacterGreetingReads = new CharacterGreetingRead.CharacterGreetingReadRepository(dbContext);
             SquadInstances = new SquadInstance.SquadInstanceRepository(dbContext);
+            Apartments = new Apartment.ApartmentRepository(dbContext);
             CharacterMissionItems = new CharacterMissionItem.CharacterMissionItemRepository(dbContext);
             CharacterMissionDeadlines = characterMissionDeadlines;
             CharacterMissionProgress = characterMissionProgress;
@@ -134,6 +135,7 @@ namespace Rasa.Repositories.Char
         public CharacterBossKill.ICharacterBossKillRepository CharacterBossKills { get; }
         public CharacterGreetingRead.ICharacterGreetingReadRepository CharacterGreetingReads { get; }
         public SquadInstance.ISquadInstanceRepository SquadInstances { get; }
+        public Apartment.IApartmentRepository Apartments { get; }
         public CharacterMissionItem.ICharacterMissionItemRepository CharacterMissionItems { get; }
         public ICharacterMissionDeadlineRepository CharacterMissionDeadlines { get; }
         public ICharacterMissionProgressRepository CharacterMissionProgress { get; }

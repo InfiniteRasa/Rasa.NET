@@ -1173,6 +1173,16 @@
                 $"{Client.Player?.Name} sent RequestPlaceObject (item {packet.ItemId}, destination {packet.DestEntityId}, socket {packet.SocketId}); there are no decorations, nothing placed.");
         }
 
+        /// <summary>
+        /// SendMeToMyApartment (180): to the player's own apartment, as .apartment takes them
+        /// (Apartments.GoHome) - refused while they are dead, fighting or between maps.
+        /// </summary>
+        [PacketHandler(GameOpcode.SendMeToMyApartment)]
+        private void SendMeToMyApartment(SendMeToMyApartmentPacket packet)
+        {
+            Apartments.Instance.GoHome(Client);
+        }
+
         [PacketHandler(GameOpcode.PersonalInventory_DestroyItem)]
         private void PersonalInventory_DestroyItem(PersonalInventory_DestroyItemPacket packet)
         {

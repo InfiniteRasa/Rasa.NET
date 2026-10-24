@@ -1018,6 +1018,7 @@ namespace Rasa.Managers
 
                 int listings;
                 Action clanDeparture = null;
+                uint deletedApartment = 0;
 
                 using (var unitOfWork = _gameUnitOfWorkFactory.CreateChar())
                 {
@@ -1041,6 +1042,9 @@ namespace Rasa.Managers
                         // And whatever the crafting stations were making or holding for it.
                         unitOfWork.CraftingJobs.DeleteByCharacter(charactersBySlot.Id);
 
+                        // And its apartment, its invitations into others' and its way back from one.
+                        deletedApartment = unitOfWork.Apartments.DeleteForCharacter(charactersBySlot.Id);
+
                         // Their clan membership: clan_member's foreign key to the character is
                         // Restrict, so with the row standing the delete below failed. The clan
                         // side of it (caches, the members online) waits for the commit.
@@ -1053,6 +1057,7 @@ namespace Rasa.Managers
 
                 clanDeparture?.Invoke();
                 KraftwerksManager.Instance.ForgetCharacter(charactersBySlot.Id);
+                Apartments.Instance.CharacterDeleted(charactersBySlot.Id, deletedApartment);
 
                 if (listings > 0)
                     Logger.WriteLog(LogType.Debug,
@@ -1163,6 +1168,9 @@ namespace Rasa.Managers
             client.ReloadGameAccountEntry();
             client.Player = CreateCharacterManifestation(client, character);
             client.Player.MapChannel = StartingExperience.ResolveMap(character, startingState);
+
+            // Left the world in an apartment: back into it, or where they came from (Apartments).
+            Apartments.Instance.PlaceLogin(client);
 
             // A map that runs in copies: back into the copy they left, or outside its door.
             MapChannelManager.Instance.PlaceLogin(client);

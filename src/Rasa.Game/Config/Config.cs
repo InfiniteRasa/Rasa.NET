@@ -41,6 +41,9 @@ namespace Rasa.Config
         /// <summary>Clan-owned control points: whether there are any, what one pays and when it is given back (Managers.ControlPoints).</summary>
         public ControlPointConfig ControlPoints { get; set; } = new ControlPointConfig();
 
+        /// <summary>Players' apartments: whether there are any, their budget, how many stand open and for how long (Managers.Apartments).</summary>
+        public ApartmentConfig Apartments { get; set; } = new ApartmentConfig();
+
         /// <summary>The chances of the weapon modules that fire on a hit (Managers.ItemModuleBonuses).</summary>
         public ItemModulesConfig ItemModules { get; set; } = new ItemModulesConfig();
 

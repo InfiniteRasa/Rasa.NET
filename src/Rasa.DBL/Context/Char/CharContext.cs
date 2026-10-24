@@ -72,6 +72,10 @@ namespace Rasa.Context.Char
         public DbSet<SquadInstanceEntry> SquadInstanceEntries { get; set; }
         public DbSet<SquadInstancePoolEntry> SquadInstancePoolEntries { get; set; }
         public DbSet<SquadInstanceVisitorEntry> SquadInstanceVisitorEntries { get; set; }
+        public DbSet<ApartmentEntry> ApartmentEntries { get; set; }
+        public DbSet<ApartmentItemEntry> ApartmentItemEntries { get; set; }
+        public DbSet<ApartmentVisitorEntry> ApartmentVisitorEntries { get; set; }
+        public DbSet<ApartmentReturnEntry> ApartmentReturnEntries { get; set; }
         public DbSet<ControlPointStateEntry> ControlPointStateEntries { get; set; }
         public DbSet<AuctionEntry> AuctionEntries { get; set; }
 
@@ -152,6 +156,7 @@ namespace Rasa.Context.Char
             SetupClanFeudTables(modelBuilder);
             SetupControlPointStateTable(modelBuilder);
             SetupSquadInstanceTables(modelBuilder);
+            SetupApartmentTables(modelBuilder);
             SetupFriendTable(modelBuilder);
             SetupIgnoredTable(modelBuilder);
             SetupPetitionTable(modelBuilder);
@@ -611,6 +616,18 @@ namespace Rasa.Context.Char
 
             // Keyed by the character: never generated here.
             modelBuilder.Entity<SquadInstanceVisitorEntry>()
+                .Property(e => e.CharacterId)
+                .ValueGeneratedNever();
+        }
+
+        private void SetupApartmentTables(ModelBuilder modelBuilder)
+        {
+            // One row per apartment and invited character.
+            modelBuilder.Entity<ApartmentVisitorEntry>()
+                .HasKey(e => new { e.ApartmentId, e.CharacterId });
+
+            // Keyed by the character: never generated here.
+            modelBuilder.Entity<ApartmentReturnEntry>()
                 .Property(e => e.CharacterId)
                 .ValueGeneratedNever();
         }

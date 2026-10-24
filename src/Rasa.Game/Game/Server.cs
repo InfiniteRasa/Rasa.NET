@@ -176,6 +176,9 @@ namespace Rasa.Game
             // The maps entered as a squad's own instance. An instance already open stays as it is.
             SquadInstancePolicies.Apply(Config.SquadInstances);
 
+            // Apartments: their budget, limits and idle time; an open apartment keeps its items.
+            Apartments.Config = Config.Apartments ?? new ApartmentConfig();
+
             // The numbers of the Edmund Range match; a match being played keeps its clock.
             Battlegrounds.Instance.Config = Config.Battleground ?? new BattlegroundConfig();
 
@@ -696,6 +699,10 @@ namespace Rasa.Game
             PlacedDestructibles.Init(GameUnitOfWorkFactory);
             PlacedUsables.Init(GameUnitOfWorkFactory);
             WorldContainers.Init(GameUnitOfWorkFactory);
+
+            // After the maps and the entity classes: plots on maps that are not loaded, and
+            // catalogue classes the world does not have, are left out.
+            Apartments.Instance.Init(GameUnitOfWorkFactory);
             MapMarkerManager.Instance.MapMarkerInit();
             SpawnPoolManager.Instance.ValidatePools();
             RecipeManager.Instance.RecipeInit();

@@ -103,6 +103,10 @@ namespace Rasa.Managers
         /// </summary>
         public static (Vector3 Position, float Rotation)? Of(MapChannel map, Manifestation player)
         {
+            // An apartment's copy: its entry, or beside its medbay (Apartments).
+            if (map?.IsApartment == true)
+                return Apartments.EntranceOf(map);
+
             if (map?.MapInfo == null || !map.IsSquadInstance)
                 return null;
 

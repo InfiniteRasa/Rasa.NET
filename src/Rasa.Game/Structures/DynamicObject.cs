@@ -34,6 +34,9 @@ namespace Rasa.Structures
         public uint MapContextId { get; set; }
         public MapChannel RuntimeMapChannel { get; set; }
 
+        /// <summary>The size it is shown at (BodyAttributes): 1 for every object but an apartment's items (Apartments).</summary>
+        public float Scale { get; set; } = 1f;
+
         /// <summary>
         /// How far off a client is given it, beyond its cells: 0 for as far as its cells reach,
         /// as every object. Its scene actor's ViewRadius (Managers.Landmarks).

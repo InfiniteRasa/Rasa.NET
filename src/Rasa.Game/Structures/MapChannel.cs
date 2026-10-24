@@ -36,8 +36,18 @@ namespace Rasa.Structures
         /// <summary>What a squad instance keeps of itself and saves (Managers.SquadInstanceState); null for every other channel.</summary>
         public Managers.SquadInstanceState SquadState { get; set; }
 
-        /// <summary>Whether this is a copy of a map - somebody's, a squad's, or shared - rather than the map's own channel.</summary>
-        public bool IsCopy => IsPrivateInstance || IsSharedInstance || IsSquadInstance;
+        /// <summary>
+        /// The apartment this channel is the copy of (Managers.Apartments), or 0 for every other
+        /// channel: a blank copy of the plot's map - none of its spawn pools, objects, doors or
+        /// triggers - holding the apartment's items, one for each apartment whoever is in it.
+        /// </summary>
+        public uint ApartmentId { get; set; }
+
+        /// <summary>Whether this is an apartment's copy of a map.</summary>
+        public bool IsApartment => ApartmentId != 0;
+
+        /// <summary>Whether this is a copy of a map - somebody's, a squad's, shared or an apartment - rather than the map's own channel.</summary>
+        public bool IsCopy => IsPrivateInstance || IsSharedInstance || IsSquadInstance || IsApartment;
 
         /// <summary>When a shared copy was last seen with nobody in it or on the way (Environment.TickCount64 as the manager reads it); 0 while it has somebody.</summary>
         public long EmptySince { get; set; }

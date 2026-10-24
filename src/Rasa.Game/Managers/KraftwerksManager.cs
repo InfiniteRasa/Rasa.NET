@@ -150,26 +150,14 @@ namespace Rasa.Managers
             {
                 if (!_stations.ContainsKey(row.KraftwerksId))
                 {
-                    orphaned++;
+                    // An apartment's station is placed when its apartment opens (PlaceApartmentStation).
+                    if (row.KraftwerksId < ApartmentStationIdBase)
+                        orphaned++;
+
                     continue;
                 }
 
-                var key = (row.KraftwerksId, row.CharacterId);
-
-                if (!_jobs.TryGetValue(key, out var jobs))
-                    _jobs[key] = jobs = new List<CraftingJob>();
-
-                jobs.Add(new CraftingJob
-                {
-                    ResultItemId = row.Id,
-                    ResultClassId = row.ResultClassId,
-                    ResultItemTemplateId = row.ResultTemplateId,
-                    Count = row.Count,
-                    CraftingPage = row.CraftingPage,
-                    QualityId = row.QualityId,
-                    FinishTick = tick + (long)Math.Max(0, (row.FinishAt - now).TotalMilliseconds),
-                    Persisted = true
-                });
+                TakeJobRow(row, now, tick);
                 loaded++;
             }
 
@@ -177,6 +165,91 @@ namespace Rasa.Managers
 
             if (orphaned > 0)
                 Logger.WriteLog(LogType.Error, $"{orphaned} crafting job row(s) are at stations that are not placed; left in crafting_job");
+        }
+
+        /// <summary>A crafting_job row into memory, with the time it had left.</summary>
+        private void TakeJobRow(Structures.Char.CraftingJobEntry row, DateTime now, long tick)
+        {
+            var key = (row.KraftwerksId, row.CharacterId);
+
+            if (!_jobs.TryGetValue(key, out var jobs))
+                _jobs[key] = jobs = new List<CraftingJob>();
+
+            jobs.Add(new CraftingJob
+            {
+                ResultItemId = row.Id,
+                ResultClassId = row.ResultClassId,
+                ResultItemTemplateId = row.ResultTemplateId,
+                Count = row.Count,
+                CraftingPage = row.CraftingPage,
+                QualityId = row.QualityId,
+                FinishTick = tick + (long)Math.Max(0, (row.FinishAt - now).TotalMilliseconds),
+                Persisted = true
+            });
+        }
+
+        /// <summary>
+        /// The first kraftwerks id of the apartments' crafting stations (Managers.Apartments): an
+        /// apartment item's station is this plus the item's row id, so that its jobs are kept in
+        /// crafting_job as any station's are, under an id no kraftwerks row has.
+        /// </summary>
+        public const uint ApartmentStationIdBase = 2_000_000_000;
+
+        /// <summary>
+        /// Puts an apartment's crafting station on its copy as the table's are put on their maps:
+        /// in the table and the copy's list, its jobs loaded from crafting_job the first time it
+        /// is placed in this run (they stay in memory when the apartment closes, as any job does).
+        /// The caller puts the object in the world.
+        /// </summary>
+        internal void PlaceApartmentStation(MapChannel mapChannel, DynamicObject obj, uint stationId)
+        {
+            obj.DynamicObjectType = DynamicObjectType.Kraftwerks;
+            obj.StateId = UseObjectState.CrafterState0;
+            obj.WindupTime = UseWindupMs;
+
+            Register(new Station
+            {
+                Entry = new KraftwerksEntry
+                {
+                    Id = stationId,
+                    ClassId = (uint)obj.EntityClassId,
+                    MapContextId = mapChannel.MapInfo.MapContextId,
+                    PosX = obj.Position.X,
+                    PosY = obj.Position.Y,
+                    PosZ = obj.Position.Z,
+                    Rotation = obj.Rotation,
+                    Comment = obj.Comment
+                },
+                Object = obj
+            }, mapChannel);
+            obj.IsInWorld = true;
+
+            if (_gameUnitOfWorkFactory == null || _jobs.Keys.Any(key => key.station == stationId))
+                return;
+
+            try
+            {
+                using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+                var now = DateTime.UtcNow;
+                var tick = Environment.TickCount64;
+
+                foreach (var row in unitOfWork.CraftingJobs.GetAll().Where(row => row.KraftwerksId == stationId))
+                    TakeJobRow(row, now, tick);
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, $"The crafting jobs of apartment station {stationId} could not be read: {e.Message}");
+            }
+        }
+
+        /// <summary>Takes an apartment's crafting station off the table and its copy's list; its jobs are kept. The caller takes the object out of the world.</summary>
+        internal void RemoveApartmentStation(MapChannel mapChannel, uint stationId)
+        {
+            if (stationId < ApartmentStationIdBase)
+                return;
+
+            _stations.Remove(stationId);
+            mapChannel?.Kraftwerks.Remove(stationId);
         }
 
         /// <summary>
