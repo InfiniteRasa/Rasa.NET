@@ -2742,11 +2742,139 @@ namespace Rasa.Managers
         internal void GainExperience(Client client, uint experience, CritKill critKill = CritKill.None, int streakMod = 1,
             double groupMod = 1, double boosterMod = 1, uint? baseGained = null)
         {
+            GainExperience(new[]
+            {
+                new ExperienceAward
+                {
+                    Client = client,
+                    Experience = experience,
+                    CritKill = critKill,
+                    StreakMod = streakMod,
+                    GroupMod = groupMod,
+                    BoosterMod = boosterMod,
+                    BaseGained = baseGained
+                }
+            });
+        }
+
+        /// <summary>One player's experience from a kill, and what their line says of it (GainExperience).</summary>
+        internal sealed class ExperienceAward
+        {
+            internal Client Client { get; init; }
+            internal uint Experience { get; init; }
+            internal CritKill CritKill { get; init; }
+            internal int StreakMod { get; init; } = 1;
+            internal double GroupMod { get; init; } = 1;
+            internal double BoosterMod { get; init; } = 1;
+            internal uint? BaseGained { get; init; }
+        }
+
+        /// <summary>An award worked out against the player as the server has them, before it is saved.</summary>
+        private sealed class PlannedExperience
+        {
+            internal ExperienceAward Award { get; init; }
+            internal uint ExperienceAfter { get; init; }
+            internal byte LevelBefore { get; init; }
+            internal byte LevelAfter { get; init; }
+            internal uint CloneCreditsAfter { get; init; }
+
+            internal Repositories.Char.Character.CharacterProgressionChange Change => new Repositories.Char.Character.CharacterProgressionChange
+            {
+                Id = Award.Client.Player.Id,
+                ExpectedExperience = Award.Client.Player.Experience,
+                ExpectedLevel = Award.Client.Player.Level,
+                ExpectedCloneCredits = Award.Client.Player.CloneCredits,
+                Experience = ExperienceAfter,
+                Level = LevelAfter,
+                CloneCredits = CloneCreditsAfter
+            };
+        }
+
+        /// <summary>
+        /// Experience for several players at once - everyone sharing a kill (KillShares) - saved
+        /// in one transaction, and then told to each of them as GainExperience tells one.
+        ///
+        /// Each award used to be a transaction of its own, on the world loop: a context made, the
+        /// row read with the account, appearance and clan it brings, read again to be written,
+        /// saved, and the commit waited for - for each of the squad, at every kill. Now it is one
+        /// read of all their rows and one save (ICharacterRepository.UpdateCharactersProgression).
+        ///
+        /// What each player is paid is what they would have been paid by one at a time: each row
+        /// is checked against that player as before, and one whose row has changed underneath
+        /// is refused and logged without costing the others theirs. A save that fails saves none
+        /// of them, and tells none of them: nothing is paid that was not saved. A player in it
+        /// twice is paid the second time after the others, by themselves.
+        /// </summary>
+        internal void GainExperience(IReadOnlyList<ExperienceAward> awards)
+        {
+            if (awards == null || awards.Count == 0)
+                return;
+
+            var planned = new List<PlannedExperience>();
+            var again = new List<ExperienceAward>();
+
+            foreach (var award in awards)
+            {
+                var plan = PlanAward(award);
+
+                if (plan == null)
+                    continue;
+
+                if (planned.Any(other => other.Award.Client.Player.Id == award.Client.Player.Id))
+                    again.Add(award);
+                else
+                    planned.Add(plan);
+            }
+
+            if (planned.Count > 0)
+            {
+                var changes = planned.Select(plan => plan.Change).ToList();
+                IReadOnlyCollection<uint> refused = Array.Empty<uint>();
+
+                try
+                {
+                    using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+                    unitOfWork.ExecuteTransaction(() =>
+                        refused = unitOfWork.Characters.UpdateCharactersProgression(changes));
+                }
+                catch (Exception error) when (
+                    error is GameplayRejectionException ||
+                    error is DbUpdateException ||
+                    error is DbException)
+                {
+                    foreach (var plan in planned)
+                        Logger.WriteLog(LogType.Error,
+                            $"Could not persist experience for character {plan.Award.Client.Player.Id}: {error.Message}");
+                    planned.Clear();
+                }
+
+                foreach (var plan in planned)
+                {
+                    if (refused.Contains(plan.Award.Client.Player.Id))
+                    {
+                        Logger.WriteLog(LogType.Error,
+                            $"Could not persist experience for character {plan.Award.Client.Player.Id}: Durable progression changed before experience could be awarded.");
+                        continue;
+                    }
+
+                    PublishGainedExperience(plan);
+                }
+            }
+
+            foreach (var award in again)
+                GainExperience(new[] { award });
+        }
+
+        /// <summary>What an award makes of the player: experience, level and clone credits after it. Null for one that pays nothing.</summary>
+        private PlannedExperience PlanAward(ExperienceAward award)
+        {
+            var client = award?.Client;
             var player = client?.Player;
+            var experience = award?.Experience ?? 0;
             if (player == null || experience == 0 || client.State != ClientState.Ingame ||
                 !CellManager.Instance.IsInWorld(client) ||
                 player.Level < 1 || player.Level >= MaxPlayerLevel)
-                return;
+                return null;
 
             uint experienceAfter;
             try
@@ -2755,7 +2883,7 @@ namespace Rasa.Managers
             }
             catch (OverflowException)
             {
-                return;
+                return null;
             }
 
             var levelBefore = player.Level;
@@ -2777,38 +2905,34 @@ namespace Rasa.Managers
             }
             catch (OverflowException)
             {
-                return;
+                return null;
             }
 
-            try
+            return new PlannedExperience
             {
-                using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
-                unitOfWork.ExecuteTransaction(() =>
-                {
-                    var character = unitOfWork.Characters.Find(player.Id);
-                    if (character == null ||
-                        character.Experience != player.Experience ||
-                        character.Level != player.Level ||
-                        character.CloneCredits != player.CloneCredits)
-                        throw new GameplayRejectionException(
-                            "Durable progression changed before experience could be awarded.");
+                Award = award,
+                ExperienceAfter = experienceAfter,
+                LevelBefore = levelBefore,
+                LevelAfter = levelAfter,
+                CloneCreditsAfter = cloneCreditsAfter
+            };
+        }
 
-                    unitOfWork.Characters.UpdateCharacterProgression(
-                        player.Id, experienceAfter, levelAfter);
-                    if (cloneCreditsAfter != player.CloneCredits)
-                        unitOfWork.Characters.UpdateCharacterCloneCredits(
-                            player.Id, cloneCreditsAfter);
-                });
-            }
-            catch (Exception error) when (
-                error is GameplayRejectionException ||
-                error is DbUpdateException ||
-                error is DbException)
-            {
-                Logger.WriteLog(LogType.Error,
-                    $"Could not persist experience for character {player.Id}: {error.Message}");
-                return;
-            }
+        /// <summary>A saved award, to the player's client and those who see them: the experience line, and each level it reached.</summary>
+        private void PublishGainedExperience(PlannedExperience plan)
+        {
+            var award = plan.Award;
+            var client = award.Client;
+            var player = client.Player;
+            var experience = award.Experience;
+            var experienceAfter = plan.ExperienceAfter;
+            var levelBefore = plan.LevelBefore;
+            var levelAfter = plan.LevelAfter;
+            var critKill = award.CritKill;
+            var streakMod = award.StreakMod;
+            var groupMod = award.GroupMod;
+            var boosterMod = award.BoosterMod;
+            var baseGained = award.BaseGained;
 
             player.Experience = experienceAfter;
             client.CallMethod(player.EntityId,

@@ -25,6 +25,13 @@ namespace Rasa.Repositories.Char.Character
         void UpdateCharacterPrestige(uint id, int prestige);
         void UpdateCharacterExpirience(uint id, uint experience);
         void UpdateCharacterProgression(uint id, uint experience, byte level);
+
+        /// <summary>
+        /// Several characters' experience, level and clone credits, read in one query and
+        /// written in one save: everyone sharing a kill. A change whose row is gone, or no
+        /// longer holds what it expects, is not written; their ids are returned.
+        /// </summary>
+        IReadOnlyCollection<uint> UpdateCharactersProgression(IReadOnlyCollection<CharacterProgressionChange> changes);
         void ReconcileBootcampCharacter(
             uint id,
             uint experience,

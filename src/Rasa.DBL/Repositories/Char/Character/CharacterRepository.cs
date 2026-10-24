@@ -259,6 +259,44 @@ namespace Rasa.Repositories.Char.Character
             _charContext.SaveChanges();
         }
 
+        /// <summary>
+        /// The batch form of UpdateCharacterProgression and UpdateCharacterCloneCredits, with the
+        /// check GainExperience made of each row: one query for every row, without the account,
+        /// appearance and clan Find brings with it, and one SaveChanges, which EF sends as one
+        /// batch of UPDATEs. Each of those was a round trip and a save of its own for each
+        /// player sharing a kill.
+        /// </summary>
+        public IReadOnlyCollection<uint> UpdateCharactersProgression(IReadOnlyCollection<CharacterProgressionChange> changes)
+        {
+            if (changes == null || changes.Count == 0)
+                return Array.Empty<uint>();
+
+            var ids = changes.Select(change => change.Id).Distinct().ToArray();
+            var rows = _charContext.CreateTrackingQuery(_charContext.CharacterEntries)
+                .Where(entry => ids.Contains(entry.Id))
+                .ToDictionary(entry => entry.Id);
+            var rejected = new List<uint>();
+
+            foreach (var change in changes)
+            {
+                if (!rows.TryGetValue(change.Id, out var row) ||
+                    row.Experience != change.ExpectedExperience ||
+                    row.Level != change.ExpectedLevel ||
+                    row.CloneCredits != change.ExpectedCloneCredits)
+                {
+                    rejected.Add(change.Id);
+                    continue;
+                }
+
+                row.Experience = change.Experience;
+                row.Level = change.Level;
+                row.CloneCredits = change.CloneCredits;
+            }
+
+            _charContext.SaveChanges();
+            return rejected;
+        }
+
         public void ReconcileBootcampCharacter(
             uint id,
             uint experience,
