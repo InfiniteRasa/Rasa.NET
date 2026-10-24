@@ -22,6 +22,21 @@ namespace Rasa.Managers
         private static readonly object InstanceLock = new object();
         public static readonly float CellSize = 25.6f;
         public static readonly float CellBias = 32768.0f;
+
+        /// <summary>
+        /// Whether something at this position can be put in the cells: its cell and the 5x5 matrix
+        /// around it (CreateCellMatrix, two cells each way) must fit the 16-bit x and z of a cell's
+        /// key, or GetCell throws. A position about 838 km or more from the map's centre does not -
+        /// world data with a lost decimal point, such as teleporter 86 (MarkedTeleporters) - and
+        /// neither does one that is not a number.
+        /// </summary>
+        public static bool InCellRange(Vector3 position)
+        {
+            var x = position.X / CellSize + CellBias;
+            var z = position.Z / CellSize + CellBias;
+
+            return x >= 2 && z >= 2 && x < ushort.MaxValue - 1 && z < ushort.MaxValue - 1;
+        }
         private const uint CellViewRange = 2;
         private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
         public static CellManager Instance
