@@ -156,6 +156,40 @@ namespace Rasa.Navigation
             return _navMesh.GetTileAndPolyByRef(poly, out _, out var p).Succeeded() && (p.flags & NavMeshFlags.Underground) != 0;
         }
 
+        /// <summary>
+        /// The walkable surface built under the terrain (<see cref="NavMeshFlags.Underground"/>)
+        /// that the point stands on: the place on the surface nearest to it, when that is no
+        /// further from the point than <paramref name="across"/> to the side,
+        /// <paramref name="below"/> under it and <paramref name="above"/> over it and was built
+        /// under the terrain; null otherwise. A closer look than <see cref="IsUnderground"/>, which
+        /// takes the nearest surface within the search extents - four metres to the side, eight up
+        /// and down - whatever lies between: a point inside a hill is matched to the floor of the
+        /// cave under it by that, and not by this (Managers.Sight).
+        /// </summary>
+        public Vector3? UndergroundFloor(Vector3 position, float across, float below, float above)
+        {
+            // A box round the point, as far under it as over it: of two floors one over the other, the
+            // one it stands on is the nearest.
+            var extents = new RcVec3f(across, Math.Max(below, above), across);
+            var status = _query.FindNearestPoly(ToRc(position), extents, _filter, out var poly, out var point, out _);
+
+            if (!status.Succeeded() || poly == 0)
+                return null;
+
+            // The box finds every polygon that reaches into it; the surface itself has to be as near as asked.
+            var dx = point.X - position.X;
+            var dy = point.Y - position.Y;
+            var dz = point.Z - position.Z;
+
+            if (dx * dx + dz * dz > across * across || dy < -below || dy > above)
+                return null;
+
+            if (!_navMesh.GetTileAndPolyByRef(poly, out _, out var p).Succeeded() || (p.flags & NavMeshFlags.Underground) == 0)
+                return null;
+
+            return ToVector(point);
+        }
+
         /// <summary>The height of the walkable surface under (x, z) nearest to the point's y, or null.</summary>
         public float? GroundHeight(Vector3 position)
         {

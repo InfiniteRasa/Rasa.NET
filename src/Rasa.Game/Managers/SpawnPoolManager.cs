@@ -81,7 +81,9 @@ namespace Rasa.Managers
         /// </summary>
         private static void Emptied(SpawnPool spawnPool)
         {
-            spawnPool.UpdateTimer = 0;
+            // On a battlefield it stays down as long as its kind asks (RespawnPace): its timer starts that much
+            // below zero, so whatever puts a pool back at once by setting its timer up still does.
+            spawnPool.UpdateTimer = -RespawnPace.Down(spawnPool);
 
             if (spawnPool.Mode == ModeAutomatic && spawnPool.SpawnPolicy != Structures.World.MissionSpawnGroupPolicy.ScenarioControlled)
                 spawnPool.RuntimeMapChannel?.SquadState?.PoolCleared(spawnPool);
@@ -136,13 +138,19 @@ namespace Rasa.Managers
             Filled(spawnPool);
         }
 
-        internal void DecreaseAliveCreatureCount(MapChannel mapChannel, SpawnPool spawnPool)
+        /// <param name="killed">The creature that was killed, when one was: on a battlefield what it lost comes back no sooner than its pace (RespawnPace.Lost).</param>
+        internal void DecreaseAliveCreatureCount(MapChannel mapChannel, SpawnPool spawnPool, Creature killed = null)
         {
             spawnPool.AliveCreatures--;
             if ((spawnPool.DropshipQueue + spawnPool.QueuedCreatures + spawnPool.AliveCreatures) == 0)
                 Emptied(spawnPool);
-            else if (spawnPool.UpdateTimer >= spawnPool.RespawnTime)
-                spawnPool.UpdateTimer = 0; // its first loss since it was whole: the top-up's time starts (TopUp)
+            else
+            {
+                if (spawnPool.UpdateTimer >= spawnPool.RespawnTime)
+                    spawnPool.UpdateTimer = 0; // its first loss since it was whole: the top-up's time starts (TopUp)
+
+                RespawnPace.Lost(spawnPool, killed);
+            }
         }
 
         public void IncreaseDeadCreatureCount(SpawnPool spawnPool)

@@ -289,7 +289,7 @@ namespace Rasa.Managers
             // tell spawnpool if set
             if (creature.SpawnPool != null)
             {
-                SpawnPoolManager.Instance.DecreaseAliveCreatureCount(mapChannel, creature.SpawnPool);
+                SpawnPoolManager.Instance.DecreaseAliveCreatureCount(mapChannel, creature.SpawnPool, creature);
                 SpawnPoolManager.Instance.IncreaseDeadCreatureCount(creature.SpawnPool);
                 if (creature.SpawnPool.SceneRunId == null)
                     (_missionManager ?? MissionApplication.Instance).RecordScenarioCreatureDeath(creature.SpawnPool);
