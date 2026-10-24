@@ -49,5 +49,11 @@ namespace Rasa.Config
 
         /// <summary>When each map's navmesh and cover are read, and let go of (Managers.LazyNavigation).</summary>
         public NavigationConfig Navigation { get; set; } = new NavigationConfig();
+
+        /// <summary>How often a player's killing blow leaves a creature staggering for a Critical Death finisher, and whether a morphed player has them (Managers.CritDeathManager).</summary>
+        public CritDeathConfig CritDeath { get; set; } = new CritDeathConfig();
+
+        /// <summary>Whether the missions' radiation and toxic gas volumes hurt, and how hard (Managers.MissionHazards).</summary>
+        public HazardsConfig Hazards { get; set; } = new HazardsConfig();
     }
 }

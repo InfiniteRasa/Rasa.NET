@@ -436,6 +436,20 @@ namespace Rasa.Managers
             }
 
             var healthTaken = Math.Min(amount - armorTaken, health.Current);
+
+            // A player's killing blow on a creature may leave it staggering on one health instead of dead
+            // (CritDeathManager.StaggersOnKillingBlow, appsettings.json's CritDeath; not a tick of damage over
+            // time): the part of the blow that would have killed it is not dealt, the armour went as it would
+            // have, and the hit reports what it dealt.
+            var staggered = target is Creature staggering && healthTaken > 0 && healthTaken >= health.Current
+                && CritDeathManager.Instance.StaggersOnKillingBlow(staggering, source, isPeriodic);
+
+            if (staggered)
+            {
+                healthTaken = health.Current - 1;
+                outcome.Delivered = armorTaken + healthTaken;
+            }
+
             if (target is Creature damagedCreature)
                 CreatureManager.RecordCombatDamage(mapChannel, damagedCreature, source, armorTaken + healthTaken);
             health.Current -= healthTaken;
@@ -467,7 +481,7 @@ namespace Rasa.Managers
                     else
                         Logger.WriteLog(LogType.Error, $"Creature {creature.EntityId} was killed with no source to credit; it stays at zero.");
                 }
-                else if (CritDeathManager.Instance.TryEnterPreDeath(mapChannel, creature, source, damageType))
+                else if (CritDeathManager.Instance.TryEnterPreDeath(mapChannel, creature, source, damageType, staggered))
                 {
                     // Held near death for a finisher; it does not turn on anyone.
                 }

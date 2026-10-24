@@ -612,6 +612,9 @@ namespace Rasa.Managers
 
                         // Lava: whoever is standing in it burns, moving or not.
                         Guard("LavaDamage.Worker", mapChannel, () => LavaDamage.Worker(mapChannel));
+
+                        // The missions' radiation and toxic gas: whoever stands in one has its effect put on or kept on.
+                        Guard("MissionHazards.Worker", mapChannel, () => MissionHazards.Worker(mapChannel));
                     }
 
                     // a second's health, armour, power and chi for everyone here

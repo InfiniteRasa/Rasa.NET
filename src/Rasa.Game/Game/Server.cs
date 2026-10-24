@@ -195,6 +195,12 @@ namespace Rasa.Game
             // When the maps' navmeshes and cover are read, and let go of. Lazy is read at the start only.
             LazyNavigation.Config = Config.Navigation ?? new NavigationConfig();
 
+            // How often a player's killing blow leaves a creature staggering for a Critical Death finisher: from the next blow on.
+            CritDeathManager.Config = Config.CritDeath ?? new CritDeathConfig();
+
+            // Whether the missions' radiation and toxic gas hurt, and how hard: from the next second on.
+            MissionHazards.Config = Config.Hazards ?? new HazardsConfig();
+
             // A message changed by editing the file goes to everyone in the world, from the loop;
             // the first load is before anyone is here.
             if (MessageOfTheDay.Apply(Config.MessageOfTheDay) && _motdApplied)
