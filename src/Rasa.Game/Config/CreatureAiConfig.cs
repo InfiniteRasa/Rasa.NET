@@ -28,5 +28,18 @@ namespace Rasa.Config
         /// finely; 1 is one group, beating once an interval as the map did, but phase-locked.
         /// </summary>
         public int ThinkSlots { get; set; } = 10;
+
+        /// <summary>
+        /// Every route a creature asks for is searched as a chase's is (NavMeshQuery
+        /// .FindPathBounded): a goal no route reaches is searched only so far, and what the search
+        /// found toward it is remembered by the map's navmesh for the next creature that asks the
+        /// same. A goal that can be reached gets the route it always did.
+        ///
+        /// Off, only chases are bounded: a minion following its master onto ground no route reaches,
+        /// a creature going home to a point it cannot get to, walk the whole of their walkable
+        /// region before they give up - up to 110,000 polygons and 780 ms on Howling Maw, 320 ms on
+        /// Wilderness, for a follower every 500 ms. On by default.
+        /// </summary>
+        public bool BoundedPathSearches { get; set; } = true;
     }
 }

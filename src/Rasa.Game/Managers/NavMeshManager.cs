@@ -382,12 +382,15 @@ namespace Rasa.Managers
         /// route goes: one in another walkable region than the start is searched only so far
         /// (NavMeshQuery.FindPathBounded). <paramref name="complete"/> is false when the path stops
         /// short of the goal; with no navmesh, or either end off it, the path is null and complete false.
+        /// With CreatureAi.BoundedPathSearches on, what a search toward such a goal found is kept by
+        /// the map's navmesh for the next to ask between the same polygons (NavMeshQuery's remember).
         /// </summary>
         public static List<Vector3> FindPathBounded(MapChannel mapChannel, Vector3 start, Vector3 end, out bool complete)
         {
             complete = false;
 
-            return mapChannel?.NavMesh?.FindPathBounded(start, end, out complete);
+            return mapChannel?.NavMesh?.FindPathBounded(start, end, out complete,
+                remember: BehaviorManager.Config?.BoundedPathSearches == true);
         }
     }
 }

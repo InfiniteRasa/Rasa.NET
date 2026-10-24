@@ -35,6 +35,13 @@ namespace Rasa.Navigation
         /// </summary>
         public const int UnreachableSearchNodes = 4096;
 
+        /// <summary>
+        /// How many searches toward a goal no route reaches <see cref="FindPathBounded"/> keeps
+        /// the corridors of (<see cref="_unreachable"/>). A corridor is a few hundred polygon refs
+        /// at most; when the table is full the oldest is let go of.
+        /// </summary>
+        public const int UnreachableMemory = 512;
+
         /// <summary>The walkable regions of each mesh (<see cref="Regions"/>), worked out once and shared by every query on it.</summary>
         private static readonly ConditionalWeakTable<DtNavMesh, int[][]> RegionsOf = new();
 
@@ -44,6 +51,18 @@ namespace Rasa.Navigation
         private readonly IRcRand _random = new RcRand();
         private readonly long[] _polys = new long[MaxPolys];
         private readonly DtStraightPath[] _straight = new DtStraightPath[MaxStraightPath];
+
+        /// <summary>
+        /// The corridors bounded searches found toward goals no route reaches, by the polygons the
+        /// search went from and to, and the order they were found in, oldest first. A search
+        /// between two polygons of different regions finds the same corridor every time - the mesh
+        /// does not change once it is read - so a creature that asks again, or another one that
+        /// asks the same, is handed it without a search. The straight path along it is still
+        /// worked out from the asker's own start and goal. Only for the budget a search was made
+        /// with: a different budget searches afresh.
+        /// </summary>
+        private readonly Dictionary<(long From, long To, int Budget), long[]> _unreachable = new Dictionary<(long, long, int), long[]>();
+        private readonly Queue<(long From, long To, int Budget)> _unreachableOrder = new Queue<(long, long, int)>();
 
         public NavMeshQuery(DtNavMesh navMesh)
         {
@@ -58,6 +77,12 @@ namespace Rasa.Navigation
 
         /// <summary>How many path searches this query has run.</summary>
         public long Searches { get; private set; }
+
+        /// <summary>How many bounded searches toward a goal no route reaches were answered from what an earlier one found, without searching.</summary>
+        public long UnreachableRecalled { get; private set; }
+
+        /// <summary>How many corridors toward goals no route reaches are remembered now.</summary>
+        public int UnreachableRemembered => _unreachable.Count;
 
         /// <summary>
         /// How low and how high the map goes, as far as the navmesh knows. Lowest is the lowest
@@ -170,8 +195,14 @@ namespace Rasa.Navigation
         /// <paramref name="maxNodes"/> nodes, and the path goes as near the goal as those got. A goal
         /// that can be reached is searched in full, as FindPath does, and gets the same route. For a
         /// creature chasing what it may not be able to reach.
+        ///
+        /// <paramref name="remember"/>: the corridor such a search finds is kept, and the next ask
+        /// between the same two polygons with the same budget walks it without a search
+        /// (<see cref="_unreachable"/>). The corridor was found from where the first asker stood
+        /// on the start polygon, so a later one standing elsewhere on it can be handed a route a
+        /// search from there would not quite have found: as near the goal, by much the same way.
         /// </summary>
-        public List<Vector3> FindPathBounded(Vector3 start, Vector3 end, out bool complete, int maxNodes = UnreachableSearchNodes)
+        public List<Vector3> FindPathBounded(Vector3 start, Vector3 end, out bool complete, int maxNodes = UnreachableSearchNodes, bool remember = false)
         {
             complete = false;
 
@@ -183,6 +214,17 @@ namespace Rasa.Navigation
 
             if (RegionOf(startRef) == RegionOf(endRef))
                 return FindPath(start, end, out complete);
+
+            var key = (startRef, endRef, Math.Max(1, maxNodes));
+
+            if (remember && _unreachable.TryGetValue(key, out var corridor))
+            {
+                Array.Copy(corridor, _polys, corridor.Length);
+                UnreachableRecalled++;
+                LastSearchNodes = 0;
+
+                return Route(DtStatus.DT_SUCCESS, corridor.Length, endRef, startPoint, endPoint, out complete);
+            }
 
             // The sliced search, which can be stopped. It is not used for a route that arrives: it
             // does not always choose the one the whole search does, and now and then a much longer.
@@ -198,7 +240,21 @@ namespace Rasa.Navigation
 
             Searched();
 
+            if (remember && !status.Failed() && polyCount > 0)
+                Remember(key, polyCount);
+
             return Route(status, polyCount, endRef, startPoint, endPoint, out complete);
+        }
+
+        private void Remember((long From, long To, int Budget) key, int polyCount)
+        {
+            while (_unreachable.Count >= UnreachableMemory && _unreachableOrder.Count > 0)
+                _unreachable.Remove(_unreachableOrder.Dequeue());
+
+            var corridor = new long[polyCount];
+            Array.Copy(_polys, corridor, polyCount);
+            _unreachable[key] = corridor;
+            _unreachableOrder.Enqueue(key);
         }
 
         /// <summary>

@@ -2041,7 +2041,9 @@ namespace Rasa.Managers
                     $"Cannot move creature {creature.DbId} to {destination}: map {mapChannel.MapInfo?.MapContextId} has no navmesh loaded.");
                 return false;
             }
-            var path = mapChannel.NavMesh.FindPath(creature.Position, destination, out var complete);
+            // Only a complete route will do, so a destination no route reaches is searched only so
+            // far (FindPathBounded): it is turned down all the same, without the whole region walked.
+            var path = mapChannel.NavMesh.FindPathBounded(creature.Position, destination, out var complete);
             if (!complete || path == null || path.Count == 0 ||
                 Vector3.Distance(path[^1], destination) > 1)
             {
@@ -2117,14 +2119,16 @@ namespace Rasa.Managers
         /// straight-line fallback that ordinary creatures retain on maps without a navmesh.
         ///
         /// <paramref name="bounded"/>: the destination may be where no route goes - a chase's - and
-        /// is then searched for only so far (NavMeshManager.FindPathBounded). Returns whether the
-        /// path reaches the destination: false when it stops short of it, or there is none; a
-        /// straight line on a map with no navmesh counts as reaching it.
+        /// is then searched for only so far (NavMeshManager.FindPathBounded). With
+        /// CreatureAi.BoundedPathSearches on, every destination is: a stroll's, a follower's, the
+        /// way home and a patrol's alike. A destination a route reaches gets the same route either
+        /// way. Returns whether the path reaches the destination: false when it stops short of it,
+        /// or there is none; a straight line on a map with no navmesh counts as reaching it.
         /// </summary>
         private static bool BuildPath(MapChannel mapChannel, Creature creature, Vector3 destination, bool bounded = false)
         {
             var complete = false;
-            var path = bounded
+            var path = bounded || Config?.BoundedPathSearches == true
                 ? NavMeshManager.FindPathBounded(mapChannel, creature.Position, destination, out complete)
                 : mapChannel?.NavMesh?.FindPath(creature.Position, destination, out complete);
 
