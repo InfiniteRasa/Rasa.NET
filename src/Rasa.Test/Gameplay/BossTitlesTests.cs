@@ -102,15 +102,16 @@ namespace Rasa.Test.Gameplay
             // The Wilderness six are the rows of the server's recovered objective (mission 1449, objective 6).
             CollectionAssert.AreEquivalent(new uint[] { 82, 83, 84, 79, 80, 75 }, Officers.SelectMany(nameId => named[nameId]).ToArray());
 
-            // How many of each list have a creature row today. The rest are in the list for the
-            // day they have one. (Descent's one is Fortuna and Merrick, who stand there as NPCs;
-            // the Mires officers and the Plains' Stalker Overlord are TargetsOfOpportunityGivers'.)
+            // How many of each list have a creature row: all of them, since the bosses nothing
+            // spawned were given rows of their own (TitleBossesSeed, Title_bosses). (Descent's
+            // Fortuna and Merrick stand there as NPCs; the Mires officers and the Plains' Stalker
+            // Overlord are TargetsOfOpportunityGivers'.)
             CollectionAssert.AreEquivalent(
                 new Dictionary<string, int>
                 {
-                    ["Wilderness"] = 6, ["Divide"] = 5, ["Palisades"] = 8, ["Plateau"] = 4, ["Pools"] = 7, ["Marshes"] = 9,
-                    ["Descent"] = 1, ["Plains"] = 4, ["Mires"] = 7, ["Incline"] = 4, ["Ashen Desert"] = 5, ["Thunderhead"] = 2,
-                    ["Abyss"] = 1, ["Crucible"] = 1
+                    ["Wilderness"] = 6, ["Divide"] = 5, ["Palisades"] = 8, ["Plateau"] = 5, ["Pools"] = 10, ["Marshes"] = 9,
+                    ["Descent"] = 8, ["Plains"] = 4, ["Mires"] = 7, ["Incline"] = 4, ["Ashen Desert"] = 6, ["Thunderhead"] = 9,
+                    ["Abyss"] = 9, ["Crucible"] = 6
                 }.ToArray(),
                 BossTitles.Zones.ToDictionary(
                     zone => zone.Name,
