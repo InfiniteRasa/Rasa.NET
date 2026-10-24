@@ -186,6 +186,9 @@ namespace Rasa.Game
             // How often a Steal or a Debuff Resist module fires on a hit.
             ItemModuleBonuses.Config = Config.ItemModules ?? new ItemModulesConfig();
 
+            // How often a player's killing blow leaves a creature staggering for a Critical Death finisher: from the next blow on.
+            CritDeathManager.Config = Config.CritDeath ?? new CritDeathConfig();
+
             // A message changed by editing the file goes to everyone in the world, from the loop;
             // the first load is before anyone is here.
             if (MessageOfTheDay.Apply(Config.MessageOfTheDay) && _motdApplied)

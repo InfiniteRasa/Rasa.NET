@@ -286,6 +286,7 @@ namespace Rasa.Managers
             RegisterCommand(".moveobj", GmLevel.GameMaster, MoveObjectCommand, "entityId", "x", "y", "z", "rotation");
             RegisterCommand(".rename", GmLevel.GameMaster, RenameCommand, "part", "newName", "familyName");
             RegisterCommand(".setkillstreak", GmLevel.GameMaster, SetKillStreakCommand, "level");
+            RegisterCommand(".critdeath", GmLevel.GameMaster, parts => CritDeathManager.GmCommand(_client, parts), "percent | morph on|off");
             RegisterCommand(".setregion", GmLevel.GameMaster, SetRegionCommand, "regionIdsOrOff");
             RegisterCommand(".setskytime", GmLevel.GameMaster, SetSkyTimeCommand, "hh:mm");
             RegisterCommand(".speed", GmLevel.GameMaster, SpeedCommand, "value");

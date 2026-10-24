@@ -4,6 +4,7 @@ using System.Numerics;
 
 namespace Rasa.Managers
 {
+    using Config;
     using Data;
     using Game;
     using Packets;
@@ -48,6 +49,20 @@ namespace Rasa.Managers
     /// and when a stun is put on it, so either may come first - unless its class carries
     /// NO_CRIT_KILL. Not in the client, and chosen here: the threshold. The window length
     /// (6900 ms) and each death animation's length are critdeathdata's.
+    ///
+    /// Plain weapon fire stuns nothing, so that rule alone leaves the window out of reach in an
+    /// ordinary fight with a pistol or a rifle - and the help text says "sometimes". A player's
+    /// killing blow - the hit that would take a creature's health to zero, not a tick of damage
+    /// over time - is therefore, with the chance of appsettings.json's CritDeath.StaggerChancePercent,
+    /// not dealt in full: the creature is left on one health, staggering, and its window opens at
+    /// once with no stun and no threshold (StaggersOnKillingBlow; MissileManager.DoDamageToCreature
+    /// and ActorManager.Damage make the cut, TryEnterPreDeath opens the window). From there it is
+    /// the window of any other: finished by a melee press for the double experience, or left to
+    /// run out and kill the creature to whoever opened it. At 0 percent nothing of this runs.
+    ///
+    /// A morphed player (Polymorph, and the Personal Armored Units: Angel, Vulcan, the AFS Mech...) neither opens a window nor
+    /// finishes one unless CritDeath.FromMorphedPlayers says so: kills made from inside a machine
+    /// or another body are plain kills.
     /// </summary>
     public class CritDeathManager
     {
@@ -112,6 +127,87 @@ namespace Rasa.Managers
             return current > 0 && max > 0 && current * 100L <= (long)max * HealthThresholdPercent;
         }
 
+        /// <summary>
+        /// appsettings.json's CritDeath. Until a configuration is loaded - a server loads one before anything is
+        /// fought - nothing staggers and a morphed player is as any other, so code that builds a world without a
+        /// server, a test's, sees the rule as it was.
+        /// </summary>
+        public static CritDeathConfig Config { get; set; } = new CritDeathConfig { StaggerChancePercent = 0, FromMorphedPlayers = true };
+
+        /// <summary>The dice - a percentage in, whether it came up - which a test replaces to count its throws or to fix them.</summary>
+        internal static Func<int, bool> Dice = Stuns.Roll;
+
+        /// <summary>Whether this player may have Critical Deaths: any player, but a morphed one only when CritDeath.FromMorphedPlayers says so.</summary>
+        public static bool HasCritDeaths(Manifestation player) =>
+            player != null && ((Config?.FromMorphedPlayers ?? true) || !AbilityManager.IsMorphed(player));
+
+        /// <summary>
+        /// Whether a killing blow on this creature may leave it staggering instead of dead: it is alive and not in its
+        /// window; its class does not say it is never finished (NO_CRIT_KILL); it is not run by an ability - a crab mine,
+        /// a trap (Creature.IsScripted), whose death CreatureManager.HandleCreatureKill ends in ways of its own; it is not
+        /// a gun on a mount, which is destroyed and does not stagger (Emplacements); and it is not a pet or a summon of a
+        /// player (a master who is a player: a minion, a creature turned by Traitor). Everything else a player may attack
+        /// is eligible, scene creatures and bosses too: only the immunity a hit meets first (a scene's invulnerable
+        /// creature, one running home) keeps them out.
+        /// </summary>
+        public static bool MayStagger(Creature creature)
+        {
+            if (creature == null || creature.State == CharacterState.Dead || creature.State == CharacterState.Dying)
+                return false;
+
+            if (creature.IsScripted || Emplacements.Is(creature)
+                || creature.MasterEntityId != 0 && EntityManager.Instance.Players.ContainsKey(creature.MasterEntityId))
+                return false;
+
+            return !CreatureManager.CreatureFlagsOf(creature).Contains((int)CreatureFlag.NoCritKill);
+        }
+
+        /// <summary>
+        /// A hit that would take this creature's health to zero is about to land: whether it is cut instead to leave the
+        /// creature on one health, staggering. It is when the hit is a player's (the source is a Manifestation who may have
+        /// Critical Deaths, <see cref="HasCritDeaths"/>), is no tick of something started earlier (<paramref name="periodic"/>),
+        /// the creature may be left so (<see cref="MayStagger"/>) and the dice come up under CritDeath.StaggerChancePercent -
+        /// thrown only then, so at 0 nothing is thrown and nothing is decided. The caller takes the cut off its hit and opens
+        /// the window with TryEnterPreDeath(staggered: true).
+        /// </summary>
+        public bool StaggersOnKillingBlow(Creature creature, Actor source, bool periodic)
+        {
+            var chance = Config?.StaggerChancePercent ?? 0;
+
+            if (chance <= 0 || periodic || !(source is Manifestation player) || !HasCritDeaths(player) || !MayStagger(creature))
+                return false;
+
+            var comesUp = Dice(chance);
+
+            Logger.WriteLog(LogType.Debug, $"Critical Death roll at {chance} percent for a killing blow on creature {creature.EntityId}: {(comesUp ? "it staggers" : "it dies")}");
+
+            return comesUp;
+        }
+
+        /// <summary>
+        /// .critdeath: the stagger chance and the morphed players' rule in force. .critdeath &lt;0-100&gt; sets the chance,
+        /// .critdeath morph on|off whether morphed players have Critical Deaths - both until the next config reload or
+        /// restart, which put appsettings.json's CritDeath back.
+        /// </summary>
+        public static void GmCommand(Client client, string[] parts)
+        {
+            var config = Config ?? new CritDeathConfig();
+
+            if (parts.Length >= 2 && int.TryParse(parts[1], out var percent) && percent >= 0 && percent <= 100)
+                Config = config = new CritDeathConfig { StaggerChancePercent = percent, FromMorphedPlayers = config.FromMorphedPlayers };
+            else if (parts.Length >= 3 && parts[1].Equals("morph", StringComparison.OrdinalIgnoreCase)
+                     && (parts[2].Equals("on", StringComparison.OrdinalIgnoreCase) || parts[2].Equals("off", StringComparison.OrdinalIgnoreCase)))
+                Config = config = new CritDeathConfig { StaggerChancePercent = config.StaggerChancePercent, FromMorphedPlayers = parts[2].Equals("on", StringComparison.OrdinalIgnoreCase) };
+            else if (parts.Length >= 2)
+            {
+                CommunicatorManager.Instance.SystemMessage(client, "usage: .critdeath [0-100 | morph on|off]");
+                return;
+            }
+
+            CommunicatorManager.Instance.SystemMessage(client,
+                $"Critical Death: a killing blow staggers {config.StaggerChancePercent}% of the time; morphed players {(config.FromMorphedPlayers ? "have them" : "have none")}.");
+        }
+
         /// <summary>Whether a player may finish a window someone opened: their own, or a squad mate's.</summary>
         public static bool MayFinish(Manifestation player, Actor opener)
         {
@@ -137,10 +233,15 @@ namespace Rasa.Managers
         /// After a player's damage has landed on a creature that is still alive, or a stun has been
         /// put on it: if it is now stunned and near death, holds it there and opens the window. Returns whether it did - the creature is then
         /// out of the fight and takes no more damage.
+        ///
+        /// <paramref name="staggered"/>: the damage was a killing blow cut to leave the creature on one health
+        /// (StaggersOnKillingBlow). The window then opens on that alone, with no stun and whatever health the
+        /// creature has - one - which is all the blow was cut for. NO_CRIT_KILL still keeps it out, and so does a
+        /// morphed player (HasCritDeaths).
         /// </summary>
-        public bool TryEnterPreDeath(MapChannel mapChannel, Creature creature, Actor source, DamageType damageType)
+        public bool TryEnterPreDeath(MapChannel mapChannel, Creature creature, Actor source, DamageType damageType, bool staggered = false)
         {
-            if (!(source is Manifestation player) || creature == null)
+            if (!(source is Manifestation player) || creature == null || !HasCritDeaths(player))
                 return false;
 
             if (creature.State == CharacterState.Dead || creature.State == CharacterState.Dying)
@@ -152,10 +253,15 @@ namespace Rasa.Managers
             if (CreatureManager.CreatureFlagsOf(creature).Contains((int)CreatureFlag.NoCritKill))
                 return false;
 
-            if (!creature.Attributes.TryGetValue(Attributes.Health, out var health) || !IsNearDeath(health.Current, health.CurrentMax))
+            if (!creature.Attributes.TryGetValue(Attributes.Health, out var health))
                 return false;
 
-            if (!Stuns.IsStunned(creature))
+            if (staggered)
+            {
+                if (health.Current <= 0)
+                    return false;
+            }
+            else if (!IsNearDeath(health.Current, health.CurrentMax) || !Stuns.IsStunned(creature))
                 return false;
 
             creature.State = CharacterState.Dying;
@@ -190,6 +296,9 @@ namespace Rasa.Managers
 
             GameEffectManager.Instance.Attach(mapChannel, creature, window);
 
+            Logger.WriteLog(LogType.Debug,
+                $"Critical Death window opened on creature {creature.EntityId} (class {(uint)creature.EntityClass}, health {health.Current}/{health.CurrentMax}) for player {player.EntityId}: {(staggered ? "a killing blow left it staggering" : "stunned and near death")}");
+
             return true;
         }
 
@@ -217,6 +326,13 @@ namespace Rasa.Managers
             if (player.State == CharacterState.Dead || !player.Attributes.TryGetValue(Attributes.Health, out var health) || health.Current <= 0)
             {
                 Fail(client, packet.ActionArgId, null);
+                return;
+            }
+
+            // A morphed player does not punch a kill out (CritDeath.FromMorphedPlayers): a squad mate's window stays for the others.
+            if (!HasCritDeaths(player))
+            {
+                Fail(client, packet.ActionArgId, PlayerMessage.PmTargetInvalid);
                 return;
             }
 

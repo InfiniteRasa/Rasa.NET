@@ -43,5 +43,8 @@ namespace Rasa.Config
 
         /// <summary>The chances of the weapon modules that fire on a hit (Managers.ItemModuleBonuses).</summary>
         public ItemModulesConfig ItemModules { get; set; } = new ItemModulesConfig();
+
+        /// <summary>How often a player's killing blow leaves a creature staggering for a Critical Death finisher, and whether a morphed player has them (Managers.CritDeathManager).</summary>
+        public CritDeathConfig CritDeath { get; set; } = new CritDeathConfig();
     }
 }

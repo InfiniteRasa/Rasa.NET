@@ -175,6 +175,19 @@ namespace Rasa.Managers
 
             // decrease health (if armor is depleted)
             var healthDecrease = Math.Min(missile.DamageA - armorDecrease, creature.Attributes[Attributes.Health].Current);
+
+            // A player's killing blow may leave the creature staggering on one health instead of dead
+            // (CritDeathManager.StaggersOnKillingBlow, appsettings.json's CritDeath): the part of the blow that
+            // would have killed it is not dealt, the armour went as it would have, and the hit reports what it dealt.
+            var staggered = healthDecrease > 0 && healthDecrease >= creature.Attributes[Attributes.Health].Current
+                && CritDeathManager.Instance.StaggersOnKillingBlow(creature, missile.Source, periodic: false);
+
+            if (staggered)
+            {
+                healthDecrease = creature.Attributes[Attributes.Health].Current - 1;
+                missile.DamageA = armorDecrease + healthDecrease;
+            }
+
             CreatureManager.RecordCombatDamage(mapChannel, creature, missile.Source, armorDecrease + healthDecrease);
             creature.Attributes[Attributes.Health].Current -= healthDecrease;
             CellManager.Instance.CellCallMethod(mapChannel, creature, new UpdateHealthPacket(creature.Attributes[Attributes.Health], creature.EntityId));
@@ -193,7 +206,7 @@ namespace Rasa.Managers
                 // kill craeture
                 CreatureManager.Instance.HandleCreatureKill(mapChannel, creature, missile.Source);
             }
-            else if (!StunAndCheckCritDeath(mapChannel, creature, missile))
+            else if (!StunAndCheckCritDeath(mapChannel, creature, missile, staggered))
             {
                 // The shooter is hated for what landed and what was resisted, and a wandering
                 // creature turns on them (Threat).
@@ -248,15 +261,16 @@ namespace Rasa.Managers
         /// <summary>
         /// A hit that left its creature alive: the stuns, knockback, slow and freeze it carries (an
         /// Ice, Sonic or Virulent crit, Hand to Hand, a grenade, a net gun), then whether the creature is now stunned and near death, which opens
-        /// its Critical Death window. Returns whether the window opened.
+        /// its Critical Death window. Returns whether the window opened. A killing blow that was cut to leave the
+        /// creature on one health (<paramref name="staggered"/>) opens it whether or not the creature is stunned.
         /// </summary>
-        private static bool StunAndCheckCritDeath(MapChannel mapChannel, Creature creature, Missile missile)
+        private static bool StunAndCheckCritDeath(MapChannel mapChannel, Creature creature, Missile missile, bool staggered)
         {
             // What the hit puts on the creature is announced by the hit, when the shot is seen
             // to land: attached quietly and named in this creature's entry of the recovery
             // (HitEffects). With no entry to name them in they announce themselves, as before.
             using (HitEffects.On(creature, missile.Source, HitOf(missile, creature)?.TargetEffectIds, StrikeMsOf(missile, creature)))
-                return ApplyHitEffects(mapChannel, creature, missile);
+                return ApplyHitEffects(mapChannel, creature, missile, staggered);
         }
 
         /// <summary>
@@ -287,7 +301,7 @@ namespace Rasa.Managers
             return null;
         }
 
-        private static bool ApplyHitEffects(MapChannel mapChannel, Creature creature, Missile missile)
+        private static bool ApplyHitEffects(MapChannel mapChannel, Creature creature, Missile missile, bool staggered)
         {
             var damageType = missile.DamageType == 0 ? DamageType.Physical : missile.DamageType;
 
@@ -317,7 +331,7 @@ namespace Rasa.Managers
             if (creature.State == CharacterState.Dying)
                 return true;
 
-            return CritDeathManager.Instance.TryEnterPreDeath(mapChannel, creature, missile.Source, damageType);
+            return CritDeathManager.Instance.TryEnterPreDeath(mapChannel, creature, missile.Source, damageType, staggered);
         }
 
         /// <summary>
