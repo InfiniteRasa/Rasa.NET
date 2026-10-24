@@ -1241,6 +1241,15 @@ namespace Rasa.Managers
         /// items fit or not. They, and the prestige a rare item is worth, are worked out from what
         /// was taken, in the same write (Settle).
         /// </summary>
+        /// <summary>
+        /// Whether a take of these items pays the corpse's credits: when it empties the corpse
+        /// of items, or is a Loot All of a corpse that is one player's.
+        /// </summary>
+        private static bool PaysCredits(LootDispenser loot, IReadOnlyList<LootItem> taken, bool lootAll) =>
+            loot.Credits > 0 &&
+            ((lootAll && loot.CreditSharers.Count == 0) ||
+             loot.LootItems.All(item => item.Taken || taken.Contains(item)));
+
         private void Claim(
             Client client,
             LootDispenser loot,
@@ -1267,9 +1276,7 @@ namespace Rasa.Managers
             {
                 items = taken;
 
-                var emptiesItems = loot.LootItems.All(item => item.Taken || taken.Contains(item));
-                includeCredits = loot.Credits > 0 &&
-                    ((lootAll && loot.CreditSharers.Count == 0) || emptiesItems);
+                includeCredits = PaysCredits(loot, taken, lootAll);
 
                 var recipients = includeCredits ? CreditRecipients(client, loot) : new List<Client> { client };
                 var shares = includeCredits ? SplitCredits(loot.Credits, recipients.Count) : new List<int> { 0 };
@@ -1301,6 +1308,19 @@ namespace Rasa.Managers
                 prestigeAfter = (int)Math.Min(
                     currentPrestige + prestigeAwards.Sum(award => (long)award.Amount), int.MaxValue);
                 prestigeGranted = prestigeAfter > currentPrestige;
+            }
+
+            // Nothing asked for, and no credits the take would pay: nothing fits, as the write
+            // below would find, without the write. Walking near a corpse sends its auto-loot
+            // every frame while in reach (RequestLootAllFromCorpse), and a corpse whose items
+            // are all above the player's threshold asks for none of them - a transaction begun,
+            // the character read and rolled back, at every frame, for each player
+            // standing by it.
+            if (asked.Count == 0 && !PaysCredits(loot, Array.Empty<LootItem>(), lootAll))
+            {
+                if (!quiet)
+                    TellInventoryFull(client);
+                return;
             }
 
             var grant = new InventoryManager.LootGrant(_beforeItemPublication);
