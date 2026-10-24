@@ -263,16 +263,16 @@ namespace Rasa.Managers
                     InstanceId = instanceId,
                     PlayerLimit = template.PlayerLimit,
                     ClientList = new List<Game.Client>(),
-                    NavMesh = template.NavMesh,
-                    Cover = template.Cover,
-                    SafetyFloorY = template.SafetyFloorY,
-                    TopWalkableY = template.TopWalkableY,
                     ApartmentId = apartmentId
                 };
+                // The template's navigation as the other copies have it: read with the map's when
+                // a player comes (Navigation.Lazy), not here on the loop, and let go with it.
+                map.ShareNavigationOf(template, heights: true);
                 initialize?.Invoke(map);
 
                 _instancesByKey.Add(new PrivateMapInstanceKey(template.MapInfo.MapContextId, instanceId), map);
                 _apartments.Add(apartmentId, map);
+                _version++;
                 return map;
             }
         }
@@ -304,6 +304,7 @@ namespace Rasa.Managers
 
                 _apartments.Remove(map.ApartmentId);
                 _instancesByKey.Remove(new PrivateMapInstanceKey(map.MapInfo.MapContextId, map.InstanceId));
+                _version++;
                 return true;
             }
         }

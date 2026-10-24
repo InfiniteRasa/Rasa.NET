@@ -1,4 +1,4 @@
-extern alias RasaGame;
+﻿extern alias RasaGame;
 
 using System.Collections.Generic;
 using System.Linq;
@@ -55,6 +55,9 @@ namespace Rasa.Test.World
             var squad = instances.CreateSquad(a, 9);
             Check("a squad instance");
 
+            var apartment = instances.CreateApartment(b, 11);
+            Check("an apartment's copy");
+
             // A map listed twice is gone through once, as Distinct had it.
             maps.MapChannelArray.Add(3, a);
             Check("a map under two ids");
@@ -71,6 +74,9 @@ namespace Rasa.Test.World
 
             Assert.IsTrue(instances.ReleaseSquad(squad));
             Check("the squad instance closed");
+
+            Assert.IsTrue(instances.ReleaseApartment(apartment));
+            Check("the apartment's copy closed");
 
             CollectionAssert.AreEqual(new[] { mine }, instances.ReleaseOwned(7).ToArray());
             Check("the private instance released");
