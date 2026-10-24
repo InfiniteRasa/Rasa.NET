@@ -713,6 +713,10 @@ namespace Rasa.Game
 
             // After the spawn pools and the creatures: a spawner's creature is the one its map's pools use.
             PlacedDestructibles.Init(GameUnitOfWorkFactory);
+
+            // The raids' gates are the points' own gate shields, which their raiders strike at (RaidDefences).
+            RaidDefences.Join();
+
             PlacedUsables.Init(GameUnitOfWorkFactory);
             WorldContainers.Init(GameUnitOfWorkFactory);
             MapMarkerManager.Instance.MapMarkerInit();
