@@ -306,6 +306,9 @@ namespace Rasa.Managers
         /// </summary>
         private void Guard(string worker, MapChannel mapChannel, Action work)
         {
+            // Its time and allocations under its name, when the phases are timed (LoopPhases).
+            var timed = LoopPhases.Begin();
+
             try
             {
                 work();
@@ -328,6 +331,10 @@ namespace Rasa.Managers
 
                 _workerFaultsSinceLog[worker] = 0;
                 _workerFaultQuietUntil[worker] = now + 60000;
+            }
+            finally
+            {
+                LoopPhases.End(worker, timed);
             }
         }
 
@@ -614,7 +621,9 @@ namespace Rasa.Managers
                     if (Timer.IsTriggered("Regenerate"))
                         Guard("ActorManager.Regenerate", mapChannel, () => ActorManager.Instance.Regenerate(mapChannel));
 
+                    var scenes = LoopPhases.Begin();
                     _missionScenarioService?.TickMap(mapChannel);
+                    LoopPhases.End("MissionScenes.TickMap", scenes);
 
                     // what the players hurt this tick say of it (PlayerVoices)
                     Guard("PlayerVoices.Worker", mapChannel, () => PlayerVoices.Worker(mapChannel));
@@ -628,7 +637,9 @@ namespace Rasa.Managers
                         Guard("Moderation.Worker", mapChannel, () => Moderation.Worker(mapChannel));
 
                     // warn idle players and flag long-idle ones for removal below
+                    var unguarded = LoopPhases.Begin();
                     ManifestationManager.Instance.CheckInactivity(mapChannel);
+                    LoopPhases.End("ManifestationManager.CheckInactivity", unguarded);
 
                     // check for players leaving the map: /logout, inactivity, and dropped
                     // connections flagged by Client.Close()
@@ -639,7 +650,9 @@ namespace Rasa.Managers
                     // character still registered, in the cells and fought by creatures meanwhile.
                     // RemovePlayer writes to the database, so a crowd is spread over a few ticks
                     // by RemovalBudgetMs rather than stalling one; the first always goes.
+                    unguarded = LoopPhases.Begin();
                     RemoveFlaggedPlayers(mapChannel, budgeted: true);
+                    LoopPhases.End("MapChannelManager.RemoveFlaggedPlayers", unguarded);
                 }
             }
         }
