@@ -288,6 +288,10 @@ namespace Rasa.Test.Missions.Plateau
             }
             foreach (var bane in wave)
                 Kill(harness, copy, bane);
+            harness.MoveTo(fonseca.Position);
+            harness.Drain();
+            Assert.IsFalse(harness.Manager.CompleteOfferedObjective(harness.Client, fonseca.EntityId, ForeasBasePast,
+                PlateauForeasBasePastV1.SecondTalk, 1), "Fonseca's second talk waits for the escort");
 
             // 3: Villaran walks out through the gate to the drop-ship and is gone.
             var start = villaran.Position;
@@ -303,6 +307,15 @@ namespace Rasa.Test.Missions.Plateau
             Assert.IsTrue(Vector3.Distance(ToVector(PlateauForeasBasePastV1.DropshipAt), villaran.Position) < 15, "by the drop-ship");
             Assert.IsNull(SceneCreature(harness, copy, ForeasBasePast, PlateauForeasBasePastScene.Villaran), "he has boarded");
             Assert.AreEqual(MissionObjectiveState.Incomplete, mission.Objectives[PlateauForeasBasePastV1.SecondTalk].State);
+
+            // A reload halfway keeps the escort done and the drop-ship there; no Villaran comes back.
+            WildernessRanjaGorgeTests.Reload(harness);
+            Tick(harness, copy, 250);
+            mission = harness.Client.Player.Missions[ForeasBasePast];
+            Assert.AreEqual(MissionObjectiveState.Completed, mission.Objectives[PlateauForeasBasePastV1.Escort].State, "after the reload");
+            Assert.AreEqual(MissionObjectiveState.Incomplete, mission.Objectives[PlateauForeasBasePastV1.SecondTalk].State, "after the reload");
+            Assert.IsNull(SceneCreature(harness, copy, ForeasBasePast, PlateauForeasBasePastScene.Villaran), "still boarded");
+            SceneObject(harness, copy, ForeasBasePast, "dropship");
 
             // 4, 5: Xykryl and his strike force; one count of five, whoever kills them.
             Talk(harness, fonseca, ForeasBasePast, PlateauForeasBasePastV1.SecondTalk);
@@ -372,6 +385,38 @@ namespace Rasa.Test.Missions.Plateau
             Assert.AreEqual(MissionObjectiveState.Failed, mission.Objectives[PlateauForeasBasePastV1.Escort].State);
             Assert.AreEqual(MissionState.Failed, mission.State);
             Assert.AreEqual(MissionObjectiveState.Inactive, mission.Objectives[PlateauForeasBasePastV1.SecondTalk].State);
+        }
+
+        [TestMethod]
+        public void ForeasBasePastAbandonedTakesItsSceneAndIsOfferedAgain()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            EnterPlateau(harness);
+            SeedCompleted(harness, ArrayOfHope, FutureSacrifice, FinalAssault);
+            var copy = IntoTheChamber(harness);
+            var veryin = Npc(copy, PlateauTemporalChamberNpcsV1.Veryin, PlateauTemporalChamberNpcsV1.VeryinPackage);
+            harness.MoveTo(veryin.Position);
+            Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, veryin.EntityId, ForeasBasePast));
+            harness.Drain();
+            Tick(harness, copy, 250);
+            Teleport(harness, copy, copy.Teleporters[PlateauForeasBasePastNpcsV1.ChamberPad]);
+            Spawn(copy, PlateauForeasBasePastNpcsV1.FonsecaPool);
+            var fonseca = Living(copy).Single(npc => npc.DbId == PlateauForeasBasePastNpcsV1.Fonseca && npc.Npc != null &&
+                ReferenceEquals(npc.RuntimeMapChannel, copy));
+            Talk(harness, fonseca, ForeasBasePast, PlateauForeasBasePastV1.FirstTalk);
+            Tick(harness, copy, 1000);
+            var roles = PlateauForeasBasePastScene.FirstWave.Concat(PlateauForeasBasePastScene.Statics.Take(4))
+                .Append(PlateauForeasBasePastScene.Villaran).ToArray();
+            Assert.IsTrue(roles.All(role => SceneCreature(harness, copy, ForeasBasePast, role) != null), "the escort under way");
+
+            var creatures = Living(copy).Where(creature => creature.SpawnPool?.SceneRunId != null &&
+                ReferenceEquals(creature.RuntimeMapChannel, copy) && roles.Contains(creature.SpawnPool.SceneActorRole)).ToArray();
+            Assert.IsTrue(harness.Manager.TryAbandon(harness.Client, ForeasBasePast));
+            Tick(harness, copy, 250);
+            Assert.IsFalse(harness.Client.Player.Missions.ContainsKey(ForeasBasePast), "gone from the log");
+            Assert.IsFalse(creatures.Any(creature => Living(copy).Contains(creature)), "Villaran, the defenders and the wave are gone");
+            Assert.IsFalse(copy.DynamicObjects.Any(obj => obj.SceneMissionId == ForeasBasePast && obj.IsInWorld), "the drop-ship is gone");
+            Assert.IsTrue(Offered(harness, veryin).Contains(ForeasBasePast), "Veryin offers it again");
         }
 
         [TestMethod]

@@ -11,7 +11,7 @@ namespace Rasa.Missions.Content.Plateau
     /// Foreas Base Past (1178), the Temporal Chamber's past Foreas Base: the AFS defenders, Villaran and the drop-ship
     /// stand from the start; Fonseca's first talk (scenario <see cref="EscortStarts"/>) sends Villaran along his route to
     /// the drop-ship (objective 3) while the first Bane wave goes for him; his death or a blocked route fails 3. His
-    /// arrival opens Fonseca's second talk, which (scenario <see cref="AssaultStarts"/>) brings Xykryl and his strike
+    /// arrival (the first wave's survivors withdraw) opens Fonseca's second talk, which (scenario <see cref="AssaultStarts"/>) brings Xykryl and his strike
     /// force against the run's owner; each of their deaths, whoever kills them, is one step of objective 5's count.
     /// </summary>
     [MissionScript("plateau.foreas-base-past", 1)]
@@ -67,7 +67,9 @@ namespace Rasa.Missions.Content.Plateau
             if (state.Phase == "escorting" && observation.Kind == SceneEventKind.RouteCompleted &&
                 observation.Role == Villaran && observation.OperationKey == RouteOperation)
                 return Decide(state with { Phase = "escorted" },
-                    new WorldIntent[] { new RemoveActorIntent("villaran-boards", Villaran) },
+                    // The first wave's survivors withdraw: their attack has no target left to restore.
+                    FirstWave.Select(role => (WorldIntent)new RemoveActorIntent($"withdraw-{role}", role))
+                        .Prepend(new RemoveActorIntent("villaran-boards", Villaran)).ToArray(),
                     new CharacterIntent[]
                     {
                         new ObjectiveIntent("escort-arrived", MissionId, Escort, MissionObjectiveState.Completed),

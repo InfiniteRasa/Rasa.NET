@@ -35,7 +35,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
     {
         public const uint MapContextId = PlateauTemporalChamberNpcsV1.MapContextId;
 
-        public const uint Fonseca = 650096, FonsecaPool = 650096, FonsecaPackage = 1238, FonsecaName = 9081, FonsecaLevel = 30;
+        public const uint Fonseca = 650096, FonsecaPool = 650096, FonsecaPackage = 1238, FonsecaName = 9081;
         public const uint Villaran = 650097, VillaranName = 9085, VillaranHealth = EscortNpcStats.Health, VillaranArmor = EscortNpcStats.Armor;
         public const uint Defender = 650098, DefenderName = 9089, DefenderHitPoints = 2600, DefenderArmor = 140;
         public const uint Recon = 650099, ReconName = 9102, ReconLevel = 30, ReconHitPoints = 2800, ReconArmor = 140;
@@ -52,7 +52,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
         public const uint ThraxClass = PlateauUstorYardV1.ThraxClass;
         public const uint StriderClass = 9804;          // Vehicle_Bane_Strider_V1
         public const uint ThraxBossClass = 10504;       // Bane_Thrax_Soldier_Rifle_Boss
-        public const uint ThraxLightning = 57030;       // Thrax Preceptor Vorvaak's thrax_lightning
+        public const uint ThraxLightning = 57030;       // thrax_lightning of the Thrax Soldier boss 520054
 
         public const uint DefenderPistol = 650031, StriderWeapon = 650032, StriderLaser = 650033;
 
