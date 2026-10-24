@@ -1298,13 +1298,14 @@ namespace Rasa.Managers
 
                         break;
                     case 3:
-                        dropship.PhaseTimeleft = 3000;
+                        // A spawner lands for as long as its class's clip has it (Dropship.SpawnerLandedMs).
+                        dropship.PhaseTimeleft = dropship.DropshipType == DropshipType.Spawner ? Math.Max(0, dropship.SpawnerLandedMs - 2000) : 3000;
                         dropship.Phase = 4;
                         dropship.StateId = UseObjectState.CsStateEnd;
                         break;
                     case 4:
                         dropship.Phase = 5;
-                        dropship.PhaseTimeleft = 5000;
+                        dropship.PhaseTimeleft = dropship.DropshipType == DropshipType.Spawner ? dropship.SpawnerFlyOutMs : 5000;
 
                         if (dropship.DropshipType == DropshipType.Teleporter && dropship.Role == DropshipRole.Arrival)
                         {

@@ -64,5 +64,11 @@ namespace Rasa.Config
 
         /// <summary>What a line of sight is tested against under the terrain, in a cave or a tunnel (Managers.Sight); without the section, as before.</summary>
         public SightConfig Sight { get; set; } = new SightConfig();
+
+        /// <summary>The raids on the control points, the Bane's and the AFS's (Managers.BaneRaids).</summary>
+        public RaidConfig Raids { get; set; } = new RaidConfig();
+
+        /// <summary>How fresh troops come into the open world: by dropship or beamed in (Managers.Reinforcements).</summary>
+        public ReinforcementConfig Reinforcements { get; set; } = new ReinforcementConfig();
     }
 }

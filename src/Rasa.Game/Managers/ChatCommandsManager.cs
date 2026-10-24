@@ -270,6 +270,8 @@ namespace Rasa.Managers
             RegisterCommand(".kraftwerks", GmLevel.GameMaster, KraftwerksCommand, "stationIdOrHere", "action", "value");
             RegisterCommand(".cp", GmLevel.GameMaster, ControlPointCommand, "id", "action");
             RegisterCommand(".cpdef", GmLevel.GameMaster, ControlPointDefenceCommand, "id|config", "action", "arg");
+            RegisterCommand(".raids", GmLevel.GameMaster, parts => GmRaidCommands.Status(_client, parts.Length > 1 && parts[1] == "all"), "all");
+            RegisterCommand(".dropship", GmLevel.GameMaster, parts => GmRaidCommands.Dropship(_client, parts), "creatureIdOrPool", "count", "side", "here");
             RegisterCommand(".greeting", GmLevel.GameMaster, GreetingCommand, "greetingId|clear|important|unread|show", "greetingId|on|off");
             RegisterCommand(".instance", GmLevel.GameMaster, InstanceCommand, "action", "number");
             RegisterCommand(".bg", GmLevel.GameMaster, BattlegroundCommand, "action", "arg1", "arg2");
@@ -4918,10 +4920,23 @@ namespace Rasa.Managers
 
         private void ControlPointCommand(string[] parts)
         {
-            const string usage = "usage: .cp | .cp all | .cp <id> afs | bane | clan <clan name or id> | goto | here | lockbox | lockbox remove";
+            const string usage = "usage: .cp | .cp all | .cp raids [all] | .cp <id> afs | bane | clan <clan name or id> | goto | here | lockbox | lockbox remove | raid [stop | in <minutes> | who]";
             var client = _client;
             var player = client.Player;
             var points = ControlPoints.Instance;
+
+            // The raids on the points (GmRaidCommands).
+            if (parts.Length >= 2 && parts[1] == "raids")
+            {
+                GmRaidCommands.Status(client, parts.Length > 2 && parts[2] == "all");
+                return;
+            }
+
+            if (parts.Length >= 3 && parts[2] == "raid" && uint.TryParse(parts[1], out var raidPointId) && points.ById(raidPointId) is { } raided)
+            {
+                GmRaidCommands.Raid(client, raided, parts.Skip(3).ToArray());
+                return;
+            }
 
             if (parts.Length == 1 || parts.Length == 2 && parts[1] == "all")
             {

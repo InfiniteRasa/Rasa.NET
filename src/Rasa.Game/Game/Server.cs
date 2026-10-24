@@ -185,6 +185,10 @@ namespace Rasa.Game
             // The control points' defences: their shields, defenders and turrets, from the next think.
             ControlPointFields.Config = Config.ControlPointDefence ?? new ControlPointDefenceConfig();
 
+            // The raids on the points and how troops come: a raid under way keeps what it was begun with.
+            BaneRaids.Instance.Config = Config.Raids ?? new RaidConfig();
+            Reinforcements.Config = Config.Reinforcements ?? new ReinforcementConfig();
+
             // Off, log or refuse for each of the three movement checks, and the three weapon checks.
             MovementChecks.Config = Config.MovementChecks ?? new MovementChecksConfig();
             WeaponChecks.Config = Config.WeaponChecks ?? new WeaponChecksConfig();

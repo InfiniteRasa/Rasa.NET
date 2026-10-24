@@ -54,8 +54,11 @@ namespace Rasa.Managers
     ///    down group by group by however few there are to do it, and the point is open for that
     ///    long once the last of it falls.
     ///  - The Bane take a point back by killing its garrison: an AFS point every one of whose
-    ///    garrison is dead at once is the Bane's. Nothing sends the Bane against a point yet, so
-    ///    until something does only a game master's kills - or ".cp" - make it so.
+    ///    garrison is dead at once is the Bane's - or by a raid (BaneRaids): waves of Bane dropships
+    ///    that come down before its gates, fight their way to it and claim it. The AFS raid the
+    ///    points the Bane hold in turn, less often and with less hope. The raiders who took a
+    ///    point hold it beside its new garrison until they are killed (<see cref="GarrisonOf"/>).
+    ///    A raid's kills are the point's minions, as its garrison's are.
     ///  - While the Bane hold a point its hospital is not offered to the dead, is not gained by
     ///    walking up to it, and its waypoint neither lists nor answers (WaypointInfo.Contested).
     ///    Nothing is taken from a player who had them: they are back when the point is.
@@ -561,6 +564,10 @@ namespace Rasa.Managers
         /// <summary>How the garrison of <paramref name="owner"/> at a point stands on its map.</summary>
         public Garrison GarrisonOf(MapChannel mapChannel, Point point, byte owner)
         {
+            // The raiders who took the point hold it with its garrison until they are killed (BaneRaids).
+            if (BaneRaids.Instance.Holders(mapChannel, point, owner) > 0)
+                return Garrison.Standing;
+
             var pools = PoolsOn(mapChannel, point.PoolsOf(owner)).Where(CanSpawn).ToList();
 
             if (pools.Count == 0)
@@ -586,6 +593,42 @@ namespace Rasa.Managers
             var pools = PoolsOn(mapChannel, point.BanePools).Where(CanSpawn).ToList();
 
             return pools.Count == 0 ? 0 : pools.Min(p => p.RespawnTime);
+        }
+
+        /// <summary>Whether a point has a Bane garrison of its own on its map: a pool of its that would ever spawn.</summary>
+        public bool HasBaneGarrison(MapChannel mapChannel, Point point) =>
+            point != null && PoolsOn(mapChannel, point.BanePools).Any(CanSpawn);
+
+        /// <summary>
+        /// Makes a pool of no table's a part of a point's Bane garrison, on its map, for as long as it is
+        /// not given back (<see cref="ReleaseBanePool"/>): a raid that took a point with no garrison of its
+        /// own leaves one (BaneRaids). It is a garrison pool like any of the table's: it comes back together
+        /// with the rest, is taken off when the AFS take the point, and its kills are the point's minions.
+        /// </summary>
+        public void AdoptBanePool(MapChannel mapChannel, Point point, SpawnPool pool)
+        {
+            if (mapChannel == null || point == null || pool == null)
+                return;
+
+            point.BanePools.Add(pool.DbId);
+            _byPool[pool.DbId] = point;
+
+            if (!mapChannel.SpawnPools.Contains(pool))
+                mapChannel.SpawnPools.Add(pool);
+        }
+
+        /// <summary>A pool <see cref="AdoptBanePool"/> gave a point is the point's no more, nor on its map's list.</summary>
+        public void ReleaseBanePool(MapChannel mapChannel, Point point, SpawnPool pool)
+        {
+            if (point == null || pool == null)
+                return;
+
+            point.BanePools.Remove(pool.DbId);
+
+            if (_byPool.TryGetValue(pool.DbId, out var holder) && holder == point)
+                _byPool.Remove(pool.DbId);
+
+            mapChannel?.SpawnPools.Remove(pool);
         }
 
         /// <summary>Whether a player may start to capture the point now: the Bane hold it, and none of their garrison stands.</summary>
@@ -810,6 +853,20 @@ namespace Rasa.Managers
                 return;
 
             Announce(mapChannel, PlayerMessage.PmControlpointClaiming, point, clanId != 0 ? ClanName(clanId) ?? FactionName(Afs) : FactionName(Afs));
+        }
+
+        /// <summary>
+        /// Somebody not a player has begun to claim a point for <paramref name="owner"/> - a raider of the
+        /// Bane's or of the AFS's (BaneRaids): everyone on the map is told "Bane claiming Control Point",
+        /// "AFS claiming", by the same gap a player's claim is.
+        /// </summary>
+        public void ClaimingFor(MapChannel mapChannel, Point point, byte owner)
+        {
+            // The Bane's announcements by a clan id no clan has, so that the AFS's and the Bane's are told apart.
+            if (!MayAnnounceClaim(point, owner == Afs ? 0u : uint.MaxValue, Now()))
+                return;
+
+            Announce(mapChannel, PlayerMessage.PmControlpointClaiming, point, FactionName(owner));
         }
 
         /// <summary>
@@ -1309,7 +1366,11 @@ namespace Rasa.Managers
         {
             var pool = creature?.SpawnPool;
 
-            if (pool == null || client?.Player == null || !_byPool.TryGetValue(pool.DbId, out var point) || !point.BanePools.Contains(pool.DbId))
+            // One of a Bane raid on a point, or of those who took it, is as much a point's minion (BaneRaids).
+            var point = BaneRaids.Instance.PointOfPool(pool);
+
+            if (pool == null || client?.Player == null
+                || point == null && (!_byPool.TryGetValue(pool.DbId, out point) || !point.BanePools.Contains(pool.DbId)))
                 return 0;
 
             var amount = IsBoss(point, creature) ? BossPrestige : MinionPrestige;
@@ -1468,8 +1529,11 @@ namespace Rasa.Managers
                 pool.Suspended = false;
 
                 // Set down at once, on the spawn worker's next pass, and where it stands rather
-                // than by its arrival point.
+                // than by its arrival point - or, when the point has just changed hands, flown in:
+                // "a number of Bane will be dropshipped in" (Reinforcements; troops only, the rest
+                // is set down as before).
                 pool.HasSpawned = false;
+                pool.ShipNextArrival = takeOff;
                 pool.UpdateTimer = pool.RespawnTime;
             }
         }
