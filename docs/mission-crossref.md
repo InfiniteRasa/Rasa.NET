@@ -43,7 +43,7 @@ Generated 2026-10-18, extended 2026-10-20 (Wayback round 2: official site + patc
 
 **Goal in instance** (given on a public map, but cannot be completed without an objective inside an instance map; marked `[goal in instance]`, list in `tools/mission-crossref/NOTES-instance-goals.md`): 5 missions.
 
-**Needs playtest** (implemented, not yet played through in the game client; marked `[needs playtest]`, list in `tools/mission-crossref/NOTES-playtest.md`): 59 missions.
+**Needs playtest** (implemented, not yet played through in the game client; marked `[needs playtest]`, list in `tools/mission-crossref/NOTES-playtest.md`): 60 missions.
 
 
 **Instance** (the mission takes place in a client instance map, a "mission context" in gamecontext.pyo; marked `[instance]` in the entry heading): from an objective NPC package that spawns in an instance (local DB), a TaRapedia NPC page in an instance, or client objective text placing it there. "Instance mentioned" lines only name an instance (ESTIMATE). Refresh with instance_export.py.
@@ -20672,8 +20672,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 - **NPCs (TaRapedia NPC pages):**
   - [Colonel Herring](https://tabularasa.fandom.com/wiki/Colonel_Herring): Lamna Armory, Lamna Armory (NPC page lists this mission)
 
-### 904 — Weapons Trafficking
+### 904 — Weapons Trafficking [needs playtest]
 
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Rebuild summary:**
   - level: 33 — source: [TR MMO DB](https://web.archive.org/web/20090210212523/http://tr.mmodb.com:80/quests/weapons-trafficking-282.php)
   - level ESTIMATE from zone: the Pools zone level range is 34-38 — source: [Ellatha map: Pools](https://www.ellatha.com/tr/Pools_Maps_Logos.asp) (a zone range, not this mission's own level)
