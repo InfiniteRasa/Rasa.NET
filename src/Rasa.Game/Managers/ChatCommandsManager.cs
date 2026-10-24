@@ -16,7 +16,7 @@ namespace Rasa.Managers
     using Structures;
     using Structures.Char;
 
-    public class ChatCommandsManager
+    public partial class ChatCommandsManager
     {
         private static ChatCommandsManager _instance;
         private static readonly object InstanceLock = new object();
@@ -268,6 +268,7 @@ namespace Rasa.Managers
             RegisterCommand(".linkhere", GmLevel.GameMaster, LinkHereCommand, "destMapId", "destX", "destY", "destZ", "radius", "kind");
             RegisterCommand(".kraftwerks", GmLevel.GameMaster, KraftwerksCommand, "stationIdOrHere", "action", "value");
             RegisterCommand(".cp", GmLevel.GameMaster, ControlPointCommand, "id", "action");
+            RegisterCommand(".cpdef", GmLevel.GameMaster, ControlPointDefenceCommand, "id|config", "action", "arg");
             RegisterCommand(".greeting", GmLevel.GameMaster, GreetingCommand, "greetingId|clear|important|unread|show", "greetingId|on|off");
             RegisterCommand(".instance", GmLevel.GameMaster, InstanceCommand, "action", "number");
             RegisterCommand(".bg", GmLevel.GameMaster, BattlegroundCommand, "action", "arg1", "arg2");

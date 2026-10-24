@@ -259,6 +259,7 @@ docs/*
 !docs/mission-reference.md
 !docs/wilderness-missions.md
 !docs/gm-commands.md
+!docs/control-point-defences.md
 
 # Local runtime files
 /log-auth.txt

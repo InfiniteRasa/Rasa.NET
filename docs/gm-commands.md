@@ -315,6 +315,9 @@ Map links, region volumes, FX emitters and crafting stations are **saved to the 
 | `.greeting unread` | GameMaster | Forgets that your own character has read the targeted NPC's marked line, so it has the speech bubble for you again. For looking at a marked NPC a second time; other characters are not touched. |
 | `.greeting show <greetingId>` | GameMaster | Shows any greeting line in your conversation window, with nothing targeted: for finding the line you want. |
 | `.cp <id> lockbox` / `.cp <id> lockbox remove` | GameMaster | Sets the point's clan lockbox down where you stand, facing as you face, or moves it there if it has one; `remove` takes it away. Kept in the world database. The lockbox is on the map only while a clan holds the point. |
+| `.cpdef` / `.cpdef <id>` | GameMaster | A control point's defences: the nearest on your map, or that one. Who holds it, how many of its gate shields stand, how many of each side's garrison are alive, and each shield's row, side, hit points, state and, while it is down, how long until it stands again. |
+| `.cpdef <id> break [row]` / `.cpdef <id> damage <hp>` / `.cpdef <id> repair` | GameMaster | Brings the point's shields down (or the one of that `world_destructible` row), takes that many hit points off each that stands, or makes every one whole now. For watching the rebuild, the recharge and the defenders' answer. |
+| `.cpdef config` | GameMaster | The `ControlPointDefence` settings in force. |
 
 NPC greetings:
 
@@ -331,6 +334,11 @@ Clan-owned control points (`ControlPoints` in `appsettings.json`):
 - A clan loses a point when the Bane take it back, when the clan disbands, when a member of a clan **at feud** with it uses the point (`ClanCaptureSeconds`, 30 by default, of an interruptible use - only those players are offered the use), and at the weekly reset (`ClanWeeklyReset`), which runs on the day and time of `SquadInstances`' `WeeklyResetDay` and `WeeklyResetTime`.
 - Each point pays `ClanPrestige` prestige (100) into the clan's lockbox every `ClanPrestigeMinutes` (60). The payment shows in the lockbox history as a deposit by "Control Point <point name>".
 - The point's clan lockbox opens for members of the clan that holds the point and for nobody else.
+
+Control point defences (`ControlPointDefence` in `appsettings.json`, see [control point defences](control-point-defences.md)):
+
+- Each gate of a point's outpost has a shield, its holder's: the AFS's let players through and stop the Bane, the Bane's stop players. Brought down, one stands again whole two minutes later (`FieldRebuildSeconds`); when the point changes hands every one stands again whole for the new holder.
+- The AFS garrison has soldiers at the gates, sandbags and counters, with their zone's weapons. They and the turrets notice by their reach, call a fight to the rest of the base, and hold their posts. AFS turrets fire bursts of 3 or 5.
 
 ## Helping players
 
