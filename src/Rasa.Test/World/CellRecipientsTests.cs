@@ -89,7 +89,9 @@ namespace Rasa.Test.World
                 {
                     var seed = FirstSeed + (uint)(x * 5 + z);
                     cells[x, z] = seed;
-                    world.Map.MapCellInfo.Cells[seed] = new MapCell { CellSeed = seed, ClientList = clients.Skip(x * 20 + z * 4).Take(4).ToList() };
+                    var cell = new MapCell { CellSeed = seed };
+                    cell.ClientList.AddRange(clients.Skip(x * 20 + z * 4).Take(4));
+                    world.Map.MapCellInfo.Cells[seed] = cell;
                 }
 
             CellManager.Instance.GetClientsInCells(world.Map, cells);

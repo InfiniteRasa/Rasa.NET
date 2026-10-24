@@ -650,7 +650,7 @@ namespace Rasa.Managers
 
             CellManager.Instance.GetCellMatrixDiff(oldCellMatrix, newCellMatrix, out needUpdate, out needDelete);
 
-            CellManager.TakeOutOfCell(mapChannel.MapCellInfo.Cells[oldCellMatrix[2, 2]], creature);
+            mapChannel.MapCellInfo.Cells[oldCellMatrix[2, 2]].CreatureList.Remove(creature);
 
             // remove creature for player that are not in visibility range anymore - unless it is
             // who one of their missions sends them to speak to, which their client keeps (MissionContacts)
@@ -660,7 +660,7 @@ namespace Rasa.Managers
                         client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(creature.EntityId));
 
             // add creature to new cell
-            CellManager.PutInCell(mapChannel.MapCellInfo.Cells[newCellMatrix[2, 2]], creature);
+            mapChannel.MapCellInfo.Cells[newCellMatrix[2, 2]].CreatureList.Add(creature);
 
             // set new creature visibility
             creature.Cells = newCellMatrix;

@@ -65,7 +65,7 @@ namespace Rasa.Managers
             var cellMatrix = CreateCellMatrix(mapChannel, cellPosX, cellPosZ);
 
             // add creature to the cell
-            PutInCell(mapChannel.MapCellInfo.Cells[cellMatrix[2, 2]], creature);
+            mapChannel.MapCellInfo.Cells[cellMatrix[2, 2]].CreatureList.Add(creature);
             // add cellMatrix to creature
             creature.Cells = cellMatrix;
 
@@ -173,7 +173,7 @@ namespace Rasa.Managers
             var cellMatrix = CreateCellMatrix(client.Player.MapChannel, CellPosX, CellPosZ);
 
             // add client to the cell
-            PutInCell(client.Player.MapChannel.MapCellInfo.Cells[cellMatrix[2, 2]], client);
+            client.Player.MapChannel.MapCellInfo.Cells[cellMatrix[2, 2]].ClientList.Add(client);
             // add cellMatrix to client
             client.Player.Cells = cellMatrix;
             client.Player.RuntimeMapChannel = client.Player.MapChannel;
@@ -427,7 +427,7 @@ namespace Rasa.Managers
                 ManifestationManager.Instance.CellDiscardPlayersToClient(client, notify);
 
             foreach (var cell in memberships)
-                LeftCell(cell, client, cell.ClientList.RemoveAll(player => player == client));
+                cell.ClientList.RemoveAll(player => player == client);
             if (client.Player.MapChannel == map)
             {
                 client.Player.Cells = new uint[5, 5];
@@ -465,16 +465,15 @@ namespace Rasa.Managers
             if (player.Cells[2, 2] == newCenter)
             {
                 // Counted by hand: this is every player, every second, and almost never true.
-                var center = map.MapCellInfo.Cells[newCenter];
-                var members = center.ClientList;
+                var members = map.MapCellInfo.Cells[newCenter].ClientList;
                 var times = 0;
                 foreach (var member in members)
                     if (member == client)
                         times++;
                 if (times > 1)
                 {
-                    LeftCell(center, client, members.RemoveAll(member => member == client));
-                    PutInCell(center, client);
+                    members.RemoveAll(member => member == client);
+                    members.Add(client);
                 }
                 return;
             }
@@ -484,8 +483,8 @@ namespace Rasa.Managers
             var leaving = GetClientsInCells(map, removed, client);
             var removedCells = GetCells(map, removed).ToList();
             foreach (var cell in GetCells(map, player.Cells.Cast<uint>()))
-                LeftCell(cell, client, cell.ClientList.RemoveAll(member => member == client));
-            PutInCell(map.MapCellInfo.Cells[newCenter], client);
+                cell.ClientList.RemoveAll(member => member == client);
+            map.MapCellInfo.Cells[newCenter].ClientList.Add(client);
             player.Cells = next;
 
             // A squad or team mate stays on the client, and the client on theirs, as they walk
@@ -513,68 +512,49 @@ namespace Rasa.Managers
             DynamicObjectManager.Instance.ShowClaimsTo(client, entering);
         }
 
-        /// <summary>Puts a creature on a cell's list, and keeps which (CellMembership).</summary>
-        internal static void PutInCell(MapCell cell, Creature creature)
-        {
-            cell.CreatureList.Add(creature);
-            (creature.CellMembership ??= new CellMembership()).Entered(cell);
-        }
-
-        /// <summary>Takes a creature off a cell's list once, as List.Remove does, and keeps which (CellMembership).</summary>
-        internal static bool TakeOutOfCell(MapCell cell, Creature creature)
-        {
-            var removed = cell.CreatureList.Remove(creature);
-
-            if (removed)
-                creature.CellMembership?.Left(cell, 1);
-
-            return removed;
-        }
+        /// <summary>
+        /// For the tests only: every cell of the map searched, as it was before CellMembership, so
+        /// that the two can be compared. Never set by the server.
+        /// </summary>
+        internal static bool SearchEveryCell;
 
         /// <summary>
-        /// Takes a creature off every list of this map's cells it is on: the one cell its
-        /// membership names, when it can say (CellMembership), or every cell of the map.
+        /// Takes a creature off every list of this map's cells it is on: off the one cell it is on
+        /// (CellMembership), and when it is on more than one, or the tests ask, every cell of the
+        /// map searched as before.
         /// </summary>
         internal static void TakeOutOfCells(MapChannel map, Creature creature)
         {
             var membership = creature.CellMembership;
 
-            if (membership != null && membership.TryGetCell(map, out var known))
-            {
-                if (known != null)
-                    membership.Left(known, known.CreatureList.RemoveAll(candidate => candidate == creature));
+            // On no cell's list at all: nothing to take it off.
+            if (!SearchEveryCell && (membership == null || membership.Entries == 0))
+                return;
 
+            if (!SearchEveryCell && membership.TryGetCell(map, out var known))
+            {
+                known?.CreatureList.RemoveAll(candidate => candidate == creature);
                 return;
             }
 
-            // Removed first: membership?.Left(...) would not run the RemoveAll for a creature with none.
             foreach (var cell in map.MapCellInfo.Cells.Values)
-            {
-                var removed = cell.CreatureList.RemoveAll(candidate => candidate == creature);
-                membership?.Left(cell, removed);
-            }
+                cell.CreatureList.RemoveAll(candidate => candidate == creature);
         }
-
-        /// <summary>Puts a client on a cell's list, and keeps which (CellMembership).</summary>
-        private static void PutInCell(MapCell cell, Client client)
-        {
-            cell.ClientList.Add(client);
-            (client.CellMembership ??= new CellMembership()).Entered(cell);
-        }
-
-        /// <summary>A client taken off a cell's list <paramref name="removed"/> times (CellMembership).</summary>
-        private static void LeftCell(MapCell cell, Client client, int removed) =>
-            client.CellMembership?.Left(cell, removed);
 
         /// <summary>
         /// The cells of this map that have the client on their list, in the order of the map's
-        /// table: the one its membership names, when it can say (CellMembership), and otherwise
-        /// every cell of the map looked in.
+        /// table: the one it is on (CellMembership), and when it is on more than one, or the tests
+        /// ask, every cell of the map looked in as before.
         /// </summary>
         private static MapCell[] CellsHolding(MapChannel map, Client client)
         {
-            if (client.CellMembership != null && client.CellMembership.TryGetCell(map, out var known))
-                return known != null && known.ClientList.Contains(client) ? new[] { known } : Array.Empty<MapCell>();
+            var membership = client.CellMembership;
+
+            if (!SearchEveryCell && (membership == null || membership.Entries == 0))
+                return Array.Empty<MapCell>();
+
+            if (!SearchEveryCell && membership.TryGetCell(map, out var known))
+                return known != null ? new[] { known } : Array.Empty<MapCell>();
 
             return map.MapCellInfo.Cells.Values.Where(cell => cell.ClientList.Contains(client)).ToArray();
         }
