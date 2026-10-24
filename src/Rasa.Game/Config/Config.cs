@@ -46,5 +46,8 @@ namespace Rasa.Config
 
         /// <summary>How often a player's killing blow leaves a creature staggering for a Critical Death finisher, and whether a morphed player has them (Managers.CritDeathManager).</summary>
         public CritDeathConfig CritDeath { get; set; } = new CritDeathConfig();
+
+        /// <summary>Whether the missions' radiation and toxic gas volumes hurt, and how hard (Managers.MissionHazards).</summary>
+        public HazardsConfig Hazards { get; set; } = new HazardsConfig();
     }
 }

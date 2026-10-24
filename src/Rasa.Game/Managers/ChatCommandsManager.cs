@@ -287,6 +287,7 @@ namespace Rasa.Managers
             RegisterCommand(".rename", GmLevel.GameMaster, RenameCommand, "part", "newName", "familyName");
             RegisterCommand(".setkillstreak", GmLevel.GameMaster, SetKillStreakCommand, "level");
             RegisterCommand(".critdeath", GmLevel.GameMaster, parts => CritDeathManager.GmCommand(_client, parts), "percent | morph on|off");
+            RegisterCommand(".hazard", GmLevel.GameMaster, parts => MissionHazards.GmCommand(_client, parts), "place radiation|toxic [radius] [missionId] | id on|off | remove id");
             RegisterCommand(".setregion", GmLevel.GameMaster, SetRegionCommand, "regionIdsOrOff");
             RegisterCommand(".setskytime", GmLevel.GameMaster, SetSkyTimeCommand, "hh:mm");
             RegisterCommand(".speed", GmLevel.GameMaster, SpeedCommand, "value");
