@@ -81,7 +81,9 @@ namespace Rasa.Managers
         /// </summary>
         private static void Emptied(SpawnPool spawnPool)
         {
-            spawnPool.UpdateTimer = 0;
+            // On a battlefield it stays down as long as its kind asks (RespawnPace): its timer starts that much
+            // below zero, so whatever puts a pool back at once by setting its timer up still does.
+            spawnPool.UpdateTimer = -RespawnPace.Down(spawnPool);
 
             if (spawnPool.Mode == ModeAutomatic && spawnPool.SpawnPolicy != Structures.World.MissionSpawnGroupPolicy.ScenarioControlled)
                 spawnPool.RuntimeMapChannel?.SquadState?.PoolCleared(spawnPool);
@@ -136,13 +138,19 @@ namespace Rasa.Managers
             Filled(spawnPool);
         }
 
-        internal void DecreaseAliveCreatureCount(MapChannel mapChannel, SpawnPool spawnPool)
+        /// <param name="killed">The creature that was killed, when one was: on a battlefield what it lost comes back no sooner than its pace (RespawnPace.Lost).</param>
+        internal void DecreaseAliveCreatureCount(MapChannel mapChannel, SpawnPool spawnPool, Creature killed = null)
         {
             spawnPool.AliveCreatures--;
             if ((spawnPool.DropshipQueue + spawnPool.QueuedCreatures + spawnPool.AliveCreatures) == 0)
                 Emptied(spawnPool);
-            else if (spawnPool.UpdateTimer >= spawnPool.RespawnTime)
-                spawnPool.UpdateTimer = 0; // its first loss since it was whole: the top-up's time starts (TopUp)
+            else
+            {
+                if (spawnPool.UpdateTimer >= spawnPool.RespawnTime)
+                    spawnPool.UpdateTimer = 0; // its first loss since it was whole: the top-up's time starts (TopUp)
+
+                RespawnPace.Lost(spawnPool, killed);
+            }
         }
 
         public void IncreaseDeadCreatureCount(SpawnPool spawnPool)
@@ -315,7 +323,7 @@ namespace Rasa.Managers
                 // the point - and not while the other does, whatever its mode. Nor is one in a
                 // place the player has taken back (Quieted). A scripted pool a mission scene has
                 // woken on the player's map is (Woken).
-                if (spawnPool.Suspended || spawnPool.Quieted
+                if (spawnPool.Suspended || spawnPool.Besieged || spawnPool.Quieted
                     || spawnPool.Mode != ModeAutomatic && !(spawnPool.Mode == ModeControlPoint && spawnPool.IsGarrison)
                         && !(spawnPool.Mode == ModeScripted && spawnPool.Woken)
                     || spawnPool.AnimType < 0 || spawnPool.AnimType > 2)
@@ -466,13 +474,18 @@ namespace Rasa.Managers
             return missing;
         }
 
-        /// <summary>Sets a pool's creatures down: through its arrival point, off its dropship, or where it stands.</summary>
+        /// <summary>
+        /// Sets a pool's creatures down: through its arrival point, off its dropship, or where it stands.
+        /// A pool with no arrival row of its own may be given one of no table's (Reinforcements.ArrivalFor):
+        /// a spot a Bane or AFS ship comes down on, or its own ground to beam in on.
+        /// </summary>
         private void Dispatch(MapChannel mapChannel, SpawnPool spawnPool, List<Creature> creatureList)
         {
             // An arrival point: through a teleporter, or off a dropship on a pad or in a bay.
-            var arrival = BaneArrivals.Pick(spawnPool);
+            var arrival = BaneArrivals.Pick(spawnPool) ?? Reinforcements.ArrivalFor(mapChannel, spawnPool, creatureList);
 
             spawnPool.HasSpawned = true;
+            spawnPool.ShipNextArrival = false;
 
             if (arrival?.Kind == SpawnPoolArrivalEntry.KindTeleporter)
             {
@@ -481,7 +494,7 @@ namespace Rasa.Managers
                 spawnPool.QueuedCreatureList = creatureList;
                 BaneArrivals.BeginTeleport(mapChannel, spawnPool, arrival, creatureList.Count);
             }
-            else if (arrival?.Kind == SpawnPoolArrivalEntry.KindDropship)
+            else if (Reinforcements.IsShip(arrival))
                 EnqueueDropship(mapChannel, spawnPool, creatureList, arrival);
             else if (spawnPool.AnimType == 0)    // animType==0; spawn without animation
             {
@@ -489,7 +502,8 @@ namespace Rasa.Managers
 
                 try
                 {
-                    SpawnCreatures(spawnPool, creatureList);
+                    // Beamed in on their own ground (Reinforcements), or simply there.
+                    SpawnCreatures(spawnPool, creatureList, beamIn: arrival?.Kind == SpawnPoolArrivalEntry.KindBeamIn);
                 }
                 finally
                 {
@@ -502,14 +516,18 @@ namespace Rasa.Managers
             }
         }
 
-        /// <param name="arrival">An arrival point the dropship lands on (a pad, a bay); null: the pool's own ground.</param>
-        private void EnqueueDropship(MapChannel mapChannel, SpawnPool spawnPool, List<Creature> creatureList, SpawnPoolArrivalEntry arrival = null)
+        /// <param name="arrival">
+        /// An arrival point the dropship lands on (a pad, a bay, a spot Reinforcements found); null: the pool's
+        /// own ground. The AFS's ship at an AFS arrival (SpawnPoolArrivalEntry.KindAfsDropship), the Bane's at any other.
+        /// </param>
+        /// <returns>The ship, on its way.</returns>
+        internal Dropship EnqueueDropship(MapChannel mapChannel, SpawnPool spawnPool, List<Creature> creatureList, SpawnPoolArrivalEntry arrival = null)
         {
             Dropship dropship = null;
             var reserved = false;
             try
             {
-                dropship = new Dropship(arrival != null || spawnPool.AnimType == 1 ? TargetCategory.Hostile : TargetCategory.Friendly,
+                dropship = new Dropship(arrival != null ? Reinforcements.SideOf(arrival) : spawnPool.AnimType == 1 ? TargetCategory.Hostile : TargetCategory.Friendly,
                     DropshipType.Spawner, spawnPool);
 
                 if (arrival != null)
@@ -525,6 +543,8 @@ namespace Rasa.Managers
                 reserved = true;
                 CellManager.Instance.AddToWorld(mapChannel, dropship);
                 DynamicObjectManager.Instance.Dropships.Add(dropship.EntityId, dropship);
+
+                return dropship;
             }
             catch
             {
@@ -585,7 +605,8 @@ namespace Rasa.Managers
         }
 
         /// <param name="arrival">Where they arrive, when they come by an arrival point: they step out there and walk to the pool's ground.</param>
-        internal void SpawnCreatures(SpawnPool spawnPool, List<Creature> creatureList, SpawnPoolArrivalEntry arrival = null)
+        /// <param name="beamIn">Each plays its class's arrival as it is set down on the pool's ground (Reinforcements.BeamIn).</param>
+        internal void SpawnCreatures(SpawnPool spawnPool, List<Creature> creatureList, SpawnPoolArrivalEntry arrival = null, bool beamIn = false)
         {
             var mapChannel = spawnPool.RuntimeMapChannel ??
                 MapChannelManager.Instance.FindByContextId(spawnPool.MapContextId);
@@ -599,6 +620,10 @@ namespace Rasa.Managers
 
                 try
                 {
+                    // Brought to the pool's level, when it has one (an AFS raid's soldiers: BaneRaids).
+                    if (spawnPool.Level > 0 && creature.Level != spawnPool.Level)
+                        CreatureSummons.Rescale(creature, spawnPool.Level);
+
                     if (arrival == null)
                         RandomizePosition(creature, creatureList.Count);
                     else
@@ -627,6 +652,9 @@ namespace Rasa.Managers
                         MawLurk.Bury(mapChannel, creature);
                     else
                         CellManager.Instance.AddToWorld(mapChannel, creature);
+
+                    if (beamIn && arrival == null)
+                        Reinforcements.BeamIn(mapChannel, creature);
 
                     if (arrival != null)
                         BehaviorManager.Instance.WalkIn(creature, SpawnPoint(mapChannel, spawnPool, creatureList.Count, creature));

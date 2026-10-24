@@ -207,7 +207,14 @@ namespace Rasa.Managers
             List<Ripper> rippers;
 
             lock (RippersLock)
+            {
+                // Nothing open anywhere, which is every tick of almost every map: the filter
+                // below found nothing, and its closure, iterator and list were all it did.
+                if (Rippers.Count == 0)
+                    return;
+
                 rippers = Rippers.Where(r => r.MapChannel == mapChannel).ToList();
+            }
 
             if (rippers.Count == 0)
                 return;

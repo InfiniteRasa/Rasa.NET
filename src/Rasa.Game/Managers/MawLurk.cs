@@ -133,6 +133,12 @@ namespace Rasa.Managers
 
             lock (Sync)
             {
+                // Nothing going down or coming up anywhere and nothing buried here, which is every
+                // tick of almost every map: the filters below found nothing, and their closures,
+                // iterators and lists were all they did.
+                if (Sinking.Count == 0 && Emerging.Count == 0 && !Buried.ContainsKey(mapChannel))
+                    return;
+
                 down = Sinking.Where(s => s.Value.Map == mapChannel && now >= s.Value.Until).Select(s => s.Key).ToList();
 
                 foreach (var creature in down)
@@ -230,8 +236,7 @@ namespace Rasa.Managers
             foreach (var client in CellManager.Instance.GetClientsInCells(mapChannel, creature.Cells))
                 client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(creature.EntityId));
 
-            foreach (var cell in mapChannel.MapCellInfo.Cells.Values)
-                cell.CreatureList.RemoveAll(candidate => candidate == creature);
+            CellManager.TakeOutOfCells(mapChannel, creature);
 
             if (creature.Attributes.TryGetValue(Attributes.Health, out var health))
                 health.Current = health.CurrentMax;

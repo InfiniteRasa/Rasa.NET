@@ -37,7 +37,8 @@ namespace Rasa.Managers
     ///    back as a sprout that grows (ForceState POWER_DOWN, Use POWER_UP), as the client has no
     ///    way from destroyed.
     ///  - a force field (62, 79, 84): ForceFields, on the row's side (the Bane's by default, which
-    ///    players can shoot), repaired when it is due back.
+    ///    players can shoot), repaired when it is due back. One that is a control point's gate shield
+    ///    is its holder's on the point's own channel, and back when that says (ControlPointFields).
     ///  - a Shrine (13) or a StatelessSwitch (8) has destroyed content and is no destroyable to the
     ///    client: it is put down as scenery in its one state, and nothing hurts it.
     ///
@@ -628,7 +629,11 @@ namespace Rasa.Managers
 
                 var side = placement.Side == WorldDestructibleEntry.SideAfs ? ForceFields.Side.A : ForceFields.Side.B;
 
-                live.Field = ForceFields.Place(map, fieldClass, side, placement.Position, (float)placement.Rotation, (int)live.MaxHitPoints);
+                // A control point's gate shield, on the point's own channel: its holder's.
+                var point = placement.IsPutDown ? null : ControlPointFields.PointFor(map, placement.Id);
+
+                live.Field = ForceFields.Place(map, fieldClass, ControlPointFields.SideFor(point, side), placement.Position, (float)placement.Rotation, (int)live.MaxHitPoints);
+                live.Field.ControlPointId = point?.Id ?? 0;
                 live.Object = live.Field.Object;
             }
             else
@@ -860,9 +865,10 @@ namespace Rasa.Managers
 
                 if (live.IsDown)
                 {
-                    // A force field ForceFields took down: when it is due back.
+                    // A force field ForceFields took down: when it is due back - a control point's
+                    // gate shield when its point's rule says (ControlPointFields).
                     if (live.RespawnAt == 0)
-                        live.RespawnAt = now + Math.Clamp(Roll(RespawnMinMs, RespawnMaxMs), RespawnMinMs, RespawnMaxMs);
+                        live.RespawnAt = now + (ControlPointFields.RebuildMsFor(live.Field) ?? Math.Clamp(Roll(RespawnMinMs, RespawnMaxMs), RespawnMinMs, RespawnMaxMs));
                     else if (now >= live.RespawnAt)
                         Respawn(live);
 

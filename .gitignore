@@ -259,6 +259,13 @@ docs/*
 !docs/mission-reference.md
 !docs/wilderness-missions.md
 !docs/gm-commands.md
+!docs/respawn-pace.md
+!docs/cave-sight.md
+!docs/control-point-defences.md
+!docs/boss-titles.md
+!docs/critical-death.md
+!docs/mission-hazards.md
+!docs/raids.md
 
 # Local runtime files
 /log-auth.txt

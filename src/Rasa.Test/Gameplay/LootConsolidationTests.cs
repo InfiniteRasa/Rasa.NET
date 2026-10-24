@@ -322,6 +322,42 @@ namespace Rasa.Test.Gameplay
             Assert.AreEqual(107, context.Client.Player.Credits[CurencyType.Credits]);
         }
 
+        /// <summary>
+        /// Auto-loot is sent at every frame in reach. Once its credits are paid, a corpse whose
+        /// items are all above the threshold asks for nothing: it is not a transaction, nor a
+        /// query, and nothing changes.
+        /// </summary>
+        [TestMethod]
+        public void WalkingPastACorpseThatHasNothingToGiveTouchesNoDatabase()
+        {
+            using var context = new LootFixture();
+            context.Item.ItemTemplate.QualityId = (int)LootQuality.Normal;
+            var auto = new RequestLootAllFromCorpsePacket { EntityId = context.Loot.EntityId, AutoLootOnly = true };
+
+            context.Manager.RequestLootAllFromCorpse(context.Client, auto);
+            Assert.AreEqual(107, context.Client.Player.Credits[CurencyType.Credits], "the first pays the credits");
+            context.Drain();
+
+            var queries = 0;
+            var saves = context.Storage.SaveAttempts;
+            context.Storage.BeforeQuery = () => queries++;
+
+            for (var frame = 0; frame < 5; frame++)
+                context.Manager.RequestLootAllFromCorpse(context.Client, auto);
+
+            context.Storage.BeforeQuery = null;
+            Assert.AreEqual(0, queries);
+            Assert.AreEqual(saves, context.Storage.SaveAttempts);
+            Assert.IsFalse(context.Loot.LootItems[0].Taken);
+            Assert.AreEqual(107, context.Client.Player.Credits[CurencyType.Credits]);
+            Assert.AreEqual(0, InventoryFull(context.Drain()));
+
+            // The button asks for everything, and still gets it.
+            context.Manager.RequestLootAllFromCorpse(context.Client,
+                new RequestLootAllFromCorpsePacket { EntityId = context.Loot.EntityId });
+            Assert.IsTrue(context.Loot.FullyLooted);
+        }
+
         [TestMethod]
         public void AFullCategoryLeavesTheItemOnTheCorpseAndLootAllStillPaysTheCredits()
         {

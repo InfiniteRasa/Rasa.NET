@@ -668,6 +668,11 @@ namespace Rasa.Managers
 
             lock (BombsLock)
             {
+                // Nothing ticking, no corpse primed or claimed anywhere, which is every tick of almost every map: the filter
+                // below found nothing, and its closure, iterator and list were all it did.
+                if (Bombs.Count == 0 && CorpseBombs.Count == 0 && CorpseClaims.Count == 0)
+                    return;
+
                 due = Bombs.Where(b => b.MapChannel == mapChannel && now >= b.GoesOffAt).ToList();
 
                 foreach (var bomb in due)

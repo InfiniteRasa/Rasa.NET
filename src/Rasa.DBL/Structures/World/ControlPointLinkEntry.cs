@@ -36,6 +36,13 @@ namespace Rasa.Structures.World
         /// </summary>
         public const byte KindClanLockbox = 6;
 
+        /// <summary>
+        /// <see cref="Kind"/>: object_id is the world_destructible row of a force field in one of the
+        /// gates of the point's outpost: its holder's side, and back whole when the point changes
+        /// hands (ControlPointFields, Control_point_defences).
+        /// </summary>
+        public const byte KindField = 7;
+
         [Column("control_point_id")]
         [Required]
         public uint ControlPointId { get; set; }

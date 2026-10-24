@@ -17,6 +17,12 @@ namespace Rasa.Configuration.ContextSetup
         {
             var connectionString = _connectionStringFactory.Create(configuration);
             dbContextOptionsBuilder.UseSqlite(connectionString);
+
+            // The journal and how long a commit waits for the disk: SqlitePragmaInterceptor.
+            var pragmas = SqlitePragmaInterceptor.For(configuration.JournalMode, configuration.Synchronous);
+
+            if (pragmas != null)
+                dbContextOptionsBuilder.AddInterceptors(pragmas);
         }
     }
 }

@@ -151,6 +151,9 @@ namespace Rasa.Managers
         /// <summary>How far the target may drift from the point the current chase path aims at.</summary>
         private const float ChaseRepathDistance = 2.0f;
 
+        /// <summary>appsettings.json's CreatureAi: the staggered think and the bounded path searches.</summary>
+        public static Rasa.Config.CreatureAiConfig Config { get; set; } = new Rasa.Config.CreatureAiConfig();
+
         private static BehaviorManager _instance;
         private static readonly object InstanceLock = new object();
         public static BehaviorManager Instance
@@ -641,6 +644,8 @@ namespace Rasa.Managers
 
                     if (FollowPath(mapChannel, creature, wanderSpeed, delta) || wander.MovingMs >= timeout)
                     {
+                        var walkedIn = wander.Arriving;
+
                         wander.Arriving = false;
 
                         // There, or as near as it is going to get: it stops, and the interval
@@ -653,6 +658,10 @@ namespace Rasa.Managers
                             wander.Errand = false;
                             CreatureHabits.Arrived(mapChannel, creature);
                         }
+
+                        // Back at its post after a fight: it faces the way the post does (Defenders).
+                        if (walkedIn)
+                            Defenders.AtPost(creature);
 
                         wander.State = WanderIdle;
                         wander.IdleMs = 0;
@@ -944,6 +953,15 @@ namespace Rasa.Managers
                         return;
                     }
                 }
+                else if (Defenders.LetsGo(creature, targetPosition))
+                {
+                    // A defender holds its post: a target gone too far from it is let go, and it
+                    // turns to whoever it hates next or goes back (Defenders).
+                    if (!Threat.Retarget(creature))
+                        GiveUp(creature);
+
+                    return;
+                }
                 else if (ChasedTooFar(creature))
                 {
                     // Dragged too far from home: it runs back, forgetting the fight, and is whole
@@ -1149,8 +1167,9 @@ namespace Rasa.Managers
                     // Feedback on it burns it for acting: this is the hostile action the server has.
                     AbilityManager.OnCreatureActed(mapChannel, creature, true);
 
-                    // set cooldown, lengthened by whatever slows its attacks (Called Shot: Arm)
-                    action.CooldownTimer = NextCooldown(creature, action);
+                    // set cooldown, lengthened by whatever slows its attacks (Called Shot: Arm); an
+                    // AFS turret's by where it is in its burst (Emplacements)
+                    action.CooldownTimer = Emplacements.Cooldown(creature, NextCooldown(creature, action));
                     MadeProgress(creature);
 
                     // creature used action, break loop
@@ -1159,6 +1178,10 @@ namespace Rasa.Managers
 
                 if (needToMove == false)
                 {
+                    // A turret between its shots stays turned to a target that moves (Emplacements).
+                    if (Emplacements.KeepsFacing(creature, targetDistX, targetDistZ))
+                        UpdateEntityMovement(targetDistX, targetDistY, targetDistZ, creature, mapChannel, 0.0f, false, delta);
+
                     // Holding here - an attack cooling down with nothing closer to use, the
                     // opening roll - after a think that stepped: the clients carry the last
                     // movement on at its speed until they are told otherwise.
@@ -2038,7 +2061,9 @@ namespace Rasa.Managers
                     $"Cannot move creature {creature.DbId} to {destination}: map {mapChannel.MapInfo?.MapContextId} has no navmesh loaded.");
                 return false;
             }
-            var path = mapChannel.NavMesh.FindPath(creature.Position, destination, out var complete);
+            // Only a complete route will do, so a destination no route reaches is searched only so
+            // far (FindPathBounded): it is turned down all the same, without the whole region walked.
+            var path = mapChannel.NavMesh.FindPathBounded(creature.Position, destination, out var complete);
             if (!complete || path == null || path.Count == 0 ||
                 Vector3.Distance(path[^1], destination) > 1)
             {
@@ -2114,14 +2139,16 @@ namespace Rasa.Managers
         /// straight-line fallback that ordinary creatures retain on maps without a navmesh.
         ///
         /// <paramref name="bounded"/>: the destination may be where no route goes - a chase's - and
-        /// is then searched for only so far (NavMeshManager.FindPathBounded). Returns whether the
-        /// path reaches the destination: false when it stops short of it, or there is none; a
-        /// straight line on a map with no navmesh counts as reaching it.
+        /// is then searched for only so far (NavMeshManager.FindPathBounded). With
+        /// CreatureAi.BoundedPathSearches on, every destination is: a stroll's, a follower's, the
+        /// way home and a patrol's alike. A destination a route reaches gets the same route either
+        /// way. Returns whether the path reaches the destination: false when it stops short of it,
+        /// or there is none; a straight line on a map with no navmesh counts as reaching it.
         /// </summary>
         private static bool BuildPath(MapChannel mapChannel, Creature creature, Vector3 destination, bool bounded = false)
         {
             var complete = false;
-            var path = bounded
+            var path = bounded || Config?.BoundedPathSearches == true
                 ? NavMeshManager.FindPathBounded(mapChannel, creature.Position, destination, out complete)
                 : mapChannel?.NavMesh?.FindPath(creature.Position, destination, out complete);
 
@@ -2365,6 +2392,12 @@ namespace Rasa.Managers
 
         public void MapChannelThink(MapChannel mapChannel, long delta)
         {
+            if (Config?.StaggeredThink == true)
+            {
+                StaggeredThink(mapChannel, delta);
+                return;
+            }
+
             // Accumulated per map. This used to be one field on the singleton shared by every
             // map channel, so with two maps active each one's creatures ran on the other's time.
             mapChannel.ControllerElapsed += delta;
@@ -2425,7 +2458,96 @@ namespace Rasa.Managers
                     }
                 }
             }
-            
+
+            FinishThink(mapChannel, queue_creatureDeletion, queue_creatureCellUpdate);
+        }
+
+        /// <summary>
+        /// MapChannelThink with CreatureAi.StaggeredThink on: on each pass, only the creatures
+        /// whose group's beat fell within it think (CreatureThinkSchedule), each over the time
+        /// since its group last thought. The walk is the one the whole-map think makes - every
+        /// cell over a copy of the cell table, every creature once, its cell's list copied before
+        /// any of it thinks - so the order the thinking creatures go in, and what one thinking
+        /// creature changes for the next, are as they were; a cell none of whose creatures think
+        /// on this pass is passed over without the copy.
+        /// </summary>
+        private void StaggeredThink(MapChannel mapChannel, long delta)
+        {
+            var slots = Math.Max(1, Config.ThinkSlots);
+            var period = Math.Max(1, Config.ThinkPeriodMs);
+            var schedule = mapChannel.ThinkSchedule;
+
+            // A pass of CreatureThinkInterval (250 ms) or more thinks everyone, as it made the
+            // whole map think; on shorter passes each group on its beat of the period.
+            if (schedule == null || schedule.Slots != slots || schedule.Period != period)
+                mapChannel.ThinkSchedule = schedule = new CreatureThinkSchedule(slots, period, CreatureThinkInterval);
+
+            schedule.Advance(delta);
+
+            if (!schedule.AnyDue)
+                return;
+
+            var queue_creatureDeletion = new List<Creature>();
+            var queue_creatureCellUpdate = new List<Creature>();
+            var tempCells = mapChannel.ThinkCells;
+            var processedCreatures = mapChannel.ThoughtCreatures;
+            var everyone = schedule.DueCount == schedule.Slots;
+
+            tempCells.Clear();
+            tempCells.AddRange(mapChannel.MapCellInfo.Cells.Values);
+            processedCreatures.Clear();
+
+            try
+            {
+                foreach (var mapCell in tempCells)
+                {
+                    if (mapCell == null || mapCell.CreatureList.Count == 0)
+                        continue;
+
+                    if (!everyone && !AnyThinks(mapCell.CreatureList, schedule))
+                        continue;
+
+                    foreach (var creature in mapCell.CreatureList.ToArray())
+                    {
+                        if (creature == null)
+                            continue;
+
+                        var elapsed = schedule.ElapsedFor(creature.EntityId);
+
+                        if (elapsed <= 0 || !processedCreatures.Add(creature))
+                            continue;
+
+                        CreatureThink(mapChannel, creature, elapsed, out var needDeletion, out var needCellUpdate);
+
+                        if (needDeletion)
+                            queue_creatureDeletion.Add(creature);
+
+                        if (needCellUpdate) // update cell (even when creature is also deleted)
+                            queue_creatureCellUpdate.Add(creature);
+                    }
+                }
+            }
+            finally
+            {
+                // Not held past the pass: a creature taken out of the world is not kept alive by it.
+                processedCreatures.Clear();
+            }
+
+            FinishThink(mapChannel, queue_creatureDeletion, queue_creatureCellUpdate);
+        }
+
+        private static bool AnyThinks(List<Creature> creatures, CreatureThinkSchedule schedule)
+        {
+            foreach (var creature in creatures)
+                if (creature != null && schedule.ElapsedFor(creature.EntityId) > 0)
+                    return true;
+
+            return false;
+        }
+
+        /// <summary>The end of a think pass: the creatures that crossed into another cell are moved to it, and the ones done with are taken out of the world.</summary>
+        private static void FinishThink(MapChannel mapChannel, List<Creature> queue_creatureDeletion, List<Creature> queue_creatureCellUpdate)
+        {
             //update logic for creatures (same like for deletion below, moving creatures to different vectors is not good)
             if (queue_creatureCellUpdate.Count > 0)
             {
@@ -2669,6 +2791,9 @@ namespace Rasa.Managers
 
             // Its target, to everyone who can see it: the guns that aim, aim (Targets).
             Targets.Sync(creature.RuntimeMapChannel ?? MapChannelManager.Instance.FindByContextId(creature.MapContextId), creature);
+
+            // A defender's fight is its base's: the others near it are called (Defenders).
+            Defenders.FightStarted(creature, targetEntityId);
             return true;
         }
 
@@ -2860,6 +2985,9 @@ namespace Rasa.Managers
         {
             creature.Hate.Clear();
             StopFighting(creature);
+
+            // A defender off its post walks back to it (Defenders).
+            Defenders.FightOver(creature);
         }
 
         /// <summary>
@@ -3073,7 +3201,8 @@ namespace Rasa.Managers
             if (cover == null)
                 return true;
 
-            return Cover.Visible(cover, Cover.EyeOf(creature), Cover.SamplePoints(target, creature.Position)) > 0;
+            return Cover.Visible(cover, Cover.EyeOf(creature), Cover.SamplePoints(target, creature.Position),
+                Sight.WithoutTerrain(creature.RuntimeMapChannel, cover, creature.Position, target.Position)) > 0;
         }
 
         #endregion
@@ -3283,13 +3412,16 @@ namespace Rasa.Managers
             // so a large step cannot carry the creature past its node.
             var step = (float)Math.Min(velocity * elapsedMs / 1000.0d, remaining);
 
-            // A force field that stops it (ForceFields): no further, walking or carried.
-            if (isMoved && step > 0f && ForceFields.Stops(mapChannel, creature, creature.Position,
-                    creature.Position + new Vector3((float)(difX * step), (float)(difY * step), (float)(difZ * step))))
+            // A force field that stops it (ForceFields): no further, walking or carried - and a
+            // control point's gate shield is struck at by a fighting creature it stops (ControlPointFields).
+            if (isMoved && step > 0f && ForceFields.Blocking(mapChannel, creature, creature.Position,
+                    creature.Position + new Vector3((float)(difX * step), (float)(difY * step), (float)(difZ * step))) is { } blocking)
             {
                 isMoved = false;
                 velocity = 0f;
                 step = 0f;
+
+                ControlPointFields.Blocked(mapChannel, creature, blocking);
             }
 
             if (isMoved)

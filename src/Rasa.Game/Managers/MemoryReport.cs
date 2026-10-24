@@ -148,6 +148,15 @@ namespace Rasa.Managers
             lines.Add($"Navigation: {MemoryFootprint.Format(navMesh.Bytes + cover)} across {maps.Count(map => map.NavigationBytes > 0)} maps");
             lines.Add($"  navmesh {MemoryFootprint.Format(navMesh.Bytes)}: {navMesh.Tiles:N0} tiles, {navMesh.Polys:N0} polys, {navMesh.Links:N0} links, {navMesh.BvNodes:N0} BV nodes");
             lines.Add($"  cover   {MemoryFootprint.Format(cover)}: {maps.Sum(map => (long)map.CoverTriangles):N0} triangles");
+
+            // Navigation.Lazy: only what is read now is counted, and nothing is read to count it.
+            if (LazyNavigation.Active)
+            {
+                var noted = LazyNavigation.All();
+
+                lines.Add($"  read now for {noted.Count(n => n.IsRead)} of {noted.Length} maps (Navigation.Lazy): " +
+                          $"{LazyNavigation.Reads:N0} reads, {LazyNavigation.Unloads:N0} let go of, {LazyNavigation.Demands:N0} read on the spot, {LazyNavigation.Holds:N0} MapLoadeds held");
+            }
         }
 
         /// <summary>Every loaded map, with what it holds; its navigation only with <paramref name="navigation"/>.</summary>
@@ -184,9 +193,9 @@ namespace Rasa.Managers
                 .Select(entry => new MapLine(
                     entry.map.MapInfo?.MapName ?? "?",
                     entry.map.MapInfo?.MapContextId ?? 0,
-                    navigation ? MemoryFootprint.Of(entry.map.NavMesh?.NavMesh) : default,
-                    navigation ? entry.map.Cover?.MemoryBytes ?? 0 : 0,
-                    navigation ? entry.map.Cover?.TriangleCount ?? 0 : 0,
+                    navigation ? MemoryFootprint.Of(entry.map.NavMeshIfRead?.NavMesh) : default,
+                    navigation ? entry.map.CoverIfRead?.MemoryBytes ?? 0 : 0,
+                    navigation ? entry.map.CoverIfRead?.TriangleCount ?? 0 : 0,
                     creatures.GetValueOrDefault(entry.map.MapInfo?.MapContextId ?? 0),
                     others.GetValueOrDefault(entry.map.MapInfo?.MapContextId ?? 0),
                     Players(entry.map) + entry.copies.Sum(Players),

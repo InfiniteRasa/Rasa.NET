@@ -553,6 +553,10 @@ namespace Rasa.Managers
                 // spawn object
                 if (!teleporter.IsInWorld)
                 {
+                    // Outside the cells (InitTeleporters said so once): never in the world.
+                    if (!CellManager.InCellRange(teleporter.CellPosition))
+                        continue;
+
                     teleporter.RespawnTime -= delta;
 
                     if (teleporter.RespawnTime <= 0)
@@ -1294,13 +1298,14 @@ namespace Rasa.Managers
 
                         break;
                     case 3:
-                        dropship.PhaseTimeleft = 3000;
+                        // A spawner lands for as long as its class's clip has it (Dropship.SpawnerLandedMs).
+                        dropship.PhaseTimeleft = dropship.DropshipType == DropshipType.Spawner ? Math.Max(0, dropship.SpawnerLandedMs - 2000) : 3000;
                         dropship.Phase = 4;
                         dropship.StateId = UseObjectState.CsStateEnd;
                         break;
                     case 4:
                         dropship.Phase = 5;
-                        dropship.PhaseTimeleft = 5000;
+                        dropship.PhaseTimeleft = dropship.DropshipType == DropshipType.Spawner ? dropship.SpawnerFlyOutMs : 5000;
 
                         if (dropship.DropshipType == DropshipType.Teleporter && dropship.Role == DropshipRole.Arrival)
                         {
@@ -1560,6 +1565,13 @@ namespace Rasa.Managers
                 // The client names a waypoint from its own table by this id, when it is gained and
                 // in every row of the travel window. One it has no name for reads "ERROR- 23-
                 // Missing translation for waypointlanguage ID ...": say so here, where it is data.
+                // One whose place the cells cannot hold is kept, as a row of its map's (waypoint
+                // titles, the travel window's lists), and never put in the world: AddToWorld would
+                // throw on it in the worker each pass, before the teleporters after it were reached.
+                if (!CellManager.InCellRange(newTeleporter.CellPosition))
+                    MapErrorManager.Instance.Record(teleporter.MapContextId,
+                        $"Teleporter {teleporter.Id} ({teleporter.Description}) is at {teleporter.Position}, outside the map's cells: it is not put in the world.");
+
                 if (teleporter.Type is 2 or 3 or 4 && !HospitalGraveyards.ClientNames(teleporter.Id))
                     MapErrorManager.Instance.Record(teleporter.MapContextId,
                         $"Teleporter {teleporter.Id} ({teleporter.Description}) can be gained and the client has no name for its id: its waypoint names end at {HospitalGraveyards.LastClientWaypoint}.");

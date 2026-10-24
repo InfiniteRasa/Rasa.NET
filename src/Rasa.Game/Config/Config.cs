@@ -41,7 +41,34 @@ namespace Rasa.Config
         /// <summary>Clan-owned control points: whether there are any, what one pays and when it is given back (Managers.ControlPoints).</summary>
         public ControlPointConfig ControlPoints { get; set; } = new ControlPointConfig();
 
+        /// <summary>How the control points' outposts defend themselves: gate shields, defenders, turret bursts (Managers.ControlPointFields, Defenders, Emplacements).</summary>
+        public ControlPointDefenceConfig ControlPointDefence { get; set; } = new ControlPointDefenceConfig();
+
         /// <summary>The chances of the weapon modules that fire on a hit (Managers.ItemModuleBonuses).</summary>
         public ItemModulesConfig ItemModules { get; set; } = new ItemModulesConfig();
+
+        /// <summary>How the creature think is spread over the loop's passes, and how far a creature searches for a route (Managers.BehaviorManager).</summary>
+        public CreatureAiConfig CreatureAi { get; set; } = new CreatureAiConfig();
+
+        /// <summary>When each map's navmesh and cover are read, and let go of (Managers.LazyNavigation).</summary>
+        public NavigationConfig Navigation { get; set; } = new NavigationConfig();
+
+        /// <summary>How often a player's killing blow leaves a creature staggering for a Critical Death finisher, and whether a morphed player has them (Managers.CritDeathManager).</summary>
+        public CritDeathConfig CritDeath { get; set; } = new CritDeathConfig();
+
+        /// <summary>Whether the missions' radiation and toxic gas volumes hurt, and how hard (Managers.MissionHazards).</summary>
+        public HazardsConfig Hazards { get; set; } = new HazardsConfig();
+
+        /// <summary>How long a cleared spawn pool of a battlefield stays down, by what it holds (Managers.RespawnPace); without the section, its row's time, as before.</summary>
+        public RespawnPaceConfig RespawnPace { get; set; } = new RespawnPaceConfig();
+
+        /// <summary>What a line of sight is tested against under the terrain, in a cave or a tunnel (Managers.Sight); without the section, as before.</summary>
+        public SightConfig Sight { get; set; } = new SightConfig();
+
+        /// <summary>The raids on the control points, the Bane's and the AFS's (Managers.BaneRaids).</summary>
+        public RaidConfig Raids { get; set; } = new RaidConfig();
+
+        /// <summary>How fresh troops come into the open world: by dropship or beamed in (Managers.Reinforcements).</summary>
+        public ReinforcementConfig Reinforcements { get; set; } = new ReinforcementConfig();
     }
 }

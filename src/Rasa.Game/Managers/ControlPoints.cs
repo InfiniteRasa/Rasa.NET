@@ -54,8 +54,11 @@ namespace Rasa.Managers
     ///    down group by group by however few there are to do it, and the point is open for that
     ///    long once the last of it falls.
     ///  - The Bane take a point back by killing its garrison: an AFS point every one of whose
-    ///    garrison is dead at once is the Bane's. Nothing sends the Bane against a point yet, so
-    ///    until something does only a game master's kills - or ".cp" - make it so.
+    ///    garrison is dead at once is the Bane's - or by a raid (BaneRaids): waves of Bane dropships
+    ///    that come down before its gates, fight their way to it and claim it. The AFS raid the
+    ///    points the Bane hold in turn, less often and with less hope. The raiders who took a
+    ///    point hold it beside its new garrison until they are killed (<see cref="GarrisonOf"/>).
+    ///    A raid's kills are the point's minions, as its garrison's are.
     ///  - While the Bane hold a point its hospital is not offered to the dead, is not gained by
     ///    walking up to it, and its waypoint neither lists nor answers (WaypointInfo.Contested).
     ///    Nothing is taken from a player who had them: they are back when the point is.
@@ -91,6 +94,10 @@ namespace Rasa.Managers
     ///    clock on the wall, and has a line of the lockbox's history for it.
     ///  - A point may have a clan lockbox (control_point_link, a footlocker row; ".cp &lt;id&gt;
     ///    lockbox"): on the map only while a clan holds the point, and that clan's alone to open.
+    ///
+    /// The gates of a point's outpost are closed by shields (control_point_link kind 7, a placed force
+    /// field each): their holder's, back whole when the point changes hands and two minutes after they
+    /// are brought down (ControlPointFields).
     ///
     /// Control points are the open world's alone: they stand on a map's own channel, and a
     /// copy of the map - private or shared - has the objects out of service. The points of a map
@@ -201,6 +208,9 @@ namespace Rasa.Managers
             public HashSet<uint> Waypoints { get; } = new HashSet<uint>();
             public HashSet<uint> Bosses { get; } = new HashSet<uint>();
 
+            /// <summary>The world_destructible rows of the shields in its outpost's gates (ControlPointFields).</summary>
+            public HashSet<uint> FieldRows { get; } = new HashSet<uint>();
+
             /// <summary>The usable on its map's own channel, once the map has it.</summary>
             public DynamicObject Object { get; set; }
 
@@ -251,6 +261,7 @@ namespace Rasa.Managers
         private readonly Dictionary<uint, Point> _byPool = new Dictionary<uint, Point>();
         private readonly Dictionary<ulong, Point> _byObject = new Dictionary<ulong, Point>();
         private readonly Dictionary<ulong, Point> _byLockbox = new Dictionary<ulong, Point>();
+        private readonly Dictionary<uint, Point> _byField = new Dictionary<uint, Point>();
 
         private string _resetSetting;
         private bool _missedResetLookedFor;
@@ -335,6 +346,7 @@ namespace Rasa.Managers
             _byPool.Clear();
             _byObject.Clear();
             _byLockbox.Clear();
+            _byField.Clear();
             _resetSetting = null;
             _missedResetLookedFor = false;
             NextClanReset = null;
@@ -376,6 +388,7 @@ namespace Rasa.Managers
                         case ControlPointLinkEntry.KindHospital: point.Hospitals.Add(link.ObjectId); break;
                         case ControlPointLinkEntry.KindWaypoint: point.Waypoints.Add(link.ObjectId); break;
                         case ControlPointLinkEntry.KindBoss: point.Bosses.Add(link.ObjectId); break;
+                        case ControlPointLinkEntry.KindField: point.FieldRows.Add(link.ObjectId); break;
                     }
 
                     continue;
@@ -405,6 +418,11 @@ namespace Rasa.Managers
 
                     case ControlPointLinkEntry.KindBoss:
                         point.Bosses.Add(link.ObjectId);
+                        break;
+
+                    case ControlPointLinkEntry.KindField:
+                        point.FieldRows.Add(link.ObjectId);
+                        _byField[link.ObjectId] = point;
                         break;
 
                     case ControlPointLinkEntry.KindClanLockbox:
@@ -494,9 +512,18 @@ namespace Rasa.Managers
         {
             var clan = point.HeldByClan;
 
+            // On the ground - once the map's navmesh is read, with Navigation.Lazy, which for the
+            // start's points is when a player first comes (LazyNavigation.SnapToGroundOnceRead).
+            // Whichever object holds the point by then is put there, if it has not been moved.
+            var position = before?.Position ?? LazyNavigation.SnapToGroundOnceRead(mapChannel, point.Position, grounded =>
+            {
+                if (point.Object != null && point.Object.Position == point.Position)
+                    point.Object.Position = grounded;
+            });
+
             return new DynamicObject
             {
-                Position = before?.Position ?? NavMeshManager.SnapToGround(mapChannel, point.Position),
+                Position = position,
                 Rotation = before?.Rotation ?? point.Rotation,
                 MapContextId = point.MapContextId,
                 RuntimeMapChannel = mapChannel,
@@ -515,6 +542,12 @@ namespace Rasa.Managers
 
         public Point ById(uint id) => _points.TryGetValue(id, out var point) ? point : null;
 
+        /// <summary>The point a world_destructible row is a gate shield of, or null.</summary>
+        public Point FieldPointOf(uint rowId) => _byField.TryGetValue(rowId, out var point) ? point : null;
+
+        /// <summary>The side of the force fields a point's holder has: the AFS's (A) or the Bane's (B).</summary>
+        public static ForceFields.Side SideOf(byte owner) => owner == Afs ? ForceFields.Side.A : ForceFields.Side.B;
+
         public Point PointOf(DynamicObject obj) => obj != null && _byObject.TryGetValue(obj.EntityId, out var point) ? point : null;
 
         /// <summary>The point an object is the clan lockbox of, or null.</summary>
@@ -531,6 +564,10 @@ namespace Rasa.Managers
         /// <summary>How the garrison of <paramref name="owner"/> at a point stands on its map.</summary>
         public Garrison GarrisonOf(MapChannel mapChannel, Point point, byte owner)
         {
+            // The raiders who took the point hold it with its garrison until they are killed (BaneRaids).
+            if (BaneRaids.Instance.Holders(mapChannel, point, owner) > 0)
+                return Garrison.Standing;
+
             var pools = PoolsOn(mapChannel, point.PoolsOf(owner)).Where(CanSpawn).ToList();
 
             if (pools.Count == 0)
@@ -556,6 +593,42 @@ namespace Rasa.Managers
             var pools = PoolsOn(mapChannel, point.BanePools).Where(CanSpawn).ToList();
 
             return pools.Count == 0 ? 0 : pools.Min(p => p.RespawnTime);
+        }
+
+        /// <summary>Whether a point has a Bane garrison of its own on its map: a pool of its that would ever spawn.</summary>
+        public bool HasBaneGarrison(MapChannel mapChannel, Point point) =>
+            point != null && PoolsOn(mapChannel, point.BanePools).Any(CanSpawn);
+
+        /// <summary>
+        /// Makes a pool of no table's a part of a point's Bane garrison, on its map, for as long as it is
+        /// not given back (<see cref="ReleaseBanePool"/>): a raid that took a point with no garrison of its
+        /// own leaves one (BaneRaids). It is a garrison pool like any of the table's: it comes back together
+        /// with the rest, is taken off when the AFS take the point, and its kills are the point's minions.
+        /// </summary>
+        public void AdoptBanePool(MapChannel mapChannel, Point point, SpawnPool pool)
+        {
+            if (mapChannel == null || point == null || pool == null)
+                return;
+
+            point.BanePools.Add(pool.DbId);
+            _byPool[pool.DbId] = point;
+
+            if (!mapChannel.SpawnPools.Contains(pool))
+                mapChannel.SpawnPools.Add(pool);
+        }
+
+        /// <summary>A pool <see cref="AdoptBanePool"/> gave a point is the point's no more, nor on its map's list.</summary>
+        public void ReleaseBanePool(MapChannel mapChannel, Point point, SpawnPool pool)
+        {
+            if (point == null || pool == null)
+                return;
+
+            point.BanePools.Remove(pool.DbId);
+
+            if (_byPool.TryGetValue(pool.DbId, out var holder) && holder == point)
+                _byPool.Remove(pool.DbId);
+
+            mapChannel?.SpawnPools.Remove(pool);
         }
 
         /// <summary>Whether a player may start to capture the point now: the Bane hold it, and none of their garrison stands.</summary>
@@ -674,6 +747,9 @@ namespace Rasa.Managers
             if (mapChannel?.MapInfo == null || mapChannel.IsCopy || _points.Count == 0)
                 return;
 
+            // The gate shields that have been left alone power up.
+            ControlPointFields.Worker(mapChannel);
+
             foreach (var point in _points.Values.Where(p => p.MapContextId == mapChannel.MapInfo.MapContextId && !p.IsBattleground).ToList())
             {
                 if (point.Object == null)
@@ -780,6 +856,20 @@ namespace Rasa.Managers
         }
 
         /// <summary>
+        /// Somebody not a player has begun to claim a point for <paramref name="owner"/> - a raider of the
+        /// Bane's or of the AFS's (BaneRaids): everyone on the map is told "Bane claiming Control Point",
+        /// "AFS claiming", by the same gap a player's claim is.
+        /// </summary>
+        public void ClaimingFor(MapChannel mapChannel, Point point, byte owner)
+        {
+            // The Bane's announcements by a clan id no clan has, so that the AFS's and the Bane's are told apart.
+            if (!MayAnnounceClaim(point, owner == Afs ? 0u : uint.MaxValue, Now()))
+                return;
+
+            Announce(mapChannel, PlayerMessage.PmControlpointClaiming, point, FactionName(owner));
+        }
+
+        /// <summary>
         /// A player's use of a control point has run its time (DynamicObjectManager): the point
         /// is their clan's, or the AFS's if they are in none, unless it is not the Bane's any
         /// more or its garrison is back on its feet - or, taken from a clan, their own is not at
@@ -849,7 +939,12 @@ namespace Rasa.Managers
                 return true;
 
             if (sideChanged)
+            {
                 ApplyPools(mapChannel, point, takeOff: true);
+
+                // Its gate shields are the new holder's, and whole.
+                ControlPointFields.HolderChanged(point);
+            }
 
             if (wasClans != point.HeldByClan)
             {
@@ -1271,7 +1366,11 @@ namespace Rasa.Managers
         {
             var pool = creature?.SpawnPool;
 
-            if (pool == null || client?.Player == null || !_byPool.TryGetValue(pool.DbId, out var point) || !point.BanePools.Contains(pool.DbId))
+            // One of a Bane raid on a point, or of those who took it, is as much a point's minion (BaneRaids).
+            var point = BaneRaids.Instance.PointOfPool(pool);
+
+            if (pool == null || client?.Player == null
+                || point == null && (!_byPool.TryGetValue(pool.DbId, out point) || !point.BanePools.Contains(pool.DbId)))
                 return 0;
 
             var amount = IsBoss(point, creature) ? BossPrestige : MinionPrestige;
@@ -1430,8 +1529,11 @@ namespace Rasa.Managers
                 pool.Suspended = false;
 
                 // Set down at once, on the spawn worker's next pass, and where it stands rather
-                // than by its arrival point.
+                // than by its arrival point - or, when the point has just changed hands, flown in:
+                // "a number of Bane will be dropshipped in" (Reinforcements; troops only, the rest
+                // is set down as before).
                 pool.HasSpawned = false;
+                pool.ShipNextArrival = takeOff;
                 pool.UpdateTimer = pool.RespawnTime;
             }
         }

@@ -52,10 +52,14 @@ namespace Rasa.Managers
         private static readonly List<Teleport> Teleports = new List<Teleport>();
         private static readonly Random Random = new Random();
 
-        /// <summary>One of the pool's arrival points, or null when it has none or has not spawned yet.</summary>
+        /// <summary>
+        /// One of the pool's arrival points, or null when it has none or has not spawned yet - unless its
+        /// next spawn is to arrive whatever (SpawnPool.ShipNextArrival: a control point's garrison that has
+        /// just taken the point over). A pool with none may be given one of no table's (Reinforcements).
+        /// </summary>
         public static SpawnPoolArrivalEntry Pick(SpawnPool pool)
         {
-            if (pool.Arrivals.Count == 0 || !pool.HasSpawned)
+            if (pool.Arrivals.Count == 0 || !pool.HasSpawned && !(pool.ShipNextArrival && Reinforcements.Config.BaneDropships))
                 return null;
 
             lock (Random)

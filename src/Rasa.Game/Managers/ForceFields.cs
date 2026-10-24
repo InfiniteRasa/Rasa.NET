@@ -42,6 +42,11 @@ namespace Rasa.Managers
     ///    than 75%, more than 25% and above none, and no repair but a GM's;
     ///  - who can hurt one: whoever it stops, which for now is a player shooting a B field;
     ///  - a creature it stops just stops, where the field is, and goes no further until it is down.
+    ///
+    /// The fields in the gates of a control point's outpost are more (ControlPointFields): their
+    /// holder's, back whole when the point changes hands and two minutes after they are brought
+    /// down, struck at by the fighting creatures they hold back, and calling their side's
+    /// defenders to whoever hits them. Such a field knows its point (<see cref="Field.ControlPointId"/>).
     /// </summary>
     public static class ForceFields
     {
@@ -118,10 +123,19 @@ namespace Rasa.Managers
             public int MaxHealth { get; set; }
             public int Health { get; set; }
 
+            /// <summary>The control point whose outpost's gate the field closes (ControlPointFields), or 0 for any other.</summary>
+            public uint ControlPointId { get; set; }
+
+            /// <summary>When it last took a hit, on <see cref="Clock"/>; 0 if it has not since it last stood whole.</summary>
+            public long LastDamagedAt { get; set; }
+
             public bool IsDestroyed => Health <= 0;
             public Vector3 Position => Object.Position;
             public float Yaw => (float)Object.Rotation;
         }
+
+        /// <summary>The clock a field's last hit is kept by, in milliseconds. Replaceable for tests.</summary>
+        public static Func<long> Clock { get; set; } = () => Environment.TickCount64;
 
         private static readonly List<Field> Fields = new List<Field>();
         private static readonly object FieldsLock = new object();
@@ -313,6 +327,19 @@ namespace Rasa.Managers
             Move(field, field.Position, field.Yaw);
         }
 
+        /// <summary>
+        /// The field anew, of a side and whole, whatever it was down to: a control point's, when the
+        /// point changes hands (ControlPointFields). Everyone meets it again, as it now is.
+        /// </summary>
+        public static void Reset(Field field, Side side)
+        {
+            field.Side = side;
+            field.Health = field.MaxHealth;
+            field.LastDamagedAt = 0;
+
+            Move(field, field.Position, field.Yaw);
+        }
+
         #endregion
 
         #region Damage
@@ -330,6 +357,7 @@ namespace Rasa.Managers
             var before = StateOf(field);
 
             field.Health -= taken;
+            field.LastDamagedAt = Clock();
 
             CellManager.Instance.CellCallMethod(field.Object, new UpdateHitPointsPacket(field.Health));
             UpdateState(field, before, byEntityId);
@@ -343,9 +371,31 @@ namespace Rasa.Managers
             var before = StateOf(field);
 
             field.Health = field.MaxHealth;
+            field.LastDamagedAt = 0;
 
             CellManager.Instance.CellCallMethod(field.Object, new UpdateHitPointsPacket(field.Health));
             UpdateState(field, before, byEntityId);
+        }
+
+        /// <summary>
+        /// Some of its hit points back - a control point's powering up again (ControlPointFields) -
+        /// and its state when that changes. One that is down stays down: it stands again by
+        /// <see cref="Repair"/>. What it gained.
+        /// </summary>
+        public static int Recharge(Field field, int amount)
+        {
+            if (field == null || field.IsDestroyed || amount <= 0 || field.Health >= field.MaxHealth)
+                return 0;
+
+            var before = StateOf(field);
+            var gained = Math.Min(amount, field.MaxHealth - field.Health);
+
+            field.Health += gained;
+
+            CellManager.Instance.CellCallMethod(field.Object, new UpdateHitPointsPacket(field.Health));
+            UpdateState(field, before, 0);
+
+            return gained;
         }
 
         /// <summary>The state it is in now, if that changed, from whoever changed it (Recv_Use's actor).</summary>
@@ -361,6 +411,10 @@ namespace Rasa.Managers
 
             // Down, or up again: whoever it stopped is told.
             SendBlockInfo(field);
+
+            // A control point's going down or standing again is news to whoever watches its point.
+            if (field.ControlPointId != 0)
+                ControlPointFields.StateChanged(field, before, byEntityId);
         }
 
         /// <summary>Whether this actor may shoot the field: it has to be one that stops them.</summary>
@@ -386,6 +440,10 @@ namespace Rasa.Managers
             var field = Find(missile.TargetEntityId);
 
             missile.DamageA = field != null && MayShoot(field, missile.Source) ? Damage(field, missile.DamageA, missile.Source.EntityId) : 0;
+
+            // Whoever it stops and hits it has the defenders of its point to answer to.
+            if (missile.DamageA > 0 && field.ControlPointId != 0)
+                ControlPointFields.Hit(field, missile.Source);
         }
 
         #endregion
@@ -408,17 +466,21 @@ namespace Rasa.Managers
         }
 
         /// <summary>Whether a field stops this creature walking from one point to the next.</summary>
-        public static bool Stops(MapChannel mapChannel, Creature creature, Vector3 from, Vector3 to)
+        public static bool Stops(MapChannel mapChannel, Creature creature, Vector3 from, Vector3 to) =>
+            Blocking(mapChannel, creature, from, to) != null;
+
+        /// <summary>The field that stops this creature walking from one point to the next, or null.</summary>
+        public static Field Blocking(MapChannel mapChannel, Creature creature, Vector3 from, Vector3 to)
         {
             if (creature == null || Emplacements.Is(creature))
-                return false;
+                return null;
 
             foreach (var field in OnMap(mapChannel))
                 if (!field.IsDestroyed && StopsCategory(field.Side, creature.TargetCategory)
                     && Crosses(field.Class, field.Position, field.Yaw, from, to))
-                    return true;
+                    return field;
 
-            return false;
+            return null;
         }
 
         /// <summary>

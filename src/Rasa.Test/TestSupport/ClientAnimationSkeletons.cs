@@ -31,6 +31,11 @@ namespace Rasa.Test.TestSupport
             [49675] = 13999,
             [30281] = 14000,
             [49221] = 23,       // Redshirt_Human_Soldier_Heavy_Female, on the female human skeleton
+            [49015] = 23,       // Redshirt_Human_Soldier_Light_Female (the control points' AFS soldiers), likewise
+
+            // The title bosses' models (TitleBossesSeed): Nyogthu and Esoobac's Lasher, the Granitour Colony King,
+            // Oakril's Treelurker, the Advanced Juggernaut Prototype.
+            [18386] = 13912, [39866] = 14024, [16732] = 13892, [20519] = 13927,
         };
 
         /// <summary>Action animation families with no animation on any skeleton: the client's own gap, played by nothing.</summary>
@@ -119,6 +124,10 @@ namespace Rasa.Test.TestSupport
             [14036] = "622 650 651 863 864 930 931 1272",
             [14041] = "622 650 651 1450 1451 1453 1454 1461 1463",
             [14000] = "622 650 651 734 924 1137 1138 1139 1140 1211 1272",
+            [13892] = "622 650 651 819 823 824 825 826 1272 1398",
+            [13912] = "622 650 651 882 1272",
+            [13927] = "622 650 651 940 958 959 1411 1412 1433",
+            [14024] = "622 650 651 1332 1333 1334",
         });
 
         private static IReadOnlyDictionary<uint, IReadOnlySet<uint>> Parse(Dictionary<uint, string> rows) =>

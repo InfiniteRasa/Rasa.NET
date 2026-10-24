@@ -199,7 +199,14 @@ namespace Rasa.Managers
             List<Charge> charges;
 
             lock (ChargesLock)
+            {
+                // Nothing charging anywhere, which is every tick of almost every map: the filter
+                // below found nothing, and its closure, iterator and list were all it did.
+                if (Charges.Count == 0)
+                    return;
+
                 charges = Charges.Where(c => c.MapChannel == mapChannel).ToList();
+            }
 
             if (charges.Count == 0)
                 return;

@@ -7,7 +7,9 @@
       "Database": "rasaauth",
       "User": "rasa",
       "Password": "rasa",
-      "TimeoutInMilliseconds": 5000
+      "TimeoutInMilliseconds": 5000,
+      "JournalMode": "Wal",
+      "Synchronous": "Full"
     },
     "Char": {
       "Host": "localhost",
@@ -15,7 +17,9 @@
       "Database": "rasachar",
       "User": "rasa",
       "Password": "rasa",
-      "TimeoutInMilliseconds": 5000
+      "TimeoutInMilliseconds": 5000,
+      "JournalMode": "Wal",
+      "Synchronous": "Normal"
     },
     "World": {
       "Host": "localhost",
@@ -23,7 +27,9 @@
       "Database": "rasaworld",
       "User": "rasa",
       "Password": "rasa",
-      "TimeoutInMilliseconds": 5000
+      "TimeoutInMilliseconds": 5000,
+      "JournalMode": "Wal",
+      "Synchronous": "Normal"
     }
   }
 }

@@ -300,10 +300,12 @@ namespace Rasa.Test.Gameplay
             var freeBefore = FreeIds();
             var allocatorBefore = NextUnrecycledId();
             var saves = 0;
+            // The drops are saved in one write (IItemRepository.CreateItems): it fails once its
+            // rows are written, before the commit, which has to take every one of them back.
             fixture.Context.AfterSave = _ =>
             {
-                if (++saves == 2)
-                    throw new DbUpdateException("Injected second corpse item write failure.");
+                if (++saves == 1)
+                    throw new DbUpdateException("Injected corpse items write failure.");
             };
 
             Assert.ThrowsExactly<DbUpdateException>(() =>

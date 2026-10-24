@@ -16,7 +16,7 @@ namespace Rasa.Managers
     using Structures;
     using Structures.Char;
 
-    public class ChatCommandsManager
+    public partial class ChatCommandsManager
     {
         private static ChatCommandsManager _instance;
         private static readonly object InstanceLock = new object();
@@ -229,6 +229,7 @@ namespace Rasa.Managers
             RegisterCommand(".motd", GmLevel.Observer, MotdCommand);
             RegisterCommand(".cover", GmLevel.Observer, CoverCommand);
             RegisterCommand(".los", GmLevel.Observer, LosCommand, "entityId");
+            RegisterCommand(".respawn", GmRespawnCommands.Level, parts => GmRespawnCommands.Respawn(_client, parts), "poolId", "now");
             RegisterCommand(".camerascript", GmLevel.Observer, CameraScriptCommand, "list | near [n] | info <id> | goto <id> [keyframe] | maps | <id>");
             RegisterCommand(".clientevent", GmLevel.Observer, ClientEventCommand, "action", "event");
 
@@ -268,6 +269,9 @@ namespace Rasa.Managers
             RegisterCommand(".linkhere", GmLevel.GameMaster, LinkHereCommand, "destMapId", "destX", "destY", "destZ", "radius", "kind");
             RegisterCommand(".kraftwerks", GmLevel.GameMaster, KraftwerksCommand, "stationIdOrHere", "action", "value");
             RegisterCommand(".cp", GmLevel.GameMaster, ControlPointCommand, "id", "action");
+            RegisterCommand(".cpdef", GmLevel.GameMaster, ControlPointDefenceCommand, "id|config", "action", "arg");
+            RegisterCommand(".raids", GmLevel.GameMaster, parts => GmRaidCommands.Status(_client, parts.Length > 1 && parts[1] == "all"), "all");
+            RegisterCommand(".dropship", GmLevel.GameMaster, parts => GmRaidCommands.Dropship(_client, parts), "creatureIdOrPool", "count", "side", "here");
             RegisterCommand(".greeting", GmLevel.GameMaster, GreetingCommand, "greetingId|clear|important|unread|show", "greetingId|on|off");
             RegisterCommand(".instance", GmLevel.GameMaster, InstanceCommand, "action", "number");
             RegisterCommand(".bg", GmLevel.GameMaster, BattlegroundCommand, "action", "arg1", "arg2");
@@ -286,6 +290,8 @@ namespace Rasa.Managers
             RegisterCommand(".moveobj", GmLevel.GameMaster, MoveObjectCommand, "entityId", "x", "y", "z", "rotation");
             RegisterCommand(".rename", GmLevel.GameMaster, RenameCommand, "part", "newName", "familyName");
             RegisterCommand(".setkillstreak", GmLevel.GameMaster, SetKillStreakCommand, "level");
+            RegisterCommand(".critdeath", GmLevel.GameMaster, parts => CritDeathManager.GmCommand(_client, parts), "percent | morph on|off");
+            RegisterCommand(".hazard", GmLevel.GameMaster, parts => MissionHazards.GmCommand(_client, parts), "place radiation|toxic [radius] [missionId] | id on|off | remove id");
             RegisterCommand(".setregion", GmLevel.GameMaster, SetRegionCommand, "regionIdsOrOff");
             RegisterCommand(".setskytime", GmLevel.GameMaster, SetSkyTimeCommand, "hh:mm");
             RegisterCommand(".speed", GmLevel.GameMaster, SpeedCommand, "value");
@@ -3628,10 +3634,11 @@ namespace Rasa.Managers
             {
                 var eye = Cover.EyeOf(from);
                 var points = Cover.SamplePoints(to, eye);
-                var clear = points.Count(p => !mapChannel.Cover.Blocked(eye, p));
+                var withoutTerrain = Sight.WithoutTerrain(mapChannel, mapChannel.Cover, from.Position, to.Position);
+                var clear = points.Count(p => !Sight.Blocked(mapChannel.Cover, eye, p, withoutTerrain));
                 var modifier = Cover.Modifier(mapChannel, from, to);
 
-                return $"{clear}/{points.Length} points clear{(to.IsCrouching ? " (crouched)" : "")}, damage x{modifier:0.00}";
+                return $"{clear}/{points.Length} points clear{(to.IsCrouching ? " (crouched)" : "")}{(withoutTerrain ? " (underground: terrain not counted)" : "")}, damage x{modifier:0.00}";
             }
 
             CommunicatorManager.Instance.SystemMessage(_client, $"Its shots at you: {Describe(target, player)}");
@@ -4913,10 +4920,23 @@ namespace Rasa.Managers
 
         private void ControlPointCommand(string[] parts)
         {
-            const string usage = "usage: .cp | .cp all | .cp <id> afs | bane | clan <clan name or id> | goto | here | lockbox | lockbox remove";
+            const string usage = "usage: .cp | .cp all | .cp raids [all] | .cp <id> afs | bane | clan <clan name or id> | goto | here | lockbox | lockbox remove | raid [stop | in <minutes> | who]";
             var client = _client;
             var player = client.Player;
             var points = ControlPoints.Instance;
+
+            // The raids on the points (GmRaidCommands).
+            if (parts.Length >= 2 && parts[1] == "raids")
+            {
+                GmRaidCommands.Status(client, parts.Length > 2 && parts[2] == "all");
+                return;
+            }
+
+            if (parts.Length >= 3 && parts[2] == "raid" && uint.TryParse(parts[1], out var raidPointId) && points.ById(raidPointId) is { } raided)
+            {
+                GmRaidCommands.Raid(client, raided, parts.Skip(3).ToArray());
+                return;
+            }
 
             if (parts.Length == 1 || parts.Length == 2 && parts[1] == "all")
             {

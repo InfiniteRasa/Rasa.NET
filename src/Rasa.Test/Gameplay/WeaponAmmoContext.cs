@@ -36,6 +36,7 @@ namespace Rasa.Test.Gameplay
         internal Client Client { get; }
         internal Item Weapon { get; }
         internal int SaveAttempts { get; private set; }
+        internal int CharUnitsCreated { get; private set; }
         internal Action<SqliteCharContext> BeforeSave { get; set; }
         internal Action<SqliteCharContext> AfterSave { get; set; }
         internal Action BeforeQuery { get; set; }
@@ -274,6 +275,7 @@ namespace Rasa.Test.Gameplay
 
         public ICharUnitOfWork CreateChar()
         {
+            CharUnitsCreated++;
             var context = new SqliteCharContext(
                 Options.Create(new Rasa.Configuration.DatabaseConfiguration
                 {

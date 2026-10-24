@@ -95,6 +95,15 @@ namespace Rasa.Managers
             }
 
             var mapChannels = MapChannelManager.Instance.MapChannelArray.Values.ToList();
+
+            LazyNavigation.Reset();
+
+            if (LazyNavigation.Config?.Lazy == true)
+            {
+                NoteForLater(mapChannels);
+                return;
+            }
+
             var loaded = new MapFiles[mapChannels.Count];
 
             Parallel.ForEach(
@@ -148,6 +157,41 @@ namespace Rasa.Managers
             Logger.WriteLog(LogType.Initialize, covers > 0
                 ? $"Loaded cover for {covers} maps"
                 : "No cover files (<map>.cover, Rasa.NavMesh --cover-only); ranged attacks ignore cover");
+
+            if (missing.Count > 0 && missing.Count <= 12)
+                Logger.WriteLog(LogType.Initialize, $"  no navmesh for: {string.Join(", ", missing)}");
+        }
+
+        /// <summary>
+        /// NavMeshInit with Navigation.Lazy on: every map with a navmesh or a cover file is noted,
+        /// to have them read when a player is first on the way to it (LazyNavigation). Nothing is
+        /// read here; LoadedMaps counts the maps whose navmesh is waiting to be.
+        /// </summary>
+        private void NoteForLater(List<MapChannel> mapChannels)
+        {
+            var missing = new List<string>();
+            long bytes = 0;
+
+            foreach (var mapChannel in mapChannels)
+            {
+                var name = mapChannel.MapInfo.MapName;
+                var size = FileSize(Directory, name);
+
+                if (File.Exists(NavMeshFile.PathFor(Directory, name)))
+                    LoadedMaps++;
+                else
+                    missing.Add(name);
+
+                if (size == 0)
+                    continue;
+
+                LazyNavigation.Note(mapChannel, Directory);
+                bytes += size;
+            }
+
+            Logger.WriteLog(LogType.Initialize,
+                $"Navmeshes for {LoadedMaps} of {mapChannels.Count} maps in {Path.GetFullPath(Directory)}, {bytes / 1048576.0:0} MB with their cover: " +
+                "each read when a player is first on the way to its map (Navigation.Lazy)");
 
             if (missing.Count > 0 && missing.Count <= 12)
                 Logger.WriteLog(LogType.Initialize, $"  no navmesh for: {string.Join(", ", missing)}");
@@ -382,12 +426,15 @@ namespace Rasa.Managers
         /// route goes: one in another walkable region than the start is searched only so far
         /// (NavMeshQuery.FindPathBounded). <paramref name="complete"/> is false when the path stops
         /// short of the goal; with no navmesh, or either end off it, the path is null and complete false.
+        /// With CreatureAi.BoundedPathSearches on, what a search toward such a goal found is kept by
+        /// the map's navmesh for the next to ask between the same polygons (NavMeshQuery's remember).
         /// </summary>
         public static List<Vector3> FindPathBounded(MapChannel mapChannel, Vector3 start, Vector3 end, out bool complete)
         {
             complete = false;
 
-            return mapChannel?.NavMesh?.FindPathBounded(start, end, out complete);
+            return mapChannel?.NavMesh?.FindPathBounded(start, end, out complete,
+                remember: BehaviorManager.Config?.BoundedPathSearches == true);
         }
     }
 }
