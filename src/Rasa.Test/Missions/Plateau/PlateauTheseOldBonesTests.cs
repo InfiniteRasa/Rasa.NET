@@ -138,6 +138,66 @@ namespace Rasa.Test.Missions.Plateau
                 Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, other.Objective), $"temple {other.Objective} still open");
         }
 
+        /// <summary>
+        /// The three temples taken in turn (the player put at each, any navmesh): a reload after the first keeps its
+        /// kills and brings no second group; the third completes 4; Algona takes it, Hathen does not.
+        /// </summary>
+        [TestMethod]
+        public void TheseOldBonesSecuresTheThreeTemplesAndIsHandedInAtAlgona()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var copy = AcceptAtHathen(harness);
+            Escort(harness, copy);
+            var first = PlateauTheseOldBonesV1.Temples[0];
+            Secure(harness, copy, first);
+
+            WildernessRanjaGorgeTests.Reload(harness);
+            Tick(harness, copy, 250);
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, first.Objective), "after the reload");
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, PlateauTheseOldBonesV1.Protect), "after the reload");
+            Assert.IsTrue(Enumerable.Range(0, PlateauTheseOldBonesScene.GroupSize)
+                .All(index => SceneCreature(harness, copy, PlateauTheseOldBonesScene.Role(first.Objective, index)) == null), "the dead stay dead");
+            Assert.IsNotNull(SceneCreature(harness, copy, PlateauTheseOldBonesScene.Hathen), "Hathen is still there");
+
+            Secure(harness, copy, PlateauTheseOldBonesV1.Temples[1]);
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, PlateauTheseOldBonesV1.Protect), "two of three");
+            Assert.IsFalse(harness.Client.Player.Missions[TheseOldBones].Completeable);
+            Secure(harness, copy, PlateauTheseOldBonesV1.Temples[2]);
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, PlateauTheseOldBonesV1.Protect));
+            Assert.IsTrue(harness.Client.Player.Missions[TheseOldBones].Completeable);
+
+            Spawn(copy, HathenPool);
+            var hathen = Here(copy).First(creature => creature.SpawnPool?.DbId == HathenPool && creature.Npc != null);
+            harness.MoveTo(hathen.Position);
+            Assert.IsFalse(harness.Manager.CompleteOfferedMission(harness.Client, hathen.EntityId, TheseOldBones, 0), "Hathen does not take it");
+            Spawn(copy, PlateauTheseOldBonesV1.AlgonaPool);
+            var algona = RequireNpc(copy, PlateauTheseOldBonesV1.AlgonaPool);
+            WildernessRanjaGorgeTests.CompleteAndCheckReward(harness, algona, TheseOldBones, 0,
+                PlateauTheseOldBonesV1.Experience, PlateauTheseOldBonesV1.Credits);
+            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, PlateauGraveyardShiftV1.BioGloves), "the first choice");
+        }
+
+        /// <summary>Abandoned with a temple's group up: Hathen's copy and the group are gone, Hathen offers it again.</summary>
+        [TestMethod]
+        public void TheseOldBonesAbandonedTakesItsSceneAndIsOfferedAgain()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var copy = AcceptAtHathen(harness);
+            var escort = Escort(harness, copy);
+            var temple = PlateauTheseOldBonesV1.Temples[0];
+            Reach(harness, copy, temple);
+            var group = Group(harness, copy, temple);
+
+            Assert.IsTrue(harness.Manager.TryAbandon(harness.Client, TheseOldBones));
+            Tick(harness, copy, 250);
+            Assert.IsFalse(harness.Client.Player.Missions.ContainsKey(TheseOldBones), "gone from the log");
+            Assert.IsFalse(Here(copy).Contains(escort), "Hathen's copy is gone");
+            Assert.IsFalse(group.Any(creature => Here(copy).Contains(creature)), "the temple's group is gone");
+            Spawn(copy, HathenPool);
+            var hathen = Here(copy).First(creature => creature.SpawnPool?.DbId == HathenPool && creature.Npc != null);
+            Assert.IsTrue(Offers(harness, hathen, TheseOldBones), "Hathen offers it again");
+        }
+
         /// <summary>Into the squad's Velon Hollow, Hathen at the hospital; 1976 offered after Village Of The Damned and accepted.</summary>
         private static MapChannel AcceptAtHathen(WildernessRuntimeTestHarness harness)
         {

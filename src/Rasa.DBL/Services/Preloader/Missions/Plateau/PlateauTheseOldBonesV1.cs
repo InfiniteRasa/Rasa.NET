@@ -64,7 +64,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
 
         /// <summary>Hathen's copy and Algona, at the hospital (on the navmesh).</summary>
         public static readonly ScenePosition HathenAt = new(167.4f, 75.3f, -513.6f);
-        public static readonly (double X, double Y, double Z) AlgonaAt = (160.0, 77.9, -515.6);
+        public static readonly (double X, double Y, double Z) AlgonaAt = (162.4, 77.1, -516.4);
 
         /// <summary>The temples' centres (map_region 20176, 20178, 20179) and their five places, 7 m round (on the navmesh).</summary>
         public static readonly (uint Objective, uint Hidden, uint Name, uint Body, (double X, double Y, double Z) At, ScenePosition[] Group)[] Temples =
@@ -76,8 +76,8 @@ namespace Rasa.Services.Preloader.Missions.Plateau
             }),
             (Shrine, 6, 20843, 20844, (-119.3, 82.1, -279.5), new ScenePosition[]
             {
-                new(-112.3f, 82.2f, -279.5f), new(-117.1f, 82.9f, -272.8f), new(-125f, 82.1f, -275.4f),
-                new(-125f, 82.2f, -283.6f), new(-117.1f, 83.2f, -286.2f)
+                new(-112.3f, 82.2f, -279.5f), new(-117.1f, 82.2f, -274f), new(-125f, 82.1f, -275.4f),
+                new(-125f, 82.2f, -283.6f), new(-117.1f, 82.3f, -284.4f)
             }),
             (Sanctuary, 7, 20845, 20846, (631.6, 49.9, -343.2), new ScenePosition[]
             {
