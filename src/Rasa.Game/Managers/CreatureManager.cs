@@ -547,6 +547,33 @@ namespace Rasa.Managers
             return mapChannel.OwnerCharacterId == client.Player.Id;
         }
 
+        /// <summary>
+        /// Every creature_stat row by creature id, read by CreatureInit; null until it has run,
+        /// or where its repository could not give them all.
+        /// </summary>
+        private Dictionary<uint, Structures.World.CreatureStatEntry> _creatureStats;
+
+        /// <summary>
+        /// A creature's stats row, or null when it has none.
+        ///
+        /// Every creature a spawn pool put into the world used to read its row here: a unit of
+        /// work made and a query on the World database, on the map's loop, for each creature of
+        /// every wave and every respawn. The rows are the World's static data - nothing in the
+        /// server writes creature_stat, and the creature editor does not touch it - so they are
+        /// read with the creatures at CreatureInit (and again by .reloadcreatures) and looked up
+        /// here. Before CreatureInit has run, a row is read as it was.
+        /// </summary>
+        private Structures.World.CreatureStatEntry CreatureStatsOf(uint dbId)
+        {
+            var stats = _creatureStats;
+
+            if (stats != null)
+                return stats.TryGetValue(dbId, out var row) ? row : null;
+
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
+            return unitOfWork.Creatures.GetCreatureStats(dbId);
+        }
+
         public Creature CreateCreature(uint dbId, SpawnPool spawnPool)
         {
             // check is creature in database
@@ -595,8 +622,7 @@ namespace Rasa.Managers
             creature.TintAtSpawn();
 
             // set creature stats
-            using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
-            var creatureStats = unitOfWork.Creatures.GetCreatureStats(dbId);
+            var creatureStats = CreatureStatsOf(dbId);
 
             if (creatureStats != null)
             {
@@ -1061,7 +1087,11 @@ namespace Rasa.Managers
                 }
             }
 
+            // The stats each spawned creature is given (CreatureStatsOf), in one query.
+            var stats = unitOfWork.Creatures.GetAllCreatureStats()?.ToDictionary(entry => entry.Id);
+
             LoadedCreatures = loaded;
+            _creatureStats = stats;
         }
 
         /// <summary>

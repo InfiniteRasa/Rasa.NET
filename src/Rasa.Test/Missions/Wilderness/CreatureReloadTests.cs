@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Rasa.Test.Missions.Wilderness
@@ -65,6 +66,32 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.HasCount(1, said);
             StringAssert.StartsWith(said[0], "Creatures were not reloaded (KeyNotFoundException");
             StringAssert.Contains(said[0], $"the {count} creatures loaded before are kept");
+        }
+
+        /// <summary>
+        /// A creature put into the world takes its stats from the rows CreatureInit read, not a
+        /// query of its own on the map's loop: a row changed in the database afterwards is not
+        /// what it gets, until the creatures are reloaded.
+        /// </summary>
+        [TestMethod]
+        public void A_spawned_creature_takes_the_stats_read_with_the_creatures()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var row = harness.World.CreatureStatEntries.AsNoTracking()
+                .Where(stats => harness.Creatures.LoadedCreatures.Keys.Contains(stats.Id))
+                .OrderBy(stats => stats.Id)
+                .First();
+            harness.World.Database.ExecuteSqlInterpolated($"UPDATE creature_stat SET body = {row.Body + 7} WHERE id = {row.Id}");
+
+            var spawned = harness.Creatures.CreateCreature(row.Id, null);
+
+            Assert.AreEqual(row.Body, spawned.Attributes[Attributes.Body].Current, "the row as CreatureInit read it");
+            Assert.AreEqual(row.Health, spawned.Attributes[Attributes.Health].CurrentMax);
+
+            Assert.HasCount(1, Reload(harness));
+            var reloaded = harness.Creatures.CreateCreature(row.Id, null);
+
+            Assert.AreEqual(row.Body + 7, reloaded.Attributes[Attributes.Body].Current, "and as a reload reads it");
         }
 
         private static List<string> Reload(WildernessRuntimeTestHarness harness)

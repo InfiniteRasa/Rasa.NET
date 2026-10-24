@@ -19,6 +19,12 @@ namespace Rasa.Repositories.World
         void UpdateCreatureEditor(CreatureEntry creature, IReadOnlyList<CreatureAppearanceEntry> appearance) =>
             throw new System.NotSupportedException();
         CreatureStatEntry GetCreatureStats(uint creatureId);
+
+        /// <summary>
+        /// Every creature_stat row, read once at CreatureInit. Null where a repository does not
+        /// have them all to give: the stats are then read a creature at a time (GetCreatureStats).
+        /// </summary>
+        List<CreatureStatEntry> GetAllCreatureStats() => null;
         CreatureActionEntry GetCreatureActionById(uint id);
         Dictionary<uint, CreatureActionEntry> GetCreatureActions();
         void CreateOrUpdateAppearance(uint dbId, uint slotId, uint classId, uint hue);
