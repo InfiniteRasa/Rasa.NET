@@ -144,7 +144,8 @@ namespace Rasa.Managers
         /// <summary>
         /// What a creature is, for its pool's pace: something a mission asks to be killed; somebody to talk to (a friend
         /// with something to say, or with no attack); a boss by its flags (POWERLEVEL_6_BOSS, _7_SUPERBOSS, the
-        /// UI_INDICATOR_ boss borders) or a class the client names a boss's (..._Boss, a Miniboss, a Queen) - a named
+        /// UI_INDICATOR_ boss borders), a class the client names a boss's (..._Boss, a Miniboss, a Queen) or a creature
+        /// a boss title names on its map (BossTitles: the title bosses, whatever their class) - a named
         /// boss when its row stands in one pool of its map alone, an elite when several camps share the row (the
         /// battlefields' Thrax Commanders); an elite by POWERLEVEL_4_LIEUTENANT; otherwise the rank and file.
         /// </summary>
@@ -165,7 +166,11 @@ namespace Rasa.Managers
                 || CreatureManager.HasFlag(template, CreatureFlag.UiIndicatorBoss) || CreatureManager.HasFlag(template, CreatureFlag.UiIndicatorEpicBoss);
             var name = EntityClassManager.Instance.LoadedEntityClasses.TryGetValue(template.EntityClass, out var info) ? info?.ClassName ?? "" : "";
 
-            if (flagged || BossClassWords.Any(word => name.Contains(word, StringComparison.OrdinalIgnoreCase)))
+            // A boss a boss title names on this map (BossTitles) is one whatever its class: Descent's Snuffy is a
+            // Filcher's, Plateau's Advanced Juggernaut Prototype a Juggernaut's, unflagged and named like the rank and file.
+            var titled = template.NameId != 0 && BossTitles.ZoneOf(mapContextId, template.NameId) != null;
+
+            if (flagged || titled || BossClassWords.Any(word => name.Contains(word, StringComparison.OrdinalIgnoreCase)))
                 return PoolsHolding(mapContextId, template.DbId) <= 1 ? Kind.Boss : Kind.Elite;
 
             return CreatureManager.HasFlag(template, CreatureFlag.Powerlevel4Lieutenant) ? Kind.Elite : Kind.Trash;
