@@ -227,9 +227,9 @@ namespace Rasa.Test.Missions.Content
                 "Check genuine authored Bootcamp provenance, not a synthetic fixture.");
         }
 
-        // The historical Bootcamp preloader emits raw SQL INSERTs. Find the
-        // reconstruction_note value by its named column, without assuming any
-        // particular column order. SQL text can contain commas and doubled quotes.
+        // World content emits both multi-row INSERT ... VALUES and later INSERT ... SELECT.
+        // Map the note by column name and parse each row independently. Commas, parentheses,
+        // SQL escaped apostrophes, and even a literal "), (" are valid within a note.
         private static string[] InitialBootcampEvidenceNotes(IEnumerable<MigrationOperation> operations)
         {
             var notes = new List<string>();
@@ -237,22 +237,120 @@ namespace Rasa.Test.Missions.Content
                 .Where(sql => sql.StartsWith("insert into mission_evidence (", StringComparison.OrdinalIgnoreCase)))
             {
                 var insert = Regex.Match(sql,
-                    @"^\s*insert\s+into\s+mission_evidence\s*\((?<columns>[^)]*)\)\s*values\s*\((?<values>.*)\)\s*;\s*$",
+                    @"^\s*insert\s+into\s+mission_evidence\s*\((?<columns>[^)]*)\)\s*(?<body>.*)$",
                     RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant);
-                Assert.IsTrue(insert.Success, "Unexpected initial evidence INSERT SQL: " + sql);
-
+                Assert.IsTrue(insert.Success, "Unexpected evidence INSERT header: " + sql);
                 var columns = insert.Groups["columns"].Value.Split(',', StringSplitOptions.TrimEntries);
-                var values = SplitSqlInsertValues(insert.Groups["values"].Value);
-                Assert.AreEqual(columns.Length, values.Length, "Evidence INSERT columns/values differ: " + sql);
                 var noteIndex = Array.FindIndex(columns, column =>
                     column.Equals("reconstruction_note", StringComparison.OrdinalIgnoreCase));
                 Assert.IsTrue(noteIndex >= 0, "Evidence INSERT must include reconstruction_note: " + sql);
-                var literal = values[noteIndex];
-                Assert.IsTrue(literal.Length >= 2 && literal[0] == '\'' && literal[^1] == '\'',
-                    "Expected a quoted evidence note in: " + sql);
-                notes.Add(literal.Substring(1, literal.Length - 2).Replace("''", "'"));
+                var body = insert.Groups["body"].Value.TrimStart();
+                var rows = new List<string[]>();
+                if (Regex.IsMatch(body, @"^values\s*\(", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+                {
+                    rows.AddRange(SplitSqlInsertRows(body));
+                }
+                else if (body.StartsWith("SELECT ", StringComparison.OrdinalIgnoreCase))
+                {
+                    // For INSERT ... SELECT, the first SELECT projection maps directly to the
+                    // inserted columns; a nested FROM in a subquery is not the outer FROM.
+                    var firstProjection = body.Substring("SELECT ".Length);
+                    var from = FindSqlOuterFrom(firstProjection);
+                    Assert.IsTrue(from >= 0, "Expected an INSERT ... SELECT ... FROM statement: " + sql);
+                    rows.Add(SplitSqlInsertValues(firstProjection.Substring(0, from)));
+                }
+                else
+                {
+                    Assert.Fail("Unsupported mission evidence INSERT SQL: " + sql);
+                }
+
+                foreach (var values in rows)
+                {
+                    Assert.AreEqual(columns.Length, values.Length,
+                        "Evidence INSERT columns/values differ: " + sql);
+                    var literal = values[noteIndex];
+                    Assert.IsTrue(literal.Length >= 2 && literal[0] == '\'' && literal[^1] == '\'',
+                        "Expected a quoted evidence note in: " + sql);
+                    notes.Add(literal.Substring(1, literal.Length - 2).Replace("''", "'"));
+                }
             }
             return notes.ToArray();
+        }
+
+        private static string[][] SplitSqlInsertRows(string body)
+        {
+            // Parse each parenthesized tuple rather than splitting every comma in the full
+            // VALUES clause (which previously produced 420 fields for 42 ten-column rows).
+            var rows = new List<string[]>();
+            var index = "VALUES".Length;
+            while (index < body.Length)
+            {
+                while (index < body.Length && char.IsWhiteSpace(body[index])) index++;
+                Assert.IsTrue(index < body.Length && body[index] == '(', "Expected ( in INSERT VALUES: " + body);
+                var start = ++index;
+                var depth = 0;
+                var quoted = false;
+                for (; index < body.Length; index++)
+                {
+                    if (body[index] == '\'')
+                    {
+                        if (quoted && index + 1 < body.Length && body[index + 1] == '\'')
+                        {
+                            index++;
+                            continue;
+                        }
+                        quoted = !quoted;
+                    }
+                    else if (!quoted && body[index] == '(') depth++;
+                    else if (!quoted && body[index] == ')')
+                    {
+                        if (depth == 0) break;
+                        depth--;
+                    }
+                }
+                Assert.IsFalse(quoted, "Unterminated SQL literal in evidence row.");
+                Assert.IsTrue(index < body.Length && body[index] == ')', "Unclosed evidence row: " + body);
+                rows.Add(SplitSqlInsertValues(body.Substring(start, index - start)));
+                index++;
+                while (index < body.Length && char.IsWhiteSpace(body[index])) index++;
+                if (index < body.Length && body[index] == ',')
+                {
+                    index++;
+                    continue;
+                }
+                Assert.IsTrue(index < body.Length && body[index] == ';', "Unexpected INSERT VALUES suffix: " + body);
+                index++;
+                Assert.IsTrue(string.IsNullOrWhiteSpace(body.Substring(index)), "Text after evidence INSERT terminator.");
+                break;
+            }
+            Assert.IsTrue(rows.Count > 0, "No rows in evidence INSERT VALUES statement.");
+            return rows.ToArray();
+        }
+
+        private static int FindSqlOuterFrom(string selectProjection)
+        {
+            var quoted = false;
+            var nesting = 0;
+            for (var i = 0; i < selectProjection.Length; i++)
+            {
+                if (selectProjection[i] == '\'')
+                {
+                    if (quoted && i + 1 < selectProjection.Length && selectProjection[i + 1] == '\'')
+                    {
+                        i++;
+                        continue;
+                    }
+                    quoted = !quoted;
+                }
+                else if (!quoted && selectProjection[i] == '(') nesting++;
+                else if (!quoted && selectProjection[i] == ')') nesting--;
+                else if (!quoted && nesting == 0 && i > 0 && char.IsWhiteSpace(selectProjection[i - 1]) &&
+                    i + 4 < selectProjection.Length &&
+                    selectProjection.Substring(i, 4).Equals("FROM", StringComparison.OrdinalIgnoreCase) &&
+                    char.IsWhiteSpace(selectProjection[i + 4]))
+                    return i;
+            }
+            return -1;
         }
 
         private static string[] SplitSqlInsertValues(string values)
@@ -260,6 +358,7 @@ namespace Rasa.Test.Missions.Content
             var result = new List<string>();
             var start = 0;
             var inQuote = false;
+            var nesting = 0;
             for (var i = 0; i < values.Length; i++)
             {
                 if (values[i] == '\'')
@@ -271,13 +370,16 @@ namespace Rasa.Test.Missions.Content
                     }
                     inQuote = !inQuote;
                 }
-                else if (values[i] == ',' && !inQuote)
+                else if (!inQuote && values[i] == '(') nesting++;
+                else if (!inQuote && values[i] == ')') nesting--;
+                else if (values[i] == ',' && !inQuote && nesting == 0)
                 {
                     result.Add(values.Substring(start, i - start).Trim());
                     start = i + 1;
                 }
             }
             Assert.IsFalse(inQuote, "Unterminated quoted SQL evidence value.");
+            Assert.AreEqual(0, nesting, "Unbalanced SQL value expression parentheses.");
             result.Add(values.Substring(start).Trim());
             return result.ToArray();
         }
@@ -296,10 +398,33 @@ namespace Rasa.Test.Missions.Content
                 {
                     Sql = "insert into mission_evidence (mission_id, reconstruction_note, content_revision) " +
                         "values (1992, 'Another note, with comma', 'deployment_11');"
+                },
+                new SqlOperation
+                {
+                    Sql = "insert into mission_evidence (mission_id, reconstruction_note, content_revision) " +
+                        "values (1, 'Contains ), ( text and O''Brien', 'v1'), " +
+                        "(2, 'A second row, with commas', 'v2'), (3, 'Third note', 'v3');"
+                },
+                new SqlOperation
+                {
+                    Sql = "insert into mission_evidence (mission_id, reconstruction_note, content_revision) " +
+                        "SELECT 10, 'INSERT ... SELECT can include FROM in a note', 'v4' " +
+                        "FROM mission_content_definition d WHERE d.mission_id = 10;"
+                },
+                new SqlOperation
+                {
+                    // This reproduces the 42-row statement which the earlier parser mistook
+                    // for 420 values belonging to a single 10-column row.
+                    Sql = "insert into mission_evidence (mission_id, reconstruction_note, content_revision) values " +
+                        string.Join(", ", Enumerable.Range(1, 42)
+                            .Select(id => $"({id}, 'note {id}', 'targets_1')")) + ";"
                 }
             };
             CollectionAssert.AreEqual(
-                new[] { "A note, with Bob's apostrophe", "Another note, with comma" },
+                new[] { "A note, with Bob's apostrophe", "Another note, with comma",
+                    "Contains ), ( text and O'Brien", "A second row, with commas", "Third note",
+                    "INSERT ... SELECT can include FROM in a note" }
+                    .Concat(Enumerable.Range(1, 42).Select(id => $"note {id}")).ToArray(),
                 InitialBootcampEvidenceNotes(operations));
         }
 

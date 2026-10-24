@@ -660,10 +660,13 @@ namespace Rasa.Test.Missions
             var escort = Escorts(harness).First();
             foreach (var companion in Escorts(harness))
                 companion.AggroRange = 0;
+            // This test measures a single escort's ground correction and stop behavior.
+            // Other mission escorts can change its reserved ring place via squad spacing.
+            SendCompanionsAway(harness, escort);
             var ground = Ground(harness, new Vector3(380, 120, 158));
             Place(harness, escort, ground);
             escort.Position += new Vector3(0, 0.35f, 0);
-            harness.MovePlayerTo(Ground(harness, ground + new Vector3(4.05f, 0, 0)));
+            harness.MovePlayerTo(Ground(harness, ground + new Vector3(4.75f, 0, 0)));
             CellManager.Instance.UpdateVisibility(harness.Client);
             WorldTestContext.Drain(harness.Client);
             var previous = escort.Position;
@@ -679,7 +682,11 @@ namespace Rasa.Test.Missions
             Advance(harness, 1);
             Assert.AreEqual(1, TakeMovements(harness, escort).Count(packet => packet.Movement.Velocity == 0));
             Advance(harness, 8);
-            Assert.AreEqual(0, TakeMovements(harness, escort).Length);
+            var unexpected = TakeMovements(harness, escort);
+            Assert.AreEqual(0, unexpected.Length,
+                "Escort must remain stopped; unexpected movement packets: " +
+                string.Join(", ", unexpected.Select(packet =>
+                    $"velocity={packet.Movement.Velocity} position={packet.Movement.Position}")));
         }
 
         private static Creature ReachBoss(BootcampRuntimeTestHarness.Harness harness)
