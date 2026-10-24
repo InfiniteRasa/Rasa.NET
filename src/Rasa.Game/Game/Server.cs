@@ -189,6 +189,9 @@ namespace Rasa.Game
             // How long a cleared pool of a battlefield stays down: from the next pool that goes down.
             RespawnPace.Config = Config.RespawnPace ?? new RespawnPaceConfig();
 
+            // Whether a line of sight that has an end underground leaves the terrain's height grid out: from the next line on.
+            Sight.Config = Config.Sight ?? new SightConfig();
+
             // A message changed by editing the file goes to everyone in the world, from the loop;
             // the first load is before anyone is here.
             if (MessageOfTheDay.Apply(Config.MessageOfTheDay) && _motdApplied)

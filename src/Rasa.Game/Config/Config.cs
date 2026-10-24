@@ -46,5 +46,8 @@ namespace Rasa.Config
 
         /// <summary>How long a cleared spawn pool of a battlefield stays down, by what it holds (Managers.RespawnPace); without the section, its row's time, as before.</summary>
         public RespawnPaceConfig RespawnPace { get; set; } = new RespawnPaceConfig();
+
+        /// <summary>What a line of sight is tested against under the terrain, in a cave or a tunnel (Managers.Sight); without the section, as before.</summary>
+        public SightConfig Sight { get; set; } = new SightConfig();
     }
 }

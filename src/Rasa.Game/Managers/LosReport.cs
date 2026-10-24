@@ -122,16 +122,17 @@ namespace Rasa.Managers
             }
 
             var eye = Cover.EyeOf(player);
+            var mapChannel = player.MapChannel;
 
             if (actor == null)
             {
-                lines.AddRange(Describe(cover, eye, ObjectAim(eye, dynamicObject.Position), null));
+                lines.AddRange(Describe(cover, eye, ObjectAim(eye, dynamicObject.Position), null,
+                    Sight.WithoutTerrain(mapChannel, cover, player.Position)));
                 return;
             }
 
-            lines.AddRange(Describe(cover, eye, Middle(actor), Cover.SamplePoints(actor, eye)));
-
-            var mapChannel = player.MapChannel;
+            lines.AddRange(Describe(cover, eye, Middle(actor), Cover.SamplePoints(actor, eye),
+                Sight.WithoutTerrain(mapChannel, cover, player.Position, actor.Position)));
 
             lines.Add($"- Your shots at it: damage x{Cover.Modifier(mapChannel, player, actor):0.00}{(actor.IsCrouching ? " (it is crouched)" : "")}");
             lines.Add($"- Its shots at you: damage x{Cover.Modifier(mapChannel, actor, player):0.00}{(player.IsCrouching ? " (you are crouched)" : "")}");
@@ -143,9 +144,10 @@ namespace Rasa.Managers
         /// <summary>
         /// The ray from the eye to the aim point, in the client's words, and when there are sample
         /// points, how many are in the clear and what blocks the rest. Terrain is checked first, as
-        /// CoverMesh.Blocked does.
+        /// CoverMesh.Blocked does. With <paramref name="withoutTerrain"/> the report says that an end
+        /// of the line is underground, and terrain is not looked at (Sight).
         /// </summary>
-        public static List<string> Describe(CoverMesh cover, Vector3 eye, Vector3 aim, Vector3[] points)
+        public static List<string> Describe(CoverMesh cover, Vector3 eye, Vector3 aim, Vector3[] points, bool withoutTerrain = false)
         {
             var lines = new List<string>();
 
@@ -155,7 +157,10 @@ namespace Rasa.Managers
                 return lines;
             }
 
-            lines.Add(cover.TerrainBlocks(eye, aim) ? "- Is blocked by Terrain"
+            if (withoutTerrain)
+                lines.Add("- An end is underground: Terrain is not counted (Sight.UnderTerrain)");
+
+            lines.Add(!withoutTerrain && cover.TerrainBlocks(eye, aim) ? "- Is blocked by Terrain"
                 : cover.GeometryBlocks(eye, aim) ? "- Is blocked by collision geometry"
                 : "- Has clear LOS on server");
 
@@ -166,7 +171,7 @@ namespace Rasa.Managers
 
             foreach (var point in points)
             {
-                if (cover.TerrainBlocks(eye, point))
+                if (!withoutTerrain && cover.TerrainBlocks(eye, point))
                     terrain++;
                 else if (cover.GeometryBlocks(eye, point))
                     geometry++;

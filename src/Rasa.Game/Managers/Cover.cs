@@ -97,8 +97,12 @@ namespace Rasa.Managers
             return points;
         }
 
-        /// <summary>The share of the points in the clear, before the floor and Target Painting.</summary>
-        public static double Visible(Navigation.CoverMesh cover, Vector3 eye, Vector3[] points)
+        /// <summary>
+        /// The share of the points in the clear, before the floor and Target Painting. With
+        /// <paramref name="withoutTerrain"/> the terrain is no part of it and only collision hides a
+        /// point: a line that has an end underground (Sight).
+        /// </summary>
+        public static double Visible(Navigation.CoverMesh cover, Vector3 eye, Vector3[] points, bool withoutTerrain = false)
         {
             if (cover == null || points.Length == 0)
                 return 1.0;
@@ -106,7 +110,7 @@ namespace Rasa.Managers
             var clear = 0;
 
             foreach (var point in points)
-                if (!cover.Blocked(eye, point))
+                if (!Sight.Blocked(cover, eye, point, withoutTerrain))
                     clear++;
 
             return clear / (double)points.Length;
@@ -137,7 +141,8 @@ namespace Rasa.Managers
 
             var eye = EyeOf(attacker);
 
-            return ModifierFrom(Visible(cover, eye, SamplePoints(target, eye)), GameEffectManager.CoverCountsPercentOf(target));
+            return ModifierFrom(Visible(cover, eye, SamplePoints(target, eye), Sight.WithoutTerrain(mapChannel, cover, attacker.Position, target.Position)),
+                GameEffectManager.CoverCountsPercentOf(target));
         }
     }
 }

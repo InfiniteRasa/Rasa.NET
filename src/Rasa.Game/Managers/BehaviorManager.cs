@@ -3073,7 +3073,8 @@ namespace Rasa.Managers
             if (cover == null)
                 return true;
 
-            return Cover.Visible(cover, Cover.EyeOf(creature), Cover.SamplePoints(target, creature.Position)) > 0;
+            return Cover.Visible(cover, Cover.EyeOf(creature), Cover.SamplePoints(target, creature.Position),
+                Sight.WithoutTerrain(creature.RuntimeMapChannel, cover, creature.Position, target.Position)) > 0;
         }
 
         #endregion

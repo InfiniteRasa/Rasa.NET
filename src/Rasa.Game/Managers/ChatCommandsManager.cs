@@ -3629,10 +3629,11 @@ namespace Rasa.Managers
             {
                 var eye = Cover.EyeOf(from);
                 var points = Cover.SamplePoints(to, eye);
-                var clear = points.Count(p => !mapChannel.Cover.Blocked(eye, p));
+                var withoutTerrain = Sight.WithoutTerrain(mapChannel, mapChannel.Cover, from.Position, to.Position);
+                var clear = points.Count(p => !Sight.Blocked(mapChannel.Cover, eye, p, withoutTerrain));
                 var modifier = Cover.Modifier(mapChannel, from, to);
 
-                return $"{clear}/{points.Length} points clear{(to.IsCrouching ? " (crouched)" : "")}, damage x{modifier:0.00}";
+                return $"{clear}/{points.Length} points clear{(to.IsCrouching ? " (crouched)" : "")}{(withoutTerrain ? " (underground: terrain not counted)" : "")}, damage x{modifier:0.00}";
             }
 
             CommunicatorManager.Instance.SystemMessage(_client, $"Its shots at you: {Describe(target, player)}");

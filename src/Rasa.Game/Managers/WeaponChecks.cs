@@ -117,7 +117,8 @@ namespace Rasa.Managers
             {
                 var eye = Cover.EyeOf(player);
 
-                if (Cover.Visible(cover, eye, Cover.SamplePoints(target, eye)) <= 0)
+                if (Cover.Visible(cover, eye, Cover.SamplePoints(target, eye),
+                        Sight.WithoutTerrain(player.MapChannel, cover, player.Position, target.Position)) <= 0)
                     found.Add(new Finding(Check.Sight, $"{distance:F0} m away, wholly behind cover",
                         Mode(config.Sight) == MovementChecksConfig.Refuse));
             }

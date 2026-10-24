@@ -260,6 +260,7 @@ docs/*
 !docs/wilderness-missions.md
 !docs/gm-commands.md
 !docs/respawn-pace.md
+!docs/cave-sight.md
 
 # Local runtime files
 /log-auth.txt
