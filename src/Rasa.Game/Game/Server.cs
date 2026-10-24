@@ -186,6 +186,9 @@ namespace Rasa.Game
             // How often a Steal or a Debuff Resist module fires on a hit.
             ItemModuleBonuses.Config = Config.ItemModules ?? new ItemModulesConfig();
 
+            // The creature think spread over the loop's passes, and the path searches bounded.
+            BehaviorManager.Config = Config.CreatureAi ?? new CreatureAiConfig();
+
             // A message changed by editing the file goes to everyone in the world, from the loop;
             // the first load is before anyone is here.
             if (MessageOfTheDay.Apply(Config.MessageOfTheDay) && _motdApplied)

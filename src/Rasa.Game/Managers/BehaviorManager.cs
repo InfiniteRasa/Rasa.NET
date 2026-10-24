@@ -151,6 +151,9 @@ namespace Rasa.Managers
         /// <summary>How far the target may drift from the point the current chase path aims at.</summary>
         private const float ChaseRepathDistance = 2.0f;
 
+        /// <summary>appsettings.json's CreatureAi: the staggered think and the bounded path searches.</summary>
+        public static Rasa.Config.CreatureAiConfig Config { get; set; } = new Rasa.Config.CreatureAiConfig();
+
         private static BehaviorManager _instance;
         private static readonly object InstanceLock = new object();
         public static BehaviorManager Instance
@@ -2365,6 +2368,12 @@ namespace Rasa.Managers
 
         public void MapChannelThink(MapChannel mapChannel, long delta)
         {
+            if (Config?.StaggeredThink == true)
+            {
+                StaggeredThink(mapChannel, delta);
+                return;
+            }
+
             // Accumulated per map. This used to be one field on the singleton shared by every
             // map channel, so with two maps active each one's creatures ran on the other's time.
             mapChannel.ControllerElapsed += delta;
@@ -2425,7 +2434,93 @@ namespace Rasa.Managers
                     }
                 }
             }
-            
+
+            FinishThink(mapChannel, queue_creatureDeletion, queue_creatureCellUpdate);
+        }
+
+        /// <summary>
+        /// MapChannelThink with CreatureAi.StaggeredThink on: on each pass, only the creatures
+        /// whose group's beat fell within it think (CreatureThinkSchedule), each over the time
+        /// since its group last thought. The walk is the one the whole-map think makes - every
+        /// cell over a copy of the cell table, every creature once, its cell's list copied before
+        /// any of it thinks - so the order the thinking creatures go in, and what one thinking
+        /// creature changes for the next, are as they were; a cell none of whose creatures think
+        /// on this pass is passed over without the copy.
+        /// </summary>
+        private void StaggeredThink(MapChannel mapChannel, long delta)
+        {
+            var slots = Math.Max(1, Config.ThinkSlots);
+            var schedule = mapChannel.ThinkSchedule;
+
+            if (schedule == null || schedule.Slots != slots)
+                mapChannel.ThinkSchedule = schedule = new CreatureThinkSchedule(slots, CreatureThinkInterval);
+
+            schedule.Advance(delta);
+
+            if (!schedule.AnyDue)
+                return;
+
+            var queue_creatureDeletion = new List<Creature>();
+            var queue_creatureCellUpdate = new List<Creature>();
+            var tempCells = mapChannel.ThinkCells;
+            var processedCreatures = mapChannel.ThoughtCreatures;
+            var everyone = schedule.DueCount == schedule.Slots;
+
+            tempCells.Clear();
+            tempCells.AddRange(mapChannel.MapCellInfo.Cells.Values);
+            processedCreatures.Clear();
+
+            try
+            {
+                foreach (var mapCell in tempCells)
+                {
+                    if (mapCell == null || mapCell.CreatureList.Count == 0)
+                        continue;
+
+                    if (!everyone && !AnyThinks(mapCell.CreatureList, schedule))
+                        continue;
+
+                    foreach (var creature in mapCell.CreatureList.ToArray())
+                    {
+                        if (creature == null)
+                            continue;
+
+                        var elapsed = schedule.ElapsedFor(creature.EntityId);
+
+                        if (elapsed <= 0 || !processedCreatures.Add(creature))
+                            continue;
+
+                        CreatureThink(mapChannel, creature, elapsed, out var needDeletion, out var needCellUpdate);
+
+                        if (needDeletion)
+                            queue_creatureDeletion.Add(creature);
+
+                        if (needCellUpdate) // update cell (even when creature is also deleted)
+                            queue_creatureCellUpdate.Add(creature);
+                    }
+                }
+            }
+            finally
+            {
+                // Not held past the pass: a creature taken out of the world is not kept alive by it.
+                processedCreatures.Clear();
+            }
+
+            FinishThink(mapChannel, queue_creatureDeletion, queue_creatureCellUpdate);
+        }
+
+        private static bool AnyThinks(List<Creature> creatures, CreatureThinkSchedule schedule)
+        {
+            foreach (var creature in creatures)
+                if (creature != null && schedule.ElapsedFor(creature.EntityId) > 0)
+                    return true;
+
+            return false;
+        }
+
+        /// <summary>The end of a think pass: the creatures that crossed into another cell are moved to it, and the ones done with are taken out of the world.</summary>
+        private static void FinishThink(MapChannel mapChannel, List<Creature> queue_creatureDeletion, List<Creature> queue_creatureCellUpdate)
+        {
             //update logic for creatures (same like for deletion below, moving creatures to different vectors is not good)
             if (queue_creatureCellUpdate.Count > 0)
             {

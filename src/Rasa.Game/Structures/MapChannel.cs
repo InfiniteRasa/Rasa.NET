@@ -63,6 +63,16 @@ namespace Rasa.Structures
         internal long SkyHoldSentTick { get; set; }
         /// <summary>Milliseconds since this map's creatures last ran BehaviorManager.CreatureThink.</summary>
         public long ControllerElapsed { get; set; }
+
+        /// <summary>
+        /// When each group of this map's creatures thinks, with CreatureAi.StaggeredThink on
+        /// (Managers.CreatureThinkSchedule); made by the first think that needs it, and made
+        /// again when the config's groups change. ControllerElapsed is not used then.
+        /// </summary>
+        internal Managers.CreatureThinkSchedule ThinkSchedule { get; set; }
+
+        /// <summary>The creatures already thought on this pass of a staggered think: reused, one pass at a time.</summary>
+        internal readonly HashSet<Creature> ThoughtCreatures = new HashSet<Creature>(ReferenceEqualityComparer.Instance);
         //public int TimerPlayerUpdate { get; set; }
         // player
         public int PlayerLimit { get; set; }
