@@ -48,7 +48,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
     ///    the Downed Prisoner lies down (pose 7). The mind-controlled prisoners: Clean Slate's Light Soldier model.
     ///
     /// Ids: creatures 650082-650089, pools 650082-650084 and 650088-650089 (as their creatures), map links
-    /// 650090-650091, teleporters 650092-650094, free before. Plain SQL, valid on SQLite and MySQL; down takes
+    /// 650090-650091, teleporters 984-986 (waypoint ids stay below 1000), free before. Plain SQL, valid on SQLite and MySQL; down takes
     /// out only these rows.
     /// </summary>
     public static class PlateauMaligoBaseV1
@@ -77,7 +77,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
 
         public const uint OntoBridge = 650090, BackIntoUstor = 650091;
         public const double DoorRadius = PlateauUstorYardV1.DoorRadius;
-        public const uint Level1Pad = 650092, Level2Pad = 650093, ChamberPad = 650094;
+        public const uint Level1Pad = 984, Level2Pad = 985, ChamberPad = 986;
         public const uint PadClass = 29648;             // ArchHumTeleporterV02, as the local teleporters at Ashoka
         public const uint LocalTeleporter = 1;          // teleporter.type
 

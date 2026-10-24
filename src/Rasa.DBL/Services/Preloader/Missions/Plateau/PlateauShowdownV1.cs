@@ -93,7 +93,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
             mission.Evidence(3, MissionEvidenceSourceKind.Reconstruction, "repository:PlateauShowdownV1",
                 "Level30. Radio offer on arriving in Maligo1830, radio turn-in. 1 kill Zyrutha650088 (level32, 3x HP, behind the " +
                 "Level 1 beams); 2 his keypass, a personal 100% drop while 2 is open, kept. CHANGE LATER: squad-wide drop; the " +
-                "keypass teleporter (local teleporters650092/650093) is open to all. Helmets 46019, 25079, 34205, 40333. Places " +
+                "keypass teleporter (local teleporters984/985) is open to all. Helmets 46019, 25079, 34205, 40333. Places " +
                 "are estimates. No indicator (instance).", 0.3);
 
             mission.Enable(scene);

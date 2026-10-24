@@ -28,7 +28,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
     ///    Yard's (level 30 and 31), Striders of the plain Strider class at level 30 with the Strider boss's weapons at
     ///    about 60% damage, Xykryl a Thrax rifle boss at level 32, three times a Thrax's health.
     ///
-    /// Ids: creatures 650096-650102, Fonseca's pool 650096, teleporters 650103-650104, creature actions
+    /// Ids: creatures 650096-650102, Fonseca's pool 650096, teleporters 987-988 (waypoint ids stay below 1000), creature actions
     /// 650031-650033, free before. Plain SQL, valid on SQLite and MySQL.
     /// </summary>
     public static class PlateauForeasBasePastNpcsV1
@@ -53,10 +53,11 @@ namespace Rasa.Services.Preloader.Missions.Plateau
         public const uint StriderClass = 9804;          // Vehicle_Bane_Strider_V1
         public const uint ThraxBossClass = 10504;       // Bane_Thrax_Soldier_Rifle_Boss
         public const uint ThraxLightning = 57030;       // thrax_lightning of the Thrax Soldier boss 520054
+        public const uint ThraxBossRifle = 34;          // the Thrax boss rifle (1/79) of the same class's Plateau boss 520054
 
         public const uint DefenderPistol = 650031, StriderWeapon = 650032, StriderLaser = 650033;
 
-        public const uint ChamberPad = 650103, PastPad = 650104;
+        public const uint ChamberPad = 987, PastPad = 988;
         public const uint PadClass = PlateauTemporalChamberNpcsV1.PadClass;
         public const uint LocalTeleporterType = PlateauTemporalChamberNpcsV1.LocalTeleporterType;
 
@@ -93,7 +94,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
             yield return Stat(Cavalryman, CavalrymanHitPoints, CavalrymanArmor);
 
             yield return Creature(Xykryl, "Taskmaster Xykryl - Foreas Base past (Foreas Base Past scene)", ThraxBossClass, XykrylLevel,
-                XykrylHitPoints, XykrylName, PlateauUstorYardV1.ThraxKick33, PlateauUstorYardV1.ThraxWeapon33, ThraxLightning);
+                XykrylHitPoints, XykrylName, PlateauUstorYardV1.ThraxKick33, ThraxBossRifle, ThraxLightning);
             yield return Stat(Xykryl, XykrylHitPoints, XykrylArmor);
 
             yield return Creature(SpecialForces, "Thrax Special Forces - Foreas Base past (Foreas Base Past scene)", ThraxClass,
