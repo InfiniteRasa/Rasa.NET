@@ -423,8 +423,12 @@ namespace Rasa.Managers
 
             foreach (var volume in volumes.Take(8))
             {
-                var inside = standing.Contains(volume) ? " <- you are in it"
-                    : volume.Contains(player.Position) ? " <- in it, but not for you (mission)" : "";
+                var inside = !volume.Contains(player.Position) ? ""
+                    : !volume.Enabled ? " <- in it, but it is off"
+                    : !HoldsMission(player, volume) ? " <- in it, but not for you (mission)"
+                    : spared.Length > 0 ? " <- in it, but you are spared"
+                    : standing.Contains(volume) ? " <- you are in it"
+                    : " <- in it (another of its kind applies)";
                 Say(FormattableString.Invariant($"{volume.Distance(player.Position),6:0.#} m  {volume.Describe()}{inside}"));
             }
 
