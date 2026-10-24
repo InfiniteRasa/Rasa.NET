@@ -49,6 +49,16 @@ namespace Rasa.Test.Database
         }
 
         [TestMethod]
+        public void SqliteKeepsTheSameMigrationIdWithoutChangingItsTextStorage()
+        {
+            // SQLite stores this column as unconstrained TEXT already; this counterpart
+            // retains provider migration parity without changing SQLite data.
+            var twin = new Rasa.Migrations.SqliteWorld.WidenCreatureActionDescriptionBeforeBossWeapons();
+            Assert.IsEmpty(twin.UpOperations);
+            Assert.IsEmpty(twin.DownOperations);
+        }
+
+        [TestMethod]
         [DataRow(520044u, 77001L, 10L, 190L, 285L, 540007u, DisplayName = "Shahrbaraz over the Palisades Boargar")]
         [DataRow(520038u, 77003L, 34L, 190L, 285L, 540006u, DisplayName = "Hive Master over the Palisades Fithik")]
         [DataRow(520053u, 77004L, 13L, 269L, 404L, 540011u, DisplayName = "Mox Alpha Male over the Pools Mox")]

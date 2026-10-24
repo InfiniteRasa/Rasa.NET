@@ -50,6 +50,16 @@ namespace Rasa.Test.Database
         }
 
         [TestMethod]
+        public void SqliteKeepsTheSameMigrationIdWithoutChangingItsTextStorage()
+        {
+            // SQLite stores this column as unconstrained TEXT already; this counterpart
+            // retains provider migration parity without changing SQLite data.
+            var twin = new Rasa.Migrations.SqliteWorld.WidenCreatureCommentBeforeFrontSquads();
+            Assert.IsEmpty(twin.UpOperations);
+            Assert.IsEmpty(twin.DownOperations);
+        }
+
+        [TestMethod]
         public void PartialMySqlFailureCanRetryTheCreateTableAndGuardedSeed()
         {
             // MySQL commits CREATE TABLE independently from the subsequent seed statements.

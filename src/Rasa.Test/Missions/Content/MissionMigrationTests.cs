@@ -217,15 +217,33 @@ namespace Rasa.Test.Missions.Content
             Assert.IsFalse(column.IsNullable);
             Assert.IsEmpty(new Rasa.Migrations.MySqlWorld.WidenMissionEvidenceNotesBeforeSeed().DownOperations);
 
-            var notes = new Rasa.Migrations.MySqlWorld.SeedWorldContent().UpOperations
-                .OfType<InsertDataOperation>()
-                .Where(insert => insert.Table == "mission_evidence")
-                .SelectMany(insert => Enumerable.Range(0, insert.Values.GetLength(0))
-                    .Select(index => insert.Values[index, Array.IndexOf(insert.Columns, "reconstruction_note")]))
-                .OfType<string>()
+            // The Bootcamp preloader emits SQL operations rather than InsertDataOperation.
+            // Inspect the actual seed statements; checking InsertDataOperation here used
+            // to produce an empty sequence and a false failure in lane 7.
+            var notes = InitialBootcampEvidenceNotes(
+                new Rasa.Migrations.MySqlWorld.SeedWorldContent().UpOperations);
+            Assert.IsTrue(notes.Length > 0, "Initial Bootcamp evidence must be present in the seed.");
+            Assert.IsTrue(notes.Any(note => note.Contains("missionconversation offsets 1990/1-6")),
+                "Check genuine authored Bootcamp provenance, not a synthetic fixture.");
+        }
+
+        // The historical initial seed writes one SQL INSERT per Bootcamp evidence row.
+        // reconstruction_note is its final column; extract the final SQL text literal,
+        // including doubled apostrophes, rather than mistaking it for EF InsertData.
+        private static string[] InitialBootcampEvidenceNotes(IEnumerable<MigrationOperation> operations)
+        {
+            return operations.OfType<SqlOperation>()
+                .Select(operation => operation.Sql)
+                .Where(sql => sql.StartsWith("insert into mission_evidence (", StringComparison.OrdinalIgnoreCase))
+                .Select(sql =>
+                {
+                    Assert.IsTrue(sql.Contains("reconstruction_note) values ("),
+                        "Initial evidence SQL must keep the reconstruction_note as its final column.");
+                    var match = Regex.Match(sql, @"'((?:''|[^'])*)'\);\s*$", RegexOptions.Singleline);
+                    Assert.IsTrue(match.Success, "Cannot parse the initial evidence note: " + sql);
+                    return match.Groups[1].Value.Replace("''", "'");
+                })
                 .ToArray();
-            Assert.IsTrue(notes.Any(note => note.Length > 256),
-                "The early widen protects real Bootcamp provenance, not a synthetic note.");
         }
 
         [TestMethod]
@@ -259,6 +277,16 @@ namespace Rasa.Test.Missions.Content
                         if (step.Direction == "Down" && operation is AlterColumnOperation && nextMaximum < maximum)
                             failures.Add($"{step.Key}: rollback must not reduce capacity for surviving evidence.");
                         maximum = nextMaximum;
+                    }
+                    if (operation is SqlOperation sqlOperation &&
+                        sqlOperation.Sql.StartsWith("insert into mission_evidence (", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Raw SQL inserts are used by Bootcamp's initial seed. Check
+                        // them too, not just later EF-generated InsertData operations.
+                        foreach (var noteText in InitialBootcampEvidenceNotes(new[] { sqlOperation }))
+                            if (noteText.Length > maximum)
+                                failures.Add($"{step.Key}/{step.Direction}: authored SQL evidence note " +
+                                    $"has {noteText.Length} characters, column limit {maximum}.");
                     }
                     if (operation is not InsertDataOperation insert || insert.Table != "mission_evidence")
                         continue;
