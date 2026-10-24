@@ -52,6 +52,9 @@ namespace Rasa.Managers
             (EntityClasses)4064, (EntityClasses)11302, (EntityClasses)23902
         };
 
+        /// <summary>The sizes of a burst when the settings give none.</summary>
+        public static readonly int[] DefaultBurstSizes = { 3, 5 };
+
         /// <summary>The least turn worth telling the clients about between shots, in radians.</summary>
         public const float TurnThreshold = 0.05f;
 
@@ -92,7 +95,9 @@ namespace Rasa.Managers
             lock (BurstRandom)
                 roll = BurstRandom.NextDouble();
 
-            return BurstCooldown(BurstOf(creature), cooldown, roll, config.BurstSizes, config.BurstGapMs);
+            var sizes = config.BurstSizes is { Length: > 0 } ? config.BurstSizes : DefaultBurstSizes;
+
+            return BurstCooldown(BurstOf(creature), cooldown, roll, sizes, config.BurstGapMs);
         }
 
         /// <summary>

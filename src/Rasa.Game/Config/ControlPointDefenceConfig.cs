@@ -68,8 +68,11 @@ namespace Rasa.Config
         /// </summary>
         public bool TurretBursts { get; set; } = true;
 
-        /// <summary>The sizes a burst is picked from, each as likely.</summary>
-        public int[] BurstSizes { get; set; } = { 3, 5 };
+        /// <summary>
+        /// The sizes a burst is picked from, each as likely; none given: 3 or 5 (Emplacements.DefaultBurstSizes).
+        /// No default array here: the configuration binder adds a file's list to one, rather than replacing it.
+        /// </summary>
+        public int[] BurstSizes { get; set; }
 
         /// <summary>The time between two rounds of a burst, in milliseconds: one creature think (250 ms) is the least that is ever kept.</summary>
         public int BurstGapMs { get; set; } = 250;

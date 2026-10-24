@@ -1,5 +1,9 @@
-using System;
+extern alias RasaGame;
 
+using System;
+using System.IO;
+
+using Microsoft.Extensions.Configuration;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Rasa.Test.World
@@ -81,6 +85,29 @@ namespace Rasa.Test.World
             {
                 ControlPointFields.Config = config;
             }
+        }
+
+        [TestMethod]
+        public void TheShippedSettingsAreTheDefaultsAndTheBurstSizesAreNotDoubled()
+        {
+            var config = new RasaGame::Rasa.Config.Config();
+
+            new ConfigurationBuilder().AddJsonFile(Path.Combine(AppContext.BaseDirectory, "appsettings.json"), false, false).Build().Bind(config);
+
+            var shipped = config.ControlPointDefence;
+            var defaults = new ControlPointDefenceConfig();
+
+            // The binder adds a file's list to a default one: the default is none, and the file's is all there is.
+            CollectionAssert.AreEqual(new[] { 3, 5 }, shipped.BurstSizes);
+            Assert.IsNull(defaults.BurstSizes);
+            CollectionAssert.AreEqual(new[] { 3, 5 }, Emplacements.DefaultBurstSizes);
+
+            Assert.AreEqual((defaults.FieldsFollowOwner, defaults.FieldRebuildSeconds, defaults.FieldRechargeAfterSeconds, defaults.FieldRechargeFullSeconds,
+                    defaults.CreaturesStrikeFields, defaults.FieldAlertRange, defaults.Defenders, defaults.TurretBursts, defaults.BurstGapMs),
+                (shipped.FieldsFollowOwner, shipped.FieldRebuildSeconds, shipped.FieldRechargeAfterSeconds, shipped.FieldRechargeFullSeconds,
+                    shipped.CreaturesStrikeFields, shipped.FieldAlertRange, shipped.Defenders, shipped.TurretBursts, shipped.BurstGapMs));
+            Assert.AreEqual((defaults.DefenderNoticeRange, defaults.DefenderNoticeMargin, defaults.DefenderNoticeMax, defaults.TurretNoticeMax, defaults.CallRange, defaults.HoldPostMargin),
+                (shipped.DefenderNoticeRange, shipped.DefenderNoticeMargin, shipped.DefenderNoticeMax, shipped.TurretNoticeMax, shipped.CallRange, shipped.HoldPostMargin));
         }
 
         [TestMethod]

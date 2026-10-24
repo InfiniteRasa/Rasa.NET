@@ -32,7 +32,7 @@ namespace Rasa.Managers
                     $"creatures strike {c.CreaturesStrikeFields}, alert {c.FieldAlertRange} m");
                 Say($"defenders {c.Defenders}: notice {c.DefenderNoticeRange}-{c.DefenderNoticeMax} m (reach + {c.DefenderNoticeMargin}), turrets up to {c.TurretNoticeMax} m, " +
                     $"call {c.CallRange} m, hold post + {c.HoldPostMargin} m");
-                Say($"turret bursts {c.TurretBursts}: {string.Join(" or ", c.BurstSizes ?? Array.Empty<int>())} rounds {c.BurstGapMs} ms apart");
+                Say($"turret bursts {c.TurretBursts}: {string.Join(" or ", c.BurstSizes is { Length: > 0 } ? c.BurstSizes : Emplacements.DefaultBurstSizes)} rounds {c.BurstGapMs} ms apart");
                 return;
             }
 

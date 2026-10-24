@@ -31,6 +31,7 @@ namespace Rasa.Test.TestSupport
             [49675] = 13999,
             [30281] = 14000,
             [49221] = 23,       // Redshirt_Human_Soldier_Heavy_Female, on the female human skeleton
+            [49015] = 23,       // Redshirt_Human_Soldier_Light_Female (the control points' AFS soldiers), likewise
         };
 
         /// <summary>Action animation families with no animation on any skeleton: the client's own gap, played by nothing.</summary>

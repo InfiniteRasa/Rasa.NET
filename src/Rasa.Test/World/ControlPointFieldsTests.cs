@@ -414,6 +414,50 @@ namespace Rasa.Test.World
             Assert.AreEqual(0, ControlPointFields.Hit(field, raider));
         }
 
+        [TestMethod]
+        public void AGameMasterSeesBreaksDamagesAndRepairsAPointsShields()
+        {
+            using var world = new WorldTestContext();
+            var point = Placed(world, ControlPointEntry.OwnerAfs);
+            var field = PlacedDestructibles.LiveOf(world.Map, FieldRow).Field;
+            var client = world.CreateClient(10, 30);
+            typeof(Client).GetProperty(nameof(Client.AccountEntry)).SetValue(client, new Rasa.Structures.Char.GameAccountEntry { Level = (byte)GmLevel.Admin });
+            client.Player.State = CharacterState.Normal;
+            CellManager.Instance.AddToWorld(client);
+
+            var commands = new ChatCommandsManager(null);
+            commands.RegisterChatCommands();
+
+            List<string> Say(string command)
+            {
+                WorldTestContext.Drain(client);
+                commands.ProcessCommand(client, command);
+                return WorldTestContext.Drain(client).Select(packet => packet.Message).OfType<Rasa.Packets.Protocol.CallMethodMessage>()
+                    .Select(message => message.Packet).OfType<Rasa.Packets.Communicator.Server.SystemMessagePacket>().Select(message => message.TextMessage).ToList();
+            }
+
+            var shown = Say(".cpdef");
+            StringAssert.Contains(shown[0], "#7 Retread Outpost: AFS");
+            StringAssert.Contains(shown[0], "1 of 1 gate shield(s) up");
+            StringAssert.Contains(shown[1], $"(row {FieldRow}) humgate: side A, 6000/6000 hp");
+
+            StringAssert.Contains(Say(".cpdef 7 damage 1000").Single(), "took 1000 hp");
+            Assert.AreEqual(5000, field.Health);
+
+            StringAssert.Contains(Say(".cpdef 7 break").Single(), "1 shield(s) brought down");
+            Assert.IsTrue(field.IsDestroyed);
+            PlacedDestructibles.Worker(world.Map);
+            StringAssert.Contains(Say(".cpdef 7")[1], "back in 120 s");
+
+            StringAssert.Contains(Say(".cpdef 7 repair").Single(), "1 shield(s) whole");
+            Assert.AreEqual(field.MaxHealth, field.Health);
+            Assert.AreEqual(0L, PlacedDestructibles.LiveOf(world.Map, FieldRow).RespawnAt);
+
+            StringAssert.Contains(Say(".cpdef config")[0], "rebuild 120 s");
+            StringAssert.Contains(Say(".cpdef 99").Single(), "usage: .cpdef");
+            Assert.AreSame(point, ControlPointFields.PointOf(field));
+        }
+
         #region Fixtures
 
         private static CreatureAction Attack(ActionId actionId, uint argId, uint min, uint max, double range = 24, long cooldown = 1000) => new()
