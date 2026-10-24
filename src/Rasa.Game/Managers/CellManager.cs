@@ -633,6 +633,12 @@ namespace Rasa.Managers
         private static List<Client> CollectClients(MapChannel map, ReadOnlySpan<uint> seeds, Client excluded)
         {
             var found = new List<Client>();
+            CollectClients(map, seeds, excluded, found);
+            return found;
+        }
+
+        private static void CollectClients(MapChannel map, ReadOnlySpan<uint> seeds, Client excluded, List<Client> found)
+        {
             var collected = _collected ??= new HashSet<Client>();
 
             try
@@ -654,8 +660,122 @@ namespace Rasa.Managers
             {
                 collected.Clear();
             }
+        }
 
-            return found;
+        /// <summary>
+        /// Everyone on the lists of the given cells, whatever their state, once each, in the order
+        /// the cells and their lists have them; without the excluded one and any empty entry. Who a
+        /// player's Client.CellCallMethod goes to: a client still loading in its cells (a dropship
+        /// arrival, placed before it is in the world) has been given what is there and is sent
+        /// what happens to it, as before.
+        /// </summary>
+        private static void CollectEveryone(MapChannel map, ReadOnlySpan<uint> seeds, Client excluded, List<Client> found)
+        {
+            var collected = _collected ??= new HashSet<Client>();
+
+            try
+            {
+                foreach (var seed in seeds)
+                {
+                    if (!map.MapCellInfo.Cells.TryGetValue(seed, out var cell))
+                        continue;
+
+                    foreach (var client in cell.ClientList)
+                        if (client != null && client != excluded && collected.Add(client))
+                            found.Add(client);
+                }
+            }
+            finally
+            {
+                collected.Clear();
+            }
+        }
+
+        /// <summary>The list a broadcast gathers its recipients into (RentRecipients); one a thread.</summary>
+        [ThreadStatic]
+        private static List<Client> _recipients;
+
+        [ThreadStatic]
+        private static bool _recipientsLent;
+
+        /// <summary>
+        /// A list to gather a broadcast's recipients into and send from, handed back with
+        /// <see cref="ReturnRecipients"/> once it is sent: the same list every time, so a broadcast
+        /// leaves nothing behind for the collector. One made while another is being sent - nothing
+        /// does that today - gets a list of its own.
+        /// </summary>
+        private static List<Client> RentRecipients()
+        {
+            if (_recipientsLent)
+                return new List<Client>();
+
+            _recipientsLent = true;
+            return _recipients ??= new List<Client>();
+        }
+
+        private static void ReturnRecipients(List<Client> recipients)
+        {
+            if (!ReferenceEquals(recipients, _recipients))
+                return;
+
+            recipients.Clear();
+            _recipientsLent = false;
+        }
+
+        /// <summary>
+        /// The seeds of the five by five cells around a cell, in the order CreateCellMatrix gives
+        /// them, without making the cells the map has not got: a cell nobody has been in has
+        /// nobody to send to. Throws for coordinates outside the grid as GetCell does.
+        /// </summary>
+        private static void SeedsAround(uint cellPosX, uint cellPosZ, Span<uint> seeds)
+        {
+            var i = 0;
+
+            for (var dx = -2; dx <= 2; dx++)
+                for (var dz = -2; dz <= 2; dz++)
+                {
+                    var x = (uint)(cellPosX + dx);
+                    var z = (uint)(cellPosZ + dz);
+
+                    if (x > ushort.MaxValue || z > ushort.MaxValue)
+                        throw new InvalidDataException("Cell coordinates exceed their 16-bit key fields.");
+
+                    seeds[i++] = (x & 0xFFFF) | (z << 16);
+                }
+        }
+
+        /// <summary>
+        /// A method call on <paramref name="entityId"/> to everyone on the lists of a player's
+        /// cells (Client.CellCallMethod, CellIgnoreSelfCallMethod), once each.
+        ///
+        /// Those used to gather the cells' lists one after another into a new list and send to
+        /// every entry: a client on two of the lists - a matrix naming a cell twice, as the five by
+        /// five zeroes of a player not in the world do, or a client listed twice in its cell, which
+        /// UpdateVisibility tidies up to a second later - was sent the call twice, and the retail
+        /// client acts on it twice. Who it goes to is otherwise as it was, in the same order:
+        /// everyone on the lists, Ingame or not (see <see cref="CollectEveryone"/>).
+        /// </summary>
+        internal static void CallOnCells(MapChannel map, uint[,] cells, Client excluded, ulong entityId, PythonPacket packet)
+        {
+            Span<uint> seeds = cells.Length <= 64 ? stackalloc uint[cells.Length] : new uint[cells.Length];
+            var i = 0;
+
+            foreach (var seed in cells)
+                seeds[i++] = seed;
+
+            var recipients = RentRecipients();
+
+            try
+            {
+                CollectEveryone(map, seeds, excluded, recipients);
+
+                foreach (var client in recipients)
+                    client.CallMethod(entityId, packet);
+            }
+            finally
+            {
+                ReturnRecipients(recipients);
+            }
         }
 
         private static IEnumerable<MapCell> GetCells(MapChannel map, IEnumerable<uint> seeds)
@@ -762,9 +882,14 @@ namespace Rasa.Managers
             // One message for everyone it goes to, encoded once (IBroadcastMessage).
             var move = new MoveObjectMessage(creature.EntityId, movementData);
 
-            foreach (var cell in CellsIn(mapChannel, creature.Cells))
-                foreach (var client in cell.ClientList)
-                    client.MoveObject(move);
+            // The cells looked up here rather than through CellsIn, whose iterator was an
+            // allocation a move: the same cells, the same clients, each list as it stands.
+            var cells = creature.Cells;
+            if (cells != null)
+                foreach (var cellSeed in cells)
+                    if (mapChannel.MapCellInfo.Cells.TryGetValue(cellSeed, out var cell))
+                        foreach (var client in cell.ClientList)
+                            client.MoveObject(move);
 
             // And the clients a mission has given this NPC to from across the map.
             if (creature.Npc != null)
@@ -777,7 +902,11 @@ namespace Rasa.Managers
             if (mapChannel == null || obj == null || !TryGetCellCoordinates(obj.CellPosition, out var cellPosX, out var cellPosZ))
                 return new List<Client>();
 
-            return GetClientsInCells(mapChannel, CreateCellMatrix(mapChannel, cellPosX, cellPosZ));
+            // The cells around it, without making the ones the map has not got (SeedsAround).
+            Span<uint> seeds = stackalloc uint[25];
+            SeedsAround(cellPosX, cellPosZ, seeds);
+
+            return CollectClients(mapChannel, seeds, null);
         }
 
         internal void CellCallMethod(DynamicObject obj, PythonPacket packet)
@@ -792,10 +921,25 @@ namespace Rasa.Managers
         {
             if (!TryGetCellCoordinates(obj.CellPosition, out var cellPosX, out var cellPosZ))
                 throw new InvalidDataException("Dynamic object position is outside the cell grid.");
-            var cellMatrix = CreateCellMatrix(mapChannel, cellPosX, cellPosZ);
 
-            foreach (var client in GetClientsInCells(mapChannel, cellMatrix))
-                client.CallMethod(obj.EntityId, packet);
+            // The clients GetClientsInCells found in the matrix CreateCellMatrix made, without the
+            // matrix, the cells it made for this (which held nobody) or a list (RentRecipients).
+            Span<uint> seeds = stackalloc uint[25];
+            SeedsAround(cellPosX, cellPosZ, seeds);
+
+            var recipients = RentRecipients();
+
+            try
+            {
+                CollectClients(mapChannel, seeds, null, recipients);
+
+                foreach (var client in recipients)
+                    client.CallMethod(obj.EntityId, packet);
+            }
+            finally
+            {
+                ReturnRecipients(recipients);
+            }
 
             // And whoever holds it from beyond its cells (Landmarks).
             Landmarks.Relay(obj, packet);
@@ -813,9 +957,14 @@ namespace Rasa.Managers
             var cellPosX = (uint)(position.X / CellSize + CellBias);
             var cellPosZ = (uint)(position.Z / CellSize + CellBias);
 
-            foreach (var cell in CellsIn(mapChannel, CreateCellMatrix(mapChannel, cellPosX, cellPosZ)))
-                foreach (var client in cell.ClientList)
-                    client.CallMethod(entityId, packet);
+            // Every list of the cells around it, as before, without making the cells nobody has been in.
+            Span<uint> seeds = stackalloc uint[25];
+            SeedsAround(cellPosX, cellPosZ, seeds);
+
+            foreach (var cellSeed in seeds)
+                if (mapChannel.MapCellInfo.Cells.TryGetValue(cellSeed, out var cell))
+                    foreach (var client in cell.ClientList)
+                        client.CallMethod(entityId, packet);
         }
 
         /// <summary>A method call on a creature, to everyone who can see it; see <see cref="CellMoveObject(Creature, Movement)"/> for which cells.</summary>
@@ -825,15 +974,38 @@ namespace Rasa.Managers
             if (mapChannel == null)
                 return;
 
-            foreach (var cell in CellsIn(mapChannel, creature.Cells))
-                foreach (var client in cell.ClientList)
-                    client.CallMethod(creature.EntityId, packet);
+            // As CellMoveObject: the cells looked up here, without CellsIn's iterator.
+            var cells = creature.Cells;
+            if (cells != null)
+                foreach (var cellSeed in cells)
+                    if (mapChannel.MapCellInfo.Cells.TryGetValue(cellSeed, out var cell))
+                        foreach (var client in cell.ClientList)
+                            client.CallMethod(creature.EntityId, packet);
         }
 
         internal void CellCallMethod(MapChannel mapChannel, Actor origin, PythonPacket packet)
         {
-            foreach (var client in GetClientsInCells(mapChannel, origin.Cells))
-                client.CallMethod(origin.EntityId, packet);
+            // The clients GetClientsInCells finds, gathered into the one list (RentRecipients).
+            var cells = origin.Cells;
+            Span<uint> seeds = cells.Length <= 64 ? stackalloc uint[cells.Length] : new uint[cells.Length];
+            var i = 0;
+
+            foreach (var seed in cells)
+                seeds[i++] = seed;
+
+            var recipients = RentRecipients();
+
+            try
+            {
+                CollectClients(mapChannel, seeds, null, recipients);
+
+                foreach (var client in recipients)
+                    client.CallMethod(origin.EntityId, packet);
+            }
+            finally
+            {
+                ReturnRecipients(recipients);
+            }
 
             // A player's squad and team mates who hold them from across the map (FarAllies).
             FarAllies.Relay(origin, packet);
