@@ -699,6 +699,12 @@ namespace Rasa.Test.World
             f.Arrive(gm);
             Assert.AreSame(owner.Player.MapChannel, gm.Player.MapChannel);
 
+            // A game master may be there uninvited (as .goto and .summon bring one), and is not sent out; nor may they build.
+            f.Apartments.Worker();
+            Assert.IsNull(gm.PendingTransfer);
+            f.Command(gm, ".decor place floor lamp");
+            StringAssert.Contains(f.Said(gm).Last(), "may not build");
+
             var id = owner.Player.MapChannel.ApartmentId;
 
             f.Command(gm, ".aptadmin Ann reset");

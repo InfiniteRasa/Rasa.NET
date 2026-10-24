@@ -265,6 +265,11 @@ namespace Rasa.Managers
             if (row.FriendsMayEnter && client.AccountEntry != null && ownerAccountId != 0 && IsFriend(live, ownerAccountId, client.AccountEntry.Id))
                 return Access.Enter;
 
+            // A game master may be anywhere a player is: .goto and .summon bring one in, and is
+            // not sent out again by the worker. They may not build.
+            if (client.AccountEntry != null && client.AccountEntry.Level >= (byte)GmLevel.GameMaster)
+                return Access.Enter;
+
             return Access.None;
         }
 
