@@ -229,6 +229,7 @@ namespace Rasa.Managers
             RegisterCommand(".motd", GmLevel.Observer, MotdCommand);
             RegisterCommand(".cover", GmLevel.Observer, CoverCommand);
             RegisterCommand(".los", GmLevel.Observer, LosCommand, "entityId");
+            RegisterCommand(".respawn", GmRespawnCommands.Level, parts => GmRespawnCommands.Respawn(_client, parts), "poolId", "now");
             RegisterCommand(".camerascript", GmLevel.Observer, CameraScriptCommand, "list | near [n] | info <id> | goto <id> [keyframe] | maps | <id>");
             RegisterCommand(".clientevent", GmLevel.Observer, ClientEventCommand, "action", "event");
 

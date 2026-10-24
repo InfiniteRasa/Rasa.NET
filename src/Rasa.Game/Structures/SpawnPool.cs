@@ -63,6 +63,15 @@ namespace Rasa.Structures
         /// nowhere, and still shot. Decided on the first pass and logged once.
         /// </summary>
         public bool NoWalkableGround { get; set; }
+
+        /// <summary>What it held when it last went down, as far as the open world's pace goes (Managers.RespawnPace).</summary>
+        public Managers.RespawnPace.Kind PaceKind { get; set; }
+
+        /// <summary>
+        /// How long it stays down this time, in milliseconds, when it keeps the open world's pace (Managers.RespawnPace):
+        /// its row's time or its kind's, the longer. 0 while it keeps none, or has not gone down yet.
+        /// </summary>
+        public long PaceDownMs { get; set; }
         // different spawn points
         //public int LocationCount { get; set; }
         //public Position[] LocationList { get; set; }

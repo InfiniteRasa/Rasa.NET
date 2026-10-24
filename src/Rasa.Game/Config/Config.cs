@@ -43,5 +43,8 @@ namespace Rasa.Config
 
         /// <summary>The chances of the weapon modules that fire on a hit (Managers.ItemModuleBonuses).</summary>
         public ItemModulesConfig ItemModules { get; set; } = new ItemModulesConfig();
+
+        /// <summary>How long a cleared spawn pool of a battlefield stays down, by what it holds (Managers.RespawnPace); without the section, its row's time, as before.</summary>
+        public RespawnPaceConfig RespawnPace { get; set; } = new RespawnPaceConfig();
     }
 }

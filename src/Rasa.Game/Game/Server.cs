@@ -186,6 +186,9 @@ namespace Rasa.Game
             // How often a Steal or a Debuff Resist module fires on a hit.
             ItemModuleBonuses.Config = Config.ItemModules ?? new ItemModulesConfig();
 
+            // How long a cleared pool of a battlefield stays down: from the next pool that goes down.
+            RespawnPace.Config = Config.RespawnPace ?? new RespawnPaceConfig();
+
             // A message changed by editing the file goes to everyone in the world, from the loop;
             // the first load is before anyone is here.
             if (MessageOfTheDay.Apply(Config.MessageOfTheDay) && _motdApplied)
