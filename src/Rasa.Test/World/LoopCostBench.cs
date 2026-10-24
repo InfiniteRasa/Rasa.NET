@@ -256,6 +256,75 @@ namespace Rasa.Test.World
             }
         }
 
+        /// <summary>
+        /// A busy map: 40 players and 400 creatures spread over 600 m, every timed worker due every
+        /// pass (the once-a-second ones included), so a pass here is the worst a second has. Where
+        /// it goes, by the phases.
+        /// </summary>
+        [TestMethod]
+        [TestCategory("Bench")]
+        public void ABusyMapsWorstPass()
+        {
+            if (Off)
+                return;
+
+            using var world = new WorldTestContext();
+            var random = new Random(4);
+            var players = Enumerable.Range(0, 40)
+                .Select(_ => PlayerDeathTests.Player(world, random.Next(-300, 300), random.Next(-300, 300)))
+                .ToList();
+            var creatures = Enumerable.Range(0, 400)
+                .Select(_ => Creature(world, random.Next(-300, 300), random.Next(-300, 300)))
+                .ToList();
+
+            foreach (var creature in creatures)
+                CellManager.Instance.AddToWorld(world.Map, creature);
+
+            var maps = new MapChannelManager(null);
+            maps.MapChannelArray.Add(world.Map.MapInfo.MapContextId, world.Map);
+
+            foreach (var timer in new[] { "CheckForObjects", "ClientEffectUpdate", "CellUpdateVisibility", "CheckForCreatures",
+                         "CheckForMapTriggers", "MissionDeadlineUpdate", "Regenerate", "MuteExpiry", "SharedInstances" })
+                maps.Timer.Add(timer, 100, true, null);
+
+            void Pass()
+            {
+                maps.MapChannelWorker(100);
+
+                foreach (var client in players)
+                    while (client.DequeueOutgoingPacket() != null)
+                    {
+                    }
+            }
+
+            for (var i = 0; i < 20; i++)
+                Pass();
+
+            LoopPhases.Reset();
+            LoopPhases.Enabled = true;
+
+            try
+            {
+                const int passes = 100;
+                for (var i = 0; i < passes; i++)
+                {
+                    var pass = LoopPhases.Begin();
+                    Pass();
+                    LoopPhases.EndPass(pass);
+                }
+
+                foreach (var line in LoopPhases.Describe(LoopPhases.Take(), 25))
+                    Report(line);
+            }
+            finally
+            {
+                LoopPhases.Enabled = false;
+
+                foreach (var creature in creatures)
+                    CellManager.Instance.RemoveCreatureFromWorld(world.Map, creature);
+            }
+        }
+
         [TestMethod]
         [TestCategory("Bench")]
         public void SpawnPoolsOfAMapWithNone()
