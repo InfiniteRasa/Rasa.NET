@@ -365,13 +365,13 @@ namespace Rasa.Test.Missions.Plateau
             Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, OutOfThinAir, PlateauOutOfThinAirV1.Escort),
                 $"she stalled at {prisoner.Position}");
             Assert.IsTrue(furthest > 150, $"she walked the way out ({furthest:F0} m from her rock)");
-            // The public NPC goes back to her rock when her scene ends: gone from the exit, there for the next player.
+            // The scene ends at the exit; her lease reset walks her back to her rock (as Pierre), there for the next player.
             var exit = PlateauOutOfThinAirV1.Route[^1];
             for (var tick = 0; tick < 90 && !Here(copy).Any(creature => creature.SpawnPool?.DbId == PlateauMaligoPrisonerV1.PrisonerPool &&
                      Vector3.Distance(ToVector(PlateauMaligoPrisonerV1.PrisonerAt), creature.Position) < 2 && creature.IsInteractable); tick++)
                 Tick(harness, copy, 1000);
             Assert.IsFalse(Here(copy).Any(creature => creature.SpawnPool?.DbId == PlateauMaligoPrisonerV1.PrisonerPool &&
-                Vector3.Distance(new Vector3(exit.X, exit.Y, exit.Z), creature.Position) < 5), "gone from the exit");
+                Vector3.Distance(new Vector3(exit.X, exit.Y, exit.Z), creature.Position) < 5), "not left at the exit");
             Assert.IsTrue(Here(copy).Any(creature => creature.SpawnPool?.DbId == PlateauMaligoPrisonerV1.PrisonerPool &&
                 Vector3.Distance(ToVector(PlateauMaligoPrisonerV1.PrisonerAt), creature.Position) < 2 && creature.IsInteractable),
                 "back on her rock");

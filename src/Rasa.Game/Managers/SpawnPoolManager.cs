@@ -380,7 +380,8 @@ namespace Rasa.Managers
                 // waited for (SquadInstanceState). It is cleared no longer once something of it
                 // is queued or alive (Filled). A pool a mission stages (IsStaged) is no camp: its
                 // public NPC is back on its own respawn time, for the mission to be offered again.
-                var squadState = spawnPool.Mode == ModeAutomatic && !IsStaged(spawnPool.DbId) ? mapChannel.SquadState : null;
+                var squadState = mapChannel.SquadState != null && spawnPool.Mode == ModeAutomatic && !IsStaged(spawnPool.DbId)
+                    ? mapChannel.SquadState : null;
 
                 if (squadState != null)
                 {

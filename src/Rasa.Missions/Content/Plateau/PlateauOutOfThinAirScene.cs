@@ -9,7 +9,8 @@ namespace Rasa.Missions.Content.Plateau
     /// <summary>
     /// Out of Thin Air (1190), Ustor Yard: the small Thrax patrol that carries the stim pack stands from the start; the
     /// prisoner's talk (scenario <see cref="EscortStarts"/>) sets her, the public NPC who gave the mission, on her route
-    /// to the west exit (objective 1). Her death, a blocked route or the owner's loss fails 1; at the exit she is gone.
+    /// to the west exit (objective 1). Her death, a blocked route or the owner's loss fails 1. At the exit the scene ends:
+    /// as upstream's Sgt. Pierre, the public NPC's lease reset walks her back to her rock, for the next player.
     /// </summary>
     [MissionScript("plateau.out-of-thin-air", 1)]
     public sealed class PlateauOutOfThinAirScene : ISceneScript
@@ -50,9 +51,7 @@ namespace Rasa.Missions.Content.Plateau
 
             if (phase == "escorting" && observation.Kind == SceneEventKind.RouteCompleted &&
                 observation.Role == Prisoner && observation.OperationKey == RouteOperation)
-                return Decide("done",
-                    new WorldIntent[] { new RemoveActorIntent("prisoner-leaves", Prisoner) },
-                    signals: new[] { new SceneMissionSignal(MissionId, OutOfTheYard, Out) }, status: SceneStatus.Ended);
+                return Decide("done", signals: new[] { new SceneMissionSignal(MissionId, OutOfTheYard, Out) }, status: SceneStatus.Ended);
 
             if (phase == "escorting" &&
                 (observation.Kind == SceneEventKind.ActorDied && observation.Role == Prisoner ||

@@ -16,7 +16,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
     ///
     /// Native: texts 9142-9146 (missionconversation): offer "I've been watching the Bane patrols and they appear to have
     /// some sort of stim pack that keeps them from feeling the effects of all this stuff around us ... Can you get me
-    /// one of those stim packs so I can get off this rock?", turn-in (High Command) "head to Maligo ASAP"; objectives
+    /// one of those stim packs so I can get off this rock?", turn-in (by radio) "head to Maligo ASAP"; objectives
     /// (missionobjective), no counters, empty descriptions: 2 "Ambush Thrax Patrols in the Area and Obtain an
     /// Environmental Protection Stim Pack" 9234/9235, 3 "Return to Maligo Prisoner and Give Her the Environmental
     /// Protection Stim Pack" 9238/9239 (objectiveconversation on 1307, 9240 "All good now!"), 1 "Escort Maligo
@@ -37,7 +37,8 @@ namespace Rasa.Services.Preloader.Missions.Plateau
     ///  - 3: her talk takes the stim pack and sets her off (PlateauOutOfThinAirScene).
     ///  - 1: upstream's escort: she, the public NPC (as Escape Velocity's Sgt. Pierre: busy for others meanwhile), walks
     ///    the navmesh's path to the west exit's inner side, stops to fight; her death, a blocked route or the owner's
-    ///    loss fails 1; at the end she is gone. Turned in by radio.
+    ///    loss fails 1; at the exit the scene ends and her lease reset walks her back to her rock (as Pierre). Turned
+    ///    in by radio.
     ///  - Rewards: the nearest Uncommon template of each kind (the manufacturer names are not in the client tables).
     ///    No indicators: instance.
     /// </summary>
