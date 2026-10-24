@@ -1,7 +1,7 @@
 # Plateau missions: playtest list and deviations
 
 Missions that are implemented (data, migrations and tests pass) but not yet played through in the
-game client. `docs/mission-crossref.md` marks each unchecked mission `[needs playtest]`. A checked box
+game client. `docs/plateau-mission-crossref.md` gives the sources of each mission. A checked box
 (`- [x]`) means the playtest is done and the mission works.
 
 Format: `- [ ] <mission id> <name> (<zone>): <what to look at>`.
