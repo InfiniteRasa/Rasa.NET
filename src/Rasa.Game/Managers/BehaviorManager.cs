@@ -1164,8 +1164,9 @@ namespace Rasa.Managers
                     // Feedback on it burns it for acting: this is the hostile action the server has.
                     AbilityManager.OnCreatureActed(mapChannel, creature, true);
 
-                    // set cooldown, lengthened by whatever slows its attacks (Called Shot: Arm)
-                    action.CooldownTimer = NextCooldown(creature, action);
+                    // set cooldown, lengthened by whatever slows its attacks (Called Shot: Arm); an
+                    // AFS turret's by where it is in its burst (Emplacements)
+                    action.CooldownTimer = Emplacements.Cooldown(creature, NextCooldown(creature, action));
                     MadeProgress(creature);
 
                     // creature used action, break loop
@@ -1174,6 +1175,10 @@ namespace Rasa.Managers
 
                 if (needToMove == false)
                 {
+                    // A turret between its shots stays turned to a target that moves (Emplacements).
+                    if (Emplacements.KeepsFacing(creature, targetDistX, targetDistZ))
+                        UpdateEntityMovement(targetDistX, targetDistY, targetDistZ, creature, mapChannel, 0.0f, false, delta);
+
                     // Holding here - an attack cooling down with nothing closer to use, the
                     // opening roll - after a think that stepped: the clients carry the last
                     // movement on at its speed until they are told otherwise.
