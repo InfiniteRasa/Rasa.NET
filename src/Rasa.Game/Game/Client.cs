@@ -30,7 +30,7 @@ namespace Rasa.Game
     using System.Net.Mail;
     using System.Numerics;
 
-    public class Client
+    public class Client : ICellMember
     {
         private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
 
@@ -158,6 +158,9 @@ namespace Rasa.Game
 
         /// <summary>Environment.TickCount64 at which <see cref="FarContacts"/> is next checked without a mission event asking.</summary>
         internal long NextContactSync { get; set; }
+
+        /// <summary>Which cells' ClientLists it is on (CellList): where DetachClient looks.</summary>
+        public CellMembership CellMembership { get; set; }
 
         /// <summary>
         /// The players this client has been given from beyond its player's cells: the members of
@@ -480,39 +483,23 @@ namespace Rasa.Game
             SendMessage(move, false, 1);
         }
 
-        // Cell Domain
+        /// <summary>
+        /// A method call to everyone on the lists of the player's cells, the player among them,
+        /// each once (CellManager.CallOnCells): a client on two of the lists used to be sent it twice.
+        /// </summary>
         public void CellCallMethod(Client client, ulong entityId, PythonPacket packet)
         {
-           var clientList = new List<Client>();
-
-            foreach (var cellSeed in client.Player.Cells)
-                if (client.Player.MapChannel.MapCellInfo.Cells.TryGetValue(cellSeed, out var cell))
-                    clientList.AddRange(cell.ClientList);
-
-            foreach (var tempClient in clientList)
-                tempClient.CallMethod(entityId, packet);
+            CellManager.CallOnCells(client.Player.MapChannel, client.Player.Cells, null, entityId, packet);
 
             // And whoever holds the player from afar (FarAllies), when it is the player's own.
             if (entityId == client.Player.EntityId)
                 Managers.FarAllies.Relay(client.Player, packet);
         }
 
-        // Cell Domain ignore self
+        /// <summary>A call on the player's entity to everyone else on the lists of their cells, each once; see <see cref="CellCallMethod(Client, ulong, PythonPacket)"/>.</summary>
         public void CellIgnoreSelfCallMethod(Client client, PythonPacket packet)
         {
-            var clientList = new List<Client>();
-
-            foreach (var cellSeed in client.Player.Cells)
-                if (client.Player.MapChannel.MapCellInfo.Cells.TryGetValue(cellSeed, out var cell))
-                    clientList.AddRange(cell.ClientList);
-
-            foreach (var tempClient in clientList)
-            {
-                if (tempClient == client)
-                    continue;
-
-                tempClient.CallMethod(client.Player.EntityId, packet);
-            }
+            CellManager.CallOnCells(client.Player.MapChannel, client.Player.Cells, client, client.Player.EntityId, packet);
 
             Managers.FarAllies.Relay(client.Player, packet);
         }

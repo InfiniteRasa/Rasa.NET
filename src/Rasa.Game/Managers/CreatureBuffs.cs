@@ -380,6 +380,11 @@ namespace Rasa.Managers
 
             lock (ChannelLock)
             {
+                // Nothing channelling and nobody fed anywhere, which is every tick of almost every map: the filter
+                // below found nothing, and its closure, iterator and list were all it did.
+                if (Channels.Count == 0 && Links.Count == 0)
+                    return;
+
                 due = Channels.Where(c => c.MapChannel == mapChannel && now >= c.LandsAt).ToList();
 
                 foreach (var channel in due)

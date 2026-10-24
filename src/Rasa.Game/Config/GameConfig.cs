@@ -26,5 +26,13 @@
         /// saved only as they leave the world.
         /// </summary>
         public int AutoSaveMinutes { get; set; } = Managers.AutoSave.DefaultMinutes;
+
+        /// <summary>
+        /// Whether the parts of each pass of the world loop are timed from startup
+        /// (Managers.LoopPhases): every map worker by name, servicing the clients, their time and
+        /// allocations a pass, listed by 'perf'. Off by default, when timing costs one flag read
+        /// a part; 'perf phases on' turns it on without a restart, and a config reload sets it again.
+        /// </summary>
+        public bool PhaseTimings { get; set; }
     }
 }

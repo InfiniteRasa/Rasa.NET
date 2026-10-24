@@ -69,7 +69,8 @@ namespace Rasa.Threading
 
         /// <summary>
         /// How the loop has been doing since the last time anyone asked: how many times it ran,
-        /// how long the slowest single pass took, and over how long a stretch.
+        /// how long the slowest single pass took, and over how long a stretch; and what its
+        /// passes allocated, in all and the most in one.
         /// </summary>
         public struct LoopMetrics
         {
@@ -77,7 +78,18 @@ namespace Rasa.Threading
             public double PeakMs;
             public double WindowMs;
 
+            /// <summary>
+            /// Bytes the loop thread allocated in its passes (GC.GetAllocatedBytesForCurrentThread),
+            /// in all and in the pass that allocated most. What a pass leaves behind is what the
+            /// collector has to come for, and with one thread for the whole world a collection that
+            /// stops it stops everybody.
+            /// </summary>
+            public long AllocatedBytes;
+            public long PeakAllocatedBytes;
+
             public double LoopsPerSecond => WindowMs > 0.0 ? Loops * 1000.0 / WindowMs : 0.0;
+
+            public double AllocatedBytesPerLoop => Loops > 0 ? (double)AllocatedBytes / Loops : 0.0;
         }
 
         /// <summary>
@@ -90,6 +102,8 @@ namespace Rasa.Threading
         private long _metricsFrom = Stopwatch.GetTimestamp();
         private int _metricsLoops;
         private long _metricsPeakTicks;
+        private long _metricsBytes;
+        private long _metricsPeakBytes;
 
         /// <summary>Reads the window and starts a new one.</summary>
         public LoopMetrics TakeMetrics()
@@ -101,11 +115,15 @@ namespace Rasa.Threading
                 {
                     Loops = _metricsLoops,
                     PeakMs = StopwatchMs(_metricsPeakTicks),
-                    WindowMs = StopwatchMs(now - _metricsFrom)
+                    WindowMs = StopwatchMs(now - _metricsFrom),
+                    AllocatedBytes = _metricsBytes,
+                    PeakAllocatedBytes = _metricsPeakBytes
                 };
 
                 _metricsLoops = 0;
                 _metricsPeakTicks = 0;
+                _metricsBytes = 0;
+                _metricsPeakBytes = 0;
                 _metricsFrom = now;
 
                 return metrics;
@@ -120,7 +138,9 @@ namespace Rasa.Threading
                 {
                     Loops = _metricsLoops,
                     PeakMs = StopwatchMs(_metricsPeakTicks),
-                    WindowMs = StopwatchMs(Stopwatch.GetTimestamp() - _metricsFrom)
+                    WindowMs = StopwatchMs(Stopwatch.GetTimestamp() - _metricsFrom),
+                    AllocatedBytes = _metricsBytes,
+                    PeakAllocatedBytes = _metricsPeakBytes
                 };
         }
 
@@ -180,6 +200,9 @@ namespace Rasa.Threading
 
                 var workFrom = Stopwatch.GetTimestamp();
 
+                // A read of a counter the thread keeps anyway: a few nanoseconds a pass.
+                var bytesFrom = GC.GetAllocatedBytesForCurrentThread();
+
                 // The last line of defence for both servers. This runs on a dedicated thread, so
                 // an exception escaping a tick does not merely stop the world - it goes unhandled
                 // and .NET ends the process. Everything below this point is guarded in its own
@@ -201,6 +224,7 @@ namespace Rasa.Threading
                 // 10 ms of work and sleeps 90 is a healthy 100 ms iteration, and reporting 100
                 // would hide the one that does 250 ms of work.
                 var workTicks = Stopwatch.GetTimestamp() - workFrom;
+                var workBytes = GC.GetAllocatedBytesForCurrentThread() - bytesFrom;
 
                 lock (_metricsLock)
                 {
@@ -208,6 +232,11 @@ namespace Rasa.Threading
 
                     if (workTicks > _metricsPeakTicks)
                         _metricsPeakTicks = workTicks;
+
+                    _metricsBytes += workBytes;
+
+                    if (workBytes > _metricsPeakBytes)
+                        _metricsPeakBytes = workBytes;
                 }
 
                 prevTime = realTime;
