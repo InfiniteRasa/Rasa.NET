@@ -151,6 +151,36 @@ namespace Rasa.Test.World
             GC.KeepAlive(parallel);
         }
 
+        /// <summary>What Navigation.Lazy has a first arrival wait for: one map's files read on their own, the largest maps.</summary>
+        [TestMethod]
+        public void ReadingOneMapAsAPlayerArrives()
+        {
+            RequireBench();
+
+            var directory = Navmesh();
+            var maps = Directory.GetFiles(directory, "*" + NavMeshFile.Extension)
+                .Select(Path.GetFileNameWithoutExtension)
+                .OrderByDescending(name => new FileInfo(NavMeshFile.PathFor(directory, name)).Length +
+                                           (File.Exists(CoverMesh.PathFor(directory, name)) ? new FileInfo(CoverMesh.PathFor(directory, name)).Length : 0))
+                .Take(8)
+                .ToList();
+
+            // Once to warm the code and the file cache, then timed.
+            Rasa.Managers.NavMeshManager.LoadFiles(directory, maps[^1]);
+
+            foreach (var name in maps)
+            {
+                GC.Collect();
+                var heap = GC.GetTotalMemory(true);
+                var from = Stopwatch.GetTimestamp();
+                var files = Rasa.Managers.NavMeshManager.LoadFiles(directory, name);
+                var ms = Stopwatch.GetElapsedTime(from).TotalMilliseconds;
+                var grew = GC.GetTotalMemory(true) - heap;
+                Console.WriteLine($"{name}: read in {ms:0} ms, +{grew / 1048576.0:0} MB");
+                GC.KeepAlive(files);
+            }
+        }
+
         internal static (double Ms, int Nodes) Time(NavMeshQuery query, Action search)
         {
             var from = Stopwatch.GetTimestamp();

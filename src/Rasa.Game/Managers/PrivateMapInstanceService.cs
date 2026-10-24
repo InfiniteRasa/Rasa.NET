@@ -56,11 +56,10 @@ namespace Rasa.Managers
                     InstanceId = instanceId,
                     PlayerLimit = template.PlayerLimit,
                     ClientList = new List<Game.Client>(),
-                    NavMesh = template.NavMesh,
-                    Cover = template.Cover,
                     IsPrivateInstance = true,
                     OwnerCharacterId = ownerCharacterId
                 };
+                map.ShareNavigationOf(template, heights: false);
                 initialize?.Invoke(map);
 
                 _instancesByKey.Add(privateKey, map);
@@ -110,12 +109,9 @@ namespace Rasa.Managers
                     InstanceId = instanceId,
                     PlayerLimit = template.PlayerLimit,
                     ClientList = new List<Game.Client>(),
-                    NavMesh = template.NavMesh,
-                    Cover = template.Cover,
-                    SafetyFloorY = template.SafetyFloorY,
-                    TopWalkableY = template.TopWalkableY,
                     IsSharedInstance = true
                 };
+                map.ShareNavigationOf(template, heights: true);
                 initialize?.Invoke(map);
 
                 _instancesByKey.Add(new PrivateMapInstanceKey(template.MapInfo.MapContextId, instanceId), map);
@@ -146,13 +142,10 @@ namespace Rasa.Managers
                     InstanceId = instanceId,
                     PlayerLimit = template.PlayerLimit,
                     ClientList = new List<Game.Client>(),
-                    NavMesh = template.NavMesh,
-                    Cover = template.Cover,
-                    SafetyFloorY = template.SafetyFloorY,
-                    TopWalkableY = template.TopWalkableY,
                     IsSquadInstance = true,
                     SquadOwnerCharacterId = ownerCharacterId
                 };
+                map.ShareNavigationOf(template, heights: true);
                 initialize?.Invoke(map);
 
                 _instancesByKey.Add(new PrivateMapInstanceKey(template.MapInfo.MapContextId, instanceId), map);

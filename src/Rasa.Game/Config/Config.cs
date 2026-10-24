@@ -46,5 +46,8 @@ namespace Rasa.Config
 
         /// <summary>How the creature think is spread over the loop's passes, and how far a creature searches for a route (Managers.BehaviorManager).</summary>
         public CreatureAiConfig CreatureAi { get; set; } = new CreatureAiConfig();
+
+        /// <summary>When each map's navmesh and cover are read, and let go of (Managers.LazyNavigation).</summary>
+        public NavigationConfig Navigation { get; set; } = new NavigationConfig();
     }
 }

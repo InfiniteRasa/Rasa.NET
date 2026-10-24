@@ -494,9 +494,18 @@ namespace Rasa.Managers
         {
             var clan = point.HeldByClan;
 
+            // On the ground - once the map's navmesh is read, with Navigation.Lazy, which for the
+            // start's points is when a player first comes (LazyNavigation.SnapToGroundOnceRead).
+            // Whichever object holds the point by then is put there, if it has not been moved.
+            var position = before?.Position ?? LazyNavigation.SnapToGroundOnceRead(mapChannel, point.Position, grounded =>
+            {
+                if (point.Object != null && point.Object.Position == point.Position)
+                    point.Object.Position = grounded;
+            });
+
             return new DynamicObject
             {
-                Position = before?.Position ?? NavMeshManager.SnapToGround(mapChannel, point.Position),
+                Position = position,
                 Rotation = before?.Rotation ?? point.Rotation,
                 MapContextId = point.MapContextId,
                 RuntimeMapChannel = mapChannel,
