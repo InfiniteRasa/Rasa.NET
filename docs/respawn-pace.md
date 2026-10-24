@@ -33,7 +33,7 @@ With `Enabled`, on the maps it is kept on:
 | Kind | Default | What |
 |---|---|---|
 | `Mission` | 60-120 s | holds a creature a mission's objective asks to be killed (`CreatureKilled` by row, `CreatureClassKilled` by class): "Mama Miasma!"'s Egg-Layers, the Light Bender snipers, Horntail. Before every other kind, so the next player on the mission does not wait a boss's time |
-| `Boss` | 300-600 s | a boss by its flags (`POWERLEVEL_6_BOSS`, `_7_SUPERBOSS`, the `UI_INDICATOR_` boss borders) or class name (`_Boss`, `Miniboss`, `_Queen`) whose row stands in one pool of its map |
+| `Boss` | 300-600 s | a boss by its flags (`POWERLEVEL_6_BOSS`, `_7_SUPERBOSS`, the `UI_INDICATOR_` boss borders) or class name (`_Boss`, `Miniboss`, `_Queen`), or one a boss title names on its map (`BossTitles`: the title bosses, a Filcher or a Juggernaut prototype among them), whose row stands in one pool of its map |
 | `Elite` | 180-300 s | such a row in several pools of its map (the camps' Thrax Commanders), or `POWERLEVEL_4_LIEUTENANT` |
 | `Trash` | 60-90 s | everything else, an armed friend at a post too |
 | `Service` | 30 s | a friend with an NPC package or no attack: vendors, trainers, medics |
