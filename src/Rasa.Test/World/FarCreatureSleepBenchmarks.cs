@@ -125,7 +125,7 @@ namespace Rasa.Test.World
                         passes.Add(Stopwatch.GetElapsedTime(from).TotalMilliseconds);
                     }
 
-                    var thinks = (creatures.Sum(c => c.LastAgression) - thought) / (staggered ? 250.0 : 300.0);
+                    var thinks = (creatures.Sum(c => c.LastAgression) - thought) / 300.0;
                     passes.Sort();
                     Console.WriteLine($"{(staggered ? "staggered" : "whole map")}: 3000 idle creatures, 300 passes: total {passes.Sum():0} ms, " +
                                       $"slowest pass {passes[^1]:0.0} ms, p95 {passes[(int)(passes.Count * 0.95)]:0.0} ms; " +

@@ -2454,10 +2454,13 @@ namespace Rasa.Managers
         private void StaggeredThink(MapChannel mapChannel, long delta)
         {
             var slots = Math.Max(1, Config.ThinkSlots);
+            var period = Math.Max(1, Config.ThinkPeriodMs);
             var schedule = mapChannel.ThinkSchedule;
 
-            if (schedule == null || schedule.Slots != slots)
-                mapChannel.ThinkSchedule = schedule = new CreatureThinkSchedule(slots, CreatureThinkInterval);
+            // A pass of CreatureThinkInterval (250 ms) or more thinks everyone, as it made the
+            // whole map think; on shorter passes each group on its beat of the period.
+            if (schedule == null || schedule.Slots != slots || schedule.Period != period)
+                mapChannel.ThinkSchedule = schedule = new CreatureThinkSchedule(slots, period, CreatureThinkInterval);
 
             schedule.Advance(delta);
 
