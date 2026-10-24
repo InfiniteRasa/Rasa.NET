@@ -516,6 +516,7 @@ namespace Rasa.Test.Missions
             public List<SpawnPoolPoseEntry> GetPoses() => new();
             public List<SpawnPoolDrawEntry> GetDraws() => new();
             public List<SpawnPoolPatrolEntry> GetPatrols() => new();
+            public List<Rasa.Structures.World.SpawnPoolPatrolGroupEntry> GetPatrolGroups() => new();
         }
 
         private sealed class FakeEntityClassRepository : IEntityClassRepository
