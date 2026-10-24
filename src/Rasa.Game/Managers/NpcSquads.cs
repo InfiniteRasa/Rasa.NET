@@ -11,6 +11,7 @@ namespace Rasa.Managers
 {
     using Data;
     using Game;
+    using Packets.MapChannel.Server;
     using Repositories.UnitOfWork;
     using Structures;
     using Structures.World;
@@ -48,7 +49,26 @@ namespace Rasa.Managers
 
         public enum PathMode : byte { Loop = 0, Back = 1, Once = 2 }
 
-        public enum Phase { Moving, Pausing, Holding, Fighting, Regrouping, Gone }
+        public enum Phase { Arriving, Moving, Pausing, Holding, Fighting, Regrouping, Gone }
+
+        /// <summary>How a squad comes into the world (npc_squad_spawn.arrival).</summary>
+        public enum Arrival : byte
+        {
+            /// <summary>All of it at once, in its places.</summary>
+            None = 0,
+
+            /// <summary>
+            /// On the spot one after another, <see cref="ArrivalSpacingMs"/> apart, each with the
+            /// teleporter arrival effect on its body, as players arriving by a waypoint are seen.
+            /// </summary>
+            Teleport = 1
+        }
+
+        /// <summary>How long after one member teleports in the next one does. Ours.</summary>
+        public const long ArrivalSpacingMs = 700;
+
+        /// <summary>How far off the spot a member teleports in, toward his place: the leader on it.</summary>
+        public const float ArrivalOffset = 1.2f;
 
         /// <summary>The most creatures one squad sends, whatever its lines say.</summary>
         public const int MaxMembers = 12;
@@ -102,7 +122,11 @@ namespace Rasa.Managers
             public List<PathPoint> Points { get; } = new();
         }
 
-        public sealed record PathPoint(Vector3 Position, uint PauseMs);
+        /// <summary>
+        /// A point of a route: where, how long the squad stands there, whether it runs the leg to
+        /// it, and how far it looks for a fight going there and standing there (0 for its type's).
+        /// </summary>
+        public sealed record PathPoint(Vector3 Position, uint PauseMs, bool Run = false, float EngageRange = 0);
 
         public sealed class SquadSpawn
         {
@@ -115,6 +139,7 @@ namespace Rasa.Managers
             public uint RespawnSeconds { get; set; }
             public bool Enabled { get; set; }
             public string Comment { get; set; }
+            public Arrival Arrival { get; set; }
         }
 
         private static Dictionary<uint, SquadType> _types = new();
@@ -176,14 +201,15 @@ namespace Rasa.Managers
 
             foreach (var row in (points ?? Enumerable.Empty<NpcSquadPathPointEntry>()).OrderBy(row => row.Step))
                 if (_paths.TryGetValue(row.PathId, out var path) && double.IsFinite(row.PosX) && double.IsFinite(row.PosY) && double.IsFinite(row.PosZ))
-                    path.Points.Add(new PathPoint(row.Position, row.PauseMs));
+                    path.Points.Add(new PathPoint(row.Position, row.PauseMs, row.Run != 0, (float)Math.Max(0, row.EngageRange)));
                 else
                     Logger.WriteLog(LogType.Error, $"npc_squad_path_point {row.PathId}/{row.Step}: no such path, or not a place; left out");
 
             _spawns = (spawns ?? Enumerable.Empty<NpcSquadSpawnEntry>()).ToDictionary(row => row.Id, row => new SquadSpawn
             {
                 Id = row.Id, MapContextId = row.MapContextId, TypeId = row.TypeId, PathId = row.PathId, Position = row.Position,
-                Rotation = (float)row.Rotation, RespawnSeconds = row.RespawnSeconds, Enabled = row.Enabled != 0, Comment = row.Comment ?? string.Empty
+                Rotation = (float)row.Rotation, RespawnSeconds = row.RespawnSeconds, Enabled = row.Enabled != 0, Comment = row.Comment ?? string.Empty,
+                Arrival = row.Arrival == (byte)Arrival.Teleport ? Arrival.Teleport : Arrival.None
             });
 
             States.Clear();
@@ -237,6 +263,14 @@ namespace Rasa.Managers
             internal long PauseUntil;
             internal long RegroupSince;
 
+            /// <summary>Who is still to teleport in, in order, and when the next one does.</summary>
+            internal readonly Queue<uint> Arriving = new();
+            internal long NextArrivalAt;
+
+            /// <summary>The point the squad is going to or standing at; null off its route.</summary>
+            public PathPoint Point => Spawn.PathId != 0 && _paths.TryGetValue(Spawn.PathId, out var path) &&
+                PathIndex >= 0 && PathIndex < path.Points.Count ? path.Points[PathIndex] : null;
+
             public IEnumerable<Member> Living => Members.Where(member => Alive(member.Creature));
             public Member Leader => Living.OrderBy(member => member.Place).FirstOrDefault();
         }
@@ -256,7 +290,12 @@ namespace Rasa.Managers
         /// <summary>How far the creature, one of a squad's, looks for a fight.</summary>
         public static float EngageRange(Creature creature)
         {
-            var type = creature?.SquadMember != null && _types.TryGetValue(creature.SquadMember.Squad.Spawn.TypeId, out var t) ? t : null;
+            var squad = creature?.SquadMember?.Squad;
+
+            if (squad?.Point is PathPoint point && point.EngageRange > 0)
+                return point.EngageRange;
+
+            var type = squad != null && _types.TryGetValue(squad.Spawn.TypeId, out var t) ? t : null;
 
             return type != null && type.EngageRange > 0 ? type.EngageRange : creature?.AggroRange ?? 0;
         }
@@ -285,6 +324,8 @@ namespace Rasa.Managers
 
                 if (!squad.Living.Any())
                 {
+                    squad.Arriving.Clear();
+
                     if (squad.Phase != Phase.Gone)
                     {
                         squad.Phase = Phase.Gone;
@@ -334,39 +375,92 @@ namespace Rasa.Managers
             }
 
             squad.Heading = spawn.Rotation;
-
-            foreach (var dbId in creatures)
-            {
-                var creature = CreatureManager.Instance.CreateCreature(dbId, null);
-
-                if (creature == null)
-                {
-                    Logger.WriteLog(LogType.Error, $"npc_squad_spawn {spawn.Id}: creature {dbId} could not be made; left out");
-                    continue;
-                }
-
-                var member = new Member(squad, creature) { Place = squad.Members.Count };
-                var at = PlaceOf(map, type, member.Place, spawn.Position, squad.Heading);
-
-                CreatureManager.Instance.SetLocation(creature, at, squad.Heading, spawn.MapContextId);
-                creature.LastYaw = squad.Heading;
-                creature.SquadMember = member;
-                squad.Members.Add(member);
-
-                CellManager.Instance.AddToWorld(map, creature);
-                BehaviorManager.Instance.SetActionSquad(creature);
-            }
-
             squad.PathIndex = -1;
             squad.Direction = 1;
-            squad.Phase = squad.Members.Count == 0 ? Phase.Gone : Phase.Moving;
+            squad.Arriving.Clear();
+
+            if (spawn.Arrival == Arrival.Teleport)
+            {
+                // The leader now, the rest one after another (Arrive).
+                foreach (var dbId in creatures)
+                    squad.Arriving.Enqueue(dbId);
+
+                squad.Phase = Phase.Arriving;
+                squad.NextArrivalAt = now;
+
+                while (squad.Arriving.Count > 0 && squad.Members.Count == 0)
+                    Arrive(map, squad, type, now);
+            }
+            else
+            {
+                foreach (var dbId in creatures)
+                    Bring(map, squad, type, dbId, false);
+
+                squad.Phase = Phase.Moving;
+            }
 
             if (squad.Members.Count == 0)
+            {
+                squad.Phase = Phase.Gone;
+                squad.Arriving.Clear();
                 squad.RespawnAt = now + Math.Max(10u, spawn.RespawnSeconds) * 1000L;
+            }
 
             Logger.WriteLog(LogType.Debug, $"Squad spawn {spawn.Id} ({type.Name}) sent {squad.Members.Count} on map {spawn.MapContextId}.");
 
             return squad.Members.Count;
+        }
+
+        /// <summary>The next of a squad teleporting in, when he is due.</summary>
+        private static void Arrive(MapChannel map, LiveSquad squad, SquadType type, long now)
+        {
+            if (squad.Arriving.Count == 0 || now < squad.NextArrivalAt)
+                return;
+
+            Bring(map, squad, type, squad.Arriving.Dequeue(), true);
+            squad.NextArrivalAt = now + ArrivalSpacingMs;
+        }
+
+        /// <summary>
+        /// One of a squad into the world, facing the squad's way: in his place, or teleporting in on
+        /// the spawn's spot, a little off it toward his place. Null when the creature cannot be made.
+        /// </summary>
+        private static Member Bring(MapChannel map, LiveSquad squad, SquadType type, uint dbId, bool teleport)
+        {
+            var spawn = squad.Spawn;
+            var creature = CreatureManager.Instance.CreateCreature(dbId, null);
+
+            if (creature == null)
+            {
+                Logger.WriteLog(LogType.Error, $"npc_squad_spawn {spawn.Id}: creature {dbId} could not be made; left out");
+                return null;
+            }
+
+            var member = new Member(squad, creature) { Place = squad.Members.Count };
+            var spot = map?.NavMesh?.Nearest(spawn.Position) ?? spawn.Position;
+            var at = PlaceOf(map, type, member.Place, spot, squad.Heading);
+
+            if (teleport && member.Place > 0)
+            {
+                var off = at - spot;
+                var near = off.Length() > ArrivalOffset ? spot + off / off.Length() * ArrivalOffset : at;
+                at = map?.NavMesh?.WalkTo(spot, near) ?? spot;
+            }
+
+            CreatureManager.Instance.SetLocation(creature, at, squad.Heading, spawn.MapContextId);
+            creature.LastYaw = squad.Heading;
+            creature.SquadMember = member;
+            squad.Members.Add(member);
+
+            CellManager.Instance.AddToWorld(map, creature);
+            BehaviorManager.Instance.SetActionSquad(creature);
+
+            // Seen arriving as a player off a waypoint is (actor.py Recv_TeleportArrival,
+            // _PlayTeleportArrivalFX: the DEFAULT teleporter type's arrival effect on the body).
+            if (teleport)
+                CellManager.Instance.CellCallMethod(map, creature, new TeleportArrivalPacket());
+
+            return member;
         }
 
         /// <summary>The squad's living members taken out of the world, and it gone with no respawn due.</summary>
@@ -379,6 +473,7 @@ namespace Rasa.Managers
             }
 
             squad.Members.Clear();
+            squad.Arriving.Clear();
             squad.Phase = Phase.Gone;
             squad.RespawnAt = 0;
         }
@@ -388,6 +483,9 @@ namespace Rasa.Managers
         {
             var spawn = squad.Spawn;
             _types.TryGetValue(spawn.TypeId, out var type);
+
+            Arrive(map, squad, type, now);
+
             var living = squad.Living.OrderBy(member => member.Place).ToList();
 
             squad.Members.RemoveAll(member => !living.Contains(member));
@@ -399,7 +497,10 @@ namespace Rasa.Managers
             var leader = living[0];
             var spacing = type?.Spacing ?? (float)DefaultSpacing;
             var movers = living.Where(member => member.Creature.WalkSpeed >= 0.01f).ToList();
-            var pace = movers.Count > 0 ? Math.Max(1f, movers.Min(member => member.Creature.WalkSpeed)) : 1f;
+            var running = squad.Phase == Phase.Moving && squad.Point?.Run == true;
+            var pace = movers.Count == 0 ? 1f :
+                running ? Math.Max(1f, movers.Min(member => Math.Max(member.Creature.WalkSpeed, member.Creature.RunSpeed))) :
+                Math.Max(1f, movers.Min(member => member.Creature.WalkSpeed));
 
             // In a fight: the squad stands, and whoever is not yet in it joins it.
             var fighting = living.Where(member => member.Creature.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting).ToList();
@@ -440,6 +541,15 @@ namespace Rasa.Managers
 
             switch (squad.Phase)
             {
+                case Phase.Arriving:
+                    // On the spot, facing the spawn's way, until the last of them is through.
+                    leader.Goal = null;
+                    squad.Heading = spawn.Rotation;
+
+                    if (squad.Arriving.Count == 0)
+                        squad.Phase = path == null ? Phase.Holding : Phase.Moving;
+                    break;
+
                 case Phase.Regrouping:
                     leader.Goal = null;
 
@@ -497,10 +607,17 @@ namespace Rasa.Managers
                         break;
                     }
 
-                    var flat = Flat(point.Position) - Flat(leader.Creature.Position);
+                    // Facing the way he is going: the next corner of his route over the navmesh,
+                    // which on a winding road is not the way to the point.
+                    var toward = point.Position;
+                    var controller = leader.Creature.Controller;
 
-                    if (flat.LengthSquared() > 1f)
-                        squad.Heading = AbilityManager.YawTowards(leader.Creature.Position, point.Position);
+                    if (controller.PathIndex < controller.Path.Count &&
+                        (Flat(controller.Path[controller.PathIndex]) - Flat(leader.Creature.Position)).LengthSquared() > 1f)
+                        toward = controller.Path[controller.PathIndex];
+
+                    if ((Flat(toward) - Flat(leader.Creature.Position)).LengthSquared() > 1f)
+                        squad.Heading = AbilityManager.YawTowards(leader.Creature.Position, toward);
 
                     // Anyone well behind his place: the leader waits for him.
                     var behind = living.Skip(1).Any(member => member.Creature.WalkSpeed >= 0.01f &&
@@ -650,8 +767,9 @@ namespace Rasa.Managers
 
         public const string Help =
             ".squad [types|paths|spawns|export] | .squad type new <name> | .squad type <id> [add <creature> [min] [max]|remove <slot>|formation wedge|column|line|spacing <m>|engage <m>|name <name>|delete] | " +
-            ".squad path new <name> [loop|back|once] | .squad path <id> [record|add [pause s]|undo|remove <step>|mode loop|back|once|name <name>|delete] | .squad point [pause s] | " +
-            ".squad spawn add <type> [path] [respawn s] [comment] | .squad spawn <id> [type|path|respawn <v>|comment <text>|move|enable|disable|send|delete]";
+            ".squad path new <name> [loop|back|once] | .squad path <id> [record|add [how]|insert <step> [how]|set <step> [how]|move <step>|undo|remove <step>|mode loop|back|once|name <name>|delete] | " +
+            ".squad point [how] - how: [pause s] [run|walk] [engage <m>] | " +
+            ".squad spawn add <type> [path] [respawn s] [comment] | .squad spawn <id> [type|path|respawn <v>|comment <text>|arrival none|teleport|move|enable|disable|send|delete]";
 
         /// <summary>.squad: the squads, and a GM's hand in them. Returns what to tell the GM.</summary>
         public static List<string> Command(MapChannel map, Manifestation gm, string[] parts)
@@ -866,8 +984,7 @@ namespace Rasa.Managers
                 case "":
                     say.Add(Describe(found, gm));
                     for (var i = 0; i < found.Points.Count; i++)
-                        say.Add($"  {i}: .teleport {Coords(found.Points[i].Position)} {found.MapContextId}" +
-                            (found.Points[i].PauseMs > 0 ? $"  stands {found.Points[i].PauseMs / 1000.0:0.#} s" : ""));
+                        say.Add($"  {i}: .teleport {Coords(found.Points[i].Position)} {found.MapContextId}{How(found.Points[i])}");
                     return;
 
                 case "record":
@@ -882,10 +999,38 @@ namespace Rasa.Managers
                         return;
                     }
 
-                    var pause = args.Length > 2 ? (uint)(double.Parse(args[2], CultureInfo.InvariantCulture) * 1000) : 0u;
-                    found.Points.Add(new PathPoint(gm.Position, pause));
-                    say.Add($"{Saved(SavePath(found))}Path {id}: point {found.Points.Count - 1} at {Coords(gm.Position)}" + (pause > 0 ? $", stands {pause / 1000.0:0.#} s" : "") + ".");
+                    var added = HowOf(args.Skip(2), new PathPoint(gm.Position, 0));
+                    found.Points.Add(added);
+                    say.Add($"{Saved(SavePath(found))}Path {id}: point {found.Points.Count - 1} at {Coords(gm.Position)}{How(added)}.");
                     return;
+
+                case "insert":
+                case "set":
+                case "move":
+                {
+                    if (found.MapContextId != mapContextId && verb != "set")
+                    {
+                        say.Add($"Path {id} is on map {found.MapContextId}, not this one.");
+                        return;
+                    }
+
+                    var at = int.Parse(args[2], CultureInfo.InvariantCulture);
+                    if (at < 0 || at > found.Points.Count || (verb != "insert" && at == found.Points.Count))
+                    {
+                        say.Add($"Path {id} has no point {at}.");
+                        return;
+                    }
+
+                    if (verb == "insert")
+                        found.Points.Insert(at, HowOf(args.Skip(3), new PathPoint(gm.Position, 0)));
+                    else if (verb == "set")
+                        found.Points[at] = HowOf(args.Skip(3), found.Points[at]);
+                    else
+                        found.Points[at] = found.Points[at] with { Position = gm.Position };
+
+                    say.Add($"{Saved(SavePath(found))}Path {id}: point {at} at {Coords(found.Points[at].Position)}{How(found.Points[at])}.");
+                    return;
+                }
 
                 case "undo":
                     if (found.Points.Count == 0)
@@ -1028,6 +1173,10 @@ namespace Rasa.Managers
                     resend = true;
                     break;
 
+                case "arrival":
+                    found.Arrival = Enum.Parse<Arrival>(args[2], true);
+                    break;
+
                 case "enable":
                     found.Enabled = true;
                     break;
@@ -1078,7 +1227,7 @@ namespace Rasa.Managers
                 live.Phase == Phase.Gone ? $"gone, back in {Math.Max(0, live.RespawnAt - Now()) / 1000} s" :
                 $"{live.Living.Count()} out, {live.Phase}{(live.PathIndex >= 0 && live.Phase != Phase.Holding ? $" to point {live.PathIndex}" : "")}";
 
-            return $"Spawn {spawn.Id} {spawn.Comment}: type {spawn.TypeId} {type}, {path}, respawn {spawn.RespawnSeconds} s, {state}, " +
+            return $"Spawn {spawn.Id} {spawn.Comment}: type {spawn.TypeId} {type}, {path}, {(spawn.Arrival == Arrival.Teleport ? "teleports in, " : "")}respawn {spawn.RespawnSeconds} s, {state}, " +
                 $"{Vector3.Distance(spawn.Position, gm.Position):0} m away (.teleport {Coords(spawn.Position)} {spawn.MapContextId})";
         }
 
@@ -1097,6 +1246,33 @@ namespace Rasa.Managers
                 ? $"(class {creature.EntityClass}{(string.IsNullOrEmpty(creature.ActorName) ? "" : ", " + creature.ActorName)})" : "";
 
         private static string Coords(Vector3 v) => FormattableString.Invariant($"{v.X:0.##} {v.Y:0.##} {v.Z:0.##}");
+
+        /// <summary>A point's pause, pace and range, as words: [pause s] [run|walk] [engage m], in any order.</summary>
+        private static PathPoint HowOf(IEnumerable<string> words, PathPoint point)
+        {
+            var list = words.ToList();
+
+            for (var i = 0; i < list.Count; i++)
+            {
+                var word = list[i].ToLowerInvariant();
+
+                if (word == "run")
+                    point = point with { Run = true };
+                else if (word == "walk")
+                    point = point with { Run = false };
+                else if (word == "engage" && i + 1 < list.Count)
+                    point = point with { EngageRange = Math.Max(0f, float.Parse(list[++i], CultureInfo.InvariantCulture)) };
+                else
+                    point = point with { PauseMs = (uint)Math.Max(0, double.Parse(word, CultureInfo.InvariantCulture) * 1000) };
+            }
+
+            return point;
+        }
+
+        private static string How(PathPoint point) =>
+            (point.Run ? ", run to" : "") +
+            (point.PauseMs > 0 ? FormattableString.Invariant($", stands {point.PauseMs / 1000.0:0.#} s") : "") +
+            (point.EngageRange > 0 ? FormattableString.Invariant($", engages at {point.EngageRange:0.#} m") : "");
 
         private static string Text(IEnumerable<string> words, string fallback)
         {
@@ -1126,7 +1302,8 @@ namespace Rasa.Managers
                 new NpcSquadPathEntry { Id = path.Id, MapContextId = path.MapContextId, Name = path.Name, Mode = (byte)path.Mode },
                 path.Points.Select((point, i) => new NpcSquadPathPointEntry
                 {
-                    PathId = path.Id, Step = (uint)i, PosX = point.Position.X, PosY = point.Position.Y, PosZ = point.Position.Z, PauseMs = point.PauseMs
+                    PathId = path.Id, Step = (uint)i, PosX = point.Position.X, PosY = point.Position.Y, PosZ = point.Position.Z, PauseMs = point.PauseMs,
+                    Run = (byte)(point.Run ? 1 : 0), EngageRange = point.EngageRange
                 }).ToList()));
 
         private static bool SaveSpawn(SquadSpawn spawn) =>
@@ -1134,7 +1311,8 @@ namespace Rasa.Managers
             {
                 Id = spawn.Id, MapContextId = spawn.MapContextId, TypeId = spawn.TypeId, PathId = spawn.PathId,
                 PosX = spawn.Position.X, PosY = spawn.Position.Y, PosZ = spawn.Position.Z, Rotation = spawn.Rotation,
-                RespawnSeconds = spawn.RespawnSeconds, Enabled = (byte)(spawn.Enabled ? 1 : 0), Comment = spawn.Comment ?? string.Empty
+                RespawnSeconds = spawn.RespawnSeconds, Enabled = (byte)(spawn.Enabled ? 1 : 0), Comment = spawn.Comment ?? string.Empty,
+                Arrival = (byte)spawn.Arrival
             }));
 
         private static bool Write(Func<Repositories.World.INpcSquadRepository, bool> write)
@@ -1180,13 +1358,13 @@ namespace Rasa.Managers
                 for (var i = 0; i < path.Points.Count; i++)
                 {
                     var point = path.Points[i];
-                    sql.AppendLine(FormattableString.Invariant($"INSERT INTO npc_squad_path_point (path_id, step, pos_x, pos_y, pos_z, pause_ms) VALUES ({path.Id}, {i}, {N(point.Position.X)}, {N(point.Position.Y)}, {N(point.Position.Z)}, {point.PauseMs});"));
+                    sql.AppendLine(FormattableString.Invariant($"INSERT INTO npc_squad_path_point (path_id, step, pos_x, pos_y, pos_z, pause_ms, run, engage_range) VALUES ({path.Id}, {i}, {N(point.Position.X)}, {N(point.Position.Y)}, {N(point.Position.Z)}, {point.PauseMs}, {(point.Run ? 1 : 0)}, {N(point.EngageRange)});"));
                 }
             }
 
             foreach (var spawn in spawns)
                 sql.AppendLine(FormattableString.Invariant(
-                    $"INSERT INTO npc_squad_spawn (id, map_context_id, type_id, path_id, pos_x, pos_y, pos_z, rotation, respawn_seconds, enabled, comment) VALUES ({spawn.Id}, {spawn.MapContextId}, {spawn.TypeId}, {spawn.PathId}, {N(spawn.Position.X)}, {N(spawn.Position.Y)}, {N(spawn.Position.Z)}, {N(spawn.Rotation)}, {spawn.RespawnSeconds}, {(spawn.Enabled ? 1 : 0)}, {Quote(spawn.Comment)});"));
+                    $"INSERT INTO npc_squad_spawn (id, map_context_id, type_id, path_id, pos_x, pos_y, pos_z, rotation, respawn_seconds, enabled, comment, arrival) VALUES ({spawn.Id}, {spawn.MapContextId}, {spawn.TypeId}, {spawn.PathId}, {N(spawn.Position.X)}, {N(spawn.Position.Y)}, {N(spawn.Position.Z)}, {N(spawn.Rotation)}, {spawn.RespawnSeconds}, {(spawn.Enabled ? 1 : 0)}, {Quote(spawn.Comment)}, {(byte)spawn.Arrival});"));
 
             return sql.ToString();
         }

@@ -115,7 +115,7 @@ namespace Rasa.Repositories.World
                     _worldContext.NpcSquadPathPointEntries.Add(new NpcSquadPathPointEntry
                     {
                         PathId = path.Id, Step = point.Step, PosX = point.PosX, PosY = point.PosY, PosZ = point.PosZ,
-                        PauseMs = point.PauseMs
+                        PauseMs = point.PauseMs, Run = point.Run, EngageRange = point.EngageRange
                     });
             });
 
@@ -150,6 +150,7 @@ namespace Rasa.Repositories.World
                 row.RespawnSeconds = spawn.RespawnSeconds;
                 row.Enabled = spawn.Enabled;
                 row.Comment = spawn.Comment;
+                row.Arrival = spawn.Arrival;
             });
 
         public bool DeleteSpawn(uint id) =>
@@ -165,7 +166,8 @@ namespace Rasa.Repositories.World
         {
             Id = spawn.Id, MapContextId = spawn.MapContextId, TypeId = spawn.TypeId, PathId = spawn.PathId,
             PosX = spawn.PosX, PosY = spawn.PosY, PosZ = spawn.PosZ, Rotation = spawn.Rotation,
-            RespawnSeconds = spawn.RespawnSeconds, Enabled = spawn.Enabled, Comment = spawn.Comment ?? string.Empty
+            RespawnSeconds = spawn.RespawnSeconds, Enabled = spawn.Enabled, Comment = spawn.Comment ?? string.Empty,
+            Arrival = spawn.Arrival
         };
 
         /// <summary>The change, saved in one transaction; false, logged and undone, if it failed.</summary>

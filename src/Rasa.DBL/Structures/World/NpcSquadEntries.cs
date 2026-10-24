@@ -143,6 +143,19 @@ namespace Rasa.Structures.World
         [Required]
         public uint PauseMs { get; set; }
 
+        /// <summary>1 when the squad runs the leg to this point, 0 when it walks it at its pace.</summary>
+        [Column("run")]
+        [Required]
+        public byte Run { get; set; }
+
+        /// <summary>
+        /// How far the squad looks for a fight while it goes to this point and stands at it, in
+        /// metres; 0 for its type's range.
+        /// </summary>
+        [Column("engage_range")]
+        [Required]
+        public double EngageRange { get; set; }
+
         public Vector3 Position => new((float)PosX, (float)PosY, (float)PosZ);
     }
 
@@ -196,6 +209,14 @@ namespace Rasa.Structures.World
         [Column("respawn_seconds")]
         [Required]
         public uint RespawnSeconds { get; set; }
+
+        /// <summary>
+        /// How the squad comes into the world: 0 it is there, 1 it teleports in on the spot one
+        /// member after another, each with the teleporter arrival effect.
+        /// </summary>
+        [Column("arrival")]
+        [Required]
+        public byte Arrival { get; set; }
 
         /// <summary>1 to send it, 0 to leave it out.</summary>
         [Column("enabled")]

@@ -29,6 +29,7 @@ namespace Rasa.Test.World
     {
         private const string Migration = "20270902000000_Npc_squads";
         private const string Previous = "20270901000000_Forget_restamped_migration_ids";
+        private const string Latest = "20270903000000_Alia_das_afs_squad";
 
         private static readonly string[] Tables = { "npc_squad_type", "npc_squad_member", "npc_squad_path", "npc_squad_path_point", "npc_squad_spawn" };
 
@@ -75,6 +76,12 @@ namespace Rasa.Test.World
             migrator.Migrate(Migration);
             foreach (var table in Tables)
                 Assert.AreEqual(0, Count(database, $"SELECT COUNT(*) FROM {table}"), table);
+
+            // The repository works on the tables as the model has them now: with the columns a
+            // later migration added (Alia_das_afs_squad), whose squad is cleared away first.
+            migrator.Migrate(Latest);
+            foreach (var table in Tables)
+                database.Context.Database.ExecuteSqlRaw($"DELETE FROM {table}");
 
             var squads = new NpcSquadRepository(database.Context);
 
@@ -442,6 +449,10 @@ namespace Rasa.Test.World
             var harness = WildernessRuntimeTestHarness.Create();
             try
             {
+                // The squads migrations put in (AliaDasAfsSquad) out of the way: these tests make their own.
+                foreach (var table in Tables)
+                    harness.World.Database.ExecuteSqlRaw($"DELETE FROM {table}");
+
                 S.Init(harness);
                 harness.Drain();
                 return harness;

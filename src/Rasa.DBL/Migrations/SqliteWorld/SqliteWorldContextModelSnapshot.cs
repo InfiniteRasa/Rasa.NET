@@ -2926,6 +2926,10 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnType("INTEGER")
                         .HasColumnName("step");
 
+                    b.Property<double>("EngageRange")
+                        .HasColumnType("REAL")
+                        .HasColumnName("engage_range");
+
                     b.Property<uint>("PauseMs")
                         .HasColumnType("INTEGER")
                         .HasColumnName("pause_ms");
@@ -2942,6 +2946,10 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnType("REAL")
                         .HasColumnName("pos_z");
 
+                    b.Property<byte>("Run")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("run");
+
                     b.HasKey("PathId", "Step");
 
                     b.ToTable("npc_squad_path_point");
@@ -2952,6 +2960,10 @@ namespace Rasa.Migrations.SqliteWorld
                     b.Property<uint>("Id")
                         .HasColumnType("INTEGER")
                         .HasColumnName("id");
+
+                    b.Property<byte>("Arrival")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("arrival");
 
                     b.Property<string>("Comment")
                         .IsRequired()

@@ -2988,6 +2988,10 @@ namespace Rasa.Migrations.MySqlWorld
                         .HasColumnType("int unsigned")
                         .HasColumnName("step");
 
+                    b.Property<double>("EngageRange")
+                        .HasColumnType("double")
+                        .HasColumnName("engage_range");
+
                     b.Property<uint>("PauseMs")
                         .HasColumnType("int unsigned")
                         .HasColumnName("pause_ms");
@@ -3004,6 +3008,10 @@ namespace Rasa.Migrations.MySqlWorld
                         .HasColumnType("double")
                         .HasColumnName("pos_z");
 
+                    b.Property<byte>("Run")
+                        .HasColumnType("tinyint unsigned")
+                        .HasColumnName("run");
+
                     b.HasKey("PathId", "Step");
 
                     b.ToTable("npc_squad_path_point");
@@ -3014,6 +3022,10 @@ namespace Rasa.Migrations.MySqlWorld
                     b.Property<uint>("Id")
                         .HasColumnType("int unsigned")
                         .HasColumnName("id");
+
+                    b.Property<byte>("Arrival")
+                        .HasColumnType("tinyint unsigned")
+                        .HasColumnName("arrival");
 
                     b.Property<string>("Comment")
                         .IsRequired()
