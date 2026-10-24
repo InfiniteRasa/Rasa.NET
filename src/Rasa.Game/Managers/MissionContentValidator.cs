@@ -174,7 +174,7 @@ namespace Rasa.Managers
                 (unitOfWork?.MapInfos?.Get() ?? new List<MapInfoEntry>()).Select(entry => entry.Id),
                 objectPackages, typedScenarios,
                 (unitOfWork?.Creatures?.GetClassFlags() ?? new List<CreatureClassFlagEntry>()).Select(entry => entry.FlagId),
-                () => unitOfWork?.Spawnpools?.Get() ?? new List<SpawnPoolEntry>())
+                unitOfWork?.Spawnpools == null ? null : () => unitOfWork.Spawnpools.Get() ?? new List<SpawnPoolEntry>())
                 .WithModules(() => (unitOfWork?.ItemModules?.GetModuleClasses(), unitOfWork?.ItemModules?.GetModifiableClasses()));
         }
 
@@ -981,6 +981,10 @@ namespace Rasa.Managers
                         // cleared (SpawnPoolManager.Emptied, SquadInstanceState): any other is an
                         // objective that cannot be completed.
                         case MissionProgressEventKind.SpawnPoolCleared:
+                            // A World unit of work with no spawn pool repository cannot say a pool is
+                            // missing: the rule is not checked, as a pool it cannot see is not absent.
+                            if (!references.HasSpawnPools)
+                                break;
                             if (!references.SpawnPools.TryGetValue(subjectId, out var pool))
                             {
                                 diagnostics.Add(new MissionValidationDiagnostic(
@@ -1804,6 +1808,9 @@ namespace Rasa.Managers
                 _spawnPools ??= (_spawnPoolSource?.Invoke() ?? Enumerable.Empty<SpawnPoolEntry>())
                     .GroupBy(entry => entry.Id)
                     .ToDictionary(group => group.Key, group => ((short)group.First().Mode, group.First().MapContextId));
+
+            /// <summary>Whether the spawn pools can be read at all (the unit of work has a spawn pool repository).</summary>
+            public bool HasSpawnPools => _spawnPoolSource != null;
 
             private readonly Func<IEnumerable<SpawnPoolEntry>> _spawnPoolSource;
             private Dictionary<uint, (short Mode, uint MapContextId)> _spawnPools;

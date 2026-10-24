@@ -50,6 +50,9 @@ namespace Rasa.Test.Missions
         /// <summary>The world's spawn pools (spawnpool), for cleared-pool rules to name.</summary>
         internal List<SpawnPoolEntry> SpawnPools { get; } = new();
 
+        /// <summary>A World unit of work with no spawn pool repository (Spawnpools is null).</summary>
+        internal bool NoSpawnPoolRepository { get; set; }
+
         internal static MissionContentFixture CreateValid()
         {
             var fixture = new MissionContentFixture();
@@ -434,7 +437,7 @@ namespace Rasa.Test.Missions
                 throw new NotSupportedException("This mission fixture must explicitly configure ordinary loot.");
             public INpcPackageRepository NpcPackages { get; }
             public IPlayerRandomNameRepository RandomNames => null;
-            public ISpawnpoolRepository Spawnpools => new FakeSpawnpoolRepository(_fixture);
+            public ISpawnpoolRepository Spawnpools => _fixture.NoSpawnPoolRepository ? null : new FakeSpawnpoolRepository(_fixture);
             public IMapEmitterRepository MapEmitters => null;
             public ISpawnPoolArrivalRepository SpawnPoolArrivals => null;
             public ITeleporterRepository Teleporters => null;
