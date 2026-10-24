@@ -6,9 +6,12 @@ namespace Rasa.Structures
     using System;
     using System.Linq;
     using World;
-    public class Creature : Actor, ICloneable
+    public class Creature : Actor, ICloneable, ICellMember
     {
         public uint DbId { get; set; }
+
+        /// <summary>Which cells' CreatureLists it is on (CellList); not copied by Clone, which is on none.</summary>
+        public CellMembership CellMembership { get; set; }
         // npc data (only if creature is a NPC)
         public Npc Npc { get; set; }
         // loot data (only if creature is harvestable)

@@ -119,6 +119,11 @@ namespace Rasa.Managers
 
             lock (CloudsLock)
             {
+                // Nothing drifting anywhere, which is every tick of almost every map: the filter
+                // below found nothing, and its closure, iterator and list were all it did.
+                if (Clouds.Count == 0)
+                    return;
+
                 due = Clouds.Where(c => c.MapChannel == mapChannel && now >= c.CoalesceAt).ToList();
 
                 foreach (var cloud in due)

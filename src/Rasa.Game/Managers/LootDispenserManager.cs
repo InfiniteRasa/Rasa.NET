@@ -489,10 +489,15 @@ namespace Rasa.Managers
                             EntityClassManager.Instance.GetClassInfo(template.Class)?.ItemClassInfo;
                         if (itemClass == null || drop.Quantity > itemClass.StackSize)
                             throw new GameplayRejectionException("Mission corpse loot has an invalid template or native stack size.");
-                        var item = ItemManager.StageItem(template, drop.Quantity, string.Empty);
-                        staged.Add((item, drop));
-                        item.Id = unit.Items.CreateItem(item);
-                        if (item.Id == 0)
+                        staged.Add((ItemManager.StageItem(template, drop.Quantity, string.Empty), drop));
+                    }
+
+                    // In one save, as MaterializeItems saves a corpse's drops.
+                    var ids = unit.Items.CreateItems(staged.Select(entry => (Repositories.Char.Items.IItemChange)entry.Item).ToList());
+                    for (var i = 0; i < staged.Count; i++)
+                    {
+                        staged[i].Item.Id = ids[i];
+                        if (ids[i] == 0)
                             throw new GameplayRejectionException("Mission corpse loot item was not persisted.");
                     }
                 });
@@ -574,11 +579,16 @@ namespace Rasa.Managers
                         var itemClass = EntityClassManager.Instance.GetClassInfo(template.Class).ItemClassInfo;
                         if (drop.Quantity == 0 || drop.Quantity > itemClass.StackSize)
                             throw new GameplayRejectionException($"Invalid corpse loot quantity for template {drop.TemplateId}.");
-                        var item = ItemManager.StageItem(template, drop.Quantity, string.Empty);
-                        staged.Add(item);
-                        item.Id = unit.Items.CreateItem(item);
-                        if (item.Id == 0)
-                            throw new GameplayRejectionException($"Corpse loot item {drop.TemplateId} was not persisted.");
+                        staged.Add(ItemManager.StageItem(template, drop.Quantity, string.Empty));
+                    }
+
+                    // All of the corpse's drops in one save (IItemRepository.CreateItems), not one each.
+                    var ids = unit.Items.CreateItems(staged);
+                    for (var i = 0; i < staged.Count; i++)
+                    {
+                        staged[i].Id = ids[i];
+                        if (staged[i].Id == 0)
+                            throw new GameplayRejectionException($"Corpse loot item {staged[i].ItemTemplateId} was not persisted.");
                     }
                 });
                 committed = true;
@@ -1231,6 +1241,15 @@ namespace Rasa.Managers
         /// items fit or not. They, and the prestige a rare item is worth, are worked out from what
         /// was taken, in the same write (Settle).
         /// </summary>
+        /// <summary>
+        /// Whether a take of these items pays the corpse's credits: when it empties the corpse
+        /// of items, or is a Loot All of a corpse that is one player's.
+        /// </summary>
+        private static bool PaysCredits(LootDispenser loot, IReadOnlyList<LootItem> taken, bool lootAll) =>
+            loot.Credits > 0 &&
+            ((lootAll && loot.CreditSharers.Count == 0) ||
+             loot.LootItems.All(item => item.Taken || taken.Contains(item)));
+
         private void Claim(
             Client client,
             LootDispenser loot,
@@ -1257,9 +1276,7 @@ namespace Rasa.Managers
             {
                 items = taken;
 
-                var emptiesItems = loot.LootItems.All(item => item.Taken || taken.Contains(item));
-                includeCredits = loot.Credits > 0 &&
-                    ((lootAll && loot.CreditSharers.Count == 0) || emptiesItems);
+                includeCredits = PaysCredits(loot, taken, lootAll);
 
                 var recipients = includeCredits ? CreditRecipients(client, loot) : new List<Client> { client };
                 var shares = includeCredits ? SplitCredits(loot.Credits, recipients.Count) : new List<int> { 0 };
@@ -1291,6 +1308,19 @@ namespace Rasa.Managers
                 prestigeAfter = (int)Math.Min(
                     currentPrestige + prestigeAwards.Sum(award => (long)award.Amount), int.MaxValue);
                 prestigeGranted = prestigeAfter > currentPrestige;
+            }
+
+            // Nothing asked for, and no credits the take would pay: nothing fits, as the write
+            // below would find, without the write. Walking near a corpse sends its auto-loot
+            // every frame while in reach (RequestLootAllFromCorpse), and a corpse whose items
+            // are all above the player's threshold asks for none of them - a transaction begun,
+            // the character read and rolled back, at every frame, for each player
+            // standing by it.
+            if (asked.Count == 0 && !PaysCredits(loot, Array.Empty<LootItem>(), lootAll))
+            {
+                if (!quiet)
+                    TellInventoryFull(client);
+                return;
             }
 
             var grant = new InventoryManager.LootGrant(_beforeItemPublication);
@@ -1691,14 +1721,9 @@ namespace Rasa.Managers
                         throw new GameplayRejectionException(
                             "No character persistence factory is available for loot cleanup.");
                     using var unitOfWork = factory.CreateChar();
+                    // Every one of them in one save (IItemRepository.DeleteItemsWithInventory).
                     unitOfWork.ExecuteTransaction(() =>
-                    {
-                        foreach (var item in unclaimed)
-                        {
-                            unitOfWork.CharacterInventories.DeleteInvItemByItemId(item.ItemId);
-                            unitOfWork.Items.DeleteItem(item.ItemId);
-                        }
-                    });
+                        unitOfWork.Items.DeleteItemsWithInventory(unclaimed.Select(item => item.ItemId).ToArray()));
                 }
                 catch (Exception error) when (
                     error is GameplayRejectionException ||

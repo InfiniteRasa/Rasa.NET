@@ -167,6 +167,9 @@ namespace Rasa.Game
 
             AutoSave.IntervalMinutes = Config.GameConfig?.AutoSaveMinutes ?? AutoSave.DefaultMinutes;
 
+            // The parts of a pass timed for 'perf', or not (LoopPhases): from the next pass.
+            LoopPhases.Enabled = Config.GameConfig?.PhaseTimings ?? false;
+
             // The maps that run in several shared copies. A copy already open stays as it is.
             MapInstancePolicies.Apply(Config.MapInstances);
 
@@ -185,6 +188,12 @@ namespace Rasa.Game
 
             // How often a Steal or a Debuff Resist module fires on a hit.
             ItemModuleBonuses.Config = Config.ItemModules ?? new ItemModulesConfig();
+
+            // The creature think spread over the loop's passes, and the path searches bounded.
+            BehaviorManager.Config = Config.CreatureAi ?? new CreatureAiConfig();
+
+            // When the maps' navmeshes and cover are read, and let go of. Lazy is read at the start only.
+            LazyNavigation.Config = Config.Navigation ?? new NavigationConfig();
 
             // A message changed by editing the file goes to everyone in the world, from the loop;
             // the first load is before anyone is here.
@@ -272,6 +281,10 @@ namespace Rasa.Game
         {
             readThisTick.Clear();
 
+            // What the clients sent, handled - a Move's visibility and broadcast are done here -
+            // and then what they are sent, flushed: the two timed apart (LoopPhases).
+            var part = LoopPhases.Begin();
+
             foreach (var client in clients)
             {
                 if (client.PendingTransfer != null &&
@@ -293,6 +306,9 @@ namespace Rasa.Game
                 }
             }
 
+            LoopPhases.End("Clients.ReadInput", part);
+            part = LoopPhases.Begin();
+
             foreach (var client in readThisTick)
             {
                 try
@@ -304,6 +320,8 @@ namespace Rasa.Game
                     CloseFaulted(client, e);
                 }
             }
+
+            LoopPhases.End("Clients.SendQueued", part);
 
             readThisTick.Clear();
         }
@@ -370,6 +388,12 @@ namespace Rasa.Game
             // One thread runs the timers, the world and every client in turn. Anything that
             // escapes here costs the rest of the tick - the clients after the one that threw
             // are not serviced at all - so each part is held to its own failure.
+            //
+            // The pass and its parts timed when the phases are on (LoopPhases, 'perf'): a pass
+            // with nobody connected is not counted.
+            var pass = LoopPhases.Begin();
+            var part = pass;
+
             try
             {
                 Timer.Update(delta);
@@ -378,6 +402,8 @@ namespace Rasa.Game
             {
                 Logger.WriteLog(LogType.Error, $"Error updating the server timers: {e}");
             }
+
+            LoopPhases.End("Server.Timer", part);
 
             if (Clients.Count == 0)
                 return;
@@ -391,6 +417,8 @@ namespace Rasa.Game
             // is at most the loop interval.
             lock (Clients)
             {
+                part = LoopPhases.Begin();
+
                 try
                 {
                     MapChannelManager.Instance.MapChannelWorker(delta);
@@ -399,6 +427,8 @@ namespace Rasa.Game
                 {
                     Logger.WriteLog(LogType.Error, $"Error in the map channel worker: {e}");
                 }
+
+                LoopPhases.End("MapChannelWorker (all of it)", part);
 
                 ServiceClients(Clients, _readThisTick, delta);
 
@@ -437,6 +467,8 @@ namespace Rasa.Game
                         MapChannelManager.Instance.CleanupDisconnected(client);
                 }
             }
+
+            LoopPhases.EndPass(pass);
         }
 
         #region Socketing
@@ -603,6 +635,20 @@ namespace Rasa.Game
             Timer.Add("AuctionExpire", 300000, true, () => AuctionHouseManager.Instance.ExpireAuctions());
 
             Timer.Add("PreLoginExpire", 5000, true, ExpirePreLogin);
+
+            // Navigation.Lazy: the navmeshes of the maps players are on or on the way to read, the
+            // MapLoadeds that waited for one answered, and the ones nobody needs let go of. Every
+            // pass, from the timers, which run when nobody is online as well; under the Clients
+            // lock, as the world's pass is, since an answer puts a player into the world.
+            Timer.Add("LazyNavigation", MainLoopTime, true, () =>
+            {
+                if (!LazyNavigation.Active)
+                    return;
+
+                lock (Clients)
+                    LazyNavigation.Worker(Environment.TickCount64, Clients,
+                        MapChannelManager.Instance.MapChannelArray.Values, MapChannelManager.Instance.MapLoaded);
+            });
 
             Timer.Add("QueueManagerUpdate", Config.QueueConfig.UpdateInterval, true, () =>
             {
@@ -1822,13 +1868,51 @@ namespace Rasa.Game
                 Logger.WriteLog(LogType.Command, line);
         }
 
+        /// <summary>
+        /// perf: how the loop is doing, and who is here. perf phases on|off|reset: the parts of a
+        /// pass timed or not (LoopPhases; GameConfig.PhaseTimings at startup); while they are on,
+        /// each perf also lists where the passes since the last one went, and starts a new window.
+        /// </summary>
         private void ProcessPerfCommand(string[] parts)
         {
+            if (parts.Length > 1 && parts[1].ToLowerInvariant() == "phases")
+            {
+                var action = parts.Length > 2 ? parts[2].ToLowerInvariant() : "";
+
+                switch (action)
+                {
+                    case "on":
+                        LoopPhases.Reset();
+                        LoopPhases.Enabled = true;
+                        break;
+
+                    case "off":
+                        LoopPhases.Enabled = false;
+                        break;
+
+                    case "reset":
+                        LoopPhases.Reset();
+                        break;
+
+                    default:
+                        Logger.WriteLog(LogType.Command, "Usage: perf | perf phases on | perf phases off | perf phases reset");
+                        return;
+                }
+
+                Logger.WriteLog(LogType.Command, $"Phases {(LoopPhases.Enabled ? "timed" : "not timed")}; the window starts now.");
+                return;
+            }
+
             var metrics = Loop.PeekMetrics();
 
             Logger.WriteLog(LogType.Command,
                 $"Main loop: {metrics.LoopsPerSecond:0.0} loops/s ({metrics.Loops} in {metrics.WindowMs:0} ms), "
-                + $"slowest pass {metrics.PeakMs:0.00} ms, target {MainLoopTime} ms.");
+                + $"slowest pass {metrics.PeakMs:0.00} ms, target {MainLoopTime} ms; "
+                + $"{metrics.AllocatedBytesPerLoop / 1024.0:0.0} KB allocated a pass, {metrics.PeakAllocatedBytes / 1024.0:0.0} KB the most.");
+
+            if (LoopPhases.Enabled)
+                foreach (var line in LoopPhases.Describe(LoopPhases.Take()))
+                    Logger.WriteLog(LogType.Command, line);
 
             int players;
 

@@ -153,16 +153,29 @@ namespace Rasa.Managers
             // have one on (ExperienceBoost) - another's does nothing for them; and that, times
             // their own kill streak (KillStreaks). The part returned is the part before any. Each
             // line's Base XP is an even split, which the group, booster and streak bonuses are of.
+            // All of them in one save (ManifestationManager.GainExperience): one transaction a
+            // kill, not one for each of the squad.
+            var awards = new List<ManifestationManager.ExperienceAward>(paid.Count);
+
             foreach (var sharer in paid)
             {
                 var streak = KillStreaks.MultiplierOf(sharer);
                 var boost = ExperienceBoost.PercentOf(sharer.Player);
                 var part = ExperienceBoost.Boosted(sharer.Player, ItemModuleBonuses.WithExperience(sharer.Player, share));
 
-                manifestations.GainExperience(sharer, (uint)Math.Min(uint.MaxValue, (ulong)part * (ulong)streak),
-                    sharer == killer || critKill == CritKill.None ? critKill : CritKill.Team, streak,
-                    groupMod, (100.0 + boost) / 100.0, even);
+                awards.Add(new ManifestationManager.ExperienceAward
+                {
+                    Client = sharer,
+                    Experience = (uint)Math.Min(uint.MaxValue, (ulong)part * (ulong)streak),
+                    CritKill = sharer == killer || critKill == CritKill.None ? critKill : CritKill.Team,
+                    StreakMod = streak,
+                    GroupMod = groupMod,
+                    BoosterMod = (100.0 + boost) / 100.0,
+                    BaseGained = even
+                });
             }
+
+            manifestations.GainExperience(awards);
 
             return share;
         }

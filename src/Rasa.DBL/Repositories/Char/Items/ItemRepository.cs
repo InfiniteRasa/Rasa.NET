@@ -37,6 +37,58 @@ namespace Rasa.Repositories.Char.Items
             }
         }
 
+        /// <summary>
+        /// A corpse's drops, saved together. CreateItem saves each row by itself, to have its id
+        /// back: a round trip and a save for every item a kill drops, on the world loop. EF sends
+        /// these as one batch, and still gives each entry its own id.
+        /// </summary>
+        public IReadOnlyList<uint> CreateItems(IReadOnlyList<IItemChange> items)
+        {
+            if (items == null || items.Count == 0)
+                return Array.Empty<uint>();
+
+            var entries = items.Select(item => new ItemEntry(item)).ToList();
+
+            try
+            {
+                _charContext.ItemEntries.AddRange(entries);
+                _charContext.SaveChanges();
+                return entries.Select(entry => entry.ItemId).ToList();
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, $"Error creating {items.Count} items:");
+                Logger.WriteLog(LogType.Error, e);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// A corpse's unclaimed items, gone with it. Each item was a guard query, a read and a
+        /// save for its inventory row, and the same again for the item: six round trips and two
+        /// saves an item. Now one of each for all of them.
+        /// </summary>
+        public void DeleteItemsWithInventory(IReadOnlyCollection<uint> itemIds)
+        {
+            var ids = itemIds?.Distinct().ToArray() ?? Array.Empty<uint>();
+
+            if (ids.Length == 0)
+                return;
+
+            if (_charContext.CharacterMissionItemEntries.Any(entry => ids.Contains(entry.ItemId)))
+                throw new InvalidOperationException("Assignment-owned items require a transactional mission item plan.");
+
+            _charContext.CharacterInventoryEntries.RemoveRange(
+                _charContext.CreateTrackingQuery(_charContext.CharacterInventoryEntries)
+                    .Where(entry => ids.Contains(entry.ItemId))
+                    .ToList());
+            _charContext.ItemEntries.RemoveRange(
+                _charContext.CreateTrackingQuery(_charContext.ItemEntries)
+                    .Where(entry => ids.Contains(entry.ItemId))
+                    .ToList());
+            _charContext.SaveChanges();
+        }
+
         public void DeleteItem(uint itemId)
         {
             CharacterMissionItem.MissionItemMutationGuard.RequireUnbound(_charContext, itemId);

@@ -306,6 +306,9 @@ namespace Rasa.Managers
         /// </summary>
         private void Guard(string worker, MapChannel mapChannel, Action work)
         {
+            // Its time and allocations under its name, when the phases are timed (LoopPhases).
+            var timed = LoopPhases.Begin();
+
             try
             {
                 work();
@@ -328,6 +331,10 @@ namespace Rasa.Managers
 
                 _workerFaultsSinceLog[worker] = 0;
                 _workerFaultQuietUntil[worker] = now + 60000;
+            }
+            finally
+            {
+                LoopPhases.End(worker, timed);
             }
         }
 
@@ -393,10 +400,7 @@ namespace Rasa.Managers
             // on top of the whole-refire reset AutoFireTimerDoWork used to make.
             Guard("ManifestationManager.AutoFireTimerDoWork", null, () => ManifestationManager.Instance.AutoFireTimerDoWork(delta));
 
-            foreach (var mapChannel in MapChannelArray.Values
-                         .Concat(_privateInstances.Snapshot())
-                         .Distinct()
-                         .ToArray())
+            foreach (var mapChannel in MapsToTick())
             {
 
                 mapChannel.MapChannelElapsed += delta;
@@ -614,7 +618,9 @@ namespace Rasa.Managers
                     if (Timer.IsTriggered("Regenerate"))
                         Guard("ActorManager.Regenerate", mapChannel, () => ActorManager.Instance.Regenerate(mapChannel));
 
+                    var scenes = LoopPhases.Begin();
                     _missionScenarioService?.TickMap(mapChannel);
+                    LoopPhases.End("MissionScenes.TickMap", scenes);
 
                     // what the players hurt this tick say of it (PlayerVoices)
                     Guard("PlayerVoices.Worker", mapChannel, () => PlayerVoices.Worker(mapChannel));
@@ -628,7 +634,9 @@ namespace Rasa.Managers
                         Guard("Moderation.Worker", mapChannel, () => Moderation.Worker(mapChannel));
 
                     // warn idle players and flag long-idle ones for removal below
+                    var unguarded = LoopPhases.Begin();
                     ManifestationManager.Instance.CheckInactivity(mapChannel);
+                    LoopPhases.End("ManifestationManager.CheckInactivity", unguarded);
 
                     // check for players leaving the map: /logout, inactivity, and dropped
                     // connections flagged by Client.Close()
@@ -639,9 +647,58 @@ namespace Rasa.Managers
                     // character still registered, in the cells and fought by creatures meanwhile.
                     // RemovePlayer writes to the database, so a crowd is spread over a few ticks
                     // by RemovalBudgetMs rather than stalling one; the first always goes.
+                    unguarded = LoopPhases.Begin();
                     RemoveFlaggedPlayers(mapChannel, budgeted: true);
+                    LoopPhases.End("MapChannelManager.RemoveFlaggedPlayers", unguarded);
                 }
             }
+        }
+
+        /// <summary>The list MapsToTick last made, what MapChannelArray held then, and the instances' version it was made at.</summary>
+        private MapChannel[] _mapsToTick = Array.Empty<MapChannel>();
+        private MapChannel[] _mapsToTickLoaded = Array.Empty<MapChannel>();
+        private long _mapsToTickVersion = -1;
+
+        /// <summary>
+        /// Every map the worker goes through: the loaded maps, then every private, shared and squad
+        /// instance, each once - MapChannelArray.Values.Concat(the instances).Distinct().ToArray().
+        ///
+        /// That expression was built afresh every tick: an array of the instances, the Concat and
+        /// Distinct iterators, a set and the array, for a list that changes when a map is loaded or
+        /// an instance opens or closes. It is kept now, and made again when either has changed:
+        /// the instances' list has a version (PrivateMapInstanceService.Version), and the loaded
+        /// maps - a dictionary anyone may add to - are compared with the ones it was made from,
+        /// which costs a look at each. A list handed out is never changed, so a tick going through
+        /// one while a map opens goes through the maps as they were when it began, as before.
+        /// </summary>
+        internal MapChannel[] MapsToTick()
+        {
+            var version = _privateInstances.Version;
+
+            if (version == _mapsToTickVersion && LoadedMapsAsBefore())
+                return _mapsToTick;
+
+            var loaded = MapChannelArray.Values.ToArray();
+
+            _mapsToTick = loaded.Concat(_privateInstances.Snapshot()).Distinct().ToArray();
+            _mapsToTickLoaded = loaded;
+            _mapsToTickVersion = version;
+
+            return _mapsToTick;
+        }
+
+        private bool LoadedMapsAsBefore()
+        {
+            if (MapChannelArray.Count != _mapsToTickLoaded.Length)
+                return false;
+
+            var i = 0;
+
+            foreach (var map in MapChannelArray.Values)
+                if (!ReferenceEquals(map, _mapsToTickLoaded[i++]))
+                    return false;
+
+            return true;
         }
 
         /// <summary>
@@ -738,6 +795,11 @@ namespace Rasa.Managers
 
         public void MapLoaded(Client client)
         {
+            // The map's navmesh and cover still being read (Navigation.Lazy): answered once they
+            // are, by LazyNavigation.Worker, which calls this again.
+            if (LazyNavigation.Hold(client))
+                return;
+
             lock (client.SyncRoot)
                 InitializeLoadedMap(client);
         }

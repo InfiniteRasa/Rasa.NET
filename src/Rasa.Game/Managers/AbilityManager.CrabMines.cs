@@ -230,7 +230,14 @@ namespace Rasa.Managers
             List<CrabMine> mines;
 
             lock (CrabMinesLock)
+            {
+                // Nothing out anywhere, which is every tick of almost every map: the filter
+                // below found nothing, and its closure, iterator and list were all it did.
+                if (CrabMines.Count == 0)
+                    return;
+
                 mines = CrabMines.Where(m => m.MapChannel == mapChannel).ToList();
+            }
 
             if (mines.Count == 0)
                 return;

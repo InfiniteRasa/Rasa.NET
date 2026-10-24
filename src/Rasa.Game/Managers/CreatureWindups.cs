@@ -192,6 +192,11 @@ namespace Rasa.Managers
 
             lock (PendingLock)
             {
+                // Nothing winding up anywhere, which is every tick of almost every map: the filter
+                // below found nothing, and its closure, iterator and list were all it did.
+                if (Pending.Count == 0)
+                    return;
+
                 due = Pending.Where(p => p.MapChannel == mapChannel && now >= p.At).ToList();
 
                 foreach (var deferred in due)
