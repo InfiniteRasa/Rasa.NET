@@ -77,6 +77,16 @@ namespace Rasa.Test.Missions.Plateau
             Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, PlateauHolyVengeanceV1.Outer));
             Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, PlateauHolyVengeanceV1.Inner));
             Assert.AreEqual(MissionObjectiveState.Inactive, Objective(harness, PlateauHolyVengeanceV1.Recover));
+
+            // A reload halfway keeps the outer outpost done and the three following.
+            WildernessRanjaGorgeTests.Reload(harness);
+            harness.Manager.Scenes.Resume(harness.Client);
+            Tick(harness, copy, 250);
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, PlateauHolyVengeanceV1.Outer), "after the reload");
+            Assert.AreEqual(MissionObjectiveState.Inactive, Objective(harness, PlateauHolyVengeanceV1.Recover), "after the reload");
+            foreach (var follower in Followers(harness, copy))
+                Assert.AreEqual(harness.Client.Player.Id, follower.SpawnPool.FollowOwnerCharacterId, "still following after the reload");
+
             Clear(harness, copy, PlateauHolyVengeanceV1.InnerPools);
             Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, PlateauHolyVengeanceV1.Inner));
             Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, PlateauHolyVengeanceV1.Recover));
@@ -90,7 +100,12 @@ namespace Rasa.Test.Missions.Plateau
             Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, PlateauHolyVengeanceV1.Escort));
             Assert.IsTrue(harness.Client.Player.Missions[HolyVengeance].Completeable);
 
-            // They walk back to the hospital and are gone there.
+            // A warrior killed on the way back: the other two walk on to the hospital and are gone there.
+            var warrior = Followers(harness, copy)[2];
+            warrior.Attributes[Attributes.Health].Current = 0;
+            harness.Creatures.HandleCreatureKill(copy, warrior, null);
+            Tick(harness, copy, 250);
+            Assert.AreEqual(MissionState.Active, harness.Client.Player.Missions[HolyVengeance].State);
             for (var tick = 0; tick < 1200 && Followers(harness, copy, required: false).Any(follower => follower != null); tick++)
                 Tick(harness, copy, 1000);
             Assert.IsTrue(Followers(harness, copy, required: false).All(follower => follower == null),
@@ -121,6 +136,25 @@ namespace Rasa.Test.Missions.Plateau
                 path = copy.NavMesh.FindPath(crate, ToVector(home), out joined);
                 Assert.IsTrue(joined && path != null && Vector3.Distance(path[^1], ToVector(home)) <= 0.5f, $"back to {ToVector(home)}");
             }
+        }
+
+        /// <summary>Abandoned with the three following: they and the crate are gone, Algona offers it again.</summary>
+        [TestMethod]
+        public void HolyVengeanceAbandonedTakesItsSceneAndIsOfferedAgain()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            EnterPlateau(harness);
+            var copy = AcceptAtAlgona(harness);
+            var followers = Followers(harness, copy);
+            var crate = Crate(harness, copy);
+
+            Assert.IsTrue(harness.Manager.TryAbandon(harness.Client, HolyVengeance));
+            Tick(harness, copy, 250);
+            Assert.IsFalse(harness.Client.Player.Missions.ContainsKey(HolyVengeance), "gone from the log");
+            Assert.IsFalse(followers.Any(follower => Here(copy).Contains(follower)), "the three are gone");
+            Assert.IsFalse(crate.IsInWorld, "the crate is gone");
+            Spawn(copy, PlateauTheseOldBonesV1.AlgonaPool);
+            Assert.IsTrue(Offers(harness, RequireNpc(copy, PlateauTheseOldBonesV1.AlgonaPool), HolyVengeance), "Algona offers it again");
         }
 
         /// <summary>A follower killed: nothing fails, and he does not come back.</summary>
