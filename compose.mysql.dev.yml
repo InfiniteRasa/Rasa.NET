@@ -1,0 +1,11 @@
+# Override for compose.mysql.yml: build the exact same MySQL stack from local source.
+# Usage: docker compose --env-file mysql.env -f compose.mysql.yml -f compose.mysql.dev.yml up --build -d
+x-local-rasa: &local-rasa
+  image: rasa_net
+  build: .
+
+services:
+  auth: *local-rasa
+  game: *local-rasa
+  mysql-auth-migrate: *local-rasa
+  mysql-game-migrate: *local-rasa
