@@ -154,7 +154,9 @@ cp mysql.env.example mysql.env
 
 Set **different, strong** values for `MYSQL_ROOT_PASSWORD` and `MYSQL_PASSWORD` in `mysql.env` (`openssl rand -hex 32` can generate each value). `mysql.env` is ignored by Git; never commit it. Compose will refuse to start if either variable is unset. `RASA_IMAGE_TAG` is optional and defaults to `unstable`; you can set `latest` or a published release tag such as `v1.2.3`. Do not use placeholder passwords outside a disposable local setup.
 
-Create `appsettings.env.json` exactly as in [Create App Settings](#create-app-settings) above. The **same game JSON file** is used for SQLite and MySQL (public IP, navmesh settings, etc.). MySQL connections do not go in this file.
+**You do not need to create or provide a database settings JSON file for MySQL.** In particular, do not create or mount `databasesettings.env.json`, and there is no need to edit the image's bundled `databasesettings.json`. `compose.mysql.yml` supplies `Databases__Provider=MySql` and the Auth, Char, and World connection settings as environment variables; credentials come from `mysql.env`. These environment values override the bundled SQLite defaults. This applies to **both published images and local development builds**.
+
+You **still need** `appsettings.env.json` as described in [Create App Settings](#create-app-settings) above. It holds game settings (public IP, navmesh overrides, etc.), **not** the database provider or connections.
 
 For clarity, the corresponding PowerShell command to create the credentials file is:
 
@@ -189,7 +191,7 @@ Repeat with `--build` after source changes. Do not also include `compose.yml` or
 
 ### How database configuration works
 
-`src/Rasa.DBL/databasesettings.json` defaults to SQLite and is copied into both application output directories. The servers load `databasesettings.json`, then optional `databasesettings.env.json`, **then environment variables**. The MySQL Compose files use .NET's `__` notation for nested configuration keys, which takes precedence over the JSON files:
+`src/Rasa.DBL/databasesettings.json` defaults to SQLite and is **already bundled in the application image**; you do not need to supply it for the MySQL Compose stack. The servers load the bundled `databasesettings.json`, then optional `databasesettings.env.json`, **then environment variables**. The MySQL Compose files use .NET's `__` notation for nested configuration keys, which takes precedence over the JSON files:
 
 | App setting | Value supplied by Compose |
 |---|---|
