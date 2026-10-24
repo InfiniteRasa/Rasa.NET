@@ -489,10 +489,15 @@ namespace Rasa.Managers
                             EntityClassManager.Instance.GetClassInfo(template.Class)?.ItemClassInfo;
                         if (itemClass == null || drop.Quantity > itemClass.StackSize)
                             throw new GameplayRejectionException("Mission corpse loot has an invalid template or native stack size.");
-                        var item = ItemManager.StageItem(template, drop.Quantity, string.Empty);
-                        staged.Add((item, drop));
-                        item.Id = unit.Items.CreateItem(item);
-                        if (item.Id == 0)
+                        staged.Add((ItemManager.StageItem(template, drop.Quantity, string.Empty), drop));
+                    }
+
+                    // In one save, as MaterializeItems saves a corpse's drops.
+                    var ids = unit.Items.CreateItems(staged.Select(entry => (Repositories.Char.Items.IItemChange)entry.Item).ToList());
+                    for (var i = 0; i < staged.Count; i++)
+                    {
+                        staged[i].Item.Id = ids[i];
+                        if (ids[i] == 0)
                             throw new GameplayRejectionException("Mission corpse loot item was not persisted.");
                     }
                 });
@@ -574,11 +579,16 @@ namespace Rasa.Managers
                         var itemClass = EntityClassManager.Instance.GetClassInfo(template.Class).ItemClassInfo;
                         if (drop.Quantity == 0 || drop.Quantity > itemClass.StackSize)
                             throw new GameplayRejectionException($"Invalid corpse loot quantity for template {drop.TemplateId}.");
-                        var item = ItemManager.StageItem(template, drop.Quantity, string.Empty);
-                        staged.Add(item);
-                        item.Id = unit.Items.CreateItem(item);
-                        if (item.Id == 0)
-                            throw new GameplayRejectionException($"Corpse loot item {drop.TemplateId} was not persisted.");
+                        staged.Add(ItemManager.StageItem(template, drop.Quantity, string.Empty));
+                    }
+
+                    // All of the corpse's drops in one save (IItemRepository.CreateItems), not one each.
+                    var ids = unit.Items.CreateItems(staged);
+                    for (var i = 0; i < staged.Count; i++)
+                    {
+                        staged[i].Id = ids[i];
+                        if (staged[i].Id == 0)
+                            throw new GameplayRejectionException($"Corpse loot item {staged[i].ItemTemplateId} was not persisted.");
                     }
                 });
                 committed = true;
@@ -1691,14 +1701,9 @@ namespace Rasa.Managers
                         throw new GameplayRejectionException(
                             "No character persistence factory is available for loot cleanup.");
                     using var unitOfWork = factory.CreateChar();
+                    // Every one of them in one save (IItemRepository.DeleteItemsWithInventory).
                     unitOfWork.ExecuteTransaction(() =>
-                    {
-                        foreach (var item in unclaimed)
-                        {
-                            unitOfWork.CharacterInventories.DeleteInvItemByItemId(item.ItemId);
-                            unitOfWork.Items.DeleteItem(item.ItemId);
-                        }
-                    });
+                        unitOfWork.Items.DeleteItemsWithInventory(unclaimed.Select(item => item.ItemId).ToArray()));
                 }
                 catch (Exception error) when (
                     error is GameplayRejectionException ||
