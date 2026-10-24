@@ -43,7 +43,7 @@ Generated 2026-10-18, extended 2026-10-20 (Wayback round 2: official site + patc
 
 **Goal in instance** (given on a public map, but cannot be completed without an objective inside an instance map; marked `[goal in instance]`, list in `tools/mission-crossref/NOTES-instance-goals.md`): 5 missions.
 
-**Needs playtest** (implemented, not yet played through in the game client; marked `[needs playtest]`, list in `tools/mission-crossref/NOTES-playtest.md`): 60 missions.
+**Needs playtest** (implemented, not yet played through in the game client; marked `[needs playtest]`, list in `tools/mission-crossref/NOTES-playtest.md`): 62 missions.
 
 
 **Instance** (the mission takes place in a client instance map, a "mission context" in gamecontext.pyo; marked `[instance]` in the entry heading): from an objective NPC package that spawns in an instance (local DB), a TaRapedia NPC page in an instance, or client objective text placing it there. "Instance mentioned" lines only name an instance (ESTIMATE). Refresh with instance_export.py.
@@ -20172,8 +20172,9 @@ Notes: client text is shipped presentation only; it does not prove availability,
 
 - **Chain** (explicit prerequisite links): Special Deliveries chain (16 missions), step 2
   - Requires: Village Of The Damned (id 1981) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Better_Half)
-### 1976 — These Old Bones [missing mechanic] [instance]
+### 1976 — These Old Bones [needs playtest] [missing mechanic] [instance]
 
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
 - **Missing mechanic:** escort across a split navmesh - Elder Hathen (objective 4, "must be protected as a VIP") cannot walk from the hospital (165, 77, -520) to the three temples; a follower stops at the outpost island's edge — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Instance:** Velon Hollow — client objective/log text: "Elder Hathen is the highest ranking survivor of the Seekers of Velon. He demands to come with you into Velon Hollow, …"
 - **Rebuild summary:**
@@ -20192,9 +20193,10 @@ Notes: client text is shipped presentation only; it does not prove availability,
 
 - **Chain** (explicit prerequisite links): These Old Bones chain (2 missions), step 1
   - Leads to: Holy Vengeance (id 1977) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Holy_Vengeance), [TaRapedia](https://tabularasa.fandom.com/wiki/These_Old_Bones)
-### 1977 — Holy Vengeance [missing mechanic] [instance]
+### 1977 — Holy Vengeance [needs playtest] [missing mechanic] [instance]
 
-- **Missing mechanic:** spawn pool cleared - objectives 1/2 "Secure outer / Clear inner Bane Outpost" need the outpost pools (outer 531225, 531226; inner 531224, 650075, 650076) cleared in the owner's copy; also needs 1976 (its requirement and the Warrior Algona giver) — source: tools/mission-crossref/NOTES-missing-mechanics.md
+- **Needs playtest:** not yet played through in the game client — source: tools/mission-crossref/NOTES-playtest.md
+- **Missing mechanic:** spawn pool cleared - objectives 1/2 "Secure outer / Clear inner Bane Outpost" need the outpost pools (outer 531225, 531226; inner 531224, 650075, 650076) cleared in the owner's copy; also needs 1976 (its requirement and the Warrior Algona giver). 2026-10-24: the spawn-pool-cleared event is now on plateau_quests (b499580b, da3e3df8) and on the server branch (bbaa652e); 1977 is blocked only by 1976. 1977 built 2026-10-24 (ca6f44be, 2cabf98a) on the local mesh — source: tools/mission-crossref/NOTES-missing-mechanics.md
 - **Instance:** Velon Hollow — client objective/log text: "Clear the outer part of the Bane Outpost established inside Velon Hollow."
 - **Rebuild summary:**
   - level ESTIMATE from zone: the Plateau zone level range is 30-34 — source: [Ellatha map: Plateau](https://www.ellatha.com/tr/Plateau_Maps_Logos.asp) (a zone range, not this mission's own level)
