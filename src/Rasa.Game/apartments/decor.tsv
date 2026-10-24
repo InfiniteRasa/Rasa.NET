@@ -1,0 +1,504 @@
+# The decoration catalogue: retail entity classes an apartment may hold.
+# surface: 1 floor, 2 wall, 3 ceiling (where it was made to stand; every row is placed by its origin).
+# function: 0 decoration, 1 storage (opens the vault), 2 crafting station, 5 medbay (revive point).
+# hx hy hz: half extents of its box, oy: the box centre over the origin (rough, from the meshes).
+class_id	category	surface	function	scale_min	scale_max	name	hx	hy	hz	oy
+20360	Furniture	1	0	0.40	2.00	Armor Counter	1.307	0.505	0.487	0.501
+29666	Furniture	1	0	0.40	2.00	Armory Counter	1.307	0.505	0.487	0.501
+11254	Furniture	1	0	0.50	3.00	Bane Extraction Chair	0.879	0.948	1.052	0.909
+23180	Furniture	1	0	0.40	2.00	Bane Sleep Pod	0.796	1.874	0.933	1.641
+8080	Furniture	1	0	0.50	3.00	Bar Stand	0.385	0.549	0.382	0.549
+8067	Furniture	1	0	0.50	3.00	Bar Table	0.193	0.444	0.190	0.444
+9302	Furniture	1	0	0.50	3.00	Bed	1.211	0.508	0.506	0.509
+9314	Furniture	1	0	0.50	3.00	Bedroll	1.069	0.172	0.477	0.149
+21784	Furniture	1	0	0.50	3.00	Beer Kegs	0.342	1.040	0.726	1.033
+9315	Furniture	1	0	0.50	3.00	Blanket	0.330	0.056	0.531	0.056
+10790	Furniture	1	0	0.50	3.00	Brann Bench Table	1.215	0.589	0.436	0.589
+26059	Furniture	1	0	0.40	2.00	Brann Bunk Frame	1.559	1.863	0.693	1.862
+10770	Furniture	1	0	0.40	2.00	Brann Cot	0.658	0.159	1.429	0.159
+26063	Furniture	1	0	0.50	3.00	Brann Desk	0.990	0.449	0.583	0.449
+21097	Furniture	1	0	0.25	1.25	Brann Food Dispenser	3.921	1.416	1.033	1.415
+24677	Furniture	1	0	0.25	1.25	Brann Food Trough	4.012	2.183	1.516	2.182
+26075	Furniture	1	0	0.40	2.00	Brann Long Table	1.599	0.430	1.147	0.423
+10772	Furniture	1	0	0.50	3.00	Brann Lounger	0.500	0.815	0.572	0.812
+26071	Furniture	1	0	0.40	2.00	Brann Sink	1.624	0.511	0.589	1.080
+10788	Furniture	1	0	0.40	2.00	Brann Table	1.328	0.522	0.670	0.522
+24547	Furniture	1	0	0.50	3.00	Brann Toilet	0.266	0.336	0.389	0.335
+9785	Furniture	1	0	0.50	3.00	Brann Wash Basin	0.286	0.655	0.328	0.655
+9308	Furniture	1	0	0.50	3.00	Bunk Bed	1.215	1.124	0.586	1.124
+9317	Furniture	1	0	0.50	3.00	Camp Chair	0.266	0.500	0.294	0.500
+9318	Furniture	1	0	0.50	3.00	Camp Chair, Double	0.522	0.511	0.292	0.511
+9320	Furniture	1	0	0.50	3.00	Camp Cot	1.224	0.249	0.534	0.249
+9319	Furniture	1	0	0.50	3.00	Camp Stool	0.266	0.257	0.315	0.257
+8070	Furniture	3	0	0.50	3.00	Ceiling Fan	0.710	0.717	0.710	0.717
+9310	Furniture	1	0	0.40	2.00	Double Bed	1.352	0.360	1.428	0.361
+8077	Furniture	1	0	0.50	3.00	Double Sink	0.610	0.583	0.402	0.583
+9312	Furniture	1	0	0.40	2.00	Field Bed	1.347	0.311	1.085	0.311
+9321	Furniture	1	0	0.50	3.00	Field Desk	0.611	0.425	0.485	0.420
+9322	Furniture	1	0	0.50	3.00	Field Dresser	0.609	0.424	0.523	0.419
+6187	Furniture	1	0	0.50	3.00	Folding Chair	0.257	0.464	0.285	0.463
+6188	Furniture	1	0	0.40	2.00	Folding Table	1.658	0.480	0.707	0.479
+29278	Furniture	1	0	0.40	2.00	Forean Bed	0.466	0.433	1.312	0.351
+29298	Furniture	1	0	0.40	2.00	Forean Blanket	0.745	0.091	1.798	0.068
+6214	Furniture	1	0	0.50	3.00	Forean Chair	0.433	0.506	0.422	0.506
+6221	Furniture	1	0	0.50	3.00	Forean Pot	0.197	0.301	0.187	0.301
+6209	Furniture	1	0	0.40	2.00	Forean Rug	1.198	0.010	1.387	0.007
+6218	Furniture	1	0	0.40	2.00	Forean Shop Stall	1.687	2.114	1.682	2.114
+6216	Furniture	1	0	0.50	3.00	Forean Table	0.778	1.085	0.496	1.085
+25687	Furniture	1	0	0.50	4.00	Forean Urn	0.131	0.228	0.131	0.226
+25692	Furniture	1	0	0.50	4.00	Forean Urn, Lidded	0.192	0.229	0.187	0.225
+25694	Furniture	1	0	0.50	3.00	Forean Urn, Tall	0.231	0.301	0.231	0.297
+6223	Furniture	1	0	0.50	3.00	Forean Wicker Bowl	0.300	0.058	0.337	0.058
+29668	Furniture	1	0	0.40	2.00	Gun Counter	1.307	0.505	0.487	0.501
+29659	Furniture	1	0	0.50	3.00	Keg Rack	0.342	1.040	0.726	1.033
+6220	Furniture	1	0	0.50	3.00	Kindling Bundle	0.093	0.081	0.502	0.089
+29691	Furniture	1	0	0.50	3.00	Kitchen Unit	0.430	1.173	0.966	1.174
+21755	Furniture	1	0	0.50	3.00	Kitchenette	0.430	1.173	0.966	1.174
+8066	Furniture	1	0	0.50	3.00	Mess Chair	0.282	0.483	0.374	0.482
+8064	Furniture	1	0	0.50	3.00	Office Chair	0.497	0.395	0.472	0.395
+26533	Furniture	1	0	0.40	2.00	Office Desk	1.544	0.473	0.778	0.457
+26534	Furniture	1	0	0.40	2.00	Office Desk, Plain	1.687	0.470	0.750	0.448
+30433	Furniture	1	0	0.40	2.00	Park Bench	1.513	0.509	0.374	0.504
+7135	Furniture	1	0	0.50	3.00	Record Player	0.375	0.525	0.330	0.525
+8081	Furniture	1	0	0.50	3.00	Round Table	0.969	0.465	0.969	0.465
+20321	Furniture	1	0	0.40	2.00	Service Counter	1.307	0.504	0.487	0.502
+8082	Furniture	1	0	0.50	3.00	Side Table	0.330	0.550	0.329	0.550
+9325	Furniture	1	0	0.50	3.00	Sleeping Bag	0.410	0.212	0.224	0.212
+29677	Furniture	1	0	0.40	2.00	Steel Desk	1.544	0.473	0.778	0.457
+8065	Furniture	1	0	0.50	3.00	Steel Folding Chair	0.260	0.489	0.367	0.486
+8068	Furniture	1	0	0.50	3.00	Stool	0.194	0.444	0.226	0.444
+26649	Furniture	1	0	0.50	3.00	Tavern Bottles	0.671	0.122	0.060	0.122
+8083	Furniture	1	0	0.50	3.00	Toilet	0.287	0.351	0.389	0.351
+9328	Furniture	2	0	0.50	3.00	Towel Rail	0.587	0.287	0.142	0.828
+20320	Furniture	1	0	0.40	2.00	Weapon Counter	1.307	0.505	0.487	0.501
+8078	Furniture	1	0	0.50	3.00	Work Table	0.350	0.429	0.509	0.428
+21982	Lighting	2	0	0.50	4.00	Accent Light	0.197	0.231	0.100	0.000
+29692	Lighting	1	0	0.50	3.00	Alarm Light	0.583	0.630	0.583	0.630
+10727	Lighting	1	0	0.50	3.00	Ball Lamp	0.235	0.462	0.193	0.260
+9542	Lighting	1	0	0.50	3.00	Bane Alarm Light	0.869	1.161	0.869	0.973
+21750	Lighting	1	0	0.25	1.25	Bane Bullet Lamp, Tall	0.524	2.778	0.521	0.000
+20617	Lighting	1	0	0.50	3.00	Bane Floodlight	0.370	0.728	0.648	0.730
+10300	Lighting	1	0	0.40	2.00	Bane Hood Lamp	0.644	1.116	1.451	0.718
+9279	Lighting	1	0	0.50	3.00	Bane Interior Light	0.925	0.703	0.898	0.711
+21749	Lighting	1	0	0.40	2.00	Bane Pipe Spotlight	0.524	2.253	1.521	-0.524
+8037	Lighting	1	0	0.25	1.25	Bane Pod Lamp	0.874	2.800	1.512	1.100
+10192	Lighting	1	0	0.25	1.25	Bane Searchlight	3.020	2.879	1.814	-1.365
+8038	Lighting	1	0	0.50	3.00	Bane Spire Lamp	0.576	0.515	0.635	0.515
+21754	Lighting	2	0	0.50	3.00	Bane Wall Light	0.676	0.586	0.364	0.000
+26439	Lighting	1	0	0.50	3.00	Beacon Light	0.583	0.630	0.583	0.630
+8074	Lighting	1	0	0.50	3.00	Bench Lamp	0.552	0.283	0.201	0.502
+29694	Lighting	1	0	0.50	3.00	Bollard Light	0.583	0.919	0.583	0.919
+24679	Lighting	1	0	0.50	3.00	Brann Alarm Light	0.333	0.293	0.333	0.293
+24896	Lighting	3	0	0.40	2.00	Brann Hanging Lamps	1.581	0.419	0.171	-0.247
+26067	Lighting	1	0	0.50	3.00	Brann Lamp	0.224	0.315	0.136	0.316
+29047	Lighting	1	0	0.40	2.00	Brann Outdoor Light	1.782	0.910	0.672	0.610
+26691	Lighting	1	0	0.25	1.25	Brann Pole Lamp	0.466	2.595	0.468	1.399
+10768	Lighting	1	0	0.40	2.00	Brann Post Light	0.478	1.365	0.309	0.577
+9774	Lighting	1	0	0.50	3.00	Brann Scanning Light	0.135	0.287	0.353	0.180
+21932	Lighting	1	0	0.40	2.00	Brann Searchlight	1.020	1.892	1.111	0.238
+10781	Lighting	1	0	0.40	2.00	Brann Signal Lamp	0.527	1.421	1.118	1.421
+23937	Lighting	1	0	0.50	3.00	Brann Spotlight	0.653	0.931	0.919	0.933
+24900	Lighting	1	0	0.50	3.00	Brann Spotlight Base	0.466	0.754	0.468	-0.442
+24884	Lighting	1	0	0.25	1.25	Brann Spotlight Pole	1.233	2.945	1.233	2.945
+25254	Lighting	1	0	0.40	2.00	Brann Spotlight Post	0.478	1.365	0.309	0.577
+21963	Lighting	1	0	0.50	3.00	Bullet Lamp	0.376	0.668	0.358	-0.031
+21966	Lighting	1	0	0.50	3.00	Bullet Lamp, Large	0.564	1.002	0.537	-0.048
+29697	Lighting	1	0	0.50	3.00	Cage Light	0.516	0.587	0.516	0.587
+8073	Lighting	1	0	0.50	4.00	Desk Lamp	0.237	0.220	0.237	0.264
+7637	Lighting	1	0	0.50	3.00	Eloh Brazier	0.540	0.722	0.514	0.712
+7638	Lighting	1	0	0.50	3.00	Eloh Brazier, Wide	1.239	1.051	1.179	1.038
+25813	Lighting	1	0	0.50	3.00	Eloh Storm Orb	0.667	0.667	0.668	-0.002
+29728	Lighting	1	0	0.50	3.00	Floodlight Rack	0.595	0.952	0.985	0.954
+8075	Lighting	1	0	0.50	3.00	Floor Lamp	0.089	0.457	0.323	0.457
+21967	Lighting	3	0	0.50	3.00	Fluorescent Lamp	0.104	1.062	0.361	0.000
+29685	Lighting	3	0	0.50	3.00	Fluorescent Light	0.104	1.062	0.361	0.000
+6210	Lighting	1	0	0.40	2.00	Forean Crystal Torch	0.510	1.484	0.315	1.484
+7636	Lighting	1	0	0.50	3.00	Forean Eloh Brazier	0.702	0.620	0.702	0.620
+6211	Lighting	1	0	0.40	2.00	Forean Fire Pit	1.414	0.364	1.414	0.364
+6062	Lighting	1	0	0.40	2.00	Forean Torch	0.204	2.051	0.148	2.006
+8076	Lighting	1	0	0.50	3.00	Funnel Lamp	0.217	0.773	0.220	0.773
+3766	Lighting	1	0	0.25	1.25	Gate Light Pole	0.335	2.584	0.347	2.084
+20728	Lighting	3	0	0.40	2.00	Hanging Lamp, Large	1.842	1.864	1.842	3.258
+29687	Lighting	3	0	0.40	2.00	Hanging Light	1.842	1.864	1.842	3.258
+21502	Lighting	1	0	0.50	3.00	Lantern	0.187	0.372	0.186	0.372
+9465	Lighting	1	0	0.50	3.00	Light Cone	0.583	0.930	0.583	0.930
+21507	Lighting	1	0	0.50	3.00	Path Light	0.168	0.609	0.109	0.348
+29701	Lighting	1	0	0.50	3.00	Path Light Post	0.168	0.609	0.109	0.348
+21505	Lighting	1	0	0.25	1.25	Searchlight Base	1.377	2.897	1.240	-0.897
+29643	Lighting	1	0	0.40	2.00	Spotlight	1.305	0.842	1.267	-0.400
+20732	Lighting	1	0	0.25	1.25	Spotlight Mast	1.389	3.038	1.489	-0.962
+29641	Lighting	1	0	0.25	1.25	Spotlight Tower	1.389	3.034	1.496	-0.966
+30420	Lighting	1	0	0.25	1.25	Street Lamp	0.485	3.255	0.485	3.197
+29693	Lighting	1	0	0.50	3.00	Wall Lamp	0.235	0.462	0.193	0.260
+26723	Lighting	3	0	0.50	3.00	Wardenbot Ceiling Light	0.889	1.170	0.563	-1.129
+26780	Lighting	2	0	0.50	3.00	Wardenbot Wall Light	0.348	1.022	0.411	1.018
+29726	Lighting	1	0	0.50	3.00	Work Lamp	0.466	0.812	0.334	0.812
+21794	Lighting	1	0	0.50	3.00	Worklight Mast	0.444	0.912	0.814	0.912
+21792	Lighting	1	0	0.50	3.00	Worklights	0.595	0.952	0.985	0.954
+22006	Medical	1	0	0.50	4.00	AFS Medical Supplies	0.179	0.147	0.136	0.148
+11258	Medical	1	5	1.00	1.00	Bane Medical Pod	0.989	2.236	1.113	2.236
+9334	Medical	1	5	1.00	1.00	Field Hospital Bed	1.478	1.226	1.510	1.726
+29292	Medical	1	0	0.40	2.00	Forean Sickbed	0.745	0.158	1.798	0.135
+29690	Medical	1	5	1.00	1.00	Hospital Bed	1.478	1.226	1.510	1.726
+20362	Medical	1	0	0.50	3.00	Medical Crate	0.714	0.588	0.542	0.592
+20376	Medical	1	0	0.40	2.00	Medical Crates	1.433	1.173	1.101	1.177
+4044	Medical	1	0	0.50	4.00	Miner Med Supplies	0.218	0.201	0.240	0.161
+9327	Medical	1	0	0.40	2.00	Stretcher	1.575	0.104	0.442	0.103
+10704	Nature	1	0	0.40	2.00	Ashen Carnivore	1.136	1.825	0.793	1.404
+10711	Nature	1	0	0.40	2.00	Ashen Goyter	1.470	1.242	1.903	0.911
+10709	Nature	1	0	0.25	1.25	Ashen Illuminari	3.433	2.869	2.354	2.521
+25914	Nature	1	0	0.40	2.00	Atta Mound	1.663	1.193	1.907	0.765
+3723	Nature	1	0	0.25	1.25	Autumn Bush	1.951	1.523	3.136	0.877
+6968	Nature	1	0	0.50	3.00	Bark Plant	0.784	0.796	0.784	0.792
+6430	Nature	1	0	0.50	3.00	Birdseye	1.091	1.010	0.998	0.469
+10143	Nature	1	0	0.40	2.00	Birdseye Cluster	2.004	1.411	2.017	0.569
+3631	Nature	1	0	0.50	4.00	Broadleaf Plant	0.210	0.170	0.228	0.162
+7736	Nature	1	0	0.40	2.00	Burned Tree	1.414	1.972	1.617	1.497
+3678	Nature	1	0	0.40	2.00	Bush	1.256	1.405	1.014	0.991
+6314	Nature	1	0	0.40	2.00	Carnivorous Plant	1.095	1.809	0.601	1.780
+7431	Nature	1	0	0.40	2.00	Catstick	1.519	1.935	1.148	1.369
+7597	Nature	1	0	0.50	4.00	Centrifuge Crystal	0.144	0.185	0.136	0.170
+23956	Nature	1	0	0.40	2.00	Chub	0.352	1.500	1.004	1.423
+30061	Nature	1	0	0.40	2.00	Corn Crop	0.811	1.696	0.929	1.181
+30398	Nature	1	0	0.25	1.25	Dead Tree	1.255	2.875	0.986	2.821
+3714	Nature	1	0	0.40	2.00	Dry Bush	1.735	1.619	1.599	1.344
+4438	Nature	1	0	0.25	1.25	Elephant Ear	1.571	2.343	2.750	2.038
+21539	Nature	1	0	0.50	3.00	Eloh Lilies	0.426	0.721	0.493	0.415
+20807	Nature	1	0	0.25	1.25	Eloh Temple Planter	4.027	2.332	4.012	2.102
+28639	Nature	1	0	0.25	1.25	Fallen Log	2.638	1.811	1.776	0.589
+3640	Nature	1	0	0.50	3.00	Fern	0.832	0.264	0.892	0.255
+7282	Nature	1	0	0.40	2.00	Firebug Bush	1.635	1.246	1.506	1.222
+4271	Nature	1	0	0.50	3.00	Giant Mushroom	0.644	0.552	0.651	0.550
+7285	Nature	1	0	0.40	2.00	Goyter	1.470	1.242	1.903	0.911
+7148	Nature	1	0	0.40	2.00	Grass Clump	1.663	0.843	1.054	0.843
+4409	Nature	1	0	0.40	2.00	Grassy Bank	1.474	1.075	0.752	0.548
+23958	Nature	1	0	0.40	2.00	Guiche	1.145	1.524	1.049	1.462
+23960	Nature	1	0	0.40	2.00	Gyser	1.446	2.348	1.827	2.252
+6376	Nature	1	0	0.40	2.00	Harpus	0.901	1.853	0.784	1.539
+6962	Nature	1	0	0.50	3.00	Homburger	0.880	0.714	0.874	0.552
+23962	Nature	1	0	0.50	3.00	Hotcop	0.598	1.200	1.020	1.146
+20331	Nature	1	0	0.25	1.25	Hydroponics Rack	2.998	2.433	1.063	2.208
+3802	Nature	1	0	0.50	3.00	Illuminare	0.262	0.714	0.261	0.635
+12713	Nature	1	0	0.25	1.25	Infected Stump	3.010	1.280	2.539	0.908
+7225	Nature	1	0	0.40	2.00	Lava Raintree	1.438	2.334	1.790	1.969
+3751	Nature	1	0	0.40	2.00	Leafy Bush	1.869	1.423	1.340	1.064
+10792	Nature	1	0	0.40	2.00	Lica	2.336	0.904	2.232	-0.130
+7563	Nature	1	0	0.50	3.00	Maw Flower	0.183	0.898	0.385	0.457
+21984	Nature	1	0	0.50	3.00	Mox Crystal	0.933	0.724	0.670	0.422
+13003	Nature	1	0	0.40	2.00	Orange Flowers	1.042	0.959	1.409	0.695
+7545	Nature	1	0	0.50	3.00	Palm Plant	0.932	1.196	0.994	0.915
+3614	Nature	1	0	0.40	2.00	Palm Shoot	0.949	1.626	0.746	1.345
+29300	Nature	1	0	0.40	2.00	Plant Bedding	1.575	0.002	1.024	0.015
+30424	Nature	1	0	0.50	3.00	Planter Box	1.053	0.584	1.000	0.584
+23964	Nature	1	0	0.40	2.00	Plume	1.115	1.610	1.933	1.408
+20418	Nature	1	0	0.50	3.00	Purple Grass	0.677	0.349	0.701	0.285
+7625	Nature	1	0	0.50	3.00	Purple Shrub	0.546	1.144	0.537	0.893
+20000065	Nature	1	0	0.25	1.25	Sapling	1.514	2.774	1.510	2.720
+10099	Nature	1	0	0.40	2.00	Spongeshell	1.417	0.929	2.107	0.417
+3780	Nature	1	0	0.40	2.00	Stink Cabbage	1.807	0.947	1.751	0.864
+6141	Nature	1	0	0.40	2.00	Swamp Bloom	0.867	1.601	1.117	1.355
+4275	Nature	1	0	0.50	3.00	Swamp Orchids	0.960	0.896	0.638	0.506
+4315	Nature	1	0	0.25	1.25	Swamp Palm	2.649	3.125	2.597	2.970
+4235	Nature	1	0	0.40	2.00	Swamp Plant	1.306	1.659	0.919	1.429
+4276	Nature	1	0	0.40	2.00	Swamp Reeds	0.546	2.197	0.630	1.746
+4239	Nature	1	0	0.40	2.00	Swamp Shrub	1.573	2.327	1.768	2.141
+6130	Nature	1	0	0.40	2.00	Swamp Vine	0.876	1.824	1.056	1.585
+3727	Nature	1	0	0.40	2.00	Tall Grass	1.359	0.680	1.104	0.513
+7185	Nature	1	0	0.50	3.00	Tanglethorns	0.512	0.936	0.727	0.830
+30397	Nature	1	0	0.25	1.25	Tree	1.761	2.875	1.654	2.821
+28623	Nature	1	0	0.40	2.00	Tree Stump	0.412	1.467	0.438	1.008
+24979	Nature	1	0	0.25	1.25	Treeback Feeder	3.891	1.048	2.761	1.053
+10136	Nature	1	0	0.40	2.00	Tubeplants	1.187	1.716	1.258	1.280
+23966	Nature	1	0	0.40	2.00	Urchin Plant	1.520	1.731	1.195	1.010
+7503	Nature	1	0	0.50	3.00	Venus Flytrap	0.381	0.949	0.418	0.763
+7223	Nature	1	0	0.50	3.00	Warnet Gland	0.710	0.909	0.467	1.046
+13002	Nature	1	0	0.40	2.00	Wildflowers	1.042	0.959	1.409	0.695
+7772	Nature	1	0	0.40	2.00	Young Raintree	0.587	1.490	0.522	1.320
+30545	Signs	1	0	0.40	2.00	Arrow Sign	0.531	1.756	0.120	1.760
+6184	Signs	2	0	0.40	2.00	Blackboard	1.769	0.812	0.046	1.993
+29338	Signs	1	0	0.40	2.00	Challenge Board	2.360	1.563	0.214	1.571
+3933	Signs	2	0	0.50	3.00	Holosign: Armor Supplies	0.000	0.710	1.125	2.306
+11217	Signs	2	0	0.50	3.00	Holosign: Barracks	0.000	0.710	1.125	2.306
+26504	Signs	2	0	0.50	3.00	Holosign: Dorm	0.000	0.710	1.124	2.306
+26503	Signs	2	0	0.50	3.00	Holosign: Exit	0.000	0.710	1.124	2.306
+11215	Signs	2	0	0.50	3.00	Holosign: HQ	0.000	0.710	1.125	2.306
+4459	Signs	2	0	0.50	3.00	Holosign: Hospital	0.000	0.710	1.125	2.306
+3925	Signs	2	0	0.50	3.00	Holosign: Tavern	0.000	0.710	1.125	2.306
+10434	Signs	2	0	0.50	3.00	Holosign: Weapons & Ammo	0.000	0.710	1.125	2.306
+11218	Signs	2	0	0.50	3.00	Holosign: Wormhole	0.000	0.710	1.124	2.306
+30480	Signs	1	0	0.40	2.00	Signal Sign	0.531	1.756	0.120	1.760
+30473	Signs	1	0	0.40	2.00	Stop Sign	0.412	1.726	0.120	1.730
+30461	Signs	1	0	0.25	1.25	Traffic Light	0.240	2.912	0.328	2.112
+30544	Signs	1	0	0.40	2.00	Yield Sign	0.463	1.709	0.120	1.713
+6975	Storage	1	0	0.50	3.00	Ammo Box	0.304	0.148	0.203	0.148
+20361	Storage	1	0	0.50	3.00	Ammo Crate	0.714	0.588	0.542	0.592
+29654	Storage	1	0	0.25	1.25	Ammo Stores	1.367	0.718	2.897	0.673
+9260	Storage	1	0	0.50	3.00	Bane Barrel	0.418	0.594	0.362	0.596
+20826	Storage	1	0	0.50	3.00	Bane Barrel Stack	0.971	0.594	0.950	0.596
+20829	Storage	1	0	0.40	2.00	Bane Crate Stack	1.656	0.926	1.180	0.922
+20832	Storage	1	0	0.40	2.00	Bane Crate Stack, Long	1.861	0.958	1.341	0.953
+20591	Storage	1	0	1.00	1.00	Bane Locker	0.826	1.120	0.633	1.120
+20589	Storage	1	0	0.40	2.00	Bane Locker, Open	0.826	1.405	0.922	1.405
+3903	Storage	1	0	0.40	2.00	Bane Outpost Crate	1.051	0.910	1.500	0.854
+7894	Storage	1	0	0.50	3.00	Bane Strongbox	0.827	0.716	1.180	0.711
+24682	Storage	1	0	0.50	3.00	Brann Barrel	0.351	0.564	0.386	0.563
+7934	Storage	1	0	0.50	3.00	Brann Cabinet	0.417	0.568	0.697	0.568
+7931	Storage	1	0	0.50	3.00	Brann Chest	0.838	0.818	0.829	0.816
+20850	Storage	1	0	0.50	3.00	Brann Container	0.401	0.750	0.618	0.751
+10775	Storage	1	0	0.50	3.00	Brann Crate	0.839	0.818	0.829	0.816
+23185	Storage	1	0	0.40	2.00	Brann Crate Group	2.022	1.600	1.266	1.599
+26061	Storage	1	0	0.50	3.00	Brann Filing Cabinet	0.224	0.708	0.329	0.709
+24681	Storage	1	0	0.50	3.00	Brann Fuel Tank	0.441	0.997	0.365	0.997
+26084	Storage	1	0	0.50	3.00	Brann Kiosk Cart	0.686	0.699	0.510	0.691
+26069	Storage	1	0	1.00	1.00	Brann Lockers	0.774	1.399	3.784	1.387
+20853	Storage	1	0	0.40	2.00	Brann Push Cart	1.129	0.731	2.159	1.145
+26073	Storage	1	0	0.50	3.00	Brann Storage Rack	0.745	1.055	0.384	1.054
+10777	Storage	1	0	0.50	3.00	Brann Supply Crate	0.417	0.568	0.697	0.568
+26122	Storage	1	0	0.50	3.00	Brann Trash Can	0.403	0.557	0.403	0.555
+8062	Storage	1	0	0.50	3.00	Bucket	0.206	0.331	0.144	0.330
+29672	Storage	1	0	0.40	2.00	Cargo Crate	1.330	1.228	1.465	0.979
+29673	Storage	1	0	0.40	2.00	Cargo Crate, Dark	1.330	1.228	1.465	0.979
+6185	Storage	1	0	0.50	3.00	Corman Cabinet	0.599	1.071	0.479	1.071
+29054	Storage	1	0	0.25	1.25	Crated Power Armor	3.759	1.335	3.091	1.319
+6334	Storage	1	0	0.50	4.00	Duffel Bag	0.259	0.182	0.134	0.175
+8005	Storage	1	0	0.40	2.00	Dumpster	1.790	1.214	1.010	1.213
+9303	Storage	1	0	0.50	4.00	Field Pack	0.200	0.188	0.225	0.188
+25396	Storage	1	0	0.50	3.00	Fluxite Cart	0.354	0.330	0.596	0.330
+29057	Storage	1	0	0.50	3.00	Fluxite Crate	0.827	0.716	1.180	0.711
+29686	Storage	1	0	1.00	1.00	Footlocker	0.412	0.261	0.382	0.261
+21030	Storage	1	1	1.00	1.00	Footlocker (your vault)	0.412	0.261	0.382	0.261
+6219	Storage	1	0	0.50	3.00	Forean Storage Sack	0.659	0.528	0.634	0.522
+6222	Storage	1	0	0.50	3.00	Forean Wicker Basket	0.217	0.360	0.206	0.360
+6217	Storage	1	0	0.50	3.00	Forean Wicker Hamper	0.300	0.150	0.330	0.150
+29657	Storage	1	0	0.40	2.00	Fuel Barrel	2.075	2.399	2.038	2.359
+26703	Storage	1	0	0.50	3.00	Gas Canister	0.239	0.609	0.229	0.610
+29877	Storage	1	0	0.50	3.00	Hard Case	0.817	0.376	0.526	0.376
+20372	Storage	1	0	0.50	3.00	Hazmat Barrel	0.382	0.652	0.382	0.640
+9323	Storage	1	0	0.50	3.00	Laundry Hamper	0.608	0.478	0.524	0.479
+21437	Storage	1	0	0.50	4.00	Maligo Ammo Crate	0.179	0.147	0.136	0.148
+20374	Storage	1	0	0.50	3.00	Oil Barrels	0.778	0.652	0.768	0.640
+20371	Storage	1	0	0.50	3.00	Oil Drum	0.382	0.652	0.382	0.640
+30186	Storage	1	0	0.50	3.00	Old Barrel	0.370	0.524	0.370	0.524
+29935	Storage	1	0	0.25	1.25	Open Crate	3.237	1.835	1.465	1.802
+26562	Storage	1	0	0.50	3.00	Ore Cart	0.354	0.310	0.596	0.310
+9326	Storage	1	0	0.50	3.00	Rolled Sleeping Bag	0.221	0.384	0.211	0.385
+9324	Storage	1	0	0.50	3.00	Shelves	0.426	0.862	0.758	0.860
+29934	Storage	1	0	0.25	1.25	Shipping Container	2.622	1.835	1.465	1.762
+7124	Storage	1	0	0.50	4.00	Small Supply Crate	0.256	0.157	0.189	0.156
+29658	Storage	1	0	0.50	3.00	Steel Barrel	0.646	0.955	0.645	0.936
+20363	Storage	1	0	0.50	3.00	Supply Crate	0.714	0.588	0.542	0.592
+7783	Storage	1	0	0.50	3.00	Thrax Ammo Crate	0.305	0.143	0.179	0.142
+30188	Storage	1	0	0.50	3.00	Trash Can	0.526	0.660	0.540	0.662
+26591	Storage	1	0	0.50	3.00	Wardenbot Barrel	0.431	0.648	0.431	0.617
+26546	Storage	1	0	0.50	3.00	Wardenbot Capsule Crate	0.776	1.033	0.752	1.033
+26580	Storage	1	0	0.50	3.00	Wardenbot Case	0.466	0.532	0.616	0.540
+26650	Storage	1	0	0.50	3.00	Wardenbot Crate	0.525	0.585	1.125	0.585
+26581	Storage	1	0	0.50	3.00	Wardenbot Locker	0.605	1.145	0.567	1.135
+8020	Storage	1	0	0.50	3.00	Wire Shelves	0.645	0.895	0.343	0.895
+4064	Tech	1	0	0.25	1.25	AFS Turret	1.629	1.538	3.091	1.988
+29717	Tech	1	0	0.40	2.00	Air Handler	1.344	1.274	1.433	1.274
+8010	Tech	1	0	0.50	3.00	Antenna Rack	0.232	1.050	0.207	1.046
+11280	Tech	1	0	0.50	3.00	Bane Bio Sampler	0.323	0.580	0.196	0.580
+3946	Tech	1	0	0.50	4.00	Bane Black Box	0.275	0.275	0.275	0.275
+10420	Tech	1	0	0.50	3.00	Bane Console	1.114	0.754	0.659	0.754
+7463	Tech	1	0	0.40	2.00	Bane Console Bank	1.864	0.754	0.659	0.754
+7502	Tech	1	0	0.50	3.00	Bane Console Brain	0.275	0.743	0.441	0.743
+10425	Tech	1	0	0.50	3.00	Bane Console Pedestal	0.594	0.569	0.527	0.569
+7464	Tech	1	0	0.40	2.00	Bane Control Station	1.770	1.321	0.750	1.321
+11255	Tech	1	0	0.40	2.00	Bane Extraction Device	0.828	1.754	1.568	1.859
+11256	Tech	1	0	0.25	1.25	Bane Extraction Sensors	1.073	2.302	2.978	2.302
+20594	Tech	1	0	0.40	2.00	Bane Generator	1.272	0.624	1.127	0.662
+6106	Tech	1	0	0.40	2.00	Bane Junk Generator	2.233	2.056	1.538	1.921
+10159	Tech	1	0	0.50	3.00	Bane Machine	0.770	1.240	0.571	1.235
+7478	Tech	1	0	0.40	2.00	Bane Mortar Base	2.226	0.422	2.474	0.085
+3909	Tech	1	0	0.25	1.25	Bane Outpost Terminal	2.338	3.198	2.300	2.579
+6429	Tech	1	0	0.50	3.00	Bane Portable Turret	1.115	0.443	1.036	0.443
+20621	Tech	1	0	0.40	2.00	Bane Stasis Tube	0.796	1.874	0.933	1.641
+4424	Tech	1	0	0.50	3.00	Bane Switch Pedestal	0.594	0.569	0.527	0.569
+20612	Tech	1	0	0.25	1.25	Bane Tank	1.749	2.536	1.720	2.530
+6320	Tech	1	0	0.40	2.00	Bane Thermal Vent	1.962	1.911	2.181	1.903
+7482	Tech	1	0	0.25	1.25	Bane Turret	1.458	1.818	3.120	1.940
+6104	Tech	1	0	0.40	2.00	Bane Vent Stack	0.631	1.466	0.854	1.332
+7465	Tech	2	0	0.50	3.00	Bane Wall Monitor	0.619	0.430	0.138	-0.003
+3738	Tech	1	0	0.40	2.00	Base Terminal	1.379	1.586	1.243	1.557
+10460	Tech	1	0	0.25	1.25	Brann Antenna Rig	1.798	3.052	1.529	3.187
+10459	Tech	1	0	0.25	1.25	Brann Computer Bank	2.689	1.474	1.331	1.473
+10773	Tech	1	0	0.40	2.00	Brann Computer Dome	2.269	0.987	1.480	0.973
+26033	Tech	1	0	0.40	2.00	Brann Console	2.256	1.066	1.086	1.066
+26092	Tech	1	0	0.40	2.00	Brann Console Desk	2.271	1.377	0.864	1.373
+24980	Tech	1	0	0.25	1.25	Brann Control Desk	3.644	2.389	1.489	2.387
+26043	Tech	1	0	0.40	2.00	Brann Dish Console	0.891	1.361	0.704	1.361
+24050	Tech	1	0	0.50	3.00	Brann Machine Drum	1.174	0.789	1.204	0.791
+20788	Tech	1	0	0.50	3.00	Brann Machinery	0.587	1.239	1.130	1.242
+10784	Tech	1	0	0.25	1.25	Brann Mobile Rig	2.184	2.319	2.928	2.161
+24719	Tech	1	0	0.40	2.00	Brann Pipe	0.282	0.268	2.026	0.000
+24923	Tech	1	0	0.40	2.00	Brann Power Coupling	0.565	1.976	0.954	1.964
+20855	Tech	1	0	0.40	2.00	Brann Scanner	2.070	1.266	0.729	1.260
+23998	Tech	1	0	0.50	3.00	Brann Switch Box	0.215	0.385	0.112	0.198
+26111	Tech	1	0	0.25	1.25	Brann Telescope	1.850	1.554	2.922	1.540
+26096	Tech	1	0	0.50	3.00	Brann Terminal	1.221	1.137	0.276	1.137
+10791	Tech	1	0	0.40	2.00	Brann Turret	1.556	1.500	2.034	1.770
+26045	Tech	1	0	0.40	2.00	Brann Workstation	1.417	1.301	0.883	1.261
+11182	Tech	1	0	0.40	2.00	Comm Pack	0.740	1.484	0.453	1.483
+26499	Tech	1	0	0.50	3.00	Computer Desk Cluster	1.020	0.720	1.002	0.722
+8014	Tech	1	0	0.50	3.00	Computer Terminal	0.229	0.842	0.408	0.837
+8012	Tech	1	0	0.50	3.00	Control Board	0.337	0.134	0.201	0.130
+8006	Tech	1	0	0.50	4.00	Control Box	0.191	0.189	0.225	0.189
+20701	Tech	1	0	0.50	3.00	Control Desk	1.020	0.587	1.000	0.589
+20328	Tech	1	0	0.25	1.25	Corman Capacitor	2.275	2.794	1.853	2.756
+20330	Tech	1	0	0.25	1.25	Corman Generator	4.087	3.002	2.239	2.951
+8015	Tech	1	0	0.50	3.00	Desktop Computer	0.325	0.260	0.406	0.260
+29702	Tech	1	0	0.40	2.00	Duct Elbow	0.785	1.450	1.825	1.450
+8011	Tech	1	0	0.50	3.00	Electrical Cabinet	0.352	0.742	0.205	0.742
+7136	Tech	1	0	0.50	3.00	Floor Fan	0.553	0.549	0.289	0.541
+8007	Tech	1	0	0.50	4.00	Fuse Panel	0.134	0.215	0.189	0.215
+20332	Tech	1	0	0.50	3.00	Irrigation Pump	0.461	1.009	0.730	0.784
+29627	Tech	1	0	0.40	2.00	Machina Part	0.903	1.874	1.085	1.641
+6186	Tech	1	0	0.50	3.00	Old Computer	0.245	0.306	0.317	0.306
+30564	Tech	1	0	0.40	2.00	Old Generator	2.312	1.328	0.974	1.329
+26406	Tech	1	0	0.40	2.00	Penumbra Tube	0.903	1.874	1.085	1.641
+29716	Tech	1	0	0.40	2.00	Pump Housing	1.379	1.586	1.243	1.557
+29709	Tech	1	0	0.25	1.25	Radar	2.601	2.805	2.564	2.768
+3548	Tech	1	0	0.25	1.25	Radar Dish	2.601	2.805	2.564	2.768
+8018	Tech	1	0	0.50	4.00	Radio Set	0.166	0.296	0.082	0.301
+8009	Tech	1	0	0.50	3.00	Server Rack	1.002	0.948	0.389	0.948
+20344	Tech	1	0	0.40	2.00	Solar Panel	1.968	2.265	1.992	0.614
+8021	Tech	1	0	0.50	3.00	Speaker	0.161	0.303	0.108	0.300
+26065	Tech	1	0	1.00	1.00	Supply Kiosk	0.489	1.107	0.603	1.107
+21814	Tech	1	0	0.40	2.00	Ventilation Unit	1.344	1.274	1.433	1.274
+21816	Tech	1	0	0.40	2.00	Ventilation Unit, Tall	1.298	1.373	2.325	1.373
+20702	Tech	2	0	0.50	3.00	Wall Monitor	1.032	0.523	0.130	0.523
+8016	Tech	2	0	0.50	4.00	Wall Phone	0.108	0.240	0.048	0.240
+26584	Tech	1	0	0.40	2.00	Wardenbot Computer	2.289	0.749	0.540	0.701
+26578	Tech	1	0	0.50	4.00	Wardenbot Device	0.199	0.158	0.249	0.135
+26583	Tech	1	0	0.25	1.25	Wardenbot Equipment	1.353	0.921	3.028	0.921
+26669	Tech	1	0	0.50	3.00	Weapon Scanner	0.352	1.193	0.218	1.190
+20699	Tech	1	0	0.50	3.00	Workstation	1.020	0.857	0.510	0.859
+20700	Tech	1	0	0.40	2.00	Workstation, Long	2.020	0.857	0.510	0.859
+24805	Teleport	1	0	1.00	1.00	Brann Teleporter	2.253	2.697	2.241	2.697
+29648	Teleport	1	0	1.00	1.00	Teleporter	1.337	3.441	1.341	3.357
+7895	Teleport	1	0	1.00	1.00	Teleporter Pad	1.337	1.848	1.341	1.764
+29145	Teleport	1	0	1.00	1.00	Teleporter Pad, Red	1.337	1.847	1.341	1.758
+29625	Teleport	1	0	1.00	1.00	Waypoint Pad	4.500	0.806	3.992	0.806
+30039	Trophies	1	0	0.25	1.25	AFS Mech Frame	3.433	2.382	0.902	2.382
+20342	Trophies	1	0	0.50	3.00	Armor Case	1.131	1.198	0.469	1.199
+29656	Trophies	1	0	0.50	3.00	Armor Case, Tall	1.131	1.198	0.469	1.199
+20380	Trophies	1	0	0.50	3.00	Armor Mannequin (F)	0.541	0.870	0.381	0.864
+20382	Trophies	1	0	0.50	3.00	Armor Mannequin (M)	0.406	0.855	0.489	0.847
+20364	Trophies	1	0	0.50	3.00	Armor Shop Display	1.163	0.413	0.260	0.371
+7015	Trophies	1	0	0.50	3.00	Boargar Hide	0.143	0.093	0.333	0.081
+6458	Trophies	1	0	0.50	4.00	Boargar Horn	0.274	0.058	0.208	0.058
+25879	Trophies	1	0	0.40	2.00	Brann Holo Display	2.284	1.268	2.284	1.268
+26053	Trophies	1	0	0.25	1.25	Brann Pedestal	2.957	0.878	1.641	0.876
+9755	Trophies	1	0	0.25	1.25	Brann Shrine	3.005	2.663	2.556	2.663
+26055	Trophies	1	0	0.50	3.00	Brann Weapon Rack	0.769	0.774	0.768	0.774
+26057	Trophies	1	0	0.50	3.00	Brann Weapon Rack, Tall	0.644	0.890	0.384	0.890
+20000069	Trophies	1	0	0.40	2.00	Burned Eloh Statue	1.638	1.030	1.571	0.426
+7592	Trophies	1	0	0.50	3.00	Eloh Crystal	0.269	0.447	0.251	-0.006
+21004	Trophies	1	0	0.40	2.00	Eloh Gravestone	1.269	1.680	0.444	1.679
+28526	Trophies	1	0	0.50	3.00	Eloh Obelisk	0.536	0.553	0.504	0.553
+28527	Trophies	1	0	0.50	3.00	Eloh Obelisk, Blue	0.482	0.514	0.482	0.514
+23093	Trophies	1	0	0.25	1.25	Eloh Projector	3.092	0.782	2.230	0.646
+10202	Trophies	1	0	0.40	2.00	Eloh Sanctum Bell	2.095	2.455	2.095	2.292
+28528	Trophies	1	0	0.40	2.00	Eloh Sculpture	1.678	0.958	0.792	0.958
+7643	Trophies	1	0	0.40	2.00	Eloh Shrine	2.043	1.606	1.801	1.605
+6346	Trophies	1	0	0.40	2.00	Forean Armor Stand	1.890	2.429	2.282	2.210
+30442	Trophies	1	0	0.25	1.25	Glascow Statue	2.805	2.302	0.977	2.290
+29725	Trophies	2	0	0.40	2.00	Gun Wall Display	1.853	0.825	0.184	0.189
+30723	Trophies	1	0	0.50	3.00	Hologram: Angel	0.698	0.999	0.439	0.997
+21829	Trophies	1	0	0.50	3.00	Hologram: Caretaker	1.123	1.184	0.496	1.176
+25605	Trophies	1	0	0.50	3.00	Hologram: Forean Elder	0.504	1.036	0.350	1.032
+25604	Trophies	1	0	0.50	3.00	Hologram: Forean Gunner	0.514	1.042	0.256	1.034
+30720	Trophies	1	0	0.40	2.00	Hologram: Grendel	1.537	2.493	1.799	2.447
+21828	Trophies	1	0	0.50	3.00	Hologram: Lightbender	0.510	0.879	0.388	0.878
+30134	Trophies	1	0	0.40	2.00	Hologram: Mech	1.264	2.318	1.124	2.317
+30721	Trophies	1	0	0.25	1.25	Hologram: Orson	1.660	2.869	2.251	2.851
+25614	Trophies	1	0	0.50	3.00	Hologram: Rifleman	0.795	0.897	0.396	0.895
+25613	Trophies	1	0	0.50	3.00	Hologram: Rocket Trooper	0.734	0.868	0.350	0.868
+21827	Trophies	1	0	0.50	3.00	Hologram: Thrax Soldier	1.113	1.198	0.866	1.198
+21826	Trophies	1	0	0.50	3.00	Hologram: Thrax Technician	1.101	1.151	0.462	1.138
+30722	Trophies	1	0	0.40	2.00	Hologram: Vulcan	1.493	1.599	1.240	1.570
+20337	Trophies	1	0	0.50	3.00	Mech Gun	0.634	0.357	0.270	0.327
+20338	Trophies	1	0	0.50	3.00	Mech Missile Pods	1.109	0.414	0.466	0.384
+30441	Trophies	1	0	0.40	2.00	Roscoe Statue	1.347	1.381	1.347	1.365
+30194	Trophies	1	0	0.25	1.25	Rusted Car	1.075	0.542	2.855	0.475
+29435	Trophies	1	0	0.40	2.00	Soyuz Capsule	2.292	2.354	2.356	1.288
+29993	Trophies	1	0	0.25	1.25	Soyuz Capsule on Stand	2.282	2.695	2.357	1.233
+7002	Trophies	1	0	0.50	3.00	Thrax Head	0.624	0.232	0.413	0.209
+20274	Trophies	1	0	0.50	3.00	Weapon Case	1.131	1.198	0.469	1.199
+20275	Trophies	1	0	0.50	3.00	Weapon Holo Display	0.765	0.411	0.765	0.411
+29724	Trophies	1	0	0.50	3.00	Weapon Locker Case	1.131	1.198	0.469	1.199
+20324	Trophies	2	0	0.40	2.00	Weapon Wall Display	1.853	0.825	0.184	0.189
+30203	Trophies	1	0	0.25	1.25	Wrecked Taxi	1.238	1.042	3.048	0.870
+7144	Walls & Floors	1	0	0.40	2.00	Bane Catwalk	1.571	0.416	2.073	0.352
+7087	Walls & Floors	1	0	0.25	1.25	Bane Catwalk Platform	2.867	0.719	2.867	0.390
+7100	Walls & Floors	1	0	0.40	2.00	Bane Grate Floor	2.000	0.473	2.240	0.526
+24683	Walls & Floors	1	0	0.25	1.25	Brann Cage	2.642	2.877	1.691	2.822
+25388	Walls & Floors	1	0	0.25	1.25	Brann Catwalk	1.250	0.254	4.000	0.247
+29077	Walls & Floors	1	0	0.40	2.00	Brann Corner Cover	1.365	0.874	1.373	0.063
+25510	Walls & Floors	1	0	0.25	1.25	Brann Field Awning	2.484	2.531	2.050	2.531
+29075	Walls & Floors	1	0	0.40	2.00	Brann High Cover	2.023	1.508	1.383	0.561
+29076	Walls & Floors	1	0	0.40	2.00	Brann Low Cover	1.994	0.860	0.578	0.071
+10782	Walls & Floors	1	0	0.50	3.00	Brann Manhole	0.476	0.097	0.477	0.097
+20596	Walls & Floors	1	0	0.40	2.00	Bulkhead Corner	1.435	1.875	1.435	1.750
+20598	Walls & Floors	1	0	0.40	2.00	Bulkhead Wall	0.375	1.875	2.120	1.750
+30228	Walls & Floors	1	0	0.25	1.25	Bus Stop	2.569	1.412	1.768	1.371
+20638	Walls & Floors	1	0	0.40	2.00	Catwalk Rail	2.008	0.654	0.045	0.346
+25593	Walls & Floors	1	0	0.25	1.25	Eloh Dispenser Base	2.757	0.511	2.757	0.219
+30432	Walls & Floors	1	0	0.50	3.00	Fence Post	0.121	1.044	0.120	0.947
+30232	Walls & Floors	1	0	0.50	3.00	Fire Hydrant	0.217	0.389	0.220	0.389
+29913	Walls & Floors	1	0	0.50	3.00	Floor Plate	1.067	0.066	1.060	0.005
+25683	Walls & Floors	1	0	0.40	2.00	Forean Arch	1.699	1.976	0.770	1.968
+29279	Walls & Floors	1	0	0.25	1.25	Forean Lean-to	2.579	1.894	3.351	1.634
+29280	Walls & Floors	1	0	0.25	1.25	Forean Tent	3.047	1.894	3.031	1.634
+6089	Walls & Floors	1	0	0.40	2.00	Forean Walkway	1.000	0.250	2.000	4.750
+25695	Walls & Floors	1	0	0.25	1.25	Forean Well	1.531	3.190	1.466	-0.937
+10375	Walls & Floors	1	0	0.40	2.00	Grate Floor	2.000	0.250	2.000	7.750
+21944	Walls & Floors	1	0	0.40	2.00	Grate Platform	2.022	0.750	2.045	8.250
+30275	Walls & Floors	1	0	0.25	1.25	Green Awning	4.026	1.359	1.583	1.315
+29533	Walls & Floors	1	0	0.50	3.00	HQ Barricade	1.161	1.152	0.745	1.155
+20634	Walls & Floors	1	0	0.50	3.00	HQ Barrier	1.161	1.152	0.745	1.155
+30192	Walls & Floors	1	0	0.50	3.00	Mailbox	0.300	0.611	0.300	0.611
+29700	Walls & Floors	1	0	0.50	3.00	Manhole	1.000	0.050	0.996	0.050
+3772	Walls & Floors	1	0	0.50	3.00	Manhole Cover	1.000	0.050	0.996	0.050
+29942	Walls & Floors	1	0	0.40	2.00	Pallet	2.304	0.190	1.465	0.157
+29897	Walls & Floors	1	0	0.25	1.25	Panel Stack	2.909	0.180	3.801	0.138
+30426	Walls & Floors	1	0	0.25	1.25	Park Fence	4.056	1.044	0.120	0.947
+30430	Walls & Floors	1	0	0.40	2.00	Park Fence Corner	1.560	1.044	1.613	0.947
+30435	Walls & Floors	1	0	0.50	3.00	Parking Meter	0.104	0.676	0.078	0.674
+30193	Walls & Floors	1	0	0.50	3.00	Payphone	0.312	0.967	0.162	0.969
+29485	Walls & Floors	1	0	0.40	2.00	Prison Block Wall	2.232	1.589	0.126	1.589
+3763	Walls & Floors	1	0	0.40	2.00	Prison Cell	2.011	2.000	2.000	2.000
+30276	Walls & Floors	1	0	0.25	1.25	Purple Awning	4.034	1.363	1.583	1.311
+7699	Walls & Floors	1	0	0.50	3.00	Sandbag	0.394	0.405	0.290	0.360
+7704	Walls & Floors	1	0	0.40	2.00	Sandbag Bend	1.749	1.281	1.735	-0.020
+11181	Walls & Floors	1	0	0.25	1.25	Sandbag Curve	2.608	1.355	1.681	0.907
+29335	Walls & Floors	1	0	0.40	2.00	Sandbag Double Wall	2.111	1.143	1.413	1.119
+7703	Walls & Floors	1	0	0.40	2.00	Sandbag Line	2.146	0.641	0.807	0.619
+20782	Walls & Floors	1	0	0.50	3.00	Sandbag Pillbox	0.740	0.678	0.704	0.678
+20783	Walls & Floors	1	0	0.25	1.25	Sandbag Wall	2.623	0.759	0.732	0.743
+9274	Walls & Floors	1	0	0.40	2.00	Sandbag Wall, High	2.170	1.349	0.872	0.872
+26702	Walls & Floors	1	0	0.25	1.25	Stage	3.931	0.842	3.660	1.542
+8072	Walls & Floors	1	0	0.50	3.00	Stepladder	0.395	0.931	0.665	0.931
+26511	Walls & Floors	1	0	0.40	2.00	Wardenbot Barricade	2.000	0.663	0.788	0.632
+7877	Workshop	1	0	0.40	2.00	Bane Armory Machine	0.859	1.693	2.423	1.694
+20641	Workshop	1	0	0.40	2.00	Bane Lab Arm	1.651	0.976	1.976	0.976
+20643	Workshop	1	0	0.40	2.00	Bane Lab Equipment	1.124	1.121	2.032	1.121
+20639	Workshop	1	0	0.50	3.00	Bane Lab Stack	0.828	1.183	0.636	1.183
+11279	Workshop	1	0	0.40	2.00	Bane Research Table	2.024	1.192	1.354	1.194
+24607	Workshop	1	0	0.40	2.00	Brann Dissection Table	1.936	1.881	1.610	1.881
+26109	Workshop	1	0	0.50	3.00	Brann Jackhammer	0.280	0.589	0.186	0.606
+29671	Workshop	1	0	1.00	1.00	Crafting Station	1.187	0.995	1.999	0.985
+9245	Workshop	1	0	0.50	3.00	Drill	0.430	1.238	0.424	1.238
+20346	Workshop	1	0	0.40	2.00	Drill Rig	1.858	0.491	2.000	0.313
+7093	Workshop	1	0	0.50	3.00	Extractor	0.308	0.174	0.188	0.175
+9595	Workshop	1	2	1.00	1.00	Field Crafting Station	1.187	0.995	1.999	0.985
+9246	Workshop	1	0	0.50	3.00	Jackhammer	0.134	0.589	0.428	0.567
+6183	Workshop	1	0	0.50	4.00	Lab Beakers	0.265	0.184	0.054	1.236
+6226	Workshop	1	0	0.40	2.00	Lab Counter	1.714	0.932	0.863	0.932
+8013	Workshop	1	0	0.50	4.00	Lab Microscope	0.122	0.203	0.170	0.199
+6190	Workshop	1	0	0.50	4.00	Microscope	0.169	0.265	0.176	0.268
+8071	Workshop	1	0	0.50	3.00	Pallet Jack	0.313	0.581	0.833	0.582
+6191	Workshop	1	0	0.50	3.00	Ring Stand	0.191	0.572	0.131	0.578
+8019	Workshop	1	0	0.50	3.00	Scale	0.235	0.087	0.306	0.088
+23111	Workshop	1	0	0.50	3.00	Tool Barrel	0.578	0.797	0.429	0.806
