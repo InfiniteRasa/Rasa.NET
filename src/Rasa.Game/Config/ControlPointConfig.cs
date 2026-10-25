@@ -6,6 +6,9 @@ namespace Rasa.Config
     /// </summary>
     public class ControlPointConfig
     {
+        /// <summary>Metres from a point within which friendly service NPC pools belong to it. 0 disables proximity matching; explicit links still apply.</summary>
+        public float ServiceNpcRadius { get; set; } = 130f;
+
         /// <summary>
         /// Whether a point taken from the Bane by a player in a clan is that clan's. Off, every
         /// capture is the AFS's, as before, and a point a clan holds goes back to the AFS.

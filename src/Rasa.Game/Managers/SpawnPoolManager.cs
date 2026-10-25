@@ -299,6 +299,7 @@ namespace Rasa.Managers
         // timePassed is elapsed milliseconds since this map's previous spawn-pool update.
         public void SpawnPoolWorker(MapChannel mapChannel, long timePassed)
         {
+            ControlPoints.Instance.RefreshServices(mapChannel);
             BaneArrivals.TeleportWorker(mapChannel, timePassed);
 
             var spawnPools = mapChannel.SpawnPools.Count > 0
@@ -315,8 +316,8 @@ namespace Rasa.Managers
                 // the point - and not while the other does, whatever its mode. Nor is one in a
                 // place the player has taken back (Quieted). A scripted pool a mission scene has
                 // woken on the player's map is (Woken).
-                if (spawnPool.Suspended || spawnPool.Quieted
-                    || spawnPool.Mode != ModeAutomatic && !(spawnPool.Mode == ModeControlPoint && spawnPool.IsGarrison)
+                if (spawnPool.Suspended || spawnPool.ServiceSuspended || spawnPool.Quieted
+                    || spawnPool.Mode != ModeAutomatic && !(spawnPool.Mode == ModeControlPoint && (spawnPool.IsGarrison || spawnPool.ServiceControlPointId != 0))
                         && !(spawnPool.Mode == ModeScripted && spawnPool.Woken)
                     || spawnPool.AnimType < 0 || spawnPool.AnimType > 2)
                     continue;

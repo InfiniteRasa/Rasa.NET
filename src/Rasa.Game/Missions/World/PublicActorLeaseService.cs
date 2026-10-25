@@ -419,11 +419,43 @@ namespace Rasa.Game.Missions.World
                 return _reservations.ContainsKey((map, spawnId)) || _recovery.ContainsKey((map, spawnId));
         }
 
+        /// <summary>
+        /// Occupation removes services without defeating their mission actor. Keep the lease
+        /// and assignment, and bind them to the replacement when that base opens again.
+        /// </summary>
+        internal void ServicesUnavailable(MapChannel map, IReadOnlyCollection<SpawnPool> pools)
+        {
+            lock (_gate)
+                foreach (var reservation in _reservations.Values.Where(entry => entry.Map == map &&
+                    entry.Committed && !entry.Resetting && entry.ResetRequested == null &&
+                    entry.IsCurrent() && entry.Actor.State != CharacterState.Dead && pools.Contains(entry.Actor.SpawnPool)))
+                {
+                    reservation.AwaitingService = true;
+                    reservation.CombatEnabled = false;
+                    reservation.Actor.ScriptedCombatAuthorization = null;
+                }
+        }
+
         internal void ActorAvailable(MapChannel map)
         {
             foreach (var binding in _bindings.Values.Where(binding => binding.ManualCombat))
                 foreach (var actor in Actors(map, binding.SpawnId))
                     BindCombatGate(actor, actor.SpawnPool);
+            lock (_gate)
+                foreach (var reservation in _reservations.Values.Where(entry => entry.Map == map &&
+                    entry.Committed && entry.AwaitingService && !entry.Resetting && entry.ResetRequested == null &&
+                    entry.Handle.MapEpoch == map.MissionEpoch))
+                {
+                    var replacement = Actors(map, reservation.Binding.SpawnId)
+                        .SingleOrDefault(actor => actor.State != CharacterState.Dead);
+                    if (replacement == null || !ControlPoints.Instance.MaySpawnServicePool(replacement.SpawnPool))
+                        continue;
+                    CreatureGameplayRules.ClearRole(reservation.Actor);
+                    reservation.Actor = replacement;
+                    reservation.AwaitingService = false;
+                    reservation.ApplyPolicy(reservation.Policy);
+                    PublishInteraction(reservation, false);
+                }
             RecoverPending(map);
         }
 
@@ -551,6 +583,7 @@ namespace Rasa.Game.Missions.World
             internal bool Resetting { get; set; }
             internal string ResetRequested { get; set; }
             internal bool AwaitingRespawn { get; set; }
+            internal bool AwaitingService { get; set; }
             internal bool CombatEnabled { get; set; }
 
             internal Reservation(PublicActorLeaseService service, MapChannel map, Creature actor,

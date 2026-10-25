@@ -354,6 +354,15 @@ namespace Rasa.Game.Missions.World
 
         private WorldEffectResult Ensure(WorldRun world, SceneActorDefinition definition)
         {
+            var service = definition.Kind == SceneActorKind.Creature && definition.Position != null
+                ? ControlPoints.Instance.ServicePointOf(world.Map, definition.TemplateId, SceneRouteController.Position(definition.Position))
+                : definition.Kind == SceneActorKind.PublicSpawn
+                    ? world.Map.SpawnPools.Where(pool => pool.DbId == definition.TemplateId)
+                        .Select(pool => ControlPoints.Instance.ServicePointOf(world.Map, pool)).FirstOrDefault(point => point != null)
+                    : null;
+            if (service != null && !service.HeldByAfs)
+                return WorldEffectResult.Deferred();
+
             DynamicObject replaced = null;
             if (world.Actors.TryGetValue(definition.Role, out var existing) && IsCurrent(world, existing))
             {

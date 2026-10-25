@@ -553,6 +553,11 @@ namespace Rasa.Managers
 
         public Creature CreateCreature(uint dbId, SpawnPool spawnPool)
         {
+            // Recheck at delivery as well as at scheduling: the point may have changed hands
+            // while a dropship or teleporter was bringing this pool in.
+            if (!ControlPoints.Instance.MaySpawnServicePool(spawnPool))
+                return null;
+
             // check is creature in database
             if (!LoadedCreatures.TryGetValue(dbId, out var creatureEntry) || creatureEntry == null)
             {
@@ -754,6 +759,9 @@ namespace Rasa.Managers
             Vector3 position,
             double rotation)
         {
+            if (!ControlPoints.Instance.MaySpawnServicePool(spawnPool))
+                return null;
+
             if (!LoadedCreatures.TryGetValue(creatureId, out var template) ||
                 template == null)
                 return null;

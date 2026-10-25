@@ -45,6 +45,12 @@ namespace Rasa.Structures
         /// <summary>The other side holds its control point (ControlPoints): it spawns nothing until its own side does.</summary>
         public bool Suspended { get; set; }
 
+        /// <summary>The control point governing this service NPC pool, or 0 when none does. Runtime only.</summary>
+        public uint ServiceControlPointId { get; set; }
+
+        /// <summary>The service NPCs cannot appear while their base is held by the Bane. Independent of other spawn restrictions.</summary>
+        public bool ServiceSuspended { get; set; }
+
         /// <summary>
         /// A place on a player's private map they have taken back (a mission scene's
         /// QuietSpawnPoolsIntent): it spawns nothing more there, and does not top up what it lost.

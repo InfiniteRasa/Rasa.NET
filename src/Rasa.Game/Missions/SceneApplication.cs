@@ -547,6 +547,24 @@ namespace Rasa.Game.Missions
                 Reconcile(run.Run.Id);
         }
 
+        /// <summary>Rebuild only the services of a recaptured base; preserve other actors and pending scene work.</summary>
+        internal void ServicesOpened(MapChannel map, ControlPoints.Point point)
+        {
+            foreach (var resident in _runs.Values.Where(run => run.Map == map && !run.Suspended &&
+                run.Run.Status is SceneStatus.Running or SceneStatus.Waiting).ToArray())
+            {
+                var roles = resident.Bindings.Actors.Values.Where(actor =>
+                    actor.Kind == SceneActorKind.Creature && actor.Position != null &&
+                    ReferenceEquals(ControlPoints.Instance.ServicePointOf(map, actor.TemplateId,
+                        World.SceneRouteController.Position(actor.Position)), point) ||
+                    actor.Kind == SceneActorKind.PublicSpawn && map.SpawnPools.Any(pool =>
+                        pool.DbId == actor.TemplateId && ReferenceEquals(ControlPoints.Instance.ServicePointOf(map, pool), point)))
+                    .Select(actor => actor.Role).ToHashSet(StringComparer.Ordinal);
+                if (roles.Count > 0)
+                    Reconcile(resident.Run.Id, restoreRoles: roles);
+            }
+        }
+
         internal bool OwnerLost(MapChannel map, string runId)
         {
             if (!_runs.TryGetValue(runId, out var resident) || resident.Map != map)
@@ -1302,7 +1320,7 @@ namespace Rasa.Game.Missions
                 participants.Contains(client.Player.Id) && _missions.Credit.HasGroupRule(client, progress));
         }
 
-        internal void Reconcile(string runId, bool reconstruct = false)
+        internal void Reconcile(string runId, bool reconstruct = false, HashSet<string> restoreRoles = null)
         {
             if (!_runs.TryGetValue(runId, out var resident) || resident.Suspended)
                 return;
@@ -1375,8 +1393,10 @@ namespace Rasa.Game.Missions
                         acknowledgements.Add(acknowledgement.OperationKey, acknowledgement);
                     else
                         Reject($"Scene {runId} effect {acknowledgement.OperationKey} acknowledgement retry retired: durable identity, status or desired command changed.");
-            var selected = reconstruct ? DesiredEffects(effects) :
-                effects.Where(effect => effect.Status == "Pending" || acknowledgements.ContainsKey(effect.OperationKey));
+            var pending = effects.Where(effect => effect.Status == "Pending" || acknowledgements.ContainsKey(effect.OperationKey));
+            var selected = reconstruct ? DesiredEffects(effects) : restoreRoles == null ? pending :
+                DesiredEffects(effects).Where(effect => restoreRoles.Contains(JsonSerializer.Deserialize<WorldIntent>(effect.Payload).Role))
+                    .Concat(pending).DistinctBy(effect => effect.OperationKey);
             foreach (var effect in selected)
             {
                 WorldEffectResult result;

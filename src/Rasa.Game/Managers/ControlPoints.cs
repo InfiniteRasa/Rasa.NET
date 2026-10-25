@@ -98,7 +98,7 @@ namespace Rasa.Managers
     /// that has a match (Battlegrounds) are in the same tables and are its teams' to fight over:
     /// they are listed and moved from here (".cp"), and nothing else here touches them.
     /// </summary>
-    public class ControlPoints
+    public partial class ControlPoints
     {
         private static ControlPoints _instance;
         private static readonly object InstanceLock = new object();
@@ -334,6 +334,7 @@ namespace Rasa.Managers
             _points.Clear();
             _byTeleporter.Clear();
             _byPool.Clear();
+            _serviceLinks.Clear();
             _byObject.Clear();
             _byLockbox.Clear();
             _resetSetting = null;
@@ -384,6 +385,11 @@ namespace Rasa.Managers
 
                 switch (link.Kind)
                 {
+                    case ControlPointLinkEntry.KindServicePool:
+                        if (!_serviceLinks.TryGetValue(link.ObjectId, out var servicePoint) || point.Id < servicePoint.Id)
+                            _serviceLinks[link.ObjectId] = point;
+                        break;
+
                     case ControlPointLinkEntry.KindBanePool:
                         point.BanePools.Add(link.ObjectId);
                         _byPool[link.ObjectId] = point;
@@ -483,6 +489,7 @@ namespace Rasa.Managers
                 ApplyTeleporters(point);
                 ShowLockbox(point);
             }
+            RefreshServices(mapChannel);
         }
 
         /// <summary>
@@ -675,6 +682,8 @@ namespace Rasa.Managers
             if (mapChannel?.MapInfo == null || mapChannel.IsCopy || _points.Count == 0)
                 return;
 
+            RefreshServices(mapChannel);
+
             foreach (var point in _points.Values.Where(p => p.MapContextId == mapChannel.MapInfo.MapContextId && !p.IsBattleground).ToList())
             {
                 if (point.Object == null)
@@ -850,7 +859,12 @@ namespace Rasa.Managers
                 return true;
 
             if (sideChanged)
+            {
                 ApplyPools(mapChannel, point, takeOff: true);
+                RefreshServices(mapChannel);
+                if (point.HeldByAfs)
+                    MissionApplication.Instance.Scenes.ServicesOpened(mapChannel, point);
+            }
 
             if (wasClans != point.HeldByClan)
             {
@@ -1517,12 +1531,14 @@ namespace Rasa.Managers
                     info.Contested = !point.HeldByAfs;
         }
 
-        private static List<SpawnPool> PoolsOn(MapChannel mapChannel, HashSet<uint> ids)
+        private List<SpawnPool> PoolsOn(MapChannel mapChannel, HashSet<uint> ids)
         {
             if (mapChannel?.SpawnPools == null || ids.Count == 0)
                 return new List<SpawnPool>();
 
-            return mapChannel.SpawnPools.Where(p => p != null && ids.Contains(p.DbId)).ToList();
+            // Civilian services do not keep a defeated combat garrison standing, including
+            // older data that listed the vendor or mission giver as an AFS garrison pool.
+            return mapChannel.SpawnPools.Where(p => p != null && ids.Contains(p.DbId) && ServicePointOf(mapChannel, p) == null).ToList();
         }
 
         /// <summary>Whether the spawn worker would ever set anyone of this pool down (SpawnPoolManager.SpawnPoolWorker, CreateListOfCreatures).</summary>
