@@ -105,6 +105,46 @@ namespace Rasa.Test.Missions.Wilderness
         }
 
         [TestMethod]
+        public void HistoricalSceneryReproducesTheMissingFuelCredit()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create(targetWorldMigration:"20270907000000_Defender_reinforcement_timers");
+            using(var world=harness.CreateWorld())
+                PlacedDestructibles.Load(world.WorldDestructibles.Get().Where(row=>row.MapContextId==1220 && row.ClassId==9260));
+            try
+            {
+                PlacedDestructibles.Place(harness.Map);Accept(harness,172,665);
+                var scenery=PlacedDestructibles.On(harness.Map).Where(live=>(uint)live.Object.EntityClassId==9260).ToArray();
+                Assert.AreEqual(15,scenery.Length);
+                foreach(var live in scenery.Take(10))DamageObject(harness,live.Object,checked((int)live.Object.CurrentHitPoints));
+                Assert.IsTrue(scenery.Take(10).All(live=>live.IsDown));
+                Assert.AreEqual(0U,harness.Client.Player.Missions[665].Objectives[1].Counters[0],"The old scenery emits no matching mission scenario credit.");
+            }
+            finally {PlacedDestructibles.Forget(harness.Map);PlacedDestructibles.Load(null);}
+        }
+
+        [TestMethod]
+        public void EveryFuelContainerInTheCacheYardAdvancesTheObjective()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            using (var world = harness.CreateWorld())
+                PlacedDestructibles.Load(world.WorldDestructibles.Get().Where(row => row.MapContextId == 1220 && row.ClassId == 9260));
+            try
+            {
+                PlacedDestructibles.Place(harness.Map);
+                Accept(harness, 172, 665);
+                var targets = harness.Map.DynamicObjects.Where(obj => (uint)obj.EntityClassId == 9260 &&
+                    Vector3.Distance(obj.Position,new Vector3(-262,170,87)) < 30)
+                    .OrderBy(obj => obj.MissionDestruction == null ? 0 : 1).ToArray();
+                foreach (var target in targets.Take(10)) DamageObject(harness,target,checked((int)target.CurrentHitPoints));
+                Assert.AreEqual(10U,harness.Client.Player.Missions[665].Objectives[1].Counters[0],
+                    "Destroying the visible Chemical Containers must advance Cache of the Day.");
+                Assert.AreEqual(10,targets.Length,"The yard must not contain uncredited duplicate scenery barrels.");
+                Assert.IsTrue(harness.Client.Player.Missions[665].Completeable);
+            }
+            finally { PlacedDestructibles.Forget(harness.Map); PlacedDestructibles.Load(null); }
+        }
+
+        [TestMethod]
         public void FuelCounterRequiresTenDistinctDestroyedNativeContainers()
         {
             using var harness = WildernessRuntimeTestHarness.Create();
