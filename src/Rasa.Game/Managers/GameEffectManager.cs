@@ -243,6 +243,9 @@ namespace Rasa.Managers
             if (effect.ChangesRegen)
                 SyncRegen(mapChannel, actor);
 
+            if (effect.ResistModifier != 0)
+                SyncResistances(mapChannel, actor);
+
             // Out of sight: after the attach has gone out, so that the clients about to lose the
             // entity have been told what is on it first, and their own copy of the player goes
             // with the cloak's own visuals rather than before them.
@@ -424,6 +427,9 @@ namespace Rasa.Managers
 
             if (gameEffect.ChangesRegen)
                 SyncRegen(mapChannel, actor);
+
+            if (gameEffect.ResistModifier != 0)
+                SyncResistances(mapChannel, actor);
 
             // Back in sight, unless another cloak is still hiding them (an invisible GM is given
             // back to the GMs only: Detection.Reveal).
@@ -1030,6 +1036,33 @@ namespace Rasa.Managers
                     total += effect.ResistModifier;
 
             return total;
+        }
+
+        /// <summary>
+        /// The resistance totals shown to the client. Keep ResistanceData as equipment and
+        /// skill resistance only: ApplyResist adds active effects separately when resolving a hit.
+        /// </summary>
+        public static List<ResistanceData> ResistanceDataForClient(Manifestation player)
+        {
+            var totals = player.ResistanceData.GroupBy(r => r.ResistanceType)
+                .ToDictionary(group => group.Key, group => group.Sum(r => r.ResistanceAmmount));
+
+            foreach (DamageType type in Enum.GetValues(typeof(DamageType)))
+            {
+                var modifier = ResistModifierOf(player, type);
+                if (modifier != 0)
+                    totals[type] = totals.GetValueOrDefault(type) + modifier;
+            }
+
+            return totals.Where(pair => pair.Value != 0)
+                .Select(pair => new ResistanceData(pair.Key, pair.Value)).ToList();
+        }
+
+        private static void SyncResistances(MapChannel mapChannel, Actor actor)
+        {
+            if (actor is Manifestation player)
+                ClientOf(mapChannel, player)?.CallMethod(player.EntityId,
+                    new ResistanceDataPacket(ResistanceDataForClient(player)));
         }
 
         /// <summary>How much of the actor's cover still counts, in percent: the least any effect on it allows (Target Painting), 100 with none.</summary>

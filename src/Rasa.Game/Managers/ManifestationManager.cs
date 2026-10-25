@@ -905,7 +905,7 @@ namespace Rasa.Managers
 
             player.ResistanceData = totals.Where(t => t.Value != 0).Select(t => new ResistanceData(t.Key, t.Value)).ToList();
 
-            client.CallMethod(player.EntityId, new ResistanceDataPacket(player.ResistanceData));
+            client.CallMethod(player.EntityId, new ResistanceDataPacket(GameEffectManager.ResistanceDataForClient(player)));
         }
 
         /// <summary>gameeffectdata.SKILL_LIMITED_COOL_RATE_MODIFIER_EFFECT.</summary>
@@ -2524,7 +2524,7 @@ namespace Rasa.Managers
                 // With the appearance: a client that meets the player later has had no
                 // ShowHelmetChanged, and every actor starts with the helmet shown.
                 new ShowHelmetChangedPacket(ShowsHelmet(client)),
-                new ResistanceDataPacket(player.ResistanceData),
+                new ResistanceDataPacket(GameEffectManager.ResistanceDataForClient(player)),
                 new ActorControllerInfoPacket(true),
                 new LevelPacket(player.Level),
                 new CharacterNamePacket(player.Name),
