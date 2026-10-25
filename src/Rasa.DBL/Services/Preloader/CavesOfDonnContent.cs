@@ -200,7 +200,7 @@ namespace Rasa.Services.Preloader
 
         /// <summary>A spawn pool: its creature, how many, where and how far they stand from it, and how long they take to come back.</summary>
         public sealed record Spot(uint Id, uint Creature, uint Count, double X, double Y, double Z, double Rotation, double Radius,
-            uint RespawnSeconds, string Comment);
+            uint RespawnTenths, string Comment);
 
         public static readonly Act[] Actions =
         {
@@ -354,7 +354,7 @@ namespace Rasa.Services.Preloader
                     "creature_1_Id, creature_1_min_count, creature_1_max_count, creature_2_Id, creature_2_min_count, creature_2_max_count, " +
                     "creature_3_Id, creature_3_min_count, creature_3_max_count, creature_4_Id, creature_4_min_count, creature_4_max_count, " +
                     "creature_5_Id, creature_5_min_count, creature_5_max_count, creature_6_Id, creature_6_min_count, creature_6_max_count, radius) " +
-                    $"SELECT {p.Id}, 0, 0, {p.RespawnSeconds}, {N(p.X)}, {N(p.Y)}, {N(p.Z)}, {N(p.Rotation)}, {Donn}, {p.Creature}, {p.Count}, {p.Count}, " +
+                    $"SELECT {p.Id}, 0, 0, {p.RespawnTenths}, {N(p.X)}, {N(p.Y)}, {N(p.Z)}, {N(p.Rotation)}, {Donn}, {p.Creature}, {p.Count}, {p.Count}, " +
                     $"0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, {N(p.Radius)} " +
                     $"FROM creature c WHERE c.id = {p.Creature} AND NOT EXISTS (SELECT 1 FROM spawnpool x WHERE x.id = {p.Id});";
 

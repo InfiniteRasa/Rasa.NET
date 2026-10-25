@@ -50,6 +50,52 @@ namespace Rasa.Test.World
             _world.Dispose();
             ControlPoints.Instance.Config = _oldConfig;
         }
+        [DataTestMethod]
+        [DataRow(145.74f,172.4f,-79.1f)]
+        [DataRow(254.34f,172.4f,-75.23f)]
+        [DataRow(144.7f,172.6f,-127.19f)]
+        [DataRow(254.74f,172.4f,-110.69f)]
+        public void RearMountedTurretHasReachableClearFiringPositionAndTakesNativeDamage(float x,float y,float z)
+        {
+            // The location that stalled the original simulations, with real collision cover.
+            var dir = new System.IO.DirectoryInfo(AppContext.BaseDirectory);
+            while (dir != null && !System.IO.File.Exists(System.IO.Path.Combine(dir.FullName, "Rasa.NET.sln"))) dir = dir.Parent;
+            _world.Map.Cover = Rasa.Navigation.CoverMesh.Read(System.IO.Path.Combine(dir.FullName, "navmesh", "adv_foreas_concordia_wilderness.cover"));
+            using var db = _world.CreateWorld();
+            var pool = new SpawnPool { DbId = 551131, RuntimeMapChannel = _world.Map, MapContextId = 1220 };
+            var turret = CreatureManager.Instance.CreateCreature(550018, pool);
+            CreatureManager.Instance.SetLocation(turret, new Vector3(x,y,z),0,1220);
+            turret.IsScripted = true;
+            CellManager.Instance.AddToWorld(_world.Map,turret);
+            var attacker = Attacker(new Vector3(230.44f,163.70f,-100.77f));
+            attacker.HomePos.Position = Point.Position;
+            if(x>254 && z< -100) Assert.IsFalse(BehaviorManager.Sees(_world.Map.Cover,attacker,turret));
+            var at = LandingZoneAssaultTargeting.FiringPosition(_world.Map,attacker,turret);
+            Assert.IsNotNull(at,"Must find a real reachable firing position without relocating the mount");
+            Assert.IsTrue(_world.Map.NavMesh.Reachable(attacker.Position,at.Value));
+            var before=turret.Attributes[Attributes.Health].Current + turret.Attributes[Attributes.Armor].Current;
+            Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(attacker,turret.EntityId));
+            for(var i=0;i<1200 && turret.Attributes[Attributes.Health].Current + turret.Attributes[Attributes.Armor].Current>=before;i++)
+            { _world.Tick(250); MissileManager.Instance.DoWork(_world.Map,250); }
+            Assert.IsTrue(turret.Attributes[Attributes.Health].Current + turret.Attributes[Attributes.Armor].Current<before,"Native movement must reach a shot and inflict damage");
+        }
+        [TestMethod]
+        public void AssaultTroopsIgnoreServicesAndUseTheBattleBoundaryRatherThanTheDropPad()
+        {
+            var attacker=Attacker(new Vector3(254,164,-110));
+            attacker.HomePos.Position=new Vector3(296,171,-5);
+            Assert.IsFalse(BehaviorManager.ChasedTooFar(attacker));
+            var servicePool=new SpawnPool {DbId=172,MapContextId=1220,RuntimeMapChannel=_world.Map,
+                SpawnSlot=new System.Collections.Generic.List<SpawnPoolSlot>{new(97,1,1)}};
+            var service=CreatureManager.Instance.CreateCreature(97,servicePool);
+            CreatureManager.Instance.SetLocation(service,Point.Position,0,1220);
+            CellManager.Instance.AddToWorld(_world.Map,service);
+            Assert.IsTrue(LandingZoneAssaultTargeting.IsServiceTarget(attacker,service));
+            Assert.IsFalse(BehaviorManager.Instance.TrySetActionFighting(attacker,service.EntityId));
+            Assert.IsFalse(Threat.CanFight(attacker,service.EntityId));
+            attacker.Position=Point.Position+new Vector3(201,0,0);
+            Assert.IsTrue(BehaviorManager.ChasedTooFar(attacker));
+        }
         private SpawnPool Pool(uint id) => _world.Map.SpawnPools.Single(p => p.DbId == id);
         private void Deploy()
         {
@@ -216,7 +262,7 @@ namespace Rasa.Test.World
             {
                 Assert.IsTrue(LandingZoneAssaults.TryStart(_world.Map, Point));
                 for (var i = 0; i < 6; i++) DynamicObjectManager.Instance.DropshipsWorker(_world.Map, 60000);
-                now += 240000;
+                now += 360000;
                 LandingZoneAssaults.Worker(_world.Map, Point);
                 for (var i = 0; i < 6; i++) DynamicObjectManager.Instance.DropshipsWorker(_world.Map, 60000);
                 var boss = EntityManager.Instance.Creatures.Values.Single(c => c.RuntimeMapChannel == _world.Map && c.DbId == LandingZoneAssaultContent.Boss);

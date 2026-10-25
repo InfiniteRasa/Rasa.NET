@@ -845,14 +845,14 @@ namespace Rasa.Managers
                 var assisting = AssistedTarget(creature);
                 // Mission escorts and defenders already chose a target within their owner's or
                 // base's bounds above; ambient hate must not override that assignment.
-                var chosen = IsMissionEscort(creature) || Game.Missions.World.CreatureGameplayRules.IsDefender(creature)
+                var chosen = LandingZoneAssaultTargeting.IsAssault(creature) || IsMissionEscort(creature) || Game.Missions.World.CreatureGameplayRules.IsDefender(creature)
                     ? creature.Controller.ActionFighting.TargetEntityId
                     : assisting != 0 ? assisting : Threat.ChooseTarget(creature);
 
                 if (assisting != 0)
                     creature.Target = assisting;
 
-                if (chosen == 0)
+                if (chosen == 0 || LandingZoneAssaultTargeting.IsAssault(creature) && !Threat.CanFight(creature, chosen))
                 {
                     GiveUp(creature);
                     return;
@@ -1260,7 +1260,12 @@ namespace Rasa.Managers
 
                     var pathTarget = new Vector3();
 
-                    if (sightBlocked)
+                    if (LandingZoneAssaultTargeting.IsAssault(creature) && targetActor != null && (sightBlocked || Emplacements.Is(targetActor as Creature)) &&
+                        LandingZoneAssaultTargeting.FiringPosition(mapChannel, creature, targetActor) is Vector3 firingPosition)
+                    {
+                        pathTarget = firingPosition;
+                    }
+                    else if (sightBlocked)
                     {
                         // Something between them: the navmesh route to the target itself goes
                         // round it, where a point short of the target on this side would not.
@@ -1295,7 +1300,7 @@ namespace Rasa.Managers
                     // Its own place round the target: one no other of its side stands on or is
                     // making for, turned round the target until it is clear (Spacing). With a
                     // route to go round something in the way, the target itself, as before.
-                    if (!sightBlocked && Spacing.Keeps(creature))
+                    if (!LandingZoneAssaultTargeting.IsAssault(creature) && !sightBlocked && Spacing.Keeps(creature))
                         pathTarget = Spacing.AroundClear(mapChannel, targetPosition, pathTarget,
                             Spacing.Taken(mapChannel, creature, targetPosition)) ?? pathTarget;
 
@@ -2848,7 +2853,7 @@ namespace Rasa.Managers
 
             if (EntityManager.Instance.Creatures.TryGetValue(entityId, out var other))
             {
-                if (other == creature || !Game.Missions.World.CreatureGameplayRules.CanParticipateInCombat(other))
+                if (other == creature || LandingZoneAssaultTargeting.IsServiceTarget(creature, other) || !Game.Missions.World.CreatureGameplayRules.CanParticipateInCombat(other))
                     return false;
 
                 if (pump == AbilityManager.MindControlConfusion)
@@ -3067,11 +3072,13 @@ namespace Rasa.Managers
         /// <summary>Whether a creature with no master has followed a fight further from home than <see cref="MaxChaseDistance"/>, across the ground.</summary>
         public static bool ChasedTooFar(Creature creature)
         {
-            var home = creature.HomePos.Position;
+            var home = LandingZoneAssaultTargeting.IsAssault(creature)
+                ? ControlPoints.Instance.ById(Rasa.Services.Preloader.LandingZoneAssaultContent.PointId)?.Position ?? creature.HomePos.Position
+                : creature.HomePos.Position;
             var dx = creature.Position.X - home.X;
             var dz = creature.Position.Z - home.Z;
 
-            return dx * dx + dz * dz > MaxChaseDistance * MaxChaseDistance;
+            return dx * dx + dz * dz > (LandingZoneAssaultTargeting.IsAssault(creature) ? 200f * 200f : MaxChaseDistance * MaxChaseDistance);
         }
 
         /// <summary>

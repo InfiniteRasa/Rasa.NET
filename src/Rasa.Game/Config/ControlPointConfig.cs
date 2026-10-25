@@ -11,7 +11,7 @@ namespace Rasa.Config
         /// <summary>Delay after startup or AFS recapture, and between assault starts.</summary>
         public int LandingZoneAssaultPeriodSeconds { get; set; } = 3600;
         /// <summary>Fixed interval between the three waves, independent of surviving attackers.</summary>
-        public int LandingZoneAssaultWaveSeconds { get; set; } = 120;
+        public int LandingZoneAssaultWaveSeconds { get; set; } = 180;
         /// <summary>Survivor cleanup deadline; at least one minute after wave three.</summary>
         public int LandingZoneAssaultLifetimeSeconds { get; set; } = 900;
         /// <summary>Uninterrupted boss claim duration after the AFS combat garrison falls.</summary>

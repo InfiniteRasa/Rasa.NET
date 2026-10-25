@@ -63,7 +63,7 @@ namespace Rasa.Managers
                 ControlPoints.Instance.ServicePointOf(map, c.SpawnPool) == null && CreatureManager.IsLivingOnMap(map, c)).ToArray();
             foreach (var creature in EntityManager.Instance.Creatures.Values.Where(c => state.Pools.Contains(c.SpawnPool) && CreatureManager.IsLivingOnMap(map, c)).ToArray())
             {
-                if (creature == state.Boss && Claim(map, point, state, now)) { if (!point.HeldByAfs) return; continue; }
+                if (creature == state.Boss && PrepareClaim(map, point, creature) && Claim(map, point, state, now)) { if (!point.HeldByAfs) return; continue; }
                 if (LandingZoneBreach.Order(map, point, creature, guards)) continue;
                 if (creature.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting) continue;
                 var guard = guards
@@ -80,6 +80,18 @@ namespace Rasa.Managers
             if (state.Waves != 0) return false;
             state.Due = Now();
             Worker(map, point);
+            return true;
+        }
+        private static bool PrepareClaim(MapChannel map, ControlPoints.Point point, Creature boss)
+        {
+            if (LandingZoneBreach.StandingField(map, point) != null ||
+                ControlPoints.Instance.GarrisonOf(map, point, ControlPoints.Afs) == ControlPoints.Garrison.Standing)
+                return true;
+            // A defending player can interrupt a claim; a service NPC cannot hold the boss in combat.
+            if (boss.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting &&
+                EntityManager.Instance.Players.ContainsKey(boss.Controller.ActionFighting.TargetEntityId)) return true;
+            if (boss.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting)
+                BehaviorManager.Instance.GiveUp(boss);
             return true;
         }
         private static Vector3 Destination(MapChannel map, ControlPoints.Point point) =>

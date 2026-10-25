@@ -49,7 +49,7 @@ namespace Rasa.Test.World
         {
             Assert.IsTrue(LandingZoneAssaults.TryStart(_world.Map, Point));
             Deliver();
-            _now += 240000;
+            _now += 360000;
             LandingZoneAssaults.Worker(_world.Map, Point);
             Deliver();
         }
@@ -66,10 +66,13 @@ namespace Rasa.Test.World
             Assert.IsFalse(LandingZoneAssaults.TryStart(_world.Map, Point));
             Deliver();
             var survivors = Troops.Select(c => c.EntityId).ToArray();
-            _now += 120000;
+            _now += 179999;
+            LandingZoneAssaults.Worker(_world.Map, Point);
+            Assert.AreEqual(6, Pools.Length);
+            _now++;
             LandingZoneAssaults.Worker(_world.Map, Point);
             Assert.AreEqual(12, Pools.Length);
-            _now += 120000;
+            _now += 180000;
             LandingZoneAssaults.Worker(_world.Map, Point);
             Assert.AreEqual(18, Pools.Length);
             Deliver();
@@ -77,7 +80,7 @@ namespace Rasa.Test.World
             Assert.AreEqual(1, Troops.Count(c => c.DbId == LandingZoneAssaultContent.Boss));
             Assert.IsTrue(Troops.All(c => c.Level == 11));
             Assert.IsTrue(Troops.All(c => Rasa.Game.Missions.World.CreatureGameplayRules.RewardsKills(c)), "world attackers award normal kill rewards");
-            _now += 660000;
+            _now += 540000;
             LandingZoneAssaults.Worker(_world.Map, Point);
             Assert.AreEqual(0, Pools.Length);
             Assert.AreEqual(0, Troops.Length);

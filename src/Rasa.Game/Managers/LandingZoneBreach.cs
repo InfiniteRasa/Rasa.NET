@@ -46,14 +46,14 @@ namespace Rasa.Managers
                 if (fighting && priority.Any(c => c.EntityId == current)) return true;
                 var target = priority.OrderBy(c => Vector3.DistanceSquared(c.Position, attacker.Position)).First();
                 attacker.Hate.Clear();
-                attacker.HomePos.Position = attacker.Position;
+                attacker.HomePos.Position = point.Position;
                 return BehaviorManager.Instance.TrySetActionFighting(attacker, target.EntityId);
             }
             if (field != null)
             {
                 if (fighting && current == field.Object.EntityId) return true;
                 attacker.Hate.Clear();
-                attacker.HomePos.Position = attacker.Position;
+                attacker.HomePos.Position = point.Position;
                 return BehaviorManager.Instance.TrySetActionFighting(attacker, field.Object.EntityId);
             }
             if (fighting && ForceFields.Find(current) != null)
