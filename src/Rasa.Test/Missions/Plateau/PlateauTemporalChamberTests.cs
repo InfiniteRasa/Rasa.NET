@@ -272,29 +272,83 @@ namespace Rasa.Test.Missions.Plateau
             Assert.IsTrue(Vector3.Distance(fonseca.Position, villaran.Position) < 5f, "Villaran beside him");
             Assert.IsTrue(copy.NavMesh.FindPath(far.Position, fonseca.Position, out var toFonseca) != null && toFonseca, "the pad to Fonseca");
 
-            // 1: the first wave comes for Villaran as he sets off.
+            // 1: Villaran sets off; the first wave waits out of sight until he steps out of HQ's door.
             Talk(harness, fonseca, ForeasBasePast, PlateauForeasBasePastV1.FirstTalk);
             Tick(harness, copy, 250);
             var mission = harness.Client.Player.Missions[ForeasBasePast];
             Assert.AreEqual(MissionObjectiveState.Incomplete, mission.Objectives[PlateauForeasBasePastV1.Escort].State);
-            var wave = PlateauForeasBasePastScene.FirstWave.Select(role => SceneCreature(harness, copy, ForeasBasePast, role)).ToArray();
+            Assert.IsTrue(PlateauForeasBasePastScene.FirstWave.All(role => SceneCreature(harness, copy, ForeasBasePast, role) == null),
+                "no Bane while he is inside");
+            var start = villaran.Position;
+            Creature[] wave = null;
+            for (var tick = 0; tick < 60 && wave == null; tick++)
+            {
+                harness.MoveTo(villaran.Position + Vector3.UnitZ);
+                Tick(harness, copy, 1000);
+                if (PlateauForeasBasePastScene.FirstWave.Any(role => SceneCreature(harness, copy, ForeasBasePast, role) != null))
+                    wave = PlateauForeasBasePastScene.FirstWave.Select(role => SceneCreature(harness, copy, ForeasBasePast, role)).ToArray();
+            }
+            Assert.IsNotNull(wave, $"the first wave came (Villaran at {villaran.Position})");
+            var door = ToVector(PlateauForeasBasePastV1.Route[PlateauForeasBasePastScene.LeavesHq]);
+            Assert.IsTrue(Vector3.Distance(villaran.Position, door) < 4, $"as he left HQ, at {villaran.Position}");
+            var gate = ToVector(PlateauForeasBasePastV1.WavesFace);
             for (var index = 0; index < wave.Length; index++)
             {
-                Assert.IsNotNull(wave[index], PlateauForeasBasePastScene.FirstWave[index]);
+                var role = PlateauForeasBasePastScene.FirstWave[index];
+                Assert.IsNotNull(wave[index], role);
                 Assert.AreEqual(TargetCategory.Hostile, wave[index].TargetCategory);
                 Assert.AreEqual(index < 4 ? PlateauForeasBasePastNpcsV1.Recon : PlateauForeasBasePastNpcsV1.Cavalryman, wave[index].DbId);
-                Assert.IsTrue(copy.NavMesh.FindPath(copy.NavMesh.Nearest(wave[index].Position).Value, villaran.Position, out var reaches) != null &&
-                    reaches, $"{PlateauForeasBasePastScene.FirstWave[index]} can reach Villaran");
+                Assert.IsTrue(Vector3.Distance(wave[index].Position, ToVector(PlateauForeasBasePastV1.FirstWaveAt[index])) < 1.5f,
+                    $"{role} at its place, {wave[index].Position}");
+                AssertStandsOnNavMesh(copy, ToVector(PlateauForeasBasePastV1.FirstWaveAt[index]), 0.5f);
+                Assert.IsTrue(Vector3.Distance(wave[index].Position, door) > 100, $"{role} out of sight of HQ's door");
+                AssertFaces(wave[index], gate);
+                Assert.IsTrue(copy.NavMesh.FindPath(copy.NavMesh.Nearest(wave[index].Position).Value, gate, out var reaches) != null &&
+                    reaches, $"{role} can reach the north gate");
             }
-            foreach (var bane in wave)
+
+            // They run at him and meet him on his way to the gate: none goes home on the way (the leash from its spawn).
+            for (var tick = 0; tick < 40 && wave.Any(bane => Living(copy).Contains(bane) &&
+                     Vector3.Distance(bane.Position, villaran.Position) > 25); tick++)
+            {
+                harness.MoveTo(villaran.Position + Vector3.UnitZ);
+                Tick(harness, copy, 1000);
+            }
+            foreach (var bane in wave.Where(bane => Living(copy).Contains(bane)))
+            {
+                Assert.IsFalse(BehaviorManager.IsReturning(bane), $"{bane.SpawnPool.SceneActorRole} did not go home");
+                Assert.IsTrue(Vector3.Distance(bane.Position, villaran.Position) <= 25,
+                    $"{bane.SpawnPool.SceneActorRole} came to Villaran: {bane.Position}, he at {villaran.Position}");
+            }
+            Assert.IsNotNull(SceneCreature(harness, copy, ForeasBasePast, PlateauForeasBasePastScene.Villaran), "Villaran stands");
+
+            // Under their fire he stops and fights back (his route resumes after combat), then walks on once they are dead.
+            // His health is raised here only so that the six cannot kill him while the test watches.
+            Assert.HasCount(1, villaran.Actions, "he has an attack (the Forean lightning, creature_action row 6)");
+            villaran.Attributes[Attributes.Health] = new ActorAttributes(Attributes.Health, 1000000, 1000000, 1000000, 0, 0);
+            var heldAt = villaran.Position;
+            var fought = false;
+            for (var tick = 0; tick < 8; tick++)
+            {
+                harness.MoveTo(villaran.Position + Vector3.UnitZ);
+                Tick(harness, copy, 1000);
+                MissileManager.Instance.DoWork(copy, 1000);
+                fought |= villaran.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting;
+            }
+            Assert.IsTrue(fought, "Villaran fights back when hit");
+            Assert.IsTrue(Vector3.Distance(heldAt, villaran.Position) < 10,
+                $"he held while attacked ({Vector3.Distance(heldAt, villaran.Position):0.0} m in 8 s; walking it is 20 m)");
+            foreach (var bane in wave.Where(bane => Living(copy).Contains(bane)))
                 Kill(harness, copy, bane);
+            for (var tick = 0; tick < 6 && villaran.Controller.CurrentAction != BehaviorManager.BehaviorActionScriptedMove; tick++)
+                Tick(harness, copy, 1000);
+            Assert.AreEqual(BehaviorManager.BehaviorActionScriptedMove, villaran.Controller.CurrentAction, "the fight over, he walks on");
             harness.MoveTo(fonseca.Position);
             harness.Drain();
             Assert.IsFalse(harness.Manager.CompleteOfferedObjective(harness.Client, fonseca.EntityId, ForeasBasePast,
                 PlateauForeasBasePastV1.SecondTalk, 1), "Fonseca's second talk waits for the escort");
 
-            // 3: Villaran walks out through the gate to the drop-ship and is gone.
-            var start = villaran.Position;
+            // 3: Villaran walks on out through the gate to the drop-ship and is gone.
             for (var tick = 0; tick < 300 && mission.Objectives[PlateauForeasBasePastV1.Escort].State != MissionObjectiveState.Completed; tick++)
             {
                 if (SceneCreature(harness, copy, ForeasBasePast, PlateauForeasBasePastScene.Villaran) != null)
@@ -308,6 +362,20 @@ namespace Rasa.Test.Missions.Plateau
             Assert.IsNull(SceneCreature(harness, copy, ForeasBasePast, PlateauForeasBasePastScene.Villaran), "he has boarded");
             Assert.AreEqual(MissionObjectiveState.Incomplete, mission.Objectives[PlateauForeasBasePastV1.SecondTalk].State);
 
+            // The drop-ship leaves with him a moment later; its pad stays. Back in from a recovery, it is not put back.
+            Assert.IsTrue(DropshipThere(harness, copy), "the drop-ship waits a moment");
+            for (var tick = 0; tick < 4; tick++)
+                Tick(harness, copy, 1000);
+            Assert.IsFalse(DropshipThere(harness, copy), "the drop-ship has left");
+            SceneObject(harness, copy, ForeasBasePast, "landing-pad");
+            harness.Manager.Scenes.Detach(harness.Client, copy);
+            harness.Manager.Scenes.Resume(harness.Client);
+            harness.Drain();
+            Tick(harness, copy, 250);
+            Assert.IsFalse(DropshipThere(harness, copy), "not back after the recovery");
+            SceneObject(harness, copy, ForeasBasePast, "landing-pad");
+            Assert.IsNotNull(SceneCreature(harness, copy, ForeasBasePast, "defender-1"), "the defenders stand");
+
             // A reload halfway keeps the escort done and the drop-ship there; no Villaran comes back.
             WildernessRanjaGorgeTests.Reload(harness);
             Tick(harness, copy, 250);
@@ -315,7 +383,7 @@ namespace Rasa.Test.Missions.Plateau
             Assert.AreEqual(MissionObjectiveState.Completed, mission.Objectives[PlateauForeasBasePastV1.Escort].State, "after the reload");
             Assert.AreEqual(MissionObjectiveState.Incomplete, mission.Objectives[PlateauForeasBasePastV1.SecondTalk].State, "after the reload");
             Assert.IsNull(SceneCreature(harness, copy, ForeasBasePast, PlateauForeasBasePastScene.Villaran), "still boarded");
-            SceneObject(harness, copy, ForeasBasePast, "dropship");
+            Assert.IsFalse(DropshipThere(harness, copy), "the drop-ship still gone");
 
             // 4, 5: Xykryl and his strike force; one count of five, whoever kills them.
             Talk(harness, fonseca, ForeasBasePast, PlateauForeasBasePastV1.SecondTalk);
@@ -323,10 +391,27 @@ namespace Rasa.Test.Missions.Plateau
             var strike = PlateauForeasBasePastScene.SecondWave().Select(role => SceneCreature(harness, copy, ForeasBasePast, role)).ToArray();
             Assert.AreEqual(PlateauForeasBasePastNpcsV1.Xykryl, strike[0].DbId);
             Assert.IsTrue(strike.Skip(1).All(bane => bane.DbId == PlateauForeasBasePastNpcsV1.SpecialForces));
+            // One group about Xykryl, facing the gate, coming at the player in HQ (no leash from their spawns).
+            for (var index = 0; index < strike.Length; index++)
+            {
+                Assert.IsTrue(Vector3.Distance(strike[index].Position, ToVector(PlateauForeasBasePastV1.SecondWaveAt[0])) <= 8,
+                    $"{index} with Xykryl: {strike[index].Position}");
+                AssertStandsOnNavMesh(copy, ToVector(PlateauForeasBasePastV1.SecondWaveAt[index]), 0.5f);
+                AssertFaces(strike[index], gate);
+            }
+            var player = harness.Client.Player;
+            player.Attributes[Attributes.Health] = new ActorAttributes(Attributes.Health, 1000000, 1000000, 1000000, 0, 0);
+            for (var tick = 0; tick < 60 && strike.Any(bane => Vector3.Distance(bane.Position, player.Position) > 30); tick++)
+                Tick(harness, copy, 1000);
+            foreach (var bane in strike)
+            {
+                Assert.IsFalse(BehaviorManager.IsReturning(bane), $"{bane.SpawnPool.SceneActorRole} did not go home");
+                Assert.IsTrue(Vector3.Distance(bane.Position, player.Position) <= 30,
+                    $"{bane.SpawnPool.SceneActorRole} came at the player: {bane.Position}, the player at {player.Position}");
+            }
             for (var index = 0; index < strike.Length; index++)
             {
                 Assert.AreEqual(TargetCategory.Hostile, strike[index].TargetCategory);
-                AssertStandsOnNavMesh(copy, strike[index].Position);
                 Assert.AreEqual(MissionObjectiveState.Incomplete, mission.Objectives[PlateauForeasBasePastV1.Kill].State, $"before kill {index + 1}");
                 if (index == 1)
                 {
@@ -404,7 +489,9 @@ namespace Rasa.Test.Missions.Plateau
             var fonseca = Living(copy).Single(npc => npc.DbId == PlateauForeasBasePastNpcsV1.Fonseca && npc.Npc != null &&
                 ReferenceEquals(npc.RuntimeMapChannel, copy));
             Talk(harness, fonseca, ForeasBasePast, PlateauForeasBasePastV1.FirstTalk);
-            Tick(harness, copy, 1000);
+            // On until he is out of HQ and the first wave has come.
+            for (var tick = 0; tick < 60 && SceneCreature(harness, copy, ForeasBasePast, PlateauForeasBasePastScene.FirstWave[0]) == null; tick++)
+                Tick(harness, copy, 1000);
             var roles = PlateauForeasBasePastScene.FirstWave.Concat(PlateauForeasBasePastScene.Statics.Take(4))
                 .Append(PlateauForeasBasePastScene.Villaran).ToArray();
             Assert.IsTrue(roles.All(role => SceneCreature(harness, copy, ForeasBasePast, role) != null), "the escort under way");
@@ -507,6 +594,24 @@ namespace Rasa.Test.Missions.Plateau
                 candidate.IsInWorld && runs.Contains(candidate.SceneRunId));
             Assert.IsNotNull(obj, $"{role} is there");
             return obj;
+        }
+
+        private static bool DropshipThere(WildernessRuntimeTestHarness harness, MapChannel map)
+        {
+            var runs = Runs(harness, ForeasBasePast);
+            return map.DynamicObjects.Any(candidate => candidate.SceneMissionId == ForeasBasePast &&
+                candidate.SceneActorRole == PlateauForeasBasePastScene.Dropship && candidate.IsInWorld && runs.Contains(candidate.SceneRunId));
+        }
+
+        /// <summary>
+        /// The creature stands facing <paramref name="point"/> (within about 25 degrees): its Rotation, what the clients are
+        /// sent, a yaw facing (-sin, -cos) in (X, Z) (Facing).
+        /// </summary>
+        private static void AssertFaces(Creature creature, Vector3 point)
+        {
+            var to = Vector2.Normalize(new Vector2(point.X - creature.Position.X, point.Z - creature.Position.Z));
+            var facing = new Vector2((float)-System.Math.Sin(creature.Rotation), (float)-System.Math.Cos(creature.Rotation));
+            Assert.IsTrue(Vector2.Dot(facing, to) > 0.9f, $"{creature.SpawnPool?.SceneActorRole} faces {facing}, not {to}");
         }
 
         private static HashSet<string> Runs(WildernessRuntimeTestHarness harness, uint mission)

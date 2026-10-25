@@ -357,6 +357,59 @@ namespace Rasa.Test.World
             Assert.IsFalse(BehaviorManager.ChasedTooFar(sentry), "65 m from where it started, and at home.");
         }
 
+        /// <summary>
+        /// A creature a scene has sent at a target (AttackActorIntent: SceneAttackOrdered) goes all the way to it, however
+        /// far that is from where it was spawned; one in an ordinary fight is leashed past MaxChaseDistance from home
+        /// (1178 playtest 2026-10-25: the first wave ran 60 m towards Villaran and went home).
+        /// </summary>
+        [TestMethod]
+        public void ASceneAttackOrderGoesToItsTargetPastTheLeash()
+        {
+            using var world = new WorldTestContext();
+            var target = Watch(world, x: 110);
+            var ordered = Spawn(world, x: 0, walkSpeed: 3, facing: East);
+            var ordinary = Spawn(world, x: 0.5f, walkSpeed: 3, facing: East);
+            ordered.SceneAttackOrdered = true;
+            Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(ordered, target.Player.EntityId));
+            Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(ordinary, target.Player.EntityId));
+
+            var furthest = 0f;
+            for (var tick = 0; tick < 200; tick++)
+            {
+                BehaviorManager.Instance.MapChannelThink(world.Map, Tick);
+                furthest = Math.Max(furthest, ordinary.Position.X);
+            }
+
+            Assert.IsGreaterThan(100f, ordered.Position.X, $"the ordered one went to its target, at {ordered.Position}");
+            Assert.IsFalse(BehaviorManager.IsReturning(ordered));
+            Assert.AreEqual(BehaviorManager.BehaviorActionFighting, ordered.Controller.CurrentAction);
+            Assert.IsLessThan(BehaviorManager.MaxChaseDistance + 10, furthest, "the ordinary one was leashed");
+            Assert.IsLessThan(BehaviorManager.MaxChaseDistance, ordinary.Position.X, $"and went home, at {ordinary.Position}");
+        }
+
+        /// <summary>
+        /// A hit on a scripted walker starts its fight only if its walk resumes after combat (ScriptedMove.FightsBack, a
+        /// scene route with ResumeAfterCombat): an escort stops to fight back; any other scripted walk goes on.
+        /// </summary>
+        [TestMethod]
+        [DataRow(true)]
+        [DataRow(false)]
+        public void AHitOnAScriptedWalkStartsAFightOnlyIfItFightsBack(bool fightsBack)
+        {
+            using var world = new WorldTestContext();
+            var attacker = Watch(world, x: 10);
+            var walker = Spawn(world, x: 0, walkSpeed: 2, facing: East);
+            walker.Controller.ScriptedMove = new ScriptedMove { Destination = new Vector3(50, 0, 0), FightsBack = fightsBack };
+            walker.Controller.CurrentAction = BehaviorManager.BehaviorActionScriptedMove;
+
+            Threat.FromDamage(walker, attacker.Player, 10);
+
+            Assert.AreEqual(fightsBack ? BehaviorManager.BehaviorActionFighting : BehaviorManager.BehaviorActionScriptedMove,
+                walker.Controller.CurrentAction);
+            if (fightsBack)
+                Assert.AreEqual(attacker.Player.EntityId, walker.Controller.ActionFighting.TargetEntityId);
+        }
+
         [TestMethod]
         public void AHitOnItsBeatStartsAFightAsOneOnAStrollDoes()
         {

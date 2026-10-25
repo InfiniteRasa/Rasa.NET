@@ -23,7 +23,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
     ///  - Fonseca inside HQ; the chamber pad on Veryin's left (as Hudson's is on the right); the past pad north of HQ,
     ///    between its door and the gate wall.
     ///  - Villaran a Forean (NPC_Forean_Unarmed), 4000 health and 300 armour as the server's other escorts
-    ///    (EscortNpcStats).
+    ///    (EscortNpcStats), with Ranger Milpas's Forean lightning (row 6) to fight back on his walk.
     ///  - The defenders: Clean Slate's Light Soldier with the redshirt pistol, level 30. The waves: Thrax as Ustor
     ///    Yard's (level 30 and 31), Striders of the plain Strider class at level 30 with the Strider boss's weapons at
     ///    about 60% damage, Xykryl a Thrax rifle boss at level 32, three times a Thrax's health.
@@ -37,6 +37,13 @@ namespace Rasa.Services.Preloader.Missions.Plateau
 
         public const uint Fonseca = 650096, FonsecaPool = 650096, FonsecaPackage = 1238, FonsecaName = 9081;
         public const uint Villaran = 650097, VillaranName = 9085, VillaranHealth = EscortNpcStats.Health, VillaranArmor = EscortNpcStats.Armor;
+
+        /// <summary>
+        /// Villaran's attack: creature_action row 6, CR_FOREAN_LIGHTNING, as Ranger Milpas (630010) of the same unarmed Forean
+        /// class 26833, whose model the client animates it on (Fix_creature_attack_animations). He fights back when hit on
+        /// his walk (playtest 2026-10-25: he had no attack and walked on under fire).
+        /// </summary>
+        public const uint VillaranAttack = 6;
         public const uint Defender = 650098, DefenderName = 9089, DefenderHitPoints = 2600, DefenderArmor = 140;
         public const uint Recon = 650099, ReconName = 9102, ReconLevel = 30, ReconHitPoints = 2800, ReconArmor = 140;
         public const uint Cavalryman = 650100, CavalrymanName = 9099, CavalrymanLevel = 30, CavalrymanHitPoints = 4000, CavalrymanArmor = 200;
@@ -74,7 +81,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
             yield return Pool(FonsecaPool, FonsecaAt.X, FonsecaAt.Y, FonsecaAt.Z, MapContextId, Fonseca, 1, 1, 20, 0);
 
             yield return Friend(Villaran, "Diplomatic Liaison Villaran - Foreas Base past (Foreas Base Past scene)", ForeanClass,
-                VillaranName, VillaranHealth, 7, 2, 0);
+                VillaranName, VillaranHealth, 7, 2, VillaranAttack);
             yield return Stat(Villaran, VillaranHealth, VillaranArmor);
 
             yield return Action(DefenderPistol, "AFS 1st Infantry - Foreas Base past pistol 1/133", 1, 133, 0.5, 24, 1300, 0, 95, 140, 1);

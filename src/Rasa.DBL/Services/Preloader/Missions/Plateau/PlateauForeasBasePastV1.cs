@@ -33,11 +33,12 @@ namespace Rasa.Services.Preloader.Missions.Plateau
     /// Reconstructed (ESTIMATE, the user's choices of 2026-10-24; see PlateauForeasBasePastNpcsV1 for the NPCs):
     ///  - The escort as upstream's Wilderness escorts: Villaran walks a fixed route (the navmesh's path from HQ through
     ///    the gate in the north wall to the drop-ship), stops to fight, and his death fails 3 (PlateauForeasBasePastScene).
-    ///  - Two waves: Fonseca's first talk brings four Thrax Recon Soldiers and two Thrax Cavalrymen (Striders) at
-    ///    Villaran; his second brings Xykryl and four Thrax Special Forces at the player. 5 counts the five of them,
+    ///  - Two waves: as Villaran steps out of HQ, four Thrax Recon Soldiers and two Thrax Cavalrymen (Striders) come
+    ///    from north of the drop-ship at him (playtest 2026-10-25); Fonseca's second talk brings Xykryl and four Thrax
+    ///    Special Forces, one group, at the player. Both waves stand facing the north gate. 5 counts the five of them,
     ///    whoever kills them: one counter, as the server has one count per objective (8952 is not shown).
     ///  - A personal drop-ship (ArchHumGenVehicleDropship) on a landing pad in the barricaded place north-west of HQ;
-    ///    Villaran is gone when he reaches it. Four personal AFS 1st Infantry in the yard north of HQ fight the Bane.
+    ///    Villaran is gone when he reaches it, the drop-ship 3 s later (ESTIMATE; its class has no take-off state). Four personal AFS 1st Infantry in the yard north of HQ fight the Bane.
     ///  - 7 is Veryin's talk (the pad north of HQ takes the player back). Level 30. No indicators: instance.
     /// </summary>
     public static class PlateauForeasBasePastV1
@@ -80,19 +81,37 @@ namespace Rasa.Services.Preloader.Missions.Plateau
         public static readonly ScenePosition[] DefendersAt =
             { new(-482, 226.25f, 470), new(-466, 226.34f, 470), new(-480, 226.33f, 482), new(-468, 226.98f, 482) };
 
-        /// <summary>The first wave, in the field north of the wall: the four Recon Soldiers, then the two Cavalrymen.</summary>
+        /// <summary>
+        /// The first wave, north of the drop-ship out of sight of HQ's door, spread about the user's point (-471.29, 225.52,
+        /// 561.64, .where 2026-10-25): the four Recon Soldiers 6 m round it, then the two Cavalrymen (Striders), one at it and
+        /// one 8 m off. Each on the navmesh (its ground height), each with a whole navmesh path to Villaran's route (about 75 m
+        /// to the north gate, 120 m to HQ's door).
+        /// </summary>
         public static readonly ScenePosition[] FirstWaveAt =
         {
-            new(-480, 226.12f, 545), new(-470, 226.03f, 552), new(-500, 226.25f, 515), new(-458, 225.84f, 556),
-            new(-503.6f, 228.25f, 544.8f), new(-440, 226.09f, 470)
+            new(-465.3f, 225.9f, 561.6f), new(-477.3f, 225.68f, 561.6f), new(-474.3f, 225.83f, 556.4f), new(-468.3f, 226f, 556.4f),
+            new(-463.3f, 226.05f, 557.6f), new(-471.3f, 225.81f, 561.6f)
         };
 
-        /// <summary>The strike force, in the same field: Xykryl, then the four Special Forces.</summary>
+        /// <summary>
+        /// The strike force as one group: Xykryl, then the four Special Forces within 5.4 m of him, each on the navmesh
+        /// (user 2026-10-25: one of them stood at the camp west of the drop-ship, out of the group, on a point 2 m above
+        /// the field, 228.25).
+        /// </summary>
         public static readonly ScenePosition[] SecondWaveAt =
         {
-            new(-470, 226.03f, 552), new(-480, 226.12f, 545), new(-458, 225.84f, 556), new(-500, 226.25f, 515),
-            new(-503.6f, 228.25f, 544.8f)
+            new(-470, 226.03f, 552), new(-465, 226.23f, 554), new(-475, 225.87f, 554), new(-467, 226.08f, 547),
+            new(-473, 225.85f, 547)
         };
+
+        /// <summary>
+        /// What both waves face as they stand: the north gate on Villaran's route (<see cref="Route"/>[6]), the way the
+        /// player and Villaran come from (user 2026-10-25: they stood with their backs to it).
+        /// </summary>
+        public static ScenePosition WavesFace => Route[6];
+
+        /// <summary>The yaw that faces <paramref name="to"/> from <paramref name="from"/>: a yaw faces (-sin, -cos) in (X, Z) (Rasa.Managers.Facing).</summary>
+        public static double Facing(ScenePosition from, ScenePosition to) => Math.Atan2(-(to.X - from.X), -(to.Z - from.Z));
 
         public static void Up(MigrationBuilder migration)
         {
@@ -145,9 +164,9 @@ namespace Rasa.Services.Preloader.Missions.Plateau
                 "before his objective. TR MMO DB level30.");
             mission.Evidence(3, MissionEvidenceSourceKind.Reconstruction, "repository:PlateauForeasBasePastV1",
                 "Level30. Personal scene: Villaran650097 walks the navmesh path from HQ to the drop-ship (113m), his death fails 3; " +
-                "wave 1 (4 Recon650099, 2 Cavalryman650100) at Villaran on Fonseca's first talk; Xykryl650101 and 4 Special " +
+                "wave 1 (4 Recon650099, 2 Cavalryman650100) north of the drop-ship at Villaran as he leaves HQ; Xykryl650101 and 4 Special " +
                 "Forces650102 at the player on the second, 5 counts all five; 4 AFS 1st Infantry650098, a drop-ship7331 on a " +
-                "pad9488 NW of HQ. Places are estimates. No indicator (instance).", 0.3);
+                "pad9488 NW of HQ, gone 3s after Villaran boards. Places are estimates. No indicator (instance).", 0.3);
 
             mission.Enable(Scene());
         }
@@ -196,7 +215,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
                 var role = PlateauForeasBasePastScene.FirstWave[index];
                 var template = index < 4 ? PlateauForeasBasePastNpcsV1.Recon : PlateauForeasBasePastNpcsV1.Cavalryman;
                 scene.Actors[role] = new SceneActorDefinition(role, SceneActorKind.Creature, template, FirstWaveAt[index],
-                    Orientation: Math.PI, GameplayPolicy: hostile);
+                    Orientation: Facing(FirstWaveAt[index], WavesFace), GameplayPolicy: hostile);
             }
 
             var second = PlateauForeasBasePastScene.SecondWave().ToArray();
@@ -205,7 +224,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
                 var role = second[index];
                 var template = index == 0 ? PlateauForeasBasePastNpcsV1.Xykryl : PlateauForeasBasePastNpcsV1.SpecialForces;
                 scene.Actors[role] = new SceneActorDefinition(role, SceneActorKind.Creature, template, SecondWaveAt[index],
-                    Orientation: Math.PI, GameplayPolicy: hostile);
+                    Orientation: Facing(SecondWaveAt[index], WavesFace), GameplayPolicy: hostile);
                 var sequence = PlateauForeasBasePastScene.DefeatedFrom + 1 + (uint)index;
                 scene.DefeatSequences[role] = sequence;
                 scene.Sequences[sequence] = new SceneSequenceDefinition();
