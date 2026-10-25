@@ -1039,10 +1039,12 @@ namespace Rasa.Game.Missions
                 return Reject($"Scene run {runId} is waiting for its owner-loss failure to commit.");
             if (resident.Suspended)
                 return Reject($"Scene run {runId} is waiting for its owner.");
-            var evaluation = _runtime.Evaluate(resident.Run, resident.Bindings, observation, _utcNow());
-            if (!evaluation.Accepted)
+            var recoverObjectives = observation.Kind == SceneEventKind.Recovered &&
+                _runtime.RequiresRecoveryObjectiveFacts(resident.Run.ScriptKey, resident.Run.StateVersion);
+            var evaluation = recoverObjectives ? null : _runtime.Evaluate(resident.Run, resident.Bindings, observation, _utcNow());
+            if (evaluation?.Accepted == false)
                 return Reject(evaluation.Rejection);
-            var decision = evaluation.Decision;
+            var decision = evaluation?.Decision ?? new SceneDecision(resident.Run.Checkpoint, status: resident.Run.Status);
             var failForOwnerLoss = observation.Kind == SceneEventKind.OwnerLost &&
                 _missions.PublicActors.OwnerLossPolicy(resident.Map, runId) == "Fail";
             if (failForOwnerLoss)
@@ -1066,6 +1068,23 @@ namespace Rasa.Game.Missions
                     if (scene?.Version != resident.Run.Version || scene.Generation != observation.Generation)
                         throw new GameplayRejectionException($"Concurrent scene revision for run {runId}.");
                     RequireCurrentAssignment(unit, scene);
+                    if (recoverObjectives)
+                    {
+                        var assignment = unit.CharacterMissions.GetByCharacterAndMission(scene.OwnerCharacterId, scene.MissionId);
+                        if (assignment?.MissionState != (uint)Data.MissionState.Active)
+                            throw new GameplayRejectionException("Objective recovery requires the current active assignment.");
+                        var objectives = unit.CharacterMissionProgress.GetTracked(scene.OwnerCharacterId, scene.MissionId)
+                            .ToDictionary(entry => entry.Key, entry => (Data.MissionObjectiveState)entry.Value.ObjectiveState);
+                        evaluation = _runtime.Evaluate(resident.Run, resident.Bindings, observation, _utcNow(), objectives);
+                        if (!evaluation.Accepted)
+                            throw new GameplayRejectionException(evaluation.Rejection);
+                        decision = evaluation.Decision;
+                        next = resident.Run with
+                        {
+                            Checkpoint = decision.Checkpoint, Status = decision.Status, Version = resident.Run.Version + 1,
+                            Generation = decision.ResetGeneration ? resident.Run.Generation + 1 : resident.Run.Generation
+                        };
+                    }
                     if (failForOwnerLoss && !_missions.TryPlanRequiredMissionFailure(
                         resident.Owner, resident.Run.MissionId, unit, publication))
                         throw new GameplayRejectionException("Owner-loss failure could not be committed.");

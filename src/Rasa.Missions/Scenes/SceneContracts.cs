@@ -196,7 +196,8 @@ namespace Rasa.Missions.Scenes
         }
     }
 
-    public sealed record SceneContext(SceneRun Run, SceneBindings Bindings, DateTime UtcNow);
+    public sealed record SceneContext(SceneRun Run, SceneBindings Bindings, DateTime UtcNow,
+        IReadOnlyDictionary<uint, Data.MissionObjectiveState> ObjectiveStates = null);
 
     public sealed class SceneDecision
     {

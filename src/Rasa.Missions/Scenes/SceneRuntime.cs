@@ -14,7 +14,11 @@ namespace Rasa.Missions.Scenes
         public SceneRuntime(SceneScriptRegistry scripts) => _scripts = scripts;
         public bool Supports(string key, int version) => _scripts.TryResolve(key, version, out _);
 
-        public SceneEvaluation Evaluate(SceneRun run, SceneBindings bindings, SceneObservation observation, DateTime utcNow)
+        public bool RequiresRecoveryObjectiveFacts(string key, int version) =>
+            _scripts.TryResolve(key, version, out var script) && script is ISceneRecoveryObjectiveFacts;
+
+        public SceneEvaluation Evaluate(SceneRun run, SceneBindings bindings, SceneObservation observation, DateTime utcNow,
+            IReadOnlyDictionary<uint, Data.MissionObjectiveState> objectiveStates = null)
         {
             if (run.Generation != observation.Generation)
                 return Reject($"Run {run.Id} rejected stale generation {observation.Generation}; current {run.Generation}.");
@@ -30,7 +34,7 @@ namespace Rasa.Missions.Scenes
             SceneDecision decision;
             try
             {
-                decision = script.Handle(new SceneContext(run, bindings, utcNow), observation)
+                decision = script.Handle(new SceneContext(run, bindings, utcNow, objectiveStates), observation)
                     ?? throw new InvalidOperationException("Script returned no decision.");
             }
             catch (Exception error)
