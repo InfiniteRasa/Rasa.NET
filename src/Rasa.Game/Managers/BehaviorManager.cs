@@ -1190,6 +1190,12 @@ namespace Rasa.Managers
                     return;
                 }
 
+                if (creature.FightFromPatrol)
+                {
+                    GiveUp(creature);
+                    return;
+                }
+
                 // A Shield Drone does not go to its target; the target comes to it. The guide
                 // gives it "Offense: None" and tells the player to "sprint directly toward them",
                 // which only works if the drone stays where its shield is - so it keeps whoever
@@ -2766,6 +2772,7 @@ namespace Rasa.Managers
             // A fight starting, not a change of target within one: its first attack is rolled for again (OpensNow).
             if (creature.Controller.CurrentAction != BehaviorActionFighting)
             {
+                if (creature.FightFromPatrol) creature.HomePos.Position = creature.Position;
                 creature.Controller.ActionFighting.Opened = false;
                 creature.Controller.ActionFighting.OpeningRolls = 0;
             }

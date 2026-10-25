@@ -301,6 +301,7 @@ namespace Rasa.Managers
         {
             ControlPoints.Instance.RefreshServices(mapChannel);
             BaneArrivals.TeleportWorker(mapChannel, timePassed);
+            LandingZoneGarrison.Worker(mapChannel, timePassed);
 
             var spawnPools = mapChannel.SpawnPools.Count > 0
                 ? mapChannel.SpawnPools
@@ -470,6 +471,8 @@ namespace Rasa.Managers
         /// <summary>Sets a pool's creatures down: through its arrival point, off its dropship, or where it stands.</summary>
         private void Dispatch(MapChannel mapChannel, SpawnPool spawnPool, List<Creature> creatureList)
         {
+            if (LandingZoneGarrison.TryDispatch(mapChannel, spawnPool, creatureList)) return;
+
             // An arrival point: through a teleporter, or off a dropship on a pad or in a bay.
             var arrival = BaneArrivals.Pick(spawnPool);
 
@@ -510,7 +513,7 @@ namespace Rasa.Managers
             var reserved = false;
             try
             {
-                dropship = new Dropship(arrival != null || spawnPool.AnimType == 1 ? TargetCategory.Hostile : TargetCategory.Friendly,
+                dropship = new Dropship(spawnPool.AnimType == 2 ? TargetCategory.Friendly : TargetCategory.Hostile,
                     DropshipType.Spawner, spawnPool);
 
                 if (arrival != null)
@@ -602,10 +605,13 @@ namespace Rasa.Managers
 
                 try
                 {
-                    if (arrival == null)
-                        RandomizePosition(creature, creatureList.Count);
-                    else
-                        CreatureManager.Instance.SetLocation(creature, BaneArrivals.StepOut(mapChannel, arrival), arrival.Rotation, spawnPool.MapContextId);
+                    if (!LandingZoneGarrison.TryPlace(mapChannel, spawnPool, creature, spawned.Count))
+                    {
+                        if (arrival == null)
+                            RandomizePosition(creature, creatureList.Count);
+                        else
+                            CreatureManager.Instance.SetLocation(creature, BaneArrivals.StepOut(mapChannel, arrival), arrival.Rotation, spawnPool.MapContextId);
+                    }
 
                     // Its pose at its post (NpcPoses). One that arrives somewhere else takes it up when it gets there.
                     if (spawnPool.Pose != NpcPose.None)

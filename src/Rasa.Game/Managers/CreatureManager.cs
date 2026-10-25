@@ -555,7 +555,7 @@ namespace Rasa.Managers
         {
             // Recheck at delivery as well as at scheduling: the point may have changed hands
             // while a dropship or teleporter was bringing this pool in.
-            if (!ControlPoints.Instance.MaySpawnServicePool(spawnPool))
+            if ((spawnPool?.IsGarrison == true && spawnPool.Suspended) || !ControlPoints.Instance.MaySpawnServicePool(spawnPool))
                 return null;
 
             // check is creature in database
@@ -759,7 +759,7 @@ namespace Rasa.Managers
             Vector3 position,
             double rotation)
         {
-            if (!ControlPoints.Instance.MaySpawnServicePool(spawnPool))
+            if ((spawnPool?.IsGarrison == true && spawnPool.Suspended) || !ControlPoints.Instance.MaySpawnServicePool(spawnPool))
                 return null;
 
             if (!LoadedCreatures.TryGetValue(creatureId, out var template) ||
