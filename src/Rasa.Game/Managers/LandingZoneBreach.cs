@@ -35,7 +35,7 @@ namespace Rasa.Managers
 
         internal static bool Order(MapChannel map, ControlPoints.Point point, Creature attacker, Creature[] guards)
         {
-            var priority = guards.Where(c => IsFrontline(c.SpawnPool)).ToArray();
+            var priority = guards.Where(c => IsFrontline(c.SpawnPool) || c.SpawnPool?.IsControlPointReinforcement == true).ToArray();
             var field = FrontlineDown(map) ? StandingField(map, point) : null;
             var fighting = attacker.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting;
             var current = attacker.Controller.ActionFighting.TargetEntityId;

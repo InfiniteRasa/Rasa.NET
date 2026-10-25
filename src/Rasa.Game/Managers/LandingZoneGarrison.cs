@@ -82,11 +82,19 @@ namespace Rasa.Managers
         {
             if (!Public(map) || !IsGroup(pool)) return false;
             if (!Available(pool)) return true;
+            Queue(map, pool, creatures, pool.DbId != LandingZoneGarrisonContent.MechPool);
+            return true;
+        }
+        internal static void DispatchReinforcements(MapChannel map, SpawnPool pool, List<Creature> creatures) =>
+            Queue(map, pool, creatures, true);
+
+        private static void Queue(MapChannel map, SpawnPool pool, List<Creature> creatures, bool gunship)
+        {
             var state = States.GetValue(map, _ => new State());
             var due = state.Elapsed + 700;
-            if (pool.DbId != LandingZoneGarrisonContent.MechPool)
+            if (gunship)
             {
-                // One landing pad: separate the gunship visits rather than overlap their models.
+                // Permanent garrison replacements and assault relief share one landing pad.
                 due = Math.Max(state.Elapsed, state.NextGunship);
                 state.NextGunship = due + 20000;
             }
@@ -94,7 +102,16 @@ namespace Rasa.Managers
             SpawnPoolManager.Instance.IncreaseQueueCount(pool);
             SpawnPoolManager.Instance.IncreaseQueuedCreatureCount(pool, creatures.Count);
             state.Pending.Add(new Delivery { Pool = pool, Creatures = creatures, Due = due });
-            return true;
+        }
+        internal static void CancelReinforcements(MapChannel map, IReadOnlyCollection<SpawnPool> pools)
+        {
+            if (!States.TryGetValue(map, out var state)) return;
+            foreach (var delivery in state.Pending.Where(d => pools.Contains(d.Pool)).ToArray())
+            {
+                state.Pending.Remove(delivery);
+                SpawnPoolManager.Instance.DecreaseQueuedCreatureCount(delivery.Pool, delivery.Creatures.Count);
+                SpawnPoolManager.Instance.DecreaseQueueCount(delivery.Pool);
+            }
         }
         internal static bool TryPlace(MapChannel map, SpawnPool pool, Creature creature, int place)
         {

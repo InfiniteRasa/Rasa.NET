@@ -12,13 +12,14 @@ using Rasa.Packets.MapChannel.Server;
 namespace Rasa.Managers
 {
     /// <summary>Public Wilderness Landing Zone assaults. All deadlines use the map worker's monotonic clock.</summary>
-    internal static class LandingZoneAssaults
+    internal static partial class LandingZoneAssaults
     {
         private sealed class Assault
         {
             internal long Due, Started;
             internal int Waves;
             internal readonly List<SpawnPool> Pools = new();
+            internal readonly List<SpawnPool> Reinforcements = new();
             internal Creature Boss;
             internal long? Claim;
             internal int Vitality;
@@ -47,6 +48,7 @@ namespace Rasa.Managers
                 state.Started = now;
                 state.Due = now + Math.Max(1, config.LandingZoneAssaultPeriodSeconds) * 1000L;
                 Launch(map, point, state, 1);
+                Reinforce(map, state);
             }
             if (state.Waves == 0) return;
             var gap = Math.Max(1, config.LandingZoneAssaultWaveSeconds) * 1000L;
@@ -60,10 +62,10 @@ namespace Rasa.Managers
             }
             if (state.Boss != null && !CreatureManager.IsLivingOnMap(map, state.Boss)) Cancel(point, state);
             var guards = EntityManager.Instance.Creatures.Values.Where(c => c.SpawnPool != null && point.AfsPools.Contains(c.SpawnPool.DbId) &&
-                ControlPoints.Instance.ServicePointOf(map, c.SpawnPool) == null && CreatureManager.IsLivingOnMap(map, c)).ToArray();
+                ControlPoints.Instance.ServicePointOf(map, c.SpawnPool) == null && CreatureManager.IsLivingOnMap(map, c)).Concat(Reinforcements(map, state)).ToArray();
             foreach (var creature in EntityManager.Instance.Creatures.Values.Where(c => state.Pools.Contains(c.SpawnPool) && CreatureManager.IsLivingOnMap(map, c)).ToArray())
             {
-                if (creature == state.Boss && PrepareClaim(map, point, creature) && Claim(map, point, state, now)) { if (!point.HeldByAfs) return; continue; }
+                if (creature == state.Boss && PrepareClaim(map, point, creature, state) && Claim(map, point, state, now)) { if (!point.HeldByAfs) return; continue; }
                 if (LandingZoneBreach.Order(map, point, creature, guards)) continue;
                 if (creature.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting) continue;
                 var guard = guards
@@ -82,10 +84,11 @@ namespace Rasa.Managers
             Worker(map, point);
             return true;
         }
-        private static bool PrepareClaim(MapChannel map, ControlPoints.Point point, Creature boss)
+        private static bool PrepareClaim(MapChannel map, ControlPoints.Point point, Creature boss, Assault state)
         {
             if (LandingZoneBreach.StandingField(map, point) != null ||
-                ControlPoints.Instance.GarrisonOf(map, point, ControlPoints.Afs) == ControlPoints.Garrison.Standing)
+                ControlPoints.Instance.GarrisonOf(map, point, ControlPoints.Afs) == ControlPoints.Garrison.Standing ||
+                Reinforcements(map, state).Any())
                 return true;
             // A defending player can interrupt a claim; a service NPC cannot hold the boss in combat.
             if (boss.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting &&
@@ -139,6 +142,7 @@ namespace Rasa.Managers
             var ready = LandingZoneBreach.StandingField(map, point) == null &&
                 CreatureManager.IsLivingOnMap(map, boss) &&
                 ControlPoints.Instance.GarrisonOf(map, point, ControlPoints.Afs) != ControlPoints.Garrison.Standing &&
+                !Reinforcements(map, state).Any() &&
                 Vector3.DistanceSquared(boss.Position, Destination(map, point)) <= 36 &&
                 boss.Controller.CurrentAction != BehaviorManager.BehaviorActionFighting &&
                 !boss.ActiveEffects.Values.Any(e => e.IsStun && !e.IsExpired);
@@ -180,7 +184,10 @@ namespace Rasa.Managers
         private static void Clear(MapChannel map, ControlPoints.Point point, Assault state)
         {
             Cancel(point, state);
-            foreach (var ship in DynamicObjectManager.Instance.Dropships.Values.Where(s => state.Pools.Contains(s.SpawnPool)).ToArray())
+            LandingZoneGarrison.CancelReinforcements(map, state.Reinforcements);
+            var pools = state.Pools.Concat(state.Reinforcements).ToList();
+            foreach (var pool in pools) pool.Suspended = true;
+            foreach (var ship in DynamicObjectManager.Instance.Dropships.Values.Where(s => pools.Contains(s.SpawnPool)).ToArray())
             {
                 CellManager.Instance.RemoveFromWorld(map, ship);
                 DynamicObjectManager.Instance.Dropships.Remove(ship.EntityId);
@@ -188,9 +195,10 @@ namespace Rasa.Managers
                 ship.SpawnPool.DropshipQueue = 0;
                 ship.SpawnPool.QueuedCreatureList = null;
             }
-            ControlPoints.TakeOffLiving(map, state.Pools);
-            foreach (var pool in state.Pools) { pool.Delivered = null; map.SpawnPools.Remove(pool); }
+            ControlPoints.TakeOffLiving(map, pools);
+            foreach (var pool in pools) { pool.Delivered = null; map.SpawnPools.Remove(pool); }
             state.Pools.Clear();
+            state.Reinforcements.Clear();
             state.Boss = null;
             state.Waves = 0;
         }

@@ -5,10 +5,10 @@ using Rasa.Structures;
 
 namespace Rasa.Managers
 {
-    /// <summary>Firing positions for mobile assault troops; mounted defenders keep their authored locations.</summary>
+    /// <summary>Firing positions for mobile Bane attackers and AFS relief; mounted defenders keep their authored locations.</summary>
     internal static class LandingZoneAssaultTargeting
     {
-        internal static bool IsAssault(Creature creature) => creature?.SpawnPool?.IsControlPointAssault == true;
+        internal static bool IsAssault(Creature creature) => creature?.SpawnPool is { } pool && (pool.IsControlPointAssault || pool.IsControlPointReinforcement);
 
         internal static bool IsServiceTarget(Creature creature, Creature target)
         {

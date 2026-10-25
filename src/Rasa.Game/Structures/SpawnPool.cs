@@ -8,6 +8,7 @@ namespace Rasa.Structures
     public class SpawnPool : IHasPosition
     {
         internal bool IsControlPointAssault { get; set; }
+        internal bool IsControlPointReinforcement { get; set; }
         internal System.Action<IReadOnlyList<Creature>> Delivered { get; set; }
         internal bool SceneOwnerOnly { get; set; }
         internal uint RouteEscortOwnerCharacterId { get; set; }

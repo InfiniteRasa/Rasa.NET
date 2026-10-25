@@ -12,7 +12,7 @@ using Rasa.Test.Missions.Wilderness;
 namespace Rasa.Test.World
 {
     [TestClass, DoNotParallelize]
-    public class LandingZoneAssaultTests
+    public partial class LandingZoneAssaultTests
     {
         private WildernessRuntimeTestHarness _world;
         private ControlPointConfig _config;
@@ -133,9 +133,10 @@ namespace Rasa.Test.World
         }
         private void ClearGarrison()
         {
-            ControlPoints.TakeOffLiving(_world.Map, _world.Map.SpawnPools.Where(p => Point.AfsPools.Contains(p.DbId)).ToList());
-            foreach (var pool in _world.Map.SpawnPools.Where(p => Point.AfsPools.Contains(p.DbId)))
-            { pool.HasSpawned = true; pool.AliveCreatures = 0; pool.QueuedCreatures = 0; pool.DropshipQueue = 0; }
+            LandingZoneGarrison.CancelReinforcements(_world.Map, ReliefPools);
+            ControlPoints.TakeOffLiving(_world.Map, _world.Map.SpawnPools.Where(p => Point.AfsPools.Contains(p.DbId) || p.IsControlPointReinforcement).ToList());
+            foreach (var pool in _world.Map.SpawnPools.Where(p => Point.AfsPools.Contains(p.DbId) || p.IsControlPointReinforcement))
+            { pool.Suspended |= pool.IsControlPointReinforcement; pool.HasSpawned = true; pool.AliveCreatures = 0; pool.QueuedCreatures = 0; pool.DropshipQueue = 0; }
         }
         [TestMethod]
         public void BossMustReachPointAndCaptureOnlyAfterAllDefendersFall()
