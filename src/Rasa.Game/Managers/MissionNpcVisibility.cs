@@ -10,7 +10,7 @@ namespace Rasa.Managers
     /// <summary>Assignment-owned NPCs and the public NPCs they replace, phased per character.</summary>
     internal static class MissionNpcVisibility
     {
-        private static (uint Mission, bool Protected) Replacement(Creature creature, MissionApplication missions = null) =>
+        private static (uint Mission, bool Protected, bool WhilePresent, string Role) Replacement(Creature creature, MissionApplication missions = null) =>
             creature?.SpawnPool is { SceneRunId: null } pool
                 ? (missions ?? MissionApplication.Instance)?.Scenes.NpcReplacement(pool.DbId) ?? default : default;
 
@@ -24,10 +24,15 @@ namespace Rasa.Managers
             if (creature?.SpawnPool?.SceneOwnerOnly == true &&
                 creature.SpawnPool.ScenarioOwnerCharacterId != client?.Player?.Id)
                 return false;
-            var mission = Replacement(creature, missions).Mission;
+            var replacement = Replacement(creature, missions);
+            var mission = replacement.Mission;
             if (mission == 0 || client?.Player == null)
                 return true;
             var player = client.Player;
+            if (replacement.WhilePresent)
+                return player.MapChannel?.SpawnPools.Any(pool => pool.SceneOwnerOnly &&
+                    pool.ScenarioOwnerCharacterId == player.Id && pool.ScenarioMissionId == mission &&
+                    pool.SceneActorRole == replacement.Role && pool.AliveCreatures > 0) != true;
             if (player.MissionSuccessHistory.Contains(mission))
                 return false;
             return !player.Missions.TryGetValue(mission, out var active) ||
@@ -37,7 +42,7 @@ namespace Rasa.Managers
         internal static void Refresh(Client client, MissionApplication missions = null)
         {
             var map = client?.Player?.MapChannel;
-            if (map == null) return;
+            if (map == null || client.State != ClientState.Ingame || client.Player.Cells == null) return;
             foreach (var id in client.VisibleMissionNpcs.ToArray())
             {
                 var creature = EntityManager.Instance.GetCreature(id);

@@ -23,7 +23,8 @@ namespace Rasa.Missions.Content.Wilderness
                 return new SceneDecision(JsonSerializer.Serialize(state), status: SceneStatus.Ended);
             if (observation.Kind == SceneEventKind.OwnerLost)
                 return new SceneDecision(JsonSerializer.Serialize(state), status: SceneStatus.Waiting);
-            if (observation.Kind == SceneEventKind.ActorDied && observation.Role == "anjuhi")
+            if (observation.Kind == SceneEventKind.ActorDied && observation.Role == "anjuhi" ||
+                observation.Kind == SceneEventKind.Signal && observation.SequenceId == 14)
                 return new SceneDecision(JsonSerializer.Serialize(state with { Phase = "failed" }),
                     characterIntents: new CharacterIntent[]
                     {

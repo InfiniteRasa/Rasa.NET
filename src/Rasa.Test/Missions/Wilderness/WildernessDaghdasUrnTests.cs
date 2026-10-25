@@ -63,7 +63,10 @@ namespace Rasa.Test.Missions.Wilderness
         [TestCategory("WildernessG2")]
         public void ChildhoodsEndRequiresThreeEncounterXanxAndPreservesTheNativeContactOrder()
         {
-            using var harness = CreateIntegratedHub();
+            using var harness = WildernessRuntimeTestHarness.Create(additionalContent: migration =>
+            {
+                foreach (var sql in Rasa.Services.Preloader.ChildhoodsEndPersonalEncounter.Down()) migration.Sql(sql);
+            });
             harness.SpawnWorld(174, 175, 176, 177, 580053);
             var todae = harness.Npc(174);
             var anjuhi = harness.Npc(176);
@@ -118,7 +121,10 @@ namespace Rasa.Test.Missions.Wilderness
         [DataRow(true)]
         public void ActualAnjuhiDeathFailsTheCurrentStageAndCannotFailARetry(bool attackStarted)
         {
-            using var harness = CreateIntegratedHub();
+            using var harness = WildernessRuntimeTestHarness.Create(additionalContent: migration =>
+            {
+                foreach (var sql in Rasa.Services.Preloader.ChildhoodsEndPersonalEncounter.Down()) migration.Sql(sql);
+            });
             harness.SpawnWorld(174, 176, 580053);
             SeedHistory(harness, 451);
             var todae = harness.Npc(174);

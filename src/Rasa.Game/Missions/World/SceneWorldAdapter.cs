@@ -65,6 +65,8 @@ namespace Rasa.Game.Missions.World
         {
             if (!_runs.TryGetValue(run.Id, out var world) || world.Run.Generation != run.Generation)
                 return WorldEffectResult.Failed("World run is not attached at the current generation.");
+            if (world.Bindings.MapContextId != 0 && world.Map.MapInfo.MapContextId != world.Bindings.MapContextId)
+                return WorldEffectResult.Failed("World effects are outside this scene's authored map.");
             if (intent is PresentationIntent presentation)
             {
                 if (world.Owner?.State != ClientState.Ingame || world.Owner.Player.MapChannel != world.Map)
@@ -504,6 +506,8 @@ namespace Rasa.Game.Missions.World
                 }
                 world.Actors[definition.Role] = new BoundActor(handle, null, obj);
             }
+            if (definition.ReplacesPublicSpawnId != 0 && world.Owner != null)
+                MissionNpcVisibility.Refresh(world.Owner);
             return WorldEffectResult.Applied();
         }
 
@@ -717,6 +721,8 @@ namespace Rasa.Game.Missions.World
                 map.DynamicObjects.Remove(obj);
                 obj.IsInWorld = false;
             }
+            foreach (var owner in map.ClientList.Where(client => client?.Player?.Id == run.OwnerCharacterId))
+                MissionNpcVisibility.Refresh(owner);
         }
 
         private sealed record BoundActor(ActorHandle Handle, Creature Creature, DynamicObject Object);

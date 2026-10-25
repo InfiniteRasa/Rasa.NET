@@ -62,11 +62,11 @@ namespace Rasa.Game.Missions
                 throw new GameplayRejectionException($"Missing script {script}/1 for mission {missionId}.");
             _bindings.Add(missionId, (script, bindings));
             foreach (var actor in bindings.Actors.Values.Where(actor => actor.ReplacesPublicSpawnId != 0))
-                _npcReplacements[actor.ReplacesPublicSpawnId] = (missionId, actor.HoldCombatUntilRoute);
+                _npcReplacements[actor.ReplacesPublicSpawnId] = (missionId, actor.HoldCombatUntilRoute, actor.ReplaceWhilePresent, actor.Role);
         }
 
-        private readonly Dictionary<uint, (uint Mission, bool Protected)> _npcReplacements = new();
-        internal (uint Mission, bool Protected) NpcReplacement(uint spawnId) => _npcReplacements.GetValueOrDefault(spawnId);
+        private readonly Dictionary<uint, (uint Mission, bool Protected, bool WhilePresent, string Role)> _npcReplacements = new();
+        internal (uint Mission, bool Protected, bool WhilePresent, string Role) NpcReplacement(uint spawnId) => _npcReplacements.GetValueOrDefault(spawnId);
 
         internal bool Owns(uint missionId) => _bindings.ContainsKey(missionId);
         internal bool UsesScript(uint missionId, string script) =>

@@ -34,7 +34,9 @@ namespace Rasa.Missions.Scenes
         // Hide the offer NPC during this assignment and after a successful rescue, for its owner.
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] uint ReplacesPublicSpawnId = 0,
         // A captive remains protected until its scene starts a route that resumes after combat.
-        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool HoldCombatUntilRoute = false);
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool HoldCombatUntilRoute = false,
+        // A temporary encounter replaces its public contact only while the personal actor exists.
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool ReplaceWhilePresent = false);
     public sealed record SceneObjectAction(uint MissionId, uint ObjectiveId, uint SequenceId, uint ActionArgId = 1);
     public sealed record SceneObjectDestruction(uint MissionId, uint ObjectiveId, uint SequenceId,
         uint HitPoints = 100, uint DestroyedState = 2);
@@ -170,6 +172,7 @@ namespace Rasa.Missions.Scenes
     public sealed class SceneBindings
     {
         public string Release { get; }
+        public uint MapContextId { get; }
         public IReadOnlyDictionary<string, SceneActorDefinition> Actors { get; }
         public IReadOnlyDictionary<string, SceneRoute> Routes { get; }
         public IReadOnlyDictionary<uint, SceneSequence> Sequences { get; }
@@ -177,9 +180,10 @@ namespace Rasa.Missions.Scenes
         public IReadOnlyDictionary<string, uint> DefeatSequences { get; }
         public SceneBindings(string release, IDictionary<string, SceneActorDefinition> actors,
             IDictionary<string, SceneRoute> routes, IDictionary<uint, SceneSequence> sequences,
-            IDictionary<string, uint> names = null, IDictionary<string, uint> defeatSequences = null)
+            IDictionary<string, uint> names = null, IDictionary<string, uint> defeatSequences = null, uint mapContextId = 0)
         {
             Release = release;
+            MapContextId = mapContextId;
             Actors = new ReadOnlyDictionary<string, SceneActorDefinition>(actors.ToDictionary(
                 entry => entry.Key, entry => entry.Value with
                 { GameplayPolicy = entry.Value.GameplayPolicy?.Snapshot() }, StringComparer.Ordinal));

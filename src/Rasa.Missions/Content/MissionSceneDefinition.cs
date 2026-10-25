@@ -12,6 +12,9 @@ namespace Rasa.Missions.Content
     {
         public string Script { get; set; }
         public int StateVersion { get; set; } = 1;
+        /// <summary>World effects are refused outside this map; zero leaves the scene unrestricted.</summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public uint MapContextId { get; set; }
         public MissionAudioDefinition Audio { get; set; }
         public Dictionary<string, SceneActorDefinition> Actors { get; set; } = new(StringComparer.Ordinal);
         public Dictionary<string, SceneRoute> Routes { get; set; } = new(StringComparer.Ordinal);
@@ -58,7 +61,7 @@ namespace Rasa.Missions.Content
 
         public SceneBindings Bindings(string revision) => new(revision, Actors, Routes,
             Sequences.ToDictionary(entry => entry.Key, entry => new SceneSequence(
-                entry.Value.World, entry.Value.Character, entry.Value.Signals, entry.Value.Timers)), Names, DefeatSequences);
+                entry.Value.World, entry.Value.Character, entry.Value.Signals, entry.Value.Timers)), Names, DefeatSequences, MapContextId);
     }
 
     public sealed class MissionExperienceDefinition

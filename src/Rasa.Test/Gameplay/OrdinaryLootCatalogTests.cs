@@ -427,6 +427,40 @@ namespace Rasa.Test.Gameplay
         [TestMethod]
         [DataRow(1220U, true)]
         [DataRow(1148U, false)]
+        public void AuthoredSceneMapRequiresTheActualMapsLootBinding(uint map, bool managed)
+        {
+            var data = new Content();
+            var scene = new MissionSceneDefinition { Script = "data.sequence", MapContextId = map };
+            scene.Actors["created"] = Actor("created", 506, new ActorGameplayPolicy { RewardScenarioKills = true });
+            data.Enabled.Add(new MissionContentDefinitionEntry { MissionId = 321, ContentRevision = "v1" });
+            data.AddScene(321, "v1", scene);
+            if (managed)
+            {
+                Rejected(data, "1220", "506", "created");
+                data.Bindings.Add(new CreatureLootBindingEntry { MapContextId = 1220, CreatureId = 506, ProfileKey = "regular" });
+            }
+            Assert.IsNotNull(Load(data));
+        }
+
+        [TestMethod]
+        public void AuthoredSceneMapCannotContradictAReservedPublicEncounter()
+        {
+            var data = new Content();
+            data.Enabled.Add(new MissionContentDefinitionEntry { MissionId = 321, ContentRevision = "v1" });
+            data.Pools.Add(new SpawnPoolEntry { Id = 51, MapContextId = 1148, Creature1Id = 502, Creature1MaxCount = 1 });
+            var scene = new MissionSceneDefinition
+            {
+                Script = "data.sequence", MapContextId = 1220,
+                PublicEncounter = new PublicEncounterBinding(321, 51, "reserved", "data.sequence")
+            };
+            scene.Actors["reserved"] = new SceneActorDefinition("reserved", SceneActorKind.PublicSpawn, 51);
+            data.AddScene(321, "v1", scene);
+            Rejected(data, "authored scene map disagrees");
+        }
+
+        [TestMethod]
+        [DataRow(1220U, true)]
+        [DataRow(1148U, false)]
         public void PublicEncounterMapsCreatedActorsThroughItsExactReservedSpawn(uint map, bool managed)
         {
             var data = new Content();
