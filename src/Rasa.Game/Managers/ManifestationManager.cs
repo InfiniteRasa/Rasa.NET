@@ -2200,6 +2200,15 @@ namespace Rasa.Managers
             // character options and initial mission state must be sent first.
             client.CallMethod(SysEntity.ClientMethodId, new SetControlledActorIdPacket(player.EntityId));
 
+            // Character selection resets the UI without resetting the client's inventory
+            // mappings. Replace the backpack after the controlled actor is ready, including
+            // an empty pack, so re-entry cannot retain stale slots or miss its UI refresh.
+            // Items were already loaded and introduced by InitForClient/ResendForMap.
+            client.CallMethod(SysEntity.ClientInventoryManagerId,
+                new Packets.Inventory.Server.InventoryCreatePacket(
+                    InventoryType.Personal, player.Inventory.PersonalInventory.ToList(),
+                    player.Inventory.PersonalInventory.Count));
+
             // The client drawer handlers resolve GetManifestation() immediately, so
             // refresh the drawer only after the controlled actor is assigned. This
             // restores the saved armed slot instead of showing the first weapon.
