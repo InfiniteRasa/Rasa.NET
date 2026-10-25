@@ -729,7 +729,9 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.IsTrue(harness.Manager.CompleteOfferedMission(harness.Client, todae.EntityId, 451, 0));
 
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, todae.EntityId, 682));
-            Assert.IsTrue(harness.Manager.CompleteOfferedObjective(harness.Client, harness.Npc(176).EntityId, 682, 2, 1));
+            var assignedAnjuhi = Creatures(harness).Single(creature => creature.SpawnPool?.ScenarioMissionId == 682 &&
+                creature.SpawnPool.SceneActorRole == "anjuhi" && creature.SpawnPool.ScenarioOwnerCharacterId == harness.Client.Player.Id);
+            Assert.IsTrue(harness.Manager.CompleteOfferedObjective(harness.Client, assignedAnjuhi.EntityId, 682, 2, 1));
             harness.Tick();
             var attackers = Creatures(harness).Where(creature => creature.DbId == 87 &&
                 creature.SpawnPool?.ScenarioMissionId == 682 &&

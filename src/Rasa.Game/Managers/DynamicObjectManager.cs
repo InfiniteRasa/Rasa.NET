@@ -221,7 +221,7 @@ namespace Rasa.Managers
             // Teleporting counts as being in the world for the packet gate - a dropship ride keeps
             // the manifestation and everything registered with it - but the rider is between maps,
             // standing where they left, with no cells. There is nothing there for them to use.
-            if (client.State != ClientState.Ingame)
+            if (client?.Player == null || packet == null || client.State != ClientState.Ingame)
                 return;
 
             // A usable the client's own .map placed, such as a Forean fire pit: the server has
@@ -235,6 +235,7 @@ namespace Rasa.Managers
             if (!EntityManager.Instance.TryGetObject(packet.EntityId, out var obj))
             {
                 Logger.WriteLog(LogType.Debug, $"{client.Player.FamilyName} asked to use {packet.EntityId}, which is not an object.");
+                ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, PlayerMessage.PmUseObjectNotUsable);
                 return;
             }
 
@@ -256,6 +257,7 @@ namespace Rasa.Managers
             if (obj.DynamicObjectType == DynamicObjectType.Destructible)
             {
                 Logger.WriteLog(LogType.Debug, $"Object {obj.EntityId} must be destroyed, not used.");
+                ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, PlayerMessage.PmUseObjectNotUsable);
                 return;
             }
 
@@ -279,7 +281,8 @@ namespace Rasa.Managers
             if (!MapInstanceScope.Contains(client.Player.MapChannel, obj))
             {
                 Logger.WriteLog(LogType.Security,
-                    $"{client.Player.FamilyName} asked to use object {packet.EntityId}, which is not on the current map instance. Ignored.");
+                    $"{client.Player.FamilyName} asked to use object {packet.EntityId}, which is not on the current map instance. Refused.");
+                ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, PlayerMessage.PmUseObjectNotUsable);
                 return;
             }
 
@@ -288,7 +291,8 @@ namespace Rasa.Managers
             if (distance > MaxUseDistance)
             {
                 Logger.WriteLog(LogType.Security,
-                    $"{client.Player.FamilyName} asked to use object {packet.EntityId} from {distance:F0} units away. Ignored.");
+                    $"{client.Player.FamilyName} asked to use object {packet.EntityId} from {distance:F0} units away. Refused.");
+                ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, PlayerMessage.PmTargetOutOfRange);
                 return;
             }
 
@@ -320,14 +324,17 @@ namespace Rasa.Managers
                 return;
             }
             if (obj.MissionUseAction != null &&
-                !(_missionManager ?? MissionApplication.Instance).Scenes.CanUseObject(client, obj, packet.ActionArgId))
+                (!MissionUseAvailable(client, obj) ||
+                 !(_missionManager ?? MissionApplication.Instance).Scenes.CanUseObject(client, obj, packet.ActionArgId)))
             {
                 Logger.WriteLog(LogType.Debug, $"Rejected stale or unauthorized scene object use {obj.EntityId}.");
+                ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, PlayerMessage.PmUseObjectNotUsable);
                 return;
             }
             if (obj.MissionDestruction != null && obj.MissionUseAction == null)
             {
                 Logger.WriteLog(LogType.Debug, $"Object {obj.EntityId} must be destroyed, not used.");
+                ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, PlayerMessage.PmUseObjectNotUsable);
                 return;
             }
             if (obj.MissionConversation != null)
@@ -497,7 +504,8 @@ namespace Rasa.Managers
                     PersonalWaypoints.Use(client, obj, packet);
                     break;
                 default:
-                    Logger.WriteLog(LogType.Debug, $"ToDo: RequestUseObjectPacket: unsuported object type {obj.DynamicObjectType}");
+                    Logger.WriteLog(LogType.Debug, $"Unsupported use of object type {obj.DynamicObjectType}.");
+                    ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, PlayerMessage.PmUseObjectNotUsable);
                     break;
             }
         }
@@ -684,8 +692,11 @@ namespace Rasa.Managers
             {
                 var classInfo = EntityClassManager.Instance.GetClassInfo(dynamicObject.EntityClassId)
                     ?? throw new GameplayRejectionException($"Missing scene object class {dynamicObject.EntityClassId}.");
-                CellManager.Instance.CellCallMethod(mapChannel, dynamicObject,
-                    new IsTargetablePacket(classInfo.TargetFlag || enabled));
+                var targetable = classInfo.TargetFlag || enabled;
+                if (dynamicObject.MissionUseAction != null)
+                    targetable = IsTargetableFor(mapChannel.ClientList.FirstOrDefault(
+                        client => client.Player?.Id == dynamicObject.SceneOwnerCharacterId), dynamicObject);
+                CellManager.Instance.CellCallMethod(mapChannel, dynamicObject, new IsTargetablePacket(targetable));
             }
             if (dynamicObject.MissionConversation != null)
             {
@@ -717,7 +728,8 @@ namespace Rasa.Managers
             if (mapChannel == null || !CellManager.TryGetCellCoordinates(dynamicObject.Position, out var x, out var z))
                 return;
 
-            foreach (var client in CellManager.Instance.GetClientsInCells(mapChannel, CellManager.Instance.CreateCellMatrix(mapChannel, x, z)))
+            foreach (var client in CellManager.Instance.GetClientsInCells(mapChannel, CellManager.Instance.CreateCellMatrix(mapChannel, x, z))
+                .Where(client => IsShownTo(client, dynamicObject)))
                 client.CallMethod(dynamicObject.EntityId,
                     MissionObjects.InfoFor(client, dynamicObject, dynamicObject.IsEnabled, windupTime, _missionManager));
         }
@@ -749,6 +761,20 @@ namespace Rasa.Managers
         internal static bool IsShownTo(Client client, DynamicObject obj) =>
             obj == null || obj.SceneRunId == null || obj.SceneOwnerCharacterId == 0 ||
             client?.Player != null && client.Player.Id == obj.SceneOwnerCharacterId;
+
+        // Presentation eligibility is deliberately cheap. Scenes.CanUseObject still validates
+        // the durable assignment, generation and actor identity before accepting an actual use.
+        internal static bool MissionUseAvailable(Client client, DynamicObject obj) =>
+            obj?.MissionUseAction is not { } use || client?.Player is { } player &&
+            (obj.SceneOwnerCharacterId == 0 || obj.SceneOwnerCharacterId == player.Id) &&
+            player.Missions.TryGetValue(use.MissionId, out var mission) && mission.State == MissionState.Active &&
+            mission.Objectives.TryGetValue(use.ObjectiveId, out var objective) && objective.State == MissionObjectiveState.Incomplete;
+
+        internal static bool IsTargetableFor(Client client, DynamicObject obj) =>
+            obj != null && IsShownTo(client, obj) && (obj.MissionUseAction != null
+                ? obj.IsEnabled && MissionUseAvailable(client, obj)
+                : EntityClassManager.Instance.GetClassInfo(obj.EntityClassId)?.TargetFlag == true ||
+                    obj.SceneRunId != null && obj.IsEnabled);
 
         internal void CreateDynamicObjectOnClient(Client client, DynamicObject dynamicObject)
         {
@@ -804,8 +830,7 @@ namespace Rasa.Managers
             var entityData = new List<PythonPacket>
             {
                 // PhysicalEntity
-                new IsTargetablePacket(classInfo.TargetFlag ||
-                    dynamicObject.SceneRunId != null && dynamicObject.IsEnabled),
+                new IsTargetablePacket(IsTargetableFor(client, dynamicObject)),
                 new WorldLocationDescriptorPacket(dynamicObject.Position, dynamicObject.Rotation)
             };
 
