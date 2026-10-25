@@ -77,14 +77,23 @@ namespace Rasa.Test.Missions.Plateau
                 Secure(harness, copy, temple);
             }
 
-            // The third: 4 done, Hathen walks back to the hospital and is gone there.
+            // The third: 4 done, Hathen walks about 100 m of the way back towards the hospital and is gone there.
             Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, PlateauTheseOldBonesV1.Protect));
             Assert.IsTrue(harness.Client.Player.Missions[TheseOldBones].Completeable);
             var home = ToVector(PlateauTheseOldBonesV1.HathenAt);
-            for (var tick = 0; tick < 1200 && SceneCreature(harness, copy, PlateauTheseOldBonesScene.Hathen) != null; tick++)
+            var wayBack = ToVector(PlateauTheseOldBonesV1.WayBackAt[2]);
+            var seconds = 0;
+            for (; seconds < 70 && SceneCreature(harness, copy, PlateauTheseOldBonesScene.Hathen) != null; seconds++)
+            {
+                Assert.IsTrue(HiddenCreatures.IsHiddenFrom(PublicHathen(copy), harness.Client), "the public Hathen hidden while the copy walks");
                 Tick(harness, copy, 1000);
-            Assert.IsNull(SceneCreature(harness, copy, PlateauTheseOldBonesScene.Hathen), "Hathen is home and gone");
-            Assert.IsTrue(Vector3.Distance(hathen.Position, home) < 3, $"he went home, at {hathen.Position}");
+            }
+            Assert.IsNull(SceneCreature(harness, copy, PlateauTheseOldBonesScene.Hathen), "Hathen is gone");
+            Assert.IsTrue(Vector3.Distance(hathen.Position, wayBack) < 3, $"he walked his way back and is gone there, at {hathen.Position}");
+            Assert.IsTrue(seconds * 1000 < PlateauTheseOldBonesScene.WalkBackMilliseconds, $"gone at the route's end ({seconds} s), not by the timeout");
+            Assert.IsFalse(HiddenCreatures.IsHiddenFrom(PublicHathen(copy), harness.Client), "the public Hathen is back for the player");
+            harness.MoveTo(home);
+            harness.Drain();
 
             Spawn(copy, PlateauTheseOldBonesV1.AlgonaPool);
             var algona = RequireNpc(copy, PlateauTheseOldBonesV1.AlgonaPool);
@@ -109,6 +118,7 @@ namespace Rasa.Test.Missions.Plateau
             var mission = harness.Client.Player.Missions[TheseOldBones];
             Assert.AreEqual(MissionObjectiveState.Failed, mission.Objectives[PlateauTheseOldBonesV1.Protect].State);
             Assert.AreEqual(MissionState.Failed, mission.State);
+            Assert.IsFalse(HiddenCreatures.IsHiddenFrom(PublicHathen(copy), harness.Client), "the public Hathen is back with the copy dead");
         }
 
         /// <summary>A temple's creatures come only when the player is there, and its objective waits for all five.</summary>
@@ -158,6 +168,7 @@ namespace Rasa.Test.Missions.Plateau
             Assert.IsTrue(Enumerable.Range(0, PlateauTheseOldBonesScene.GroupSize)
                 .All(index => SceneCreature(harness, copy, PlateauTheseOldBonesScene.Role(first.Objective, index)) == null), "the dead stay dead");
             Assert.IsNotNull(SceneCreature(harness, copy, PlateauTheseOldBonesScene.Hathen), "Hathen is still there");
+            Assert.IsTrue(HiddenCreatures.IsHiddenFrom(PublicHathen(copy), harness.Client), "and the public one still hidden");
 
             Secure(harness, copy, PlateauTheseOldBonesV1.Temples[1]);
             Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, PlateauTheseOldBonesV1.Protect), "two of three");
@@ -165,6 +176,16 @@ namespace Rasa.Test.Missions.Plateau
             Secure(harness, copy, PlateauTheseOldBonesV1.Temples[2]);
             Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, PlateauTheseOldBonesV1.Protect));
             Assert.IsTrue(harness.Client.Player.Missions[TheseOldBones].Completeable);
+
+            // Hathen stayed at the hospital (the player was put at the temples): his way back from the Sanctuary is far
+            // off, so the timeout takes him.
+            Tick(harness, copy, PlateauTheseOldBonesScene.WalkBackMilliseconds - 5000);
+            Assert.IsNotNull(SceneCreature(harness, copy, PlateauTheseOldBonesScene.Hathen), "still on his way before the timeout");
+            Assert.IsTrue(HiddenCreatures.IsHiddenFrom(PublicHathen(copy), harness.Client), "and the public one hidden");
+            Tick(harness, copy, 6000);
+            Tick(harness, copy, 250);
+            Assert.IsNull(SceneCreature(harness, copy, PlateauTheseOldBonesScene.Hathen), "gone after the timeout");
+            Assert.IsFalse(HiddenCreatures.IsHiddenFrom(PublicHathen(copy), harness.Client), "the public Hathen is back");
 
             Spawn(copy, HathenPool);
             var hathen = Here(copy).First(creature => creature.SpawnPool?.DbId == HathenPool && creature.Npc != null);
@@ -175,6 +196,59 @@ namespace Rasa.Test.Missions.Plateau
             WildernessRanjaGorgeTests.CompleteAndCheckReward(harness, algona, TheseOldBones, 0,
                 PlateauTheseOldBonesV1.Experience, PlateauTheseOldBonesV1.Credits);
             Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, PlateauGraveyardShiftV1.BioGloves), "the first choice");
+        }
+
+        /// <summary>
+        /// Out of the copy and back in (or a server restart) on the walk back: the run is recovered, Hathen cannot be put back
+        /// on his way, so he is gone and the public one shown.
+        /// </summary>
+        [TestMethod]
+        public void TheseOldBonesRecoveredOnTheWalkBackEndsIt()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var copy = AcceptAtHathen(harness);
+            Escort(harness, copy);
+            foreach (var temple in PlateauTheseOldBonesV1.Temples)
+                Secure(harness, copy, temple);
+            Assert.IsNotNull(SceneCreature(harness, copy, PlateauTheseOldBonesScene.Hathen), "on his way back");
+
+            harness.Manager.Scenes.Detach(harness.Client, copy);
+            Return(harness, harness.Maps.MapChannelArray[PlateauMissionDataV1.MapContextId]);
+            Assert.AreSame(copy, ThroughTheDoor(harness, VelonHollow));
+            harness.Manager.Scenes.Resume(harness.Client);
+            harness.Drain();
+            Tick(harness, copy, 250);
+            Tick(harness, copy, 250);
+            Assert.IsNull(SceneCreature(harness, copy, PlateauTheseOldBonesScene.Hathen), "gone after the recovery");
+            Assert.IsFalse(HiddenCreatures.IsHiddenFrom(PublicHathen(copy), harness.Client), "the public Hathen is back");
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, PlateauTheseOldBonesV1.Protect), "4 stays done");
+            Assert.IsTrue(harness.Client.Player.Missions[TheseOldBones].Completeable);
+        }
+
+        /// <summary>Each temple's way back ends on the navmesh about 100 m (ESTIMATE) along the path towards the hospital.</summary>
+        [TestMethod]
+        public void HathensWayBackFromEachTempleIsAbout100Metres()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            EnterPlateau(harness);
+            if (!harness.Maps.MapChannelArray.ContainsKey(VelonHollow))
+                LoadMap(harness, VelonHollow);
+            var copy = ThroughTheDoor(harness, VelonHollow);
+            foreach (var temple in PlateauTheseOldBonesV1.Temples)
+            {
+                var end = ToVector(PlateauTheseOldBonesV1.WayBackAt[temple.Objective - 1]);
+                AssertStandsOnNavMesh(copy, end, 0.5f);
+                var start = ToVector(temple.At);
+                var path = copy.NavMesh.FindPath(start, end, out var joined);
+                if (path == null || !joined)
+                    Assert.Inconclusive($"No navmesh path from temple {temple.Objective}: the Velon Hollow navmesh is split (upstream bug report).");
+                var length = 0f;
+                var at = start;
+                foreach (var corner in path) { length += Vector3.Distance(at, corner); at = corner; }
+                Assert.IsTrue(length is > 80 and < 130, $"temple {temple.Objective}: {length:0} m");
+                Assert.IsTrue(Vector3.Distance(end, ToVector(PlateauTheseOldBonesV1.HathenAt)) < Vector3.Distance(start, ToVector(PlateauTheseOldBonesV1.HathenAt)),
+                    $"temple {temple.Objective}: towards the hospital");
+            }
         }
 
         /// <summary>Abandoned with a temple's group up: Hathen's copy and the group are gone, Hathen offers it again.</summary>
@@ -193,13 +267,65 @@ namespace Rasa.Test.Missions.Plateau
             Assert.IsFalse(harness.Client.Player.Missions.ContainsKey(TheseOldBones), "gone from the log");
             Assert.IsFalse(Here(copy).Contains(escort), "Hathen's copy is gone");
             Assert.IsFalse(group.Any(creature => Here(copy).Contains(creature)), "the temple's group is gone");
+            Assert.IsFalse(HiddenCreatures.IsHiddenFrom(PublicHathen(copy), harness.Client), "the public Hathen is back");
             Spawn(copy, HathenPool);
             var hathen = Here(copy).First(creature => creature.SpawnPool?.DbId == HathenPool && creature.Npc != null);
             Assert.IsTrue(Offers(harness, hathen, TheseOldBones), "Hathen offers it again");
         }
 
+        /// <summary>
+        /// The public Elder Hathen (pool 510152) while the escort runs: taken off the player's client on accept, not shown
+        /// nor heard by them (a bark of his reaches only others), hidden again when they come back into the copy, given
+        /// back to them when the run ends (here: abandoned).
+        /// </summary>
+        [TestMethod]
+        public void ThePublicHathenIsHiddenOnlyFromTheEscortsPlayerWhileItRuns()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var copy = AcceptAtHathen(harness, out var onAccept);
+            var plateau = harness.Maps.MapChannelArray[PlateauMissionDataV1.MapContextId];
+            var publicHathen = PublicHathen(copy);
+            Assert.IsTrue(onAccept.OfType<Rasa.Packets.MapChannel.Server.DestroyPhysicalEntityPacket>().Any(packet => packet.EntityId == publicHathen.EntityId),
+                "taken off the player's client");
+            Escort(harness, copy);
+
+            NpcBarks.Bark(copy, publicHathen, 1);
+            Assert.IsFalse(harness.Drain().OfType<Rasa.Packets.MapChannel.Server.BarkPackage>().Any(), "nothing of his reaches the player");
+            CreatureManager.Instance.CreateCreatureOnClient(harness.Client, publicHathen);
+            Assert.IsFalse(harness.Drain().Any(), "nor is he given to them");
+
+            harness.Manager.Scenes.Detach(harness.Client, copy);   // out of the copy and back: the run waits, held
+            Return(harness, plateau);
+            var back = ThroughTheDoor(harness, VelonHollow);
+            Assert.AreSame(copy, back);
+            harness.Manager.Scenes.Resume(harness.Client);
+            harness.Drain();
+            Tick(harness, copy, 250);
+            Assert.IsTrue(HiddenCreatures.IsHiddenFrom(publicHathen, harness.Client), "hidden again on the way back in");
+
+            harness.MoveTo(publicHathen.Position);
+            harness.Drain();
+            Assert.IsTrue(harness.Manager.TryAbandon(harness.Client, TheseOldBones));
+            var shown = new List<Rasa.Packets.PythonPacket>();
+            for (var step = 0; step < 4; step++)
+            {
+                harness.UtcNow = harness.UtcNow.AddMilliseconds(250);
+                BehaviorManager.Instance.MapChannelThink(copy, 250);
+                harness.Manager.Scenes.Tick(copy);
+                shown.AddRange(harness.Drain());
+            }
+            Assert.IsFalse(HiddenCreatures.IsHiddenFrom(publicHathen, harness.Client), "the run ended: shown again");
+            Assert.IsTrue(shown.OfType<Rasa.Packets.Game.Server.CreatePhysicalEntityPacket>().Any(packet => packet.EntityId == publicHathen.EntityId),
+                "and given back to the player's client");
+        }
+
+        private static Creature PublicHathen(MapChannel copy) =>
+            Here(copy).First(creature => creature.SpawnPool?.DbId == HathenPool && creature.Npc != null);
+
+        private static MapChannel AcceptAtHathen(WildernessRuntimeTestHarness harness) => AcceptAtHathen(harness, out _);
+
         /// <summary>Into the squad's Velon Hollow, Hathen at the hospital; 1976 offered after Village Of The Damned and accepted.</summary>
-        private static MapChannel AcceptAtHathen(WildernessRuntimeTestHarness harness)
+        private static MapChannel AcceptAtHathen(WildernessRuntimeTestHarness harness, out List<Rasa.Packets.PythonPacket> onAccept)
         {
             EnterPlateau(harness);
             if (!harness.Maps.MapChannelArray.ContainsKey(VelonHollow))
@@ -219,9 +345,9 @@ namespace Rasa.Test.Missions.Plateau
                 offer.SelectableReward.Select(item => item.ItemTemplateId).ToArray());
             harness.MoveTo(hathen.Position);
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, hathen.EntityId, TheseOldBones));
-            harness.Drain();
+            onAccept = harness.Drain().ToList();
             harness.Manager.Scenes.Resume(harness.Client);
-            harness.Drain();
+            onAccept.AddRange(harness.Drain());
             foreach (var temple in PlateauTheseOldBonesV1.Temples)
                 Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, temple.Objective));
             Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, PlateauTheseOldBonesV1.Protect));
@@ -235,6 +361,12 @@ namespace Rasa.Test.Missions.Plateau
             var hathen = SceneCreature(harness, copy, PlateauTheseOldBonesScene.Hathen);
             Assert.IsNotNull(hathen, "Hathen's copy is there");
             Assert.AreEqual(harness.Client.Player.Id, hathen.SpawnPool.FollowOwnerCharacterId, "he follows the player");
+            var publicHathen = PublicHathen(copy);
+            Assert.IsTrue(HiddenCreatures.IsHiddenFrom(publicHathen, harness.Client), "the public Hathen is not shown to the player");
+            Assert.IsTrue(copy.HiddenPools.Keys.All(key => key.Character == harness.Client.Player.Id && key.Pool == HathenPool),
+                "to the player only: squad mates still see him");
+            Assert.IsTrue(Vector3.Distance(hathen.Position, ToVector(PlateauTheseOldBonesV1.HathenAt)) < 1.5f, "the copy stands in his place");
+            Assert.IsTrue(Vector3.Distance(hathen.Position, publicHathen.Position) < 1.5f, "where the public one stands");
             return hathen;
         }
 

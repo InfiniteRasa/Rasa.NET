@@ -62,9 +62,36 @@ namespace Rasa.Services.Preloader.Missions.Plateau
 
         public const double TempleRadius = 30, TempleHeight = 20;
 
-        /// <summary>Hathen's copy and Algona, at the hospital (on the navmesh).</summary>
-        public static readonly ScenePosition HathenAt = new(167.4f, 75.3f, -513.6f);
+        /// <summary>
+        /// Hathen's copy, in the public Hathen's place (pool 510152's row, 165.2, 77.64, -520.3, facing 0; the navmesh is
+        /// at 77.91 there), so that the copy reads as the same NPC while the public one is hidden from the player
+        /// (playtest 2026-10-25). Was 167.4, 75.3, -513.6. Algona at the hospital (on the navmesh).
+        /// </summary>
+        public static readonly ScenePosition HathenAt = new(165.2f, 77.64f, -520.3f);
+
+        /// <summary>
+        /// Where Hathen's walk back from each temple (1-3) ends and he is gone: a corner of the local navmesh path from the
+        /// temple to <see cref="HathenAt"/>, about 100 m along it (ESTIMATE 100 m, user 2026-10-25; path 104, 99, 108 m of
+        /// 393, 665, 1643 m). The walk back to the hospital was too long (playtest 2026-10-25).
+        /// </summary>
+        public static readonly ScenePosition[] WayBackAt =
+        {
+            new(-11.6f, 64.7f, -486f), new(-21.2f, 80.5f, -283.2f), new(525.2f, 55.3f, -337.6f)
+        };
         public static readonly (double X, double Y, double Z) AlgonaAt = (162.4, 77.1, -516.4);
+
+        /// <summary>
+        /// The hospital's NPC, Medic Campbell (pool 500220, upstream ServiceNpcSpawnpoolPreloader), stood on Elder Hathen
+        /// (pool 510152, the same point); playtest 2026-10-25, the user's .where: Campbell moves next to Medic Egan, Hathen
+        /// keeps his place. Down puts the upstream point back.
+        /// </summary>
+        public const uint CampbellPool = 500220;
+        public static readonly (double X, double Y, double Z, double Rotation) CampbellPoolAt = (163.63, 71.73, -498.89, 2.89);
+        public static readonly (double X, double Y, double Z, double Rotation) CampbellPoolWas = (165.2, 77.3, -520.3, 0);
+
+        static string MoveCampbell((double X, double Y, double Z, double Rotation) at) =>
+            FormattableString.Invariant(
+                $"UPDATE spawnpool SET pos_x = {at.X}, pos_y = {at.Y}, pos_z = {at.Z}, rotation = {at.Rotation} WHERE id = {CampbellPool};");
 
         /// <summary>The temples' centres (map_region 20176, 20178, 20179) and their five places, 7 m round (on the navmesh).</summary>
         public static readonly (uint Objective, uint Hidden, uint Name, uint Body, (double X, double Y, double Z) At, ScenePosition[] Group)[] Temples =
@@ -99,10 +126,12 @@ namespace Rasa.Services.Preloader.Missions.Plateau
                          $"SELECT {Algona}, slot_id, Class_id, color FROM creature_appearance WHERE id = {AlgonaOutfitOf};";
             yield return $"INSERT INTO npc_package (id, package_id, comment) VALUES ({Algona}, {AlgonaPackage}, 'Warrior Algona');";
             yield return Pool(AlgonaPool, AlgonaAt.X, AlgonaAt.Y, AlgonaAt.Z, MapContextId, Algona, 1, 1, 20, 0);
+            yield return MoveCampbell(CampbellPoolAt);
         }
 
         public static IEnumerable<string> RemoveCreatures()
         {
+            yield return MoveCampbell(CampbellPoolWas);
             yield return $"DELETE FROM spawnpool WHERE id = {AlgonaPool};";
             yield return $"DELETE FROM npc_package WHERE id = {Algona};";
             yield return $"DELETE FROM creature_stat WHERE id = {HathenEscort};";
@@ -186,11 +215,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
                     [PlateauTheseOldBonesScene.Hathen] = new SceneActorDefinition(PlateauTheseOldBonesScene.Hathen,
                         SceneActorKind.Creature, HathenEscort, HathenAt, Orientation: 0, InitiallyInteractable: false)
                 },
-                Routes = new()
-                {
-                    [PlateauTheseOldBonesScene.Home] = new SceneRoute(PlateauTheseOldBonesScene.Home,
-                        new[] { new SceneWaypoint(HathenAt) }, Speed: 2.5f)
-                },
+                Routes = new(),
                 DefeatSequences = new() { [PlateauTheseOldBonesScene.Hathen] = PlateauTheseOldBonesScene.HathenDown },
                 Sequences = new()
                 {
@@ -200,6 +225,8 @@ namespace Rasa.Services.Preloader.Missions.Plateau
             };
             foreach (var temple in Temples)
             {
+                var wayBack = PlateauTheseOldBonesScene.WayBack(temple.Objective);
+                scene.Routes[wayBack] = new SceneRoute(wayBack, new[] { new SceneWaypoint(WayBackAt[temple.Objective - 1]) }, Speed: 2.5f);
                 scene.Sequences[temple.Objective] = new SceneSequenceDefinition();
                 for (var index = 0; index < temple.Group.Length; index++)
                 {

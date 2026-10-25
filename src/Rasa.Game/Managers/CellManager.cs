@@ -693,7 +693,8 @@ namespace Rasa.Managers
 
             foreach (var cell in CellsIn(mapChannel, creature.Cells))
                 foreach (var client in cell.ClientList)
-                    client.MoveObject(move);
+                    if (!HiddenCreatures.IsHiddenFrom(creature, client))
+                        client.MoveObject(move);
 
             // And the clients a mission has given this NPC to from across the map.
             if (creature.Npc != null)
@@ -756,13 +757,15 @@ namespace Rasa.Managers
 
             foreach (var cell in CellsIn(mapChannel, creature.Cells))
                 foreach (var client in cell.ClientList)
-                    client.CallMethod(creature.EntityId, packet);
+                    if (!HiddenCreatures.IsHiddenFrom(creature, client))
+                        client.CallMethod(creature.EntityId, packet);
         }
 
         internal void CellCallMethod(MapChannel mapChannel, Actor origin, PythonPacket packet)
         {
             foreach (var client in GetClientsInCells(mapChannel, origin.Cells))
-                client.CallMethod(origin.EntityId, packet);
+                if (origin is not Creature creature || !HiddenCreatures.IsHiddenFrom(creature, client))
+                    client.CallMethod(origin.EntityId, packet);
 
             // A player's squad and team mates who hold them from across the map (FarAllies).
             FarAllies.Relay(origin, packet);

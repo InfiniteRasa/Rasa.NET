@@ -63,6 +63,7 @@ namespace Rasa.Test.Missions.Plateau
                 Assert.AreNotEqual(TargetCategory.Hostile, follower.TargetCategory);
                 AssertStandsOnNavMesh(copy, follower.Position);
             }
+            AssertPublicAlgonaHidden(harness, copy, followers[0]);
             var crate = Crate(harness, copy);
             Assert.AreEqual(PlateauHolyVengeanceV1.CrateClass, (uint)crate.EntityClassId);
             Assert.AreEqual(PlateauHolyVengeanceScene.ReadyState, (uint)crate.StateId);
@@ -86,11 +87,14 @@ namespace Rasa.Test.Missions.Plateau
             Assert.AreEqual(MissionObjectiveState.Inactive, Objective(harness, PlateauHolyVengeanceV1.Recover), "after the reload");
             foreach (var follower in Followers(harness, copy))
                 Assert.AreEqual(harness.Client.Player.Id, follower.SpawnPool.FollowOwnerCharacterId, "still following after the reload");
+            Assert.IsTrue(HiddenCreatures.IsHiddenFrom(PublicAlgona(copy), harness.Client), "the public Algona still hidden after the reload");
 
             Clear(harness, copy, PlateauHolyVengeanceV1.InnerPools);
             Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, PlateauHolyVengeanceV1.Inner));
             Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, PlateauHolyVengeanceV1.Recover));
 
+            // The three came with the player into the control room (the player was put at each place, so they are too).
+            WithThePlayerAtTheCrate(harness, copy, crate);
             Use(harness, copy, crate);
             Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, PlateauHolyVengeanceV1.BookTemplate), "the Law of Asperion");
             Assert.AreEqual(PlateauHolyVengeanceScene.TakenState, (uint)crate.StateId);
@@ -100,16 +104,26 @@ namespace Rasa.Test.Missions.Plateau
             Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, PlateauHolyVengeanceV1.Escort));
             Assert.IsTrue(harness.Client.Player.Missions[HolyVengeance].Completeable);
 
-            // A warrior killed on the way back: the other two walk on to the hospital and are gone there.
+            // A warrior killed on the way back: the other two walk on about 100 m towards the hospital and are gone there.
             var warrior = Followers(harness, copy)[2];
             warrior.Attributes[Attributes.Health].Current = 0;
             harness.Creatures.HandleCreatureKill(copy, warrior, null);
             Tick(harness, copy, 250);
             Assert.AreEqual(MissionState.Active, harness.Client.Player.Missions[HolyVengeance].State);
-            for (var tick = 0; tick < 1200 && Followers(harness, copy, required: false).Any(follower => follower != null); tick++)
+            Assert.IsTrue(HiddenCreatures.IsHiddenFrom(PublicAlgona(copy), harness.Client), "hidden while her copy walks back");
+            var algonaLastAt = Followers(harness, copy, required: false)[0].Position;
+            var seconds = 0;
+            for (; seconds < 70 && Followers(harness, copy, required: false).Any(follower => follower != null); seconds++)
+            {
                 Tick(harness, copy, 1000);
+                algonaLastAt = Followers(harness, copy, required: false)[0]?.Position ?? algonaLastAt;
+            }
             Assert.IsTrue(Followers(harness, copy, required: false).All(follower => follower == null),
                 "the three are home and gone: " + string.Join(", ", Followers(harness, copy, required: false).Select(follower => follower?.Position.ToString() ?? "gone")));
+            Assert.IsTrue(Vector3.Distance(algonaLastAt, ToVector(PlateauHolyVengeanceV1.WayBackAt[0])) < 3,
+                $"her copy walked her way back and is gone there ({algonaLastAt})");
+            Assert.IsTrue(seconds * 1000 < PlateauHolyVengeanceScene.WalkBackMilliseconds, $"gone at the routes' end ({seconds} s), not by the timeout");
+            Assert.IsFalse(HiddenCreatures.IsHiddenFrom(PublicAlgona(copy), harness.Client), "the public Algona is back for the player");
 
             Return(harness, plateau);
             Spawn(plateau, PlateauHolyVengeanceV1.Sampei);
@@ -136,6 +150,17 @@ namespace Rasa.Test.Missions.Plateau
                 path = copy.NavMesh.FindPath(crate, ToVector(home), out joined);
                 Assert.IsTrue(joined && path != null && Vector3.Distance(path[^1], ToVector(home)) <= 0.5f, $"back to {ToVector(home)}");
             }
+            // Each way back ends on the navmesh about 100 m (ESTIMATE) along the path from the crate.
+            foreach (var wayBack in PlateauHolyVengeanceV1.WayBackAt.Select(ToVector))
+            {
+                AssertStandsOnNavMesh(copy, wayBack, 0.5f);
+                var path = copy.NavMesh.FindPath(crate, wayBack, out var joined);
+                Assert.IsTrue(joined && path != null, $"a path to {wayBack}");
+                var length = 0f;
+                var at = crate;
+                foreach (var corner in path) { length += Vector3.Distance(at, corner); at = corner; }
+                Assert.IsTrue(length is > 80 and < 130, $"{wayBack}: {length:0} m");
+            }
         }
 
         /// <summary>Abandoned with the three following: they and the crate are gone, Algona offers it again.</summary>
@@ -147,14 +172,74 @@ namespace Rasa.Test.Missions.Plateau
             var copy = AcceptAtAlgona(harness);
             var followers = Followers(harness, copy);
             var crate = Crate(harness, copy);
+            var publicAlgona = PublicAlgona(copy);
+            harness.MoveTo(publicAlgona.Position);
+            harness.Drain();
 
             Assert.IsTrue(harness.Manager.TryAbandon(harness.Client, HolyVengeance));
-            Tick(harness, copy, 250);
+            var shown = new List<Rasa.Packets.PythonPacket>();
+            for (var step = 0; step < 4; step++)
+            {
+                harness.UtcNow = harness.UtcNow.AddMilliseconds(250);
+                BehaviorManager.Instance.MapChannelThink(copy, 250);
+                harness.Manager.Scenes.Tick(copy);
+                shown.AddRange(harness.Drain());
+            }
+            Assert.IsFalse(HiddenCreatures.IsHiddenFrom(publicAlgona, harness.Client), "the run ended: the public Algona shown again");
+            Assert.IsTrue(shown.OfType<Rasa.Packets.Game.Server.CreatePhysicalEntityPacket>().Any(packet => packet.EntityId == publicAlgona.EntityId),
+                "and given back to the player's client");
             Assert.IsFalse(harness.Client.Player.Missions.ContainsKey(HolyVengeance), "gone from the log");
             Assert.IsFalse(followers.Any(follower => Here(copy).Contains(follower)), "the three are gone");
             Assert.IsFalse(crate.IsInWorld, "the crate is gone");
             Spawn(copy, PlateauTheseOldBonesV1.AlgonaPool);
             Assert.IsTrue(Offers(harness, RequireNpc(copy, PlateauTheseOldBonesV1.AlgonaPool), HolyVengeance), "Algona offers it again");
+        }
+
+        /// <summary>
+        /// The book taken with the three left at the hospital (the player was put at the crate): their ways back are far
+        /// off, so the timeout takes them, and the public Algona is shown again.
+        /// </summary>
+        [TestMethod]
+        public void HolyVengeanceFollowersFarOffAreGoneAfterTheTimeout()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            EnterPlateau(harness);
+            var copy = AcceptAtAlgona(harness);
+            TakeTheBook(harness, copy);
+            Tick(harness, copy, PlateauHolyVengeanceScene.WalkBackMilliseconds - 5000);
+            Assert.IsTrue(Followers(harness, copy, required: false).All(follower => follower != null), "still on their way before the timeout");
+            Assert.IsTrue(HiddenCreatures.IsHiddenFrom(PublicAlgona(copy), harness.Client), "and the public Algona hidden");
+            Tick(harness, copy, 6000);
+            Tick(harness, copy, 250);
+            Assert.IsTrue(Followers(harness, copy, required: false).All(follower => follower == null), "gone after the timeout");
+            Assert.IsFalse(HiddenCreatures.IsHiddenFrom(PublicAlgona(copy), harness.Client), "the public Algona is back");
+            Assert.IsTrue(harness.Client.Player.Missions[HolyVengeance].Completeable, "the hand-in needs none of them");
+        }
+
+        /// <summary>
+        /// Out of the copy and back in (or a server restart) on the walk back: the run is recovered, nobody can be put back
+        /// on his way, so all are gone and the public Algona shown.
+        /// </summary>
+        [TestMethod]
+        public void HolyVengeanceRecoveredOnTheWalkBackEndsIt()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var plateau = EnterPlateau(harness);
+            var copy = AcceptAtAlgona(harness);
+            TakeTheBook(harness, copy);
+            Assert.IsNotNull(Followers(harness, copy, required: false)[0], "Algona on her way back");
+
+            harness.Manager.Scenes.Detach(harness.Client, copy);
+            Return(harness, plateau);
+            Assert.AreSame(copy, ThroughTheDoor(harness, VelonHollow));
+            harness.Manager.Scenes.Resume(harness.Client);
+            harness.Drain();
+            Tick(harness, copy, 250);
+            Tick(harness, copy, 250);
+            Assert.IsTrue(Followers(harness, copy, required: false).All(follower => follower == null), "gone after the recovery");
+            Assert.IsFalse(HiddenCreatures.IsHiddenFrom(PublicAlgona(copy), harness.Client), "the public Algona is back");
+            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, PlateauHolyVengeanceV1.BookTemplate), "the book kept");
+            Assert.IsTrue(harness.Client.Player.Missions[HolyVengeance].Completeable);
         }
 
         /// <summary>A follower killed: nothing fails, and he does not come back.</summary>
@@ -165,6 +250,7 @@ namespace Rasa.Test.Missions.Plateau
             EnterPlateau(harness);
             var copy = AcceptAtAlgona(harness);
             var algona = Followers(harness, copy)[0];
+            Assert.IsTrue(HiddenCreatures.IsHiddenFrom(PublicAlgona(copy), harness.Client), "hidden while her copy stands");
             algona.Attributes[Attributes.Health].Current = 0;
             harness.Creatures.HandleCreatureKill(copy, algona, null);
             Tick(harness, copy, 250);
@@ -173,6 +259,39 @@ namespace Rasa.Test.Missions.Plateau
             Assert.AreEqual(MissionObjectiveState.Incomplete, mission.Objectives[PlateauHolyVengeanceV1.Escort].State);
             Tick(harness, copy, 1000);
             Assert.IsNull(Followers(harness, copy, required: false)[0], "Algona stays dead");
+            Assert.IsFalse(HiddenCreatures.IsHiddenFrom(PublicAlgona(copy), harness.Client), "the public Algona is back with the copy dead");
+            Assert.IsFalse(copy.HiddenPools.Keys.Any(key => key.Character == harness.Client.Player.Id), "nothing held for the player");
+        }
+
+        /// <summary>
+        /// The public Warrior Algona (pool 650108) while the escort runs: taken off the player's client on accept, not
+        /// shown nor heard by them (a bark of hers reaches only others), hidden again when they come back into the copy.
+        /// </summary>
+        [TestMethod]
+        public void ThePublicAlgonaIsHiddenOnlyFromTheEscortsPlayerWhileItRuns()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var plateau = EnterPlateau(harness);
+            var copy = AcceptAtAlgona(harness, out var onAccept);
+            var publicAlgona = PublicAlgona(copy);
+            Assert.IsTrue(onAccept.OfType<Rasa.Packets.MapChannel.Server.DestroyPhysicalEntityPacket>().Any(packet => packet.EntityId == publicAlgona.EntityId),
+                "taken off the player's client");
+            AssertPublicAlgonaHidden(harness, copy, Followers(harness, copy)[0]);
+
+            NpcBarks.Bark(copy, publicAlgona, 1);
+            Assert.IsFalse(harness.Drain().OfType<Rasa.Packets.MapChannel.Server.BarkPackage>().Any(), "nothing of hers reaches the player");
+            CreatureManager.Instance.CreateCreatureOnClient(harness.Client, publicAlgona);
+            Assert.IsFalse(harness.Drain().Any(), "nor is she given to them");
+
+            harness.Manager.Scenes.Detach(harness.Client, copy);   // out of the copy and back: the run waits, held
+            Return(harness, plateau);
+            var back = ThroughTheDoor(harness, VelonHollow);
+            Assert.AreSame(copy, back);
+            harness.Manager.Scenes.Resume(harness.Client);
+            harness.Drain();
+            Tick(harness, copy, 250);
+            Assert.IsTrue(HiddenCreatures.IsHiddenFrom(publicAlgona, harness.Client), "hidden again on the way back in");
+            Assert.IsNotNull(Followers(harness, copy)[0], "her copy stands");
         }
 
         /// <summary>The outer outpost already cleared when the mission is taken: 1 is done on the accept.</summary>
@@ -191,11 +310,36 @@ namespace Rasa.Test.Missions.Plateau
             Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, PlateauHolyVengeanceV1.Inner));
         }
 
-        private static MapChannel AcceptAtAlgona(WildernessRuntimeTestHarness harness)
+        private static MapChannel AcceptAtAlgona(WildernessRuntimeTestHarness harness) => AcceptAtAlgona(harness, out _);
+
+        /// <summary>Both outposts cleared and the book taken from the crate: the three on their way back.</summary>
+        private static void TakeTheBook(WildernessRuntimeTestHarness harness, MapChannel copy)
+        {
+            var crate = Crate(harness, copy);
+            Clear(harness, copy, PlateauHolyVengeanceV1.OuterPools);
+            Clear(harness, copy, PlateauHolyVengeanceV1.InnerPools);
+            Use(harness, copy, crate);
+            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, PlateauHolyVengeanceV1.BookTemplate), "the Law of Asperion");
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, PlateauHolyVengeanceV1.Escort));
+        }
+
+        /// <summary>The player and the three by the crate, as when they walked in with him (each a few metres off).</summary>
+        private static void WithThePlayerAtTheCrate(WildernessRuntimeTestHarness harness, MapChannel copy, DynamicObject crate)
+        {
+            harness.MoveTo(crate.Position + new Vector3(0, 0, 1));
+            harness.Drain();
+            var followers = Followers(harness, copy, required: false);
+            for (var index = 0; index < followers.Length; index++)
+                if (followers[index] != null)
+                    followers[index].Position = copy.NavMesh.Nearest(crate.Position + new Vector3(2 + index, 0, 2)) ?? crate.Position;
+            Tick(harness, copy, 250);
+        }
+
+        private static MapChannel AcceptAtAlgona(WildernessRuntimeTestHarness harness, out List<Rasa.Packets.PythonPacket> onAccept)
         {
             var copy = IntoVelonHollow(harness);
             SpawnPoolClearedProgress.Missions = () => harness.Manager;
-            Accept(harness, copy);
+            onAccept = Accept(harness, copy);
             Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, PlateauHolyVengeanceV1.Outer));
             Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, PlateauHolyVengeanceV1.Inner));
             Assert.AreEqual(MissionObjectiveState.Inactive, Objective(harness, PlateauHolyVengeanceV1.Recover));
@@ -204,7 +348,7 @@ namespace Rasa.Test.Missions.Plateau
         }
 
         /// <summary>Algona at the hospital; 1977 offered after These Old Bones and accepted.</summary>
-        private static void Accept(WildernessRuntimeTestHarness harness, MapChannel copy)
+        private static List<Rasa.Packets.PythonPacket> Accept(WildernessRuntimeTestHarness harness, MapChannel copy)
         {
             Spawn(copy, PlateauTheseOldBonesV1.AlgonaPool);
             var algona = RequireNpc(copy, PlateauTheseOldBonesV1.AlgonaPool);
@@ -219,9 +363,26 @@ namespace Rasa.Test.Missions.Plateau
                 offer.SelectableReward.Select(item => item.ItemTemplateId).ToArray());
             harness.MoveTo(algona.Position);
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, algona.EntityId, HolyVengeance));
-            harness.Drain();
+            var onAccept = harness.Drain().ToList();
             harness.Manager.Scenes.Resume(harness.Client);
-            harness.Drain();
+            onAccept.AddRange(harness.Drain());
+            return onAccept;
+        }
+
+        private static Creature PublicAlgona(MapChannel copy) =>
+            Here(copy).First(creature => creature.SpawnPool?.DbId == PlateauHolyVengeanceScene.PublicAlgonaPool && creature.Npc != null);
+
+        /// <summary>The public Algona hidden from the player only, her copy standing in her place.</summary>
+        private static void AssertPublicAlgonaHidden(WildernessRuntimeTestHarness harness, MapChannel copy, Creature escort)
+        {
+            var publicAlgona = PublicAlgona(copy);
+            Assert.AreEqual(PlateauTheseOldBonesV1.AlgonaPool, PlateauHolyVengeanceScene.PublicAlgonaPool);
+            Assert.IsTrue(HiddenCreatures.IsHiddenFrom(publicAlgona, harness.Client), "the public Algona is not shown to the player");
+            Assert.IsTrue(copy.HiddenPools.Keys.Any() && copy.HiddenPools.Keys.All(key =>
+                    key.Character == harness.Client.Player.Id && key.Pool == PlateauHolyVengeanceScene.PublicAlgonaPool),
+                "to the player only: squad mates still see her");
+            Assert.IsTrue(Vector3.Distance(escort.Position, ToVector(PlateauHolyVengeanceV1.FollowersAt[0])) < 1.5f, "the copy stands at her start");
+            Assert.IsTrue(Vector3.Distance(escort.Position, publicAlgona.Position) < 1.5f, "where the public one stands");
         }
 
         private static MapChannel IntoVelonHollow(WildernessRuntimeTestHarness harness)

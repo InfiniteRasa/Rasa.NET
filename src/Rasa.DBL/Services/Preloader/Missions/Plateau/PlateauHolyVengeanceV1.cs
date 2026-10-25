@@ -66,8 +66,25 @@ namespace Rasa.Services.Preloader.Missions.Plateau
         /// <summary>The crate, in the control room (on the navmesh, 14 m from Mountain Spring Toxins' engine).</summary>
         public static readonly ScenePosition CrateAt = new(452, 33.2f, 112);
 
-        /// <summary>Algona's copy and the two warriors at the hospital, each its own place to walk back to (on the navmesh).</summary>
-        public static readonly ScenePosition[] FollowersAt = { new(162f, 79.2f, -524.9f), new(169.4f, 77.9f, -522.4f), new(167.4f, 79f, -527f) };
+        /// <summary>
+        /// Algona's copy and the two warriors at the hospital (on the navmesh). The copy stands in the public Algona's place
+        /// (pool 650108's row, 162.4, 77.1, -516.4, facing 0; the local navmesh is at 77.10 there).
+        /// </summary>
+        public static readonly ScenePosition[] FollowersAt =
+        {
+            new((float)PlateauTheseOldBonesV1.AlgonaAt.X, (float)PlateauTheseOldBonesV1.AlgonaAt.Y, (float)PlateauTheseOldBonesV1.AlgonaAt.Z),
+            new(169.4f, 77.9f, -522.4f), new(167.4f, 79f, -527f)
+        };
+
+        /// <summary>
+        /// Where each follower's walk back from the crate ends and he is gone: corners of the local navmesh path from the
+        /// crate towards the hospital, about 100 m along it (ESTIMATE 100 m, the user's rule for 1976, taken for 1977 by the
+        /// main session 2026-10-25; path 98, 97, 91 m of about 2440 m).
+        /// </summary>
+        public static readonly ScenePosition[] WayBackAt =
+        {
+            new(384.8f, 34.3f, 75.6f), new(386f, 34.3f, 75.6f), new(391.6f, 34.3f, 74.8f)
+        };
 
         public static IEnumerable<string> Creatures()
         {
@@ -179,7 +196,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
                 scene.Actors[role] = new SceneActorDefinition(role, SceneActorKind.Creature, index == 0 ? AlgonaEscort : Warrior,
                     FollowersAt[index], Orientation: 0, InitiallyInteractable: false);
                 scene.Routes[PlateauHolyVengeanceScene.Home(index)] = new SceneRoute(PlateauHolyVengeanceScene.Home(index),
-                    new[] { new SceneWaypoint(FollowersAt[index]) }, Speed: 2.5f);
+                    new[] { new SceneWaypoint(WayBackAt[index]) }, Speed: 2.5f);
                 var down = PlateauHolyVengeanceScene.DownFrom + 1 + (uint)index;
                 scene.DefeatSequences[role] = down;
                 scene.Sequences[down] = new SceneSequenceDefinition();

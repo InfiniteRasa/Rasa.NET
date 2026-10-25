@@ -676,6 +676,10 @@ namespace Rasa.Managers
             if (creature == null)
                 return;
 
+            // Not shown to this player while a mission scene keeps it from them (HiddenCreatures).
+            if (HiddenCreatures.IsHiddenFrom(creature, client))
+                return;
+
             // One this client was given from afar is taken off it first: a second
             // CreatePhysicalEntity would be an update, and leave it without its overhead icon
             // (MissionContacts.Entering).
