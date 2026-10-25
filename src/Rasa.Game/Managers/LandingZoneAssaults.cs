@@ -64,6 +64,7 @@ namespace Rasa.Managers
             foreach (var creature in EntityManager.Instance.Creatures.Values.Where(c => state.Pools.Contains(c.SpawnPool) && CreatureManager.IsLivingOnMap(map, c)).ToArray())
             {
                 if (creature == state.Boss && Claim(map, point, state, now)) { if (!point.HeldByAfs) return; continue; }
+                if (LandingZoneBreach.Order(map, point, creature, guards)) continue;
                 if (creature.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting) continue;
                 var guard = guards
                     .OrderBy(c => Vector3.DistanceSquared(creature.Position, c.Position)).FirstOrDefault();
@@ -123,7 +124,8 @@ namespace Rasa.Managers
         private static bool Claim(MapChannel map, ControlPoints.Point point, Assault state, long now)
         {
             var boss = state.Boss;
-            var ready = CreatureManager.IsLivingOnMap(map, boss) &&
+            var ready = LandingZoneBreach.StandingField(map, point) == null &&
+                CreatureManager.IsLivingOnMap(map, boss) &&
                 ControlPoints.Instance.GarrisonOf(map, point, ControlPoints.Afs) != ControlPoints.Garrison.Standing &&
                 Vector3.DistanceSquared(boss.Position, Destination(map, point)) <= 36 &&
                 boss.Controller.CurrentAction != BehaviorManager.BehaviorActionFighting &&

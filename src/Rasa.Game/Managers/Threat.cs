@@ -249,10 +249,10 @@ namespace Rasa.Managers
                         && other.Attributes[Attributes.Health].Current > 0;
                 }
 
-                // A Personal Waypoint or a Hortimonculus, which MayFight has let through: it is
+                // A Personal Waypoint, Hortimonculus or force field MayFight let through: it is
                 // there and standing, or it is not.
                 case EntityType.Object:
-                    return PersonalWaypoints.MayBeFoughtBy(creature, entityId) || AbilityManager.PlantMayBeFoughtBy(creature, entityId);
+                    return PersonalWaypoints.MayBeFoughtBy(creature, entityId) || AbilityManager.PlantMayBeFoughtBy(creature, entityId) || ForceFields.MayBeFoughtBy(creature, entityId);
 
                 default:
                     return false;

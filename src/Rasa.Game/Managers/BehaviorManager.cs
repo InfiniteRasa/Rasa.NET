@@ -935,6 +935,8 @@ namespace Rasa.Managers
 
                     targetPosition = targetCreature.Position;
                 }
+                else if (target == EntityType.Object && ForceFields.MayBeFoughtBy(creature, creature.Controller.ActionFighting.TargetEntityId))
+                    targetPosition = ForceFields.AttackPoint(ForceFields.Find(creature.Controller.ActionFighting.TargetEntityId), creature.Position);
                 else if (target == EntityType.Object && PersonalWaypoints.TryGetPosition(creature.Controller.ActionFighting.TargetEntityId, out var waypointPosition))
                 {
                     // A Personal Waypoint (PersonalWaypoints): a place to walk up to and hit,
@@ -2867,7 +2869,7 @@ namespace Rasa.Managers
             // A Personal Waypoint (PersonalWaypoints) is fought by what fights its owner, and so is
             // a Hortimonculus (AbilityManager). A Confused or Subverted creature has turned on
             // creatures, and leaves them.
-            return pump == 0 && (PersonalWaypoints.MayBeFoughtBy(creature, entityId) || AbilityManager.PlantMayBeFoughtBy(creature, entityId));
+            return pump == 0 && (PersonalWaypoints.MayBeFoughtBy(creature, entityId) || AbilityManager.PlantMayBeFoughtBy(creature, entityId) || ForceFields.MayBeFoughtBy(creature, entityId));
         }
 
         /// <summary>

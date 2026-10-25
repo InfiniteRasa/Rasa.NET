@@ -41,8 +41,8 @@ namespace Rasa.Managers
     ///    stops players and friendly creatures and lets the Bane pass;
     ///  - hit points (<see cref="DefaultHealth"/> unless the GM gives some), the states at more
     ///    than 75%, more than 25% and above none, and no repair but a GM's;
-    ///  - who can hurt one: whoever it stops, which for now is a player shooting a B field;
-    ///  - a creature it stops just stops, where the field is, and goes no further until it is down.
+    ///  - whoever it stops can hurt it; Landing Zone assault troops must first defeat the frontline;
+    ///  - creatures cannot cross an intact enemy field, and may attack one selected as a combat target.
     /// </summary>
     public static class ForceFields
     {
@@ -438,11 +438,27 @@ namespace Rasa.Managers
             return shooter switch
             {
                 Manifestation => StopsPlayers(field.Side),
-                Creature creature => StopsCategory(field.Side, creature.TargetCategory),
+                Creature creature => StopsCategory(field.Side, creature.TargetCategory) && LandingZoneBreach.AllowsHit(field, creature),
                 _ => false
             };
         }
 
+        /// <summary>A creature's hostile, damageable field on this exact map channel.</summary>
+        internal static bool MayBeFoughtBy(Creature creature, ulong entityId)
+        {
+            var field = Find(entityId);
+            return field != null && ReferenceEquals(field.MapChannel, creature?.RuntimeMapChannel) && MayShoot(field, creature);
+        }
+        /// <summary>Aim at the nearest part of the shield sheet, rather than its mesh origin.</summary>
+        internal static Vector3 AttackPoint(Field field, Vector3 from)
+        {
+            var rotation = Quaternion.CreateFromYawPitchRoll(field.Yaw, 0, 0);
+            var local = Vector3.Transform(from - field.Position, Quaternion.Inverse(rotation));
+            var min = field.Class.Min;
+            var max = field.Class.Max;
+            local = new Vector3(Math.Clamp(local.X, min.X, max.X), Math.Clamp(local.Y + 1.4f, min.Y, max.Y), (min.Z + max.Z) * 0.5f);
+            return field.Position + Vector3.Transform(local, rotation);
+        }
         /// <summary>
         /// A missile at a field landing (MissileManager.MissileTrigger): its damage goes on the
         /// field as it is, no crit, cover or resistance, and what it took is what the hit shows.
