@@ -26,7 +26,8 @@ namespace Rasa.Managers
     ///    the loading screen, into their copy of the map.
     ///  - .unstuck &lt;familyName | #characterId&gt;: to the nearest hospital they can use on their map,
     ///    or the entrance of the squad instance they are in. A dead player is revived there, as
-    ///    the hospital button does.
+    ///    the hospital button does. Players can use .unstuck too, on themselves only, once every
+    ///    <see cref="PlayerUnstuckCooldown"/>.
     ///  - .revive &lt;familyName | #characterId&gt;: up where they lie, at full health, with no death
     ///    penalties: a GM puts right a death that should not have happened.
     ///  - .inventory &lt;familyName | #characterId&gt; [backpack|equipped|lockbox|inbox]: what they hold.
@@ -120,27 +121,89 @@ namespace Rasa.Managers
             Say(gm, $"Bringing {DisplayName(target)} to you.");
         }
 
-        public static void Unstuck(Client gm, string[] parts)
+        /// <summary>How often a player (not a GM) can use .unstuck on themselves.</summary>
+        public static readonly TimeSpan PlayerUnstuckCooldown = TimeSpan.FromMinutes(5);
+
+        /// <summary>For tests: the clock the player cooldown runs on, in milliseconds.</summary>
+        internal static Func<long> Clock = () => Environment.TickCount64;
+
+        // When each character may next use .unstuck as a player. Kept in memory: a restart resets it.
+        private static readonly Dictionary<uint, long> UnstuckReadyAt = new Dictionary<uint, long>();
+
+        public static void Unstuck(Client caller, string[] parts)
         {
-            var target = Target(gm, parts, ".unstuck <familyName or #characterId>");
+            if (!ChatCommandsManager.HasLevel(caller, GmLevel.GameMaster))
+            {
+                PlayerUnstuck(caller, parts);
+                return;
+            }
+
+            var target = Target(caller, parts, ".unstuck <familyName or #characterId>");
             if (target == null)
                 return;
 
+            var where = Rescue(target, problem => Say(caller, problem));
+            if (where == null)
+                return;
+
+            Say(target, $"A game master has moved you to {where}.");
+            Say(caller, $"{DisplayName(target)} moved to {where}.");
+        }
+
+        /// <summary>A player's .unstuck: themselves only, once every <see cref="PlayerUnstuckCooldown"/>.</summary>
+        private static void PlayerUnstuck(Client player, string[] parts)
+        {
+            if (parts.Length > 1)
+            {
+                Say(player, "Use .unstuck on its own: it only moves you.");
+                return;
+            }
+
+            var id = player.Player.Id;
+            var now = Clock();
+
+            lock (UnstuckReadyAt)
+            {
+                if (UnstuckReadyAt.TryGetValue(id, out var readyAt) && readyAt > now)
+                {
+                    var wait = TimeSpan.FromMilliseconds(readyAt - now);
+                    Say(player, $"You can use .unstuck again in {(int)wait.TotalMinutes}m {wait.Seconds}s.");
+                    return;
+                }
+            }
+
+            var where = Rescue(player, problem => Say(player, problem));
+            if (where == null)
+                return;
+
+            // Only a move that happened uses up the cooldown.
+            lock (UnstuckReadyAt)
+                UnstuckReadyAt[id] = now + (long)PlayerUnstuckCooldown.TotalMilliseconds;
+
+            Say(player, $"You have been moved to {where}.");
+        }
+
+        /// <summary>
+        /// Moves <paramref name="target"/> to the nearest hospital they can use on their map, or the
+        /// entrance of the squad instance they are in; a dead one is revived at a hospital. Returns
+        /// where they went, or null (with the reason handed to <paramref name="problem"/>).
+        /// </summary>
+        private static string Rescue(Client target, Action<string> problem)
+        {
             var player = target.Player;
             var map = player.MapChannel;
 
             if (map == null)
             {
-                Say(gm, $"{DisplayName(target)} is between maps; try again when they arrive.");
-                return;
+                problem($"{DisplayName(target)} is between maps; try again when they arrive.");
+                return null;
             }
 
             // Dead: the hospital button does the rest, revive and all.
             if (player.State == CharacterState.Dead)
             {
                 PlayerDeath.ReviveMe(target, null);
-                Say(gm, $"{DisplayName(target)} was dead, and has been revived at a hospital.");
-                return;
+                return "a hospital, and revived";
             }
 
             var entrance = InstanceEntrances.Of(map, player);
@@ -150,8 +213,8 @@ namespace Rasa.Managers
 
             if (entrance == null && hospital == null)
             {
-                Say(gm, $"{MapName(target)} has no hospital {DisplayName(target)} can use. Try .summon, or /gotomap there yourself.");
-                return;
+                problem($"{MapName(target)} has no hospital {DisplayName(target)} can use. Try .summon, or /gotomap there yourself.");
+                return null;
             }
 
             var at = entrance?.Position ?? hospital.Position + new Vector3(0f, GmMapCommands.PadHeight, 0f);
@@ -163,9 +226,7 @@ namespace Rasa.Managers
 
             MoveWithinMap(target, at);
 
-            var where = entrance != null ? "the instance entrance" : hospital.Name ?? $"hospital {hospital.TeleporterId}";
-            Say(target, $"A game master has moved you to {where}.");
-            Say(gm, $"{DisplayName(target)} moved to {where}.");
+            return entrance != null ? "the instance entrance" : hospital.Name ?? $"hospital {hospital.TeleporterId}";
         }
 
         public static void Revive(Client gm, string[] parts)

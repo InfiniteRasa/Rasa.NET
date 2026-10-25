@@ -11,7 +11,7 @@
     /// </summary>
     public enum GmLevel : byte
     {
-        /// <summary>An ordinary player. No dot commands at all.</summary>
+        /// <summary>An ordinary player. No dot commands but .unstuck, on themselves.</summary>
         Player = 0,
 
         /// <summary>Look, don't touch: positions, distances, what is nearby, the GM UI flag.</summary>
