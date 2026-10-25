@@ -9,6 +9,8 @@ namespace Rasa.Structures
     {
         internal bool IsControlPointAssault { get; set; }
         internal System.Action<IReadOnlyList<Creature>> Delivered { get; set; }
+        internal bool SceneOwnerOnly { get; set; }
+        internal uint RouteEscortOwnerCharacterId { get; set; }
         public uint DbId { get; set; }         // id of the spawnpool
 
         public Vector3 Position { get; set; }

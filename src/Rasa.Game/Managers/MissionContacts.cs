@@ -135,10 +135,11 @@ namespace Rasa.Managers
                     continue;
                 }
 
-                if (IsContact(held, wanted))
+                if (MissionNpcVisibility.IsShownTo(client, held) && IsContact(held, wanted))
                     continue;
 
                 client.FarContacts.Remove(entityId);
+                client.VisibleMissionNpcs.Remove(entityId);
                 client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(entityId));
             }
 
@@ -147,7 +148,7 @@ namespace Rasa.Managers
 
             foreach (var creature in map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList).Distinct().ToList())
             {
-                if (!IsContact(creature, wanted) || InView(player, creature) || client.FarContacts.Contains(creature.EntityId))
+                if (!MissionNpcVisibility.IsShownTo(client, creature) || !IsContact(creature, wanted) || InView(player, creature) || client.FarContacts.Contains(creature.EntityId))
                     continue;
 
                 // The creature as any client is given it, its conversation status with it
@@ -214,7 +215,7 @@ namespace Rasa.Managers
 
             foreach (var creature in leaving)
             {
-                if (IsContact(creature, wanted))
+                if (MissionNpcVisibility.IsShownTo(client, creature) && IsContact(creature, wanted))
                     client.FarContacts.Add(creature.EntityId);
                 else
                     going.Add(creature);
@@ -229,7 +230,7 @@ namespace Rasa.Managers
             if (creature?.Npc == null || !InWorld(client))
                 return false;
 
-            if (!IsContact(creature, new Wanted(client.Player)))
+            if (!MissionNpcVisibility.IsShownTo(client, creature) || !IsContact(creature, new Wanted(client.Player)))
                 return false;
 
             client.FarContacts.Add(creature.EntityId);
@@ -260,7 +261,7 @@ namespace Rasa.Managers
                 return;
 
             foreach (var client in mapChannel.ClientList)
-                if (client?.Player != null && client.FarContacts.Contains(creature.EntityId) && !InView(client.Player, creature))
+                if (client?.Player != null && MissionNpcVisibility.IsShownTo(client, creature) && client.FarContacts.Contains(creature.EntityId) && !InView(client.Player, creature))
                     client.MoveObject(move);
         }
 
@@ -271,6 +272,7 @@ namespace Rasa.Managers
                 return;
 
             client.FarContacts.Clear();
+            client.VisibleMissionNpcs.Clear();
             client.NextContactSync = 0;
         }
     }

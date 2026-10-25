@@ -372,7 +372,7 @@ namespace Rasa.Managers
             Creature creature,
             MissionApplication missionManager = null)
         {
-            if (creature == null)
+            if (creature == null || !MissionNpcVisibility.IsShownTo(client, creature))
                 return;
 
             if (!creature.IsInteractable)
@@ -578,7 +578,7 @@ namespace Rasa.Managers
             }
 
             // Same map and the same copy of it: a private instance shares its map's context id.
-            if (creature.State == CharacterState.Dead || creature.MapContextId != player.MapContextId
+            if (!MissionNpcVisibility.IsShownTo(client, creature) || creature.State == CharacterState.Dead || creature.MapContextId != player.MapContextId
                 || (creature.RuntimeMapChannel != null && player.MapChannel != null && creature.RuntimeMapChannel != player.MapChannel)
                 || System.Numerics.Vector3.Distance(player.Position, creature.Position) > NpcInteractionRange)
             {

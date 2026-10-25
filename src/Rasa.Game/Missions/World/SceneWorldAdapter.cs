@@ -237,12 +237,24 @@ namespace Rasa.Game.Missions.World
                 // is in it from the moment she is set on such a route, until her lease resets.
                 if (!world.Bindings.Routes.TryGetValue(route.Route, out var path))
                     return WorldEffectResult.Failed($"Route {route.Route} is not in the scene's bindings.");
-                if (route.ResumeAfterCombat &&
+                var held = world.Bindings.Actors[route.Role].HoldCombatUntilRoute &&
+                    world.Bindings.Actors[route.Role].Kind == SceneActorKind.Creature;
+                if (route.ResumeAfterCombat && held)
+                    actor.Creature.ScriptedCombatAuthorization = new ScriptedCombatAuthorization(actor.Handle, route.OperationKey);
+                if (route.ResumeAfterCombat && !held &&
                     !_leases.AuthorizeCombat(world.Map, actor.Handle, actor.Creature, route.OperationKey))
                     return WorldEffectResult.Failed("A route through combat requires this actor's current public lease.");
                 var started = _routes.Start(world.Map, actor.Handle, actor.Creature, route, path);
                 if (route.ResumeAfterCombat && started.State == WorldEffectState.Failed)
-                    _leases.RevokeCombat(world.Map, actor.Handle, route.OperationKey);
+                {
+                    if (held) actor.Creature.ScriptedCombatAuthorization = null;
+                    else _leases.RevokeCombat(world.Map, actor.Handle, route.OperationKey);
+                }
+                if (held && started.State != WorldEffectState.Failed)
+                {
+                    actor.Creature.SpawnPool.RouteEscortOwnerCharacterId = world.Run.OwnerCharacterId;
+                    CreatureManager.PublishEscortStatus(world.Map, actor.Creature, true);
+                }
                 return started;
             }
             if (intent is AttackActorIntent attack)
@@ -424,6 +436,7 @@ namespace Rasa.Game.Missions.World
                         Position = SceneRouteController.Position(definition.Position), Rotation = definition.Orientation,
                         ScenarioKey = runtimeKey, ScenarioOwnerCharacterId = world.Run.OwnerCharacterId,
                         SceneRunId = world.Run.Id, SceneActorRole = definition.Role,
+                        SceneOwnerOnly = definition.OwnerOnly,
                         SceneGeneration = world.Run.Generation, SceneSharedKey = definition.SharedKey,
                         ScenarioMissionId = definition.MissionId == 0 ? world.Run.MissionId : definition.MissionId,
                         ScenarioGroupId = definition.GroupId, DbId = definition.SpawnId,
@@ -579,6 +592,10 @@ namespace Rasa.Game.Missions.World
                 return;
             var pool = actor.Creature.SpawnPool;
             var ownership = (pool.SceneRunId, pool.SceneActorRole, pool.SceneGeneration, pool.SceneSharedKey, pool.ScenarioKey);
+            if (definition.HoldCombatUntilRoute)
+                actor.Creature.ScriptedCombatGate = () => _runs.GetValueOrDefault(world.Run.Id) == world &&
+                    world.Actors.GetValueOrDefault(definition.Role) == actor && IsCurrent(world, actor) &&
+                    actor.Creature.ScriptedCombatAuthorization?.Handle == actor.Handle;
             CreatureGameplayRules.BindRole(actor.Creature, world.Map, actor.Handle, definition.GameplayPolicy,
                 () => _runs.GetValueOrDefault(world.Run.Id) == world &&
                     world.Actors.GetValueOrDefault(definition.Role) == actor && IsCurrent(world, actor) &&

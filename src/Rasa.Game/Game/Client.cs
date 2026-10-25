@@ -154,6 +154,8 @@ namespace Rasa.Game
         /// their finished missions are handed in to and their objectives are talked through
         /// with, so that the map and the radar can show them (Managers.MissionContacts). By entity id; emptied when the player leaves the map.
         /// </summary>
+        internal HashSet<ulong> VisibleMissionNpcs { get; } = new();
+
         internal HashSet<ulong> FarContacts { get; } = new HashSet<ulong>();
 
         /// <summary>Environment.TickCount64 at which <see cref="FarContacts"/> is next checked without a mission event asking.</summary>

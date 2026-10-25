@@ -263,7 +263,7 @@ namespace Rasa.Managers
 
             Game.Missions.World.CreatureGameplayRules.ClearRole(creature);
             CellManager.Instance.CellCallMethod(mapChannel, creature, new StateChangePacket(stateIds));
-            if (creature.SpawnPool?.FollowOwnerCharacterId > 0)
+            if (creature.SpawnPool?.FollowOwnerCharacterId > 0 || creature.SpawnPool?.RouteEscortOwnerCharacterId > 0)
                 PublishEscortStatus(mapChannel, creature, false);
 
             // A turret blows up into its wreck; a Predator or Ravager is its wreck once it has
@@ -532,7 +532,8 @@ namespace Rasa.Managers
         internal static void PublishEscortStatus(MapChannel mapChannel, Creature creature, bool isEscort)
         {
             foreach (var client in CellManager.Instance.GetClientsInCells(mapChannel, creature.Cells))
-                if (client.Player?.Id == creature.SpawnPool?.FollowOwnerCharacterId)
+                if (client.Player?.Id == creature.SpawnPool?.FollowOwnerCharacterId ||
+                    client.Player?.Id == creature.SpawnPool?.RouteEscortOwnerCharacterId)
                     client.CallMethod(creature.EntityId, new UpdateEscortStatusPacket(isEscort));
         }
 
@@ -665,7 +666,8 @@ namespace Rasa.Managers
             // who one of their missions sends them to speak to, which their client keeps (MissionContacts)
             foreach (var cellSeed in needDelete)
                 foreach (var client in mapChannel.MapCellInfo.Cells[cellSeed].ClientList)
-                    if (!MissionContacts.Keep(client, creature))
+                    if (!MissionContacts.Keep(client, creature) &&
+                        (!MissionNpcVisibility.IsScoped(creature) || client.VisibleMissionNpcs.Remove(creature.EntityId)))
                         client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(creature.EntityId));
 
             // add creature to new cell
@@ -682,13 +684,15 @@ namespace Rasa.Managers
 
         public void CreateCreatureOnClient(Client client, Creature creature)
         {
-            if (creature == null)
+            if (creature == null || !MissionNpcVisibility.IsShownTo(client, creature))
                 return;
 
             // One this client was given from afar is taken off it first: a second
             // CreatePhysicalEntity would be an update, and leave it without its overhead icon
             // (MissionContacts.Entering).
             MissionContacts.Entering(client, creature);
+            if (MissionNpcVisibility.IsScoped(creature))
+                client.VisibleMissionNpcs.Add(creature.EntityId);
 
             var entityData = new List<PythonPacket>
             {
@@ -712,8 +716,10 @@ namespace Rasa.Managers
                 new IsRunningPacket(creature.IsRunning)
             };
             if (creature.State != CharacterState.Dead &&
-                creature.SpawnPool?.FollowOwnerCharacterId is > 0 &&
-                creature.SpawnPool?.FollowOwnerCharacterId == client.Player?.Id)
+                (creature.SpawnPool?.FollowOwnerCharacterId is > 0 &&
+                 creature.SpawnPool?.FollowOwnerCharacterId == client.Player?.Id ||
+                 creature.SpawnPool?.RouteEscortOwnerCharacterId is > 0 &&
+                 creature.SpawnPool?.RouteEscortOwnerCharacterId == client.Player?.Id))
                 entityData.Add(new UpdateEscortStatusPacket(true));
 
             // A clone's "Clone of %s" takes its master's name from here, and an NPC with no
@@ -1130,7 +1136,8 @@ namespace Rasa.Managers
         public void CellDiscardCreaturesToClient(Client client, List<Creature> discardCreatures)
         {
             foreach (var creature in discardCreatures)
-                client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(creature.EntityId));
+                if (!MissionNpcVisibility.IsScoped(creature) || client.VisibleMissionNpcs.Remove(creature.EntityId))
+                    client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(creature.EntityId));
         }
 
         public void SetLocation(Creature creature, Vector3 position, double orientation, uint mapContextId)

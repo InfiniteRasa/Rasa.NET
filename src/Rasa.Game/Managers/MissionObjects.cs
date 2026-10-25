@@ -94,6 +94,8 @@ namespace Rasa.Managers
             if (mapChannel == null || player.Cells == null || client.State != ClientState.Ingame)
                 return;
 
+            MissionNpcVisibility.Refresh(client, missions);
+
             // Nothing to give and nothing given: most players, most of the time.
             if (client.MissionObjects.Count == 0 && (player.Missions == null || player.Missions.Count == 0))
                 return;
