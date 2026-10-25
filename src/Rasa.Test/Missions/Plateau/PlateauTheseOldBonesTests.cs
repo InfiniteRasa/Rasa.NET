@@ -319,6 +319,42 @@ namespace Rasa.Test.Missions.Plateau
                 "and given back to the player's client");
         }
 
+        /// <summary>
+        /// A hand-in NPC hidden from the player (Algona, 1976's receiver, hidden here by hand) is not given from afar nor
+        /// held as given (MissionContacts.FarContacts); shown again, the next contact pass gives her from afar (code review
+        /// 2026-10-25: the public giver came back without its far marker).
+        /// </summary>
+        [TestMethod]
+        public void AHiddenContactIsGivenFromAfarOnceShownAgain()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var copy = AcceptAtHathen(harness);
+            Escort(harness, copy);
+            foreach (var temple in PlateauTheseOldBonesV1.Temples)
+                Secure(harness, copy, temple);
+            Assert.IsTrue(harness.Client.Player.Missions[TheseOldBones].Completeable, "Algona is the receiver now");
+            Spawn(copy, PlateauTheseOldBonesV1.AlgonaPool);
+            var algona = RequireNpc(copy, PlateauTheseOldBonesV1.AlgonaPool);
+            harness.MoveTo(ToVector(PlateauTheseOldBonesV1.Temples[2].At));   // the Sanctuary, far from the hospital
+            harness.Drain();
+
+            HiddenCreatures.Hide(copy, new[] { PlateauTheseOldBonesV1.AlgonaPool }, harness.Client.Player.Id, "test:holder");
+            harness.Drain();
+            MissionContacts.Sync(harness.Client);
+            var whileHidden = harness.Drain();
+            Assert.IsFalse(harness.Client.FarContacts.Contains(algona.EntityId), "not held from afar while hidden");
+            Assert.IsFalse(whileHidden.OfType<Rasa.Packets.Game.Server.CreatePhysicalEntityPacket>().Any(packet => packet.EntityId == algona.EntityId),
+                "nor given");
+
+            HiddenCreatures.Release(copy, "test:holder");
+            harness.Drain();
+            MissionContacts.Sync(harness.Client);
+            var shown = harness.Drain();
+            Assert.IsTrue(harness.Client.FarContacts.Contains(algona.EntityId), "held from afar once shown");
+            Assert.IsTrue(shown.OfType<Rasa.Packets.Game.Server.CreatePhysicalEntityPacket>().Any(packet => packet.EntityId == algona.EntityId),
+                "and given from afar");
+        }
+
         private static Creature PublicHathen(MapChannel copy) =>
             Here(copy).First(creature => creature.SpawnPool?.DbId == HathenPool && creature.Npc != null);
 

@@ -369,7 +369,7 @@ namespace Rasa.Test.World
             var target = Watch(world, x: 110);
             var ordered = Spawn(world, x: 0, walkSpeed: 3, facing: East);
             var ordinary = Spawn(world, x: 0.5f, walkSpeed: 3, facing: East);
-            ordered.SceneAttackOrdered = true;
+            ordered.SceneAttackOrder = new Rasa.Game.Missions.World.SceneAttackOrder("test-run", 0);
             Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(ordered, target.Player.EntityId));
             Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(ordinary, target.Player.EntityId));
 
@@ -408,6 +408,56 @@ namespace Rasa.Test.World
                 walker.Controller.CurrentAction);
             if (fightsBack)
                 Assert.AreEqual(attacker.Player.EntityId, walker.Controller.ActionFighting.TargetEntityId);
+        }
+
+        /// <summary>
+        /// A walker that fights back, hit more than the leash away from its next waypoint (its home while it walks), fights
+        /// from where it was hit: the fight is not dropped at its next think (code review 2026-10-25: long Wilderness and
+        /// Bootcamp legs).
+        /// </summary>
+        [TestMethod]
+        public void AWalkerHitFarFromItsNextWaypointKeepsItsFight()
+        {
+            using var world = new WorldTestContext();
+            var attacker = Watch(world, x: 10);
+            var walker = Spawn(world, x: 0, walkSpeed: 2, facing: East);
+            var waypoint = new Vector3(-150, 0, 0);
+            walker.Controller.ScriptedMove = new ScriptedMove { Destination = waypoint, FightsBack = true };
+            walker.Controller.CurrentAction = BehaviorManager.BehaviorActionScriptedMove;
+            walker.HomePos.Position = waypoint;   // as SetActionScriptedMove sets it
+
+            Threat.FromDamage(walker, attacker.Player, 10);
+            for (var tick = 0; tick < 4; tick++)
+                BehaviorManager.Instance.MapChannelThink(world.Map, Tick);
+
+            Assert.IsFalse(BehaviorManager.IsReturning(walker), "not leashed home to the waypoint");
+            Assert.AreEqual(BehaviorManager.BehaviorActionFighting, walker.Controller.CurrentAction);
+            Assert.AreEqual(attacker.Player.EntityId, walker.Controller.ActionFighting.TargetEntityId);
+        }
+
+        /// <summary>
+        /// A scene's order to fight one target, held (AttackActorIntent.HoldTarget), keeps that target however much more the
+        /// creature comes to hate someone else; without the hold the most hated takes over (code review 2026-10-25, 1975:
+        /// the player's hits on Quarsh turned him from Tala).
+        /// </summary>
+        [TestMethod]
+        [DataRow(true)]
+        [DataRow(false)]
+        public void AHeldSceneAttackOrderKeepsItsTarget(bool hold)
+        {
+            using var world = new WorldTestContext();
+            var victim = Watch(world, x: 6);
+            var player = Watch(world, x: 8);
+            var gunman = Spawn(world, x: 0, walkSpeed: 2, facing: East);
+            Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(gunman, victim.Player.EntityId));
+            gunman.SceneAttackOrder = new Rasa.Game.Missions.World.SceneAttackOrder("test-run", hold ? victim.Player.EntityId : 0);
+            gunman.Hate.Ensure(victim.Player.EntityId, 10);
+
+            gunman.Hate.Add(player.Player.EntityId, 1000);
+            for (var tick = 0; tick < 4; tick++)
+                BehaviorManager.Instance.MapChannelThink(world.Map, Tick);
+
+            Assert.AreEqual(hold ? victim.Player.EntityId : player.Player.EntityId, gunman.Controller.ActionFighting.TargetEntityId);
         }
 
         [TestMethod]

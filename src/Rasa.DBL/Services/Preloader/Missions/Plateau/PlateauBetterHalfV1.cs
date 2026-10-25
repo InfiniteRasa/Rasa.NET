@@ -238,7 +238,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
             // The first hit: he shoots her (one blow kills her), then fights the player; no clock.
             scene.Sequences[Struck] = new SceneSequenceDefinition
             {
-                World = { new AttackActorIntent("quarsh-shoots-tala", QuarshRole, TalaRole) },
+                World = { new AttackActorIntent("quarsh-shoots-tala", QuarshRole, TalaRole, HoldTarget: true) },
                 Signals = { new SceneMissionSignal(MissionId, Outcome, Confronted) },
                 Timers =
                 {
