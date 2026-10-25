@@ -90,6 +90,11 @@ namespace Rasa.Game.Missions
                 return Reject($"Mission {missionId} has no authored sequence {name}.");
             return Execute(client, missionId, sequence);
         }
+        internal bool HasAssignmentOwnedCreature(uint missionId, string script, string release, string role) =>
+            _bindings.TryGetValue(missionId,out var binding) && binding.Script==script && binding.Bindings.Release==release &&
+            binding.Bindings.Actors.TryGetValue(role,out var actor) &&
+            actor.Kind==SceneActorKind.Creature && actor.SharedKey==null;
+
         internal bool OwnsExperience(uint mapContextId) => _experiences.ContainsKey(mapContextId);
 
         internal void ClearBindings()

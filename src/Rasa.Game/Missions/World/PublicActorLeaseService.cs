@@ -325,6 +325,7 @@ namespace Rasa.Game.Missions.World
 
         public void Tick(MapChannel map)
         {
+            Recover(map);
             RecoverPending(map);
             Reservation[] runs;
             lock (_gate)
@@ -383,7 +384,7 @@ namespace Rasa.Game.Missions.World
 
         internal void Recover(MapChannel map)
         {
-            if (map.IsPrivateInstance || _bindings.Count == 0)
+            if (map == null || map.IsPrivateInstance)
                 return;
             lock (_gate)
                 if (_recoveredMaps.Contains(map))
@@ -397,6 +398,14 @@ namespace Rasa.Game.Missions.World
                 if (!_bindings.TryGetValue(scene.MissionId, out var binding) ||
                     lease.SpawnKey != SpawnKey(binding.SpawnId))
                 {
+                    // A content migration can replace an exclusive public actor with an assignment-owned creature.
+                    // Retire only that obsolete reservation; keep the assignment and scene checkpoint for normal resume.
+                    if (!_bindings.ContainsKey(scene.MissionId) &&
+                        _missions()?.Scenes.HasAssignmentOwnedCreature(scene.MissionId,scene.ScriptKey,scene.Release,lease.ActorRole)==true)
+                    {
+                        unit.ExecuteTransaction(()=>unit.CharacterMissions.Runtime.Remove(lease));
+                        continue;
+                    }
                     Logger.WriteLog(LogType.Error, $"Cannot recover public run {scene.RunId}: missing actor binding.");
                     continue;
                 }
