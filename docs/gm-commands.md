@@ -53,6 +53,8 @@ The account's level is `game_account.level`, stored as a byte. Levels are cumula
 
 **`.help`** (Observer) lists only the commands your level can run, ordered by level.
 
+**Chat tags:** every line a GameMaster or above says starts with `[GM]`. Always on, and not for Observers. In say, whisper and squad chat it is plain: the client shows those lines in a bubble over the speaker too, and the bubble prints markup as it is. In shout, channel and clan chat, which have no bubble, the whole line is yellow (a `<font color>` tag; the chat window shows rich text). Anything a player types that would read as a tag is broken up (`<font` becomes `< font`), so nobody can color their text or fake a `[GM]`. The chat log keeps lines as they were typed. See `ChatMarkup.cs`.
+
 ## Audit log
 
 Every command on this page that is entered at the game server goes on an audit log: the `gm_command_log` table of the character database, written by `GmAudit` before the command runs. A row has the account, its level, the character, the address they are connected from, the time (UTC), the map and position, what they had selected, the whole line as entered, the level the command needs, and the result.
@@ -110,6 +112,7 @@ These change nothing in the world, except where noted.
 | `.navmesh` | Observer | Whether this map has a navmesh, and the navmesh ground height under you. |
 | `.navmesh path <x> <y> <z>` | Observer | The route the AI would take from you to that point: complete or partial, number of corners, length. |
 | `.cover` | Observer | Cover between you and your target in both directions: body points visible and the ranged damage multiplier. Needs `navmesh/<map>.cover`. |
+| `.memory [map\|full]` | Admin | What the server holds now, briefly in chat: process and heap memory, maps, instances, creatures and players. `map` (the default) adds the map you are on; `full` adds the five busiest maps, and writes every map to the **server console** (tagged `[.memory]`). Navigation (navmesh and cover sizes, the largest part of memory) is only in the startup report after `Server ready!`: measuring it walks millions of navmesh objects, and it doesn't change while the server runs. |
 | `.los [entityId]` | Observer | The server's line-of-sight report to your target or to the id given. The LOS slash commands send the same `RequestLOSReport`, but they are in the unshipped developer module, so a retail client never sends them. |
 | `.camerascript list` | Observer | This map's camera scripts: keyframes, length, where the camera starts and ends, and how far it comes from you. Scripts have no names; where the camera stands and looks is what there is to go on. |
 | `.camerascript near [n]` | Observer | This map's camera scripts nearest you first (5 unless you say). |
@@ -329,17 +332,44 @@ Clan-owned control points (`ControlPoints` in `appsettings.json`):
 - Each point pays `ClanPrestige` prestige (100) into the clan's lockbox every `ClanPrestigeMinutes` (60). The payment shows in the lockbox history as a deposit by "Control Point <point name>".
 - The point's clan lockbox opens for members of the clan that holds the point and for nobody else.
 
+## Helping players
+
+For a GM answering a player: find them, go to them or bring them over, get them out of where they are stuck, stand them back up, look in their bags, and answer their petitions without the server console. The player has to be in the world for all but `.petition`. A player is named by family name or `#characterId`. Long lists show their first 15 lines in chat and every line in the **server console**.
+
+| Command | Level | What it does |
+|---|---|---|
+| `.who [word]` | GameMaster | Everyone in the world: name, level, class and map, and whether dead. A word narrows it to names and maps that have it. |
+| `.playerinfo <player>` | GameMaster | One player: character id, account name and id, GM level, level, class, alive or dead, map and instance, position, and a silence if they have one. |
+| `.goto <player>` | GameMaster | Takes you to them: at once if you are in the same copy of the same map, otherwise by the loading screen into the copy they are in (as a squad summon does). |
+| `.summon <player>` | GameMaster | Brings them to you the same way. They are told a game master is bringing them. A frozen player stays frozen, at the new spot. |
+| `.unstuck <player>` | GameMaster | Moves them to the nearest hospital they can use on their map, or to the entrance of the squad instance they are in. A dead player is revived there, as the hospital button does. They are told where they were moved. |
+| `.revive <player>` | GameMaster | Revives a dead player where they lie, at full health and armour, with **no** death penalties (no Rez Sickness, no wear). For a death that should not have happened. |
+| `.kill [#entityId]` | GameMaster | Kills your target, or the creature named, with a blow larger than its health and armour dealt by you: it dies as any creature does (loot, credit, its spawn pool respawns it). An invulnerable or leashing creature is immune, and you are told. Creatures only, never players. |
+| `.freeze <player>` | GameMaster | Holds them where they stand: their client is blocked from moving (the net gun's immobilize effect, which shows on their buff bar), the server refuses any move away, and they get a yellow ADMIN MESSAGE that a game master has frozen them. Not saved: logging out ends it. |
+| `.unfreeze <player>` | GameMaster | Lets them move again, and tells them. |
+| `.equipanything` | GameMaster | Switches the client's GM Equip Anything on or off: while on, level, race and skill requirements don't stop you equipping. Not saved. Also the GM ability of that name. |
+| `.untargetable` | GameMaster | Switches GM Untargetable on or off: you stay visible, but nothing can hurt you and creatures neither notice nor keep attacking you. Not saved. Also the GM ability of that name. |
+| `.pau <angel\|vulcan\|mech\|grendel\|orson>` / `.pau off` | GameMaster | Turns you into that Personal Armored Unit - the five Edmund Range had - for 300 s, as an Angel or Vulcan activator does (Polymorph level 6), until you right-click its effect or `.pau off`. Each fires its own PAU weapon; the AFS Mech and the Grendel also have Rockets and Ground Slam (the Grendel's stronger rockets and weaker stomp), the rest none of their abilities yet. (The client's Crab, Cutter and Ghoul vehicles are unfinished and left out.) |
+| `.gmoutfit` | GameMaster | Gives you the Game Master outfit - boots, gloves, helmet, legs and vest (templates 97527-97531) - each as `.giveitem` would. Bound on character, not tradable or sellable. |
+| `.gmbar [1-5]` | GameMaster | Puts the client's GM abilities that do something on one ability bar loadout (5 unless you say): GM Stealth (`.invis`), Instant Kill (`.kill` on your target), Invulnerability (immune to all damage, on or off), Uber Health (full health and armour) and Untargetable (`.untargetable`). Every GM ability is also sent with a GM's abilities, so it shows in the Abilities window; see `GmAbilities.cs`. |
+| `.message <player> [important ["title"]] <text>` | GameMaster | A note they can't miss: a yellow ADMIN MESSAGE line in their chat, and the client's AFS Message notice - a flashing icon they click to read it all in the Message of the Day window. Up to 1000 characters; the player has to be online. With `important` first it opens the client's modal dialog with an OK button in place of the AFS Message, titled by the words in double quotes after `important` if any ("Message from a game master" otherwise, up to 64 characters), which every player gets and which holds the screen until they press OK - for what must be read now. The website sends the same through `POST /sendmessage`. Petition answers reach players the same way. |
+| `.petition [list [open\|resolved\|cancelled\|all]]` | GameMaster | Petitions, newest first: open ones by default (up to 50). |
+| `.petition show <id>` | GameMaster | One petition in full, and whether the player who filed it is in the world. |
+| `.petition resolve <id> [what you did]` | GameMaster | Closes it, with what you did as its answer, and tells the player, now or when they next log in. As the console's `petition resolve`. |
+| `.inventory <player> [backpack\|equipped\|lockbox\|inbox]` | Admin | Their credits, prestige and lockbox credits, and the items in each part (or the one named): name, stack, template and item id. Read only. |
+| Teleport to Player, Kick Player | GameMaster | The two GM entries on the menu a GM gets by clicking a player's name in chat (the client sends `/gotouser` and `/kickuser`): the same as `.goto` and `.kick` with no reason. |
+
 ## Moderation
 
 Commands that act on other players. A GM can only use them on accounts **below their own level**; the console can use them on anyone. Each one is also on the game server console without the dot (see Console: game server). Kicks, silences and lifted silences are logged as `Security`, with who did it and the reason.
 
 | Command | Level | What it does |
 |---|---|---|
-| `.announce <message>` | GameMaster | Sends `[Announcement] <message>` as a system message to everyone in the world or loading into it. The message may contain spaces. |
+| `.announce <message>` | GameMaster | Sends the message to everyone in the world or loading into it as the client's own admin message: `ADMIN MESSAGE: <message>`, in yellow, on a chat filter no player can turn off. The message may contain spaces. |
 | `.kick <familyName> [reason]` | GameMaster | Tells the player "You have been disconnected by a game master" (with the reason, if given), then closes every connection of that account a second later. The character leaves as if the connection had dropped, but never stays behind in a fight. Works at character selection too. |
 | `.mute <familyName> <minutes> [reason]` | GameMaster | Silences the account's chat for 1 to 525,600 minutes (one year). Works on accounts that are not online. The player gets the client's own "You are now blocked from sending chat messages for the duration of N minutes", plus the reason if given; you get "User ... is silenced". |
 | `.unmute <familyName>` | GameMaster | Lifts a silence. Answers "User ... is not currently silenced" if there is none. |
-| `.invisible [on\|off]` | GameMaster | Hides you from every player who is not a GM, or shows you again. With no argument, says which you are. Off at every login; a map change keeps it. |
+| `.invisible [on\|off\|status]`, or `.invis` | GameMaster | Hides you from every player who is not a GM, or shows you again. With no argument it switches; `status` says which you are. While invisible you wear the client's GM Stealth effect on your buff bar, on your own client only, as a reminder. Off at every login; a map change keeps it. |
 
 How a silence works:
 

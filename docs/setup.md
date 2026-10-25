@@ -283,6 +283,7 @@ The `/ingame` endpoints take no key, and are the ones the startup log calls `end
 | `GET /usersonline` | Every account online, with the character it is playing; see Who is online below. Off until turned on. |
 | `POST /kickuser` | Disconnects an account that is online; see Kicking a player below. Off until turned on. |
 | `GET /getopenpetitions`, `GET /getallpetitions`, `POST /respondpetition`, `POST /closepetition` | Players' petitions, read, answered and closed; see Petitions below. Off until turned on. |
+| `POST /sendmessage` | A game master's message to a player who is online; see Messaging a player below. Off until turned on. |
 
 - `game_server_status` is `healthy` while the server has finished loading, is listening for players, has not been shut down, and its world loop ticked within `ApiConfig.LoopStallSeconds` (default `15`).
 - `app_server_status` is `healthy` while the link to the Auth server is up and logged in.
@@ -290,7 +291,7 @@ The `/ingame` endpoints take no key, and are the ones the startup log calls `end
 
 A request is refused with `403` from an address not on `AllowedIps`, `404` for a path that names no endpoint or one that is off, `405` for the wrong method, and `401` for a missing or wrong key or, at an `/ingame` endpoint, a code or token that is missing, wrong or no longer good.
 
-Each entry under `Endpoints` (`healthcheck`, `serverstatus`, `addaccount`, the `/ingame` ones, `monsterflags`, `updatemonsterflags`, `lootpools`, `updatelootpools`, `usersonline`, `kickuser`, `getopenpetitions`, `getallpetitions`, `respondpetition` and `closepetition`) has:
+Each entry under `Endpoints` (`healthcheck`, `serverstatus`, `addaccount`, the `/ingame` ones, `monsterflags`, `updatemonsterflags`, `lootpools`, `updatelootpools`, `usersonline`, `kickuser`, `getopenpetitions`, `getallpetitions`, `respondpetition`, `closepetition` and `sendmessage`) has:
 
 | Setting | Default | Meaning |
 |---|---|---|
@@ -394,6 +395,15 @@ curl -X POST -H "X-API-Key: <key for kicking>" -H "Content-Type: application/jso
      -d '{"familyName":"Hart","reason":"griefing","admin":"Atomsk"}' http://127.0.0.1:8104/kickuser
 ```
 
+#### Messaging a player
+`POST /sendmessage` sends a game master's message to a player who is online, as `.message` does: a yellow `ADMIN MESSAGE` line in their chat, which no player can filter out, and the client's **AFS Message** notice - a flashing icon that stays until they click it and read the whole message in the Message of the Day window. The body is JSON, sent as `application/json`:
+
+```json
+{"familyName":"Hart","text":"Your character was moved to the hospital.","admin":"Atomsk"}
+```
+
+`accountId` (a number, or a number in a string) or `familyName`, one and not both, as for `/kickuser`; `text`, up to 1000 characters; `admin`, who is sending it, up to 64; and `important`, `true` to open the client's modal dialog with an OK button in place of the AFS Message (every player gets it; it holds the screen until they press OK); and `title`, the dialog's, up to 64 characters ("Message from a game master" if left out). Every answer of its own is 200: `{"sent":true,"accountId":12,"familyName":"Hart"}`, or `{"sent":false,"error":"not online"}` - nothing is kept for a player who is away. The AFS Message is the message of the day's own slot, so a newer one of either replaces an unread older one.
+
 #### Petitions
 `GET /getopenpetitions` lists the petitions players have filed (Help, Report Bug, `/petition` and `/bug`) that are still open, and `GET /getallpetitions` every petition whatever its status, newest first:
 
@@ -420,8 +430,9 @@ curl -X POST -H "X-API-Key: <key for kicking>" -H "Content-Type: application/jso
 
 - `petitionId` is a number, or a number in a string. Only an open petition is answered or closed.
 - `/respondpetition`'s `response` may be 255 characters. It is written as the petition's `resolution`, in place of any answer before it, and the petition stays open. `admin` is who is answering, as you name them, up to 64 characters.
+- `/respondpetition` also takes `"close": true`, to answer and close it in one step - the player is told once, "Your petition #12 has been resolved: ..." - and `"important": true`, to show a player who is in the world the answer in the client's modal dialog with an OK button (titled "Bug Report #12" or "GM Help #12", as it was filed) in place of the AFS Message. A player who is away gets the usual notice when they arrive.
 - `/closepetition`'s `adminId` is who is closing it, a name or a number, up to 64 characters. The petition keeps its answer.
-- The player is told in their chat: "A game master has answered your petition #12: ..." or "Your petition #12 has been resolved: ...". At once when they are in the world; otherwise when they next arrive in it, one line for each petition, as it stands then.
+- The player is told as a game master's message is (see Messaging a player above): a yellow `ADMIN MESSAGE` line, "A game master has answered your petition #12: ..." or "Your petition #12 has been resolved: ...", and the AFS Message notice holding it. The client has no window of its own for a petition's answer. At once when they are in the world; otherwise when they next arrive in it, one line for each petition as it stands then, and one AFS Message holding them all.
 - The admin goes in the server log's line for it, with the address the request came from, and the request in the API log.
 
 Every answer of its own is `200`:

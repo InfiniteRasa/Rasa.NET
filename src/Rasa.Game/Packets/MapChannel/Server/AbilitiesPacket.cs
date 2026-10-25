@@ -12,6 +12,9 @@ namespace Rasa.Packets.MapChannel.Server
 
         public Dictionary<SkillId, SkillsData> AbilityList = new Dictionary<SkillId, SkillsData>();
 
+        /// <summary>Abilities no skill grants, as (ability id, level): a GM's GM abilities (GmAbilities).</summary>
+        public List<(int AbilityId, int Level)> Extra { get; } = new List<(int AbilityId, int Level)>();
+
         public AbilitiesPacket(Dictionary<SkillId, SkillsData> abilityList)
         {
             foreach (var ability in abilityList)
@@ -22,12 +25,19 @@ namespace Rasa.Packets.MapChannel.Server
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(1);
-            pw.WriteList(AbilityList.Count);
+            pw.WriteList(AbilityList.Count + Extra.Count);
             foreach (var entry in AbilityList)
             {
                 pw.WriteTuple(2);
                 pw.WriteInt(entry.Value.AbilityId);
                 pw.WriteInt(entry.Value.SkillLevel);
+            }
+
+            foreach (var (abilityId, level) in Extra)
+            {
+                pw.WriteTuple(2);
+                pw.WriteInt(abilityId);
+                pw.WriteInt(level);
             }
         }
     }

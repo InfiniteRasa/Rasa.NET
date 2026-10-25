@@ -149,6 +149,75 @@ namespace Rasa.Managers
                 return;
             }
 
+            Morph(mapChannel, player, info, variant, recovery);
+
+            Logger.WriteLog(LogType.Debug, $"{player.FamilyName} polymorphed into {variant.Name} (variant {variantId}) for {info.Get(AbilityProperty.Duration, 120)} s.");
+        }
+
+        /// <summary>
+        /// The PAUs - Personal Armored Units - as a GM turns into them with .pau: Angel and Vulcan
+        /// as their activators make them, and the rest, whose activators (Edmund Range's mech
+        /// pads) we have nothing of, from the client's PAU_Vehicle_* classes, each firing its own
+        /// PAU weapon. These are the five Edmund Range had; the client's Crab, Cutter and Ghoul
+        /// vehicles were tried and are not finished. None carries its abilities yet (rockets,
+        /// ground slam and the rest), bar the AFS Mech's and the Grendel's Rockets and Ground
+        /// Slam (AbilityManager.MorphAbilities).
+        /// </summary>
+        public static readonly Dictionary<string, MorphVariant> Paus = new Dictionary<string, MorphVariant>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["angel"] = MorphVariants[4733],
+            ["vulcan"] = MorphVariants[4969],
+            // The AFS Mech: Rockets (CR_HUMAN_MECH_MISSILES 293/2, PAU_AFSMECH_MISSILES: 4000-4500 at
+            // one target, 80 m, 30 s) and Ground Slam (CR_HUMAN_MECH_GROUNDPOUND 284/4,
+            // PAU_AFSMECH_GROUNDPOUND: 1500-2000 within 10 m).
+            ["mech"] = new MorphVariant { Name = "AFS Mech", CreatureClassId = 26892, MeshId = 24512, WeaponClassId = 30135, WeaponTemplateId = 130438, TargetCategory = TargetCategory.Friendly,
+                             Abilities = new[] { (ActionId.CrHumanMechMissiles, 2u), (ActionId.CrHumanMechGroundpound, 4u) } },
+            // The Grendel: Rockets, stronger and slower (293/3, PAU_GRENDEL_MISSILES: 5000, 45 s), and
+            // Stomp (284/2, PAU_GRENDEL_STOMP: 25-50 within 5 m).
+            ["grendel"] = new MorphVariant { Name = "Grendel", CreatureClassId = 30073, MeshId = 50215, WeaponClassId = 30665, WeaponTemplateId = 131978, TargetCategory = TargetCategory.Friendly,
+                             Abilities = new[] { (ActionId.CrHumanMechMissiles, 3u), (ActionId.CrHumanMechGroundpound, 2u) } },
+            ["orson"] = new MorphVariant { Name = "Orson", CreatureClassId = 30076, MeshId = 50221, WeaponClassId = 30648, WeaponTemplateId = 131961, TargetCategory = TargetCategory.Friendly },
+        };
+
+        /// <summary>
+        /// A GM into a PAU (.pau), as an activator does it - Polymorph's level 6, its 300 s and
+        /// its recovery - with the vehicle in place of the activator's. False when the player is
+        /// between maps or the server has no Polymorph level 6.
+        /// </summary>
+        public bool GmMorph(Client client, MorphVariant variant)
+        {
+            var player = client?.Player;
+            var mapChannel = player?.MapChannel;
+
+            if (mapChannel == null || !TryGetLevel(ActionId.AaSpyPolymorph, 6, out var info))
+                return false;
+
+            Morph(mapChannel, player, info, variant,
+                new AbilityRecoveryPacket(ActionId.AaSpyPolymorph, 6, AbilityRecoveryPacket.HitDataKind.TypeIds));
+
+            Logger.WriteLog(LogType.Command, $"{player.FamilyName} became a {variant.Name} (.pau).");
+            return true;
+        }
+
+        /// <summary>A morph, and anything left of one, off: false when there was none.</summary>
+        public static bool EndMorph(Client client)
+        {
+            var player = client?.Player;
+            var mapChannel = player?.MapChannel;
+            var morphs = player?.ActiveEffects.Values.Where(e => e.TypeId == PolymorphTypeId).ToList();
+
+            if (mapChannel == null || morphs == null || morphs.Count == 0)
+                return false;
+
+            foreach (var morph in morphs)
+                GameEffectManager.Instance.DettachEffect(mapChannel, player, morph);
+
+            return true;
+        }
+
+        /// <summary>The player into the variant: the morph effect, the weapon, and the recovery whose hit data announces it.</summary>
+        private void Morph(MapChannel mapChannel, Manifestation player, ActionLevelInfo info, MorphVariant variant, AbilityRecoveryPacket recovery)
+        {
             // Anything left of an earlier morph goes first, weapon and all.
             foreach (var old in player.ActiveEffects.Values.Where(e => e.TypeId == PolymorphTypeId).ToList())
                 GameEffectManager.Instance.DettachEffect(mapChannel, player, old);
@@ -189,8 +258,6 @@ namespace Rasa.Managers
             }
 
             CellManager.Instance.CellCallMethod(mapChannel, player, recovery);
-
-            Logger.WriteLog(LogType.Debug, $"{player.FamilyName} polymorphed into {variant.Name} (variant {variantId}) for {info.Get(AbilityProperty.Duration, 120)} s.");
         }
 
         /// <summary>

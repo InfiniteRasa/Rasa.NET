@@ -137,6 +137,6 @@ namespace Rasa.Test.World
 
         private static List<string> Told(Client client) =>
             WorldTestContext.Drain(client).Select(p => p.Message).OfType<CallMethodMessage>()
-                .Select(m => m.Packet).OfType<SystemMessagePacket>().Select(p => p.TextMessage).ToList();
+                .Select(m => m.Packet).OfType<AdminMessagePacket>().Select(p => p.Message).ToList();
     }
 }

@@ -237,7 +237,7 @@ namespace Rasa.Managers
                     // this very fight, when the body stays to be fought (CombatLogout).
                     return player != null && !player.IsGone && player.MapContextId == creature.MapContextId
                         && player.State != CharacterState.Dead && player.Attributes[Attributes.Health].Current > 0
-                        && !Detection.IsHidden(player) && !CameraScripts.IsWatching(player);
+                        && !Detection.UnnoticedByCreatures(player) && !CameraScripts.IsWatching(player);
                 }
 
                 case EntityType.Creature:
