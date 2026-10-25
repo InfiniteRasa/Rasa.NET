@@ -1459,6 +1459,7 @@ namespace Rasa.Managers
 
             health.Current = Math.Min(health.CurrentMax, health.Current);
             effect.MaxHealthApplied = delta;
+            if (actor is Manifestation player) ManifestationManager.Instance.ApplyHealthRegen(player);
 
             CellManager.Instance.CellCallMethod(mapChannel, actor, new UpdateHealthPacket(health, 0));
         }
@@ -1538,6 +1539,8 @@ namespace Rasa.Managers
             // The maximum goes back; the health stays where it is, capped - so a raise coming
             // off never costs more than what it gave, and a cut coming off gives nothing back.
             health.Current = Math.Min(health.CurrentMax, health.Current);
+
+            if (actor is Manifestation player) ManifestationManager.Instance.ApplyHealthRegen(player);
 
             if (announce && mapChannel != null)
                 CellManager.Instance.CellCallMethod(mapChannel, actor, new UpdateHealthPacket(health, 0));

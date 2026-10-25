@@ -12,9 +12,9 @@ namespace Rasa.Data
     /// NO_COMBAT_REGEN_MODIFIER = 1 / IN_COMBAT_REGEN_MODIFIER
     /// </code>
     ///
-    /// Regeneration is entirely client-predicted: <c>ActorAttribute._EvaluatePredictedRefresh</c>
-    /// adds <c>elapsed * refreshAmount / refreshPeriod</c> and the server never ticks health at
-    /// all - it only sets the rate. So the modifier is applied by changing the rate we send.
+    /// The client predicts regeneration from the same rate the server ticks: <c>ActorAttribute._EvaluatePredictedRefresh</c>
+    /// adds <c>elapsed * refreshAmount / refreshPeriod</c>; ActorManager.Regenerate applies it
+    /// server-side. The combat modifier is applied by changing the period we send.
     ///
     /// It is applied to the *period* rather than the amount, and that is what the second constant
     /// is for. Both fields are integers on the wire, so scaling an amount of 2 by 0.2 gives 0.4
@@ -38,6 +38,13 @@ namespace Rasa.Data
         /// duration by 1000 before adding it to that clock.
         /// </summary>
         public const int RegenPeriodSeconds = 1;
+
+        /// <summary>Normal player resting recovery, measured from leaving combat.</summary>
+        public const int RestingHealthRecoverySeconds = 10;
+
+        /// <summary>Round up so a living player at one HP reaches full within ten one-second ticks.</summary>
+        public static int RestingHealthRate(int maxHealth, int ordinaryRate) =>
+            System.Math.Max(ordinaryRate, (int)((System.Math.Max(0L, maxHealth) + RestingHealthRecoverySeconds - 1) / RestingHealthRecoverySeconds));
 
         /// <summary>
         /// The refresh period while in combat: NO_COMBAT_REGEN_MODIFIER, which is 1/0.2 = 5, times

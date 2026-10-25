@@ -394,6 +394,7 @@ namespace Rasa.Managers
             if (player.Attributes.TryGetValue(Attributes.Health, out var healthAttribute))
             {
                 healthAttribute.Current = Math.Clamp(health, 1, Math.Max(1, healthAttribute.CurrentMax));
+                ManifestationManager.Instance.ApplyHealthRegen(player);
                 CellManager.Instance.CellCallMethod(mapChannel, player, new UpdateHealthPacket(healthAttribute, 0));
             }
 

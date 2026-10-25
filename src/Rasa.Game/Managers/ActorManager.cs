@@ -531,6 +531,7 @@ namespace Rasa.Managers
                 if (!player.Attributes.TryGetValue(Attributes.Health, out var health) || health.Current <= 0)
                     continue;
 
+                ManifestationManager.Instance.ApplyHealthRegen(player);
                 player.RegenSeconds++;
 
                 Regenerate(player, health, player.RegenSeconds);
@@ -566,7 +567,7 @@ namespace Rasa.Managers
             if (second % period != 0)
                 return;
 
-            attribute.Current = Math.Min(attribute.CurrentMax, attribute.Current + amount);
+            attribute.Current = (int)Math.Min(attribute.CurrentMax, (long)attribute.Current + amount);
         }
 
         /// <summary>Puts an actor back to its maximum, and says how much that took.</summary>

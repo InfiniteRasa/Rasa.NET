@@ -1415,7 +1415,8 @@ namespace Rasa.Managers
         /// <summary>
         /// Sets the health, armour and power regeneration for the player's current combat state.
         ///
-        /// Health: the period, five times longer in combat. The period rather than the amount,
+        /// Health: at least one tenth of maximum health each resting second; the ordinary stat
+        /// and module rate in combat, with a period five times longer. The period rather than the amount,
         /// because both are integers on the wire and a base amount of 2 scaled by 0.2 truncates
         /// to nothing. See <see cref="CombatRegen"/>.
         ///
@@ -1437,7 +1438,7 @@ namespace Rasa.Managers
         /// ability its own figure cannot pay for (CheckConsumables), so the server's refilled
         /// bar was no use to it.
         ///
-        /// This is the only place any of them is set, including the out-of-combat values, so that
+        /// This method and ApplyHealthRegen own these rates and periods, so that
         /// there is one answer rather than two that have to agree. It is called at the end of
         /// UpdateStatsValues for that reason and for a second one: UpdateStatsValues recomputes
         /// the rates from scratch, so without it, changing a piece of armour mid-fight would
@@ -1451,10 +1452,7 @@ namespace Rasa.Managers
             if (player == null)
                 return;
 
-            if (player.Attributes.TryGetValue(Attributes.Health, out var health))
-                health.RefreshPeriod = player.InCombat
-                    ? CombatRegen.InCombatRegenPeriodSeconds
-                    : CombatRegen.RegenPeriodSeconds;
+            ApplyHealthRegen(player);
 
             if (player.Attributes.TryGetValue(Attributes.Armor, out var armor))
             {
@@ -1464,6 +1462,16 @@ namespace Rasa.Managers
 
             if (player.Attributes.TryGetValue(Attributes.Power, out var power))
                 power.RefreshPeriod = CombatRegen.RegenPeriodSeconds;
+        }
+
+        /// <summary>Keep stored and transmitted health rates identical, without changing power or armour.</summary>
+        internal void ApplyHealthRegen(Manifestation player)
+        {
+            if (player == null || !player.Attributes.TryGetValue(Attributes.Health, out var health)) return;
+            player.HealthRegenRate ??= health.RefreshAmount;
+            health.RefreshPeriod = player.InCombat ? CombatRegen.InCombatRegenPeriodSeconds : CombatRegen.RegenPeriodSeconds;
+            health.RefreshAmount = player.State == CharacterState.Dead || health.Current <= 0 ? 0 :
+                player.InCombat ? player.HealthRegenRate.Value : CombatRegen.RestingHealthRate(health.CurrentMax, player.HealthRegenRate.Value);
         }
 
         /// <summary>Drops players out of combat once their timer has run out.</summary>
@@ -4975,9 +4983,11 @@ namespace Rasa.Managers
             var regenRate = (int)Math.Round(2D * attribute[Attributes.Regen].CurrentMax / 100, 0);
 
             // And what a module regenerates by itself, a second: "Regen Health: 3 HP/sec".
-            attribute[Attributes.Health].RefreshAmount = Math.Max(0, regenRate + modules.HealthRegen);
+            player.HealthRegenRate = Math.Max(0, regenRate + modules.HealthRegen);
+            attribute[Attributes.Health].RefreshAmount = player.HealthRegenRate.Value;
 
-            // Power regenerates at the health rate for now. The live game regenerated power by a
+            // Power keeps the ordinary stat-derived rate; the resting health minimum is separate.
+            // The live game regenerated power by a
             // formula of its own that is not known; without any regeneration an ability could be
             // used a handful of times per map, since abilities now spend it. Interim.
             // ActorManager.Regenerate applies it server-side at the same period the client

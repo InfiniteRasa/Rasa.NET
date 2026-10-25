@@ -24,7 +24,8 @@ namespace Rasa.Test.Gameplay
 
             Assert.AreEqual(178, client.Player.Attributes[Attributes.Chi].Current);
             Assert.AreEqual(152, client.Player.Attributes[Attributes.Regen].CurrentMax);
-            Assert.AreEqual(3, client.Player.Attributes[Attributes.Health].RefreshAmount);
+            Assert.AreEqual(3, client.Player.HealthRegenRate);
+            Assert.AreEqual(250, client.Player.Attributes[Attributes.Health].RefreshAmount);
             Assert.AreEqual(60, client.Player.Attributes[Attributes.Body].Current);
             Assert.AreEqual(60, client.Player.Attributes[Attributes.Mind].Current);
         }

@@ -332,6 +332,9 @@ namespace Rasa.Structures
         /// </summary>
         public int ArmorRegenRate { get; set; }
 
+        /// <summary>Stat/module health regeneration before the resting recovery minimum. Runtime only.</summary>
+        public int? HealthRegenRate { get; set; }
+
         /// <summary>
         /// What the player's client was last told its item modules give (ModuleTotals.Shown);
         /// null before the first telling, which is nothing. See ItemModuleBonuses.Changed.
