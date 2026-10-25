@@ -7,6 +7,8 @@ namespace Rasa.Structures
 {
     public class SpawnPool : IHasPosition
     {
+        internal bool IsControlPointAssault { get; set; }
+        internal System.Action<IReadOnlyList<Creature>> Delivered { get; set; }
         public uint DbId { get; set; }         // id of the spawnpool
 
         public Vector3 Position { get; set; }

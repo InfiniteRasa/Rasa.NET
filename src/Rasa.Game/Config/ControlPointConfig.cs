@@ -6,6 +6,17 @@ namespace Rasa.Config
     /// </summary>
     public class ControlPointConfig
     {
+        /// <summary>Hourly attacks on the public Wilderness Landing Zone. Private instances and other points are unaffected.</summary>
+        public bool LandingZoneAssaultEnabled { get; set; } = true;
+        /// <summary>Delay after startup or AFS recapture, and between assault starts.</summary>
+        public int LandingZoneAssaultPeriodSeconds { get; set; } = 3600;
+        /// <summary>Fixed interval between the three waves, independent of surviving attackers.</summary>
+        public int LandingZoneAssaultWaveSeconds { get; set; } = 120;
+        /// <summary>Survivor cleanup deadline; at least one minute after wave three.</summary>
+        public int LandingZoneAssaultLifetimeSeconds { get; set; } = 900;
+        /// <summary>Uninterrupted boss claim duration after the AFS combat garrison falls.</summary>
+        public int LandingZoneAssaultCaptureSeconds { get; set; } = 10;
+
         /// <summary>Metres from a point within which friendly service NPC pools belong to it. 0 disables proximity matching; explicit links still apply.</summary>
         public float ServiceNpcRadius { get; set; } = 130f;
 

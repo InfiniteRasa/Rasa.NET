@@ -490,6 +490,7 @@ namespace Rasa.Managers
                 ShowLockbox(point);
             }
             RefreshServices(mapChannel);
+            LandingZoneAssaults.Worker(mapChannel, ById(Rasa.Services.Preloader.LandingZoneAssaultContent.PointId));
         }
 
         /// <summary>
@@ -683,6 +684,7 @@ namespace Rasa.Managers
                 return;
 
             RefreshServices(mapChannel);
+            LandingZoneAssaults.Worker(mapChannel, ById(Rasa.Services.Preloader.LandingZoneAssaultContent.PointId));
 
             foreach (var point in _points.Values.Where(p => p.MapContextId == mapChannel.MapInfo.MapContextId && !p.IsBattleground).ToList())
             {
@@ -695,7 +697,7 @@ namespace Rasa.Managers
 
                 if (point.HeldByAfs)
                 {
-                    if (GarrisonOf(mapChannel, point, Afs) == Garrison.Down)
+                    if (GarrisonOf(mapChannel, point, Afs) == Garrison.Down && !LandingZoneAssaults.ControlsCapture(mapChannel, point))
                         SetOwner(point, Bane, null);
                     else if (point.HeldByClan)
                         TellUsable(mapChannel, point);

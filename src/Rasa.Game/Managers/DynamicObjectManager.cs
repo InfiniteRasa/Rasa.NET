@@ -1034,7 +1034,7 @@ namespace Rasa.Managers
         private static bool IsUsing(MapChannel mapChannel, Actor actor, DynamicObject obj)
         {
             return mapChannel != null
-                   && mapChannel.PerformRecovery.Any(a => a.Actor == actor && a.ActionId == ActionId.UseObject && a.SourceId == obj.EntityId);
+                   && (LandingZoneAssaults.IsCapturing(mapChannel, actor, obj) || mapChannel.PerformRecovery.Any(a => a.Actor == actor && a.ActionId == ActionId.UseObject && a.SourceId == obj.EntityId));
         }
 
         /// <summary>

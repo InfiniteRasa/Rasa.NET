@@ -4933,7 +4933,7 @@ namespace Rasa.Managers
 
         private void ControlPointCommand(string[] parts)
         {
-            const string usage = "usage: .cp | .cp all | .cp <id> afs | bane | clan <clan name or id> | goto | here | lockbox | lockbox remove";
+            const string usage = "usage: .cp | .cp all | .cp <id> afs | bane | clan <clan name or id> | goto | here | assault | lockbox | lockbox remove";
             var client = _client;
             var player = client.Player;
             var points = ControlPoints.Instance;
@@ -4995,6 +4995,12 @@ namespace Rasa.Managers
                 return;
             }
 
+            if (parts[2] == "assault")
+            {
+                CommunicatorManager.Instance.SystemMessage(client, LandingZoneAssaults.TryStart(player.MapChannel, target)
+                    ? "Landing Zone assault started." : "Stand on the public Wilderness map with Landing Zone held by AFS, assaults enabled, and no assault running.");
+                return;
+            }
             switch (parts[2])
             {
                 case "clan" when target.IsBattleground:
