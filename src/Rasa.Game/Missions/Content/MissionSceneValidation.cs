@@ -134,7 +134,9 @@ namespace Rasa.Game.Missions.Content
                     actor.Value.SharedKey != null && string.IsNullOrWhiteSpace(actor.Value.SharedKey) ||
                     !double.IsFinite(actor.Value.Orientation) ||
                     actor.Value.Position is { } position &&
-                        (!float.IsFinite(position.X) || !float.IsFinite(position.Y) || !float.IsFinite(position.Z)))
+                        (!float.IsFinite(position.X) || !float.IsFinite(position.Y) || !float.IsFinite(position.Z)) ||
+                    (actor.Value.HitPoints.HasValue || actor.Value.Armor.HasValue) && actor.Value.Kind != SceneActorKind.Creature ||
+                    actor.Value.HitPoints is 0 or > int.MaxValue || actor.Value.Armor > int.MaxValue)
                     throw new MissionRuleException($"Mission {missionId}: invalid actor role {actor.Key}.");
                 if (actor.Value.GameplayPolicy is { } policy)
                 {
@@ -188,6 +190,14 @@ namespace Rasa.Game.Missions.Content
                 actor.Kind is not (SceneActorKind.Creature or SceneActorKind.PublicSpawn) ||
                 !scene.Sequences.ContainsKey(entry.Value)) == true)
                 throw new MissionRuleException($"Mission {missionId}: invalid actor defeat sequence.");
+            if (scene.DamagedSequences?.Any(entry =>
+                !scene.Actors.TryGetValue(entry.Key, out var actor) ||
+                actor.Kind is not (SceneActorKind.Creature or SceneActorKind.PublicSpawn) ||
+                !scene.Sequences.ContainsKey(entry.Value)) == true)
+                throw new MissionRuleException($"Mission {missionId}: invalid actor first-hit sequence.");
+            if (scene.Sequences.Values.SelectMany(sequence => sequence.World).OfType<PoseActorIntent>().Any(pose =>
+                pose.Pose > byte.MaxValue || !Enum.IsDefined(typeof(global::Rasa.Data.NpcPose), (byte)pose.Pose)))
+                throw new MissionRuleException($"Mission {missionId}: a pose intent names no pose (NpcPose).");
             var keys = new HashSet<string>(StringComparer.Ordinal);
             var runtime = new SceneRuntime(scripts);
             foreach (var sequence in scene.Sequences)

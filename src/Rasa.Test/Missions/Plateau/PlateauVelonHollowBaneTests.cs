@@ -8,6 +8,7 @@ using Rasa.Data;
 using Rasa.Game;
 using Rasa.Managers;
 using Rasa.Packets.MapChannel.Client;
+using Rasa.Packets.MapChannel.Server;
 using Rasa.Packets.Mission.Server;
 using Rasa.Services.Preloader.Missions.Plateau;
 using Rasa.Structures;
@@ -261,31 +262,49 @@ namespace Rasa.Test.Missions.Plateau
             Close(harness, next);
         }
 
-        /// <summary>The Better Half, Quarsh killed before the clock ends: Tala dies, Clark hears it (3).</summary>
+        /// <summary>
+        /// The Better Half, the first hit decides: Quarsh kills Tala and fights the player with no clock; his death
+        /// opens 3, and Clark hears it. A second hit runs nothing more.
+        /// </summary>
         [TestMethod]
-        public void BetterHalfQuarshKilledInTimeCostsTalasLife()
+        public void BetterHalfFirstHitOnQuarshCostsTalasLife()
         {
             using var harness = WildernessRuntimeTestHarness.Create();
             var plateau = EnterPlateau(harness);
             var clark = AcceptBetterHalf(harness, plateau);
             var copy = IntoVelonHollow(harness);
-            var (quarsh, _) = IntoTheControlRoom(harness, copy);
+            InTheirPlaces(harness, copy);
+            var (quarsh, tala) = IntoTheControlRoom(harness, copy);
 
-            Tick(harness, copy, PlateauBetterHalfV1.EscapeMs / 2);
+            Run(harness, copy, PlateauBetterHalfV1.EscapeMs / 2);
             Assert.AreSame(quarsh, SceneCreature(harness, copy, PlateauBetterHalfV1.QuarshRole), "Quarsh still there halfway");
+            ShotDead(harness, copy, quarsh, tala);
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, BetterHalf, PlateauBetterHalfV1.Decide));
+            Hit(harness, copy, quarsh, damaged: true);
+            Run(harness, copy, PlateauBetterHalfV1.EscapeMs);
+            Assert.AreSame(quarsh, SceneCreature(harness, copy, PlateauBetterHalfV1.QuarshRole), "no clock: he does not run");
+            Assert.IsNull(SceneCreature(harness, copy, PlateauBetterHalfV1.QuarshFleesRole));
+            Assert.AreEqual(MissionObjectiveState.Inactive, Objective(harness, BetterHalf, PlateauBetterHalfV1.Alive), "the clock stopped");
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, BetterHalf, PlateauBetterHalfV1.Decide));
+            using (var unit = harness.CreateChar())
+            {
+                var runs = unit.CharacterMissions.Runtime.Scenes(harness.Client.Player.Id, BetterHalf).Select(scene => scene.RunId).ToArray();
+                Assert.AreEqual(1, runs.SelectMany(run => unit.CharacterMissions.Runtime.Messages(run))
+                    .Count(message => message.OperationKey == $"damaged-{PlateauBetterHalfV1.QuarshRole}"), "the first hit only");
+            }
+
             Kill(harness, copy, quarsh);
-            Tick(harness, copy, 250);
-            Assert.IsNull(SceneCreature(harness, copy, PlateauBetterHalfV1.TalaRole), "Tala dies with him");
             Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, BetterHalf, PlateauBetterHalfV1.Decide));
             Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, BetterHalf, PlateauBetterHalfV1.Dead));
             Assert.AreEqual(MissionObjectiveState.Inactive, Objective(harness, BetterHalf, PlateauBetterHalfV1.Alive));
-            Tick(harness, copy, PlateauBetterHalfV1.EscapeMs);
-            Assert.AreEqual(MissionObjectiveState.Inactive, Objective(harness, BetterHalf, PlateauBetterHalfV1.Alive), "the clock stopped");
 
             TellClark(harness, plateau, clark, PlateauBetterHalfV1.Dead);
         }
 
-        /// <summary>The Better Half, the clock out: Quarsh escapes, Tala goes home, Clark hears it (4).</summary>
+        /// <summary>
+        /// The Better Half, no hit by the clock: Quarsh never turns on the player, a hit on his way out decides nothing; at the clock he runs into the hallway and is gone, Tala thanks the player, walks out of
+        /// the room and is gone; 4, and Clark hears it.
+        /// </summary>
         [TestMethod]
         public void BetterHalfClockOutLetsQuarshEscapeAndTalaLive()
         {
@@ -293,20 +312,170 @@ namespace Rasa.Test.Missions.Plateau
             var plateau = EnterPlateau(harness);
             var clark = AcceptBetterHalf(harness, plateau);
             var copy = IntoVelonHollow(harness);
-            IntoTheControlRoom(harness, copy);
+            InTheirPlaces(harness, copy);
+            var (quarsh, tala) = IntoTheControlRoom(harness, copy);
 
-            Tick(harness, copy, PlateauBetterHalfV1.EscapeMs - 1000);
-            Assert.IsNotNull(SceneCreature(harness, copy, PlateauBetterHalfV1.QuarshRole), "not before the clock");
+            // Near him, the whole standoff: he never turns on the player.
+            harness.MoveTo(quarsh.Position + new Vector3(4, 0, 4));
+            var health = harness.Client.Player.Attributes[Attributes.Health].Current;
+            Run(harness, copy, PlateauBetterHalfV1.EscapeMs - PlateauBetterHalfV1.BegsMs - 1000);
+            Assert.AreSame(quarsh, SceneCreature(harness, copy, PlateauBetterHalfV1.QuarshRole), "not before the clock");
+            Assert.AreNotEqual(BehaviorManager.BehaviorActionFighting, quarsh.Controller.CurrentAction, "passive in the standoff");
+            Assert.AreEqual(health, harness.Client.Player.Attributes[Attributes.Health].Current, "nothing hit the player");
             Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, BetterHalf, PlateauBetterHalfV1.Decide));
-            Tick(harness, copy, 2000);
-            Tick(harness, copy, 250);
-            Assert.IsNull(SceneCreature(harness, copy, PlateauBetterHalfV1.QuarshRole), "Quarsh escaped");
-            Assert.IsNull(SceneCreature(harness, copy, PlateauBetterHalfV1.TalaRole), "Tala gone home");
+
+            Run(harness, copy, 1500);
+            Assert.IsNull(SceneCreature(harness, copy, PlateauBetterHalfV1.QuarshRole), "Quarsh breaks off");
+            var flees = SceneCreature(harness, copy, PlateauBetterHalfV1.QuarshFleesRole);
+            Assert.IsNotNull(flees, "and runs");
             Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, BetterHalf, PlateauBetterHalfV1.Decide));
             Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, BetterHalf, PlateauBetterHalfV1.Alive));
             Assert.AreEqual(MissionObjectiveState.Inactive, Objective(harness, BetterHalf, PlateauBetterHalfV1.Dead));
+            Hit(harness, copy, flees, damaged: false);   // on his way out: immune, Tala lives
+            Run(harness, copy, PlateauBetterHalfV1.QuarshGoneMs - 1000);
+            Assert.AreSame(tala, SceneCreature(harness, copy, PlateauBetterHalfV1.TalaRole), "Tala waits");
+            Assert.AreEqual(0f, Flat(flees.Position, PlateauBetterHalfV1.QuarshExit), 1.5f, "Quarsh in the hallway");
+
+            var thanks = Run(harness, copy, 1000);
+            Assert.IsNull(SceneCreature(harness, copy, PlateauBetterHalfV1.QuarshFleesRole), "and gone");
+            Assert.AreEqual(1, thanks.OfType<BarkPackage>().Count(bark => bark.BarkId == PlateauBetterHalfV1.TalaThanksBark), "Tala thanks the player");
+            Run(harness, copy, PlateauBetterHalfV1.TalaLeavesMs + PlateauBetterHalfV1.TalaGoneMs - 1000);
+            Assert.AreSame(tala, SceneCreature(harness, copy, PlateauBetterHalfV1.TalaRole));
+            Assert.AreEqual(0f, Flat(tala.Position, PlateauBetterHalfV1.TalaExit), 1.5f, "Tala walked out of the room");
+            Assert.IsFalse(tala.IsRunning, "walked, not ran");
+            Run(harness, copy, 1500);
+            Assert.IsNull(SceneCreature(harness, copy, PlateauBetterHalfV1.TalaRole), "and gone home");
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, BetterHalf, PlateauBetterHalfV1.Alive));
 
             TellClark(harness, plateau, clark, PlateauBetterHalfV1.Alive);
+        }
+
+        /// <summary>
+        /// The Better Half, Quarsh struck before the room (from the doorway): the same decision. 2 opens with it, Tala
+        /// dies, he fights; the room then starts no standoff and no clock; his death ends 2 and opens 3.
+        /// </summary>
+        [TestMethod]
+        public void BetterHalfFirstHitBeforeTheRoomIsTheSameDecision()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var plateau = EnterPlateau(harness);
+            var clark = AcceptBetterHalf(harness, plateau);
+            var copy = IntoVelonHollow(harness);
+            var (quarsh, tala) = InTheirPlaces(harness, copy);
+
+            ShotDead(harness, copy, quarsh, tala);
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, BetterHalf, PlateauBetterHalfV1.Find), "found her, too late");
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, BetterHalf, PlateauBetterHalfV1.Decide), "the decision open");
+
+            var at = PlateauBetterHalfV1.RoomAt;
+            var inside = new Vector3((float)at.X, (float)at.Y, (float)at.Z);
+            harness.MoveTo(inside);
+            new MissionAreaService(() => harness.Manager).RecordAcceptedMovement(harness.Client, inside + new Vector3(-60, 0, 0), inside);
+            var room = harness.Drain().Concat(Run(harness, copy, PlateauBetterHalfV1.EscapeMs + 2000)).ToList();
+            Assert.IsFalse(room.OfType<BarkPackage>().Any(bark => bark.BarkId is PlateauBetterHalfV1.QuarshThreatBark or PlateauBetterHalfV1.TalaBegsBark),
+                "no standoff after the decision");
+            Assert.AreSame(quarsh, SceneCreature(harness, copy, PlateauBetterHalfV1.QuarshRole), "no clock: he does not run");
+            Assert.AreEqual(MissionObjectiveState.Inactive, Objective(harness, BetterHalf, PlateauBetterHalfV1.Alive));
+
+            Kill(harness, copy, quarsh);
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, BetterHalf, PlateauBetterHalfV1.Decide));
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, BetterHalf, PlateauBetterHalfV1.Dead));
+            TellClark(harness, plateau, clark, PlateauBetterHalfV1.Dead);
+        }
+
+        /// <summary>
+        /// The Better Half, Quarsh killed at one blow before the room (no hit counted first, as a GM's .kill): his death
+        /// alone opens 2 and ends it; 3 opens. Tala is left standing (he never shot her): a known edge.
+        /// </summary>
+        [TestMethod]
+        public void BetterHalfQuarshKilledAtOneBlowBeforeTheRoomStillOpensThree()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var plateau = EnterPlateau(harness);
+            AcceptBetterHalf(harness, plateau);
+            var copy = IntoVelonHollow(harness);
+            var (quarsh, _) = InTheirPlaces(harness, copy);
+
+            Kill(harness, copy, quarsh);
+            Run(harness, copy, 250);
+            Assert.IsNotNull(SceneCreature(harness, copy, PlateauBetterHalfV1.TalaRole), "dead before he could shoot: Tala is left standing");
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, BetterHalf, PlateauBetterHalfV1.Find));
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, BetterHalf, PlateauBetterHalfV1.Decide), "Sacrificed not lost");
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, BetterHalf, PlateauBetterHalfV1.Dead));
+            Assert.AreEqual(MissionObjectiveState.Inactive, Objective(harness, BetterHalf, PlateauBetterHalfV1.Alive));
+        }
+
+        /// <summary>A first-hit sequence names an actor of the scene that can be hit, and a sequence it has.</summary>
+        [TestMethod]
+        public void AFirstHitSequenceMustNameACreatureAndASequence()
+        {
+            static void Validate(string role, uint sequence)
+            {
+                var scene = new Rasa.Missions.Content.MissionSceneDefinition
+                {
+                    Script = "data.sequence",
+                    Actors = new()
+                    {
+                        ["guard"] = new Rasa.Missions.Scenes.SceneActorDefinition("guard", Rasa.Missions.Scenes.SceneActorKind.Creature, 1, new(0, 0, 0)),
+                        ["crate"] = new Rasa.Missions.Scenes.SceneActorDefinition("crate", Rasa.Missions.Scenes.SceneActorKind.Object, 2, new(0, 0, 0))
+                    },
+                    DamagedSequences = new() { [role] = sequence }
+                };
+                scene.Sequences[0] = new Rasa.Missions.Content.SceneSequenceDefinition();
+                scene.Sequences[5] = new Rasa.Missions.Content.SceneSequenceDefinition();
+                Rasa.Game.Missions.Content.MissionSceneValidation.Validate(321, "test", scene, new[] { 1U });
+            }
+            Validate("guard", 5);
+            Assert.ThrowsExactly<Rasa.Missions.Runtime.MissionRuleException>(() => Validate("nobody", 5));
+            Assert.ThrowsExactly<Rasa.Missions.Runtime.MissionRuleException>(() => Validate("crate", 5));
+            Assert.ThrowsExactly<Rasa.Missions.Runtime.MissionRuleException>(() => Validate("guard", 6));
+        }
+
+        /// <summary>A scene actor's own health and armour are a creature's, and its health is more than none.</summary>
+        [TestMethod]
+        public void ASceneActorsOwnHealthIsACreaturesAndMoreThanNone()
+        {
+            static void Validate(Rasa.Missions.Scenes.SceneActorDefinition actor)
+            {
+                var scene = new Rasa.Missions.Content.MissionSceneDefinition
+                {
+                    Script = "data.sequence", Actors = new() { [actor.Role] = actor }
+                };
+                scene.Sequences[0] = new Rasa.Missions.Content.SceneSequenceDefinition();
+                Rasa.Game.Missions.Content.MissionSceneValidation.Validate(321, "test", scene, new[] { 1U });
+            }
+            var guard = new Rasa.Missions.Scenes.SceneActorDefinition("guard", Rasa.Missions.Scenes.SceneActorKind.Creature, 1, new(0, 0, 0));
+            Validate(guard with { HitPoints = 70, Armor = 0 });
+            Assert.ThrowsExactly<Rasa.Missions.Runtime.MissionRuleException>(() => Validate(guard with { HitPoints = 0 }));
+            Assert.ThrowsExactly<Rasa.Missions.Runtime.MissionRuleException>(() => Validate(guard with
+                { Kind = Rasa.Missions.Scenes.SceneActorKind.Object, HitPoints = 70 }));
+        }
+
+        /// <summary>A bark names a bark and a creature to say it; a pose names a pose (NpcPose) and a creature to take it.</summary>
+        [TestMethod]
+        public void BarksAndPosesNeedACreatureAndAValue()
+        {
+            static void Validate(params Rasa.Missions.Scenes.WorldIntent[] world)
+            {
+                var scene = new Rasa.Missions.Content.MissionSceneDefinition
+                {
+                    Script = "data.sequence",
+                    Actors = new()
+                    {
+                        ["guard"] = new Rasa.Missions.Scenes.SceneActorDefinition("guard", Rasa.Missions.Scenes.SceneActorKind.Creature, 1, new(0, 0, 0)),
+                        ["crate"] = new Rasa.Missions.Scenes.SceneActorDefinition("crate", Rasa.Missions.Scenes.SceneActorKind.Object, 2, new(0, 0, 0))
+                    }
+                };
+                scene.Sequences[0] = new Rasa.Missions.Content.SceneSequenceDefinition();
+                scene.Sequences[5] = new Rasa.Missions.Content.SceneSequenceDefinition { World = world.ToList() };
+                Rasa.Game.Missions.Content.MissionSceneValidation.Validate(321, "test", scene, new[] { 1U });
+            }
+            Validate(new Rasa.Missions.Scenes.BarkActorIntent("says", "guard", 848),
+                new Rasa.Missions.Scenes.PoseActorIntent("works", "guard", 8));
+            Assert.ThrowsExactly<Rasa.Missions.Runtime.MissionRuleException>(() => Validate(new Rasa.Missions.Scenes.BarkActorIntent("says", "guard", 0)));
+            Assert.ThrowsExactly<Rasa.Missions.Runtime.MissionRuleException>(() => Validate(new Rasa.Missions.Scenes.BarkActorIntent("says", "crate", 848)));
+            Assert.ThrowsExactly<Rasa.Missions.Runtime.MissionRuleException>(() => Validate(new Rasa.Missions.Scenes.PoseActorIntent("works", "guard", 99)));
+            Assert.ThrowsExactly<Rasa.Missions.Runtime.MissionRuleException>(() => Validate(new Rasa.Missions.Scenes.PoseActorIntent("works", "crate", 8)));
         }
 
         /// <summary>Clark at the Wedge Rock; 1975 offered after Village Of The Damned, the four helmets, accepted; nothing of it on the Plateau.</summary>
@@ -333,37 +502,124 @@ namespace Rasa.Test.Missions.Plateau
             return clark;
         }
 
-        /// <summary>Up into the upper control room, as MissionAreaService takes a step: 1 done, Quarsh holds Tala, the clock on.</summary>
+        /// <summary>
+        /// Into Velon Hollow, before the room: Tala works at her terminal and Quarsh stands behind her, neutral (the
+        /// one Quarsh until the clock), both in the user's places and facings, on the navmesh, and nothing has run yet.
+        /// </summary>
+        private static (Creature Quarsh, Creature Tala) InTheirPlaces(WildernessRuntimeTestHarness harness, MapChannel copy)
+        {
+            Run(harness, copy, 250);
+            var waiting = SceneCreature(harness, copy, PlateauBetterHalfV1.QuarshRole);
+            var tala = SceneCreature(harness, copy, PlateauBetterHalfV1.TalaRole);
+            Assert.IsNotNull(tala, "Tala is there on arrival");
+            Assert.IsNotNull(waiting, "Quarsh is there on arrival");
+            Assert.AreEqual(PlateauBetterHalfV1.Tala, tala.DbId);
+            Assert.AreEqual(PlateauBetterHalfV1.TalaName, tala.NameId);
+            Assert.AreEqual(TargetCategory.Friendly, tala.TargetCategory);
+            Assert.AreEqual(NpcPose.AtConsole, tala.Pose, "working at the terminal");
+            Assert.IsTrue(tala.PoseShown);
+            Assert.AreEqual(PlateauBetterHalfV1.TalaFacing, tala.Rotation, 0.01);
+            Assert.AreEqual(0f, Flat(tala.Position, PlateauBetterHalfV1.TalaAt), 0.5f);
+            Assert.AreEqual(PlateauBetterHalfV1.Quarsh, waiting.DbId);
+            Assert.AreEqual(TargetCategory.Neutral, waiting.TargetCategory, "seeks nobody");
+            Assert.AreEqual(NpcPose.Standing, waiting.Pose, "keeps his place and facing");
+            Assert.AreEqual(PlateauBetterHalfV1.QuarshFacing, waiting.Rotation, 0.01);
+            Assert.AreEqual(0f, Flat(waiting.Position, PlateauBetterHalfV1.QuarshAt), 0.5f);
+            AssertStandsOnNavMesh(copy, tala.Position);
+            AssertStandsOnNavMesh(copy, waiting.Position);
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, BetterHalf, PlateauBetterHalfV1.Find));
+            return (waiting, tala);
+        }
+
+        /// <summary>
+        /// Up into the upper control room, as MissionAreaService takes a step: 1 done, the same Quarsh holds Tala, he
+        /// threatens and she begs, the clock on.
+        /// </summary>
         private static (Creature Quarsh, Creature Tala) IntoTheControlRoom(WildernessRuntimeTestHarness harness, MapChannel copy)
         {
-            Tick(harness, copy, 250);
-            Assert.IsNull(SceneCreature(harness, copy, PlateauBetterHalfV1.QuarshRole), "no Quarsh before the room");
+            var before = SceneCreature(harness, copy, PlateauBetterHalfV1.QuarshRole);
             var at = PlateauBetterHalfV1.RoomAt;
             var inside = new Vector3((float)at.X, (float)at.Y, (float)at.Z);
             harness.MoveTo(inside);
             Assert.IsTrue(new MissionAreaService(() => harness.Manager).RecordAcceptedMovement(harness.Client, inside + new Vector3(-60, 0, 0), inside),
                 "the control room reached");
-            harness.Drain();
+            var threat = harness.Drain().Concat(Run(harness, copy, 250)).ToList();
             Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, BetterHalf, PlateauBetterHalfV1.Find));
             Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, BetterHalf, PlateauBetterHalfV1.Decide));
-            Tick(harness, copy, 250);
 
             var quarsh = SceneCreature(harness, copy, PlateauBetterHalfV1.QuarshRole);
             var tala = SceneCreature(harness, copy, PlateauBetterHalfV1.TalaRole);
-            Assert.IsNotNull(quarsh, "Quarsh is there");
+            Assert.IsNotNull(quarsh, "Quarsh holds her");
             Assert.IsNotNull(tala, "Tala is there");
+            Assert.AreSame(before, quarsh, "the same Quarsh as on arrival: no new spawn at the room");
             Assert.AreEqual(PlateauBetterHalfV1.Quarsh, quarsh.DbId);
             Assert.AreEqual(PlateauBetterHalfV1.QuarshName, quarsh.NameId);
             Assert.AreEqual(PlateauBetterHalfV1.Level, quarsh.Level);
-            Assert.AreEqual(TargetCategory.Hostile, quarsh.TargetCategory);
+            Assert.AreEqual(TargetCategory.Neutral, quarsh.TargetCategory);
             Assert.AreEqual((int)PlateauBetterHalfV1.QuarshHitPoints, (int)quarsh.Attributes[Attributes.Health].Current);
-            Assert.AreEqual(PlateauBetterHalfV1.Tala, tala.DbId);
-            Assert.AreEqual(PlateauBetterHalfV1.TalaName, tala.NameId);
-            Assert.AreNotEqual(TargetCategory.Hostile, tala.TargetCategory);
-            AssertStandsOnNavMesh(copy, quarsh.Position);
-            AssertStandsOnNavMesh(copy, tala.Position);
+            Assert.AreEqual(0f, Flat(quarsh.Position, PlateauBetterHalfV1.QuarshAt), 0.1f, "where he waited");
+            Assert.AreEqual(PlateauBetterHalfV1.QuarshFacing, quarsh.Rotation, 0.01);
+            Assert.AreEqual(NpcPose.None, tala.Pose, "no longer working");
+            Assert.AreEqual(1, threat.OfType<BarkPackage>().Count(bark => bark.BarkId == PlateauBetterHalfV1.QuarshThreatBark), "Quarsh threatens");
+            Assert.IsFalse(threat.OfType<BarkPackage>().Any(bark => bark.BarkId == PlateauBetterHalfV1.TalaBegsBark), "Tala after him");
+            var begs = Run(harness, copy, PlateauBetterHalfV1.BegsMs);
+            Assert.AreEqual(1, begs.OfType<BarkPackage>().Count(bark => bark.BarkId == PlateauBetterHalfV1.TalaBegsBark), "Tala begs");
             return (quarsh, tala);
         }
+
+        /// <summary>
+        /// The first hit on Quarsh: he shoots Tala, one blow kills her (her body stays where she fell), nobody earns
+        /// her kill, and he turns on the player.
+        /// </summary>
+        private static void ShotDead(WildernessRuntimeTestHarness harness, MapChannel copy, Creature quarsh, Creature tala)
+        {
+            var experience = harness.Client.Player.Experience;
+            Assert.AreEqual((int)PlateauBetterHalfV1.TalaHitPoints, (int)tala.Attributes[Attributes.Health].Current);
+            Hit(harness, copy, quarsh, damaged: true);
+            Run(harness, copy, 250);
+            Assert.AreEqual(tala.EntityId, quarsh.Controller.ActionFighting.TargetEntityId, "he turns on Tala");
+            for (var waited = 0; tala.State != CharacterState.Dead && waited < 20; waited++)
+                Run(harness, copy, 250);
+            Assert.AreEqual(CharacterState.Dead, tala.State, $"one of his blows kills her: health {tala.Attributes[Attributes.Health].Current}, armor {tala.Attributes[Attributes.Armor].Current}, his action {quarsh.Controller.CurrentAction}, target {quarsh.Controller.ActionFighting.TargetEntityId} (tala {tala.EntityId}), distance {Vector3.Distance(quarsh.Position, tala.Position)}");
+            Assert.IsNull(SceneCreature(harness, copy, PlateauBetterHalfV1.TalaRole));
+            Assert.IsTrue(MapInstanceScope.Contains(copy, tala), "her body stays");
+            Assert.AreEqual(0UL, tala.CorpseLootEntityId, "no loot");
+            Assert.AreEqual(experience, harness.Client.Player.Experience, "no kill of hers for the player");
+            Run(harness, copy, 500);
+            Assert.AreEqual(BehaviorManager.BehaviorActionFighting, quarsh.Controller.CurrentAction, "then he fights");
+            Assert.AreEqual(harness.Client.Player.EntityId, quarsh.Controller.ActionFighting.TargetEntityId, "the player");
+        }
+
+        /// <summary>A hit by the player, as weapon fire or an ability lands one (ActorManager.Damage); immune or not as said.</summary>
+        private static void Hit(WildernessRuntimeTestHarness harness, MapChannel copy, Creature creature, bool damaged)
+        {
+            var before = creature.Attributes[Attributes.Health].Current + creature.Attributes[Attributes.Armor].Current;
+            ActorManager.Instance.Damage(copy, creature, 10, harness.Client.Player);
+            var after = creature.Attributes[Attributes.Health].Current + creature.Attributes[Attributes.Armor].Current;
+            if (damaged)
+                Assert.IsTrue(after < before, "the hit took something off him");
+            else
+                Assert.AreEqual(before, after, "immune");
+        }
+
+        /// <summary>The map run on in steps (BehaviorManager moves at most a second a think), blows landed, and what the player was sent.</summary>
+        private static List<Rasa.Packets.PythonPacket> Run(WildernessRuntimeTestHarness harness, MapChannel map, long milliseconds)
+        {
+            var sent = new List<Rasa.Packets.PythonPacket>();
+            for (var done = 0L; done < milliseconds; done += 250)
+            {
+                var step = System.Math.Min(250, milliseconds - done);
+                harness.UtcNow = harness.UtcNow.AddMilliseconds(step);
+                BehaviorManager.Instance.MapChannelThink(map, step);
+                MissileManager.Instance.DoWork(map, step);   // the blows land, as the map's tick lands them
+                harness.Manager.Scenes.Tick(map);
+                sent.AddRange(harness.Drain());
+            }
+            return sent;
+        }
+
+        private static float Flat(Vector3 position, Rasa.Missions.Scenes.ScenePosition at) =>
+            Vector2.Distance(new Vector2(position.X, position.Z), new Vector2(at.X, at.Z));
 
         /// <summary>Back at the Wedge Rock: Clark hears <paramref name="end"/> (only that one), the mission turned in for the fourth helmet.</summary>
         private static void TellClark(WildernessRuntimeTestHarness harness, MapChannel plateau, Creature clark, uint end)

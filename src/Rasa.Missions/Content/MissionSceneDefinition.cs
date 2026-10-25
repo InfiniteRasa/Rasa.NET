@@ -18,6 +18,13 @@ namespace Rasa.Missions.Content
         public Dictionary<uint, SceneSequenceDefinition> Sequences { get; set; } = new();
         public Dictionary<string, uint> Names { get; set; } = new();
         public Dictionary<string, uint> DefeatSequences { get; set; }
+        /// <summary>
+        /// Actor role to sequence: the sequence runs once, on the first hit a player's side lands on that actor
+        /// (damage that took something off it; an immune hit does not count), as DefeatSequences runs on its
+        /// death. Once per run generation: a reload or a respawned actor does not run it again.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public Dictionary<string, uint> DamagedSequences { get; set; }
         public Dictionary<uint, MissionCreditPolicy> Credit { get; set; } = new();
         public MissionRequirement Requirement { get; set; }
         public MissionRequirement TurnInRequirement { get; set; }
@@ -59,7 +66,8 @@ namespace Rasa.Missions.Content
 
         public SceneBindings Bindings(string revision) => new(revision, Actors, Routes,
             Sequences.ToDictionary(entry => entry.Key, entry => new SceneSequence(
-                entry.Value.World, entry.Value.Character, entry.Value.Signals, entry.Value.Timers)), Names, DefeatSequences);
+                entry.Value.World, entry.Value.Character, entry.Value.Signals, entry.Value.Timers)), Names, DefeatSequences,
+            DamagedSequences);
     }
 
     public sealed class MissionExperienceDefinition

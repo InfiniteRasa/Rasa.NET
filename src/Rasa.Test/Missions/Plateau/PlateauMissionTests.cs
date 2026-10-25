@@ -1424,7 +1424,12 @@ namespace Rasa.Test.Missions.Plateau
             var creatures = new[] { PlateauBetterHalfV1.Quarsh, PlateauBetterHalfV1.Tala };
 
             Assert.IsTrue(Has(PlateauBetterHalfV1.MissionId));
-            Assert.HasCount(2, world.CreatureEntries.AsNoTracking().Where(row => creatures.Contains(row.Id)).ToArray());
+            var rows = world.CreatureEntries.AsNoTracking().Where(row => creatures.Contains(row.Id)).ToDictionary(row => row.Id);
+            Assert.HasCount(2, rows);
+            Assert.AreEqual(3U, rows[PlateauBetterHalfV1.Quarsh].Faction, "Quarsh neutral: no aggro until he is hit");
+            Assert.AreEqual(1U, rows[PlateauBetterHalfV1.Tala].Faction);
+            Assert.AreEqual(0U, rows[PlateauBetterHalfV1.Tala].RunSpeed, "Tala does not stroll");
+            Assert.AreEqual(4U, rows[PlateauBetterHalfV1.Tala].WalkSpeed, "over her route's speed: she walks out");
             world.GetService<IMigrator>().Migrate(VelonHollowBane);
             Assert.IsFalse(Has(PlateauBetterHalfV1.MissionId));
             Assert.IsFalse(world.MissionAreaEntries.AsNoTracking().Any(entry => entry.MissionId == PlateauBetterHalfV1.MissionId));
