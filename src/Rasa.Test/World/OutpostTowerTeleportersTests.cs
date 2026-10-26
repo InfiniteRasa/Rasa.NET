@@ -8,6 +8,7 @@ using System.Numerics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Rasa.Test.World
@@ -190,12 +191,63 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void MySqlWidensTeleporterDescriptionBeforeTheFullOutpostTowerDescriptions()
+        {
+            const string widened = "20270211000000_WidenTeleporterDescriptionBeforeOutpostTowers";
+            const string preceding = "20270206000000_Region_label_rooms";
+            using var context = PersistenceIntegrationTests.CreateContext(typeof(Rasa.Context.World.MySqlWorldContext), "unused");
+            var migrations = context.Database.GetMigrations().ToArray();
+            var precedingIndex = Array.IndexOf(migrations, preceding);
+            var widenIndex = Array.IndexOf(migrations, widened);
+            var seedIndex = Array.IndexOf(migrations, Migration);
+            Assert.IsTrue(precedingIndex >= 0 && precedingIndex < widenIndex && widenIndex < seedIndex,
+                "The schema change must run after the previous migration but before any outpost teleporter inserts.");
+
+            Assert.AreEqual("text", context.Model.FindEntityType(typeof(TeleporterEntry))?
+                .FindProperty(nameof(TeleporterEntry.Description))?.GetColumnType(),
+                "The MySQL EF model must match the widened description column.");
+
+            var migration = new Rasa.Migrations.MySqlWorld.WidenTeleporterDescriptionBeforeOutpostTowers();
+            Assert.HasCount(1, migration.UpOperations);
+            Assert.IsInstanceOfType<AlterColumnOperation>(migration.UpOperations.Single());
+            var change = (AlterColumnOperation)migration.UpOperations.Single();
+            Assert.AreEqual("teleporter", change.Table);
+            Assert.AreEqual("description", change.Name);
+            Assert.AreEqual("varchar(64)", change.OldColumn.ColumnType);
+            Assert.AreEqual("text", change.ColumnType);
+            Assert.IsFalse(change.IsNullable);
+            Assert.IsEmpty(migration.DownOperations, "Do not shrink a text column and truncate descriptions.");
+
+            var pads = OutpostTowerTeleporters.Pads().ToList();
+            Assert.HasCount(28, pads);
+            Assert.IsTrue(pads.Any(pad => pad.Description.Length > 64),
+                "The migration protects actual full descriptions that exceed the old column limit.");
+            Assert.AreEqual("Local Teleporter: Proving Grounds tower at -269, 189, ground floor",
+                pads.Single(pad => pad.Id == 978).Description,
+                "Keep the original human-readable description, without shortening it.");
+        }
+
+        [TestMethod]
+        public void SqliteKeepsMigrationParityWithoutAlteringItsColumn()
+        {
+            var counterpart = new Rasa.Migrations.SqliteWorld.WidenTeleporterDescriptionBeforeOutpostTowers();
+            Assert.IsEmpty(counterpart.UpOperations);
+            Assert.IsEmpty(counterpart.DownOperations);
+        }
+
+        [TestMethod]
         public void OnMySqlTheRowsAndLinksGoInAndComeOut()
         {
             using var context = PersistenceIntegrationTests.CreateContext(typeof(Rasa.Context.World.MySqlWorldContext), "unused");
             var migrator = context.GetService<IMigrator>();
             var up = migrator.GenerateScript(Previous, Migration);
             var down = migrator.GenerateScript(Migration, Previous);
+
+            var widening = up.IndexOf("ALTER TABLE `teleporter`", StringComparison.OrdinalIgnoreCase);
+            var firstInsert = up.IndexOf("INSERT INTO teleporter", StringComparison.OrdinalIgnoreCase);
+            Assert.IsTrue(widening >= 0 && firstInsert > widening,
+                "The MySQL migration script must widen the column before inserting any outpost tower pads.");
+            StringAssert.Contains(up, "text");
 
             foreach (var sql in OutpostTowerTeleporters.Up())
                 StringAssert.Contains(up, sql);
