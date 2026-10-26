@@ -2884,6 +2884,12 @@ namespace Rasa.Managers
 
             // Its target, to everyone who can see it: the guns that aim, aim (Targets).
             Targets.Sync(creature.RuntimeMapChannel ?? MapChannelManager.Instance.FindByContextId(creature.MapContextId), creature);
+
+            // A fight starting, or a new target in one: a player it turns on is detected, for the
+            // missions that care (PlayerDetection).
+            if (!sameFight)
+                PlayerDetection.Fighting(creature.RuntimeMapChannel ?? MapChannelManager.Instance.FindByContextId(creature.MapContextId), creature, targetEntityId);
+
             return true;
         }
 

@@ -243,6 +243,15 @@ namespace Rasa.Structures
             kind == MissionProgressEventKind.CreatureClassKilled ||
             kind == MissionProgressEventKind.ObjectDestroyed;
 
+        /// <summary>
+        /// The happenings a squad shares (GroupCreditService): a kill, a scene's signal, and the
+        /// player detected - one of a squad seen is the squad seen.
+        /// </summary>
+        public static bool IsShared(MissionProgressEventKind kind) =>
+            IsKill(kind) ||
+            kind == MissionProgressEventKind.ScenarioEvent ||
+            kind == MissionProgressEventKind.PlayerDetected;
+
         public static MissionProgressRule IncrementItemCounterOnExactSubject(
             MissionProgressEventKind kind,
             uint itemClassId,

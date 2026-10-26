@@ -1048,6 +1048,20 @@ namespace Rasa.Managers
 
                             break;
 
+                        // Any pool's creature can detect the player, on any map (PlayerDetection).
+                        case MissionProgressEventKind.PlayerDetected:
+                            if (references.HasSpawnPools && !references.SpawnPools.ContainsKey(subjectId))
+                            {
+                                diagnostics.Add(new MissionValidationDiagnostic(
+                                    "missing-spawn-pool",
+                                    $"player detected progress rule references missing spawn pool {subjectId}.",
+                                    definition.MissionId,
+                                    definition.ContentRevision,
+                                    objective.ObjectiveId));
+                            }
+
+                            break;
+
                         case MissionProgressEventKind.ItemAcquired:
                         case MissionProgressEventKind.ItemConsumed:
                         case MissionProgressEventKind.InteractionUsed:

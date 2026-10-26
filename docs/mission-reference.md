@@ -438,7 +438,9 @@ Progress event values come from `MissionProgressEventKind`, not client opcodes:
 | 13 | `ObjectHit` | `SubjectId` is entity class; `CounterId` is action ID |
 | 14 | `CreatureFlagKilled` | `SubjectId` is a creature flag its class carries (`creature_class_flag`) |
 | 15 | `CreatureClassKilled` | `SubjectId` is the killed creature's entity class |
-| 16 | `SpawnPoolCleared` | `SubjectId` is a spawn pool ID; squad instances only (see below) |
+| 16 | `ObjectDestroyed` | `SubjectId` is the destroyed placed destructible's entity class |
+| 17 | `SpawnPoolCleared` | `SubjectId` is a spawn pool ID; squad instances only (see below) |
+| 18 | `PlayerDetected` | `SubjectId` is a spawn pool ID; a creature of it started to fight the player (see below) |
 
 For item counters, set `InitialValue` and `TargetValue`, omit `CounterId`, and
 provide the native counter-text binding. Generic counters require all three.
@@ -446,6 +448,15 @@ Targets must exceed initial values. Do not combine counter ranges with
 `SourceSpawnResolved`.
 
 Multiple waypoint, Logos or `SpawnPoolCleared` triggers form an all-distinct-subject set.
+
+`PlayerDetected` ("Avoid Detection While Uploading Virus") fires when a creature
+of the named pool starts to fight the player or turns on them in a fight: it
+noticed them in its aggro scan, or they hit it first. Whatever keeps a creature
+from noticing keeps the player undetected: Stealth Armor's shorter range, Cloak
+Wave, a mag flash. It is a moment, not a fact: nothing counts it again later.
+Several `PlayerDetected` triggers in one transition are rejected (they are not
+a distinct-subject set). Shared with the squad as a kill is, under a shared
+`MissionCreditPolicy`. Validator: `missing-spawn-pool`.
 
 `SpawnPoolCleared` ("Secure the outer Bane Outpost") completes when every named
 pool is dead at the same time in the squad's instance the player is in: nothing

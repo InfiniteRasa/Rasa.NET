@@ -44,7 +44,7 @@ namespace Rasa.Game.Missions
         internal bool Record(Client source, MissionProgressEvent progress, Vector3 position, string eventId = null,
             ISet<(uint CharacterId, uint MissionId, uint ObjectiveId)> credited = null)
         {
-            if (!MissionProgressRule.IsKill(progress.Kind) && progress.Kind != MissionProgressEventKind.ScenarioEvent)
+            if (!MissionProgressRule.IsShared(progress.Kind))
                 return _missions.RecordProgress(source, progress);
             if (source?.Player?.MapChannel == null || source.State != ClientState.Ingame)
                 return false;
