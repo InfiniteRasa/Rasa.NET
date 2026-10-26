@@ -55,6 +55,11 @@ namespace Rasa.Test.World
         [DataRow(254.34f,172.4f,-75.23f)]
         [DataRow(144.7f,172.6f,-127.19f)]
         [DataRow(254.74f,172.4f,-110.69f)]
+        // Corrected standard-gun mount heights; retain the old-height regression cases above.
+        [DataRow(145.74f,174.96f,-79.1f)]
+        [DataRow(254.34f,174.96f,-75.23f)]
+        [DataRow(144.7f,175.16f,-127.19f)]
+        [DataRow(254.74f,174.96f,-110.69f)]
         public void RearMountedTurretHasReachableClearFiringPositionAndTakesNativeDamage(float x,float y,float z)
         {
             // The location that stalled the original simulations, with real collision cover.
@@ -69,7 +74,7 @@ namespace Rasa.Test.World
             CellManager.Instance.AddToWorld(_world.Map,turret);
             var attacker = Attacker(new Vector3(230.44f,163.70f,-100.77f));
             attacker.HomePos.Position = Point.Position;
-            if(x>254 && z< -100) Assert.IsFalse(BehaviorManager.Sees(_world.Map.Cover,attacker,turret));
+            if(x>254 && z< -100 && y<174) Assert.IsFalse(BehaviorManager.Sees(_world.Map.Cover,attacker,turret));
             var at = LandingZoneAssaultTargeting.FiringPosition(_world.Map,attacker,turret);
             Assert.IsNotNull(at,"Must find a real reachable firing position without relocating the mount");
             Assert.IsTrue(_world.Map.NavMesh.Reachable(attacker.Position,at.Value));
