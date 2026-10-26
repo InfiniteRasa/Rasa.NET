@@ -96,9 +96,15 @@ namespace Rasa.Test.Missions.Wilderness
                 (630100U, 900), (630120U, 1500)
             })
             {
-                harness.SpawnWorld(spawn);
-                var actor = harness.Map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList)
-                    .Single(creature => creature.SpawnPool?.DbId == spawn);
+                Rasa.Structures.Creature actor;
+                if (spawn == WildernessOpeningWorldV1.RangerSpawnId)
+                    actor = harness.SpawnAssignedSolisRanger();
+                else
+                {
+                    harness.SpawnWorld(spawn);
+                    actor = harness.Map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList)
+                        .Single(creature => creature.SpawnPool?.DbId == spawn);
+                }
                 Assert.AreEqual(health, actor.Attributes[Attributes.Health].CurrentMax);
                 Assert.AreEqual(health, actor.Attributes[Attributes.Health].Current);
             }

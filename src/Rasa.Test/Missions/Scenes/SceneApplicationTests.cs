@@ -723,6 +723,8 @@ namespace Rasa.Test.Missions.Scenes
             using var context = MissionTestContext.WithDefinitions(321);
             var app = Application(context, new WorldBoundary());
             app.Start(context.Client, "data.sequence", Bindings());
+            // Map recovery inspects persisted public leases once, even with no current bindings.
+            context.Manager.PublicActors.Recover(context.Map);
             var baseline = context.CharUnitsCreated;
             for (var tick = 0; tick < 1000; tick++)
                 app.Tick(context.Map);

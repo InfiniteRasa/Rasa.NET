@@ -274,8 +274,12 @@ namespace Rasa.Test.Missions.Wilderness
             {
                 Assert.AreEqual(1220U, pools[poolId].MapContextId, $"Mission pool {poolId} must stay in Wilderness.");
                 Assert.AreEqual(creatureId, pools[poolId].Creature1Id);
-                Assert.AreEqual((byte)1, pools[poolId].Creature1MinCount);
-                Assert.AreEqual((byte)1, pools[poolId].Creature1MaxCount);
+                // Solis owns a ranger per assignment; its old shared pool must stay retired.
+                var count = (byte)(poolId == WildernessOpeningWorldV1.RangerSpawnId ? 0 : 1);
+                Assert.AreEqual(count, pools[poolId].Creature1MinCount, $"Pool {poolId}");
+                Assert.AreEqual(count, pools[poolId].Creature1MaxCount, $"Pool {poolId}");
+                if (poolId == WildernessOpeningWorldV1.RangerSpawnId)
+                    Assert.AreEqual((byte)Rasa.Managers.SpawnPoolManager.ModeScripted, pools[poolId].Mode);
             }
 
             var expectedMissions = WildernessMissionCases.All
@@ -560,7 +564,10 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.AreEqual(69 + LaterMissions.Length,
                 harness.World.MissionContentDefinitionEntries.Count(entry => entry.Enabled));
             Assert.AreEqual("TEXT", EvidenceColumnType(harness).ToUpperInvariant());
-            Assert.IsFalse(harness.Manager.LoadMissions().BlocksReadiness);
+            // A deployed world upgrade restarts the mission runtime; it is not a live removal
+            // of public encounter declarations from the previous runtime.
+            var restarted = harness.CreateFreshMissionApplication();
+            Assert.IsFalse(restarted.LoadMissions().BlocksReadiness);
             Assert.IsFalse(harness.World.Database.GetPendingMigrations().Any());
 
             Execute(down);

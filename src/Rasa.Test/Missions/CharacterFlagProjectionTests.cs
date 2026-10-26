@@ -357,6 +357,8 @@ namespace Rasa.Test.Missions
             Assert.AreEqual(0, context.Drain().OfType<PlayerFlagsPacket>().Count());
             using (var newer = context.CreateChar())
                 newer.CharacterFlags.Set(1, 999, 1);
+            // Recover public reservations once before measuring publication-only retries.
+            manager.PublicActors.Recover(context.Map);
             var reads = context.CharUnitsCreated;
             var writes = context.SaveAttempts;
             var inventory = context.Client.Player.Inventory.PersonalInventory.ToArray();

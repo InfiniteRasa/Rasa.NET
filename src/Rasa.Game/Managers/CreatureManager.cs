@@ -29,6 +29,7 @@ namespace Rasa.Managers
         private static readonly object InstanceLock = new object();
         public const long CreatureLocationUpdateTime = 1500;
         public Dictionary<uint, Creature> LoadedCreatures = new();
+        private Dictionary<uint, Structures.World.CreatureStatEntry> _scenarioStats = new();
         private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
         private readonly ManifestationManager _manifestationManager;
         private readonly MissionApplication _missionManager;
@@ -814,21 +815,30 @@ namespace Rasa.Managers
                 NpcManager.Instance.UpdateConversationStatus(client, creature);
         }
 
-        private static void EnsureScenarioAttributes(Creature creature)
+        private void EnsureScenarioAttributes(Creature creature)
         {
             if (creature.Attributes.Count != 0)
                 return;
 
-            var body = (int)Math.Max(15, creature.Level * 3);
-            var health = (int)Math.Max(100, creature.MaxHitPoints);
+            // Assignment-owned actors use the same authored stats as public spawns. A
+            // template's max_hp can predate stat migrations (Solis: 600 versus 4000).
+            // Loaded with the catalog: no world query inside a scene's character transaction.
+            // Synthetic templates or definitions without a stat row retain the fallback.
+            _scenarioStats.TryGetValue(creature.DbId, out var stats);
+            var body = stats?.Body ?? (int)Math.Max(15, creature.Level * 3);
+            var mind = stats?.Mind ?? body;
+            var spirit = stats?.Spirit ?? body;
+            var health = stats?.Health ?? (int)Math.Max(100, creature.MaxHitPoints);
+            var armor = stats?.Armor ?? 100;
             creature.Attributes.Add(Attributes.Body, new ActorAttributes(Attributes.Body, body, body, body, 5, 1000));
-            creature.Attributes.Add(Attributes.Mind, new ActorAttributes(Attributes.Mind, body, body, body, 5, 1000));
-            creature.Attributes.Add(Attributes.Spirit, new ActorAttributes(Attributes.Spirit, body, body, body, 5, 1000));
+            creature.Attributes.Add(Attributes.Mind, new ActorAttributes(Attributes.Mind, mind, mind, mind, 5, 1000));
+            creature.Attributes.Add(Attributes.Spirit, new ActorAttributes(Attributes.Spirit, spirit, spirit, spirit, 5, 1000));
             creature.Attributes.Add(Attributes.Health, CreatureHealth.NewAttribute(health));
             creature.Attributes.Add(Attributes.Chi, new ActorAttributes(Attributes.Chi, 0, 0, 0, 0, 0));
             creature.Attributes.Add(Attributes.Power, new ActorAttributes(Attributes.Power, 0, 0, 0, 0, 0));
             creature.Attributes.Add(Attributes.Aware, new ActorAttributes(Attributes.Aware, 0, 0, 0, 0, 0));
-            creature.Attributes.Add(Attributes.Armor, new ActorAttributes(Attributes.Armor, 100, 100, 100, 5, 1000));
+            creature.Attributes.Add(Attributes.Armor, new ActorAttributes(Attributes.Armor, armor, armor, armor,
+                stats == null ? 5 : CreatureArmor.BaseRegen(armor), stats == null ? 1000 : CombatRegen.RegenPeriodSeconds));
             creature.Attributes.Add(Attributes.Speed, new ActorAttributes(Attributes.Speed, 1, 1, 1, 0, 0));
             creature.Attributes.Add(Attributes.Regen, new ActorAttributes(Attributes.Regen, 0, 0, 0, 0, 0));
         }
@@ -874,6 +884,7 @@ namespace Rasa.Managers
             using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
             var creatureList = unitOfWork.Creatures.Get();
             var creatureActions = unitOfWork.Creatures.GetCreatureActions();
+            var scenarioStats = unitOfWork.Creatures.GetAllCreatureStats().ToDictionary(row => row.Id);
 
             // Every creature's look in one query, not one a creature: 1047 creature rows were
             // 1047 queries, 0.4 s of startup on SQLite and a round trip each on MySQL.
@@ -1080,6 +1091,7 @@ namespace Rasa.Managers
                 }
             }
 
+            _scenarioStats = scenarioStats;
             LoadedCreatures = loaded;
         }
 

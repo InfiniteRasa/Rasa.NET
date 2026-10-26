@@ -224,6 +224,23 @@ namespace Rasa.Test.Missions.Wilderness
             Manager.Scenes.Tick(Map);
         }
 
+        internal MissionApplication CreateFreshMissionApplication() => new(this,
+            new Dictionary<uint, Mission>(), new Dictionary<uint, MissionRewardDefinition>(),
+            new ManifestationManager(this), utcNow: () => UtcNow);
+
+        internal Creature SpawnAssignedSolisRanger()
+        {
+            SpawnWorld(100);
+            var rogers = Npc(100);
+            MoveTo(rogers.Position);
+            if (!Manager.AcceptOfferedMission(Client, rogers.EntityId, 1407))
+                throw new InvalidOperationException("The Solis stats fixture could not accept the escort mission.");
+            return EntityManager.Instance.Creatures.Values.Single(creature =>
+                creature.SpawnPool?.SceneActorRole == "ranger" && creature.SpawnPool.ScenarioMissionId == 1407 &&
+                creature.SpawnPool.ScenarioOwnerCharacterId == Client.Player.Id &&
+                CreatureManager.IsLivingOnMap(Map, creature));
+        }
+
         internal Creature Npc(uint spawnId) => Map.MapCellInfo.Cells.Values
             .SelectMany(cell => cell.CreatureList)
             .Distinct()

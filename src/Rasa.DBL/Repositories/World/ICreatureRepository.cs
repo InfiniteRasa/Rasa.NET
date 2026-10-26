@@ -19,6 +19,8 @@ namespace Rasa.Repositories.World
         void UpdateCreatureEditor(CreatureEntry creature, IReadOnlyList<CreatureAppearanceEntry> appearance) =>
             throw new System.NotSupportedException();
         CreatureStatEntry GetCreatureStats(uint creatureId);
+        /// <summary>Authored spawn stats, loaded once with the creature catalog.</summary>
+        List<CreatureStatEntry> GetAllCreatureStats() => new List<CreatureStatEntry>();
         CreatureActionEntry GetCreatureActionById(uint id);
         Dictionary<uint, CreatureActionEntry> GetCreatureActions();
         void CreateOrUpdateAppearance(uint dbId, uint slotId, uint classId, uint hue);

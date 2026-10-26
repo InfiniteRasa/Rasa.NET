@@ -68,9 +68,10 @@ namespace Rasa.Test.Missions.Wilderness
             var previousMigrations = harness.World.Database.GetAppliedMigrations().ToArray();
 
             harness.World.Initialize();
-            Assert.IsFalse(harness.Manager.LoadMissions().BlocksReadiness);
+            var restarted = harness.CreateFreshMissionApplication();
+            Assert.IsFalse(restarted.LoadMissions().BlocksReadiness);
             using (var unit = harness.CreateChar())
-                harness.Manager.HydrateAndClearInvalid(harness.Client.Player, unit);
+                restarted.HydrateAndClearInvalid(harness.Client.Player, unit);
 
             Assert.IsTrue(harness.World.Database.GetAppliedMigrations().Count() > previousMigrations.Length);
             var retained = harness.Client.Player.Missions[1449];
@@ -85,7 +86,7 @@ namespace Rasa.Test.Missions.Wilderness
             }
             Assert.AreEqual(MissionState.Active, retained.State);
             Assert.IsFalse(retained.Completeable);
-            Assert.IsFalse(harness.Manager.CompleteOfferedMission(harness.Client, cimoch.EntityId, 1449, null));
+            Assert.IsFalse(restarted.CompleteOfferedMission(harness.Client, cimoch.EntityId, 1449, null));
             Assert.AreEqual(totals, harness.Context.ReadRewardTotals());
             using var verify = harness.CreateChar();
             Assert.AreEqual(17U, verify.CharacterFlags.Get(1)[65099]);

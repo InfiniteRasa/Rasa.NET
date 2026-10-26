@@ -41,6 +41,19 @@ namespace Rasa.Test.Missions.Runtime
         }
 
         [TestMethod]
+        public void PublicEncounterRecoveryReadsStorageOnlyOncePerMap()
+        {
+            using var context = MissionTestContext.WithDefinitions(321);
+            var before = context.CharUnitsCreated;
+            context.Manager.PublicActors.Recover(context.Map);
+            Assert.AreEqual(before + 1, context.CharUnitsCreated);
+            for (var tick = 0; tick < 100; tick++)
+                context.Manager.PublicActors.Tick(context.Map);
+            Assert.AreEqual(before + 1, context.CharUnitsCreated,
+                "Recovery must not become an idle storage poll on later map ticks.");
+        }
+
+        [TestMethod]
         public void ActualMapWorkerPerformsNoMissionStoragePollingForIdleAssignments()
         {
             using var context = MissionTestContext.WithDefinitions(321);
@@ -51,6 +64,8 @@ namespace Rasa.Test.Missions.Runtime
             var maps = new MapChannelManager(context, scenarioService: context.Manager.ScenarioService);
             maps.MapChannelArray.Add(context.Map.MapInfo.MapContextId, context.Map);
             maps.Timer.Add("MissionDeadlineUpdate", 1000, true, null);
+            // Startup recovery is a one-time read, not retired per-character polling.
+            context.Manager.PublicActors.Recover(context.Map);
             var units = context.CharUnitsCreated;
             for (var tick = 0; tick < 100; tick++)
                 maps.MapChannelWorker(1000);
