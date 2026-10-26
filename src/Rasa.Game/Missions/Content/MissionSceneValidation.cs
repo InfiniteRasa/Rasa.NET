@@ -80,6 +80,8 @@ namespace Rasa.Game.Missions.Content
             if (scene.HiddenObjectiveIds != null &&
                 (scene.HiddenObjectiveIds.Distinct().Count() != scene.HiddenObjectiveIds.Count ||
                  scene.HiddenObjectiveIds.Any(id => !ids.Contains(id))) ||
+                scene.CounterGroups != null &&
+                scene.CounterGroups.Any(entry => entry.Value == null || !ids.Contains(entry.Key)) ||
                 scene.ExistingFactObjectiveIds != null &&
                 (scene.ExistingFactObjectiveIds.Distinct().Count() != scene.ExistingFactObjectiveIds.Count ||
                  scene.ExistingFactObjectiveIds.Any(id => !ids.Contains(id))) ||

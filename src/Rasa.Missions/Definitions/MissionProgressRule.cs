@@ -28,6 +28,11 @@ namespace Rasa.Structures
         public uint? ScopeId { get; }
         public uint? DetailId { get; }
         public uint? DurationSeconds { get; }
+        /// <summary>
+        /// A scene set split over the client's counters: entry N is the events counter N counts.
+        /// Null for one counter (counter 0, as <see cref="CounterId"/>).
+        /// </summary>
+        public IReadOnlyList<IReadOnlyCollection<uint>> CounterGroups { get; }
         internal MissionProgressRuleType RuleType { get; }
 
         private MissionProgressRule(
@@ -40,7 +45,8 @@ namespace Rasa.Structures
             bool? sourceSpawnResolved = null,
             uint? scopeId = null,
             uint? detailId = null,
-            uint? durationSeconds = null)
+            uint? durationSeconds = null,
+            IReadOnlyList<IReadOnlyCollection<uint>> counterGroups = null)
         {
             if (!Enum.IsDefined(typeof(MissionProgressEventKind), kind))
                 throw new ArgumentOutOfRangeException(nameof(kind));
@@ -63,6 +69,29 @@ namespace Rasa.Structures
             ScopeId = scopeId;
             DetailId = detailId;
             DurationSeconds = durationSeconds;
+            CounterGroups = counterGroups;
+        }
+
+        /// <summary>
+        /// This scene set with its events split over the client's counters, one group each
+        /// ("Vital Bane Equipment Destroyed 0/6", "Bane Equipment Locker Destroyed 0/10"):
+        /// group N is counter N, its target all its events. The objective completes when every
+        /// group is full, so the set must count all its events. Null if the groups do not part
+        /// the events exactly or name more counters than the client has (3).
+        /// </summary>
+        internal MissionProgressRule SplitIntoCounters(IReadOnlyList<IReadOnlyList<uint>> groups)
+        {
+            if (RuleType != MissionProgressRuleType.CompleteDistinctSet || Kind != MissionProgressEventKind.ScenarioEvent ||
+                CounterId != 0 || TargetValue != (uint)_subjectSet.Count ||
+                groups == null || groups.Count < 2 || groups.Count > 3 ||
+                groups.Any(group => group == null || group.Count == 0 || group.Distinct().Count() != group.Count) ||
+                groups.Sum(group => group.Count) != _subjectSet.Count ||
+                !_subjectSet.SetEquals(groups.SelectMany(group => group)))
+                return null;
+            return new MissionProgressRule(RuleType, Kind, _subjectSet, CounterId, InitialValue, TargetValue,
+                SourceSpawnResolved, ScopeId, DetailId, DurationSeconds,
+                Array.AsReadOnly(groups.Select(group => (IReadOnlyCollection<uint>)Array.AsReadOnly(
+                    group.OrderBy(value => value).ToArray())).ToArray()));
         }
 
         public static MissionProgressRule CompleteOnExactSubject(
@@ -305,6 +334,13 @@ namespace Rasa.Structures
                     itemCounter.ItemClassId == CounterId.Value &&
                     itemCounter.InitialValue == InitialValue.Value &&
                     itemCounter.TargetValue == TargetValue.Value;
+            if (CounterGroups != null)
+                return CounterGroups.Select((group, index) => (group, index)).All(entry =>
+                    objective.Counters.TryGetValue((uint)entry.index, out var groupCounter) &&
+                    groupCounter.CounterId == (uint)entry.index &&
+                    groupCounter.InitialValue == 0 &&
+                    groupCounter.TargetValue == (uint)entry.group.Count) &&
+                    objective.Counters.Count == CounterGroups.Count;
             if (RuleType != MissionProgressRuleType.IncrementExactCounter &&
                 (RuleType != MissionProgressRuleType.CompleteDistinctSet || !CounterId.HasValue))
                 return true;

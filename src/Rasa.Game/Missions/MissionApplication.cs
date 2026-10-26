@@ -2771,6 +2771,15 @@ namespace Rasa.Managers
                         continue;
                     if (decision.CounterId.HasValue)
                     {
+                        // A split scene set's other counters that moved in this batch: before the
+                        // one that carries the completion, so the client sees them first.
+                        foreach (var other in decision.OtherCounters ?? Array.Empty<(uint CounterId, uint CounterValue)>())
+                        {
+                            durableObjective.Counters.Single(entry => entry.CounterId == other.CounterId)
+                                .CounterValue = other.CounterValue;
+                            publications.Add(ProgressPublication.Counter(candidate, other.CounterId,
+                                other.CounterValue, false, TransitionActionApplication.Empty));
+                        }
                         if (decision.IsItemCounter)
                             durableObjective.ItemCounters.Single(entry => entry.ItemClassId == decision.CounterId.Value)
                                 .CounterValue = decision.CounterValue.Value;

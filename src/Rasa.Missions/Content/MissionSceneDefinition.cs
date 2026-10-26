@@ -38,6 +38,13 @@ namespace Rasa.Missions.Content
         public Dictionary<uint, MissionHistoryAggregation> ObjectiveHistoryAggregations { get; set; }
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public List<uint> HiddenObjectiveIds { get; set; }
+        /// <summary>
+        /// Objective id to its scene set's events split over the client's counters: entry N is the
+        /// events counter N counts, as Sabotage the Tower's 6 generators and 10 lockers
+        /// (PoolsSabotageTheTowerV1). The objective completes when all are full.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public Dictionary<uint, List<List<uint>>> CounterGroups { get; set; }
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public List<uint> ExistingFactObjectiveIds { get; set; }
         public PublicEncounterBinding PublicEncounter { get; set; }

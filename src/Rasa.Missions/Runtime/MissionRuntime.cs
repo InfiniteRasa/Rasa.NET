@@ -42,7 +42,8 @@ namespace Rasa.Missions.Runtime
         MissionObjectiveState? State,
         uint? CounterId = null,
         uint? CounterValue = null,
-        bool IsItemCounter = false);
+        bool IsItemCounter = false,
+        IReadOnlyList<(uint CounterId, uint CounterValue)> OtherCounters = null);
 
     public sealed class MissionRuntime
     {
@@ -234,6 +235,8 @@ namespace Rasa.Missions.Runtime
                     throw new MissionRuleException("Distinct progress subjects are incomplete.");
                 return new ObjectiveDecision(state);
             }
+            if (rule.CounterGroups != null)
+                return EvaluateCounterGroups(candidate, durable, durableSubjects, rule, state);
             var item = rule.RuleType == MissionProgressRuleType.IncrementExactItemCounter;
             if (ownedItemQuantity.HasValue && !item)
                 throw new MissionRuleException("Exact inventory facts require an item-counter rule.");
@@ -251,6 +254,38 @@ namespace Rasa.Missions.Runtime
             if ((rule.RuleType == MissionProgressRuleType.CompleteDistinctSet || ownedItemQuantity.HasValue) && next <= value)
                 return new ObjectiveDecision(null);
             return new ObjectiveDecision(next == rule.TargetValue ? state : null, id, next, item);
+        }
+
+        /// <summary>
+        /// A scene set split over the client's counters: each counter is the count of its own
+        /// group's events seen. The counters that move come back, the last one first-class (it
+        /// carries the completion), the others in <see cref="ObjectiveDecision.OtherCounters"/>.
+        /// </summary>
+        private static ObjectiveDecision EvaluateCounterGroups(MissionProgressCandidate candidate,
+            MissionObjectiveLog durable, IReadOnlySet<uint> durableSubjects, MissionProgressRule rule,
+            MissionObjectiveState state)
+        {
+            var moved = new List<(uint CounterId, uint CounterValue)>();
+            var full = true;
+            for (var index = 0; index < rule.CounterGroups.Count; index++)
+            {
+                var id = (uint)index;
+                var group = rule.CounterGroups[index];
+                if (!candidate.RuntimeObjective.Counters.TryGetValue(id, out var value) ||
+                    !durable.Counters.TryGetValue(id, out var stored) || value != stored || value > (uint)group.Count)
+                    throw new MissionRuleException("Mission counter is stale or cannot advance monotonically.");
+                var next = (uint)group.Count(subject => durableSubjects?.Contains(subject) == true);
+                if (next < value)
+                    throw new MissionRuleException("Mission counter is stale or cannot advance monotonically.");
+                if (next > value)
+                    moved.Add((id, next));
+                full &= next == (uint)group.Count;
+            }
+            if (moved.Count == 0)
+                return new ObjectiveDecision(null);
+            var last = moved[^1];
+            return new ObjectiveDecision(full ? state : null, last.CounterId, last.CounterValue, false,
+                moved.Count > 1 ? moved.Take(moved.Count - 1).ToArray() : null);
         }
 
         public static ObjectiveDecision EvaluateAggregation(
