@@ -14,6 +14,7 @@ using Rasa.Packets.MapChannel.Client;
 using Rasa.Packets.MapChannel.Server;
 using Rasa.Packets.Mission.Server;
 using Rasa.Packets.Protocol;
+using Rasa.Services.Preloader;
 using Rasa.Services.Preloader.Missions.Wilderness;
 using Rasa.Structures;
 using Rasa.Structures.Char;
@@ -87,9 +88,16 @@ namespace Rasa.Test.Missions.Wilderness
                 Assert.AreEqual(10000044U, mission.CategoryId);
                 CollectionAssert.AreEqual(pair.Value, mission.Objectives.Keys.OrderBy(id => id).ToArray());
             }
-            foreach (var excluded in new uint[] { 593, 923, 924, 751, 780, 767 })
+            // 923, Logos: Feeling, Trap, Heal, is the Caves of Donn's (CavesOfDonnContent).
+            foreach (var excluded in new uint[] { 751, 780, 767 })
                 Assert.IsFalse(harness.Manager.TryGetOperationalMission(excluded, out _),
                     $"W5 must not enable excluded or instance-only mission {excluded}.");
+
+            // The Escapist and Logos: Communication, Control, Machine are Pravus Research's, on its
+            // own revision (PravusResearchContent).
+            foreach (var pravus in new uint[] { 593, 924 })
+                Assert.AreEqual(Rasa.Services.Preloader.PravusResearchContent.Revision, harness.World.MissionContentDefinitionEntries
+                    .AsNoTracking().Single(entry => entry.Enabled && entry.MissionId == pravus).ContentRevision);
         }
 
         [TestMethod]
@@ -157,9 +165,9 @@ namespace Rasa.Test.Missions.Wilderness
             var analyzer = harness.Map.DynamicObjects.SingleOrDefault(obj =>
                 obj.SceneMissionId == 442 && obj.SceneActorRole == "blood-analyzer");
             Assert.IsNotNull(analyzer);
-            Assert.AreEqual(7123U, (uint)analyzer.EntityClassId);
-            Assert.IsTrue(Vector3.Distance(analyzer.Position, new Vector3(-124.8f, 222.04809f, -479.2f)) < 0.001f);
-            Assert.AreEqual(Math.PI, analyzer.Rotation, 0.000001);
+            Assert.AreEqual(TwinPillarsNpcs.Workstation, (uint)analyzer.EntityClassId);
+            Assert.IsTrue(Vector3.Distance(analyzer.Position, new Vector3((float)TwinPillarsNpcs.AnalyzerX, (float)TwinPillarsNpcs.AnalyzerY, (float)TwinPillarsNpcs.AnalyzerZ)) < 0.001f);
+            Assert.AreEqual(TwinPillarsNpcs.AnalyzerRotation, analyzer.Rotation, 0.0001);
             Assert.IsNotNull(analyzer.MissionConversation);
             Assert.AreEqual(1486U, analyzer.MissionConversation.NpcPackageId);
 
@@ -349,7 +357,10 @@ namespace Rasa.Test.Missions.Wilderness
             Reward(harness, parsons, 574, 0, 20548, 8000, 1200);
             Assert.AreEqual(0L, Held(harness, 753));
             Assert.AreEqual(1220U, harness.Client.Player.MapContextId);
-            Assert.IsFalse(harness.Manager.TryGetOperationalMission(593, out _));
+
+            // And Parsons sends the player on to Ranger Nylla in Pravus Research (PravusResearchContent).
+            Accept(harness, parsons, 593);
+            Assert.AreEqual(MissionObjectiveState.Incomplete, harness.Client.Player.Missions[593].Objectives[1].State);
         }
 
         /// <summary>A blow of exactly its health and armour, from the harness's player, through the real damage path.</summary>
@@ -361,6 +372,10 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.AreEqual(lethalDamage,
                 ActorManager.Instance.Damage(harness.Map, creature, lethalDamage, harness.Client.Player));
         }
+
+        /// <summary>The pool's own respawn time: long enough for it to be due again, whatever it is.</summary>
+        private static long RespawnOf(WildernessRuntimeTestHarness harness, uint spawnId) =>
+            harness.Map.SpawnPools.Single(pool => pool.DbId == spawnId).RespawnTime;
 
         private static void CollectMachinaRemains(WildernessRuntimeTestHarness harness)
         {
@@ -376,7 +391,7 @@ namespace Rasa.Test.Missions.Wilderness
             for (uint count = 0; count < 10; count++)
             {
                 var spawnId = 630100U + count % 3;
-                harness.SpawnWorldAfter(60000, spawnId);
+                harness.SpawnWorldAfter(RespawnOf(harness, spawnId), spawnId);
                 var creature = harness.Map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList)
                     .FirstOrDefault(actor => actor.DbId == creatureId &&
                         actor.SpawnPool?.DbId == spawnId && actor.State != CharacterState.Dead);
@@ -510,7 +525,7 @@ namespace Rasa.Test.Missions.Wilderness
                 ActorManager.Instance.Regenerate(harness.Map);
             var armorBeforeHit = harness.Client.Player.Attributes[Attributes.Armor].Current;
             Assert.IsTrue(armorBeforeHit >= 5, "Real armor regeneration must fill the equipped capacity.");
-            harness.SpawnWorldAfter(60000, 630100);
+            harness.SpawnWorldAfter(RespawnOf(harness, 630100), 630100);
             var attacker = harness.Map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList)
                 .First(actor => actor.DbId == 630100 && actor.State != CharacterState.Dead);
             harness.MoveTo(attacker.Position + new Vector3(2, 0, 0));
@@ -759,8 +774,8 @@ namespace Rasa.Test.Missions.Wilderness
 
         private static ConversePacket OpenAnalyzer(WildernessRuntimeTestHarness harness, DynamicObject analyzer)
         {
-            harness.MoveTo(new Vector3(-124.8f, 220.91783f, -477.2f));
-            Assert.IsTrue(analyzer.Position.Y - harness.Client.Player.Position.Y > 1);
+            harness.MoveTo(new Vector3((float)TwinPillarsNpcs.AnalyzerStandX, (float)TwinPillarsNpcs.AnalyzerY, (float)TwinPillarsNpcs.AnalyzerStandZ));
+            Assert.IsTrue(Math.Abs(analyzer.Position.Y - harness.Client.Player.Position.Y) < 0.5, "the workstation stands on the infirmary floor");
             Assert.IsTrue(Vector3.Distance(analyzer.Position, harness.Client.Player.Position) < 5);
             harness.Drain();
             new NpcManager(harness, harness.Manager).RequestNpcConverse(harness.Client,

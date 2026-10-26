@@ -67,6 +67,8 @@ namespace Rasa.Structures
         //sint32 attack_habbit; //meelee or range fighter 
         //sint32 agression; // hunting timer for enemys
         // aggro info
+        /// <summary>Patrol sentries shoot from their beat without pursuing targets off it.</summary>
+        internal bool FightFromPatrol { get; set; }
         public float AggroRange = 18.0f; // how far away the creature can detect enemies, usually 24.0f but can be increased by having high-range attacks
 
         /// <summary>Who it hates and how much; what it fights is read off this (Managers.Threat).</summary>
@@ -162,6 +164,12 @@ namespace Rasa.Structures
         /// ActionPatrol.
         /// </summary>
         public IReadOnlyList<PatrolStep> Patrol { get; set; }
+
+        /// <summary>
+        /// Its place in a squad out in the world (NpcSquads), which moves it when it is not
+        /// fighting; null for a creature in none, and not copied from a template.
+        /// </summary>
+        internal Managers.NpcSquads.Member SquadMember { get; set; }
 
         /// <summary>What Battlecries keeps about it between thinks; null until its first, and not copied from a template.</summary>
         public Managers.BattlecryState Cries;
@@ -265,6 +273,9 @@ namespace Rasa.Structures
             NameId = data.NameId;
             RunSpeed = data.RunSpeed;
             WalkSpeed = data.WalkSpeed;
+
+            // The seed's 9 and 5 are placeholders: the class's own gait instead.
+            EntityMovementRates.Apply(this);
         }
 
         public Creature()

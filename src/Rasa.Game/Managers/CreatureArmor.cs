@@ -23,8 +23,9 @@ namespace Rasa.Managers
     ///   ArmorRegenPercent - Target Painting's EFFECT_ARMOR_REGEN_MODIFIER ("Armor Recharge:
     ///   100% / 0%") stops it outright;
     /// - whenever the rate or period changes the clients are sent the armour with the rate the
-    ///   effects make (GameEffectManager.WithRegen), so their bars move as the server's does;
-    ///   in between nothing is sent.
+    ///   effects make (GameEffectManager.WithRegen). UpdateArmor serializes that amount as a
+    ///   per-second rate because the client resets its period to one on every armor update;
+    ///   AttributeInfo carries both the amount and period. In between nothing is sent.
     /// The dead, and a creature in its Critical Death window, do not regenerate. Health comes
     /// back too, out of a fight, on the same second (CreatureHealth).
     ///

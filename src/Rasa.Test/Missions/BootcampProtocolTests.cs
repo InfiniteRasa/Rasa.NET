@@ -43,9 +43,11 @@ namespace Rasa.Test.Missions
                 harness.Client,
                 mcAllister.EntityId,
                 BootcampRuntimeTestHarness.MissionInitiation));
+            // The first mission accepted brings up the mission log's tutorial (Tutorials).
             AssertPacketTypes(
                 harness.Drain(),
                 typeof(MissionGainedPacket),
+                typeof(DisplayPlayerTutorialNotificationPacket),
                 typeof(NPCConversationStatusPacket));
 
             harness.Manager.PublishInitialState(harness.Client);

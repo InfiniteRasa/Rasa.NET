@@ -47,11 +47,10 @@ namespace Rasa.Managers
     ///    PREDATOR_MISSILE_EXPLOSION, a BombEffect whose removeTarget is off, the class's
     ///    targetGameEffect - going off at once within EFFECT_RADIUS (10 m).
     ///  - Necromite (NecromiteSelfDestructAbility 489, "Causes a Necromite to self-destruct and
-    ///    damage nearby hostiles"): the same on the player a Necromite reaches -
-    ///    NECROMITE_SELF_DESTRUCT 382, "AoE dmg when a necromite blows up on a player", the
-    ///    class's targetGameEffect - going off DELAY_TIME_MS (0.5 s) on within EFFECT_RADIUS
-    ///    (5 m). The Necromite is spent on it (Spend): it dies as its bomb goes on, the kill its
-    ///    target's, as a Fithik's self-destruct is. A Necromite blows up on whatever it is
+    ///    damage nearby hostiles"): NECROMITE_SELF_DESTRUCT 382 on the Necromite's body,
+    ///    going off DELAY_TIME_MS (0.5 s) later within EFFECT_RADIUS (5 m). Its native FX
+    ///    changes its owner's opacity, so it must not be attached to the actor it reached.
+    ///    It dies as its bomb goes on, the kill its target's, as a Fithik's self-destruct is. A Necromite blows up on whatever it is
     ///    fighting - a player, or a creature (a Forean, an AFS turret) - and its blast takes
     ///    everything around that it may fight, players and creatures (HitsCreatures).
     ///  - Corpse (NecromiteCorpseExplosionAbility 490, "Causes a Necromite to explode on a
@@ -129,10 +128,10 @@ namespace Rasa.Managers
         public static bool IsDeathAction(CreatureAction action) => action != null && (KindOf(action.ActionId) == Kind.DeathBlast || KindOf(action.ActionId) == Kind.DeathBomb);
 
         /// <summary>
-        /// The bomb a Howler or a Predator puts on its own body as it dies (OnDeath). It goes off
+        /// The bomb a Howler, Predator or Necromite puts on its own body as it dies. It goes off
         /// from the corpse, so the effect worker leaves it there until it does.
         /// </summary>
-        public static bool IsDeathBomb(GameEffect effect) => effect != null && (effect.TypeId == HowlerDeathTypeId || effect.TypeId == PredatorDeathTypeId);
+        public static bool IsDeathBomb(GameEffect effect) => effect != null && (effect.TypeId == HowlerDeathTypeId || effect.TypeId == PredatorDeathTypeId || effect.TypeId == NecromiteSelfDestructTypeId);
 
         public static bool IsSelfDestruct(CreatureAction action) => action != null && action.ActionId == FithikSelfDestruct;
 
@@ -258,8 +257,8 @@ namespace Rasa.Managers
         public static bool BlastHitsCreatures(ActionId actionId) => actionId == NecromiteSelfDestruct;
 
         /// <summary>
-        /// A Linker's ground blast, a Predator's missile or a Necromite has hit someone: the bomb
-        /// on them, going off when its delay is up. A player, or - a Necromite's - a creature.
+        /// A Linker or Predator plants a bomb on its target; a Necromite detonates its own body.
+        /// Either goes off when its delay is up; the Necromite's blast also hits hostile creatures.
         /// </summary>
         public static GameEffect GroundBlast(MapChannel mapChannel, Creature linker, Actor player, CreatureAction action, ActionLevelInfo info)
         {
@@ -267,16 +266,27 @@ namespace Rasa.Managers
                 return null;
 
             var delayMs = GroundBlastDelayOf(action.ActionId, info);
-            var bomb = NewBomb(mapChannel, linker, player, info, GroundBlastTypeOf(action.ActionId), delayMs, announce: false);
+            var selfDestruct = action.ActionId == NecromiteSelfDestruct;
+            if (selfDestruct && (linker.State == CharacterState.Dead || linker.State == CharacterState.Dying
+                || !linker.Attributes.TryGetValue(Attributes.Health, out var health) || health.Current <= 0))
+                return null;
+            Actor holder = selfDestruct ? linker : player;
 
-            bomb.IsBuff = false;
-            GameEffectManager.Instance.Attach(mapChannel, player, bomb);
+            // Its native resolve package changes its owner's opacity. It belongs to the
+            // exploding Necromite, never to the player (or defender) it reached. Spend first:
+            // HandleCreatureKill clears effects, and the death-bomb worker retains this one.
+            if (selfDestruct)
+                Spend(mapChannel, linker, player);
 
-            if (!player.ActiveEffects.ContainsKey(bomb.EffectId))
-                return null;    // turned away (Cure's guard)
+            var bomb = NewBomb(mapChannel, linker, holder, info, GroundBlastTypeOf(action.ActionId), delayMs, announce: selfDestruct);
+            bomb.IsBuff = selfDestruct;
+            GameEffectManager.Instance.Attach(mapChannel, holder, bomb);
 
-            // The recovery that announces it goes out first; the blast follows on the next tick.
-            Arm(mapChannel, linker, player, action, bomb, RadiusOf(info), TypeOf(info), delayMs, BlastHitsCreatures(action.ActionId));
+            if (!holder.ActiveEffects.ContainsKey(bomb.EffectId))
+                return null;    // a targeted blast can be turned away (Cure's guard)
+
+            // Targeted blasts are announced by recovery; self-destruct is on its own body.
+            Arm(mapChannel, linker, holder, action, bomb, RadiusOf(info), TypeOf(info), delayMs, BlastHitsCreatures(action.ActionId));
 
             return bomb;
         }
@@ -612,7 +622,7 @@ namespace Rasa.Managers
             {
                 TypeId = typeId,
                 EffectId = GameEffectManager.Instance.NextEffectId(mapChannel),
-                EffectLevel = typeId == HowlerDeathTypeId ? HowlerDeathFxLevel : info.Level,
+                EffectLevel = typeId == HowlerDeathTypeId ? HowlerDeathFxLevel : GameEffectFx.LevelFor(typeId, info.Level),
                 ActionId = info.ActionId,
                 SourceId = source.EntityId,
                 Source = source,

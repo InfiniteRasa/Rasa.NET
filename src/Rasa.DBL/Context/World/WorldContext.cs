@@ -105,6 +105,11 @@ namespace Rasa.Context.World
         public DbSet<SpawnPoolPatrolEntry> SpawnPoolPatrolEntries { get; set; }
         public DbSet<SpawnPoolPoseEntry> SpawnPoolPoseEntries { get; set; }
         public DbSet<SpawnPoolDrawEntry> SpawnPoolDrawEntries { get; set; }
+        public DbSet<NpcSquadTypeEntry> NpcSquadTypeEntries { get; set; }
+        public DbSet<NpcSquadMemberEntry> NpcSquadMemberEntries { get; set; }
+        public DbSet<NpcSquadPathEntry> NpcSquadPathEntries { get; set; }
+        public DbSet<NpcSquadPathPointEntry> NpcSquadPathPointEntries { get; set; }
+        public DbSet<NpcSquadSpawnEntry> NpcSquadSpawnEntries { get; set; }
         public DbSet<TeleporterEntry> TeleporterEntries { get; set; }
         public DbSet<WormholeLockEntry> WormholeLockEntries { get; set; }
         public DbSet<LocalTeleporterLinkEntry> LocalTeleporterLinkEntries { get; set; }
@@ -134,6 +139,7 @@ namespace Rasa.Context.World
             SetupNpcBark(modelBuilder);
             SetupWorldContainerItem(modelBuilder);
             SetupSpawnPoolPatrol(modelBuilder);
+            SetupNpcSquads(modelBuilder);
             SetupLootGroups(modelBuilder);
             SetupSkillCharacter(modelBuilder);
             SetupMissionContent(modelBuilder);
@@ -285,6 +291,14 @@ namespace Rasa.Context.World
         {
             modelBuilder.Entity<SpawnPoolPatrolEntry>()
                 .HasKey(e => new { e.PoolId, e.Step });
+        }
+
+        private static void SetupNpcSquads(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<NpcSquadMemberEntry>()
+                .HasKey(e => new { e.TypeId, e.Slot });
+            modelBuilder.Entity<NpcSquadPathPointEntry>()
+                .HasKey(e => new { e.PathId, e.Step });
         }
 
         /// <summary>A pool holds an item once, and a creature has a pool once: each row is its pair.</summary>

@@ -152,6 +152,9 @@ namespace Rasa.Repositories.World
             _worldContext.ChangeTracker.Clear();
         }
 
+        public List<CreatureStatEntry> GetAllCreatureStats() =>
+            _worldContext.CreateNoTrackingQuery(_worldContext.CreatureStatEntries).ToList();
+
         public CreatureStatEntry GetCreatureStats(uint creatureId)
         {
             var query = _worldContext.CreateNoTrackingQuery(_worldContext.CreatureStatEntries);

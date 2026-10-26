@@ -64,6 +64,11 @@ namespace Rasa.Managers
     /// to their nearest hospital (<see cref="ForceToHospital"/>), and a Cadaver Immolation burning
     /// on the body goes off as they get up, however they do (AbilityManager.OnCorpseRising).
     ///
+    /// While they lie dead they carry the medical marker over their body (VISUAL_REZ_ME_EFFECT,
+    /// <see cref="AttachRezMe"/>), which a client shows only over a friendly dead player
+    /// (VisualRezMeEffect): it is how a medic finds whom to revive. Their getting up, however they
+    /// do, takes it off.
+    ///
     /// Leaving the game dead sends them to their hospital first, so they come back alive there.
     /// Rez Trauma and the no-healing go with them: across a map change (EffectCarry) and a logout
     /// (RelogVitals), so neither a map link nor a relog is a way out of them.
@@ -80,6 +85,11 @@ namespace Rasa.Managers
         public const int RezSicknessMaxSeconds = 360;      // REZ_SICKNESS_MAX_DURATION
         public const int NoHealSeconds = 30;               // REZ_SICKNESS_NO_HEAL_DURATION
         public const int ReviveRequestSeconds = 120;       // REVIVE_REQUEST_DURATION
+        public const int RezMeTypeId = 432;                // VISUAL_REZ_ME_EFFECT
+
+        /// <summary>The marker's level: its FX is OVERHEAD_MEDICAL_PVP_BLUE at 1, _RED at 2.</summary>
+        public const uint RezMeBlue = 1;
+        public const uint RezMeRed = 2;
 
         private sealed class Offer
         {
@@ -199,6 +209,8 @@ namespace Rasa.Managers
 
                 // For a client that missed the death blow (Actor.Recv_ActorKilled).
                 CellManager.Instance.CellCallMethod(mapChannel, victim, new ActorKilledPacket());
+
+                AttachRezMe(mapChannel, victim);
             }
 
             DropOffers(victim);
@@ -209,7 +221,7 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// Whether an effect stays on a player through their death: Rez Trauma, the skill
+        /// Whether an effect stays on a player through their death: the medical marker, Rez Trauma, the skill
         /// passives, an Experience Booster's boost (ExperienceBoost), an aura's effect (its
         /// owner's aura takes it off), and a Hominis Machina's morph while its Self Revive is
         /// unspent - the button is in the morph's drawer
@@ -217,8 +229,29 @@ namespace Rasa.Managers
         /// holds a dead player to the same (GameEffectManager.DoWork).
         /// </summary>
         internal static bool KeptInDeath(GameEffect effect, bool keepMorph) =>
-            effect.IsSkillPassive || effect.TypeId == RezSicknessTypeId || effect.TypeId == ExperienceBoost.TypeId || effect.Parent != null
+            effect.IsSkillPassive || effect.TypeId == RezSicknessTypeId || effect.TypeId == RezMeTypeId || effect.TypeId == ExperienceBoost.TypeId || effect.Parent != null
             || (keepMorph && effect.TypeId == AbilityManager.PolymorphTypeId);
+
+        /// <summary>
+        /// The medical marker over a dead player's body. Every client is told; VisualRezMeEffect
+        /// shows it only where the body is FRIENDLY to the viewer, so an enemy sees nothing. In a
+        /// battleground's match it is in the colour of the player's team - red for Red Team, blue
+        /// otherwise.
+        /// </summary>
+        private static void AttachRezMe(MapChannel mapChannel, Manifestation victim)
+        {
+            GameEffectManager.Instance.Attach(mapChannel, victim, new GameEffect
+            {
+                TypeId = RezMeTypeId,
+                EffectId = GameEffectManager.Instance.NextEffectId(mapChannel),
+                EffectLevel = Battlegrounds.Instance.TeamOf(victim) == Battlegrounds.Red ? RezMeRed : RezMeBlue,
+                SourceId = victim.EntityId,
+                Source = victim,
+                SourceLevel = victim.Level,
+                ShowsDuration = false,
+                AnnounceOnAttach = true
+            });
+        }
 
         /// <summary>
         /// What the hospital window is given: the hospitals the player may go back to
@@ -374,6 +407,10 @@ namespace Rasa.Managers
 
             DropOffers(player);
 
+            // Up: no marker over them now.
+            foreach (var marker in player.ActiveEffects.Values.Where(e => e.TypeId == RezMeTypeId).ToList())
+                GameEffectManager.Instance.DettachEffect(mapChannel, player, marker);
+
             // The body is getting up: a Cadaver Immolation on it goes off now, where it lay.
             AbilityManager.OnCorpseRising(mapChannel, player);
 
@@ -407,6 +444,7 @@ namespace Rasa.Managers
             if (player.Attributes.TryGetValue(Attributes.Health, out var healthAttribute))
             {
                 healthAttribute.Current = Math.Clamp(health, 1, Math.Max(1, healthAttribute.CurrentMax));
+                ManifestationManager.Instance.ApplyHealthRegen(player);
                 CellManager.Instance.CellCallMethod(mapChannel, player, new UpdateHealthPacket(healthAttribute, 0));
             }
 

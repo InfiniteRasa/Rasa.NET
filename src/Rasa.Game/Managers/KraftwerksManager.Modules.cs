@@ -315,8 +315,7 @@ namespace Rasa.Managers
             progress.Publish(client);
             if (job.Count == 0)
                 return true;
-            client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmInventoryFull,
-                new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+            CommunicatorManager.ShowPlayerMessage(client, PlayerMessage.PmInventoryFull);
             return false;
         }
 

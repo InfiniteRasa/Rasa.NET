@@ -80,9 +80,16 @@ namespace Rasa.Test.Database
         public void TheySpawnWithThatHealthAndArmour(uint spawnId, uint creatureId)
         {
             using var harness = WildernessRuntimeTestHarness.Create();
-            harness.SpawnWorld(spawnId);
-            var npc = harness.Map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList).Distinct()
-                .Single(creature => creature.SpawnPool?.DbId == spawnId && creature.DbId == creatureId);
+            Rasa.Structures.Creature npc;
+            if (creatureId == EscortNpcStats.Ranger)
+                npc = harness.SpawnAssignedSolisRanger();
+            else
+            {
+                harness.SpawnWorld(spawnId);
+                npc = harness.Map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList).Distinct()
+                    .Single(creature => creature.SpawnPool?.DbId == spawnId && creature.DbId == creatureId);
+            }
+            Assert.AreEqual(creatureId, npc.DbId);
 
             Assert.AreEqual((EscortNpcStats.Health, EscortNpcStats.Health),
                 (npc.Attributes[Attributes.Health].CurrentMax, npc.Attributes[Attributes.Health].Current));

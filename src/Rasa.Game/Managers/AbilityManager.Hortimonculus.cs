@@ -629,7 +629,7 @@ namespace Rasa.Managers
             {
                 TypeId = HortimonculusUseTypeId,
                 EffectId = GameEffectManager.Instance.NextEffectId(mapChannel),
-                EffectLevel = plant.Level,
+                EffectLevel = GameEffectFx.LevelFor(HortimonculusUseTypeId, plant.Level),
                 ActionId = ActionId.ObjEffect,
                 // HealOverTime floats each tick as healing from its source: the plant.
                 SourceId = plant.Object.EntityId,

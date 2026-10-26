@@ -11,6 +11,7 @@ using Rasa.Packets.Inventory.Client;
 using Rasa.Packets.LootDispenser.Client;
 using Rasa.Packets.MapChannel.Client;
 using Rasa.Packets.MapChannel.Server;
+using Rasa.Packets.Mission.Server;
 using Rasa.Services.Preloader.Missions.Wilderness;
 using Rasa.Structures;
 using Rasa.Structures.Char;
@@ -618,6 +619,52 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.IsTrue(reward.FixedReward.FixedItems.Concat(reward.SelectableReward)
                 .All(item => item.Quantity == 1 && WildernessRewardModulesTests.OfferedAsAuthored(missionId, item)),
                 "The preview must advertise the same items, and modules, the server can actually grant.");
+        }
+
+        // Objective 7's counter has a blank name in the client (missiontextlanguage 2220): sent as a
+        // counter update its big text read ": 3/5". It goes in the status snapshot instead, which
+        // moves the tracker's bar, and each unit still announces its own objective's completion.
+        [TestMethod]
+        public void TheSurveyDataCountGoesToTheTrackerWithoutABigTextOfNoName()
+        {
+            using var harness = CreateHarness();
+            harness.SpawnWorld(205, 100);
+            var maxwell = harness.Npc(205);
+            Assert.IsNotNull(maxwell);
+            CompleteEarlierHistory(harness, 506);
+            Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, maxwell.EntityId, 508));
+            Assert.IsTrue(harness.Manager.TryGetOperationalMission(508, out var survey));
+            Assert.IsTrue(BlankCounterNames.Has(survey.Objectives[7], 0));
+
+            for (var unit = 1U; unit <= 3; unit++)
+            {
+                harness.Drain();
+                Use(harness, Object(harness, 508, $"survey-unit-{unit}"), 3);
+                var sent = harness.Drain();
+
+                Assert.IsFalse(sent.OfType<UpdateObjectiveCounterPacket>().Any(packet => packet.MissionId == 508), $"unit {unit}");
+                CollectionAssert.Contains(sent.OfType<ObjectiveCompletedPacket>().Where(packet => packet.MissionId == 508)
+                    .Select(packet => packet.ObjectiveId).ToList(), unit + 1);
+
+                var counter = sent.OfType<MissionStatusInfoPacket>().Last().MissionStatusDict[508].ObjectivesList
+                    .Single(objective => objective.ObjectiveId == 7).Counters[0];
+                Assert.AreEqual((unit, 0U, 5U), (counter.CounterValue, counter.InitialValue, counter.TargetValue), $"unit {unit}");
+            }
+        }
+
+        [TestMethod]
+        public void ACounterWithANameIsStillSentAsACounter()
+        {
+            var named = new MissionObjectiveDefinition(1, 2662, 6648, new uint?[] { 2663, null, null }, 0,
+                MissionObjectiveState.Incomplete, true, null, null, null);
+            var blank = new MissionObjectiveDefinition(7, 2219, 6752, new uint?[] { 2220, null, null }, 5,
+                MissionObjectiveState.Incomplete, true, null, null, null);
+
+            Assert.IsFalse(BlankCounterNames.Has(named, 0));
+            Assert.IsTrue(BlankCounterNames.Has(blank, 0));
+            Assert.IsFalse(BlankCounterNames.Has(blank, 1), "no text bound to slot 1");
+            Assert.IsFalse(BlankCounterNames.Has(blank, 3), "past the slots");
+            Assert.HasCount(47, BlankCounterNames.TextIds);
         }
 
         private static uint OwnedQuantity(WildernessRuntimeTestHarness harness, uint missionId, Client client = null) =>

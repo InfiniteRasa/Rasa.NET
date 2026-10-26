@@ -421,11 +421,7 @@ namespace Rasa.Services.Preloader
                     $"FROM entityclass e WHERE e.id = {Footlocker} AND NOT EXISTS (SELECT 1 FROM footlocker x WHERE x.id = {FootlockerId(i)});";
             }
 
-            for (var i = 0; i < Barrels.Length; i++)
-            {
-                var b = Barrels[i];
-                yield return InsertDestructible(BarrelId(i), BaneBarrel, b.X, b.Y, b.Z, b.Rotation, 0, "Bane barrel in the yard of Sgt. Pierre's cache");
-            }
+            foreach (var sql in CacheBarrelStatements()) yield return sql;
 
             yield return InsertDestructible(GateFieldId, HumanGateField, GateFieldX, GateFieldY, GateFieldZ, GateFieldRotation, SideAfs,
                 "Landing Zone gate: the AFS force field");
@@ -496,6 +492,16 @@ namespace Rasa.Services.Preloader
             "creature_5_Id, creature_5_min_count, creature_5_max_count, creature_6_Id, creature_6_min_count, creature_6_max_count, radius) " +
             $"SELECT {id}, 0, 0, {respawn}, {N(x)}, {N(y)}, {N(z)}, {N(rotation)}, {Map}, {creature}, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 " +
             $"FROM creature c WHERE c.id = {creature} AND NOT EXISTS (SELECT 1 FROM spawnpool x WHERE x.id = {id});";
+
+        /// <summary>Original scenery placements, retained for historical migrations and rollback.</summary>
+        public static IEnumerable<string> CacheBarrelStatements()
+        {
+            for (var i = 0; i < Barrels.Length; i++)
+            {
+                var b = Barrels[i];
+                yield return InsertDestructible(BarrelId(i), BaneBarrel, b.X, b.Y, b.Z, b.Rotation, 0, "Bane barrel in the yard of Sgt. Pierre's cache");
+            }
+        }
 
         private static string InsertDestructible(uint id, uint classId, double x, double y, double z, double rotation, uint side, string comment) =>
             "INSERT INTO world_destructible (id, map_context_id, class_id, pos_x, pos_y, pos_z, rotation, hit_points, creature_id, creature_count, side, comment) " +

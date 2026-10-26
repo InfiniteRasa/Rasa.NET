@@ -61,7 +61,12 @@ namespace Rasa.Game.Missions
             if (!_runtime.Supports(script, 1))
                 throw new GameplayRejectionException($"Missing script {script}/1 for mission {missionId}.");
             _bindings.Add(missionId, (script, bindings));
+            foreach (var actor in bindings.Actors.Values.Where(actor => actor.ReplacesPublicSpawnId != 0))
+                _npcReplacements[actor.ReplacesPublicSpawnId] = (missionId, actor.HoldCombatUntilRoute, actor.ReplaceWhilePresent, actor.Role);
         }
+
+        private readonly Dictionary<uint, (uint Mission, bool Protected, bool WhilePresent, string Role)> _npcReplacements = new();
+        internal (uint Mission, bool Protected, bool WhilePresent, string Role) NpcReplacement(uint spawnId) => _npcReplacements.GetValueOrDefault(spawnId);
 
         internal bool Owns(uint missionId) => _bindings.ContainsKey(missionId);
         internal bool UsesScript(uint missionId, string script) =>
@@ -90,11 +95,17 @@ namespace Rasa.Game.Missions
                 return Reject($"Mission {missionId} has no authored sequence {name}.");
             return Execute(client, missionId, sequence);
         }
+        internal bool HasAssignmentOwnedCreature(uint missionId, string script, string release, string role) =>
+            _bindings.TryGetValue(missionId,out var binding) && binding.Script==script && binding.Bindings.Release==release &&
+            binding.Bindings.Actors.TryGetValue(role,out var actor) &&
+            actor.Kind==SceneActorKind.Creature && actor.SharedKey==null;
+
         internal bool OwnsExperience(uint mapContextId) => _experiences.ContainsKey(mapContextId);
 
         internal void ClearBindings()
         {
             _bindings.Clear();
+            _npcReplacements.Clear();
             _experiences.Clear();
         }
 
@@ -217,6 +228,12 @@ namespace Rasa.Game.Missions
 
         internal void MissionChanged(Client client, uint missionId, string change)
         {
+            // John turns on the Atta about him (OjasaHive).
+            Managers.OjasaHive.MissionChanged(client, missionId, change);
+
+            // Nekala's two bombs with The Reason Why (CavesOfDonn).
+            Managers.CavesOfDonn.MissionChanged(client, missionId, change);
+
             if (change == "Rewarded" && client?.Player?.MapChannel is { } map &&
                 client.Player.Missions.TryGetValue(missionId, out var assignment))
             {
@@ -539,6 +556,24 @@ namespace Rasa.Game.Missions
                 run.Bindings.Actors.Values.Any(actor => actor.Kind == SceneActorKind.PublicSpawn &&
                     actor.TemplateId == spawnId)).ToArray())
                 Reconcile(run.Run.Id);
+        }
+
+        /// <summary>Rebuild only the services of a recaptured base; preserve other actors and pending scene work.</summary>
+        internal void ServicesOpened(MapChannel map, ControlPoints.Point point)
+        {
+            foreach (var resident in _runs.Values.Where(run => run.Map == map && !run.Suspended &&
+                run.Run.Status is SceneStatus.Running or SceneStatus.Waiting).ToArray())
+            {
+                var roles = resident.Bindings.Actors.Values.Where(actor =>
+                    actor.Kind == SceneActorKind.Creature && actor.Position != null &&
+                    ReferenceEquals(ControlPoints.Instance.ServicePointOf(map, actor.TemplateId,
+                        World.SceneRouteController.Position(actor.Position)), point) ||
+                    actor.Kind == SceneActorKind.PublicSpawn && map.SpawnPools.Any(pool =>
+                        pool.DbId == actor.TemplateId && ReferenceEquals(ControlPoints.Instance.ServicePointOf(map, pool), point)))
+                    .Select(actor => actor.Role).ToHashSet(StringComparer.Ordinal);
+                if (roles.Count > 0)
+                    Reconcile(resident.Run.Id, restoreRoles: roles);
+            }
         }
 
         internal bool OwnerLost(MapChannel map, string runId)
@@ -1004,10 +1039,12 @@ namespace Rasa.Game.Missions
                 return Reject($"Scene run {runId} is waiting for its owner-loss failure to commit.");
             if (resident.Suspended)
                 return Reject($"Scene run {runId} is waiting for its owner.");
-            var evaluation = _runtime.Evaluate(resident.Run, resident.Bindings, observation, _utcNow());
-            if (!evaluation.Accepted)
+            var recoverObjectives = observation.Kind == SceneEventKind.Recovered &&
+                _runtime.RequiresRecoveryObjectiveFacts(resident.Run.ScriptKey, resident.Run.StateVersion);
+            var evaluation = recoverObjectives ? null : _runtime.Evaluate(resident.Run, resident.Bindings, observation, _utcNow());
+            if (evaluation?.Accepted == false)
                 return Reject(evaluation.Rejection);
-            var decision = evaluation.Decision;
+            var decision = evaluation?.Decision ?? new SceneDecision(resident.Run.Checkpoint, status: resident.Run.Status);
             var failForOwnerLoss = observation.Kind == SceneEventKind.OwnerLost &&
                 _missions.PublicActors.OwnerLossPolicy(resident.Map, runId) == "Fail";
             if (failForOwnerLoss)
@@ -1031,6 +1068,23 @@ namespace Rasa.Game.Missions
                     if (scene?.Version != resident.Run.Version || scene.Generation != observation.Generation)
                         throw new GameplayRejectionException($"Concurrent scene revision for run {runId}.");
                     RequireCurrentAssignment(unit, scene);
+                    if (recoverObjectives)
+                    {
+                        var assignment = unit.CharacterMissions.GetByCharacterAndMission(scene.OwnerCharacterId, scene.MissionId);
+                        if (assignment?.MissionState != (uint)Data.MissionState.Active)
+                            throw new GameplayRejectionException("Objective recovery requires the current active assignment.");
+                        var objectives = unit.CharacterMissionProgress.GetTracked(scene.OwnerCharacterId, scene.MissionId)
+                            .ToDictionary(entry => entry.Key, entry => (Data.MissionObjectiveState)entry.Value.ObjectiveState);
+                        evaluation = _runtime.Evaluate(resident.Run, resident.Bindings, observation, _utcNow(), objectives);
+                        if (!evaluation.Accepted)
+                            throw new GameplayRejectionException(evaluation.Rejection);
+                        decision = evaluation.Decision;
+                        next = resident.Run with
+                        {
+                            Checkpoint = decision.Checkpoint, Status = decision.Status, Version = resident.Run.Version + 1,
+                            Generation = decision.ResetGeneration ? resident.Run.Generation + 1 : resident.Run.Generation
+                        };
+                    }
                     if (failForOwnerLoss && !_missions.TryPlanRequiredMissionFailure(
                         resident.Owner, resident.Run.MissionId, unit, publication))
                         throw new GameplayRejectionException("Owner-loss failure could not be committed.");
@@ -1296,7 +1350,7 @@ namespace Rasa.Game.Missions
                 participants.Contains(client.Player.Id) && _missions.Credit.HasGroupRule(client, progress));
         }
 
-        internal void Reconcile(string runId, bool reconstruct = false)
+        internal void Reconcile(string runId, bool reconstruct = false, HashSet<string> restoreRoles = null)
         {
             if (!_runs.TryGetValue(runId, out var resident) || resident.Suspended)
                 return;
@@ -1369,8 +1423,10 @@ namespace Rasa.Game.Missions
                         acknowledgements.Add(acknowledgement.OperationKey, acknowledgement);
                     else
                         Reject($"Scene {runId} effect {acknowledgement.OperationKey} acknowledgement retry retired: durable identity, status or desired command changed.");
-            var selected = reconstruct ? DesiredEffects(effects) :
-                effects.Where(effect => effect.Status == "Pending" || acknowledgements.ContainsKey(effect.OperationKey));
+            var pending = effects.Where(effect => effect.Status == "Pending" || acknowledgements.ContainsKey(effect.OperationKey));
+            var selected = reconstruct ? DesiredEffects(effects) : restoreRoles == null ? pending :
+                DesiredEffects(effects).Where(effect => restoreRoles.Contains(JsonSerializer.Deserialize<WorldIntent>(effect.Payload).Role))
+                    .Concat(pending).DistinctBy(effect => effect.OperationKey);
             foreach (var effect in selected)
             {
                 WorldEffectResult result;

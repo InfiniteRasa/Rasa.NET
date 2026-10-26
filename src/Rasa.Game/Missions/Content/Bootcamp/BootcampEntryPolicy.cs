@@ -316,7 +316,7 @@ namespace Rasa.Game.Missions.Content.Bootcamp
                         ? BootcampSkipAmmoQuantity
                         : 1,
                     itemClass.MaxHitPoints,
-                    2139062144)
+                    Color.ItemDefault)
                 {
                     OwnerId = characterId,
                     OwnerSlotId = slot,

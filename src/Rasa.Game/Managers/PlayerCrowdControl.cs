@@ -169,9 +169,10 @@ namespace Rasa.Managers
         /// <summary>
         /// Holds a player where they stand for durationMs - an enemy player's net gun: movement
         /// blocked (RequestMovementBlock) until the effect ends, but not a stun, so they may still
-        /// shoot. Shown as the given effect type. Returns whether it landed.
+        /// shoot. Shown as the given effect type at the given level (a net gun's:
+        /// CrowdControl.NetGunLevel). Returns whether it landed.
         /// </summary>
-        public static bool Root(MapChannel mapChannel, Manifestation player, Actor source, int typeId, int durationMs)
+        public static bool Root(MapChannel mapChannel, Manifestation player, Actor source, int typeId, int durationMs, uint level = 1)
         {
             if (!CanBeHeld(player) || durationMs <= 0 || mapChannel == null)
                 return false;
@@ -180,7 +181,7 @@ namespace Rasa.Managers
             {
                 TypeId = typeId,
                 EffectId = GameEffectManager.Instance.NextEffectId(mapChannel),
-                EffectLevel = 1,
+                EffectLevel = level,
                 SourceId = source?.EntityId ?? 0,
                 Source = source,
                 SourceLevel = (source as Manifestation)?.Level ?? (int)((source as Creature)?.Level ?? 1),

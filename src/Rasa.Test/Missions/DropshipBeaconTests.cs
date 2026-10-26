@@ -167,6 +167,53 @@ namespace Rasa.Test.Missions
             Assert.IsEmpty(Ships(harness).ToArray());
         }
 
+        /// <summary>
+        /// The ship's class is WORMHOLE (wormhole.py), whose Recv_Use is (actorId, curStateId, *args)
+        /// and hands *args on as the windup: a third argument became a (0,) windup override, and
+        /// whoever had watched the ship arrive broke on float((0,)) when they then used it. Every
+        /// Use of the ship - flying in, settling, going away - is sent with two arguments.
+        /// </summary>
+        [TestMethod]
+        public void EveryUseOfTheShipIsSentAsItsClassTakesItWithNoWindup()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var (item, manager) = Prepare(harness);
+            var deployed = Environment.TickCount64;
+
+            Deploy(harness, manager, item);
+            var uses = harness.Drain().OfType<UsePacket>().ToList();
+            DropshipBeacons.Worker(harness.BootcampMap, deployed + 9000);
+            uses.AddRange(harness.Drain().OfType<UsePacket>());
+            DropshipBeacons.Worker(harness.BootcampMap, deployed + 8000 + 300_000 + 100);
+            uses.AddRange(harness.Drain().OfType<UsePacket>());
+
+            CollectionAssert.AreEqual(new[] { UseObjectState.WhState2, UseObjectState.WhState0, UseObjectState.WhState1 },
+                uses.Select(use => use.CurState).ToArray(), "in, settled, away");
+
+            foreach (var use in uses)
+            {
+                var wire = Rasa.Test.World.HitResultTests.Decode(use);
+                Assert.HasCount(2, wire, $"{use.CurState}: (actorId, curStateId)");
+                Assert.AreEqual((long)harness.Client.Player.EntityId, wire[0]);
+                Assert.AreEqual((long)use.CurState, wire[1]);
+            }
+        }
+
+        [TestMethod]
+        public void OnlyTheWormholeAndShrineClassesAreSentNoWindup()
+        {
+            EntityClass Of(params AugmentationType[] augmentations) =>
+                new EntityClass(1, "fixture", 0, 0, augmentations.ToList(), true);
+
+            Assert.IsFalse(UsePacket.TakesWindup(Of(AugmentationType.DynamicMapObject, AugmentationType.Wormhole)));
+            Assert.IsFalse(UsePacket.TakesWindup(Of(AugmentationType.DynamicMapObject, AugmentationType.Shrine)));
+            Assert.IsTrue(UsePacket.TakesWindup(Of(AugmentationType.DynamicMapObject, AugmentationType.TwoStateSwitch)), "usable.py's own Recv_Use takes the windup");
+            Assert.IsTrue(UsePacket.TakesWindup(null), "a class not loaded: the ordinary shape");
+
+            // The ordinary shape is unchanged: (actorId, curStateId, windupTimeMs).
+            Assert.HasCount(3, Rasa.Test.World.HitResultTests.Decode(new UsePacket(7, UseObjectState.WhState0, 250)));
+        }
+
         private static (Item Item, AbilityManager Manager) Prepare(BootcampRuntimeTestHarness.Harness harness)
         {
             LoadClass(harness, (uint)DropshipBeacons.ShipClass);

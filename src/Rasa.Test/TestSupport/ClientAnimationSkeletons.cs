@@ -31,6 +31,11 @@ namespace Rasa.Test.TestSupport
             [49675] = 13999,
             [30281] = 14000,
             [49221] = 23,       // Redshirt_Human_Soldier_Heavy_Female, on the female human skeleton
+            [49677] = 14003,    // Bane_Thrax_Soldier_Grunt_Rifle, on the Thrax rifle soldier's skeleton
+            [18147] = 13964,    // Bane_Nitroglazer (DevilsDenContent)
+            [18148] = 13923,    // Bane_Sentinel
+            [20519] = 13927,    // Vehicle_Bane_Juggernaut (DevilsDenContent, TorcastraPrisonContent)
+            [37531] = 21,       // Bane_Kael_Armored, on the Kael's skeleton
         };
 
         /// <summary>Action animation families with no animation on any skeleton: the client's own gap, played by nothing.</summary>
@@ -119,6 +124,9 @@ namespace Rasa.Test.TestSupport
             [14036] = "622 650 651 863 864 930 931 1272",
             [14041] = "622 650 651 1450 1451 1453 1454 1461 1463",
             [14000] = "622 650 651 734 924 1137 1138 1139 1140 1211 1272",
+            [13923] = "176 612 622 650 651 887 1057 1272",
+            [13927] = "622 650 651 940 958 959 1411 1412 1433",
+            [13964] = "176 612 622 650 651 887 1055 1272 1493",
         });
 
         private static IReadOnlyDictionary<uint, IReadOnlySet<uint>> Parse(Dictionary<uint, string> rows) =>

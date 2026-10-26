@@ -371,7 +371,7 @@ namespace Rasa.Test.Gameplay
             var health = attributes[Attributes.Health].CurrentMax;
             var power = attributes[Attributes.Power].CurrentMax;
             var regen = attributes[Attributes.Regen].CurrentMax;
-            var rate = attributes[Attributes.Health].RefreshAmount;
+            var rate = client.Player.HealthRegenRate.Value;
 
             Assert.AreEqual(rate, attributes[Attributes.Power].RefreshAmount, "power regenerates at the health rate");
             Assert.AreEqual((int)Math.Round(2.0 * regen / 100), rate);
@@ -393,12 +393,13 @@ namespace Rasa.Test.Gameplay
             // "Regen: 5%" from the helmet and 10% from the weapon in hand, on the attribute...
             Assert.AreEqual(regen, attributes[Attributes.Regen].NormalMax);
             Assert.AreEqual(regen + 15, attributes[Attributes.Regen].CurrentMax);
+            Assert.AreEqual(regen + 15, attributes[Attributes.Regen].Current, "and the window's figure with it");
 
             // ...which is the rate health and power regenerate at; "Regen Health: 6 HP/sec" and
             // "Regen Power: 5 per sec" are a second's worth on top of it.
             var withRegen = (int)Math.Round(2.0 * (regen + 15) / 100);
 
-            Assert.AreEqual(withRegen + 6, attributes[Attributes.Health].RefreshAmount);
+            Assert.AreEqual(client.Player.InCombat ? withRegen + 6 : CombatRegen.RestingHealthRate(attributes[Attributes.Health].CurrentMax, withRegen + 6), attributes[Attributes.Health].RefreshAmount);
             Assert.AreEqual(withRegen + 5, attributes[Attributes.Power].RefreshAmount);
             Assert.AreEqual(CombatRegen.RegenPeriodSeconds, attributes[Attributes.Health].RefreshPeriod);
 
@@ -409,7 +410,7 @@ namespace Rasa.Test.Gameplay
             client.Player.InCombat = true;
             ManifestationManager.Instance.UpdateStatsValues(client, false);
             Assert.AreEqual(0, attributes[Attributes.Armor].RefreshAmount);
-            Assert.AreEqual(withRegen + 6, attributes[Attributes.Health].RefreshAmount);
+            Assert.AreEqual(client.Player.InCombat ? withRegen + 6 : CombatRegen.RestingHealthRate(attributes[Attributes.Health].CurrentMax, withRegen + 6), attributes[Attributes.Health].RefreshAmount);
             Assert.AreEqual(CombatRegen.InCombatRegenPeriodSeconds, attributes[Attributes.Health].RefreshPeriod, "a fifth of it in combat, as the rest of the rate is");
 
             // Taken off, the maximum goes back and the bar is capped to it.
@@ -424,7 +425,7 @@ namespace Rasa.Test.Gameplay
             Assert.AreEqual(health, attributes[Attributes.Health].Current);
             Assert.AreEqual(power, attributes[Attributes.Power].CurrentMax);
             Assert.AreEqual(regen, attributes[Attributes.Regen].CurrentMax);
-            Assert.AreEqual(rate, attributes[Attributes.Health].RefreshAmount);
+            Assert.AreEqual(CombatRegen.RestingHealthRate(attributes[Attributes.Health].CurrentMax, rate), attributes[Attributes.Health].RefreshAmount);
             Assert.AreEqual(rate, attributes[Attributes.Power].RefreshAmount);
             Assert.AreEqual(0, client.Player.ArmorRegenRate);
         }

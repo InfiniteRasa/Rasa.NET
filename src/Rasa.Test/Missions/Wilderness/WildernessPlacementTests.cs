@@ -57,8 +57,9 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.AreEqual(10604U, harness.World.Set<CreatureEntry>().Single(row => row.Id == 510006).NameId);
             harness.Client.Player.Level = 5;
             harness.Client.Player.Class = (uint)CharacterClass.Recruit;
-            // Alia Das's own class trainers are gone (Alia_das_npcs); Twin Pillars' stand.
-            foreach (var (spawnId, dialogId) in new[] { (510006U, 337), (501007U, 9), (501008U, 17) })
+            // Alia Das's own class trainers are gone (Alia_das_npcs), and Twin Pillars' specialty
+            // trainers (Twin_pillars_npcs); its Class Trainer stands, a trainer of every class.
+            foreach (var (spawnId, dialogId) in new[] { (510006U, 337), (500002U, 337) })
             {
                 harness.SpawnWorld(spawnId);
                 var trainer = harness.Npc(spawnId);
@@ -95,9 +96,15 @@ namespace Rasa.Test.Missions.Wilderness
                 (630100U, 900), (630120U, 1500)
             })
             {
-                harness.SpawnWorld(spawn);
-                var actor = harness.Map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList)
-                    .Single(creature => creature.SpawnPool?.DbId == spawn);
+                Rasa.Structures.Creature actor;
+                if (spawn == WildernessOpeningWorldV1.RangerSpawnId)
+                    actor = harness.SpawnAssignedSolisRanger();
+                else
+                {
+                    harness.SpawnWorld(spawn);
+                    actor = harness.Map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList)
+                        .Single(creature => creature.SpawnPool?.DbId == spawn);
+                }
                 Assert.AreEqual(health, actor.Attributes[Attributes.Health].CurrentMax);
                 Assert.AreEqual(health, actor.Attributes[Attributes.Health].Current);
             }

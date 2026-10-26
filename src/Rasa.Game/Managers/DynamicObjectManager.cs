@@ -221,7 +221,7 @@ namespace Rasa.Managers
             // Teleporting counts as being in the world for the packet gate - a dropship ride keeps
             // the manifestation and everything registered with it - but the rider is between maps,
             // standing where they left, with no cells. There is nothing there for them to use.
-            if (client.State != ClientState.Ingame)
+            if (client?.Player == null || packet == null || client.State != ClientState.Ingame)
                 return;
 
             // A usable the client's own .map placed, such as a Forean fire pit: the server has
@@ -235,6 +235,7 @@ namespace Rasa.Managers
             if (!EntityManager.Instance.TryGetObject(packet.EntityId, out var obj))
             {
                 Logger.WriteLog(LogType.Debug, $"{client.Player.FamilyName} asked to use {packet.EntityId}, which is not an object.");
+                ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, PlayerMessage.PmUseObjectNotUsable);
                 return;
             }
 
@@ -256,6 +257,7 @@ namespace Rasa.Managers
             if (obj.DynamicObjectType == DynamicObjectType.Destructible)
             {
                 Logger.WriteLog(LogType.Debug, $"Object {obj.EntityId} must be destroyed, not used.");
+                ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, PlayerMessage.PmUseObjectNotUsable);
                 return;
             }
 
@@ -279,7 +281,8 @@ namespace Rasa.Managers
             if (!MapInstanceScope.Contains(client.Player.MapChannel, obj))
             {
                 Logger.WriteLog(LogType.Security,
-                    $"{client.Player.FamilyName} asked to use object {packet.EntityId}, which is not on the current map instance. Ignored.");
+                    $"{client.Player.FamilyName} asked to use object {packet.EntityId}, which is not on the current map instance. Refused.");
+                ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, PlayerMessage.PmUseObjectNotUsable);
                 return;
             }
 
@@ -288,7 +291,8 @@ namespace Rasa.Managers
             if (distance > MaxUseDistance)
             {
                 Logger.WriteLog(LogType.Security,
-                    $"{client.Player.FamilyName} asked to use object {packet.EntityId} from {distance:F0} units away. Ignored.");
+                    $"{client.Player.FamilyName} asked to use object {packet.EntityId} from {distance:F0} units away. Refused.");
+                ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, PlayerMessage.PmTargetOutOfRange);
                 return;
             }
 
@@ -313,15 +317,24 @@ namespace Rasa.Managers
                     $"{client.Player.FamilyName} sent {packet.ActionId}/{packet.ActionArgId} to use object {packet.EntityId}; an object is used with {ActionId.UseObject}. Ignored.");
                 return;
             }
+            // A Caves of Donn cave-in wants a bomb, its gate the three Logos (CavesOfDonn).
+            if (CavesOfDonn.Refusal(client, obj) is { } refusal)
+            {
+                ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, refusal);
+                return;
+            }
             if (obj.MissionUseAction != null &&
-                !(_missionManager ?? MissionApplication.Instance).Scenes.CanUseObject(client, obj, packet.ActionArgId))
+                (!MissionUseAvailable(client, obj) ||
+                 !(_missionManager ?? MissionApplication.Instance).Scenes.CanUseObject(client, obj, packet.ActionArgId)))
             {
                 Logger.WriteLog(LogType.Debug, $"Rejected stale or unauthorized scene object use {obj.EntityId}.");
+                ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, PlayerMessage.PmUseObjectNotUsable);
                 return;
             }
             if (obj.MissionDestruction != null && obj.MissionUseAction == null)
             {
                 Logger.WriteLog(LogType.Debug, $"Object {obj.EntityId} must be destroyed, not used.");
+                ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, PlayerMessage.PmUseObjectNotUsable);
                 return;
             }
             if (obj.MissionConversation != null)
@@ -336,6 +349,13 @@ namespace Rasa.Managers
                     LootDispenserManager.Instance.AttachRewardLoot(client, client.Player.MapChannel, obj);
                 if (obj.LootDispenserEntityId == 0 || !obj.IsEnabled)
                     return;
+            }
+
+            // Pravus Research's keypass scanner: no use without the keypass (PravusResearchFacility).
+            if (PravusResearchFacility.Refusal(client, obj) is { } keypassRefusal)
+            {
+                ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, keypassRefusal);
+                return;
             }
 
             // One use at a time. Every request queued another windup and recovery, and each
@@ -431,7 +451,7 @@ namespace Rasa.Managers
                             break;
                         }
 
-                        client.CallMethod(client.Player.EntityId, new PerformWindupPacket(PerformType.TwoArgs, packet.ActionId, packet.ActionArgId));
+                        client.CallMethod(client.Player.EntityId, new PerformWindupPacket(PerformType.ThreeArgs, packet.ActionId, packet.ActionArgId, obj.EntityId));
                         client.CallMethod(packet.EntityId, new UsePacket(client.Player.EntityId, obj.StateId, 100));
                         client.Player.MapChannel.PerformRecovery.Add(new ActionData(client.Player, packet.ActionId, packet.ActionArgId, 100));
 
@@ -453,10 +473,12 @@ namespace Rasa.Managers
                         var windupTime = obj.WindupTime == 0
                             ? DefaultScenarioUseWindupMs
                             : obj.WindupTime;
+                        // Native UseObject.ProcessWindupArgs/Windup requires the usable ID.
+                        // Without it a server-started/recreated action cannot finish client-side.
                         var actionData = new ActionData(client.Player, packet.ActionId, packet.ActionArgId, windupTime);
                         actionData.SourceId = obj.EntityId;
 
-                        client.CallMethod(client.Player.EntityId, new PerformWindupPacket(PerformType.TwoArgs, packet.ActionId, packet.ActionArgId));
+                        client.CallMethod(client.Player.EntityId, new PerformWindupPacket(PerformType.ThreeArgs, packet.ActionId, packet.ActionArgId, obj.EntityId));
                         client.CallMethod(packet.EntityId, new UsePacket(client.Player.EntityId, obj.StateId, (int)windupTime));
                         client.Player.MapChannel.PerformRecovery.Add(actionData);
 
@@ -484,7 +506,8 @@ namespace Rasa.Managers
                     PersonalWaypoints.Use(client, obj, packet);
                     break;
                 default:
-                    Logger.WriteLog(LogType.Debug, $"ToDo: RequestUseObjectPacket: unsuported object type {obj.DynamicObjectType}");
+                    Logger.WriteLog(LogType.Debug, $"Unsupported use of object type {obj.DynamicObjectType}.");
+                    ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, PlayerMessage.PmUseObjectNotUsable);
                     break;
             }
         }
@@ -671,8 +694,11 @@ namespace Rasa.Managers
             {
                 var classInfo = EntityClassManager.Instance.GetClassInfo(dynamicObject.EntityClassId)
                     ?? throw new GameplayRejectionException($"Missing scene object class {dynamicObject.EntityClassId}.");
-                CellManager.Instance.CellCallMethod(mapChannel, dynamicObject,
-                    new IsTargetablePacket(classInfo.TargetFlag || enabled));
+                var targetable = classInfo.TargetFlag || enabled;
+                if (dynamicObject.MissionUseAction != null)
+                    targetable = IsTargetableFor(mapChannel.ClientList.FirstOrDefault(
+                        client => client.Player?.Id == dynamicObject.SceneOwnerCharacterId), dynamicObject);
+                CellManager.Instance.CellCallMethod(mapChannel, dynamicObject, new IsTargetablePacket(targetable));
             }
             if (dynamicObject.MissionConversation != null)
             {
@@ -704,7 +730,8 @@ namespace Rasa.Managers
             if (mapChannel == null || !CellManager.TryGetCellCoordinates(dynamicObject.Position, out var x, out var z))
                 return;
 
-            foreach (var client in CellManager.Instance.GetClientsInCells(mapChannel, CellManager.Instance.CreateCellMatrix(mapChannel, x, z)))
+            foreach (var client in CellManager.Instance.GetClientsInCells(mapChannel, CellManager.Instance.CreateCellMatrix(mapChannel, x, z))
+                .Where(client => IsShownTo(client, dynamicObject)))
                 client.CallMethod(dynamicObject.EntityId,
                     MissionObjects.InfoFor(client, dynamicObject, dynamicObject.IsEnabled, windupTime, _missionManager));
         }
@@ -723,9 +750,37 @@ namespace Rasa.Managers
                 CreateDynamicObjectOnClient(client, dynamicObject);
         }
 
+        /// <summary>
+        /// Whether the client is given the object at all. A mission scene's object belongs to the
+        /// player whose scene put it down (SceneOwnerCharacterId): each player on the mission has
+        /// a copy of their own, in the same place - Hitting 'em Where It Hurts (432) puts three gas
+        /// harvesters down for each player who takes it - and only its owner can hit or use it
+        /// (PracticeTargetManager.CanHit, SceneApplication). Every copy used to go to everyone in
+        /// range, stacked on one another, and a player who locked on to another's copy had their
+        /// shot dropped and their Lightning refused with "no target". Now each player is sent their
+        /// own copy alone; what is nobody's (no scene, or no owner) goes to everyone as before.
+        /// </summary>
+        internal static bool IsShownTo(Client client, DynamicObject obj) =>
+            obj == null || obj.SceneRunId == null || obj.SceneOwnerCharacterId == 0 ||
+            client?.Player != null && client.Player.Id == obj.SceneOwnerCharacterId;
+
+        // Presentation eligibility is deliberately cheap. Scenes.CanUseObject still validates
+        // the durable assignment, generation and actor identity before accepting an actual use.
+        internal static bool MissionUseAvailable(Client client, DynamicObject obj) =>
+            obj?.MissionUseAction is not { } use || client?.Player is { } player &&
+            (obj.SceneOwnerCharacterId == 0 || obj.SceneOwnerCharacterId == player.Id) &&
+            player.Missions.TryGetValue(use.MissionId, out var mission) && mission.State == MissionState.Active &&
+            mission.Objectives.TryGetValue(use.ObjectiveId, out var objective) && objective.State == MissionObjectiveState.Incomplete;
+
+        internal static bool IsTargetableFor(Client client, DynamicObject obj) =>
+            obj != null && IsShownTo(client, obj) && (obj.MissionUseAction != null
+                ? obj.IsEnabled && MissionUseAvailable(client, obj)
+                : EntityClassManager.Instance.GetClassInfo(obj.EntityClassId)?.TargetFlag == true ||
+                    obj.SceneRunId != null && obj.IsEnabled);
+
         internal void CreateDynamicObjectOnClient(Client client, DynamicObject dynamicObject)
         {
-            if (dynamicObject == null)
+            if (dynamicObject == null || !IsShownTo(client, dynamicObject))
                 return;
 
             // One this client holds from beyond its cells is taken off it first: made anew, not
@@ -777,8 +832,7 @@ namespace Rasa.Managers
             var entityData = new List<PythonPacket>
             {
                 // PhysicalEntity
-                new IsTargetablePacket(classInfo.TargetFlag ||
-                    dynamicObject.SceneRunId != null && dynamicObject.IsEnabled),
+                new IsTargetablePacket(IsTargetableFor(client, dynamicObject)),
                 new WorldLocationDescriptorPacket(dynamicObject.Position, dynamicObject.Rotation)
             };
 
@@ -813,8 +867,9 @@ namespace Rasa.Managers
             // Only for an object that actually has a lock. An unlocked usable is the default the
             // client already assumes, and sending a lock of zeroes would tell it the same thing
             // at the cost of a packet per object per client.
+            // Open for this player if they have completed the mission it asks for (MissionLocks).
             if (dynamicObject.Lock != null)
-                entityData.Add(new LockInfoPacket(dynamicObject.Lock));
+                entityData.Add(MissionLocks.InfoFor(client, dynamicObject));
 
             // A clan control point: whether it is a PvP one. The client keeps the answer and
             // asks for it nowhere (PvPEnabledPacket).
@@ -945,7 +1000,7 @@ namespace Rasa.Managers
 
         internal void CellDiscardDynamicObjectsToClient(Client client, List<DynamicObject> discardObjects)
         {
-            foreach (var dynamicObject in discardObjects)
+            foreach (var dynamicObject in discardObjects.Where(obj => IsShownTo(client, obj)))
                 client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(dynamicObject.EntityId));
         }
 
@@ -1006,7 +1061,7 @@ namespace Rasa.Managers
         private static bool IsUsing(MapChannel mapChannel, Actor actor, DynamicObject obj)
         {
             return mapChannel != null
-                   && mapChannel.PerformRecovery.Any(a => a.Actor == actor && a.ActionId == ActionId.UseObject && a.SourceId == obj.EntityId);
+                   && (LandingZoneAssaults.IsCapturing(mapChannel, actor, obj) || mapChannel.PerformRecovery.Any(a => a.Actor == actor && a.ActionId == ActionId.UseObject && a.SourceId == obj.EntityId));
         }
 
         /// <summary>
@@ -1047,17 +1102,6 @@ namespace Rasa.Managers
         /// </summary>
         private static bool IsFoughtOver(DynamicObject obj) =>
             ControlPoints.Instance.PointOf(obj) != null || Battlegrounds.Instance.PointOf(obj) != null;
-
-        /// <summary>
-        /// Whether an action is a claim of a control point that was interrupted. It has no
-        /// recovery to show (ActorActionManager): the others, who were shown its windup, are told
-        /// it was interrupted instead, and the claimant's request is closed
-        /// (<see cref="CaptureControlPointRecovery"/>).
-        /// </summary>
-        internal bool IsInterruptedClaim(ActionData action)
-        {
-            return action != null && action.IsInrerrupted && ClaimedBy(action) != null;
-        }
 
         /// <summary>The control point somebody fights over that an action is a use of, or null.</summary>
         private static DynamicObject ClaimedBy(ActionData action)
@@ -1133,22 +1177,10 @@ namespace Rasa.Managers
                     {
                         controlpoint.TriggeredByPlayers.Remove(client);
 
+                        // Interrupted: everyone, the claimant too, has been told so and the
+                        // request is closed (ActorActionManager, as for any use).
                         if (action.IsInrerrupted)
-                        {
-                            // The others are still showing the claimant at it. The claimant's own
-                            // client stopped when it sent the interrupt, and keeps the request
-                            // open until it is answered.
-                            if (IsFoughtOver(controlpoint))
-                            {
-                                if (client.Player?.MapChannel != null)
-                                    client.CellIgnoreSelfCallMethod(client,
-                                        new ActionInterruptPacket(action.Actor.EntityId, action.ActionId, action.ActionArgId));
-
-                                ActorManager.ResolveInterruptedRequest(client, action.ActionId, action.ActionArgId);
-                            }
-
                             break;
-                        }
 
                         // As with a logos: a capture belongs to whoever is still standing at the
                         // point when its ten seconds are up.
@@ -1382,6 +1414,15 @@ namespace Rasa.Managers
                             $"{client.Player.FamilyName} was no longer at object {obj.EntityId} when the use finished; nothing given.");
                         return;
                     }
+
+                    // The Ojasa hive's Shocking Device (OjasaHive).
+                    if (OjasaHive.Used(mapChannel, client, obj))
+                        return;
+
+                    // Pravus Research's keypass scanner (PravusResearchFacility).
+                    if (PravusResearchFacility.Used(mapChannel, client, obj))
+                        return;
+
                     if (obj.MissionUseAction != null)
                     {
                         (_missionManager ?? MissionApplication.Instance).Scenes.UseObject(client, obj, action.ActionArgId);

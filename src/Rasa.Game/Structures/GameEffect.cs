@@ -9,7 +9,9 @@ namespace Rasa.Structures
     /// A buff, debuff or looping gesture on an actor. TypeId is the client's gameeffectdata id
     /// (which picks the client-side effect class and its visuals), EffectId identifies this
     /// instance to the client the way an entity id identifies an entity, and EffectLevel is the
-    /// pump level it was applied at. Timing is in Environment.TickCount64 so it does not depend
+    /// level the client is told, which picks its FX, icon and tooltip: the pump level it was
+    /// applied at, or for an effect the client draws at fewer levels than it has pumps, the
+    /// level it is drawn at (Data.GameEffectFx.LevelFor). Timing is in Environment.TickCount64 so it does not depend
     /// on how often the effect worker happens to run.
     ///
     /// What an effect does is the sum of the fields below that are set. While it is on, the
@@ -341,6 +343,13 @@ namespace Rasa.Structures
 
         /// <summary>Percent added to the damage of the holder's ranged attacks; negative reduces it (Laser crit).</summary>
         public int RangedDamagePercent { get; set; }
+
+        /// <summary>
+        /// Added to the chance that the holder's own ranged weapon shots hit; negative makes them
+        /// miss (Tactical Evasion's mag flash, "any ranged weapon attacks you make are likely to
+        /// miss"; Managers.ToHit). The strongest on the holder counts.
+        /// </summary>
+        public int RangedToHitModifier { get; set; }
 
         /// <summary>Whether it changes any regeneration rate, which the holder's client has to be told.</summary>
         public bool ChangesRegen => RegenPercent != 0 || ArmorRegenPercent != 0 || HealthRegenPercent != 0 || PowerRegenPercent != 0;

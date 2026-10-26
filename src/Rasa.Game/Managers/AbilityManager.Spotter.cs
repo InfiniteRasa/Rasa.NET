@@ -252,6 +252,9 @@ namespace Rasa.Managers
                 HateToMasterPercent = info.Get(AbilityProperty.MinionHateToMasterPercent)
             };
 
+            // Run 9 / walk 5 is the placeholder every creature row had: the class's own gait instead.
+            EntityMovementRates.Apply(spotter);
+
             if (spec.AppearanceWeaponClassId != 0)
                 spotter.AppearanceData[EquipmentData.Weapon] = new AppearanceData { SlotId = EquipmentData.Weapon, Class = spec.AppearanceWeaponClassId, Color = Color.RandomColor(), Hue2 = Color.RandomColor() };
 
@@ -277,13 +280,17 @@ namespace Rasa.Managers
             // The player's to command; it follows them and fights what they fight.
             MinionManager.Instance.Adopt(client, spotter);
 
-            // SPOTTER_MINION / BOT_CONSTRUCTION_MINION: the client counts its damage as the player's.
+            // SPOTTER_MINION / BOT_CONSTRUCTION_MINION / CREATE_CLONE_MINION: the client counts its
+            // damage as the player's, from the effect's OnAnnounceAttach (AddExtraDamageSource), so
+            // it is announced to whoever meets the minion later as well. The three have no FX of
+            // their own (gameeffectdata.specialFX has rows for the DESPAWN effects alone), so an
+            // announce plays nothing.
             var lifetimeMs = Math.Max(1000, info.Get(AbilityProperty.CreatureLifetimeMs, 900000));
             var effect = NewEffect(mapChannel, player, info, spec.MinionTypeId, null);
 
             effect.ExpiresTick = Environment.TickCount64 + lifetimeMs;
             effect.AnnounceOnAttach = true;
-            effect.AnnounceToNewcomers = false;     // its start FX is the summon's arrival
+            effect.AnnounceToNewcomers = true;
             effect.AllowDetach = false;
             effect.OnExpired = (map, actor, e) => EndSpotter(spotter);
 

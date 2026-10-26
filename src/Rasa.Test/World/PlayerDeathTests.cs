@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -202,6 +202,51 @@ namespace Rasa.Test.World
             {
                 Unregister(world, creature);
             }
+        }
+
+        [TestMethod]
+        public void ADeadPlayerCarriesTheMedicalMarkerUntilARevive()
+        {
+            using var world = new WorldTestContext();
+            var dead = Player(world, 20, 0);
+            var medic = Player(world, 22, 0);
+            WorldTestContext.Drain(medic);
+
+            AtZero(world, dead);
+
+            // VISUAL_REZ_ME_EFFECT, announced to everyone around: OVERHEAD_MEDICAL_PVP_BLUE over
+            // the body, on the clients it is FRIENDLY to.
+            var marker = dead.Player.ActiveEffects.Values.Single(e => e.TypeId == PlayerDeath.RezMeTypeId);
+            var attached = MissionTestContext.Drain(medic).OfType<GameEffectAttachedPacket>().Single(p => p.EffectTypeId == PlayerDeath.RezMeTypeId);
+            Assert.AreEqual(PlayerDeath.RezMeBlue, attached.EffectLevel);
+            Assert.IsTrue(attached.Announced);
+            Assert.AreEqual(dead.Player.EntityId, attached.SourceId);
+
+            // It lasts while they lie there.
+            GameEffectManager.Instance.DoWork(world.Map, 100);
+            Assert.IsTrue(dead.Player.ActiveEffects.ContainsKey(marker.EffectId));
+            Assert.IsTrue(marker.AnnounceToNewcomers, "a client that comes along later sees it too");
+
+            Assert.IsTrue(PlayerDeath.OfferRevive(world.Map, medic.Player, dead.Player, 500));
+            PlayerDeath.RequestRevive(dead, medic.Player.EntityId);
+
+            Assert.IsFalse(dead.Player.ActiveEffects.Values.Any(e => e.TypeId == PlayerDeath.RezMeTypeId));
+            Assert.IsTrue(MissionTestContext.Drain(medic).OfType<GameEffectDetachedPacket>().Any(p => p.EffectId == marker.EffectId));
+        }
+
+        [TestMethod]
+        public void TheMarkerComesOffAtTheHospitalToo()
+        {
+            using var world = new WorldTestContext();
+            var client = Player(world, 0, 0);
+
+            AtZero(world, client);
+            Assert.IsTrue(client.Player.ActiveEffects.Values.Any(e => e.TypeId == PlayerDeath.RezMeTypeId));
+
+            PlayerDeath.ReviveMe(client, null);
+
+            Assert.AreNotEqual(CharacterState.Dead, client.Player.State);
+            Assert.IsFalse(client.Player.ActiveEffects.Values.Any(e => e.TypeId == PlayerDeath.RezMeTypeId));
         }
 
         [TestMethod]

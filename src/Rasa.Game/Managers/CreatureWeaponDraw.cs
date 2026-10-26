@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace Rasa.Managers
 {
     using Data;
@@ -35,12 +37,62 @@ namespace Rasa.Managers
     /// apart than that went back to its idle and its relaxed walk between them, and played its
     /// transitions into combat and out again on every swing. A Maw is left out: its transitions
     /// are its emerge and descend, which MawLurk plays as it comes up and goes down.
+    ///
+    /// A creature on a human skeleton (1 male, 23 female) draws and puts away as a player does:
+    /// WEAPON_DRAW (130) and WEAPON_STOW (129) at its weapon class's draw and stow args, whose
+    /// animation families those skeletons have - the Redshirt pistol's 1/1, the rifle's 2/2, the
+    /// machine gun's 7/7. The client's weapondraw.py and weaponstow.py set the weapon ready or not
+    /// at the strike. WeaponReady goes too, after it: an attack that follows at once cancels the
+    /// draw on the client before its strike (actor.py Recv_PerformWindup cancels any other current
+    /// action), and the weapon would stay in its holster.
     /// </summary>
     public static class CreatureWeaponDraw
     {
         public static bool IsArmed(Creature creature) =>
             creature?.AppearanceData != null && creature.AppearanceData.TryGetValue(EquipmentData.Weapon, out var weapon)
             && weapon != null && weapon.Class != 0;
+
+        /// <summary>The human skeletons: male and female.</summary>
+        private static readonly HashSet<int> HumanSkeletons = new() { 1, 23 };
+
+        /// <summary>
+        /// The WEAPON_DRAW and WEAPON_STOW args whose animation family both human skeletons have
+        /// (actiondata actionArguments, animationdata animationFamilyData).
+        /// </summary>
+        private static readonly HashSet<uint> DrawArgs = new() { 1, 2, 3, 4, 5, 6, 7, 8, 10, 14, 15, 18, 19, 20, 21, 22, 23, 24, 25 };
+        private static readonly HashSet<uint> StowArgs = new() { 1, 2, 3, 4, 5, 6, 7, 8, 14, 15, 16, 19, 20, 21, 22, 23, 24 };
+
+        /// <summary>
+        /// The draw (or stow) arg the creature's weapon class has, where the creature is on a human
+        /// skeleton and the skeleton animates it; null otherwise.
+        /// </summary>
+        public static uint? ArgFor(Creature creature, bool draw)
+        {
+            if (!IsArmed(creature))
+                return null;
+
+            var body = EntityClassManager.Instance.GetClassInfo(creature.EntityClass);
+
+            if (body == null || CritDeathAnimations.SkeletonOf(body.MeshId) is not { } skeleton || !HumanSkeletons.Contains(skeleton))
+                return null;
+
+            var weapon = EntityClassManager.Instance.GetClassInfo((EntityClasses)creature.AppearanceData[EquipmentData.Weapon].Class)?.WeaponClassInfo;
+
+            if (weapon == null)
+                return null;
+
+            uint arg = draw ? weapon.DrawActionId : weapon.StowActionId;
+
+            return (draw ? DrawArgs : StowArgs).Contains(arg) ? arg : null;
+        }
+
+        /// <summary>The draw or stow, played to everyone around, for a creature that has one to play.</summary>
+        private static void Play(MapChannel mapChannel, Creature creature, bool draw)
+        {
+            if (ArgFor(creature, draw) is { } arg)
+                CellManager.Instance.CellCallMethod(mapChannel, creature,
+                    new PerformRecoveryPacket(PerformType.TwoArgs, draw ? ActionId.WeaponDraw : ActionId.WeaponStow, arg));
+        }
 
         /// <summary>Whether an unarmed creature holds the combat stance through a fight: all but a Maw.</summary>
         public static bool HoldsStance(Creature creature) => creature != null && !MawLurk.Is(creature);
@@ -67,7 +119,10 @@ namespace Rasa.Managers
             creature.InCombatMode = true;
 
             if (!drawn)
+            {
+                Play(mapChannel, creature, draw: true);
                 CellManager.Instance.CellCallMethod(mapChannel, creature, new WeaponReadyPacket(true));
+            }
 
             CellManager.Instance.CellCallMethod(mapChannel, creature, new RequestVisualCombatModePacket(true));
 
@@ -104,6 +159,7 @@ namespace Rasa.Managers
             creature.InCombatMode = false;
             HunterShield.Lower(mapChannel, creature);
 
+            Play(mapChannel, creature, draw: false);
             CellManager.Instance.CellCallMethod(mapChannel, creature, new WeaponReadyPacket(false));
             CellManager.Instance.CellCallMethod(mapChannel, creature, new RequestVisualCombatModePacket(false));
         }

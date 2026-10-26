@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Linq;
 
 namespace Rasa.Managers
 {
@@ -136,7 +137,7 @@ namespace Rasa.Managers
 
             if (action.IsInrerrupted)
             {
-                SendToOthers(mapChannel, actor, new ActionInterruptPacket(actor.EntityId, action.ActionId, action.ActionArgId));
+                Send(mapChannel, actor, new ActionInterruptPacket(actor.EntityId, action.ActionId, action.ActionArgId), action.ServerStarted);
                 return;
             }
 
@@ -154,7 +155,61 @@ namespace Rasa.Managers
             if (action.TargetId != 0)
                 args.HitEntities.Add(action.TargetId);
 
-            SendToOthers(mapChannel, actor, new PerformRecoveryPacket(PerformType.ListOfArgs, action.ActionId, action.ActionArgId, args));
+            Send(mapChannel, actor, new PerformRecoveryPacket(PerformType.ListOfArgs, action.ActionId, action.ActionArgId, args), action.ServerStarted);
+        }
+
+        /// <summary>
+        /// The AFK pose (Gestures.AfkLoop), when the player goes AFK - by /afk or /brb, or idle
+        /// for ManifestationManager.InactiveWarningMs. Nothing on the client starts it: its own
+        /// Recv_PlayerAfk only puts up the message and the overhead marker. So it goes to everyone,
+        /// the player's own client included: the windup now, the recovery after it (which holds
+        /// the pose in a GESTURE_EFFECT, as /sit does), from PerformRecovery.
+        ///
+        /// Left out for a player who is dead, crouched (the pose is a standing one), morphed (the
+        /// pose is on the human skeletons only), or already in a gesture: someone who went AFK
+        /// sitting stays sitting.
+        /// </summary>
+        public void StartAfkPose(MapChannel mapChannel, Manifestation actor)
+        {
+            if (mapChannel == null || actor == null || actor.State == CharacterState.Dead || actor.IsCrouching || actor.MorphWeapon != null)
+                return;
+
+            if (mapChannel.PerformRecovery.Any(a => a.Actor == actor && (a.ActionId == ActionId.Gesture || a.ActionId == ActionId.GestureWeapon)) ||
+                actor.ActiveEffects.Values.Any(e => e.TypeId == Gestures.EffectTypeId))
+                return;
+
+            if (!Gestures.TryGet(Gestures.AfkLoop, out var gesture))
+                return;
+
+            CellManager.Instance.CellCallMethod(mapChannel, actor, new PerformWindupPacket(PerformType.ThreeArgs, ActionId.Gesture, Gestures.AfkLoop, 0));
+            mapChannel.PerformRecovery.Add(new ActionData(actor, ActionId.Gesture, Gestures.AfkLoop, 0, gesture.WindupMs) { ServerStarted = true });
+        }
+
+        /// <summary>
+        /// The player is back: the AFK pose ends for everyone, whether it is still winding up
+        /// (an interrupt) or held (the effect detached). Another gesture is left alone.
+        /// </summary>
+        public void EndAfkPose(MapChannel mapChannel, Actor actor)
+        {
+            if (mapChannel == null || actor == null)
+                return;
+
+            var pending = mapChannel.PerformRecovery
+                .Where(a => a.Actor == actor && a.ActionId == ActionId.Gesture && a.ActionArgId == Gestures.AfkLoop)
+                .ToList();
+
+            foreach (var action in pending)
+            {
+                mapChannel.PerformRecovery.Remove(action);
+                Send(mapChannel, actor, new ActionInterruptPacket(actor.EntityId, action.ActionId, action.ActionArgId), action.ServerStarted);
+            }
+
+            var held = actor.ActiveEffects.Values
+                .Where(e => e.TypeId == Gestures.EffectTypeId && e.EffectLevel == Gestures.AfkLoop)
+                .ToList();
+
+            foreach (var effect in held)
+                GameEffectManager.Instance.DettachEffect(mapChannel, actor, effect);
         }
 
         /// <summary>
@@ -205,13 +260,26 @@ namespace Rasa.Managers
                 SourceId = actor.EntityId,
                 // Held until detached.
                 ExpiresTick = long.MaxValue,
-                AllowDetach = true
+                AllowDetach = true,
+                // GestureEffect.OnAnnounceAttach(target, actionId, actionArgId, actionTargetId):
+                // what GameEffectManager.NewcomerPackets sends a client that meets the gesturer
+                // while the pose is held, as GestureEffectAttachedPacket sends it to those in range.
+                AttachArgs = new List<object> { (uint)ActionId.Gesture, actionArgId, targetId != 0 ? (object)targetId : null }
             };
 
             GameEffectManager.Instance.AddToList(actor, effect);
 
             // Everyone, the gesturer included: their client holds the pose from this effect too.
             CellManager.Instance.CellCallMethod(mapChannel, actor, new GestureEffectAttachedPacket(effect.EffectId, actionArgId, actor.EntityId, targetId));
+        }
+
+        /// <summary>To everyone in range of the actor, or everyone but the actor's own client.</summary>
+        private static void Send(MapChannel mapChannel, Actor actor, PythonPacket packet, bool toSelfToo)
+        {
+            if (toSelfToo)
+                CellManager.Instance.CellCallMethod(mapChannel, actor, packet);
+            else
+                SendToOthers(mapChannel, actor, packet);
         }
 
         /// <summary>CellManager.CellCallMethod without the actor's own client.</summary>

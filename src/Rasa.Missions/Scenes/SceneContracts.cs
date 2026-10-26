@@ -25,7 +25,18 @@ namespace Rasa.Missions.Scenes
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SceneObjectAction UseAction = null,
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SceneObjectDestruction Destruction = null,
         // An object seen from further off than its cells: metres (Managers.Landmarks).
-        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] float ViewRadius = 0);
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] float ViewRadius = 0,
+        // What an object is called in place of its class's name: a usablenameoverridelanguage
+        // id, sent in UsableInfo (usable.py GetName); 0 for the class's own name.
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] uint NameOverrideId = 0,
+        // A private creature on a shared map; this changes visibility, not its movement policy.
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool OwnerOnly = false,
+        // Hide the offer NPC during this assignment and after a successful rescue, for its owner.
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] uint ReplacesPublicSpawnId = 0,
+        // A captive remains protected until its scene starts a route that resumes after combat.
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool HoldCombatUntilRoute = false,
+        // A temporary encounter replaces its public contact only while the personal actor exists.
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool ReplaceWhilePresent = false);
     public sealed record SceneObjectAction(uint MissionId, uint ObjectiveId, uint SequenceId, uint ActionArgId = 1);
     public sealed record SceneObjectDestruction(uint MissionId, uint ObjectiveId, uint SequenceId,
         uint HitPoints = 100, uint DestroyedState = 2);
@@ -161,6 +172,7 @@ namespace Rasa.Missions.Scenes
     public sealed class SceneBindings
     {
         public string Release { get; }
+        public uint MapContextId { get; }
         public IReadOnlyDictionary<string, SceneActorDefinition> Actors { get; }
         public IReadOnlyDictionary<string, SceneRoute> Routes { get; }
         public IReadOnlyDictionary<uint, SceneSequence> Sequences { get; }
@@ -168,9 +180,10 @@ namespace Rasa.Missions.Scenes
         public IReadOnlyDictionary<string, uint> DefeatSequences { get; }
         public SceneBindings(string release, IDictionary<string, SceneActorDefinition> actors,
             IDictionary<string, SceneRoute> routes, IDictionary<uint, SceneSequence> sequences,
-            IDictionary<string, uint> names = null, IDictionary<string, uint> defeatSequences = null)
+            IDictionary<string, uint> names = null, IDictionary<string, uint> defeatSequences = null, uint mapContextId = 0)
         {
             Release = release;
+            MapContextId = mapContextId;
             Actors = new ReadOnlyDictionary<string, SceneActorDefinition>(actors.ToDictionary(
                 entry => entry.Key, entry => entry.Value with
                 { GameplayPolicy = entry.Value.GameplayPolicy?.Snapshot() }, StringComparer.Ordinal));
@@ -183,7 +196,8 @@ namespace Rasa.Missions.Scenes
         }
     }
 
-    public sealed record SceneContext(SceneRun Run, SceneBindings Bindings, DateTime UtcNow);
+    public sealed record SceneContext(SceneRun Run, SceneBindings Bindings, DateTime UtcNow,
+        IReadOnlyDictionary<uint, Data.MissionObjectiveState> ObjectiveStates = null);
 
     public sealed class SceneDecision
     {

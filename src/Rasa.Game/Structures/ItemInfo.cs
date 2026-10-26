@@ -56,7 +56,8 @@ namespace Rasa.Structures
         public double HeatPerShot { get; set; }
         public ToolType ToolType { get; set; }
         public uint AmmoPerShot { get; set; }
-        public uint Windup { get; set; }
+        /// <summary>Milliseconds, or ItemTemplateWeaponEntry.AutofireWindup (-1) for an autofire weapon.</summary>
+        public int Windup { get; set; }
         public uint Recovery { get; set; }
         public uint Refire { get; set; }
         public uint Range { get; set; }

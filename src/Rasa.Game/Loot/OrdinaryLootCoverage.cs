@@ -117,7 +117,7 @@ namespace Rasa.Loot
                     _errors.Add($"{source}: inconsistent scene script/version.");
                 if (document.Script == null)
                     continue;
-                uint? encounterMap = null;
+                uint? encounterMap = document.MapContextId == 0 ? null : document.MapContextId;
                 if (document.PublicEncounter is { } encounter)
                 {
                     var pool = _pools[encounter.SpawnId].ToArray();
@@ -127,8 +127,12 @@ namespace Rasa.Loot
                         pool.Length != 1)
                         _errors.Add($"{source}, public encounter spawn {encounter.SpawnId}: cannot establish its reserved source map.");
                     else
-                        // PublicActorLeaseService.TryPrepare admits this run only on the reserved pool's map.
+                    {
+                        if (encounterMap.HasValue && encounterMap != pool[0].MapContextId)
+                            _errors.Add($"{source}: authored scene map disagrees with its reserved public encounter.");
+                        // Both the scene's explicit map and the public reservation are enforced at runtime.
                         encounterMap = pool[0].MapContextId;
+                    }
                 }
                 foreach (var actor in document.Actors.Values)
                     SceneActor(actor, encounterMap, source);
@@ -169,7 +173,7 @@ namespace Rasa.Loot
                 if (native.Length != 1)
                     _errors.Add($"{source}, creature {actor.TemplateId}: missing or ambiguous native creature prevents source classification.");
                 else if (TargetCategories.PlayerMayAttack(TargetCategories.FromFaction(native[0].Faction)))
-                    _errors.Add($"{source}, creature {actor.TemplateId}: cannot determine an enforced source map from an owned experience or exact reserved public encounter. Scene actors are created on the current run map; mission_spawn_group/mission_spawn metadata is not an enforced map constraint, and mission areas or coordinates do not prove map coverage.");
+                    _errors.Add($"{source}, creature {actor.TemplateId}: cannot determine an enforced source map from an owned experience, authored scene map or exact reserved public encounter. Scene actors are created on the current run map; mission_spawn_group/mission_spawn metadata is not an enforced map constraint, and mission areas or coordinates do not prove map coverage.");
             }
         }
 

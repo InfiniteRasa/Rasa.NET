@@ -16,7 +16,8 @@ namespace Rasa.Packets.MapChannel.Server
     /// abilities): damage abilities (DamageBase) want (rawInfo, onHitData) where rawInfo is the
     /// same 12-tuple a weapon hit carries; heals (HealBase, HealAbility) want a bare amount;
     /// abilities that attach effects and name them (ReconstructionAction) want
-    /// (entityId, effectTypeId) pairs, which their DoAbility announces. Kind picks which. hits
+    /// (entityId, effectTypeId) pairs, which their DoAbility announces; the Tactical Evasion
+    /// flash wants the bare entity ids (EntityIds). Kind picks which. hits
     /// and hitdata must be the same length - DamageBase.DoAbility indexes one with the other.
     ///
     /// Buff abilities with no DoAbility of their own still need their targets in hits:
@@ -26,7 +27,7 @@ namespace Rasa.Packets.MapChannel.Server
     /// </summary>
     public class AbilityRecoveryPacket : ServerPythonPacket
     {
-        public enum HitDataKind { None, Damage, Heal, EffectAttach, CureLists, TypeIds, RawInfo, HealRepair, DamagePair, Splash }
+        public enum HitDataKind { None, Damage, Heal, EffectAttach, CureLists, TypeIds, RawInfo, HealRepair, DamagePair, Splash, EntityIds }
 
         public override GameOpcode Opcode { get; } = GameOpcode.PerformRecovery;
 
@@ -164,6 +165,11 @@ namespace Rasa.Packets.MapChannel.Server
                         pw.WriteTuple(2);
                         pw.WriteInt(hit.Amount);
                         pw.WriteInt(hit.Repair);
+                        break;
+                    case HitDataKind.EntityIds:
+                        // hitdata[i] is the hit's own entity id: TacticalEvasionAction.DoAbility
+                        // announces its mag flash on GetEntities(hitdata).
+                        pw.WriteULong(hit.EntityId);
                         break;
                     case HitDataKind.EffectAttach:
                         pw.WriteTuple(2);

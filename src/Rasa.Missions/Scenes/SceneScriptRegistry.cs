@@ -19,6 +19,9 @@ namespace Rasa.Missions.Scenes
         SceneDecision Handle(SceneContext context, SceneObservation observation);
     }
 
+    /// <summary>Opt in to durable objective states on recovery, read in the scene commit transaction.</summary>
+    public interface ISceneRecoveryObjectiveFacts { }
+
     public sealed class SceneScriptRegistry
     {
         private readonly Dictionary<string, (int Version, ISceneScript Script)> _scripts = new(StringComparer.Ordinal);

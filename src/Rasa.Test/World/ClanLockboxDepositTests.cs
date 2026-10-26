@@ -54,7 +54,7 @@ namespace Rasa.Test.World
             fixture.AssertPackRow(ammo, PackSlot, 5);
 
             // Told why, and nothing else: the item has not moved on the client either.
-            Assert.AreEqual(PlayerMessage.PmInventoryFull, ((DisplayClientMessagePacket)fixture.Sent().Single()).MsgId);
+            Assert.AreEqual(PlayerMessage.PmInventoryFull, ((Rasa.Packets.ClientMethod.Server.DisplaySystemMessagePacket)fixture.Sent().Single()).MsgId);
             fixture.AssertThePackStillWorks(ammo);
         }
 
@@ -105,7 +105,7 @@ namespace Rasa.Test.World
 
             Assert.AreEqual(FullStack, sent.Where(message => message.EntityId == stored.EntityId).Select(message => message.Packet).OfType<SetStackCountPacket>().Single().StackSize);
             Assert.AreEqual(3u, sent.Where(message => message.EntityId == ammo.EntityId).Select(message => message.Packet).OfType<SetStackCountPacket>().Single().StackSize);
-            Assert.AreEqual(PlayerMessage.PmInventoryFull, sent.Select(message => message.Packet).OfType<DisplayClientMessagePacket>().Single().MsgId);
+            Assert.AreEqual(PlayerMessage.PmInventoryFull, sent.Select(message => message.Packet).OfType<Rasa.Packets.ClientMethod.Server.DisplaySystemMessagePacket>().Single().MsgId);
             Assert.IsFalse(sent.Any(message => message.Packet is InventoryRemoveItemPacket || message.Packet is InventoryAddItemPacket));
             fixture.AssertThePackStillWorks(ammo);
         }
@@ -136,7 +136,7 @@ namespace Rasa.Test.World
 
             Assert.AreEqual(ammo.EntityId, sent.OfType<DestroyPhysicalEntityPacket>().Single().EntityId);
             Assert.AreEqual(ammo.EntityId, sent.OfType<InventoryRemoveItemPacket>().Single(packet => packet.InventoryType == InventoryType.Personal).EntityId);
-            Assert.IsFalse(sent.Any(packet => packet is DisplayClientMessagePacket));
+            Assert.IsFalse(sent.Any(packet => packet is DisplayClientMessagePacket || packet is Rasa.Packets.ClientMethod.Server.DisplaySystemMessagePacket));
         }
 
         [TestMethod]
@@ -159,7 +159,7 @@ namespace Rasa.Test.World
 
             Assert.AreEqual(ammo.EntityId, sent.OfType<InventoryRemoveItemPacket>().Single(packet => packet.InventoryType == InventoryType.Personal).EntityId);
             Assert.IsTrue(sent.OfType<InventoryAddItemPacket>().Any(packet => packet.Type == InventoryType.ClanInventory && packet.EntityId == ammo.EntityId && packet.SlotId == 1));
-            Assert.IsFalse(sent.Any(packet => packet is DisplayClientMessagePacket));
+            Assert.IsFalse(sent.Any(packet => packet is DisplayClientMessagePacket || packet is Rasa.Packets.ClientMethod.Server.DisplaySystemMessagePacket));
         }
 
         [TestMethod]

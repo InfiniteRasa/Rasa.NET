@@ -26,6 +26,8 @@
             throw new System.NotSupportedException("This world unit of work has no world destructible data.");
         IWorldUsableRepository WorldUsables =>
             throw new System.NotSupportedException("This world unit of work has no world usable data.");
+        INpcSquadRepository NpcSquads =>
+            throw new System.NotSupportedException("This world unit of work has no NPC squad data.");
 
         ISpawnPoolArrivalRepository SpawnPoolArrivals { get; }
         IRecipeRepository Recipes { get; }

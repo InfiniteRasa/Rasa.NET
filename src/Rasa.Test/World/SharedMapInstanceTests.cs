@@ -23,6 +23,7 @@ namespace Rasa.Test.World
     using Rasa.Managers;
     using Rasa.Memory;
     using Rasa.Packets;
+    using Rasa.Packets.Communicator.Client;
     using Rasa.Packets.Communicator.Server;
     using Rasa.Packets.Game.Server;
     using Rasa.Packets.MapChannel.Client;
@@ -163,6 +164,97 @@ namespace Rasa.Test.World
             Assert.AreEqual(Range, choice.MapContextId);
             Assert.AreEqual(Arrival, choice.Position);
             CollectionAssert.AreEquivalent(new[] { fixture.Own.InstanceId, opened.InstanceId }, choice.Offered.ToArray());
+        }
+
+        /// <summary>
+        /// A shared copy goes by its place among the map's copies, as the picker numbers its rows;
+        /// a map standing in one copy, and a private instance, by none.
+        /// </summary>
+        [TestMethod]
+        public void ACopyGoesByThePickersNumberAndAMapOfOneCopyByNone()
+        {
+            using var world = new WorldTestContext();
+            var fixture = new Fixture(world, new MapInstanceConfig { Capacity = 2, MaxCopies = 3 });
+
+            Assert.IsNull(fixture.Maps.CopyNumberOf(fixture.Own), "one copy: nothing to tell apart");
+            Assert.IsNull(fixture.Maps.CopyNumberOf(world.Map), "a map with no entry");
+
+            var second = fixture.Maps.OpenSharedCopy(Range);
+            var third = fixture.Maps.OpenSharedCopy(Range);
+
+            Assert.AreEqual(1u, fixture.Maps.CopyNumberOf(fixture.Own));
+            Assert.AreEqual(2u, fixture.Maps.CopyNumberOf(second));
+            Assert.AreEqual(3u, fixture.Maps.CopyNumberOf(third));
+
+            // The picker's numbers are the same.
+            var client = fixture.Player();
+            fixture.Fill(fixture.Own, 2);
+            Assert.IsTrue(fixture.Maps.EnterMap(client, Range, Arrival, 0));
+            foreach (var row in Sent<ChooseInstanceListPacket>(client).Single().Rows)
+                Assert.AreEqual((uint)row.Ordinal, fixture.Maps.CopyNumberOf(fixture.Maps.CopiesOf(Range).Single(copy => copy.InstanceId == row.InstanceId)));
+
+            // When one closes, those after it move up, as they do in the picker.
+            Assert.IsTrue(fixture.Maps.CloseSharedCopy(second));
+            Assert.AreEqual(2u, fixture.Maps.CopyNumberOf(third));
+
+            Assert.IsTrue(fixture.Maps.CloseSharedCopy(third));
+            Assert.IsNull(fixture.Maps.CopyNumberOf(fixture.Own), "one copy again");
+
+            var mine = fixture.Maps.GetOrCreatePrivateInstance(Range, 7);
+            fixture.Maps.OpenSharedCopy(Range);
+            Assert.IsNull(fixture.Maps.CopyNumberOf(mine), "a private instance is nobody's to pick");
+        }
+
+        /// <summary>Recv_WhoAck writes the ordinal after the map's name: "Edmund Range(2)".</summary>
+        [TestMethod]
+        public void WhoGivesTheCopyAPlayerIsInAndNothingOnAMapOfOneCopy()
+        {
+            using var world = new WorldTestContext();
+            var fixture = new Fixture(world, new MapInstanceConfig { Capacity = 4, MaxCopies = 3 });
+            var chat = CommunicatorManager.Instance;
+            var was = chat.CopyNumberOf;
+            var online = new List<Client>();
+            chat.CopyNumberOf = fixture.Maps.CopyNumberOf;
+
+            // Online, where /who looks.
+            Client Online(Client client, string familyName)
+            {
+                client.Player.FamilyName = familyName;
+                lock (Server.Clients)
+                    Server.Clients.Add(client);
+                online.Add(client);
+                return client;
+            }
+
+            try
+            {
+                var asker = Online(fixture.Player(), "Asker");
+                var inOwn = Online(fixture.Fill(fixture.Own, 1).Single(), "Firstcopy");
+
+                chat.Who(asker, new WhoPacket { SearchText = inOwn.Player.FamilyName });
+                Assert.IsNull(Sent<WhoAckPacket>(asker).Single().CurrentGameContextOrdinal, "one copy: the map's name alone");
+
+                var second = fixture.Maps.OpenSharedCopy(Range);
+                var inSecond = Online(fixture.Fill(second, 1).Single(), "Secondcopy");
+
+                chat.Who(asker, new WhoPacket { SearchText = inSecond.Player.FamilyName });
+                var ack = Sent<WhoAckPacket>(asker).Single();
+                Assert.AreEqual(Range, ack.ContextId);
+                Assert.AreEqual(2u, ack.CurrentGameContextOrdinal);
+
+                chat.Who(asker, new WhoPacket { SearchText = inOwn.Player.FamilyName });
+                Assert.AreEqual(1u, Sent<WhoAckPacket>(asker).Single().CurrentGameContextOrdinal, "the map's own channel is the first");
+
+                chat.Who(asker, new WhoPacket { SearchText = asker.Player.FamilyName });
+                Assert.IsNull(Sent<WhoAckPacket>(asker).Single().CurrentGameContextOrdinal, "a map with no copies");
+            }
+            finally
+            {
+                chat.CopyNumberOf = was;
+                lock (Server.Clients)
+                    foreach (var client in online)
+                        Server.Clients.Remove(client);
+            }
         }
 
         [TestMethod]

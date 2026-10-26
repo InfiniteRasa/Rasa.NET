@@ -428,9 +428,8 @@ namespace Rasa.Test.World
                 (Class: MapUsables.BaneTeleporter, Map: MapUsables.MinosCaverns, Count: 11, State: UseObjectState.TsState1),
                 (Class: MapUsables.BaneTeleporter, Map: MapUsables.DevilsDen, Count: 14, State: UseObjectState.TsState1),
                 (Class: MapUsables.BaneTeleporter, Map: MapUsables.PravusResearch, Count: 6, State: UseObjectState.TsState1),
-                (Class: MapUsables.BaneTeleporter, Map: MapUsables.Thunderhead, Count: 1, State: UseObjectState.TsState0),
-                (Class: MapUsables.BaneTeleporter, Map: MapUsables.Incline, Count: 1, State: UseObjectState.TsState0),
-                (Class: MapUsables.HumanTeleporter, Map: MapUsables.Thunderhead, Count: 4, State: UseObjectState.TsState1),
+                (Class: MapUsables.BaneTeleporter, Map: MapUsables.Thunderhead, Count: 1, State: UseObjectState.TsState1),
+                (Class: MapUsables.BaneTeleporter, Map: MapUsables.Incline, Count: 1, State: UseObjectState.TsState1),
                 (Class: MapUsables.ElohTemplesSpawner, Map: MapUsables.ElohTemples, Count: 19, State: UseObjectState.TsState1),
                 (Class: MapUsables.LogosStoneAnalyzer, Map: MapUsables.MinosCaverns, Count: 1, State: UseObjectState.TsState1),
                 (Class: MapUsables.LogosStoneAnalyzer, Map: MapUsables.DevilsDen, Count: 1, State: UseObjectState.TsState1),
@@ -451,24 +450,16 @@ namespace Rasa.Test.World
                 Assert.IsTrue(sent.All(sentState => sentState.Packet.State == state));
             }
 
-            Assert.HasCount(33, MapUsables.All.Where(usable => usable.ClassId == MapUsables.BaneTeleporter));
-
-            // The human teleporters disabled are the four on the deck at 383 m, none at a local
-            // teleporter of the server's (teleporter 542-548, Thunderhead Base, 339-377 m); the six
-            // that are stay unsent, in their working mesh.
-            var localTeleporters = new[]
-            {
-                new Vector3(564.7417f, 342.2656f, -432.0273f), new Vector3(575.875f, 342.2656f, -421.0664f),
-                new Vector3(636.8945f, 339.1836f, -506.9843f), new Vector3(650.9922f, 339.1836f, -493.1055f),
-                new Vector3(690.0898f, 385.8398f, -399.0f), new Vector3(633.0703f, 376.6836f, -605.8008f),
-                new Vector3(643.6367f, 376.6836f, -595.332f)
-            };
-
-            foreach (var disabled in MapUsables.All.Where(usable => usable.ClassId == MapUsables.HumanTeleporter))
-            {
-                Assert.AreEqual(383f, disabled.Position.Y, 0.01f, disabled.ToString());
-                Assert.IsTrue(localTeleporters.All(at => Vector3.Distance(at, disabled.Position) > 5f), disabled.ToString());
-            }
+            // Every pad shows running: all 33 Bane teleporters are sent 56, and no human teleporter
+            // is sent anything, so each keeps arch_hum_teleporter.geo - 56 would be its disabled
+            // mesh. Thunderhead Base's four on the deck at 383 m teleport now
+            // (ThunderheadBaseTeleporters) and were still shown disabled.
+            var bane = MapUsables.All.Where(usable => usable.ClassId == MapUsables.BaneTeleporter).ToList();
+            Assert.HasCount(33, bane);
+            Assert.IsTrue(bane.All(usable => usable.State == UseObjectState.TsState1), "every Bane teleporter running");
+            Assert.IsEmpty(MapUsables.All.Where(usable => usable.ClassId == MapUsables.HumanTeleporter).ToList(), "no human teleporter disabled");
+            Assert.IsFalse(MapUsables.All.Any(usable => usable.ClassId is MapUsables.BrannTeleporter or MapUsables.BrannWormhole && usable.State != UseObjectState.TsState1),
+                "the Brann teleporters and wormhole running");
         }
 
         [TestMethod]

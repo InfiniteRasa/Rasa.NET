@@ -181,6 +181,9 @@ namespace Rasa.Managers
         /// <summary>When it was made, or when a weekly reset last passed it over: Unix milliseconds, UTC.</summary>
         public long CreatedAtUtcMs { get; internal set; }
 
+        /// <summary>The respawn in force: how long after it is cleared a pool comes back; 0 or less for never.</summary>
+        public long RespawnMs => _respawnMs();
+
         internal SquadInstanceState(uint dbId, long createdAtUtcMs, Func<long> utcNowMs, Func<long> respawnMs,
             Action<uint, uint, long> saveCleared, Action<uint, uint> saveRespawned, Action<uint> saveReset)
         {

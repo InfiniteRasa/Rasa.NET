@@ -296,6 +296,36 @@ namespace Rasa.Test.Gameplay
         }
 
         [TestMethod]
+        public void ABoughtItemHasTheColourEveryNewItemHasAndStacksWithOneMadeAnyOtherWay()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var (npcs, vendor) = Counter(harness, 139);
+            Fund(harness, credits: 1000, prestige: 100);
+            var counter = EntityManager.Instance.GetItem(EntityManager.Instance.VendorItems[vendor.EntityId].Single());
+            Assert.AreEqual(ItemManager.DefaultItemColor, counter.Color, "the counter's own");
+
+            // Some of the same, made the way loot and grants are.
+            var granted = ItemManager.Instance.CreateFromTemplateId(SnowballTemplate, 2, "");
+            Assert.AreEqual(ItemManager.DefaultItemColor, granted.Color);
+
+            npcs.RequestVendorPurchase(harness.Client, new RequestVendorPurchasePacket
+            {
+                VendorEntityId = vendor.EntityId,
+                ItemEntityId = counter.EntityId,
+                Quantity = 5
+            });
+
+            var bought = harness.Client.Player.Inventory.PersonalInventory.Select(e => EntityManager.Instance.GetItem(e))
+                .Single(i => i?.ItemTemplate?.ItemTemplateId == SnowballTemplate);
+            Assert.AreEqual(ItemManager.DefaultItemColor, bought.Color, "drawn as the looted one is");
+
+            using (var unit = harness.Context.CreateChar())
+                Assert.AreEqual(ItemManager.DefaultItemColor, unit.Items.GetItem(bought.Id).Color, "and its row says the same");
+
+            Assert.IsTrue(InventoryManager.InventoryPlan.MayJoin(granted, bought, 100), "the two may share a stack");
+        }
+
+        [TestMethod]
         public void ASaleAndItsBuybackAreTheItemOutAndInAndTheCredits()
         {
             using var harness = BootcampRuntimeTestHarness.Create();

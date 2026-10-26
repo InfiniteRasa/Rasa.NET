@@ -15,6 +15,7 @@ using Rasa.Packets.LootDispenser.Client;
 using Rasa.Packets.MapChannel.Client;
 using Rasa.Packets.MapChannel.Server;
 using Rasa.Packets.Mission.Server;
+using Rasa.Services.Preloader;
 using Rasa.Services.Preloader.Missions.Wilderness;
 using Rasa.Structures;
 using Rasa.Structures.Char;
@@ -623,14 +624,14 @@ namespace Rasa.Test.Missions.Wilderness
             var victor = harness.Npc(218);
             var duncan = harness.Npc(203);
 
-            // The analyzer is put at the infirmary desk with the mission, before its objective is
+            // The analyzer is put at the infirmary workstation with the mission, before its objective is
             // open: a client that meets it there is given it with no conversation.
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, victor.EntityId, 442));
-            harness.MoveTo(new Vector3(-124.8f, 220.91783f, -477.2f));
+            harness.MoveTo(new Vector3((float)TwinPillarsNpcs.AnalyzerStandX, (float)TwinPillarsNpcs.AnalyzerY, (float)TwinPillarsNpcs.AnalyzerStandZ));
             var analyzer = harness.Map.DynamicObjects.SingleOrDefault(obj =>
                 obj.SceneMissionId == 442 && obj.SceneActorRole == "blood-analyzer" &&
                 obj.SceneOwnerCharacterId == harness.Client.Player.Id && obj.IsInWorld);
-            Assert.IsNotNull(analyzer, "put at the desk with the mission");
+            Assert.IsNotNull(analyzer, "put at the workstation with the mission");
             Assert.AreEqual(ConversationStatus.None, harness.Manager.ObjectConversations.Status(harness.Client, analyzer).ConvoStatusId);
             AnalyzerStatuses(harness, analyzer);
 
@@ -645,7 +646,7 @@ namespace Rasa.Test.Missions.Wilderness
 
             // And once it has been talked through, none.
             var npcs = new NpcManager(harness, harness.Manager);
-            harness.MoveTo(new Vector3(-124.8f, 220.91783f, -477.2f));   // talking to Duncan stood the player at him
+            harness.MoveTo(new Vector3((float)TwinPillarsNpcs.AnalyzerStandX, (float)TwinPillarsNpcs.AnalyzerY, (float)TwinPillarsNpcs.AnalyzerStandZ));   // talking to Duncan stood the player at him
             Open(harness, npcs, analyzer.EntityId);
             npcs.CompleteNPCObjective(harness.Client, new CompleteNPCObjectivePacket
             {
@@ -689,10 +690,10 @@ namespace Rasa.Test.Missions.Wilderness
                 obj.SceneMissionId == 442 && obj.SceneActorRole == "blood-analyzer" &&
                 obj.SceneOwnerCharacterId == harness.Client.Player.Id && obj.IsInWorld);
             Assert.IsNotNull(analyzer);
-            Assert.AreEqual(7123U, (uint)analyzer.EntityClassId);
+            Assert.AreEqual(TwinPillarsNpcs.Workstation, (uint)analyzer.EntityClassId);
             Assert.IsNotNull(analyzer.MissionConversation);
             Assert.AreEqual(1486U, analyzer.MissionConversation.NpcPackageId);
-            harness.MoveTo(new Vector3(-124.8f, 220.91783f, -477.2f));
+            harness.MoveTo(new Vector3((float)TwinPillarsNpcs.AnalyzerStandX, (float)TwinPillarsNpcs.AnalyzerY, (float)TwinPillarsNpcs.AnalyzerStandZ));
             var analysisNpcs = new NpcManager(harness, harness.Manager);
             Open(harness, analysisNpcs, analyzer.EntityId);
             analysisNpcs.CompleteNPCObjective(harness.Client, new CompleteNPCObjectivePacket
@@ -728,7 +729,9 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.IsTrue(harness.Manager.CompleteOfferedMission(harness.Client, todae.EntityId, 451, 0));
 
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, todae.EntityId, 682));
-            Assert.IsTrue(harness.Manager.CompleteOfferedObjective(harness.Client, harness.Npc(176).EntityId, 682, 2, 1));
+            var assignedAnjuhi = Creatures(harness).Single(creature => creature.SpawnPool?.ScenarioMissionId == 682 &&
+                creature.SpawnPool.SceneActorRole == "anjuhi" && creature.SpawnPool.ScenarioOwnerCharacterId == harness.Client.Player.Id);
+            Assert.IsTrue(harness.Manager.CompleteOfferedObjective(harness.Client, assignedAnjuhi.EntityId, 682, 2, 1));
             harness.Tick();
             var attackers = Creatures(harness).Where(creature => creature.DbId == 87 &&
                 creature.SpawnPool?.ScenarioMissionId == 682 &&

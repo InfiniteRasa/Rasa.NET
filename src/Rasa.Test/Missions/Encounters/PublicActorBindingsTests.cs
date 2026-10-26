@@ -17,7 +17,7 @@ namespace Rasa.Test.Missions.Encounters
         [TestMethod]
         public void RepeatedCatalogLoadsKeepTheCurrentPublicReservationAndPolicy()
         {
-            using var harness = WildernessRuntimeTestHarness.Create();
+            using var harness = WildernessRuntimeTestHarness.Create(targetWorldMigration:"20270908000000_Cache_of_the_day_containers");
             Assert.IsFalse(harness.Manager.LoadMissions().BlocksReadiness);
             harness.SpawnWorld(100, WildernessOpeningWorldV1.RangerSpawnId);
             var ranger = harness.Npc(WildernessOpeningWorldV1.RangerSpawnId);

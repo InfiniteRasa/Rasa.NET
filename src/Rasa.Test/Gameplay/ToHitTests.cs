@@ -27,7 +27,11 @@ namespace Rasa.Test.Gameplay
     public class ToHitTests
     {
         [TestCleanup]
-        public void Cleanup() => ToHit.Roll = Stuns.Roll;
+        public void Cleanup()
+        {
+            ToHit.Roll = Stuns.Roll;
+            ToHit.Now = () => Environment.TickCount64;
+        }
 
         [TestMethod]
         public void AShotAtSomethingStandingDoesNotMissAndOneAtSomethingMovingMay()
@@ -57,6 +61,7 @@ namespace Rasa.Test.Gameplay
             Assert.AreEqual(100, ToHit.ChanceOf(atPlayer));
 
             target.MoveVelocity = 6.5f;
+            target.MoveVelocityTick = Environment.TickCount64;
             target.IsRunning = true;
             Assert.AreEqual(85, ToHit.ChanceOf(atPlayer));
 
@@ -95,6 +100,56 @@ namespace Rasa.Test.Gameplay
             CollectionAssert.AreEqual(new[] { 65 }, rolledFor);
         }
 
+        /// <summary>
+        /// A mag flash on the shooter (AbilityManager.Impair): "any ranged weapon attacks you make
+        /// are likely to miss. (Your ranged attacks do significantly less damage than normal.)"
+        /// Its to-hit comes off their shots on top of the target's own modifiers, and its damage
+        /// off what lands; a swing is untouched by either.
+        /// </summary>
+        [TestMethod]
+        public void AFlashedShootersShotsMissMoreAndHitSoftButTheirSwingsDoNot()
+        {
+            using var world = new WorldTestContext();
+            var shooter = world.CreateClient().Player;
+            var creature = ShotFlightTests.Spawn(world, new Vector3(0, 0, -3));
+
+            var swing = new Missile { Source = shooter, TargetActor = creature, TargetEntityId = creature.EntityId, ActionId = ActionId.WeaponMelee, ActionArgId = 1, IsMelee = true };
+            var shot = new Missile { Source = shooter, TargetActor = creature, TargetEntityId = creature.EntityId, ActionId = ActionId.WeaponAttack, ActionArgId = 1 };
+
+            var flash = new GameEffect
+            {
+                EffectId = 1,
+                Blinds = true,
+                RangedToHitModifier = AbilityManager.MagFlashToHitModifier,
+                RangedDamagePercent = AbilityManager.MagFlashRangedDamagePercent,
+                ExpiresTick = Environment.TickCount64 + 60000
+            };
+            shooter.ActiveEffects[1] = flash;
+
+            Assert.AreEqual(40, ToHit.ChanceOf(shot), "100 - the flash's 60");
+            Assert.AreEqual(100, ToHit.ChanceOf(swing));
+            Assert.AreEqual(50, GameEffectManager.ApplyRangedDamage(shooter, 100), "Called Shot: Eye's half");
+
+            creature.Controller.LastMovement = new Movement(creature.Position, 6f, Movement.FastTurn, Vector2.Zero);
+            creature.IsRunning = true;
+            Assert.AreEqual(25, ToHit.ChanceOf(shot), "and the target's running on top");
+
+            // On the target it is nothing to the shot: it is the shooter's eyes.
+            shooter.ActiveEffects.Clear();
+            creature.ActiveEffects[1] = flash;
+            Assert.AreEqual(85, ToHit.ChanceOf(shot));
+            creature.ActiveEffects.Clear();
+
+            // A creature it has blinded shoots as badly.
+            var atPlayer = new Missile { Source = creature, TargetActor = shooter, TargetEntityId = shooter.EntityId, ActionId = ActionId.WeaponAttack, ActionArgId = 1 };
+            creature.ActiveEffects[1] = flash;
+            Assert.AreEqual(40, ToHit.ChanceOf(atPlayer));
+
+            // Worn off: as before.
+            flash.ExpiresTick = Environment.TickCount64 - 1;
+            Assert.AreEqual(100, ToHit.ChanceOf(atPlayer));
+        }
+
         [TestMethod]
         public void APlayerIsOnTheMoveWhenTheirLastMoveTookThemSomewhere()
         {
@@ -131,6 +186,42 @@ namespace Rasa.Test.Gameplay
             Assert.IsTrue(client.HandleMovement(new Movement(new Vector3(0, 0, 3), 6.5f, Movement.FastTurn, Vector2.Zero)));
             player.PlaceAt(new Vector3(5, 0, 5));
             Assert.IsFalse(ToHit.IsMoving(player));
+        }
+
+        /// <summary>
+        /// A client whose last Move went somewhere and that then sends no more is standing once
+        /// ToHit.MovingMs have passed: it does not keep the moving target's modifier for good.
+        /// </summary>
+        [TestMethod]
+        public void APlayerWhoseMovesStopComingIsStandingAfterHalfASecond()
+        {
+            using var world = new WorldTestContext();
+            var client = world.CreateClient();
+            var player = client.Player;
+            var now = 1_000_000L;
+            ToHit.Now = () => now;
+
+            CellManager.Instance.AddToWorld(client);
+            player.PlaceAt(new Vector3(0, 0, 0));
+            player.MoveBudget = 60;
+            player.IsRunning = true;
+
+            Assert.IsTrue(client.HandleMovement(new Movement(new Vector3(0, 0, 1), 6.5f, Movement.FastTurn, Vector2.Zero)));
+            var moved = player.MoveVelocityTick;
+            Assert.AreNotEqual(0L, moved, "the Move's time kept with its velocity");
+
+            now = moved + ToHit.MovingMs;
+            Assert.IsTrue(ToHit.IsMoving(player), "within half a second of it");
+            Assert.AreEqual(ToHit.TargetRunning, ToHit.MovementModifier(player));
+
+            now = moved + ToHit.MovingMs + 1;
+            Assert.IsFalse(ToHit.IsMoving(player), "no Move since: standing");
+            Assert.AreEqual(0, ToHit.MovementModifier(player));
+
+            // The next Move that goes somewhere puts them on the move again.
+            Assert.IsTrue(client.HandleMovement(new Movement(new Vector3(0, 0, 2), 6.5f, Movement.FastTurn, Vector2.Zero)));
+            now = player.MoveVelocityTick;
+            Assert.IsTrue(ToHit.IsMoving(player));
         }
 
         [TestMethod]

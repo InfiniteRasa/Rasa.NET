@@ -58,6 +58,11 @@ namespace Rasa.Managers
             if (!MapInstanceScope.Contains(player.MapChannel, obj))
                 return 0;
 
+            // Scene-owned pickups advance through scene signals, not InteractionUsed triggers.
+            // They still need the native mission-usable highlight while their owner can use them.
+            if (obj.MissionUseAction is { } use)
+                return obj.IsEnabled && DynamicObjectManager.MissionUseAvailable(client, obj) ? use.MissionId : 0;
+
             var wanted = (missions ?? MissionApplication.Instance).WantedInteractions(player);
 
             return wanted.TryGetValue((uint)obj.EntityClassId, out var missionId) ? missionId : 0;
@@ -69,7 +74,8 @@ namespace Rasa.Managers
         /// </summary>
         public static UsableInfoPacket InfoFor(Client client, DynamicObject obj, bool enabled, uint windupTime, MissionApplication missions = null)
         {
-            var activation = ActivationFor(client, obj, missions);
+            enabled &= obj.MissionUseAction == null || obj.IsEnabled && DynamicObjectManager.MissionUseAvailable(client, obj);
+            var activation = !enabled && obj.MissionUseAction != null ? 0 : ActivationFor(client, obj, missions);
 
             if (client != null)
             {
@@ -94,19 +100,35 @@ namespace Rasa.Managers
             if (mapChannel == null || player.Cells == null || client.State != ClientState.Ingame)
                 return;
 
+            MissionNpcVisibility.Refresh(client, missions);
+
             // Nothing to give and nothing given: most players, most of the time.
-            if (client.MissionObjects.Count == 0 && (player.Missions == null || player.Missions.Count == 0))
+            if (client.MissionObjects.Count == 0 && (player.Missions == null || player.Missions.Count == 0) &&
+                !mapChannel.DynamicObjects.Any(obj => obj.MissionUseAction != null && obj.SceneOwnerCharacterId == player.Id))
                 return;
 
             var inView = new HashSet<ulong>();
 
-            foreach (var obj in CellManager.CellsIn(mapChannel, player.Cells).SelectMany(cell => cell.DynamicObjectList).Distinct().ToList())
+            foreach (var obj in CellManager.CellsIn(mapChannel, player.Cells).SelectMany(cell => cell.DynamicObjectList).Distinct()
+                         .Where(obj => DynamicObjectManager.IsShownTo(client, obj)).ToList())
             {
                 inView.Add(obj.EntityId);
 
                 if (obj.DynamicObjectType == DynamicObjectType.Emitter || obj.DynamicObjectType == DynamicObjectType.Scenery ||
                     obj.DynamicObjectType == DynamicObjectType.AmbientNpc || obj.MissionConversation != null)
                     continue;
+
+                if (obj.MissionUseAction != null)
+                {
+                    var enabled = DynamicObjectManager.IsTargetableFor(client, obj);
+                    client.CallMethod(obj.EntityId, new IsTargetablePacket(enabled));
+                    if (!enabled)
+                    {
+                        client.MissionObjects.Remove(obj.EntityId);
+                        client.CallMethod(obj.EntityId, new UsableInfoPacket(false, obj.StateId, obj.NameOverrideId, obj.WindupTime, 0));
+                        continue;
+                    }
+                }
 
                 var activation = ActivationFor(client, obj, missions);
                 var told = client.MissionObjects.Contains(obj.EntityId);
@@ -126,6 +148,8 @@ namespace Rasa.Managers
                     if (obj.IsEnabled)
                         client.CallMethod(obj.EntityId, new SetUsablePacket(true));
                 }
+                else if (obj.MissionUseAction != null)
+                    client.CallMethod(obj.EntityId, InfoFor(client, obj, obj.IsEnabled, obj.WindupTime, missions));
             }
 
             // What has left the cells is gone from the client; it is made again when met again.

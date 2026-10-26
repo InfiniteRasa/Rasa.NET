@@ -98,7 +98,7 @@ namespace Rasa.Test.World
             // Told why, and nothing else: no item has moved on the client either.
             var sent = fixture.Sent();
 
-            Assert.AreEqual(PlayerMessage.PmInventoryFull, ((DisplayClientMessagePacket)sent.Single()).MsgId);
+            Assert.AreEqual(PlayerMessage.PmInventoryFull, ((Rasa.Packets.ClientMethod.Server.DisplaySystemMessagePacket)sent.Single()).MsgId);
             fixture.AssertThePackStillWorks();
         }
 
@@ -142,7 +142,7 @@ namespace Rasa.Test.World
             Assert.AreEqual(ammo.EntityId, fixture.Storage[7]);
             Assert.AreEqual(0UL, fixture.Pack[3]);
             fixture.AssertStorageRow(ammo, 7);
-            Assert.AreEqual(PlayerMessage.PmInventoryFull, ((DisplayClientMessagePacket)fixture.Sent().Single()).MsgId);
+            Assert.AreEqual(PlayerMessage.PmInventoryFull, ((Rasa.Packets.ClientMethod.Server.DisplaySystemMessagePacket)fixture.Sent().Single()).MsgId);
         }
 
         [TestMethod]

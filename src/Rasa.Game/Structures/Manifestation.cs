@@ -107,6 +107,13 @@ namespace Rasa.Structures
         internal float MoveVelocity { get; set; }
 
         /// <summary>
+        /// Environment.TickCount64 of the Move that set <see cref="MoveVelocity"/>. A client on the
+        /// move sends ten a second; one that has sent none for a while is standing, whatever its
+        /// last said (Managers.ToHit.MovingMs).
+        /// </summary>
+        internal long MoveVelocityTick { get; set; }
+
+        /// <summary>
         /// Environment.TickCount64 of the last movement correction sent to this client, so a
         /// client that keeps sending refused positions is snapped back and logged at a bounded
         /// rate rather than once per packet.
@@ -325,6 +332,9 @@ namespace Rasa.Structures
         /// </summary>
         public int ArmorRegenRate { get; set; }
 
+        /// <summary>Stat/module health regeneration before the resting recovery minimum. Runtime only.</summary>
+        public int? HealthRegenRate { get; set; }
+
         /// <summary>
         /// What the player's client was last told its item modules give (ModuleTotals.Shown);
         /// null before the first telling, which is nothing. See ItemModuleBonuses.Changed.
@@ -439,6 +449,15 @@ namespace Rasa.Structures
 
         /// <summary>The accounts this GM has whispered while invisible: they can whisper back.</summary>
         public HashSet<uint> GmInvisibleWhispered { get; } = new HashSet<uint>();
+
+        /// <summary>The tutorials raised for this player this session (Tutorials): each once.</summary>
+        internal HashSet<TutorialId> TutorialsRaised { get; } = new HashSet<TutorialId>();
+
+        /// <summary>The HUD's tutorials still to come after the session's first arrival, soonest first (Tutorials.Arrival).</summary>
+        internal List<(long Due, TutorialId Tutorial)> TutorialsDue { get; } = new List<(long Due, TutorialId Tutorial)>();
+
+        /// <summary>Whether the HUD's tutorials have been lined up this session.</summary>
+        internal bool TutorialsLinedUp { get; set; }
 
         /// <summary>Killed by an enemy player across a wargame: back from a hospital with PvP Safety.</summary>
         public bool DiedInPvp { get; set; }

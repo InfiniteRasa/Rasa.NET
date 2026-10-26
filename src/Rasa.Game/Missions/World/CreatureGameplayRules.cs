@@ -88,7 +88,7 @@ namespace Rasa.Game.Missions.World
 
         internal static bool IsDefender(Creature creature) => Policy(creature).Defends;
         internal static bool CanParticipateInCombat(Creature creature) =>
-            creature?.ScriptedCombatGate?.Invoke() != false;
+            !MissionNpcVisibility.IsProtectedPublicActor(creature) && creature?.ScriptedCombatGate?.Invoke() != false;
         internal static bool IsInvulnerable(Creature creature) =>
             Policy(creature).Invulnerable || !CanParticipateInCombat(creature);
         internal static bool TracksParticipation(Creature creature) => Policy(creature).TrackParticipation;

@@ -305,9 +305,8 @@ namespace Rasa.Managers
             foreach (var hatchling in here)
             {
                 var creature = hatchling.Creature;
-                var inWorld = EntityManager.Instance.Creatures.TryGetValue(creature.EntityId, out var registered) && registered == creature;
 
-                if (!inWorld || !Alive(creature))
+                if (!Alive(creature))
                 {
                     lock (Sync)
                         Broods.Remove(hatchling);
@@ -355,7 +354,14 @@ namespace Rasa.Managers
             return null;
         }
 
+        /// <summary>
+        /// Alive and still in the world. A hatchling taken away - expired here, a GM's .removeobj,
+        /// the map reset - goes out with its state untouched, and kept the cluster from ever
+        /// hatching again; what is no longer registered as itself is gone, as PlacedDestructibles
+        /// counts it.
+        /// </summary>
         private static bool Alive(Creature creature) =>
-            creature != null && creature.State != CharacterState.Dead && creature.State != CharacterState.Dying;
+            creature != null && creature.State != CharacterState.Dead && creature.State != CharacterState.Dying &&
+            EntityManager.Instance.Creatures.TryGetValue(creature.EntityId, out var registered) && ReferenceEquals(registered, creature);
     }
 }

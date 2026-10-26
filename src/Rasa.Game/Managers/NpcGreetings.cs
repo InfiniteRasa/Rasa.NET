@@ -72,8 +72,66 @@ namespace Rasa.Managers
             (1282, 1710), (10000001, 10000002), (20000003, 20000003), (20000006, 20000008)
         };
 
+        /// <summary>
+        /// A line an NPC says once one of its missions is behind the player, in place of its own
+        /// line or the default: a mission done (ObjectiveId 0), or an objective of it complete (or
+        /// the mission done). What a soldier says after the player has turned him in, or a medic
+        /// once the player has been to her about a sample.
+        /// </summary>
+        public sealed record AfterMissionLine(uint Creature, uint MissionId, uint ObjectiveId, uint GreetingId, bool Important);
+
+        /// <summary>
+        /// The NPCs whose line changes with a mission, by creature row, first match. Footage of the
+        /// live game has these lines said after the mission, not before.
+        /// </summary>
+        public static readonly AfterMissionLine[] AfterMission =
+        {
+            // Medical Assistant Duncan, Twin Pillars, once spoken to in Quarantine: "The Commander's been coming down hard on everybody..."
+            new(125, 442, 1, 557, true),
+            // Private Moore, Twin Pillars, once Smuggler's Blues is done: "Thanks for nothing... I'm going to be on KP for the next century!"
+            new(131, 623, 0, 553, true),
+        };
+
+        /// <summary>
+        /// The line an NPC has for this character, and whether it is marked: a mission's line once
+        /// the mission is behind them (<see cref="AfterMission"/>), else the NPC's own; null for
+        /// none, when it says the default.
+        /// </summary>
+        public static (uint Id, bool Important)? LineFor(Manifestation player, Creature creature)
+        {
+            if (creature?.Npc == null)
+                return null;
+
+            if (player != null)
+                foreach (var line in AfterMission)
+                    if (line.Creature == creature.DbId && Reached(player, line))
+                        return (line.GreetingId, line.Important);
+
+            return creature.Npc.GreetingId != 0 ? (creature.Npc.GreetingId, creature.Npc.GreetingImportant) : null;
+        }
+
+        /// <summary>Whether the mission of a line is behind the character: done, or the line's objective of it complete.</summary>
+        public static bool Reached(Manifestation player, AfterMissionLine line)
+        {
+            if (player.MissionSuccessHistory.Contains(line.MissionId) ||
+                player.MissionHistory.TryGetValue(line.MissionId, out var state) && state is MissionState.Success or MissionState.Completed)
+                return true;
+
+            return line.ObjectiveId != 0 && player.Missions.TryGetValue(line.MissionId, out var log) &&
+                log.Objectives.TryGetValue(line.ObjectiveId, out var objective) && objective.State == MissionObjectiveState.Completed;
+        }
+
         /// <summary>The greeting of an NPC: its own, or the default.</summary>
         public static int For(Creature creature) => HasOwn(creature) ? (int)creature.Npc.GreetingId : Default;
+
+        /// <summary>The greeting of an NPC to this character: the line it has for them, or the default.</summary>
+        public static int For(Manifestation player, Creature creature) => LineFor(player, creature) is { } line ? (int)line.Id : Default;
+
+        /// <summary>Whether an NPC has a line for this character, and so can be spoken to for it.</summary>
+        public static bool HasOwn(Manifestation player, Creature creature) => LineFor(player, creature).HasValue;
+
+        /// <summary>Whether the line an NPC has for this character is marked important.</summary>
+        public static bool IsImportant(Manifestation player, Creature creature) => LineFor(player, creature) is { Important: true };
 
         /// <summary>Whether an NPC has a line of its own, and so can be spoken to for it.</summary>
         public static bool HasOwn(Creature creature) => creature?.Npc != null && creature.Npc.GreetingId != 0;
@@ -81,22 +139,22 @@ namespace Rasa.Managers
         /// <summary>Whether an NPC's own line is marked important: the speech bubble over its head.</summary>
         public static bool IsImportant(Creature creature) => HasOwn(creature) && creature.Npc.GreetingImportant;
 
-        /// <summary>Whether the character has read the NPC's own line - the one it has now.</summary>
+        /// <summary>Whether the character has read the line the NPC has for them now.</summary>
         public static bool HasRead(Manifestation player, Creature creature)
         {
-            if (player == null || !HasOwn(creature))
+            if (player == null || LineFor(player, creature) is not { } now)
                 return false;
 
             lock (player.GreetingsRead)
-                return player.GreetingsRead.TryGetValue(creature.DbId, out var line) && line == creature.Npc.GreetingId;
+                return player.GreetingsRead.TryGetValue(creature.DbId, out var line) && line == now.Id;
         }
 
         /// <summary>
-        /// Whether the NPC has the speech bubble for this character: its line is marked
+        /// Whether the NPC has the speech bubble for this character: its line for them is marked
         /// important and the character has not read it.
         /// </summary>
         public static bool IsUnread(Manifestation player, Creature creature) =>
-            IsImportant(creature) && !HasRead(player, creature);
+            IsImportant(player, creature) && !HasRead(player, creature);
 
         /// <summary>
         /// The character has read the NPC's line: kept for the character
@@ -108,12 +166,14 @@ namespace Rasa.Managers
         /// </summary>
         public static bool MarkRead(Manifestation player, Creature creature, IGameUnitOfWorkFactory factory)
         {
-            if (player == null || !HasOwn(creature) || creature.DbId == 0)
+            if (player == null || LineFor(player, creature) is not { } now || creature.DbId == 0)
                 return false;
+
+            var greetingId = now.Id;
 
             lock (player.GreetingsRead)
             {
-                if (player.GreetingsRead.TryGetValue(creature.DbId, out var line) && line == creature.Npc.GreetingId)
+                if (player.GreetingsRead.TryGetValue(creature.DbId, out var line) && line == greetingId)
                     return false;
 
                 if (player.Id != 0)
@@ -121,15 +181,15 @@ namespace Rasa.Managers
                     try
                     {
                         using var unitOfWork = factory.CreateChar();
-                        unitOfWork.CharacterGreetingReads.Set(player.Id, creature.DbId, creature.Npc.GreetingId);
+                        unitOfWork.CharacterGreetingReads.Set(player.Id, creature.DbId, greetingId);
                     }
                     catch (Exception e)
                     {
-                        Logger.WriteLog(LogType.Error, $"Character {player.Id} reading greeting {creature.Npc.GreetingId} of creature {creature.DbId} was not saved: {e.Message}");
+                        Logger.WriteLog(LogType.Error, $"Character {player.Id} reading greeting {greetingId} of creature {creature.DbId} was not saved: {e.Message}");
                     }
                 }
 
-                player.GreetingsRead[creature.DbId] = creature.Npc.GreetingId;
+                player.GreetingsRead[creature.DbId] = greetingId;
 
                 return true;
             }
@@ -289,12 +349,16 @@ namespace Rasa.Managers
         /// it: more than one topic. A conversation of one topic goes straight to it and reads no
         /// greeting, and is left as it is. Returns whether it was added.
         /// </summary>
-        public static bool AddTo(Dictionary<ConversationType, object> conversation, Creature creature)
+        public static bool AddTo(Dictionary<ConversationType, object> conversation, Creature creature) =>
+            AddTo(conversation, null, creature);
+
+        /// <summary>The same, with the line the NPC has for this character (<see cref="LineFor"/>).</summary>
+        public static bool AddTo(Dictionary<ConversationType, object> conversation, Manifestation player, Creature creature)
         {
             if (conversation == null || conversation.ContainsKey(ConversationType.Greeting) || Topics(conversation) < 2)
                 return false;
 
-            conversation.Add(ConversationType.Greeting, For(creature));
+            conversation.Add(ConversationType.Greeting, player == null ? For(creature) : For(player, creature));
 
             return true;
         }

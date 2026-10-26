@@ -164,6 +164,46 @@ namespace Rasa.Test.Gameplay
             Assert.AreEqual(stream.Length, stream.Position);
         }
 
+        // tooltipwindow.py prints "Autofire" for a weapon whose windup is -1 and no other, so the
+        // windup goes out signed (ItemTemplateWeaponEntry.AutofireWindup).
+        [TestMethod]
+        [DataRow(-1)]
+        [DataRow(800)]
+        public void TheWindupIsSentSignedSoAnAutofireWeaponReadsMinusOne(int windup)
+        {
+            var entityClass = new EntityClass(90010, "fixture_rifle", 0, 0, new List<AugmentationType> { AugmentationType.Weapon }, false)
+            {
+                WeaponClassInfo = new WeaponClassInfo(new WeaponClassEntry { Id = 90010, AmmoClassId = 0, ClipSize = 30, MinDamage = 10, MaxDamage = 20, DamageType = 1 })
+            };
+            var itemTemplate = new ItemTemplate(new ItemTemplateItemClassEntry { ItemTemplateId = 90011, ItemClass = 90010 })
+            {
+                WeaponInfo = new WeaponInfo(new ItemTemplateWeaponEntry { Id = 90011, AmmoPerShot = 1, Windup = windup, Recovery = 1, Refire = 800, ReloadTime = 1500, Range = 80 })
+            };
+
+            using var stream = new MemoryStream();
+            using (var writer = new PythonWriter(new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true)))
+                new ItemTemplateTooltipInfoPacket(itemTemplate, entityClass).Write(writer);
+
+            stream.Position = 0;
+            using var reader = new PythonReader(new BinaryReader(stream));
+
+            Assert.AreEqual(3, reader.ReadTuple());
+            reader.ReadUInt();
+            reader.ReadUInt();
+            Assert.AreEqual(1, reader.ReadDictionary());
+            Assert.AreEqual((int)AugmentationType.Weapon, reader.ReadInt());
+            Assert.AreEqual(16, reader.ReadTuple());
+            reader.ReadInt();                               // min damage
+            reader.ReadInt();                               // max damage
+            reader.ReadNoneStruct();                        // no ammo class
+            Assert.AreEqual(30u, reader.ReadUInt());        // clip size
+            Assert.AreEqual(1u, reader.ReadUInt());         // ammo per shot
+            Assert.AreEqual(1, reader.ReadInt());           // damage type
+            Assert.AreEqual(windup, reader.ReadInt(), "windup, kWeaponIdx_WindupTime");
+            Assert.AreEqual(1u, reader.ReadUInt());         // recovery
+            Assert.AreEqual(800u, reader.ReadUInt());       // refire
+        }
+
         // An item's module ids are a list the client loops over (HandleReceiveItemInfo); there are
         // none yet, and that is an empty list rather than None.
         [TestMethod]

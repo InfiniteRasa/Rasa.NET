@@ -83,6 +83,14 @@ namespace Rasa.Managers
         public const byte BehaviorActionReturning = 6;
 
         /// <summary>
+        /// In a squad out in the world (NpcSquads; <see cref="AdvanceSquad"/>): going where the
+        /// squad puts it - the leader along the squad's route, the others to their places about
+        /// him. It notices a fight as a wandering creature does, at the squad's range, and comes
+        /// back to the squad from wandering when the fight is over.
+        /// </summary>
+        public const byte BehaviorActionSquad = 8;
+
+        /// <summary>
         /// How far a creature with no master follows a fight from its home before it gives up and
         /// goes back (<see cref="Leash"/>): its own distance, across the ground. The target's
         /// does not matter - a sniper at home shooting someone forty metres off is not chasing.
@@ -558,6 +566,13 @@ namespace Rasa.Managers
                 {
                     wander.IdleMs += delta;
 
+                    // One of a squad goes back to it (NpcSquads).
+                    if (creature.SquadMember != null)
+                    {
+                        SetActionSquad(creature);
+                        return;
+                    }
+
                     // A creature with a beat walks it whenever it has nothing else to do (Patrols).
                     if (Patrols.Has(creature))
                     {
@@ -741,6 +756,15 @@ namespace Rasa.Managers
 
                 FollowPath(mapChannel, creature, speed, delta);
             }
+            else if (creature.Controller.CurrentAction == BehaviorActionSquad)
+            {
+                // It notices a fight as a wandering creature does, as far off as its squad looks.
+                if (creature.LastAgression >= AggroScanDelayMs && ScansForEnemies(creature)
+                    && CheckForAttackableEntityInRange(mapChannel, creature, NpcSquads.EngageRange(creature)))
+                    return;
+
+                AdvanceSquad(mapChannel, creature, delta);
+            }
             else if (creature.Controller.CurrentAction == BehaviorActionPatrol)
             {
                 // It notices a fight on its beat as a wandering creature does.
@@ -821,14 +845,14 @@ namespace Rasa.Managers
                 var assisting = AssistedTarget(creature);
                 // Mission escorts and defenders already chose a target within their owner's or
                 // base's bounds above; ambient hate must not override that assignment.
-                var chosen = IsMissionEscort(creature) || Game.Missions.World.CreatureGameplayRules.IsDefender(creature)
+                var chosen = LandingZoneAssaultTargeting.IsAssault(creature) || IsMissionEscort(creature) || Game.Missions.World.CreatureGameplayRules.IsDefender(creature)
                     ? creature.Controller.ActionFighting.TargetEntityId
                     : assisting != 0 ? assisting : Threat.ChooseTarget(creature);
 
                 if (assisting != 0)
                     creature.Target = assisting;
 
-                if (chosen == 0)
+                if (chosen == 0 || LandingZoneAssaultTargeting.IsAssault(creature) && !Threat.CanFight(creature, chosen))
                 {
                     GiveUp(creature);
                     return;
@@ -911,6 +935,8 @@ namespace Rasa.Managers
 
                     targetPosition = targetCreature.Position;
                 }
+                else if (target == EntityType.Object && ForceFields.MayBeFoughtBy(creature, creature.Controller.ActionFighting.TargetEntityId))
+                    targetPosition = ForceFields.AttackPoint(ForceFields.Find(creature.Controller.ActionFighting.TargetEntityId), creature.Position);
                 else if (target == EntityType.Object && PersonalWaypoints.TryGetPosition(creature.Controller.ActionFighting.TargetEntityId, out var waypointPosition))
                 {
                     // A Personal Waypoint (PersonalWaypoints): a place to walk up to and hit,
@@ -1166,6 +1192,12 @@ namespace Rasa.Managers
                     return;
                 }
 
+                if (creature.FightFromPatrol)
+                {
+                    GiveUp(creature);
+                    return;
+                }
+
                 // A Shield Drone does not go to its target; the target comes to it. The guide
                 // gives it "Offense: None" and tells the player to "sprint directly toward them",
                 // which only works if the drone stays where its shield is - so it keeps whoever
@@ -1228,7 +1260,12 @@ namespace Rasa.Managers
 
                     var pathTarget = new Vector3();
 
-                    if (sightBlocked)
+                    if (LandingZoneAssaultTargeting.IsAssault(creature) && targetActor != null && (sightBlocked || Emplacements.Is(targetActor as Creature)) &&
+                        LandingZoneAssaultTargeting.FiringPosition(mapChannel, creature, targetActor) is Vector3 firingPosition)
+                    {
+                        pathTarget = firingPosition;
+                    }
+                    else if (sightBlocked)
                     {
                         // Something between them: the navmesh route to the target itself goes
                         // round it, where a point short of the target on this side would not.
@@ -1263,7 +1300,7 @@ namespace Rasa.Managers
                     // Its own place round the target: one no other of its side stands on or is
                     // making for, turned round the target until it is clear (Spacing). With a
                     // route to go round something in the way, the target itself, as before.
-                    if (!sightBlocked && Spacing.Keeps(creature))
+                    if (!LandingZoneAssaultTargeting.IsAssault(creature) && !sightBlocked && Spacing.Keeps(creature))
                         pathTarget = Spacing.AroundClear(mapChannel, targetPosition, pathTarget,
                             Spacing.Taken(mapChannel, creature, targetPosition)) ?? pathTarget;
 
@@ -1546,6 +1583,107 @@ namespace Rasa.Managers
 
         #endregion
 
+        #region Squad
+
+        /// <summary>Puts one of a squad (NpcSquads) to going where the squad puts it, from wherever it is.</summary>
+        public void SetActionSquad(Creature creature)
+        {
+            var member = creature.SquadMember;
+
+            if (member == null || creature.Controller == null)
+                return;
+
+            creature.Controller.CurrentAction = BehaviorActionSquad;
+            creature.Controller.Path.Clear();
+            creature.Controller.PathIndex = 0;
+            member.PathGoal = null;
+            member.RepathMs = 0;
+            member.Stopped = false;
+            member.Stuck = false;
+        }
+
+        /// <summary>A squad member this near its goal, across the ground, is there.</summary>
+        private const float SquadGoalReached = 0.6f;
+
+        /// <summary>A goal that has moved this far since the route to it was made gets a new route.</summary>
+        private const float SquadRepathDistance = 1.5f;
+
+        /// <summary>The least time between two routes a squad member makes, and how near it goes straight.</summary>
+        private const long SquadRepathMs = 500;
+        private const float SquadStraightDistance = 3f;
+
+        /// <summary>
+        /// One think of a squad member: the walk to where its squad puts it (NpcSquads.Worker), at
+        /// the squad's pace or running to catch up; across the navmesh, or straight when it is
+        /// close. There, or given nowhere to go, it stands, facing the squad's way.
+        /// </summary>
+        private void AdvanceSquad(MapChannel mapChannel, Creature creature, long delta)
+        {
+            var member = creature.SquadMember;
+
+            if (member == null)
+            {
+                SetActionWander(creature);
+                return;
+            }
+
+            var controller = creature.Controller;
+
+            member.RepathMs -= delta;
+
+            var goal = member.Goal;
+            var gap = goal is Vector3 g ? Vector2.Distance(new Vector2(g.X, g.Z), new Vector2(creature.Position.X, creature.Position.Z)) : 0f;
+
+            if (goal == null || creature.WalkSpeed < 0.01f || gap <= SquadGoalReached)
+            {
+                // It stands, and turns to the squad's way when that is well off its own.
+                var turn = MathF.Abs(MathF.IEEERemainder(creature.LastYaw - member.Facing, MathF.PI * 2));
+
+                if (!member.Stopped || turn > 0.35f)
+                {
+                    controller.Path.Clear();
+                    controller.PathIndex = 0;
+                    member.PathGoal = null;
+                    creature.LastYaw = member.Facing;
+                    creature.Rotation = creature.LastYaw;
+                    StopWalking(creature);
+                    member.Stopped = true;
+                }
+
+                return;
+            }
+
+            var target = goal.Value;
+            var moved = member.PathGoal is Vector3 was && Vector3.Distance(was, target) > SquadRepathDistance;
+
+            if (controller.Path.Count == 0 || moved)
+            {
+                if (gap <= SquadStraightDistance)
+                {
+                    controller.Path.Clear();
+                    controller.PathIndex = 0;
+                    controller.Path.Add(target);
+                    member.PathGoal = target;
+                }
+                else if (member.RepathMs <= 0)
+                {
+                    member.Stuck = !BuildPath(mapChannel, creature, target);
+                    member.PathGoal = target;
+                    member.RepathMs = SquadRepathMs;
+                }
+
+                if (controller.Path.Count == 0)
+                    return;
+            }
+
+            member.Stopped = false;
+
+            if (FollowPath(mapChannel, creature, Math.Max(0.5f, member.Speed), delta))
+                member.PathGoal = null;
+        }
+
+        #endregion
+
         #region Patrol
 
         /// <summary>
@@ -1725,7 +1863,11 @@ namespace Rasa.Managers
 
             PublishMovement(creature, new Movement(creature.Position, 0f, 0x08, new Vector2(yaw, 0f)));
 
-            return Patrols.TurnMs(turn);
+            // And the turn itself, where the creature has the animation for it (CreatureTurns).
+            var turnMs = Patrols.TurnMs(turn);
+            CreatureTurns.Begin(creature, turn, yaw, turnMs);
+
+            return turnMs;
         }
 
         #endregion
@@ -2405,6 +2547,9 @@ namespace Rasa.Managers
                         if (creature == null || !processedCreatures.Add(creature))
                             continue;
 
+                        // A turn in place that has had its time is told its end (CreatureTurns).
+                        CreatureTurns.Finish(creature);
+
                         CreatureThink(mapChannel, creature, elapsed, out var needDeletion, out var needCellUpdate);
 
                         if (needDeletion)
@@ -2634,6 +2779,7 @@ namespace Rasa.Managers
             // A fight starting, not a change of target within one: its first attack is rolled for again (OpensNow).
             if (creature.Controller.CurrentAction != BehaviorActionFighting)
             {
+                if (creature.FightFromPatrol) creature.HomePos.Position = creature.Position;
                 creature.Controller.ActionFighting.Opened = false;
                 creature.Controller.ActionFighting.OpeningRolls = 0;
             }
@@ -2707,7 +2853,7 @@ namespace Rasa.Managers
 
             if (EntityManager.Instance.Creatures.TryGetValue(entityId, out var other))
             {
-                if (other == creature || !Game.Missions.World.CreatureGameplayRules.CanParticipateInCombat(other))
+                if (other == creature || LandingZoneAssaultTargeting.IsServiceTarget(creature, other) || !Game.Missions.World.CreatureGameplayRules.CanParticipateInCombat(other))
                     return false;
 
                 if (pump == AbilityManager.MindControlConfusion)
@@ -2728,7 +2874,7 @@ namespace Rasa.Managers
             // A Personal Waypoint (PersonalWaypoints) is fought by what fights its owner, and so is
             // a Hortimonculus (AbilityManager). A Confused or Subverted creature has turned on
             // creatures, and leaves them.
-            return pump == 0 && (PersonalWaypoints.MayBeFoughtBy(creature, entityId) || AbilityManager.PlantMayBeFoughtBy(creature, entityId));
+            return pump == 0 && (PersonalWaypoints.MayBeFoughtBy(creature, entityId) || AbilityManager.PlantMayBeFoughtBy(creature, entityId) || ForceFields.MayBeFoughtBy(creature, entityId));
         }
 
         /// <summary>
@@ -2926,11 +3072,13 @@ namespace Rasa.Managers
         /// <summary>Whether a creature with no master has followed a fight further from home than <see cref="MaxChaseDistance"/>, across the ground.</summary>
         public static bool ChasedTooFar(Creature creature)
         {
-            var home = creature.HomePos.Position;
+            var home = LandingZoneAssaultTargeting.IsAssault(creature)
+                ? ControlPoints.Instance.ById(Rasa.Services.Preloader.LandingZoneAssaultContent.PointId)?.Position ?? creature.HomePos.Position
+                : creature.HomePos.Position;
             var dx = creature.Position.X - home.X;
             var dz = creature.Position.Z - home.Z;
 
-            return dx * dx + dz * dz > MaxChaseDistance * MaxChaseDistance;
+            return dx * dx + dz * dz > (LandingZoneAssaultTargeting.IsAssault(creature) ? 200f * 200f : MaxChaseDistance * MaxChaseDistance);
         }
 
         /// <summary>

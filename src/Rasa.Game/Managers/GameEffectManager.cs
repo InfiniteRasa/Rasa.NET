@@ -243,6 +243,9 @@ namespace Rasa.Managers
             if (effect.ChangesRegen)
                 SyncRegen(mapChannel, actor);
 
+            if (effect.ResistModifier != 0)
+                SyncResistances(mapChannel, actor);
+
             // Out of sight: after the attach has gone out, so that the clients about to lose the
             // entity have been told what is on it first, and their own copy of the player goes
             // with the cloak's own visuals rather than before them.
@@ -363,7 +366,7 @@ namespace Rasa.Managers
             {
                 TypeId = SprintTypeId,
                 EffectId = NextEffectId(mapChannel),
-                EffectLevel = level.Level,
+                EffectLevel = GameEffectFx.LevelFor(SprintTypeId, level.Level),
                 ActionId = level.ActionId,
                 SourceId = actor.EntityId,
                 Source = actor,
@@ -429,6 +432,9 @@ namespace Rasa.Managers
 
             if (gameEffect.ChangesRegen)
                 SyncRegen(mapChannel, actor);
+
+            if (gameEffect.ResistModifier != 0)
+                SyncResistances(mapChannel, actor);
 
             // Back in sight, unless another cloak is still hiding them (an invisible GM is given
             // back to the GMs only: Detection.Reveal).
@@ -1037,6 +1043,33 @@ namespace Rasa.Managers
             return total;
         }
 
+        /// <summary>
+        /// The resistance totals shown to the client. Keep ResistanceData as equipment and
+        /// skill resistance only: ApplyResist adds active effects separately when resolving a hit.
+        /// </summary>
+        public static List<ResistanceData> ResistanceDataForClient(Manifestation player)
+        {
+            var totals = player.ResistanceData.GroupBy(r => r.ResistanceType)
+                .ToDictionary(group => group.Key, group => group.Sum(r => r.ResistanceAmmount));
+
+            foreach (DamageType type in Enum.GetValues(typeof(DamageType)))
+            {
+                var modifier = ResistModifierOf(player, type);
+                if (modifier != 0)
+                    totals[type] = totals.GetValueOrDefault(type) + modifier;
+            }
+
+            return totals.Where(pair => pair.Value != 0)
+                .Select(pair => new ResistanceData(pair.Key, pair.Value)).ToList();
+        }
+
+        private static void SyncResistances(MapChannel mapChannel, Actor actor)
+        {
+            if (actor is Manifestation player)
+                ClientOf(mapChannel, player)?.CallMethod(player.EntityId,
+                    new ResistanceDataPacket(ResistanceDataForClient(player)));
+        }
+
         /// <summary>How much of the actor's cover still counts, in percent: the least any effect on it allows (Target Painting), 100 with none.</summary>
         public static int CoverCountsPercentOf(Actor actor)
         {
@@ -1230,6 +1263,24 @@ namespace Rasa.Managers
             return Math.Min(100, percent);
         }
 
+        /// <summary>
+        /// What the effects on the actor do to the chance its own ranged weapon shots hit (the mag
+        /// flash): the strongest penalty, 0 when nothing impairs it.
+        /// </summary>
+        public static int RangedToHitModifierOf(Actor actor)
+        {
+            var modifier = 0;
+
+            if (actor == null)
+                return 0;
+
+            foreach (var effect in actor.ActiveEffects.Values)
+                if (!effect.IsExpired && effect.RangedToHitModifier < modifier)
+                    modifier = effect.RangedToHitModifier;
+
+            return Math.Max(-100, modifier);
+        }
+
         /// <summary>Percent added to the actor's chance of a critical hit by the effects on them (Crit Wave).</summary>
         public static int CritChancePercentOf(Actor actor)
         {
@@ -1413,6 +1464,7 @@ namespace Rasa.Managers
 
             health.Current = Math.Min(health.CurrentMax, health.Current);
             effect.MaxHealthApplied = delta;
+            if (actor is Manifestation player) ManifestationManager.Instance.ApplyHealthRegen(player);
 
             CellManager.Instance.CellCallMethod(mapChannel, actor, new UpdateHealthPacket(health, 0));
         }
@@ -1492,6 +1544,8 @@ namespace Rasa.Managers
             // The maximum goes back; the health stays where it is, capped - so a raise coming
             // off never costs more than what it gave, and a cut coming off gives nothing back.
             health.Current = Math.Min(health.CurrentMax, health.Current);
+
+            if (actor is Manifestation player) ManifestationManager.Instance.ApplyHealthRegen(player);
 
             if (announce && mapChannel != null)
                 CellManager.Instance.CellCallMethod(mapChannel, actor, new UpdateHealthPacket(health, 0));

@@ -83,6 +83,7 @@ namespace Rasa.Game.Missions.Integration
             if (MapInstanceScope.TryGetCreature(map, entityId, out var npc) &&
                 ReferenceEquals(npc.RuntimeMapChannel, map) && npc.MapContextId == map.MapInfo.MapContextId &&
                 npc.EntityId == entityId && npc.Npc != null && npc.IsInteractable &&
+                MissionNpcVisibility.IsShownTo(client, npc) &&
                 npc.State is not (CharacterState.Dead or CharacterState.Dying) &&
                 (npc.MasterEntityId == 0 || npc.MasterEntityId == player.EntityId) &&
                 (npc.SpawnPool?.ScenarioOwnerCharacterId is null or 0 ||

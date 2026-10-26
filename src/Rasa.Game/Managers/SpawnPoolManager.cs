@@ -299,7 +299,9 @@ namespace Rasa.Managers
         // timePassed is elapsed milliseconds since this map's previous spawn-pool update.
         public void SpawnPoolWorker(MapChannel mapChannel, long timePassed)
         {
+            ControlPoints.Instance.RefreshServices(mapChannel);
             BaneArrivals.TeleportWorker(mapChannel, timePassed);
+            LandingZoneGarrison.Worker(mapChannel, timePassed);
 
             var spawnPools = mapChannel.SpawnPools.Count > 0
                 ? mapChannel.SpawnPools
@@ -315,8 +317,8 @@ namespace Rasa.Managers
                 // the point - and not while the other does, whatever its mode. Nor is one in a
                 // place the player has taken back (Quieted). A scripted pool a mission scene has
                 // woken on the player's map is (Woken).
-                if (spawnPool.Suspended || spawnPool.Quieted
-                    || spawnPool.Mode != ModeAutomatic && !(spawnPool.Mode == ModeControlPoint && spawnPool.IsGarrison)
+                if (spawnPool.Suspended || spawnPool.ServiceSuspended || spawnPool.Quieted
+                    || spawnPool.Mode != ModeAutomatic && !(spawnPool.Mode == ModeControlPoint && (spawnPool.IsGarrison || spawnPool.ServiceControlPointId != 0))
                         && !(spawnPool.Mode == ModeScripted && spawnPool.Woken)
                     || spawnPool.AnimType < 0 || spawnPool.AnimType > 2)
                     continue;
@@ -469,6 +471,9 @@ namespace Rasa.Managers
         /// <summary>Sets a pool's creatures down: through its arrival point, off its dropship, or where it stands.</summary>
         private void Dispatch(MapChannel mapChannel, SpawnPool spawnPool, List<Creature> creatureList)
         {
+            if (LandingZoneOccupation.TryDispatch(mapChannel, spawnPool, creatureList)) return;
+            if (LandingZoneGarrison.TryDispatch(mapChannel, spawnPool, creatureList)) return;
+
             // An arrival point: through a teleporter, or off a dropship on a pad or in a bay.
             var arrival = BaneArrivals.Pick(spawnPool);
 
@@ -503,13 +508,13 @@ namespace Rasa.Managers
         }
 
         /// <param name="arrival">An arrival point the dropship lands on (a pad, a bay); null: the pool's own ground.</param>
-        private void EnqueueDropship(MapChannel mapChannel, SpawnPool spawnPool, List<Creature> creatureList, SpawnPoolArrivalEntry arrival = null)
+        internal void EnqueueDropship(MapChannel mapChannel, SpawnPool spawnPool, List<Creature> creatureList, SpawnPoolArrivalEntry arrival = null)
         {
             Dropship dropship = null;
             var reserved = false;
             try
             {
-                dropship = new Dropship(arrival != null || spawnPool.AnimType == 1 ? TargetCategory.Hostile : TargetCategory.Friendly,
+                dropship = new Dropship(spawnPool.AnimType == 2 ? TargetCategory.Friendly : TargetCategory.Hostile,
                     DropshipType.Spawner, spawnPool);
 
                 if (arrival != null)
@@ -585,10 +590,12 @@ namespace Rasa.Managers
         }
 
         /// <param name="arrival">Where they arrive, when they come by an arrival point: they step out there and walk to the pool's ground.</param>
-        internal void SpawnCreatures(SpawnPool spawnPool, List<Creature> creatureList, SpawnPoolArrivalEntry arrival = null)
+        /// <summary>Returns the creatures made, in the world.</summary>
+        internal List<Creature> SpawnCreatures(SpawnPool spawnPool, List<Creature> creatureList, SpawnPoolArrivalEntry arrival = null)
         {
             var mapChannel = spawnPool.RuntimeMapChannel ??
                 MapChannelManager.Instance.FindByContextId(spawnPool.MapContextId);
+            var spawned = new List<Creature>();
 
             foreach (var spawnSlot in creatureList)
             {
@@ -599,10 +606,13 @@ namespace Rasa.Managers
 
                 try
                 {
-                    if (arrival == null)
-                        RandomizePosition(creature, creatureList.Count);
-                    else
-                        CreatureManager.Instance.SetLocation(creature, BaneArrivals.StepOut(mapChannel, arrival), arrival.Rotation, spawnPool.MapContextId);
+                    if (!LandingZoneGarrison.TryPlace(mapChannel, spawnPool, creature, spawned.Count))
+                    {
+                        if (arrival == null)
+                            RandomizePosition(creature, creatureList.Count);
+                        else
+                            CreatureManager.Instance.SetLocation(creature, BaneArrivals.StepOut(mapChannel, arrival), arrival.Rotation, spawnPool.MapContextId);
+                    }
 
                     // Its pose at its post (NpcPoses). One that arrives somewhere else takes it up when it gets there.
                     if (spawnPool.Pose != NpcPose.None)
@@ -629,9 +639,14 @@ namespace Rasa.Managers
                         CellManager.Instance.AddToWorld(mapChannel, creature);
 
                     if (arrival != null)
+                    {
+                        // Through a Bane teleporter: its arrival effect on them (BaneArrivals.ShowArrival).
+                        BaneArrivals.ShowArrival(mapChannel, creature, arrival);
                         BehaviorManager.Instance.WalkIn(creature, SpawnPoint(mapChannel, spawnPool, creatureList.Count, creature));
+                    }
 
                     MissionApplication.Instance.Scenes.ActorAvailable(mapChannel, spawnPool.DbId);
+                    spawned.Add(creature);
                 }
                 catch
                 {
@@ -639,6 +654,9 @@ namespace Rasa.Managers
                     throw;
                 }
             }
+
+            spawnPool.Delivered?.Invoke(spawned);
+            return spawned;
         }
 
         private void RollBackSpawn(MapChannel mapChannel, Creature creature)

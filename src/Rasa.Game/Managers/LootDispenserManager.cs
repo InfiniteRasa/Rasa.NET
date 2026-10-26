@@ -1046,7 +1046,18 @@ namespace Rasa.Managers
                         CellManager.Instance.CellCallMethod(obj, new ForceStatePacket(obj.StateId, 0));
                     }
 
+                    // LootCorpse posts UI_SHOW_CORPSELOOT, which also opens the backpack even
+                    // when the corpse window has no rows. Never send it without a takeable item.
                     var remaining = loot.Remaining();
+                    if (!remaining.Any(item => item.MayTake(client.Player.EntityId)))
+                    {
+                        loot.CurrentLooter = 0;
+                        if (loot.Credits > 0)
+                            Claim(client, loot, Array.Empty<LootItem>(), null, lootAll: true, quiet: true);
+                        LootInfo(client, loot);
+                        CanLootItems(client, loot);
+                        return;
+                    }
                     foreach (var lootItem in remaining)
                         if (lootItem.Item != null)
                             ItemManager.Instance.SendItemDataToClient(client, lootItem.Item, false);
@@ -1552,8 +1563,7 @@ namespace Rasa.Managers
 
         /// <summary>A claim's item that did not fit the backpack, and stays on the corpse: PM_INVENTORY_FULL.</summary>
         private static void TellInventoryFull(Client client) =>
-            client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(
-                PlayerMessage.PmInventoryFull, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+            CommunicatorManager.ShowPlayerMessage(client, PlayerMessage.PmInventoryFull);
 
         /// <summary>A claim none of whose items fit, with nothing else to pay: rolled back, and not an error.</summary>
         private sealed class NothingFitsException : Exception

@@ -118,6 +118,46 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void AnInterruptedRepairIsToldToTheEngineerAsInterrupted()
+        {
+            // Their client cancelled it as it asked for the interrupt; the server's
+            // ActionInterrupt is what floats "Interrupted" over them (Actor.Recv_ActionInterrupt).
+            using var world = new WorldTestContext();
+            var engineer = Arm(world, world.CreateClient(), ActionId.ToolFieldRepair, healing: 0);
+            CellManager.Instance.AddToWorld(engineer);
+            var turret = Creature(world, 5, dead: false, CreatureFlag.Mechanical);
+            MissionTestContext.Drain(engineer);
+
+            ToolActionManager.Instance.RequestToolAction(engineer, Request(ActionId.ToolFieldRepair, turret.EntityId));
+            var action = world.Map.PerformRecovery.Single();
+            world.Map.PerformRecovery.Clear();
+            action.IsInrerrupted = true;
+            MissionTestContext.Drain(engineer);
+
+            lock (Server.Clients)
+                Server.Clients.Add(engineer);
+            try
+            {
+                ToolActionManager.Instance.PerformRecovery(world.Map, action);
+            }
+            finally
+            {
+                lock (Server.Clients)
+                    Server.Clients.Remove(engineer);
+            }
+
+            var packets = MissionTestContext.Drain(engineer);
+            var interrupt = packets.OfType<ActionInterruptPacket>().Single();
+            Assert.AreEqual(engineer.Player.EntityId, interrupt.SourceId);
+            Assert.AreEqual(ActionId.ToolFieldRepair, interrupt.ActionId);
+            var closed = packets.OfType<UserActionFailedPacket>().Single();
+            Assert.IsNull(closed.MsgId);
+            Assert.IsTrue(packets.IndexOf(interrupt) < packets.IndexOf(closed));
+            Assert.AreEqual(0, packets.OfType<ToolActionRecoveryPacket>().Count());
+            Assert.AreEqual(100, turret.Attributes[Attributes.Health].Current, "nothing repaired");
+        }
+
+        [TestMethod]
         public void OneThatDiesDuringTheWindupTakesNothing()
         {
             using var world = new WorldTestContext();

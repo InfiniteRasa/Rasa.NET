@@ -246,6 +246,53 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void AShotDownCoilIsOutOfServiceUntilItIsBackAndATableIsNeverTakenOut()
+        {
+            using var world = On(MapUsables.ConcordiaDivide, "adv_foreas_concordia_divide");
+            var position = WorldDestructibles.Find(Coil).Usable.Position;
+            var shooter = Stand(world, position + new Vector3(40, 0, 0));
+            var faraway = Stand(world, position + new Vector3(400, 0, 0));
+
+            WorldDestructibles.PlayerEnteredMap(shooter);
+            Assert.IsEmpty(Usable(Sent(shooter), Coil), "standing, it arrives in service");
+
+            Shoot(world, shooter, Coil, (int)WorldDestructibles.LargeHitPoints);
+            var sent = Sent(shooter);
+            CollectionAssert.AreEqual(new[] { false }, Usable(sent, Coil), "teslacoil.py: SetUsable is what takes the wreck's targeting away");
+            Assert.IsTrue(IndexOf<UsePacket>(sent, Coil) < IndexOf<SetUsablePacket>(sent, Coil), "into its wreck first");
+            CollectionAssert.AreEqual(new[] { false }, Usable(Sent(faraway), Coil), "to everyone on the map");
+
+            // Whoever arrives has the .map's coil in service, and is told it is out.
+            var late = Stand(world, position + new Vector3(10, 0, 0));
+            MapUsables.PlayerEnteredMap(late);
+            WorldDestructibles.PlayerEnteredMap(late);
+            CollectionAssert.AreEqual(new[] { false }, Usable(Sent(late), Coil));
+
+            _now += 50_000;
+            WorldDestructibles.Worker(world.Map);
+            sent = Sent(shooter);
+            CollectionAssert.AreEqual(new[] { true }, Usable(sent, Coil));
+            Assert.IsTrue(IndexOf<UsePacket>(sent, Coil) < IndexOf<SetUsablePacket>(sent, Coil),
+                "out of destroyed first: OnEnabledChanged asks IsDestroyed");
+
+            var again = Stand(world, position + new Vector3(12, 0, 0));
+            WorldDestructibles.PlayerEnteredMap(again);
+            Assert.IsEmpty(Usable(Sent(again), Coil));
+
+            using var penal = On(MapUsables.PenalResearch, "adv_arieki_torden_plains_penalresearch");
+            var tablePosition = WorldDestructibles.Find(Table).Usable.Position;
+            var other = Stand(penal, tablePosition + new Vector3(5, 0, 0));
+            Shoot(penal, other, Table, (int)WorldDestructibles.SmallHitPoints);
+            Assert.IsEmpty(Usable(Sent(other), Table), "an inert destroyable goes by its state");
+        }
+
+        private static List<bool> Usable(List<(ulong EntityId, PythonPacket Packet)> sent, ulong entityId) =>
+            sent.Where(entry => entry.EntityId == entityId).Select(entry => entry.Packet).OfType<SetUsablePacket>().Select(packet => packet.IsEnabled).ToList();
+
+        private static int IndexOf<T>(List<(ulong EntityId, PythonPacket Packet)> sent, ulong entityId) =>
+            sent.FindIndex(entry => entry.EntityId == entityId && entry.Packet is T);
+
+        [TestMethod]
         public void AShotFiredAtOneLandsOnIt()
         {
             using var world = On(MapUsables.ConcordiaDivide, "adv_foreas_concordia_divide");

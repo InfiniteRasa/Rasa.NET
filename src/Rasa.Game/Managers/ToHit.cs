@@ -22,13 +22,20 @@ namespace Rasa.Managers
     /// misses in its own way (CreatureWindups): for one of those the chance is what Chaff
     /// leaves of it, as it was.
     ///
+    /// The shooter's side: a weapon shot by someone a mag flash has blinded takes the flash's
+    /// GameEffect.RangedToHitModifier off its chance too (AbilityManager.MagFlashToHitModifier),
+    /// as its tooltip says: "any ranged weapon attacks you make are likely to miss".
+    ///
     /// Only the one aimed at is rolled for. A launcher's round that misses still goes off where
     /// it comes down, and a cone weapon's other victims are caught as they were. The client's
     /// SHARE_MISSES weapon property says the original had a rule for them; its values are in
     /// nothing we have.
     ///
     /// Moving is the last step the target took: a creature's last published movement, a
-    /// player's last accepted Move that both carried a velocity and took them somewhere.
+    /// player's last accepted Move that both carried a velocity and took them somewhere, and came
+    /// within <see cref="MovingMs"/>. A client on the move sends ten Moves a second; one that
+    /// stops sending them is standing, and does not keep the moving target's modifier for as
+    /// long as its last Move said it was going somewhere.
     /// Running or walking is Actor.IsRunning - a creature's gait, a player's run toggle - which
     /// are the client's own _fast and _slow (Manifestation.UpdateAccuracyRates).
     ///
@@ -52,11 +59,17 @@ namespace Rasa.Managers
         /// <summary>The roll: whether a chance of this many in a hundred comes up. Replaced in tests.</summary>
         internal static Func<int, bool> Roll { get; set; } = Stuns.Roll;
 
+        /// <summary>How long after a player's last Move that went somewhere they still count as moving: five Moves' worth.</summary>
+        public const int MovingMs = 500;
+
+        /// <summary>The clock a player's last Move is measured against. Replaced in tests.</summary>
+        internal static Func<long> Now { get; set; } = () => Environment.TickCount64;
+
         /// <summary>Whether the actor's last step was one that took it somewhere.</summary>
         public static bool IsMoving(Actor actor) => actor switch
         {
             Creature creature => creature.Controller?.LastMovement is { Velocity: > 0 },
-            Manifestation player => player.MoveVelocity > 0,
+            Manifestation player => player.MoveVelocity > 0 && Now() - player.MoveVelocityTick <= MovingMs,
             _ => false
         };
 
@@ -78,7 +91,10 @@ namespace Rasa.Managers
             var chance = Base - GameEffectManager.MissPercentOf(missile.TargetActor);
 
             if (CreatureAttacks.IsWeaponAttack(missile))
+            {
                 chance += MovementModifier(missile.TargetActor);
+                chance += GameEffectManager.RangedToHitModifierOf(missile.Source);
+            }
 
             return Math.Max(0, Math.Min(100, chance));
         }

@@ -21,6 +21,9 @@ namespace Rasa.Packets.MapChannel.Server
         public uint Arg { get; set; }
         public MissileArgs MissileArgs { get; set; }
 
+        /// <summary>A yaw for the third argument, in place of <see cref="Arg"/>: a locked turn's new facing (LockedTurn.DoAction).</summary>
+        public double? Yaw { get; set; }
+
         public PerformRecoveryPacket(PerformType performType, ActionId actionId, uint actionArgId)
         {
             PerformType = performType;
@@ -44,6 +47,15 @@ namespace Rasa.Packets.MapChannel.Server
             Arg = arg;
         }
 
+        /// <summary>(actionId, actionArgId, yaw): a locked turn's recovery, the new facing its DoAction takes.</summary>
+        public PerformRecoveryPacket(ActionId actionId, uint actionArgId, double yaw)
+        {
+            PerformType = PerformType.ThreeArgs;
+            ActionId = actionId;
+            ActionArgId = actionArgId;
+            Yaw = yaw;
+        }
+
         public override void Write(PythonWriter pw)
         {
             switch (PerformType)
@@ -57,7 +69,9 @@ namespace Rasa.Packets.MapChannel.Server
                     pw.WriteTuple(3);
                     pw.WriteUInt((uint)ActionId);
                     pw.WriteUInt(ActionArgId);
-                    if (Arg != 0)
+                    if (Yaw.HasValue)
+                        pw.WriteDouble(Yaw.Value);
+                    else if (Arg != 0)
                         pw.WriteUInt(Arg);
                     else
                         pw.WriteNoneStruct();

@@ -128,6 +128,7 @@ namespace Rasa.Test.World
                 Assert.IsNotNull(storm);
                 Assert.IsFalse(storm.IsBuff);
                 Assert.IsTrue(storm.AnnounceOnAttach);
+                Assert.AreEqual(1u, storm.EffectLevel, "argument 5, sent at the one level the client has a storm cloud for");
                 Assert.AreEqual(2000, storm.TickIntervalMs);
                 Assert.IsTrue(storm.ExpiresTick - Environment.TickCount64 is > 5000 and <= 6000, "EFFECT_DURATION_MS 6000");
                 Assert.AreSame(brann, storm.Source);

@@ -40,6 +40,8 @@ namespace Rasa.Test.World
             var player = harness.Client.Player;
             var bombs = ToyTests.Grant(harness, template, 2);
             var manager = ToyTests.CreateManager(harness, BombAction, level, template);
+            var now = 100_000L;
+            manager.PlacedBombNow = () => now;
 
             Assert.IsTrue(manager.TryGetAction(ActionId.ConsumableBomb, level, out var module, out var info));
             Assert.AreEqual(AbilityManager.PlaceBombModule, module);
@@ -55,9 +57,12 @@ namespace Rasa.Test.World
                 manager.RequestPerformAbility(harness.Client, ToyTests.Request(BombAction, level, bombs.EntityId));
                 Assert.IsFalse(harness.Drain().OfType<UserActionFailedPacket>().Any(), "no target wanted");
 
-                var landed = Environment.TickCount64;
+                // Recovery may run well after the request (inventory persistence, busy runner).
+                // The fuse starts at placement, not at the earlier request/check timestamp.
+                now += 750;
                 ToyTests.Land(harness, manager, map.PerformRecovery.Single(a => a.ActionId == ActionId.ConsumableBomb));
 
+                var landed = now;
                 var bomb = Bombs(map).Single();
                 var spot = player.Position + AbilityManager.FacingOf(player) * 0.2f;
                 Assert.AreEqual(0f, Vector2.Distance(new(bomb.Position.X, bomb.Position.Z), new(spot.X, spot.Z)), 0.1f, "20 cm in front");
@@ -76,11 +81,13 @@ namespace Rasa.Test.World
                 var outside = Spawn(map, bomb.Position + new Vector3(15.5f, 0, 0), TargetCategory.Hostile);
                 var soldier = Spawn(map, bomb.Position + new Vector3(3, 0, 0), TargetCategory.Friendly);
 
-                manager.PlacedBombWorker(map, landed + 4_500);
+                now = landed + 4_999;
+                manager.PlacedBombWorker(map);
                 Assert.IsFalse(harness.Drain().OfType<GameEffectAnnounceDamagePacket>().Any(), "not yet");
                 Assert.AreEqual(Full, Health(near));
 
-                manager.PlacedBombWorker(map, landed + 5_100);
+                now = landed + 5_000;
+                manager.PlacedBombWorker(map);
 
                 var blast = harness.Drain().OfType<GameEffectAnnounceDamagePacket>().Single();
                 Assert.AreEqual("DoExplosion", blast.MethodName);
@@ -101,11 +108,13 @@ namespace Rasa.Test.World
                 Assert.AreEqual(Full, Health(soldier));
                 Assert.AreEqual(health, (int)player.Attributes[Attributes.Health].Current, "the thrower, standing on it");
 
-                manager.PlacedBombWorker(map, landed + 6_000);
+                now = landed + 6_999;
+                manager.PlacedBombWorker(map);
                 Assert.HasCount(1, Bombs(map).ToArray(), "kept a moment for the blast");
                 Assert.IsFalse(harness.Drain().OfType<GameEffectAnnounceDamagePacket>().Any(), "once");
 
-                manager.PlacedBombWorker(map, landed + 7_200);
+                now = landed + 7_000;
+                manager.PlacedBombWorker(map);
                 Assert.IsEmpty(Bombs(map).ToArray());
             }
             finally
@@ -122,9 +131,10 @@ namespace Rasa.Test.World
             var player = harness.Client.Player;
             var bomb = ToyTests.Grant(harness, ClassOne);
             var manager = ToyTests.CreateManager(harness, BombAction, 1, ClassOne);
+            const long landed = 100_000;
+            manager.PlacedBombNow = () => landed;
 
             manager.RequestPerformAbility(harness.Client, ToyTests.Request(BombAction, 1, bomb.EntityId));
-            var landed = Environment.TickCount64;
             ToyTests.Land(harness, manager, map.PerformRecovery.Single(a => a.ActionId == ActionId.ConsumableBomb));
             var placed = Bombs(map).Single();
             var near = Spawn(map, placed.Position + new Vector3(5, 0, 0), TargetCategory.Hostile);
@@ -135,7 +145,7 @@ namespace Rasa.Test.World
                 player.MapContextId = context + 1;
                 harness.Drain();
 
-                manager.PlacedBombWorker(map, landed + 5_100);
+                manager.PlacedBombWorker(map, landed + 5_000);
 
                 Assert.IsFalse(harness.Drain().OfType<GameEffectAnnounceDamagePacket>().Any());
                 Assert.AreEqual(Full, Health(near));
@@ -157,9 +167,10 @@ namespace Rasa.Test.World
             var player = harness.Client.Player;
             var item = ToyTests.Grant(harness, ClassOne);
             var manager = ToyTests.CreateManager(harness, BombAction, 1, ClassOne);
+            const long landed = 100_000;
+            manager.PlacedBombNow = () => landed;
 
             manager.RequestPerformAbility(harness.Client, ToyTests.Request(BombAction, 1, item.EntityId));
-            var landed = Environment.TickCount64;
             ToyTests.Land(harness, manager, map.PerformRecovery.Single(a => a.ActionId == ActionId.ConsumableBomb));
             var bomb = Bombs(map).Single();
             var effectId = harness.Drain().OfType<GameEffectAttachedPacket>().Single(p => p.EffectTypeId == AbilityManager.PlaceBombTypeId).EffectId;

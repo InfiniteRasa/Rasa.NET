@@ -348,8 +348,7 @@ namespace Rasa.Managers
 
         private static void WagerSay(Client client, PlayerMessage message, params (string Key, string Value)[] args)
         {
-            client?.CallMethod(SysEntity.CommunicatorId,
-                new DisplayClientMessagePacket(message, args.ToDictionary(a => a.Key, a => a.Value), MsgFilterId.GeneralSystemMessages));
+            CommunicatorManager.ShowPlayerMessage(client, message, args.ToDictionary(a => a.Key, a => a.Value));
         }
 
         #endregion

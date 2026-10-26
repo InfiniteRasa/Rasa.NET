@@ -30,7 +30,9 @@ namespace Rasa.Missions.Content.Wilderness
                 return new SceneDecision(Serialize("arrived"),
                     characterIntents: new CharacterIntent[] { new ObjectiveIntent("solis-check-in", 1407, 10, MissionObjectiveState.Incomplete) },
                     status: SceneStatus.Ended);
+            // Public rangers report ActorDied; assignment-owned rangers emit their durable defeat sequence.
             if ((observation.Kind == SceneEventKind.ActorDied && observation.Role == "ranger" ||
+                 observation.Kind == SceneEventKind.Signal && observation.SequenceId == 2 ||
                  observation.Kind == SceneEventKind.Cancelled && observation.Name == "route-blocked") &&
                 phase is "waiting" or "walking")
                 return new SceneDecision(Serialize("failed"),

@@ -394,6 +394,22 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void EveryArrivalOnTheMapIsShownTheMatchsRules()
+        {
+            using var f = new Fixture();
+            var player = f.Player();
+            Drain(player);
+
+            // BATTLEGROUND_RULES_INTRO is always-display: on every arrival, not once.
+            for (var arrival = 0; arrival < 2; arrival++)
+            {
+                f.Grounds.PlayerEntered(player);
+                Assert.AreEqual(TutorialId.BattlegroundRulesIntro,
+                    Packets(player).OfType<DisplayPlayerTutorialNotificationPacket>().Single().TutorialId, $"arrival {arrival + 1}");
+            }
+        }
+
+        [TestMethod]
         public void NoTeamOfAnotherInstanceTakesALockedOutPlayer()
         {
             using var f = new Fixture();
@@ -1046,10 +1062,18 @@ namespace Rasa.Test.World
 
             Drain(red);
             f.Grounds.Claiming(red, point);
-            var claiming = Packets(red).OfType<DisplayClientMessagePacket>().Single();
+            var told = Packets(red);
+            var claiming = told.OfType<DisplayClientMessagePacket>().Single();
             Assert.AreEqual(PlayerMessage.PmControlpointClaiming, claiming.MsgId);
             Assert.AreEqual("Red Team", claiming.Args["faction"]);
             Assert.AreEqual("Whiskey", claiming.Args["cpName"]);
+
+            // Across the middle of the screen too, as the open world's points are (bigtexttype
+            // CONTROL_POINT_CLAIMING).
+            var banner = told.OfType<DisplayPlayerNotificationPacket>().Single();
+            Assert.AreEqual((PlayerNotificationType.Big, PlayerMessage.PmControlpointClaiming), (banner.NotificationType, banner.MsgId));
+            Assert.AreEqual("Red Team", banner.Args["faction"]);
+            Assert.AreEqual("Whiskey", banner.Args["cpName"]);
 
             // Begun again within ControlPoints.ClaimAnnounceGapMs: the match is not told again;
             // past it, it is.
@@ -1083,6 +1107,9 @@ namespace Rasa.Test.World
             Assert.AreEqual(0u, score.ControlPoints[10]);
             Assert.AreEqual(0u, score.ControlPoints[11]);
             CollectionAssert.IsSubsetOf(new[] { PlayerMessage.PmBattlegroundCpTaken, PlayerMessage.PmControlpointOwned }, Messages(packets));
+            var taken = packets.OfType<DisplayPlayerNotificationPacket>().Single(p => p.MsgId == PlayerMessage.PmControlpointOwned);
+            Assert.AreEqual(PlayerNotificationType.Big, taken.NotificationType, "bigtexttype CONTROL_POINT_OWNED");
+            Assert.AreEqual("Red Team", taken.Args["faction"]);
 
             var marker = packets.OfType<UpdateMapMarkerPacket>().First(p => p.MarkerEntityId == 9101);
             Assert.IsTrue(marker.State.TeamOwned);
@@ -1131,6 +1158,25 @@ namespace Rasa.Test.World
             Assert.IsFalse(PlayerDeath.OfferRevive(f.World.Map, onlooker.Player, red.Player, 100));
             Assert.IsTrue(PlayerDeath.OfferRevive(f.World.Map, mate.Player, red.Player, 100));
             red.Player.State = CharacterState.Idle;
+        }
+
+        [TestMethod]
+        public void TheMedicalMarkerOverADeadPlayerIsInTheirTeamsColour()
+        {
+            using var f = new Fixture();
+            var red = f.Join(Battlegrounds.Red);
+            var blue = f.Join(Battlegrounds.Blue);
+
+            f.Begin();
+
+            foreach (var (client, level) in new[] { (red, PlayerDeath.RezMeRed), (blue, PlayerDeath.RezMeBlue) })
+            {
+                client.Player.Attributes[Attributes.Health] = new ActorAttributes(Attributes.Health, 1000, 1000, 0, 0, 0);
+                PlayerDeath.AtZero(f.World.Map, client.Player, null);
+
+                // OVERHEAD_MEDICAL_PVP_RED at 2, _BLUE at 1.
+                Assert.AreEqual(level, client.Player.ActiveEffects.Values.Single(e => e.TypeId == PlayerDeath.RezMeTypeId).EffectLevel);
+            }
         }
 
         [TestMethod]
@@ -2499,7 +2545,8 @@ namespace Rasa.Test.World
             Packets(client).OfType<ScoreBoardIndividualUpdatePacket>().ToList();
 
         private static List<PlayerMessage> Messages(IEnumerable<PythonPacket> packets) =>
-            packets.OfType<DisplayClientMessagePacket>().Select(p => p.MsgId).ToList();
+            packets.Select(p => p switch { DisplayClientMessagePacket chat => (PlayerMessage?)chat.MsgId, Rasa.Packets.ClientMethod.Server.DisplaySystemMessagePacket shown => shown.MsgId, _ => null })
+                .Where(id => id.HasValue).Select(id => id.Value).ToList();
 
         private static void Read(ServerPythonPacket packet, Action<PythonReader> read)
         {

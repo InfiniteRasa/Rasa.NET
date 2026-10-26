@@ -24,6 +24,13 @@ namespace Rasa.Data
         CreatureFlagKilled,
 
         /// <summary>A creature of an entity class was killed: the subject is the class id.</summary>
-        CreatureClassKilled
+        CreatureClassKilled,
+
+        /// <summary>
+        /// A destructible object the server placed (world_destructible, PlacedDestructibles) was
+        /// destroyed: the subject is its entity class - "Destroy 8 warnet nests". Shared with the
+        /// destroyer's squad as a kill is.
+        /// </summary>
+        ObjectDestroyed
     }
 }

@@ -558,6 +558,9 @@ namespace Rasa.Managers
         /// </summary>
         private const int WhoResultLimit = 50;
 
+        /// <summary>The number of the shared copy of a map a channel is, for /who (MapChannelManager.CopyNumberOf); replaceable for tests.</summary>
+        internal Func<MapChannel, uint?> CopyNumberOf { get; set; } = map => MapChannelManager.Instance.CopyNumberOf(map);
+
         internal void Who(Client client, WhoPacket packet)
         {
             var search = (packet.SearchText ?? string.Empty).Trim();
@@ -614,9 +617,10 @@ namespace Rasa.Managers
                     CharacterClass = match.Player.Class,
                     Level = match.Player.Level,
                     ContextId = match.Player.MapContextId,
-                    // One instance per map today, so there is no ordinal to disambiguate;
-                    // sending a value would make the client render "MapName(1)".
-                    CurrentGameContextOrdinal = null,
+                    // Recv_WhoAck writes it after the map's name, "MapName(2)": which shared
+                    // copy they are in, numbered as the instance picker numbers them. None while
+                    // the map stands in one copy, and in a private or squad instance.
+                    CurrentGameContextOrdinal = CopyNumberOf(match.Player.MapChannel),
                     IsAfk = match.Player.IsAFK,
                     IsTrialAccount = match.Player.IsTrialAccount
                 });
@@ -1106,6 +1110,75 @@ namespace Rasa.Managers
             Dictionary<string, string> args = null, MsgFilterId filterId = MsgFilterId.GeneralSystemMessages)
         {
             client.CallMethod(SysEntity.ClientMethodId, new DisplaySystemMessagePacket(message, args, filterId));
+        }
+
+        /// <summary>
+        /// The player messages the client presents in a way of its own, and only when they come
+        /// as DisplaySystemMessage (clientmethod.py Recv_DisplaySystemMessage -> gameui.py
+        /// DisplayPlayerMessage); DisplayClientMessage (communicator.py) is a bare chat line for
+        /// any id:
+        ///  - spoken by the player's avatar (manifestation.py kPlayerMessageVOs): inventory full,
+        ///    footlocker full, out of ammo, not enough power or chi, no line of sight (spoken only,
+        ///    no chat line), weapon jammed, locked, no Logos, the action failures;
+        ///  - thrown across the middle of the screen as well as printed (gameui.py
+        ///    kPlayerMessageDisplayBigText): weapon jammed, the inventory fulls, out of range, no
+        ///    line of sight, the trade and vending busy messages, and the six battleground ones;
+        ///  - and PM_CANNOT_PERFORM_ACTION_NOW, the error sound and nothing printed.
+        /// </summary>
+        internal static readonly HashSet<PlayerMessage> ClientPresented = new HashSet<PlayerMessage>
+        {
+            // kPlayerMessageVOs
+            PlayerMessage.PmYourInventoryIsFull, PlayerMessage.PmNoRoomInInventory, PlayerMessage.PmTradeNotEnoughRoom,
+            PlayerMessage.PmInventoryFull, PlayerMessage.PmYourFootlockerIsFull, PlayerMessage.PmInventoryOutOfAmmo,
+            PlayerMessage.PmWeaponOutOfAmmo, PlayerMessage.PmConsumableNotEnoughPower, PlayerMessage.PmConsumableNotEnoughChi,
+            PlayerMessage.PmFailedLineOfSight, PlayerMessage.PmWeaponJammed, PlayerMessage.PmUseObjectUsableLocked,
+            PlayerMessage.PmCannotUseAbilityNoLogos, PlayerMessage.PmActionFailedActorFriendly, PlayerMessage.PmActionFailedActorHostile,
+            PlayerMessage.PmActionFailedActorSwimming, PlayerMessage.PmActionFailedNoTarget, PlayerMessage.PmActionFailedTargetDead,
+            PlayerMessage.PmActionFailedTargetNotDead, PlayerMessage.PmCannotPerformActionNow, PlayerMessage.PmInvalidWeapon,
+            PlayerMessage.PmTargetInvalid,
+            // kPlayerMessageDisplayBigText, beyond those
+            PlayerMessage.PmTargetOutOfRange, PlayerMessage.PmCannotVendWhileTrading, PlayerMessage.PmTradeYouAreTooBusy,
+            PlayerMessage.PmCannotTradeWhileVending, PlayerMessage.PmCannotOpenAhWhileTrading, PlayerMessage.PmCannotAhWhileTrading,
+            PlayerMessage.PmTradeTheyAreTooBusy, PlayerMessage.PmBattlegroundEnds, PlayerMessage.PmBattlegroundBegins,
+            PlayerMessage.PmBattlegroundMinimumTimeExpired, PlayerMessage.PmBattlegroundCpTaken,
+            PlayerMessage.PmBattleground1MinuteWarning, PlayerMessage.PmBattleground5MinuteWarning
+        };
+
+        /// <summary>
+        /// A player message the way the client wants it: DisplaySystemMessage for one it presents
+        /// itself (<see cref="ClientPresented"/>), so the avatar says it and the banner shows;
+        /// a DisplayClientMessage chat line for every other.
+        /// </summary>
+        public static void ShowPlayerMessage(Client client, PlayerMessage message,
+            Dictionary<string, string> args = null, MsgFilterId filterId = MsgFilterId.GeneralSystemMessages)
+        {
+            if (client == null)
+                return;
+
+            if (ClientPresented.Contains(message))
+                client.CallMethod(SysEntity.ClientMethodId, new DisplaySystemMessagePacket(message, args, filterId));
+            else
+                client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(message, args ?? new Dictionary<string, string>(), filterId));
+        }
+
+        /// <summary>
+        /// A player message across the middle of the screen as well as on a chat line: one of
+        /// those the client's bigtexttype table has a banner row for that the client does not
+        /// raise itself - CONTROL_POINT_CLAIMING (79) and CONTROL_POINT_OWNED (80), the open
+        /// world's points and a battleground's alike. (The mission and objective banners, the
+        /// counters and the wargame results the client raises on its own, from MissionGained,
+        /// ObjectiveCompleted, UpdateObjectiveCounter, WargameVictory and the rest.)
+        /// DisplayPlayerNotification(Big) is shown in the banner's colour, BigTextMission, which
+        /// is every such row's.
+        /// </summary>
+        public static void ShowBanner(Client client, PlayerMessage message, Dictionary<string, string> args = null)
+        {
+            if (client == null)
+                return;
+
+            args ??= new Dictionary<string, string>();
+            client.CallMethod(SysEntity.ClientMethodId, new DisplayPlayerNotificationPacket(PlayerNotificationType.Big, message, args));
+            client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(message, args, MsgFilterId.GeneralSystemMessages));
         }
 
         /// <summary>

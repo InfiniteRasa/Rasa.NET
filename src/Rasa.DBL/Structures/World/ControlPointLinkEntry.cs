@@ -36,6 +36,9 @@ namespace Rasa.Structures.World
         /// </summary>
         public const byte KindClanLockbox = 6;
 
+        /// <summary>object_id is an AFS service NPC spawn pool. Overrides proximity and never counts as a capture defender.</summary>
+        public const byte KindServicePool = 7;
+
         [Column("control_point_id")]
         [Required]
         public uint ControlPointId { get; set; }

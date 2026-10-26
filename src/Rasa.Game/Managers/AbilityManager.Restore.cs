@@ -15,7 +15,10 @@ namespace Rasa.Managers
     /// DURATION seconds, as the medpack restores health: ARMOR_RESTORE_KIT (342) and
     /// POWER_RESTORE_KIT (343), whose client class, RestoreOverTime, adds each tick's amount to
     /// the bar itself (DelayedAttributeChange) and floats it. The server's bar is moved with it
-    /// (ActorManager.Restore), and nothing else is sent for it. The item text gives the totals:
+    /// (ActorManager.Restore), and nothing else is sent for it. The effect is announced as it is
+    /// attached: the client's RestoreKitAction names no targetGameEffect for its recovery to
+    /// announce, as MedPackAction does, and an effect never announced has no buff icon, tooltip or
+    /// attach FX (BaseGameEffect.DoAnnounceAttachVisuals). The item text gives the totals:
     /// "Recharges 500 Armor over 10 seconds" to 25000, "Restores 75 Power over 5 seconds" to 300.
     ///
     /// Adrenaline Booster (CONSUMABLE_ADRENALINE_BOOST 459), abilities.adrenalshot, Class I to X:
@@ -83,6 +86,7 @@ namespace Rasa.Managers
             kit.TickIntervalMs = Math.Max(1, info.Get(AbilityProperty.Interval, 1)) * 1000;
             kit.NextTickTick = Environment.TickCount64;
             kit.AllowDetach = true;
+            kit.AnnounceOnAttach = true;
             kit.Tooltip["healMin"] = kit.TickHealMin;
             kit.Tooltip["healMax"] = kit.TickHealMax;
             kit.Tooltip["interval"] = kit.TickIntervalMs / 1000;

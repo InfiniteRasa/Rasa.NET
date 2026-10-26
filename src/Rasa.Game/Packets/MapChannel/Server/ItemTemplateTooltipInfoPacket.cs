@@ -78,7 +78,9 @@
                         {
                             pw.WriteUInt(ItemTemplate.WeaponInfo.AmmoPerShot);
                             pw.WriteInt(EntityClass.WeaponClassInfo.DamageType);
-                            pw.WriteUInt(ItemTemplate.WeaponInfo.Windup);
+                            // Signed: -1 is the client's autofire weapon, and its tooltip's
+                            // "Autofire" line (tooltipwindow.py, windupTime == -1).
+                            pw.WriteInt(ItemTemplate.WeaponInfo.Windup);
                             pw.WriteUInt(ItemTemplate.WeaponInfo.Recovery);
                             pw.WriteUInt(ItemTemplate.WeaponInfo.Refire);
                             pw.WriteUInt(ItemTemplate.WeaponInfo.ReloadTime);

@@ -148,7 +148,7 @@ namespace Rasa.Managers
                 proxy.TargetCategory = TargetCategory.Object;
                 proxy.StateId = MapUsables.StateOf(map, destructible.Usable);
                 proxy.CurrentHitPoints = proxy.StateId == UseObjectState.StateDestroyed ? 0 : destructible.HitPoints;
-                proxy.IsEnabled = true;
+                proxy.IsEnabled = proxy.StateId != UseObjectState.StateDestroyed || !IsCoil(destructible);
                 proxy.IsInWorld = true;
                 proxy.Comment = destructible.Usable.Name;
 
@@ -214,6 +214,8 @@ namespace Rasa.Managers
             foreach (var step in steps)
                 Show(map, live, step, client.Player.EntityId);
 
+            SetEnabled(map, live, false);
+
             live.RespawnAt = Now() + Math.Clamp(Roll(RespawnMinMs, RespawnMaxMs), RespawnMinMs, RespawnMaxMs);
             return 0;
         }
@@ -243,6 +245,7 @@ namespace Rasa.Managers
             live.RespawnAt = 0;
 
             Show(map, live, destructible.UpState, 0);
+            SetEnabled(map, live, true);
             ToEveryone(map, proxy.EntityId, new DamageInfoPacket(true, false, destructible.HitPoints, destructible.HitPoints));
             CellManager.Instance.CellCallMethod(map, proxy.Position, proxy.EntityId, new UpdateHitPointsPacket((int)destructible.HitPoints));
         }
@@ -267,6 +270,11 @@ namespace Rasa.Managers
 
                 client.CallMethod(destructible.EntityId, new TargetCategoryPacket(TargetCategory.Object));
                 client.CallMethod(destructible.EntityId, new DamageInfoPacket(!live.IsDown, false, destructible.HitPoints, live.Proxy.CurrentHitPoints));
+
+                // The .map's coil arrives in service; one that is down is taken out of it.
+                if (IsCoil(destructible) && !live.Proxy.IsEnabled)
+                    client.CallMethod(destructible.EntityId, new SetUsablePacket(false));
+
                 sent++;
             }
 
@@ -284,6 +292,22 @@ namespace Rasa.Managers
         {
             if (map != null)
                 Channels.Remove(map);
+        }
+
+        private static bool IsCoil(Destructible destructible) => destructible.Usable.ClassId == MapUsables.BaneTeslaCoil;
+
+        /// <summary>
+        /// A tesla coil out of service while it is down and back in when it stands: the client
+        /// takes a coil's targetability from SetUsable alone (teslacoil.py OnEnabledChanged), so
+        /// without it the wreck could still be locked on to. The other classes go by their state.
+        /// </summary>
+        private static void SetEnabled(MapChannel map, Live live, bool enabled)
+        {
+            if (!IsCoil(live.Destructible) || live.Proxy.IsEnabled == enabled)
+                return;
+
+            live.Proxy.IsEnabled = enabled;
+            ToEveryone(map, live.Proxy.EntityId, new SetUsablePacket(enabled));
         }
 
         private static void Show(MapChannel map, Live live, UseObjectState state, ulong actorId)

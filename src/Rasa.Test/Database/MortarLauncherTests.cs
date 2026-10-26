@@ -110,14 +110,18 @@ namespace Rasa.Test.Database
         // (creature, creature_appearance and npc_bark rows of 400401-400406), with
         // Capture_the_flag_promotion_level (one mission_reward_definition row) a third there; and
         // at 20270120000000 Bootcamp_cave_in_any_route (mission 1994's transition, trigger and
-        // scenario rows) and Lightning_fields_strikes (world_usable rows). None touches a table of
-        // another's at its timestamp, so the order EF runs them in changes nothing.
+        // scenario rows) and Lightning_fields_strikes (world_usable rows); and at 20270125000000
+        // Constant_fire_autofire (the windup of the constant-fire weapons' itemtemplate_weapon
+        // rows) and Tool_templates_no_alt_fire (the alternate attack and range of the tools' rows):
+        // the same table, but no row of one is a row of the other, and no column either. None
+        // touches a table of another's at its timestamp but that pair, so the order EF runs them in
+        // changes nothing.
         // A new pair is a mistake: EF runs both, ordered by the rest of the id, whatever was meant.
         [TestMethod]
         public void NoNewMigrationSharesATimestamp()
         {
             var known = new[] { "20260927000000", "20260930000000", "20261012000000", "20261104000000", "20261111000000", "20261203000000",
-                "20261230000000", "20261231000000", "20270109000000", "20270111000000", "20270114000000", "20270115000000", "20270116000000", "20270117000000", "20270120000000" };
+                "20261230000000", "20261231000000", "20270109000000", "20270111000000", "20270114000000", "20270115000000", "20270116000000", "20270117000000", "20270120000000", "20270125000000" };
 
             using var database = new OrdinaryLootTestDatabase();
             var shared = database.Context.Database.GetMigrations()
@@ -140,7 +144,7 @@ namespace Rasa.Test.Database
             var known = new System.Collections.Generic.Dictionary<string, string[]>
             {
                 ["World"] = new[] { "20260927000000", "20260930000000", "20261012000000", "20261104000000", "20261111000000", "20261203000000",
-                    "20261230000000", "20261231000000", "20270109000000", "20270111000000", "20270114000000", "20270115000000", "20270116000000", "20270117000000", "20270120000000" },
+                    "20261230000000", "20261231000000", "20270109000000", "20270111000000", "20270114000000", "20270115000000", "20270116000000", "20270117000000", "20270120000000", "20270125000000" },
                 ["Char"] = new[] { "20261110000000", "20261215000000" },
                 ["Auth"] = new string[0]
             };

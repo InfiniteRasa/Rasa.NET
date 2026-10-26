@@ -1744,7 +1744,7 @@ namespace Rasa.Test.Gameplay
             var sent = bench.Route(new RequestRetrieveFinishedCraftItemPacket
             { KraftwerksId = bench.Object.EntityId, ItemId = job.ResultItemId });
             Assert.AreEqual(GameOpcode.CraftingFailure, sent.OfType<CraftingResultPacket>().Single().Opcode);
-            Assert.AreEqual(PlayerMessage.PmInventoryFull, sent.OfType<DisplayClientMessagePacket>().Single().MsgId);
+            Assert.AreEqual(PlayerMessage.PmInventoryFull, sent.OfType<Rasa.Packets.ClientMethod.Server.DisplaySystemMessagePacket>().Single().MsgId);
             CollectionAssert.AreEqual(durable, bench.DurableSnapshot());
             Assert.AreEqual(1u, job.Count);
 
@@ -2056,6 +2056,36 @@ namespace Rasa.Test.Gameplay
             bench.Object.Position = bench.Client.Player.Position + new System.Numerics.Vector3(50, 0, 0);
             sent = bench.After((station, id) => station.RequestSalvageItem(bench.Client, new RequestSalvageItemPacket { KraftwerksId = id, ItemId = plain.EntityId, CraftingAction = 2 }));
             Assert.AreEqual(0, sent.Count);
+        }
+
+        [TestMethod]
+        public void AStationOnAnotherMapIsNotAnsweredEvenFromItsCoordinates()
+        {
+            using var bench = new Bench();
+
+            var armor = bench.GiveGear(ArmorClass, LootQuality.Rare, 23, Body1, 0, Body5);
+            var home = bench.Client.Player.MapChannel;
+            var elsewhere = new MapChannel { MapInfo = new MapInfo(1220, "adv_foreas_concordia_wilderness", 1556, 0), ClientList = new List<Client>() };
+
+            try
+            {
+                // Standing on the station's spot, but on another map (another copy of it, say).
+                bench.Client.Player.MapChannel = elsewhere;
+                var sent = bench.After((station, id) => station.RequestSalvageItem(bench.Client, new RequestSalvageItemPacket { KraftwerksId = id, ItemId = armor.EntityId, CraftingAction = 2 }));
+
+                Assert.AreEqual(0, sent.Count, "not answered at all");
+                Assert.IsTrue(bench.InPack(armor), "and nothing salvaged");
+                Assert.IsEmpty(bench.JobRows());
+            }
+            finally
+            {
+                bench.Client.Player.MapChannel = home;
+            }
+
+            // On the station's own map, the same request goes through.
+            var done = bench.After((station, id) => station.RequestSalvageItem(bench.Client, new RequestSalvageItemPacket { KraftwerksId = id, ItemId = armor.EntityId, CraftingAction = 2 }));
+            Assert.IsTrue(Succeeded(done));
+            Assert.IsFalse(bench.InPack(armor));
         }
 
         [TestMethod]
@@ -2374,12 +2404,12 @@ namespace Rasa.Test.Gameplay
             Assert.AreEqual(1000u, bench.JobRows().Single().Count);
             Assert.AreEqual((0u, Body2Item, 5000u, bench.Client.Player.FamilyName), Inbox(bench).First());
             Assert.HasCount(1, sent.OfType<AddInboxItemPacket>().ToArray());
-            Assert.IsTrue(sent.OfType<DisplayClientMessagePacket>().Any(packet => packet.MsgId == PlayerMessage.PmInventoryFull));
+            Assert.IsTrue(sent.OfType<Rasa.Packets.ClientMethod.Server.DisplaySystemMessagePacket>().Any(packet => packet.MsgId == PlayerMessage.PmInventoryFull));
 
             // Neither has room: nothing changes.
             var durable = bench.DurableSnapshot();
             sent = TakeAll(bench, station);
-            Assert.AreEqual(PlayerMessage.PmInventoryFull, sent.OfType<DisplayClientMessagePacket>().Single().MsgId);
+            Assert.AreEqual(PlayerMessage.PmInventoryFull, sent.OfType<Rasa.Packets.ClientMethod.Server.DisplaySystemMessagePacket>().Single().MsgId);
             CollectionAssert.AreEqual(durable, bench.DurableSnapshot());
             Assert.AreEqual(1000u, bench.JobRows().Single().Count);
 

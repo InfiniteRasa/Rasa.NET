@@ -1204,6 +1204,25 @@ namespace Rasa.Managers
                 SendMemberData(MemberDataFor(gm, member, true), player.Id);
         }
 
+        /// <summary>
+        /// Something on a member's roster line changed while they are in the world - they went AFK
+        /// or came back (ManifestationManager.SetAfk), or went up a level - and the roster is
+        /// otherwise sent again only at login, on coming onto a map and on rank and leader
+        /// changes: their line, to every member online, themselves among them.
+        /// </summary>
+        internal void MemberChanged(Client client)
+        {
+            var player = client?.Player;
+
+            if (player == null || player.ClanId == 0 || !CountsAsOnline(client))
+                return;
+
+            var member = GetClanMember(player.ClanId, player.Id);
+
+            if (member != null)
+                SendMemberData(MemberDataFor(client, member, true));
+        }
+
         internal void RemovePlayer(Client client)
         {
             // An invitation they never answered goes with them, so it cannot be answered by
@@ -1759,6 +1778,7 @@ namespace Rasa.Managers
                 Rank = member.Rank,
                 Note = member.Note,
                 IsOnline = isOnline,
+                IsAfk = isOnline && client.Player.IsAFK,
                 InvisibleGm = isOnline && client.Player.GmInvisible
             };
         }
@@ -1789,6 +1809,7 @@ namespace Rasa.Managers
                 Rank = entry.Rank,
                 Note = entry.Note,
                 IsOnline = inWorld != null,
+                IsAfk = inWorld?.Player.IsAFK == true,
                 InvisibleGm = inWorld?.Player.GmInvisible == true
             };
         }

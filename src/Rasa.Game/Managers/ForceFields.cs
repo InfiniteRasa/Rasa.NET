@@ -25,7 +25,8 @@ namespace Rasa.Managers
     ///    DESTROYED (191-194, 196-199); CLANFORCEFIELD's USE_CFF_STATE_AFS_OWNS / BANE_OWNS /
     ///    CLAN_OWNS (211-213), its damage animations picked from the hit points, and
     ///    USE_STATE_DESTROYED; OWNABLEFORCEFIELD takes a target category (Recv_TargetCategory) and
-    ///    a hue (Recv_SetHue, 0-255 each) and is destroyed at USE_STATE_DESTROYED;
+    ///    a hue (Recv_SetHue, 0-255 each), and has two states, USE_STATE_ACTIVE (170) standing and
+    ///    USE_STATE_DESTROYED (2) down;
     ///  - hit points through Recv_DamageInfo and Recv_UpdateHitPoints, as any destroyable usable.
     ///
     /// The maps build the gates - human outpost fences, fort walls, Bane outpost walls - with
@@ -40,8 +41,8 @@ namespace Rasa.Managers
     ///    stops players and friendly creatures and lets the Bane pass;
     ///  - hit points (<see cref="DefaultHealth"/> unless the GM gives some), the states at more
     ///    than 75%, more than 25% and above none, and no repair but a GM's;
-    ///  - who can hurt one: whoever it stops, which for now is a player shooting a B field;
-    ///  - a creature it stops just stops, where the field is, and goes no further until it is down.
+    ///  - whoever it stops can hurt it; Landing Zone assault troops must first defeat the frontline;
+    ///  - creatures cannot cross an intact enemy field, and may attack one selected as a combat target.
     /// </summary>
     public static class ForceFields
     {
@@ -118,6 +119,13 @@ namespace Rasa.Managers
             public int MaxHealth { get; set; }
             public int Health { get; set; }
 
+            /// <summary>
+            /// Shot at, it takes nothing: a field only something else takes down, such as the gate
+            /// of Pravus Research, which its keypass scanner opens (PravusResearch), or Torcastra
+            /// Prison's, which its gate key opens (TorcastraPrison).
+            /// </summary>
+            public bool Sealed { get; set; }
+
             public bool IsDestroyed => Health <= 0;
             public Vector3 Position => Object.Position;
             public float Yaw => (float)Object.Rotation;
@@ -164,8 +172,14 @@ namespace Rasa.Managers
             if (kind == Kind.Clan)
                 return health <= 0 ? UseObjectState.StateDestroyed : side == Side.A ? UseObjectState.CffStateAfsOwns : UseObjectState.CffStateBaneOwns;
 
+            // Class 10000083 has 170 and 2 and nothing else (usabledata): its hum, loop effect
+            // (arch_hum_forcefield_loop.pkg) and animation are keyed on 170, its wreck mesh on 2,
+            // and its transitions are 2 to 170 and 170 to 2. USE_STATE_NULL (97) is not one of its
+            // states: the client's _SetState raised KeyError on it and kept no state, so the field
+            // stood without its hum or effect, and the Use to 2 that should have taken it down,
+            // from no state, was dropped.
             if (kind == Kind.Ownable)
-                return health <= 0 ? UseObjectState.StateDestroyed : UseObjectState.StateNull;
+                return health <= 0 ? UseObjectState.StateDestroyed : UseObjectState.StateActive;
 
             var a = side == Side.A;
 
@@ -184,6 +198,53 @@ namespace Rasa.Managers
         }
 
         public static UseObjectState StateOf(Field field) => StateOf(field.Class.Kind, field.Side, field.Health, field.MaxHealth);
+
+        /// <summary>A faction field's health states, intact to destroyed, for side A (AFS) and B (Bane).</summary>
+        private static readonly UseObjectState[][] FactionChains =
+        {
+            new[] { UseObjectState.FfStateFactionAIntact, UseObjectState.FfStateFactionA75pHealth, UseObjectState.FfStateFactionA25pHealth, UseObjectState.FfStateFactionADestroyed },
+            new[] { UseObjectState.FfStateFactionBIntact, UseObjectState.FfStateFactionB75pHealth, UseObjectState.FfStateFactionB25pHealth, UseObjectState.FfStateFactionBDestroyed }
+        };
+
+        /// <summary>
+        /// The states a field's clients are taken through from one state to another, in order, not
+        /// counting <paramref name="from"/>: what Recv_Use can follow. FORCEFIELD (augmentation 62,
+        /// usabledata.usableaugmentationstatetransition) steps a band at a time, intact, 75%, 25%,
+        /// destroyed and back up, with one shortcut, destroyed straight to intact (event 166, the
+        /// field coming back up); client/augmentations/usable.py drops a Use whose (current, new)
+        /// pair it has no transition for, so a hit across two bands, a kill from intact or a repair
+        /// from 25% would leave the field drawn as it was. The clan field's states go from any to
+        /// any (79), and the ownable field has two, active and destroyed (84), so theirs is the one step.
+        /// </summary>
+        public static IReadOnlyList<UseObjectState> Steps(Kind kind, UseObjectState from, UseObjectState to)
+        {
+            if (from == to)
+                return Array.Empty<UseObjectState>();
+
+            if (kind == Kind.Faction)
+                foreach (var chain in FactionChains)
+                {
+                    var start = Array.IndexOf(chain, from);
+                    var end = Array.IndexOf(chain, to);
+
+                    if (start < 0 || end < 0)
+                        continue;
+
+                    // Destroyed to intact is a transition of its own.
+                    if (start == chain.Length - 1 && end == 0)
+                        return new[] { to };
+
+                    var steps = new List<UseObjectState>();
+                    var direction = end > start ? 1 : -1;
+
+                    for (var i = start + direction; i != end + direction; i += direction)
+                        steps.Add(chain[i]);
+
+                    return steps;
+                }
+
+            return new[] { to };
+        }
 
         /// <summary>Whether an intact field of this side stops players (the AFS): only a Bane one does.</summary>
         public static bool StopsPlayers(Side side) => side == Side.B;
@@ -356,27 +417,48 @@ namespace Rasa.Managers
             if (now == before)
                 return;
 
-            field.Object.StateId = now;
-            CellManager.Instance.CellCallMethod(field.Object, new UsePacket(byEntityId, now, 0));
+            // A state at a time where the class only goes a band at a time: a Use between two
+            // states the class has no transition for is dropped by the client.
+            foreach (var step in Steps(field.Class.Kind, before, now))
+            {
+                field.Object.StateId = step;
+                CellManager.Instance.CellCallMethod(field.Object, new UsePacket(byEntityId, step, 0));
+            }
 
             // Down, or up again: whoever it stopped is told.
             SendBlockInfo(field);
         }
 
-        /// <summary>Whether this actor may shoot the field: it has to be one that stops them.</summary>
+        /// <summary>Whether this actor may shoot the field: it has to be one that stops them, and not sealed.</summary>
         public static bool MayShoot(Field field, Actor shooter)
         {
-            if (field == null || shooter == null || field.IsDestroyed)
+            if (field == null || shooter == null || field.IsDestroyed || field.Sealed)
                 return false;
 
             return shooter switch
             {
                 Manifestation => StopsPlayers(field.Side),
-                Creature creature => StopsCategory(field.Side, creature.TargetCategory),
+                Creature creature => StopsCategory(field.Side, creature.TargetCategory) && LandingZoneBreach.AllowsHit(field, creature),
                 _ => false
             };
         }
 
+        /// <summary>A creature's hostile, damageable field on this exact map channel.</summary>
+        internal static bool MayBeFoughtBy(Creature creature, ulong entityId)
+        {
+            var field = Find(entityId);
+            return field != null && ReferenceEquals(field.MapChannel, creature?.RuntimeMapChannel) && MayShoot(field, creature);
+        }
+        /// <summary>Aim at the nearest part of the shield sheet, rather than its mesh origin.</summary>
+        internal static Vector3 AttackPoint(Field field, Vector3 from)
+        {
+            var rotation = Quaternion.CreateFromYawPitchRoll(field.Yaw, 0, 0);
+            var local = Vector3.Transform(from - field.Position, Quaternion.Inverse(rotation));
+            var min = field.Class.Min;
+            var max = field.Class.Max;
+            local = new Vector3(Math.Clamp(local.X, min.X, max.X), Math.Clamp(local.Y + 1.4f, min.Y, max.Y), (min.Z + max.Z) * 0.5f);
+            return field.Position + Vector3.Transform(local, rotation);
+        }
         /// <summary>
         /// A missile at a field landing (MissileManager.MissileTrigger): its damage goes on the
         /// field as it is, no crit, cover or resistance, and what it took is what the hit shows.

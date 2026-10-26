@@ -259,7 +259,9 @@ namespace Rasa.Managers
             SendToOthers(mapChannel, client.Player,
                 new PerformWindupPacket(PerformType.ThreeArgs, packet.ActionId, packet.ActionArgId, targetId));
 
-            var windup = tool.ItemTemplate.WeaponInfo?.Windup ??
+            // A tool's own windup when it has one; an autofire mark (-1) is not a time.
+            var templateWindup = tool.ItemTemplate.WeaponInfo?.Windup;
+            var windup = templateWindup is >= 0 ? templateWindup.Value :
                          (packet.ActionId == ActionId.ToolNerfweapon ? SnowballWindupMs : DefaultWindupMs);
 
             mapChannel.PerformRecovery.Add(
@@ -333,9 +335,11 @@ namespace Rasa.Managers
             if (client?.Player == null || client.State != ClientState.Ingame)
                 return;
 
+            // Interrupted: everyone is told, the user too - their client cancelled it as it sent
+            // the interrupt, and this is what floats "Interrupted" over them.
             if (action.IsInrerrupted)
             {
-                SendToOthers(mapChannel, action.Actor,
+                CellManager.Instance.CellCallMethod(mapChannel, action.Actor,
                     new ActionInterruptPacket(action.Actor.EntityId, action.ActionId, action.ActionArgId));
                 ActorManager.ResolveInterruptedRequest(client, action.ActionId, action.ActionArgId);
                 return;

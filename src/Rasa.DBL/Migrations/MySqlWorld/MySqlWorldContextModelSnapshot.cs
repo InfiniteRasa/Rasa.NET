@@ -1079,8 +1079,8 @@ namespace Rasa.Migrations.MySqlWorld
                         .HasColumnType("int unsigned")
                         .HasColumnName("tool_type");
 
-                    b.Property<uint>("Windup")
-                        .HasColumnType("int unsigned")
+                    b.Property<int>("Windup")
+                        .HasColumnType("int")
                         .HasColumnName("windup");
 
                     b.HasKey("Id");
@@ -2940,6 +2940,180 @@ namespace Rasa.Migrations.MySqlWorld
                     b.HasKey("Id");
 
                     b.ToTable("npc_package");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.NpcSquadMemberEntry", b =>
+                {
+                    b.Property<uint>("TypeId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("type_id");
+
+                    b.Property<byte>("Slot")
+                        .HasColumnType("tinyint unsigned")
+                        .HasColumnName("slot");
+
+                    b.Property<uint>("CreatureId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("creature_id");
+
+                    b.Property<byte>("MaxCount")
+                        .HasColumnType("tinyint unsigned")
+                        .HasColumnName("max_count");
+
+                    b.Property<byte>("MinCount")
+                        .HasColumnType("tinyint unsigned")
+                        .HasColumnName("min_count");
+
+                    b.HasKey("TypeId", "Slot");
+
+                    b.ToTable("npc_squad_member");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.NpcSquadPathEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("id");
+
+                    b.Property<uint>("MapContextId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("map_context_id");
+
+                    b.Property<byte>("Mode")
+                        .HasColumnType("tinyint unsigned")
+                        .HasColumnName("mode");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("npc_squad_path");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.NpcSquadPathPointEntry", b =>
+                {
+                    b.Property<uint>("PathId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("path_id");
+
+                    b.Property<uint>("Step")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("step");
+
+                    b.Property<double>("EngageRange")
+                        .HasColumnType("double")
+                        .HasColumnName("engage_range");
+
+                    b.Property<uint>("PauseMs")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("pause_ms");
+
+                    b.Property<double>("PosX")
+                        .HasColumnType("double")
+                        .HasColumnName("pos_x");
+
+                    b.Property<double>("PosY")
+                        .HasColumnType("double")
+                        .HasColumnName("pos_y");
+
+                    b.Property<double>("PosZ")
+                        .HasColumnType("double")
+                        .HasColumnName("pos_z");
+
+                    b.Property<byte>("Run")
+                        .HasColumnType("tinyint unsigned")
+                        .HasColumnName("run");
+
+                    b.HasKey("PathId", "Step");
+
+                    b.ToTable("npc_squad_path_point");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.NpcSquadSpawnEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("id");
+
+                    b.Property<byte>("Arrival")
+                        .HasColumnType("tinyint unsigned")
+                        .HasColumnName("arrival");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("comment");
+
+                    b.Property<byte>("Enabled")
+                        .HasColumnType("tinyint unsigned")
+                        .HasColumnName("enabled");
+
+                    b.Property<uint>("MapContextId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("map_context_id");
+
+                    b.Property<uint>("PathId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("path_id");
+
+                    b.Property<double>("PosX")
+                        .HasColumnType("double")
+                        .HasColumnName("pos_x");
+
+                    b.Property<double>("PosY")
+                        .HasColumnType("double")
+                        .HasColumnName("pos_y");
+
+                    b.Property<double>("PosZ")
+                        .HasColumnType("double")
+                        .HasColumnName("pos_z");
+
+                    b.Property<uint>("RespawnSeconds")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("respawn_seconds");
+
+                    b.Property<double>("Rotation")
+                        .HasColumnType("double")
+                        .HasColumnName("rotation");
+
+                    b.Property<uint>("TypeId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("type_id");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("npc_squad_spawn");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.NpcSquadTypeEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("id");
+
+                    b.Property<double>("EngageRange")
+                        .HasColumnType("double")
+                        .HasColumnName("engage_range");
+
+                    b.Property<byte>("Formation")
+                        .HasColumnType("tinyint unsigned")
+                        .HasColumnName("formation");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("name");
+
+                    b.Property<double>("Spacing")
+                        .HasColumnType("double")
+                        .HasColumnName("spacing");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("npc_squad_type");
                 });
 
             modelBuilder.Entity("Rasa.Structures.World.OrdinaryLootGroupEntry", b =>

@@ -23,12 +23,21 @@ namespace Rasa.Test.Missions.Wilderness
                 enabled.Where(entry => entry.ContentRevision == WildernessMissionCases.ContentRevision)
                     .Select(entry => entry.MissionId).ToArray());
             // And the battlefields' Targets of Opportunity (TargetsOfOpportunitySeed): fourteen, the
-            // fifteenth being the Wilderness missions' own 1449.
+            // fifteenth being the Wilderness missions' own 1449. And the Ojasa Atta Hive's five
+            // (OjasaHiveContent), the Caves of Donn's six (CavesOfDonnContent), the Devil's Den's
+            // eight (DevilsDenContent), Pravus Research's six (PravusResearchContent), Torcastra
+            // Prison's five (TorcastraMissionsV1) and Minos Caverns' four (MinosCavernsMissions), which are instances'.
             var battlefields = Rasa.Services.Preloader.TargetsOfOpportunitySeed.Zones.Select(zone => zone.MissionId).ToArray();
+            var ojasa = Rasa.Services.Preloader.OjasaHiveContent.Missions;
+            var donn = Rasa.Services.Preloader.CavesOfDonnContent.Missions;
+            var den = Rasa.Services.Preloader.DevilsDenContent.Missions;
+            var pravus = Rasa.Services.Preloader.PravusResearchContent.Missions
+                .Concat(Rasa.Services.Preloader.Missions.Torcastra.TorcastraMissionsV1.Enabled).ToArray();
+            var minos = Rasa.Services.Preloader.MinosCavernsMissions.Missions;
             CollectionAssert.AreEquivalent(expected.Concat(WildernessMissionCases.ProtectedBootcampMissionIds)
-                    .Concat(battlefields).ToArray(),
+                    .Concat(battlefields).Concat(ojasa).Concat(donn).Concat(den).Concat(pravus).Concat(minos).ToArray(),
                 enabled.Select(entry => entry.MissionId).ToArray());
-            Assert.AreEqual(69 + battlefields.Length, enabled.Length);
+            Assert.AreEqual(69 + battlefields.Length + ojasa.Length + donn.Length + den.Length + pravus.Length + minos.Length, enabled.Length);
             Assert.IsTrue(expected.All(id => harness.Manager.LoadedMissions[id].IsOperational),
                 "An enabled but nonoperational definition is not outdoor coverage.");
         }

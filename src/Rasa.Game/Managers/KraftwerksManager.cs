@@ -438,14 +438,24 @@ namespace Rasa.Managers
             (int)Math.Ceiling(jobs.Max(job => job.TimeLeftSeconds));
 
         /// <summary>
-        /// The station a request names, when it is one and the player is close enough to use it.
-        /// Null otherwise; the caller has nothing sensible to answer on, so it answers nothing.
+        /// The station a request names, when it is one, on the player's map, and the player is
+        /// close enough to use it. Null otherwise; the caller has nothing sensible to answer on,
+        /// so it answers nothing. The map first: stations are found server-wide by entity id,
+        /// and the distance alone let a player on one map use another map's station from the
+        /// same coordinates (or another copy's, in a private instance), for every request but
+        /// the take, whose job claim checks the map.
         /// </summary>
         private DynamicObject StationFor(Client client, ulong kraftwerksId, string request)
         {
             if (!EntityManager.Instance.TryGetObject(kraftwerksId, out var station) || station.DynamicObjectType != DynamicObjectType.Kraftwerks)
             {
                 Logger.WriteLog(LogType.Debug, $"{request} from {client.Player.FamilyName} names {kraftwerksId}, which is not a crafting station");
+                return null;
+            }
+
+            if (!MapInstanceScope.Contains(client.Player.MapChannel, station))
+            {
+                Logger.WriteLog(LogType.Security, $"{request} from {client.Player.FamilyName} names station {kraftwerksId}, which is not on their map");
                 return null;
             }
 
@@ -472,7 +482,7 @@ namespace Rasa.Managers
         {
             SendStatus(client, station);
             client.CallMethod(station.EntityId, CraftingResultPacket.Failure(client.Player.EntityId));
-            client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(message, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+            CommunicatorManager.ShowPlayerMessage(client, message);
         }
 
         /// <summary>The 1.16.5 window: (station, the schematic item's entity id, page).</summary>

@@ -36,6 +36,14 @@ namespace Rasa.Data
         /// <summary>generated/client/gameeffectdata.py GESTURE_EFFECT.</summary>
         public const int EffectTypeId = 129;
 
+        /// <summary>
+        /// AFK_LOOP (generated/client/gesture.py): windup animation 1360 "Gesture AFK", looping
+        /// recovery 1381 "Gesture AFK Loop", FX GESTURE_AFK_WINDUP / GESTURE_AFK_RESOLVE
+        /// (vfx_m_gesture_afk.pkg, vfx_m_gesture_afk_loop.pkg). No slash command maps to it:
+        /// the server plays it when the player goes AFK (GestureManager.StartAfkPose).
+        /// </summary>
+        public const uint AfkLoop = 86;
+
         private static readonly Dictionary<uint, GestureInfo> Table = new()
         {
             [1] = new GestureInfo(2666, false),  // /bow
@@ -111,7 +119,7 @@ namespace Rasa.Data
             [83] = new GestureInfo(2166, true),  // /sit
             [84] = new GestureInfo(2500, false),  // /cutthroat
             [85] = new GestureInfo(0, true),  // /ymca
-            [86] = new GestureInfo(2000, true),
+            [86] = new GestureInfo(2000, true),  // AFK_LOOP: the server's, when the player goes AFK
             [87] = new GestureInfo(3000, true),  // /liedown
             [88] = new GestureInfo(6000, false),  // /logosgreet
             [89] = new GestureInfo(6000, false),  // /logosstop

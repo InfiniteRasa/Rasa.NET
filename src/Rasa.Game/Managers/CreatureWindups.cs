@@ -28,7 +28,9 @@ namespace Rasa.Managers
     /// windup is done does not land it (MissileManager.DoWork).
     ///
     /// Weapon attacks - action 1 and 174 pairs, a module under weapons. - are shots and blows,
-    /// not abilities, and land as they did.
+    /// not abilities, and land as they did. The charged shots are the exception (IsChargedShot):
+    /// the Lightbender's beam is wound up as an ability is, and lands at the end of its windup
+    /// on a target its shooter can still see (MissileManager.MissileTrigger).
     ///
     /// The actions that are not missiles wait the same way (After): Rage, Scourge and the warcry
     /// (CreatureBuffs), the Howler's shriek (CreatureDebuffs), the Technician's turret and the
@@ -51,6 +53,20 @@ namespace Rasa.Managers
 
         /// <summary>Whether this action is an ability rather than a weapon's shot or blow.</summary>
         public static bool IsAbility(string module) => !string.IsNullOrEmpty(module) && !module.StartsWith("weapons.");
+
+        /// <summary>WEAPON_ATTACK_LIGHT_BENDER: the Lightbenders' weapon (weapon classes 7119, 10856, 21838).</summary>
+        public const uint LightbenderShotArg = 149;
+
+        /// <summary>
+        /// The creature weapon attacks that are charged shots, wound up before they land: the
+        /// Lightbender's beam, actionArguments (1, 149) - windupDelayMs 1400 (WEAPON_LIGHTBENDER_WINDUP),
+        /// recoveryDelayMs 3033, maxRange 60 - fired by a weapon class of velocity -1, a shot
+        /// that is there at once (ShotFlight). Landed as it was fired, a sniper's hit came with
+        /// the windup, before the charge the client plays for it, and from wherever its target
+        /// had gone by the time the shot was seen.
+        /// </summary>
+        public static bool IsChargedShot(ActionId actionId, uint actionArgId) =>
+            actionId == ActionId.WeaponAttack && actionArgId == LightbenderShotArg;
 
         /// <summary>The windup: the row's, else the argument's.</summary>
         public static int WindupMsOf(CreatureAction action, ActionLevelInfo info)
@@ -240,19 +256,20 @@ namespace Rasa.Managers
             creature?.Controller != null && Environment.TickCount64 < creature.Controller.WindupUntil;
 
         /// <summary>
-        /// A creature starts winding an ability up: how long until its missile lands (windup and
-        /// flight), or null for an action that lands as it always did - a weapon's, or an ability
-        /// with no windup and no velocity.
+        /// A creature starts winding an ability or a charged shot up: how long until its missile
+        /// lands (windup and flight), or null for an action that lands as it always did - a
+        /// weapon's, or an ability with no windup and no velocity.
         /// </summary>
         public static int? Begin(MapChannel mapChannel, Creature creature, CreatureAction action, float distance)
         {
             if (creature == null || action == null || AbilityManager.Instance == null
                 || !AbilityManager.Instance.TryGetAction(action.ActionId, action.ActionArgId, out var module, out var info)
-                || !IsAbility(module))
+                || !(IsAbility(module) || IsChargedShot(action.ActionId, action.ActionArgId)))
                 return null;
 
             var windupMs = WindupMsOf(action, info);
-            var landsIn = windupMs + FlightMs(info, distance);
+            // The Lightbender's beam is there at once (velocity -1); an ability flies.
+            var landsIn = windupMs + (IsChargedShot(action.ActionId, action.ActionArgId) ? 0 : FlightMs(info, distance));
 
             if (windupMs > 0)
                 creature.Controller.WindupUntil = Environment.TickCount64 + windupMs;

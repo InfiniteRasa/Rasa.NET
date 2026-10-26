@@ -149,6 +149,42 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.HasCount(1, Hatchlings(harness).ToArray(), "the one still fighting stays");
         }
 
+        /// <summary>
+        /// A brood taken away rather than killed - its time up with nothing to fight, or taken off
+        /// the map - is gone: the cluster hatches again once its time is up.
+        /// </summary>
+        [TestMethod]
+        public void AClusterWhoseBroodWasTakenAwayHatchesAgain()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var egg = Egg(harness, harness.Client.Player.Position);
+            FithikEggClusters.Worker(harness.Map);
+            _now += FithikEggClusters.HatchMs;
+            FithikEggClusters.Worker(harness.Map);
+
+            var brood = Hatchlings(harness).ToList();
+            Assert.HasCount(FithikEggClusters.Hatchlings, brood);
+
+            // Two run out their time fighting nothing; the third is taken off the map.
+            brood[0].Hate.Clear();
+            brood[1].Hate.Clear();
+            _now += FithikEggClusters.HatchedMs;
+            FithikEggClusters.Worker(harness.Map);
+            _now += FithikEggClusters.GrowMs;
+            FithikEggClusters.Worker(harness.Map);
+            _now += FithikEggClusters.LifetimeMs;
+            FithikEggClusters.Worker(harness.Map);
+            CellManager.Instance.RemoveCreatureFromWorld(harness.Map, brood[2]);
+
+            Assert.IsEmpty(Hatchlings(harness).ToArray(), "none of them left");
+            Assert.IsTrue(brood.All(hatchling => hatchling.State != CharacterState.Dead), "and none of them killed");
+
+            FithikEggClusters.Worker(harness.Map);
+            FithikEggClusters.Worker(harness.Map);
+
+            Assert.AreEqual(UseObjectState.CsStateSpawn, egg.StateId, "its brood gone and its time up, it hatches again");
+        }
+
         [TestMethod]
         public void TheRanjaClustersStartIdleAndTheHatchlingHasItsRowsAndDownPutsThemBack()
         {

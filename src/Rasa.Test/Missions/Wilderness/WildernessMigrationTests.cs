@@ -34,6 +34,17 @@ namespace Rasa.Test.Missions.Wilderness
         private static readonly uint[] BattlefieldMissions =
             TargetsOfOpportunitySeed.Zones.Select(zone => zone.MissionId).ToArray();
 
+        /// <summary>
+        /// Every mission enabled by a migration dated after the Wilderness ones: the
+        /// battlefields', the Ojasa Atta Hive's five (Ojasa_hive), the Caves of Donn's six
+        /// (Caves_of_donn), the Devil's Den's eight (Devils_den), Pravus Research's six
+        /// (Pravus_research), Torcastra Prison's five (Torcastra_prison) and Minos Caverns' four
+        /// (Minos_caverns_missions).
+        /// </summary>
+        private static readonly uint[] LaterMissions = BattlefieldMissions.Concat(OjasaHiveContent.Missions)
+            .Concat(CavesOfDonnContent.Missions).Concat(DevilsDenContent.Missions).Concat(PravusResearchContent.Missions)
+            .Concat(Rasa.Services.Preloader.Missions.Torcastra.TorcastraMissionsV1.Enabled).Concat(MinosCavernsMissions.Missions).ToArray();
+
         [TestMethod]
         [DataRow(typeof(SqliteWorldContext))]
         [DataRow(typeof(MySqlWorldContext))]
@@ -263,16 +274,20 @@ namespace Rasa.Test.Missions.Wilderness
             {
                 Assert.AreEqual(1220U, pools[poolId].MapContextId, $"Mission pool {poolId} must stay in Wilderness.");
                 Assert.AreEqual(creatureId, pools[poolId].Creature1Id);
-                Assert.AreEqual((byte)1, pools[poolId].Creature1MinCount);
-                Assert.AreEqual((byte)1, pools[poolId].Creature1MaxCount);
+                // Solis owns a ranger per assignment; its old shared pool must stay retired.
+                var count = (byte)(poolId == WildernessOpeningWorldV1.RangerSpawnId ? 0 : 1);
+                Assert.AreEqual(count, pools[poolId].Creature1MinCount, $"Pool {poolId}");
+                Assert.AreEqual(count, pools[poolId].Creature1MaxCount, $"Pool {poolId}");
+                if (poolId == WildernessOpeningWorldV1.RangerSpawnId)
+                    Assert.AreEqual((byte)Rasa.Managers.SpawnPoolManager.ModeScripted, pools[poolId].Mode);
             }
 
             var expectedMissions = WildernessMissionCases.All
                 .Where(row => row.Disposition == WildernessDisposition.OutdoorRelease)
                 .Select(row => row.MissionId).Concat(WildernessMissionCases.ProtectedBootcampMissionIds)
-                .Concat(BattlefieldMissions).ToArray();
+                .Concat(LaterMissions).ToArray();
             var enabled = context.MissionContentDefinitionEntries.AsNoTracking().Where(row => row.Enabled).ToArray();
-            Assert.AreEqual(69 + BattlefieldMissions.Length, enabled.Length);
+            Assert.AreEqual(69 + LaterMissions.Length, enabled.Length);
             CollectionAssert.AreEquivalent(expectedMissions, enabled.Select(row => row.MissionId).ToArray());
             Assert.IsTrue(enabled.Where(row => row.ContentRevision == WildernessMissionCases.ContentRevision)
                 .All(row => row.CategoryId == 10000044));
@@ -412,8 +427,10 @@ namespace Rasa.Test.Missions.Wilderness
             }
             Assert.AreEqual(69, expected.Count);
             harness.World.Initialize();
-            // Everything dated after the Wilderness migrations: the battlefields' missions come with it.
-            expected.UnionWith(BattlefieldMissions);
+            // Everything dated after the Wilderness migrations: the battlefields' missions, the
+            // Ojasa hive's, the Caves of Donn's, the Devil's Den's, Pravus Research's and Torcastra's
+            // come with it.
+            expected.UnionWith(LaterMissions);
             CollectionAssert.AreEquivalent(expected.ToArray(),
                 harness.World.MissionContentDefinitionEntries.AsNoTracking()
                     .Where(entry => entry.Enabled).Select(entry => entry.MissionId).ToArray());
@@ -544,10 +561,13 @@ namespace Rasa.Test.Missions.Wilderness
 
             var latest = EvidenceRows(harness);
             CollectionAssert.IsSubsetOf(opening, latest);
-            Assert.AreEqual(69 + BattlefieldMissions.Length,
+            Assert.AreEqual(69 + LaterMissions.Length,
                 harness.World.MissionContentDefinitionEntries.Count(entry => entry.Enabled));
             Assert.AreEqual("TEXT", EvidenceColumnType(harness).ToUpperInvariant());
-            Assert.IsFalse(harness.Manager.LoadMissions().BlocksReadiness);
+            // A deployed world upgrade restarts the mission runtime; it is not a live removal
+            // of public encounter declarations from the previous runtime.
+            var restarted = harness.CreateFreshMissionApplication();
+            Assert.IsFalse(restarted.LoadMissions().BlocksReadiness);
             Assert.IsFalse(harness.World.Database.GetPendingMigrations().Any());
 
             Execute(down);
@@ -576,13 +596,18 @@ namespace Rasa.Test.Missions.Wilderness
         }
 
         /// <summary>
-        /// The evidence of Bootcamp and the Wilderness missions. The battlefields' missions have
-        /// theirs from a migration dated after these, which comes and goes with a rollback to
-        /// one of them.
+        /// The evidence of Bootcamp and the Wilderness missions. The battlefields' missions, the
+        /// Ojasa hive's, the Caves of Donn's, the Devil's Den's, Pravus Research's, Torcastra's and
+        /// Minos Caverns' have theirs from migrations dated after these, which come and go with a
+        /// rollback to one of them.
         /// </summary>
         private static string[] EvidenceRows(WildernessRuntimeTestHarness harness) =>
             harness.World.MissionEvidenceEntries.AsNoTracking().AsEnumerable()
-                .Where(entry => entry.ContentRevision != TargetsOfOpportunitySeed.Revision)
+                .Where(entry => entry.ContentRevision != TargetsOfOpportunitySeed.Revision &&
+                    entry.ContentRevision != OjasaHiveContent.Revision && entry.ContentRevision != CavesOfDonnContent.Revision &&
+                    entry.ContentRevision != DevilsDenContent.Revision && entry.ContentRevision != PravusResearchContent.Revision &&
+                    entry.ContentRevision != Rasa.Services.Preloader.Missions.Torcastra.TorcastraMissionsV1.Revision &&
+                    entry.ContentRevision != MinosCavernsMissions.Revision)
                 // Wilderness_reward_consumables and Wilderness_reward_modules, dated after the
                 // Wilderness migrations, add their own.
                 .Where(entry => entry.SourceUri != "repository:WildernessRewardConsumables" &&
@@ -598,12 +623,22 @@ namespace Rasa.Test.Missions.Wilderness
         public void OnlyIndicatorsKeyedByTheClientsIdsAreSentWithAName()
         {
             using var harness = WildernessRuntimeTestHarness.Create();
-            var rows = harness.World.MissionIndicatorEntries.AsNoTracking().ToArray();
+            // The Ojasa hive's, the Caves of Donn's, the Devil's Den's, Pravus Research's and
+            // Torcastra's are keyed by the client's ids where it has one (OjasaHiveTests,
+            // CavesOfDonnTests, DevilsDenTests, PravusResearchTests, TorcastraPrisonTests). Minos
+            // Caverns' too (MinosCavernsMissionsTests).
+            var rows = harness.World.MissionIndicatorEntries.AsNoTracking().AsEnumerable()
+                .Where(row => row.ContentRevision != OjasaHiveContent.Revision && row.ContentRevision != CavesOfDonnContent.Revision &&
+                    row.ContentRevision != DevilsDenContent.Revision && row.ContentRevision != PravusResearchContent.Revision &&
+                    row.ContentRevision != Rasa.Services.Preloader.Missions.Torcastra.TorcastraMissionsV1.Revision &&
+                    row.ContentRevision != MinosCavernsMissions.Revision).ToArray();
             var bootcamp = rows.Where(row => row.ContentRevision == "deployment_11").ToArray();
             var wilderness = rows.Where(row => row.ContentRevision == WildernessMissionDataV1.Revision).ToArray();
 
             Assert.AreEqual(12, bootcamp.Length);
-            Assert.AreEqual(97, wilderness.Length);
+            // 97 from the Wilderness migrations, and Kill Proctor Fulgor's (427/6) from
+            // Wilderness_fulgor_indicator, dated after them.
+            Assert.AreEqual(98, wilderness.Length);
             Assert.AreEqual(rows.Length, bootcamp.Length + wilderness.Length);
             // Bootcamp's keys are missionobjectiveindicatorlanguage ids: 430 "Eloh Approach" to 439
             // "Cave-in Location".

@@ -196,6 +196,12 @@ namespace Rasa.Managers
                     break;
 
                 case "abilities.tacticalevasion":
+                    // The flash names who it blinded in hitdata: the client announces the flash
+                    // on each (TacticalEvasionAction.DoAbility), which is its FX and icon and, on
+                    // a flashed player's own client, the target lock let go (BlindEffect).
+                    if (IsMagFlash(info))
+                        recovery = new AbilityRecoveryPacket(action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.EntityIds);
+
                     TacticalEvasion(mapChannel, client, player, info, recovery);
                     break;
 
@@ -441,11 +447,15 @@ namespace Rasa.Managers
         /// </summary>
         private static GameEffect NewEffect(MapChannel mapChannel, Manifestation player, ActionLevelInfo info, int typeId, int? durationSeconds)
         {
+            // These two effects lack FX rows for some pumps. Preserve defined variants (notably
+            // Reanimation level 2) and leave the level semantics of other effects unchanged.
+            var visualLevel = typeId == HackedTypeId || typeId == ReanimatedTypeId
+                ? GameEffectFx.LevelFor(typeId, info.Level) : info.Level;
             return new GameEffect
             {
                 TypeId = typeId,
                 EffectId = GameEffectManager.Instance.NextEffectId(mapChannel),
-                EffectLevel = info.Level,
+                EffectLevel = visualLevel,
                 ActionId = info.ActionId,
                 SourceId = player.EntityId,
                 Source = player,

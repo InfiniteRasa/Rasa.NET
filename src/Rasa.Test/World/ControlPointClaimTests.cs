@@ -10,6 +10,7 @@ namespace Rasa.Test.World
     using Rasa.Game;
     using Rasa.Managers;
     using Rasa.Packets;
+    using Rasa.Packets.ClientMethod.Server;
     using Rasa.Packets.Communicator.Server;
     using Rasa.Packets.Game.Server;
     using Rasa.Packets.MapChannel.Client;
@@ -68,6 +69,9 @@ namespace Rasa.Test.World
                 Assert.AreEqual(PerformType.TwoArgs, own.OfType<PerformWindupPacket>().Single().PerformType, "their client plays its own");
                 Assert.AreEqual(0, own.OfType<UsePacket>().Count(), "no transition from the state to itself");
                 Assert.AreEqual(PlayerMessage.PmControlpointClaiming, own.OfType<DisplayClientMessagePacket>().Single().MsgId);
+                var banner = own.OfType<DisplayPlayerNotificationPacket>().Single();
+                Assert.AreEqual((PlayerNotificationType.Big, PlayerMessage.PmControlpointClaiming), (banner.NotificationType, banner.MsgId),
+                    "across the middle of the screen too, as bigtexttype CONTROL_POINT_CLAIMING has it");
 
                 var seen = Drain(f.Onlooker);
                 Assert.AreEqual(f.Claimant.Player.EntityId, seen.OfType<LockToActorPacket>().Single().ActorId);
@@ -226,12 +230,16 @@ namespace Rasa.Test.World
                 Assert.AreEqual(0UL, seen.OfType<LockToActorPacket>().Single().ActorId);
                 Assert.AreEqual(0, seen.OfType<ForceStatePacket>().Count());
 
+                // The claimant is told too - "Interrupted" over them - and then the request is closed.
                 var own = Drain(f.Claimant);
+                var told = own.OfType<ActionInterruptPacket>().Single();
+                Assert.AreEqual(f.Claimant.Player.EntityId, told.SourceId);
+                Assert.AreEqual(DynamicObjectManager.ControlPointUseArgId, told.ActionArgId);
                 var closed = own.OfType<UserActionFailedPacket>().Single();
                 Assert.AreEqual(ActionId.UseObject, closed.ActionId);
                 Assert.IsNull(closed.MsgId, "their client stopped it itself: the request is only closed");
+                Assert.IsTrue(own.IndexOf(told) < own.IndexOf(closed));
                 Assert.AreEqual(0, own.OfType<PerformRecoveryPacket>().Count());
-                Assert.AreEqual(0, own.OfType<ActionInterruptPacket>().Count());
             }
             finally
             {
@@ -396,7 +404,7 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
-        public void AnInterruptedUseOfASceneObjectOfTheKindIsRecoveredAsItWas()
+        public void AnInterruptedUseOfASceneObjectOfTheKindIsToldAsInterruptedAndChangesNothing()
         {
             using var world = new WorldTestContext();
             var claimant = PlayerDeathTests.Player(world, 10, 10);
@@ -429,13 +437,12 @@ namespace Rasa.Test.World
                 world.Map.PerformRecovery.Clear();
                 action.IsInrerrupted = true;
 
-                Assert.IsFalse(DynamicObjectManager.Instance.IsInterruptedClaim(action));
-
                 ActorActionManager.Instance.PerformRecovery(world.Map, action);
 
                 var packets = Drain(claimant);
-                Assert.AreEqual(1, packets.OfType<PerformRecoveryPacket>().Count());
-                Assert.AreEqual(0, packets.OfType<UserActionFailedPacket>().Count());
+                Assert.AreEqual(1, packets.OfType<ActionInterruptPacket>().Count());
+                Assert.AreEqual(0, packets.OfType<PerformRecoveryPacket>().Count());
+                Assert.IsNull(packets.OfType<UserActionFailedPacket>().Single().MsgId);
                 Assert.AreEqual(UseObjectState.CpointStateFactionBOwned, prop.StateId);
             }
             finally

@@ -517,8 +517,10 @@ namespace Rasa.Managers
                 return;
 
             // Only the swing this weapon has. A client naming any other action as its alt attack
-            // is asking for something the weapon cannot do.
-            if ((uint)packet.ActionId != weaponInfo.AltActionId || (uint)packet.ActionArgId != weaponInfo.AltActionArgId)
+            // is asking for something the weapon cannot do, and a weapon with none - a tool - has
+            // nothing to swing.
+            if (weaponInfo.WeaponAltInfo == null ||
+                (uint)packet.ActionId != weaponInfo.AltActionId || (uint)packet.ActionArgId != weaponInfo.AltActionArgId)
             {
                 Logger.WriteLog(LogType.Security, $"{player.FamilyName} sent an alt attack {packet.ActionId}/{packet.ActionArgId} for a weapon whose alt attack is {weaponInfo.AltActionId}/{weaponInfo.AltActionArgId}");
                 return;
@@ -903,7 +905,7 @@ namespace Rasa.Managers
 
             player.ResistanceData = totals.Where(t => t.Value != 0).Select(t => new ResistanceData(t.Key, t.Value)).ToList();
 
-            client.CallMethod(player.EntityId, new ResistanceDataPacket(player.ResistanceData));
+            client.CallMethod(player.EntityId, new ResistanceDataPacket(GameEffectManager.ResistanceDataForClient(player)));
         }
 
         /// <summary>gameeffectdata.SKILL_LIMITED_COOL_RATE_MODIFIER_EFFECT.</summary>
@@ -912,6 +914,15 @@ namespace Rasa.Managers
         /// <summary>gameeffectdata.SKILL_LIMITED_BY_TYPE_RELOAD_MODIFIER_EFFECT.</summary>
         public const int SkillLimitedReloadTypeId = 252;
 
+        /// <summary>
+        /// A skill's standing effect at the player's pump in it. Sent at the level the client has
+        /// visuals for (GameEffectFx.LevelFor): it looks an effect's FX up by type and level
+        /// exactly, and MEDIUM_ARMOR_SKILL, MEDIUM_ARMOR_SKILL_VISIBLE and MECH_ARMOR_SKILL_TARGET
+        /// have rows at level 1 alone. Sent at the pump, Reflective Armor from pump 2 sent its
+        /// damage back with no reflection to be seen (its Recv_AnnounceReflect plays the hidden
+        /// effect's FX), and the Mech aura had no visual. What the effect does is on the effect
+        /// itself, worked out from the pump, not its level.
+        /// </summary>
         /// <param name="shown">
         /// Announced, so the client posts its status icon and tooltip: the armour skills'
         /// visible effects. The weapon skills' effects and the hidden reflect effect are not.
@@ -922,7 +933,7 @@ namespace Rasa.Managers
             {
                 TypeId = typeId,
                 EffectId = GameEffectManager.Instance.NextEffectId(mapChannel),
-                EffectLevel = (uint)Math.Max(1, pump),
+                EffectLevel = GameEffectFx.LevelFor(typeId, (uint)Math.Max(1, pump)),
                 SourceId = player.EntityId,
                 Source = player,
                 SourceLevel = player.Level,
@@ -1404,7 +1415,8 @@ namespace Rasa.Managers
         /// <summary>
         /// Sets the health, armour and power regeneration for the player's current combat state.
         ///
-        /// Health: the period, five times longer in combat. The period rather than the amount,
+        /// Health: at least one tenth of maximum health each resting second; the ordinary stat
+        /// and module rate in combat, with a period five times longer. The period rather than the amount,
         /// because both are integers on the wire and a base amount of 2 scaled by 0.2 truncates
         /// to nothing. See <see cref="CombatRegen"/>.
         ///
@@ -1426,7 +1438,7 @@ namespace Rasa.Managers
         /// ability its own figure cannot pay for (CheckConsumables), so the server's refilled
         /// bar was no use to it.
         ///
-        /// This is the only place any of them is set, including the out-of-combat values, so that
+        /// This method and ApplyHealthRegen own these rates and periods, so that
         /// there is one answer rather than two that have to agree. It is called at the end of
         /// UpdateStatsValues for that reason and for a second one: UpdateStatsValues recomputes
         /// the rates from scratch, so without it, changing a piece of armour mid-fight would
@@ -1440,10 +1452,7 @@ namespace Rasa.Managers
             if (player == null)
                 return;
 
-            if (player.Attributes.TryGetValue(Attributes.Health, out var health))
-                health.RefreshPeriod = player.InCombat
-                    ? CombatRegen.InCombatRegenPeriodSeconds
-                    : CombatRegen.RegenPeriodSeconds;
+            ApplyHealthRegen(player);
 
             if (player.Attributes.TryGetValue(Attributes.Armor, out var armor))
             {
@@ -1453,6 +1462,16 @@ namespace Rasa.Managers
 
             if (player.Attributes.TryGetValue(Attributes.Power, out var power))
                 power.RefreshPeriod = CombatRegen.RegenPeriodSeconds;
+        }
+
+        /// <summary>Keep stored and transmitted health rates identical, without changing power or armour.</summary>
+        internal void ApplyHealthRegen(Manifestation player)
+        {
+            if (player == null || !player.Attributes.TryGetValue(Attributes.Health, out var health)) return;
+            player.HealthRegenRate ??= health.RefreshAmount;
+            health.RefreshPeriod = player.InCombat ? CombatRegen.InCombatRegenPeriodSeconds : CombatRegen.RegenPeriodSeconds;
+            health.RefreshAmount = player.State == CharacterState.Dead || health.Current <= 0 ? 0 :
+                player.InCombat ? player.HealthRegenRate.Value : CombatRegen.RestingHealthRate(health.CurrentMax, player.HealthRegenRate.Value);
         }
 
         /// <summary>Drops players out of combat once their timer has run out.</summary>
@@ -1794,6 +1813,8 @@ namespace Rasa.Managers
             CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.ActiveWeapon, (byte)requestedWeaponDrawerSlot);
             // update ammo info
             client.CallMethod(weapon.EntityId, new WeaponAmmoInfoPacket(weapon.CurrentAmmo));
+
+            Tutorials.Raise(client, TutorialId.Tutinventorytotray);
         }
 
         public void RequestSetAbilitySlot(Client client, RequestSetAbilitySlotPacket packet)
@@ -1862,6 +1883,9 @@ namespace Rasa.Managers
                     new AbilityDrawerData(packet.SlotId, (int)packet.AbilityId, (uint)packet.AbilityLevel, item?.Id);
 
             client.CallMethod(client.Player.EntityId, new AbilityDrawerPacket(client.Player.Abilities, client.Player));
+
+            if (!clearing)
+                Tutorials.Raise(client, TutorialId.Tutinventoryability);
         }
 
         public void RequestSwapAbilitySlots(Client client, RequestSwapAbilitySlotsPacket packet)
@@ -1937,6 +1961,7 @@ namespace Rasa.Managers
                 case FireResult.Fired:
                     ActorManager.Instance.SetAutoFireCombatMode(client, true);
                     RegisterAutoFire(client);
+                    Tutorials.Raise(client, TutorialId.Tutfire);
                     break;
 
                 // Pressed again before the last shot's refire was up. The press still starts the
@@ -2115,6 +2140,10 @@ namespace Rasa.Managers
             MissionArrival(client);
         }
 
+        /// <summary>The class of the item in the player's hand (EquippedInventory[13]), or 0 for an empty hand.</summary>
+        internal static uint HeldWeaponClassId(Manifestation player) =>
+            EntityManager.Instance.GetItem(player.Inventory.EquippedInventory[13]) is { } held ? (uint)held.ItemTemplate.Class : 0;
+
         /// <summary>
         /// The player has come onto a map and is in the world: the missions offered by radio
         /// to whoever arrives there (MissionApplication.OfferArrivalMissions), and the areas
@@ -2174,6 +2203,15 @@ namespace Rasa.Managers
             // saved MissionTrack options against the current mission list, so both the
             // character options and initial mission state must be sent first.
             client.CallMethod(SysEntity.ClientMethodId, new SetControlledActorIdPacket(player.EntityId));
+
+            // Character selection resets the UI without resetting the client's inventory
+            // mappings. Replace the backpack after the controlled actor is ready, including
+            // an empty pack, so re-entry cannot retain stale slots or miss its UI refresh.
+            // Items were already loaded and introduced by InitForClient/ResendForMap.
+            client.CallMethod(SysEntity.ClientInventoryManagerId,
+                new Packets.Inventory.Server.InventoryCreatePacket(
+                    InventoryType.Personal, player.Inventory.PersonalInventory.ToList(),
+                    player.Inventory.PersonalInventory.Count));
 
             // The client drawer handlers resolve GetManifestation() immediately, so
             // refresh the drawer only after the controlled actor is assigned. This
@@ -2501,12 +2539,13 @@ namespace Rasa.Managers
                 // Item race requirements are checked against it (Item.CanActorUse, the tooltip).
                 new RaceIdPacket(player.Race),
                 new AttributeInfoPacket(player),
-                new PreloadDataPacket(client.Player.Inventory.EquippedInventory[13], player.Abilities),
+                // The weapon in hand by its class, which is what the client loads assets for.
+                new PreloadDataPacket(HeldWeaponClassId(player), player.Abilities),
                 new AppearanceDataPacket(player.AppearanceData, ofPlayer: true),
                 // With the appearance: a client that meets the player later has had no
                 // ShowHelmetChanged, and every actor starts with the helmet shown.
                 new ShowHelmetChangedPacket(ShowsHelmet(client)),
-                new ResistanceDataPacket(player.ResistanceData),
+                new ResistanceDataPacket(GameEffectManager.ResistanceDataForClient(player)),
                 new ActorControllerInfoPacket(true),
                 new LevelPacket(player.Level),
                 new CharacterNamePacket(player.Name),
@@ -2517,14 +2556,22 @@ namespace Rasa.Managers
                 new PlayerFlagsPacket(ReferenceEquals(client, recipient)
                     ? CharacterFlagProjection.ToNativeIds(player.PlayerFlags)
                     : Array.Empty<uint>()),
-                new IsTrialAccountPacket(player.IsTrialAccount),
-                // Their own client is told about their fists as well (Unarmed).
-                forSelf ? Unarmed.EquipmentFor(player) : new EquipmentInfoPacket(client.Player.Inventory.EquippedInventory),
-                // "Received because the manifestation was loaded on the server", and only ever
-                // for the player's own. It is what fills the advancement tracker; it offers
-                // nothing, so it goes out whether the list is empty or not.
-                new TierAdvancementInfoPacket(AvailableClassIds(player))
+                new IsTrialAccountPacket(player.IsTrialAccount)
             };
+
+            // Their equipment to their own client only, their fists included (Unarmed). Another
+            // client holds none of the item entities it names: Recv_EquipmentInfo logs "Told about
+            // equipment we don't have" for each, then posts UI_UPDATE_ARMED_WEAPON, which the
+            // viewer's own weapon tray and weapon targeting answer as if their own weapon had
+            // changed (weapondrawerwindow.py HandleUpdateArmedWeapon, targeting.py
+            // OnUpdateArmedWeapon). Others see the weapon from the appearance data.
+            if (forSelf)
+                entityData.Add(Unarmed.EquipmentFor(player));
+
+            // "Received because the manifestation was loaded on the server", and only ever
+            // for the player's own. It is what fills the advancement tracker; it offers
+            // nothing, so it goes out whether the list is empty or not.
+            entityData.Add(new TierAdvancementInfoPacket(AvailableClassIds(player)));
 
             // Someone who arrives while the player is crouched would otherwise draw them standing:
             // nothing else here carries posture to other clients.
@@ -2538,6 +2585,26 @@ namespace Rasa.Managers
             // Dead, to anyone who meets them so: lying there, no death blow played (Recv_DeadOnArrival).
             if (!forSelf && player.State == CharacterState.Dead)
                 entityData.Add(new DeadOnArrivalPacket());
+
+            // What they are doing with their weapon and how they stand, to anyone who meets them
+            // while they do it. Every actor starts holstered (no tool), at ease and not away, and
+            // otherwise a draw, a stance and AFK reach only those who could see them at the
+            // moment it changed: a player met mid-fight showed the weapon on their back, without
+            // its glow, standing at ease, until they next drew, stowed or changed stance.
+            //  - the weapon in hand (actor.py Recv_WeaponReady: _tool_ready and the appearance
+            //    again, which is what puts the weapon and its FX in the hand);
+            //  - the combat stance (Recv_RequestVisualCombatMode), as the cell is told it when it
+            //    changes (ActorManager.UpdateCombatMode);
+            //  - away (manifestation.py Recv_PlayerAfk): the idle marker over their head. Not to
+            //    their own client, which would say "You are AFK" again.
+            if (!forSelf && player.WeaponReady)
+                entityData.Add(new WeaponReadyPacket(true));
+
+            if (!forSelf && player.InCombatMode)
+                entityData.Add(new RequestVisualCombatModePacket(true));
+
+            if (!forSelf && player.IsAFK)
+                entityData.Add(new PlayerAfkPacket(true));
 
             // Stealth Armor's radar signature, to everyone who meets them; and to their own client
             // how far their radar reaches for a stealthed enemy (a Spotter). Both start at 1.0.
@@ -2709,10 +2776,13 @@ namespace Rasa.Managers
 
             player.Level = grant.FinalLevel;
             player.CloneCredits = grant.FinalCloneCredits;
+            if (grant.FinalLevel > grant.PreviousLevel)
+                Ding(client);
             if (grant.FinalLevel != grant.PreviousLevel)
             {
                 PartyManager.Instance.MemberInfoChanged(client);
                 SocialManager.Instance.FriendStatusUpdate(client);
+                ClanManager.Instance.MemberChanged(client);
                 InventoryManager.WagerLevelChanged(client, grant.PreviousLevel);
                 MissionGiversAfterLevel(client);
                 CommunicatorManager.Instance.NewPlayerChannel(client);
@@ -2865,14 +2935,54 @@ namespace Rasa.Managers
                     client.CallMethod(player.EntityId, new AvailableCharacterClassesPacket(opened));
             }
 
+            if (levelAfter > levelBefore)
+                Ding(client);
+
             if (levelAfter != levelBefore)
             {
                 PartyManager.Instance.MemberInfoChanged(client);
                 SocialManager.Instance.FriendStatusUpdate(client);
+                ClanManager.Instance.MemberChanged(client);
                 InventoryManager.WagerLevelChanged(client, levelBefore);
                 MissionGiversAfterLevel(client);
                 CommunicatorManager.Instance.NewPlayerChannel(client);
             }
+        }
+
+        /// <summary>DING_EFFECT: the level-up's burst of light round the player.</summary>
+        public const int DingTypeId = 1;
+
+        /// <summary>How long the ding stays on: about as long as level_up.pkg plays. Ours.</summary>
+        public const int DingMs = 3000;
+
+        /// <summary>
+        /// The level-up's visual, to the player and everyone round them. LevelUp only posts the
+        /// status text (actor.py Recv_LevelUp) and nothing on the client plays LEVEL_UP
+        /// (level_up.pkg): it is DING_EFFECT's FX at level 1, (1, 1) in gameeffectdata.specialFX -
+        /// level 3 is the Eloh control point takeover. Attached once however many levels were
+        /// gained at once, announced, and not to anyone who comes along afterwards.
+        /// </summary>
+        internal static void Ding(Client client)
+        {
+            var player = client?.Player;
+            var mapChannel = player?.MapChannel;
+
+            if (mapChannel == null)
+                return;
+
+            GameEffectManager.Instance.Attach(mapChannel, player, new GameEffect
+            {
+                TypeId = DingTypeId,
+                EffectId = GameEffectManager.Instance.NextEffectId(mapChannel),
+                EffectLevel = 1,
+                SourceId = player.EntityId,
+                Source = player,
+                SourceLevel = player.Level,
+                IsBuff = true,
+                AnnounceOnAttach = true,
+                AnnounceToNewcomers = false,
+                ExpiresTick = Environment.TickCount64 + DingMs
+            });
         }
 
         /// <summary>
@@ -4168,10 +4278,19 @@ namespace Rasa.Managers
             // idle indicator over anyone else's head.
             client.CellCallMethod(client, client.Player.EntityId, new PlayerAfkPacket(isAfk));
 
+            // The pose that goes with it, which only the server starts (Gestures.AfkLoop).
+            if (isAfk)
+                GestureManager.Instance.StartAfkPose(client.Player.MapChannel, client.Player);
+            else
+                GestureManager.Instance.EndAfkPose(client.Player.MapChannel, client.Player);
+
             // The squad window reads a different source: its own party tuples, not the
             // manifestation. A squadmate on another map is not in visibility range at all, so
             // without this they never learn the member went away.
             PartyManager.Instance.MemberInfoChanged(client);
+
+            // Nor does the clan roster, which has its own line for them.
+            ClanManager.Instance.MemberChanged(client);
         }
 
         /// <summary>
@@ -4331,6 +4450,9 @@ namespace Rasa.Managers
                 client.CellIgnoreSelfCallMethod(client, new PerformWindupPacket(PerformType.TwoArgs, ActionId.WeaponReload, (uint)weaponClassInfo.ReloadActionId));
 
             client.Player.MapChannel.PerformRecovery.Add(new ActionData(client.Player, ActionId.WeaponReload, (uint)weaponClassInfo.ReloadActionId, foundAmmo, ReloadTimeFor(client.Player, weapon)) { SourceId = weapon.EntityId });
+
+            // "Your weapon will automatically reload if you attempt to fire it when the clip is empty."
+            Tutorials.Raise(client, TutorialId.Reload);
         }
 
         /// <summary>
@@ -4513,6 +4635,21 @@ namespace Rasa.Managers
         /// Not the player's own client: Recv_SetDesiredCrouchState raises AssertionError for its own
         /// manifestation, and for any state that is not crouched or standing - so anything else is
         /// refused here rather than passed on.
+        ///
+        /// What the message carries is the client's desired posture (CharacterStateMgr
+        /// SetDesiredPosture), and it is taken as it comes, whatever state the server has the
+        /// player in. The client shows a posture from its control state: crouched or standing as
+        /// desired while normal, lying down while stunned or dead (__resultPosture). A crouch
+        /// sent dead, stunned or under a camera script - the server ahead of the client by a
+        /// packet, since the client blocks the crouch key in those states itself - is shown lying
+        /// down, or behind the cut, on every client, and crouched on every client once it is
+        /// over. The server used to refuse it and send the player's own client a
+        /// StateCorrection([STANDING]), which cannot stand that client up: the transition is
+        /// undone a frame later, when UpdateStateDrivenSystems puts the desired posture back, and
+        /// nothing the server can send sets it (Recv_SetDesiredCrouchState asserts on the own
+        /// manifestation, and Recv_ActorInfo only ever sets crouched). So the player stayed
+        /// crouched on their own screen, standing on everyone else's, and without the crouched
+        /// bead and target the server thought they did not have, until their next move.
         /// </summary>
         public void SetDesiredCrouchState(Client client, CharacterState state)
         {
@@ -4527,19 +4664,13 @@ namespace Rasa.Managers
                 return;
             }
 
-            // No crouching for someone dead, stunned or watching a camera script: their client has
-            // crouched already, so it is put back standing (StateCorrection), and nobody else hears.
-            if (state == CharacterState.Crouched && !MayCrouch(player))
-            {
-                player.IsCrouching = false;
-                client.CallMethod(player.EntityId, new StateCorrectionPacket(new List<CharacterState> { CharacterState.Standing }));
-                return;
-            }
-
             player.IsCrouching = state == CharacterState.Crouched;
 
             if (player.IsCrouching)
+            {
                 player.CrouchedAt = player.Position;
+                Tutorials.Raise(client, TutorialId.Tutcrouch);
+            }
 
             // Crouching lifts the bead's ceiling to full and doubles its rate; standing drops it.
             Accuracy.UpdateRates(player, AimRateOf(client), Environment.TickCount64);
@@ -4565,10 +4696,13 @@ namespace Rasa.Managers
         /// it - a stand-up its state machine refused, a modified client - went on with the
         /// crouched bonuses everywhere it went: the ranged crit bonus, the bead's full ceiling and
         /// double rate (Accuracy), the shorter target with fewer sample points (Cover) and the
-        /// melee damage taken (CriticalHits). Now the server stands them as the client would have:
-        /// everyone else is told as by SetDesiredCrouchState, and their own client is put back
-        /// standing (StateCorrection), as when a crouch is refused. A turn on the spot is not a
-        /// move, and nor is a fall or a lift straight down: only the ground covered counts.
+        /// melee damage taken (CriticalHits). Now the server stands them as the client would have,
+        /// and everyone else is told as by SetDesiredCrouchState. Their own client is not sent
+        /// anything: nothing the server can send changes its desired posture (see
+        /// SetDesiredCrouchState), and a StateCorrection([STANDING]) is undone by it a frame
+        /// later. A client that stood itself up, which is every client that is not modified, has
+        /// already said so. A turn on the spot is not a move, and nor is a fall or a lift straight
+        /// down: only the ground covered counts.
         /// </summary>
         public void StandIfMoved(Client client)
         {
@@ -4585,17 +4719,9 @@ namespace Rasa.Managers
             player.IsCrouching = false;
             Accuracy.UpdateRates(player, AimRateOf(client), Environment.TickCount64);
 
-            client.CallMethod(player.EntityId, new StateCorrectionPacket(new List<CharacterState> { CharacterState.Standing }));
-
             if (player.MapChannel != null)
                 client.CellIgnoreSelfCallMethod(client, new SetDesiredCrouchStatePacket(CharacterState.Standing));
         }
-
-        /// <summary>Whether the player can crouch now: alive, not stunned, not watching a camera script.</summary>
-        public static bool MayCrouch(Manifestation player) =>
-            player != null && player.State != CharacterState.Dead && player.State != CharacterState.Dying
-            && (!player.Attributes.TryGetValue(Attributes.Health, out var health) || health.Current > 0)
-            && !Stuns.IsStunned(player) && !CameraScripts.IsWatching(player);
 
         public void SetTargetId(Client client, ulong entityId)
         {
@@ -4608,6 +4734,10 @@ namespace Rasa.Managers
 
             // The client works its bead's rates out again on every target change, so this does.
             Accuracy.UpdateRates(client.Player, AimRateOf(client), Environment.TickCount64);
+
+            if (entityId != 0 && EntityManager.Instance.Creatures.TryGetValue(entityId, out var creature)
+                && creature.TargetCategory == TargetCategory.Hostile)
+                Tutorials.Raise(client, TutorialId.Tuttarget);
         }
 
         /// <summary>The aim rate of the weapon in hand, as sent in WeaponInfo; 0 with none.</summary>
@@ -4851,6 +4981,9 @@ namespace Rasa.Managers
 
             attribute[Attributes.Regen].NormalMax   = totalRegen; // regenRate in percent
             attribute[Attributes.Regen].CurrentMax  = Math.Max(0, totalRegen + regenBonus);
+            // What the attributes window prints as the rate (attributeswindow.py: int(regen.current)
+            // %); its colour compares the two maxima. Left at 0, it read "Regen 0%".
+            attribute[Attributes.Regen].Current     = attribute[Attributes.Regen].CurrentMax;
 
             if (fullreset)
             {
@@ -4877,9 +5010,11 @@ namespace Rasa.Managers
             var regenRate = (int)Math.Round(2D * attribute[Attributes.Regen].CurrentMax / 100, 0);
 
             // And what a module regenerates by itself, a second: "Regen Health: 3 HP/sec".
-            attribute[Attributes.Health].RefreshAmount = Math.Max(0, regenRate + modules.HealthRegen);
+            player.HealthRegenRate = Math.Max(0, regenRate + modules.HealthRegen);
+            attribute[Attributes.Health].RefreshAmount = player.HealthRegenRate.Value;
 
-            // Power regenerates at the health rate for now. The live game regenerated power by a
+            // Power keeps the ordinary stat-derived rate; the resting health minimum is separate.
+            // The live game regenerated power by a
             // formula of its own that is not known; without any regeneration an ability could be
             // used a handful of times per map, since abilities now spend it. Interim.
             // ActorManager.Regenerate applies it server-side at the same period the client
@@ -5022,7 +5157,14 @@ namespace Rasa.Managers
             if (action.IsInrerrupted
                 || (action.SourceId != 0 && InventoryManager.Instance.CurrentWeapon(client)?.EntityId != action.SourceId))
             {
-                client.CellIgnoreSelfCallMethod(client, new ActionInterruptPacket(client.Player.EntityId, ActionId.WeaponReload, action.ActionArgId));
+                // An interrupt the player made is told to them as well: "Interrupted" over them.
+                var interrupt = new ActionInterruptPacket(client.Player.EntityId, ActionId.WeaponReload, action.ActionArgId);
+
+                if (action.IsInrerrupted)
+                    client.CellCallMethod(client, client.Player.EntityId, interrupt);
+                else
+                    client.CellIgnoreSelfCallMethod(client, interrupt);
+
                 ActorManager.ResolveInterruptedRequest(client, ActionId.WeaponReload, action.ActionArgId);
                 return;
             }

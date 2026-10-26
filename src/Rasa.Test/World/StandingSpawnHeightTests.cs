@@ -143,8 +143,10 @@ namespace Rasa.Test.World
             Assert.AreEqual(200, StandingHeights.WorldDown.Length);
 
             // Moved since by a later migration: Corporal DeSimone (Place_bootcamp_base_npcs), the
-            // Alia Das NPCs moved or taken away by Alia_das_npcs, and the Wilderness ones moved or
-            // taken away by Wilderness_post_npcs.
+            // Alia Das NPCs moved or taken away by Alia_das_npcs, the Wilderness ones moved or
+            // taken away by Wilderness_post_npcs, the two on tent roofs (Tent_floor_npcs), the Twin
+            // Pillars ones moved or taken away by Twin_pillars_npcs, and Airman Hamilton, moved to
+            // Torcastra Prison's research ward (Torcastra_prison).
             void AssertCorrected(bool expected, params uint[] movedSince)
             {
                 harness.World.ChangeTracker.Clear();
@@ -169,7 +171,10 @@ namespace Rasa.Test.World
             // The migrated world.
             AssertCorrected(true, AliaDasNpcs.Moves.Select(move => move.Pool).Concat(AliaDasNpcs.Removed.Select(removed => removed.Id))
                 .Concat(WildernessPostNpcs.Moves.Select(move => move.Pool)).Concat(WildernessPostNpcs.Removed.Select(removed => removed.Id))
-                .Append(Rasa.Services.Preloader.BootcampBaseNpcs.DeSimonePoolId).ToArray());
+                .Concat(TentFloors.Pools)
+                .Concat(TwinPillarsNpcs.Moves.Select(move => move.Pool)).Concat(TwinPillarsNpcs.Removed.Select(removed => removed.Id))
+                .Append(Rasa.Services.Preloader.BootcampBaseNpcs.DeSimonePoolId)
+                .Append(TorcastraPrisonContent.Hamilton).ToArray());
 
             // The vendor of Torcastra Prison was 5.69 m over the floor of the hall; Private
             // Parsons a metre in the ground. General Beacham, in the sandbags beside Cimoch, has
@@ -205,8 +210,10 @@ namespace Rasa.Test.World
 
             foreach (var (id, _, _, _) in StandingHeights.Corrected())
             {
-                // The Alia Das class trainers Alia_das_npcs took away.
-                if (!pools.ContainsKey(id) && AliaDasNpcs.Removed.Any(removed => removed.Id == id))
+                // The Alia Das class trainers Alia_das_npcs took away, and the Twin Pillars ones
+                // Twin_pillars_npcs did; Victor Corman, who walks his beat since.
+                if (!pools.ContainsKey(id) && (AliaDasNpcs.Removed.Any(removed => removed.Id == id) ||
+                        TwinPillarsNpcs.Removed.Any(removed => removed.Id == id)) || id == TwinPillarsNpcs.VictorPool)
                     continue;
 
                 var pool = pools[id];
@@ -222,9 +229,9 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
-        [DataRow(501011U)]   // Sapper Trainer: Twin Pillars, who was entered on the barracks' ledge
+        [DataRow(500002U)]   // Class Trainer: Twin Pillars, who is where he was
         [DataRow(510002U)]   // Brigadier General Beacham, at his post in the command tent
-        [DataRow(501007U)]   // Soldier Trainer: Twin Pillars, who is where he was
+        [DataRow(640101U)]   // Base Guard Byrnes, inside the north gate (Twin_pillars_npcs)
         public void AStandingNpcSpawnsWhereItsPoolIs(uint pool)
         {
             using var harness = WildernessRuntimeTestHarness.Create();

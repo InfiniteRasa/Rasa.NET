@@ -213,8 +213,11 @@ namespace Rasa.Test.Missions
                     Assert.AreEqual(4, world.Set<MissionEvidenceEntry>().AsNoTracking().Count(row => row.MissionId == mission), zone.Name);
                 }
 
+                // The Wilderness's, and Body Count out of its story missions by the Caves of Donn's
+                // migration, dated after this one (CavesOfDonnContent).
                 Assert.AreEqual(
-                    JsonSerializer.Serialize(OneOffs.WildernessScene(), MissionContentCodec.Options),
+                    JsonSerializer.Serialize(CavesOfDonnContent.TargetsOfOpportunityScene(
+                        CavesOfDonnContent.StoryGroupsWithout(CavesOfDonnContent.BodyCount)), MissionContentCodec.Options),
                     world.Set<MissionSceneBindingEntry>().AsNoTracking().Single(row => row.MissionId == Wilderness).Bindings);
 
                 var areas = world.Set<MissionAreaEntry>().AsNoTracking().Where(row => row.MissionId == Mires).OrderBy(row => row.AreaId).ToArray();

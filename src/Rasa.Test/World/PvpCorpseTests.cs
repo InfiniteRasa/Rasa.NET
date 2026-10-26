@@ -76,7 +76,12 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
-        public void ReanimationRaisesTheEnemysCloneAndSendsThemToTheirHospital()
+        [DataRow(1U)]
+        [DataRow(2U)]
+        [DataRow(3U)]
+        [DataRow(4U)]
+        [DataRow(5U)]
+        public void ReanimationRaisesTheEnemysCloneAndSendsThemToTheirHospital(uint pump)
         {
             using var world = new WorldTestContext();
             world.AddClass((EntityClasses)AbilityManager.CloneMaleClassId);
@@ -88,7 +93,7 @@ namespace Rasa.Test.World
             {
                 Kill(world, blue);
 
-                var info = Level(ActionId.AaExobiologistReanimation, 1);
+                var info = Level(ActionId.AaExobiologistReanimation, pump);
                 info.Properties[AbilityProperty.Duration] = 120;
                 Invoke("Reanimate", world.Map, red.Player, info, new ActionData(red.Player, ActionId.AaExobiologistReanimation, 1, blue.Player.EntityId, 0));
 
@@ -102,14 +107,40 @@ namespace Rasa.Test.World
                     Assert.AreEqual(1000, clone.Attributes[Attributes.Health].CurrentMax, "at their health");
                     Assert.AreEqual(6f, clone.Position.X, 0.01f, "where they lay");
                     Assert.IsTrue(AbilityManager.IsReanimated(clone));
+                    var effect = clone.ActiveEffects.Values.Single(e => e.TypeId == AbilityManager.ReanimatedTypeId);
+                    var packet = WorldTestContext.Drain(red).Select(p => p.Message)
+                        .OfType<Rasa.Packets.Protocol.CallMethodMessage>().Select(p => p.Packet)
+                        .OfType<GameEffectAttachedPacket>().Single(p => p.EffectTypeId == AbilityManager.ReanimatedTypeId);
+                    Assert.AreEqual(pump == 2 ? 2U : 1U, packet.EffectLevel,
+                        "Keep Reanimation's level-2 variant; undefined pump visuals fall back to level 1.");
+                    Assert.AreEqual(effect.EffectLevel, packet.EffectLevel);
+                    Assert.IsTrue(effect.RemainingSeconds is >= 115 and <= 120);
 
                     Assert.AreNotEqual(CharacterState.Dead, blue.Player.State, "sent to their hospital");
                     Assert.AreEqual(-300f, blue.Player.Position.X, 0.01f);
+                    WorldTestContext.Drain(red);
+                    Invoke("EndReanimation", clone);
+                    var ending = WorldTestContext.Drain(red).Select(p => p.Message)
+                        .OfType<Rasa.Packets.Protocol.CallMethodMessage>().Select(p => p.Packet)
+                        .OfType<GameEffectAttachedPacket>().Single(p => p.EffectTypeId == AbilityManager.ReanimatedDeathTypeId);
+                    Assert.AreEqual(1U, ending.EffectLevel, "The ending effect has only its level-1 visual.");
+                    Assert.AreEqual(CharacterState.Dead, clone.State);
                 }
                 finally
                 {
-                    foreach (var cell in world.Map.MapCellInfo.Cells.Values)
-                        cell.CreatureList.Remove(clone);
+                    foreach (var effect in clone.ActiveEffects.Values.ToArray())
+                        GameEffectManager.Instance.DettachEffect(world.Map, clone, effect);
+                    clone.State = CharacterState.Dead;
+                    // Retire this test clone immediately, without waiting for its visual fade timer.
+                    var tracked = (System.Collections.IEnumerable)typeof(AbilityManager)
+                        .GetField("RisenCreatures", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null);
+                    var record = tracked.Cast<object>().SingleOrDefault(r =>
+                        ReferenceEquals(r.GetType().GetField("Creature")!.GetValue(r), clone));
+                    if (record != null)
+                        record.GetType().GetField("RemoveAt")!.SetValue(record, Environment.TickCount64 - 1);
+                    Invoke("ReanimationWorker", world.Map);
+                    if (EntityManager.Instance.GetEntityType(clone.EntityId) == EntityType.Creature)
+                        CellManager.Instance.RemoveCreatureFromWorld(world.Map, clone);
                 }
             });
         }

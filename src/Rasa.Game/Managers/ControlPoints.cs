@@ -8,6 +8,7 @@ namespace Rasa.Managers
     using Config;
     using Data;
     using Game;
+    using Packets.ClientMethod.Server;
     using Packets.Communicator.Server;
     using Packets.MapChannel.Server;
     using Repositories.UnitOfWork;
@@ -97,7 +98,7 @@ namespace Rasa.Managers
     /// that has a match (Battlegrounds) are in the same tables and are its teams' to fight over:
     /// they are listed and moved from here (".cp"), and nothing else here touches them.
     /// </summary>
-    public class ControlPoints
+    public partial class ControlPoints
     {
         private static ControlPoints _instance;
         private static readonly object InstanceLock = new object();
@@ -333,6 +334,7 @@ namespace Rasa.Managers
             _points.Clear();
             _byTeleporter.Clear();
             _byPool.Clear();
+            _serviceLinks.Clear();
             _byObject.Clear();
             _byLockbox.Clear();
             _resetSetting = null;
@@ -383,6 +385,11 @@ namespace Rasa.Managers
 
                 switch (link.Kind)
                 {
+                    case ControlPointLinkEntry.KindServicePool:
+                        if (!_serviceLinks.TryGetValue(link.ObjectId, out var servicePoint) || point.Id < servicePoint.Id)
+                            _serviceLinks[link.ObjectId] = point;
+                        break;
+
                     case ControlPointLinkEntry.KindBanePool:
                         point.BanePools.Add(link.ObjectId);
                         _byPool[link.ObjectId] = point;
@@ -482,6 +489,8 @@ namespace Rasa.Managers
                 ApplyTeleporters(point);
                 ShowLockbox(point);
             }
+            RefreshServices(mapChannel);
+            LandingZoneAssaults.Worker(mapChannel, ById(Rasa.Services.Preloader.LandingZoneAssaultContent.PointId));
         }
 
         /// <summary>
@@ -546,7 +555,7 @@ namespace Rasa.Managers
         /// </summary>
         public bool HoldsBack(SpawnPool pool)
         {
-            return pool != null && pool.HasSpawned && _byPool.TryGetValue(pool.DbId, out var point)
+            return pool != null && !LandingZoneOccupation.IsGroup(pool) && pool.HasSpawned && _byPool.TryGetValue(pool.DbId, out var point)
                    && !point.HeldByAfs && !point.Returning && point.BanePools.Contains(pool.DbId);
         }
 
@@ -674,6 +683,9 @@ namespace Rasa.Managers
             if (mapChannel?.MapInfo == null || mapChannel.IsCopy || _points.Count == 0)
                 return;
 
+            RefreshServices(mapChannel);
+            LandingZoneAssaults.Worker(mapChannel, ById(Rasa.Services.Preloader.LandingZoneAssaultContent.PointId));
+
             foreach (var point in _points.Values.Where(p => p.MapContextId == mapChannel.MapInfo.MapContextId && !p.IsBattleground).ToList())
             {
                 if (point.Object == null)
@@ -685,7 +697,7 @@ namespace Rasa.Managers
 
                 if (point.HeldByAfs)
                 {
-                    if (GarrisonOf(mapChannel, point, Afs) == Garrison.Down)
+                    if (GarrisonOf(mapChannel, point, Afs) == Garrison.Down && !LandingZoneAssaults.ControlsCapture(mapChannel, point))
                         SetOwner(point, Bane, null);
                     else if (point.HeldByClan)
                         TellUsable(mapChannel, point);
@@ -708,7 +720,7 @@ namespace Rasa.Managers
                         point.DownSince = null;
                         point.Returning = true;
 
-                        foreach (var pool in PoolsOn(mapChannel, point.BanePools))
+                        foreach (var pool in PoolsOn(mapChannel, point.BanePools).Where(p => !LandingZoneOccupation.IsGroup(p)))
                             pool.UpdateTimer = pool.RespawnTime;
                     }
                 }
@@ -849,7 +861,12 @@ namespace Rasa.Managers
                 return true;
 
             if (sideChanged)
+            {
                 ApplyPools(mapChannel, point, takeOff: true);
+                RefreshServices(mapChannel);
+                if (point.HeldByAfs)
+                    MissionApplication.Instance.Scenes.ServicesOpened(mapChannel, point);
+            }
 
             if (wasClans != point.HeldByClan)
             {
@@ -1417,6 +1434,7 @@ namespace Rasa.Managers
                 pool.Suspended = true;
             }
 
+            LandingZoneOccupation.CancelInbound(mapChannel, idle);
             if (takeOff)
                 TakeOffLiving(mapChannel, idle);
 
@@ -1432,7 +1450,8 @@ namespace Rasa.Managers
                 // Set down at once, on the spawn worker's next pass, and where it stands rather
                 // than by its arrival point.
                 pool.HasSpawned = false;
-                pool.UpdateTimer = pool.RespawnTime;
+                // Occupation ships launch five minutes after Bane takeover, not immediately.
+                pool.UpdateTimer = LandingZoneOccupation.IsGroup(pool) ? 0 : pool.RespawnTime;
             }
         }
 
@@ -1516,12 +1535,14 @@ namespace Rasa.Managers
                     info.Contested = !point.HeldByAfs;
         }
 
-        private static List<SpawnPool> PoolsOn(MapChannel mapChannel, HashSet<uint> ids)
+        private List<SpawnPool> PoolsOn(MapChannel mapChannel, HashSet<uint> ids)
         {
             if (mapChannel?.SpawnPools == null || ids.Count == 0)
                 return new List<SpawnPool>();
 
-            return mapChannel.SpawnPools.Where(p => p != null && ids.Contains(p.DbId)).ToList();
+            // Civilian services do not keep a defeated combat garrison standing, including
+            // older data that listed the vendor or mission giver as an AFS garrison pool.
+            return mapChannel.SpawnPools.Where(p => p != null && ids.Contains(p.DbId) && ServicePointOf(mapChannel, p) == null).ToList();
         }
 
         /// <summary>Whether the spawn worker would ever set anyone of this pool down (SpawnPoolManager.SpawnPoolWorker, CreateListOfCreatures).</summary>
@@ -1539,7 +1560,12 @@ namespace Rasa.Managers
         private static bool Stands(SpawnPool pool) =>
             !pool.HasSpawned || pool.AliveCreatures + pool.QueuedCreatures + pool.DropshipQueue > 0;
 
-        /// <summary>"%(faction)s claiming / took Control Point %(cpName)s", to everyone on the map: the faction is "AFS", "Bane" or a clan's name.</summary>
+        /// <summary>
+        /// "%(faction)s claiming / took Control Point %(cpName)s", to everyone on the map: the
+        /// faction is "AFS", "Bane" or a clan's name. Across the middle of the screen, as the
+        /// client's bigtexttype rows CONTROL_POINT_CLAIMING (79) and CONTROL_POINT_OWNED (80) have
+        /// these two messages, and as a chat line, which is kept.
+        /// </summary>
         private static void Announce(MapChannel mapChannel, PlayerMessage message, Point point, string faction)
         {
             if (mapChannel?.ClientList == null)
@@ -1549,7 +1575,7 @@ namespace Rasa.Managers
 
             foreach (var client in mapChannel.ClientList.ToArray())
                 if (client?.Player != null && client.State == ClientState.Ingame)
-                    client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(message, args, MsgFilterId.GeneralSystemMessages));
+                    CommunicatorManager.ShowBanner(client, message, args);
         }
 
         public static string FactionName(byte owner) => owner == Afs ? "AFS" : "Bane";

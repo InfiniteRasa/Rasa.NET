@@ -17,7 +17,7 @@ namespace Rasa.Test.World
     [DoNotParallelize]
     public class SpawnPoolTopUpTests
     {
-        /// <summary>Alia Das: four of creature 51 and four of 53, exactly, back 2.5 s after.</summary>
+        /// <summary>Alia Das: four of creature 51 and four of 53, exactly, back five minutes after.</summary>
         private const uint Pool = 66;
         private const uint First = 51, Second = 53;
 
@@ -40,7 +40,7 @@ namespace Rasa.Test.World
             Assert.AreEqual(8, pool.AliveCreatures);
             Assert.AreEqual((4, 4), Rows(Standing(harness, pool)));
             CollectionAssert.AreEqual(new[] { (First, 4), (Second, 4) }, pool.Complement.ToArray());
-            Assert.AreEqual(2500L, pool.RespawnTime);
+            Assert.AreEqual(300000L, pool.RespawnTime);
 
             return pool;
         }
@@ -65,7 +65,7 @@ namespace Rasa.Test.World
             Assert.AreEqual(1000L, pool.UpdateTimer, "a second loss does not start it again");
             Assert.AreEqual(6, pool.AliveCreatures);
 
-            harness.SpawnWorldAfter(1499, Pool);
+            harness.SpawnWorldAfter(pool.RespawnTime - 1001, Pool);
             Assert.AreEqual(6, pool.AliveCreatures, "not yet");
 
             harness.SpawnWorldAfter(1, Pool);
@@ -88,12 +88,12 @@ namespace Rasa.Test.World
             var was = fighter.Controller.CurrentAction;
             fighter.Controller.CurrentAction = BehaviorManager.BehaviorActionFighting;
 
-            harness.SpawnWorldAfter(2500, Pool);
+            harness.SpawnWorldAfter(pool.RespawnTime, Pool);
             Assert.AreEqual(5, pool.AliveCreatures, "held back by the fight");
             Assert.AreEqual(System.Math.Max(0, pool.RespawnTime - SpawnPoolManager.TopUpRecheckMs), pool.UpdateTimer, "looked at again later");
 
             fighter.Controller.CurrentAction = was;
-            harness.SpawnWorldAfter(2500, Pool);
+            harness.SpawnWorldAfter(pool.RespawnTime, Pool);
             Assert.AreEqual(8, pool.AliveCreatures);
             Assert.AreEqual((4, 4), Rows(Standing(harness, pool)));
         }
@@ -108,7 +108,7 @@ namespace Rasa.Test.World
             try
             {
                 Kill(harness, pool, First, 2);
-                harness.SpawnWorldAfter(60_000, Pool);
+                harness.SpawnWorldAfter(pool.RespawnTime + 60_000, Pool);
                 Assert.AreEqual(6, pool.AliveCreatures);
             }
             finally

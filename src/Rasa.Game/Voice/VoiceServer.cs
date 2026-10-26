@@ -40,6 +40,25 @@ namespace Rasa.Voice
         private const int PingIntervalMs = 5000;
         private const int HandshakeTimeoutMs = 10000;
 
+        /// <summary>
+        /// How long a connection may go without logging in. Every step before the login is
+        /// unauthenticated - the key exchange is a fixed null one - so anybody can walk a
+        /// connection up to it, and that is as far as one gets without a ticket.
+        /// </summary>
+        internal const int LoginTimeoutMs = 30000;
+
+        /// <summary>
+        /// Connections not yet logged in, from one IP address and in all. A Hello needs no login
+        /// and is answered with a key offer four times its size, from a source address nothing
+        /// checks: without a cap, spoofed Hellos grow the session table and use the server to send
+        /// offers at somebody else. A squad behind one router logs in a few at a time at most.
+        /// </summary>
+        internal const int MaxPendingPerAddress = 8;
+        internal const int MaxPending = 256;
+
+        /// <summary>A Hello resent sooner than this after the last key offer to it gets no new offer.</summary>
+        internal const int KeyOfferResendMs = 500;
+
         private readonly object _lock = new object();
         private readonly Dictionary<IPEndPoint, Session> _sessions = new Dictionary<IPEndPoint, Session>();
         private readonly Dictionary<uint, Session[]> _groups = new Dictionary<uint, Session[]>();
@@ -72,6 +91,7 @@ namespace Rasa.Voice
             public long CreatedTick;
             public long LastHeardTick;
             public long LastPingTick;
+            public long LastOfferTick = long.MinValue;
 
             public bool LoggedIn;
             public uint GroupId;
@@ -397,22 +417,7 @@ namespace Rasa.Voice
 
                 if (flags == Talkback.FlagHello)
                 {
-                    // A new connection, or a hello resent because our offer was lost. From an address
-                    // that already had a connection, the client started over: drop the old one.
-                    if (session != null && session.State != SessionState.KeyOffered)
-                    {
-                        Drop(session, false, "reconnected");
-                        session = null;
-                    }
-
-                    if (session == null)
-                    {
-                        session = new Session { EndPoint = from, State = SessionState.KeyOffered, CreatedTick = now };
-                        _sessions[from] = session;
-                    }
-
-                    session.LastHeardTick = now;
-                    SendRaw(from, Talkback.FlagKeyOffer, _keyOffer);
+                    Hello(from, session, now);
                     return;
                 }
 
@@ -471,6 +476,75 @@ namespace Rasa.Voice
                         return;
                 }
             }
+        }
+
+        /// <summary>
+        /// A new connection, or a Hello resent because our offer was lost.
+        ///
+        /// A Hello proves nothing about who sent it, so it does not end a logged-in connection:
+        /// a spoofed one from a squad member's address used to drop them out of voice. Their own
+        /// client starting over from the same port is offered the key again and walks the
+        /// handshake on the connection it has; its login, with the ticket it was given for it,
+        /// is answered as a resent one (Login). A connection that had not logged in is started
+        /// over, as before: nothing is lost with it.
+        ///
+        /// A new connection is refused - no session, no offer - past MaxPendingPerAddress or
+        /// MaxPending; and an offer is not resent sooner than KeyOfferResendMs.
+        /// </summary>
+        private void Hello(IPEndPoint from, Session session, long now)
+        {
+            if (session != null && session.LoggedIn)
+            {
+                Offer(session, now);
+                return;
+            }
+
+            if (session != null && session.State != SessionState.KeyOffered)
+            {
+                Drop(session, false, "reconnected");
+                session = null;
+            }
+
+            if (session == null)
+            {
+                if (!MayOpen(from.Address))
+                    return;
+
+                session = new Session { EndPoint = from, State = SessionState.KeyOffered, CreatedTick = now };
+                _sessions[from] = session;
+            }
+
+            session.LastHeardTick = now;
+            Offer(session, now);
+        }
+
+        private void Offer(Session session, long now)
+        {
+            if (session.LastOfferTick != long.MinValue && now - session.LastOfferTick < KeyOfferResendMs)
+                return;
+
+            session.LastOfferTick = now;
+            SendRaw(session.EndPoint, Talkback.FlagKeyOffer, _keyOffer);
+        }
+
+        /// <summary>Whether a connection may be opened from this address: under both caps on those not logged in.</summary>
+        private bool MayOpen(IPAddress address)
+        {
+            var pending = 0;
+            var fromAddress = 0;
+
+            foreach (var other in _sessions.Values)
+            {
+                if (other.LoggedIn)
+                    continue;
+
+                pending++;
+
+                if (other.EndPoint.Address.Equals(address))
+                    fromAddress++;
+            }
+
+            return pending < MaxPending && fromAddress < MaxPendingPerAddress;
         }
 
         private void Message(Session session, ReadOnlySpan<byte> message)
@@ -532,12 +606,11 @@ namespace Rasa.Voice
                 return;
             }
 
-            if (session.LoggedIn)
+            // A resend of a login whose reply was lost, or the same player's client starting over
+            // on this port (Hello): say it again.
+            if (session.LoggedIn && session.PlayerId == login.PlayerId && session.GroupId == login.GroupId)
             {
-                // A resend of a login whose reply was lost: say it again.
-                if (session.PlayerId == login.PlayerId && session.GroupId == login.GroupId)
-                    SendLoginReply(session);
-
+                SendLoginReply(session);
                 return;
             }
 
@@ -555,6 +628,11 @@ namespace Rasa.Voice
                 Log($"Voice: account {login.PlayerId} logs in with Talkback version {login.Version}, not {Talkback.ClientVersion}; letting it try.");
 
             _tickets.Remove(login.PlayerId);
+
+            // Logged in on this connection as somebody else or in another squad - a client that
+            // started over on the same port, with the ticket for where it is going now.
+            if (session.LoggedIn)
+                LeaveGroup(session, "logged in again");
 
             // The same player on another connection - a client that reconnected before its old
             // connection timed out. The new one takes over.
@@ -683,6 +761,12 @@ namespace Rasa.Voice
                             if (now - session.CreatedTick > HandshakeTimeoutMs)
                                 Drop(session, false, "never finished connecting");
 
+                            continue;
+                        }
+
+                        if (!session.LoggedIn && now - session.CreatedTick > LoginTimeoutMs)
+                        {
+                            Drop(session, true, "never logged in");
                             continue;
                         }
 

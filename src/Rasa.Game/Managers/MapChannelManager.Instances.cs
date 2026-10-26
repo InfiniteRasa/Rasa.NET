@@ -231,6 +231,23 @@ namespace Rasa.Managers
             return copies;
         }
 
+        /// <summary>
+        /// The number a shared copy goes by: its place among the map's copies (CopiesOf), from 1,
+        /// as the instance picker numbers its rows. Null for a map that stands in one copy now -
+        /// there is nothing to tell apart, and the picker is not shown - and for a channel that
+        /// is no copy anyone may pick: a private instance or a squad's.
+        /// </summary>
+        public uint? CopyNumberOf(MapChannel map)
+        {
+            if (map?.MapInfo == null || map.IsPrivateInstance || map.IsSquadInstance)
+                return null;
+
+            var copies = CopiesOf(map.MapInfo.MapContextId);
+            var index = copies.IndexOf(map);
+
+            return copies.Count > 1 && index >= 0 ? (uint)(index + 1) : null;
+        }
+
         /// <summary>How many players a channel holds, counting those sent to it who have not arrived.</summary>
         public int PopulationOf(MapChannel map)
         {
@@ -391,7 +408,7 @@ namespace Rasa.Managers
             var rows = open.Concat(copies.Where(copy => !open.Contains(copy)))
                 .Select(copy => new ChooseInstanceListPacket.Row
                 {
-                    Ordinal = copies.IndexOf(copy) + 1,
+                    Ordinal = copies.IndexOf(copy) + 1,      // as CopyNumberOf
                     InstanceId = copy.InstanceId,
                     MapTemplateId = templateId,
                     StartGroup = 0,

@@ -75,6 +75,25 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        [DataRow(ArmorAction, 1U, ArmorClassOne, 342, DisplayName = "Armor Charger")]
+        [DataRow(PowerAction, 10U, PowerClassTen, 343, DisplayName = "Power Charger")]
+        public void AChargerIsAnnouncedAsItGoesOn(uint action, uint level, uint template, int typeId)
+        {
+            // The client's RestoreKitAction names no effect for its recovery to announce, so the
+            // attach does: the buff icon, its tooltip and its FX come with it.
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var player = harness.Client.Player;
+            player.Attributes[Attributes.Power] = new ActorAttributes(Attributes.Power, 500, 500, 100, 0, 1);
+            player.Attributes[Attributes.Armor] = new ActorAttributes(Attributes.Armor, 500, 500, 0, 0, 1);
+
+            Use(harness, action, level, template, drain: false);
+
+            var attached = harness.Drain().OfType<GameEffectAttachedPacket>().Single(packet => packet.EffectTypeId == typeId);
+            Assert.IsTrue(attached.Announced);
+            Assert.AreEqual(player.EntityId, attached.SourceId);
+        }
+
+        [TestMethod]
         [DataRow(ArmorClassSix, 6u, 440)]
         [DataRow(ArmorClassSeven, 7u, 680)]
         public void ClassesSixAndSevenRestoreWhatTheirTextSays(uint template, uint level, int perSecond)

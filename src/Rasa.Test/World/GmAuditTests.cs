@@ -14,7 +14,9 @@ namespace Rasa.Test.World
     using Rasa.Game;
     using Rasa.Managers;
     using Rasa.Packets.Communicator.Client;
+    using Rasa.Packets.Communicator.Server;
     using Rasa.Packets.MapChannel.Client;
+    using Rasa.Packets.Protocol;
     using Rasa.Repositories.Char.GmCommandLog;
     using Rasa.Structures.Char;
     using Rasa.Test.Database;
@@ -83,6 +85,51 @@ namespace Rasa.Test.World
         }
 
         #region Dot commands
+
+        private static List<string> SystemMessages(Client client) =>
+            WorldTestContext.Drain(client).Select(p => p.Message).OfType<CallMethodMessage>()
+                .Select(c => c.Packet).OfType<SystemMessagePacket>().Select(p => p.TextMessage).ToList();
+
+        /// <summary>
+        /// .giveitem of a template whose class has no item class data: the GM is told and nothing
+        /// is made, where it threw on the class's missing stack size.
+        /// </summary>
+        [TestMethod]
+        public void GiveItemOfATemplateWithNoItemClassDataSaysSoAndMakesNothing()
+        {
+            using var world = new WorldTestContext();
+            var master = As(world.CreateClient(), 7, GmLevel.Admin);
+            var templates = ItemManager.Instance.ItemTemplateItemClass;
+            var classes = EntityClassManager.Instance.LoadedEntityClasses;
+            const uint templateId = 1_999_999_001;
+            const EntityClasses bare = (EntityClasses)1_999_999_001;
+            var commands = new ChatCommandsManager(null);
+
+            commands.RegisterCommand(".giveitem", GmLevel.GameMaster,
+                (Action<string[]>)typeof(ChatCommandsManager).GetMethod("GiveItemCommand", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .CreateDelegate(typeof(Action<string[]>), commands));
+
+            templates[templateId] = bare;
+            classes[bare] = new Rasa.Structures.EntityClass((uint)bare, "fixture", 0, 0, new List<AugmentationType>(), false);
+            classes[bare].ItemTemplates[templateId] = new Rasa.Structures.ItemTemplate(
+                new Rasa.Structures.World.ItemTemplateItemClassEntry { ItemTemplateId = templateId, ItemClass = (uint)bare });
+
+            try
+            {
+                WorldTestContext.Drain(master);
+                commands.ProcessCommand(master, $".giveitem {templateId}");
+                commands.ProcessCommand(master, $".giveitem {templateId} 3");
+
+                var said = SystemMessages(master);
+                Assert.HasCount(2, said);
+                Assert.IsTrue(said.All(m => m == $"Item template {templateId} has no item class data (class {(uint)bare}), so it cannot be made."), string.Join(" | ", said));
+            }
+            finally
+            {
+                templates.Remove(templateId);
+                classes.Remove(bare);
+            }
+        }
 
         [TestMethod]
         public void ACommandIsOnTheLogBeforeItRunsWithWhoEnteredItAndWhere()
@@ -231,17 +278,21 @@ namespace Rasa.Test.World
             commands.RegisterCommand(".break", GmLevel.GameMaster, parts => throw new InvalidOperationException("broken"));
             commands.RegisterCommand(".work", GmLevel.GameMaster, parts => ran++);
 
-            Assert.ThrowsExactly<InvalidOperationException>(() => commands.ProcessCommand(master, ".break it"));
+            // It goes no further than the command: the packet handler closes the connection on
+            // any exception, and the GM is told instead.
+            WorldTestContext.Drain(master);
+            commands.ProcessCommand(master, ".break it");
 
             Assert.AreEqual((byte)GmCommandResult.Failed, store.Rows.Single().Result);
             Assert.AreEqual(".break it", store.Rows.Single().Text);
+            Assert.AreEqual(".break failed (InvalidOperationException: broken). See the server log.", SystemMessages(master).Single());
 
             // The database is away: the command is run all the same, and a failure is still the command's own.
             store.Fails = new InvalidOperationException("the database is away");
 
             commands.ProcessCommand(master, ".work");
             Assert.AreEqual(1, ran);
-            Assert.ThrowsExactly<InvalidOperationException>(() => commands.ProcessCommand(master, ".break again"));
+            commands.ProcessCommand(master, ".break again");
             commands.ProcessCommand(master, ".nothing");
             Assert.AreEqual(1, store.Rows.Count);
 
@@ -441,7 +492,7 @@ namespace Rasa.Test.World
             commands.RegisterCommand(".break", GmLevel.GameMaster, parts => throw new InvalidOperationException("broken"));
 
             commands.ProcessCommand(context.Client, ".work now");
-            Assert.ThrowsExactly<InvalidOperationException>(() => commands.ProcessCommand(context.Client, ".break"));
+            commands.ProcessCommand(context.Client, ".break");
             audit.RecordConsole("announce", "announce Restart in five minutes");
 
             using var unit = context.CreateChar();

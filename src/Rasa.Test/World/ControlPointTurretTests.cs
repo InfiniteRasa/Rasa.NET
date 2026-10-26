@@ -96,7 +96,9 @@ namespace Rasa.Test.World
                 var point = points[spot.Point];
 
                 Assert.AreEqual(point.MapContextId, afs.MapContextId, $"pool {afs.Id} on its point's map");
-                Assert.AreEqual((afs.PosX, afs.PosY, afs.PosZ, afs.Rotation, afs.MapContextId), (bane.PosX, bane.PosY, bane.PosZ, bane.Rotation, bane.MapContextId), $"pools {afs.Id} and {bane.Id} on one spot");
+                Assert.AreEqual((afs.PosX, afs.PosZ, afs.Rotation, afs.MapContextId), (bane.PosX, bane.PosZ, bane.Rotation, bane.MapContextId), $"pools {afs.Id} and {bane.Id} on one mount");
+                var heightOffset = world.Database.GetAppliedMigrations().Contains("20270914000000_Afs_turret_mount_heights") && AfsTurretMountHeights.Mounts.Any(m => m.Pool == afs.Id) ? 2.56 : 0;
+                Assert.AreEqual(bane.PosY + heightOffset, afs.PosY, 0.001, "Each model uses its own mount origin.");
                 Assert.IsLessThan(200.0, Math.Sqrt(Math.Pow(afs.PosX - point.PosX, 2) + Math.Pow(afs.PosZ - point.PosZ, 2)), $"pool {afs.Id} at its point");
 
                 Assert.AreEqual((byte)SpawnPoolManager.ModeAutomatic, afs.Mode);

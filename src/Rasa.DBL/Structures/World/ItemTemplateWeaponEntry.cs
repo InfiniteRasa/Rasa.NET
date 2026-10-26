@@ -63,9 +63,17 @@ namespace Rasa.Structures.World
         [Required]
         public uint AmmoPerShot { get; set; }
 
+        /// <summary>
+        /// Milliseconds; -1 (AutofireWindup) marks an autofire weapon, the one value the client's
+        /// tooltip prints "Autofire" for (tooltipwindow.py: windupTime == -1). Signed for that
+        /// (Weapon_windup_signed).
+        /// </summary>
         [Column("windup")]
         [Required]
-        public uint Windup { get; set; }
+        public int Windup { get; set; }
+
+        /// <summary>The windup that marks an autofire weapon.</summary>
+        public const int AutofireWindup = -1;
 
         [Column("recovery")]
         [Required]

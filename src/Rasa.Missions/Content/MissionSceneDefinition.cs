@@ -12,6 +12,9 @@ namespace Rasa.Missions.Content
     {
         public string Script { get; set; }
         public int StateVersion { get; set; } = 1;
+        /// <summary>World effects are refused outside this map; zero leaves the scene unrestricted.</summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public uint MapContextId { get; set; }
         public MissionAudioDefinition Audio { get; set; }
         public Dictionary<string, SceneActorDefinition> Actors { get; set; } = new(StringComparer.Ordinal);
         public Dictionary<string, SceneRoute> Routes { get; set; } = new(StringComparer.Ordinal);
@@ -47,10 +50,18 @@ namespace Rasa.Missions.Content
         public List<MissionItemBinding> Items { get; set; }
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public List<CharacterIntent> AcceptanceItems { get; set; }
+        /// <summary>
+        /// The item classes the character has to carry, in the personal inventory, to take the
+        /// mission: the offer's itemsRequired. The client lists them under "Item Requirements"
+        /// on the offer and greys Accept until it holds one of each
+        /// (_UpdateItemRequirements); the acceptance is refused without them. None are taken.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public List<uint> ItemsRequired { get; set; }
 
         public SceneBindings Bindings(string revision) => new(revision, Actors, Routes,
             Sequences.ToDictionary(entry => entry.Key, entry => new SceneSequence(
-                entry.Value.World, entry.Value.Character, entry.Value.Signals, entry.Value.Timers)), Names, DefeatSequences);
+                entry.Value.World, entry.Value.Character, entry.Value.Signals, entry.Value.Timers)), Names, DefeatSequences, MapContextId);
     }
 
     public sealed class MissionExperienceDefinition

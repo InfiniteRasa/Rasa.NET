@@ -341,30 +341,99 @@ namespace Rasa.Managers
             return best;
         }
 
+        /// <summary>How far from the nearest walkable point a player can be and still be standing on it, for /stuck.</summary>
+        public const float UnstickOnMesh = 1.5f;
+
+        /// <summary>How far /stuck moves a player standing on the mesh: clear ground at least this far...</summary>
+        public const float UnstickNearest = 3f;
+
+        /// <summary>...and no further than this.</summary>
+        public const float UnstickFarthest = 6f;
+
+        /// <summary>How far from the mesh's edges /stuck looks for clear ground to be: more than this counts the same.</summary>
+        public const float UnstickClearance = 2f;
+
         /// <summary>
-        /// Where /stuck puts a player: the nearest walkable point (<see cref="NearestWalkable"/>),
-        /// unless that is under the terrain (NavMeshFlags.Underground) with walkable ground over it.
-        /// Then the ground: the highest walkable surface over them (SafetyFloor.TopOfColumn).
-        ///
-        /// The navmesh has mesh built inside hillsides, under the terrain heightmap: in Lower Eloh
-        /// Creek whole layers of it lie 8 m under the ground. A player thrown into it is inside the
-        /// hill, with the client's ground above them, and its nearest walkable point is more of the
-        /// same, a step from where they are: "unstuck from (343.52, 226, 194.99) to (343.54, 226.12,
-        /// 194.64) (0.4 m)". A player in a real cave under the open world who uses /stuck goes up
-        /// to the ground over it too; the caves are instances of their own almost everywhere, and
-        /// stuck is stuck. Null when the map has no navmesh or nothing walkable is within reach.
+        /// Where /stuck puts a player. Null when the map has no navmesh or nothing walkable is
+        /// within reach.
+        ///  - In a pocket of mesh inside a hill: the ground over them (SafetyFloor.TopOfColumn).
+        ///    The navmesh has mesh built inside hillsides, under the terrain heightmap: in Lower
+        ///    Eloh Creek whole layers of it lie 8 m under the ground, joined to nothing. A player
+        ///    thrown into it is inside the hill, and its nearest walkable point is more of the
+        ///    same, a step away: "unstuck from (343.52, 226, 194.99) to (343.54, 226.12, 194.64)
+        ///    (0.4 m)". What tells it from a cave is that a cave's floor is joined to the ground
+        ///    over it (NavMeshQuery.Reachable), and a pocket's is not.
+        ///  - Off the mesh: the nearest walkable point (<see cref="NearestWalkable"/>).
+        ///  - On the mesh, a cave's floor included: clear ground on the same floor
+        ///    <see cref="UnstickNearest"/> to <see cref="UnstickFarthest"/> away
+        ///    (<see cref="ClearGround"/>). A player standing on walkable mesh who is stuck is held
+        ///    by something the mesh lets through - a prop's corner, a rock's overhang - and the
+        ///    nearest walkable point is where they already are; the ground over a cave is no
+        ///    better, 55 m up the hill from the one under Pinhole Falls.
         /// </summary>
         public static Vector3? UnstickDestination(MapChannel mapChannel, Vector3 position, float maxRadius = 32f)
         {
             var navMesh = mapChannel?.NavMesh;
             var here = NearestWalkable(mapChannel, position, maxRadius);
 
-            if (navMesh == null || here == null || !navMesh.IsUnderground(here.Value))
+            if (navMesh == null || here == null)
                 return here;
 
-            var ground = SafetyFloor.TopOfColumn(mapChannel, position);
+            if (navMesh.IsUnderground(here.Value))
+            {
+                var ground = SafetyFloor.TopOfColumn(mapChannel, position);
 
-            return ground != null && ground.Value.Y > here.Value.Y && !navMesh.IsUnderground(ground.Value) ? ground : here;
+                if (ground != null && ground.Value.Y > here.Value.Y && !navMesh.IsUnderground(ground.Value) &&
+                    navMesh.Reachable(here.Value, ground.Value) != true)
+                    return ground;
+            }
+
+            if (Vector3.Distance(position, here.Value) > UnstickOnMesh)
+                return here;
+
+            return ClearGround(mapChannel, here.Value) ?? here;
+        }
+
+        /// <summary>
+        /// Clear ground near a walkable point, on the same floor: of the points a straight walk
+        /// over the mesh reaches at <see cref="UnstickNearest"/>, 4.5 m and <see cref="UnstickFarthest"/>
+        /// in sixteen directions, the one furthest from the mesh's edges (up to
+        /// <see cref="UnstickClearance"/>), and of those as clear, the nearest. Null when no walk
+        /// gets that far.
+        /// </summary>
+        public static Vector3? ClearGround(MapChannel mapChannel, Vector3 from)
+        {
+            var navMesh = mapChannel?.NavMesh;
+
+            if (navMesh == null)
+                return null;
+
+            Vector3? best = null;
+            var bestClearance = -1f;
+
+            foreach (var radius in new[] { UnstickNearest, (UnstickNearest + UnstickFarthest) / 2f, UnstickFarthest })
+            {
+                for (var step = 0; step < 16; step++)
+                {
+                    var angle = step * Math.PI / 8;
+                    var target = new Vector3(from.X + (float)Math.Cos(angle) * radius, from.Y, from.Z + (float)Math.Sin(angle) * radius);
+                    var to = navMesh.WalkTo(from, target);
+
+                    if (to == null || Math.Abs(to.Value.Y - from.Y) > 2f)
+                        continue;
+
+                    var clearance = navMesh.DistanceToWall(to.Value, UnstickClearance) ?? 0f;
+
+                    // Nearer rings come first: a later point has to be clearer to win.
+                    if (clearance > bestClearance + 0.01f)
+                    {
+                        best = to;
+                        bestClearance = clearance;
+                    }
+                }
+            }
+
+            return best;
         }
 
         /// <summary>

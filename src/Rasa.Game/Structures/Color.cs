@@ -13,6 +13,15 @@ namespace Rasa.Structures
 
         public uint Hue => (uint) ((Alpha << 24) | (Blue << 16) | (Green << 8) | Red);
 
+        /// <summary>
+        /// The colour an item is made in until it is painted: white, (255, 255, 255, 255). It is
+        /// the client's own for an unpainted piece: the creation window dresses its mannequin's
+        /// recruit boots, vest and legs in kDefaultColorArmor (charactercreationwindow.py), and
+        /// the tier preview a slot with nothing in it (tierselect.py). It was 2139062144
+        /// (0x7F7F7F80), a half-alpha mid-grey that nothing in the client uses.
+        /// </summary>
+        public const uint ItemDefault = 0xFFFFFFFF;
+
         public Color()
         {
         }

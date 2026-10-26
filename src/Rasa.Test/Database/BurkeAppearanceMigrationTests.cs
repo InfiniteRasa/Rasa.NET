@@ -27,7 +27,11 @@ namespace Rasa.Test.Database
 
             var burke = Rows(database, BurkeAppearance.Burke);
             Assert.HasCount(6, burke);
-            CollectionAssert.AreEqual(Rows(database, LtWood), burke);
+
+            // Lt. Wood's look as Burke was given it: Twin_pillars_npcs has since put him in brown.
+            var wood = TwinPillarsNpcs.Looks.Single(look => look.Creature == LtWood).Was
+                .OrderBy(slot => slot.Id).Select(slot => ((long)slot.Id, (long)slot.ClassId, (long)slot.Color)).ToArray();
+            CollectionAssert.AreEqual(wood, burke);
         }
 
         [TestMethod]

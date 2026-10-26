@@ -50,9 +50,46 @@ namespace Rasa.Test.World
             Assert.IsFalse(nav.IsUnderground(destination), $"{destination} is on the ground");
             Assert.IsTrue(destination.Y > 233f && Vector3.Distance(Stuck, destination) < 15f, $"up out of the hill, not far: {destination}");
 
-            // Somewhere ordinary, /stuck is the nearest walkable point as it was.
+            // Somewhere ordinary, on the mesh: clear ground a few metres off, on the same floor.
             var open = new Vector3(615f, 284f, 737f);
-            Assert.AreEqual(NavMeshManager.NearestWalkable(map, open), NavMeshManager.UnstickDestination(map, open));
+            var near = NavMeshManager.NearestWalkable(map, open).Value;
+            var moved = NavMeshManager.UnstickDestination(map, open).Value;
+            Assert.IsTrue(Vector3.Distance(near, moved) >= NavMeshManager.UnstickNearest - 0.1f &&
+                Vector3.Distance(near, moved) <= NavMeshManager.UnstickFarthest + 0.1f, $"{near} to {moved}");
+            Assert.AreEqual(true, nav.Reachable(near, moved));
+            Assert.IsTrue(Math.Abs(moved.Y - near.Y) < 2f);
+
+            // Off the mesh, the nearest walkable point.
+            var high = near + new Vector3(0, 6f, 0);
+            Assert.AreEqual(NavMeshManager.NearestWalkable(map, high), NavMeshManager.UnstickDestination(map, high));
+        }
+
+        /// <summary>
+        /// The cave under Pinhole Falls is joined to the ground over it: /stuck in it stays in it,
+        /// on clear floor a few metres from the corner where the sandbags meet the rock, not 55 m
+        /// up on the hill.
+        /// </summary>
+        [TestMethod]
+        public void InACaveTheyStayInTheCaveOnClearGround()
+        {
+            using var harness = Create();
+            var map = harness.Map;
+            var nav = map.NavMesh;
+            var corner = new Vector3(336.2f, 228.8f, 476.0f);
+
+            var nearest = NavMeshManager.NearestWalkable(map, corner).Value;
+            Assert.IsTrue(nav.IsUnderground(nearest), "a cave");
+            var hill = SafetyFloor.TopOfColumn(map, corner).Value;
+            Assert.IsTrue(hill.Y > 280f && nav.Reachable(nearest, hill) == true, $"the hill {hill} is joined to the cave");
+
+            var destination = NavMeshManager.UnstickDestination(map, corner).Value;
+            Assert.IsTrue(nav.IsUnderground(destination), $"still in the cave: {destination}");
+            Assert.IsTrue(Math.Abs(destination.Y - nearest.Y) < 2f, $"on its floor: {destination}");
+            var distance = Vector3.Distance(nearest, destination);
+            Assert.IsTrue(distance >= NavMeshManager.UnstickNearest - 0.1f && distance <= NavMeshManager.UnstickFarthest + 0.1f, $"{distance:F1} m");
+            Assert.IsTrue(nav.DistanceToWall(destination, NavMeshManager.UnstickClearance) > nav.DistanceToWall(nearest, NavMeshManager.UnstickClearance),
+                "clearer than the corner");
+            Assert.IsNull(StuckSpots.At(1220, destination), "out of the corner");
         }
 
         /// <summary>A knockback goes along the mesh from where they stand, never onto mesh it does not join.</summary>
@@ -178,7 +215,12 @@ namespace Rasa.Test.World
             ActorActionManager.Instance.PerformRecovery(harness.Map, pending);
 
             Assert.AreEqual(Stuck, player.Position);
-            Assert.IsNull(harness.Drain().OfType<UserActionFailedPacket>().Single().MsgId, "closed, silently");
+            var told = harness.Drain().ToList();
+            var interrupt = told.OfType<ActionInterruptPacket>().Single();
+            Assert.AreEqual(ActionId.Unstick, interrupt.ActionId);
+            var closed = told.OfType<UserActionFailedPacket>().Single();
+            Assert.IsNull(closed.MsgId, "closed, silently");
+            Assert.IsTrue(told.IndexOf(interrupt) < told.IndexOf(closed), "\"Interrupted\" over them, then the request closed");
             Assert.IsFalse(player.ActionReuseUntil.ContainsKey(ActionId.Unstick), "they may try again");
 
             player.State = CharacterState.Dead;

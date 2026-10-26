@@ -24,8 +24,19 @@
             pw.WriteUInt(Item.CurrentAmmo);
             pw.WriteDouble(Item.ItemTemplate.WeaponInfo.AimRate);
             pw.WriteUInt(Item.ItemTemplate.WeaponInfo.ReloadTime);
-            pw.WriteUInt(Item.ItemTemplate.WeaponInfo.AltActionId);
-            pw.WriteUInt(Item.ItemTemplate.WeaponInfo.AltActionArgId);
+            // No alternate attack - a tool's - as None: the client builds its alt action from
+            // altActionId whenever it is not None (weapon.py Recv_WeaponInfo), and an action 0/0
+            // is no action.
+            if (Item.ItemTemplate.WeaponInfo.AltActionId == 0)
+            {
+                pw.WriteNoneStruct();
+                pw.WriteNoneStruct();
+            }
+            else
+            {
+                pw.WriteUInt(Item.ItemTemplate.WeaponInfo.AltActionId);
+                pw.WriteUInt(Item.ItemTemplate.WeaponInfo.AltActionArgId);
+            }
 
             // None rather than 0 when the weapon has no area effect. The aetypes table starts at
             // 1, so 0 is the column's way of saying "none" and the client's checks are written

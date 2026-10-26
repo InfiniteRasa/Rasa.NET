@@ -168,6 +168,37 @@ namespace Rasa.Test.World
             });
         }
 
+        /// <summary>An enemy player's net and burn, as on a creature, at the level of the gun's element: the one their client draws.</summary>
+        [TestMethod]
+        public void ANetGunsNetAndBurnOnAnEnemyAreSentAtTheLevelOfItsElement()
+        {
+            using var world = new WorldTestContext();
+            var red = Fighter(world, RedClanId);
+            var blue = Fighter(world, BlueClanId, 10);
+            PlaceAll(red, blue);
+
+            WithFeud(world, () =>
+            {
+                MissileManager.Instance.MissileTrigger(world.Map, new Missile
+                {
+                    Source = red.Player,
+                    TargetActor = blue.Player,
+                    TargetEntityId = blue.Player.EntityId,
+                    DamageA = 100,
+                    DamageType = DamageType.Ice,
+                    ActionId = ActionId.WeaponAttack,
+                    ActionArgId = 1,
+                    CritChance = 0,
+                    RootMs = CrowdControl.NetGunRootMs,
+                    Dot = WeaponDots.Of(WeaponSkills.NetGuns, DamageType.Ice),
+                    DotDamage = 90
+                });
+
+                Assert.AreEqual(3u, blue.Player.ActiveEffects.Values.Single(e => e.TypeId == CrowdControl.NetGunRootTypeId).EffectLevel, "the net");
+                Assert.AreEqual(3u, blue.Player.ActiveEffects.Values.Single(e => e.TypeId == WeaponDots.NetGunTypeId).EffectLevel, "the burn");
+            });
+        }
+
         [TestMethod]
         public void PvpSafetyTurnsAnEnemyHitOnItsHolderImmune()
         {

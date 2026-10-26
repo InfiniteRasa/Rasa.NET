@@ -624,6 +624,10 @@ namespace Rasa.Managers
         /// <summary>Why the player cannot use it as it is now, or null if they can.</summary>
         private static PlayerMessage? RefusalOf(Client client, Live live)
         {
+            // Torcastra Prison's consoles, its gate's key slot and Ferme's cell wait on the place (TorcastraPrison).
+            if (TorcastraPrison.RefusalOf(client, live) is { } torcastra)
+                return torcastra;
+
             switch (live.Placement.Kind)
             {
                 case Kind.Dispenser:
@@ -726,6 +730,9 @@ namespace Rasa.Managers
 
             Show(live, next, user.EntityId);
 
+            // What it does in Torcastra Prison (TorcastraPrison).
+            TorcastraPrison.Used(client, live, next);
+
             return next;
         }
 
@@ -761,7 +768,7 @@ namespace Rasa.Managers
                     unitOfWork.Items.DeleteItem(item.Id);
 
             if (placed == 0)
-                client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmInventoryFull, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+                CommunicatorManager.ShowPlayerMessage(client, PlayerMessage.PmInventoryFull);
 
             return placed > 0;
         }
@@ -789,6 +796,7 @@ namespace Rasa.Managers
                     live.FuseAt = 0;
                     Show(live, UseObjectState.BombStateDetonated, live.ArmedBy);
                     Blast(live);
+                    BlowOpen(live, now);
                     live.ArmedBy = 0;
                     live.ResetAt = now + placement.ResetMs;
                     continue;
@@ -878,6 +886,39 @@ namespace Rasa.Managers
         }
 
         #endregion
+
+        /// <summary>How far from a bomb a door is blown open: within its blast radius, and no further than this.</summary>
+        public const float BlowOpenRadius = 6f;
+
+        /// <summary>
+        /// A bomb's blast blows open the placed doors within <see cref="BlowOpenRadius"/> of it (and
+        /// its own radius): a door shut to players (its row's usable 0) is got through with a
+        /// charge set beside it - the Bane base in Minos Caverns, whose doors "are opened by
+        /// interacting with the red glowing item which will set explosives". A door with a reset
+        /// shuts again that long after; one without stays open. Returns the doors opened.
+        /// </summary>
+        public static List<Live> BlowOpen(Live bomb, long now)
+        {
+            var opened = new List<Live>();
+
+            if (bomb?.Placement.Kind != Kind.Bomb)
+                return opened;
+
+            var reach = Math.Min(BlowOpenRadius, bomb.Placement.Radius);
+
+            foreach (var door in On(bomb.Map))
+            {
+                if (door.Placement.Kind != Kind.Door || door.State == UseObjectState.DoorStateOpen ||
+                    Vector3.Distance(door.Object.Position, bomb.Object.Position) > reach)
+                    continue;
+
+                door.ResetAt = door.Placement.ResetMs > 0 ? now + door.Placement.ResetMs : 0;
+                Show(door, UseObjectState.DoorStateOpen, bomb.ArmedBy);
+                opened.Add(door);
+            }
+
+            return opened;
+        }
 
         /// <summary>A GM's (.worldusable state): the state, to everyone in range, whatever it was; anything due is forgotten.</summary>
         public static void SetState(Live live, UseObjectState state, ulong actorId)

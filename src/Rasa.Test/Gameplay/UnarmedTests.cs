@@ -165,8 +165,8 @@ namespace Rasa.Test.Gameplay
             CollectionAssert.Contains(Slots(own), ((long)EquipmentData.HandToHand, (long)fists.EntityId));
 
             var other = context.World.CreateClient(x: 5);
-            var theirs = new ManifestationManager(context).CreatePlayerEntityData(context.Client, other).OfType<EquipmentInfoPacket>().Single();
-            Assert.IsFalse(Slots(theirs).Any(slot => slot.Slot == (long)EquipmentData.HandToHand), "nobody else's client holds them");
+            Assert.IsEmpty(new ManifestationManager(context).CreatePlayerEntityData(context.Client, other).OfType<EquipmentInfoPacket>().ToList(),
+                "nobody else's client holds them, nor any of the player's items");
 
             Assert.AreSame(fists, Unarmed.For(player), "one pair for good");
         }
@@ -187,6 +187,28 @@ namespace Rasa.Test.Gameplay
                 .Select(message => message.Packet).OfType<EquipmentInfoPacket>().Single();
             CollectionAssert.Contains(Slots(equipment), ((long)EquipmentData.HandToHand, (long)fists.EntityId),
                 "an EquipmentInfo replaces all the client holds equipped");
+        }
+
+        [TestMethod]
+        public void OnlookersAreNotSentThePlayersEquipmentWhenAPolymorphEnds()
+        {
+            using var context = Context(out _);
+            var player = context.Client.Player;
+            var onlooker = context.World.CreateClient(x: 5);
+            CellManager.Instance.AddToWorld(context.Client);
+            CellManager.Instance.AddToWorld(onlooker);
+            player.MorphWeapon = new MorphWeaponItem();
+            WorldTestContext.Drain(context.Client);
+            WorldTestContext.Drain(onlooker);
+
+            typeof(AbilityManager).GetMethod("EndPolymorph", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
+                .Invoke(null, new object[] { context.World.Map, player, null });
+
+            var seen = WorldTestContext.Drain(onlooker).Select(packet => packet.Message).OfType<CallMethodMessage>().Select(message => message.Packet).ToList();
+            Assert.IsEmpty(seen.OfType<EquipmentInfoPacket>().ToList(), "their client holds none of the items");
+            Assert.IsTrue(seen.OfType<DestroyPhysicalEntityPacket>().Any(), "the morph weapon still goes for everyone");
+            Assert.HasCount(1, WorldTestContext.Drain(context.Client).Select(packet => packet.Message).OfType<CallMethodMessage>()
+                .Select(message => message.Packet).OfType<EquipmentInfoPacket>().ToList(), "their own client, once");
         }
 
         #region Fixture

@@ -1033,7 +1033,7 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnType("INTEGER")
                         .HasColumnName("tool_type");
 
-                    b.Property<uint>("Windup")
+                    b.Property<int>("Windup")
                         .HasColumnType("INTEGER")
                         .HasColumnName("windup");
 
@@ -2878,6 +2878,180 @@ namespace Rasa.Migrations.SqliteWorld
                     b.HasKey("Id");
 
                     b.ToTable("npc_package");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.NpcSquadMemberEntry", b =>
+                {
+                    b.Property<uint>("TypeId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("type_id");
+
+                    b.Property<byte>("Slot")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("slot");
+
+                    b.Property<uint>("CreatureId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("creature_id");
+
+                    b.Property<byte>("MaxCount")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("max_count");
+
+                    b.Property<byte>("MinCount")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("min_count");
+
+                    b.HasKey("TypeId", "Slot");
+
+                    b.ToTable("npc_squad_member");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.NpcSquadPathEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<uint>("MapContextId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("map_context_id");
+
+                    b.Property<byte>("Mode")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("mode");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("npc_squad_path");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.NpcSquadPathPointEntry", b =>
+                {
+                    b.Property<uint>("PathId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("path_id");
+
+                    b.Property<uint>("Step")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("step");
+
+                    b.Property<double>("EngageRange")
+                        .HasColumnType("REAL")
+                        .HasColumnName("engage_range");
+
+                    b.Property<uint>("PauseMs")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("pause_ms");
+
+                    b.Property<double>("PosX")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_x");
+
+                    b.Property<double>("PosY")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_y");
+
+                    b.Property<double>("PosZ")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_z");
+
+                    b.Property<byte>("Run")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("run");
+
+                    b.HasKey("PathId", "Step");
+
+                    b.ToTable("npc_squad_path_point");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.NpcSquadSpawnEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<byte>("Arrival")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("arrival");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("comment");
+
+                    b.Property<byte>("Enabled")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("enabled");
+
+                    b.Property<uint>("MapContextId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("map_context_id");
+
+                    b.Property<uint>("PathId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("path_id");
+
+                    b.Property<double>("PosX")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_x");
+
+                    b.Property<double>("PosY")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_y");
+
+                    b.Property<double>("PosZ")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_z");
+
+                    b.Property<uint>("RespawnSeconds")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("respawn_seconds");
+
+                    b.Property<double>("Rotation")
+                        .HasColumnType("REAL")
+                        .HasColumnName("rotation");
+
+                    b.Property<uint>("TypeId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("type_id");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("npc_squad_spawn");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.NpcSquadTypeEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<double>("EngageRange")
+                        .HasColumnType("REAL")
+                        .HasColumnName("engage_range");
+
+                    b.Property<byte>("Formation")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("formation");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("name");
+
+                    b.Property<double>("Spacing")
+                        .HasColumnType("REAL")
+                        .HasColumnName("spacing");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("npc_squad_type");
                 });
 
             modelBuilder.Entity("Rasa.Structures.World.OrdinaryLootGroupEntry", b =>

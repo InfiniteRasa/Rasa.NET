@@ -34,6 +34,7 @@ namespace Rasa.Test.World
         private static readonly HashSet<(uint Class, uint Action)> KeptAbilities = new()
         {
             (7078, 475),    // Creature_Atta_Harvester_Standard: CR_ATTA_HARVESTER_ACID_SPIT (the Atta Soldier's spit, 1378)
+            (24592, 475),   // Creature_Atta_Harvester_Standard_Boss: the same model, and the same spit (OjasaHiveContent)
             (10164, 471),   // Creature_Granitour_Young: CR_GRANITOUR_MELEE (the adult's bite, 1334)
             (24085, 278),   // Bane_Thrax_Machina_Boss: CR_THRAX_SHRAPNEL
             (24085, 451),   // Bane_Thrax_Machina_Boss: CR_THRAX_FORCE_BLAST

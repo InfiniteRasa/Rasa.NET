@@ -361,7 +361,14 @@ namespace Rasa.Test.World
             });
 
             Assert.AreEqual(0, controlPoint.TriggeredByPlayers.Count);
-            Assert.AreEqual(0, WorldTestContext.Drain(firstClient).Count);
+            var refused = WorldTestContext.Drain(firstClient).Select(packet => packet.Message)
+                .OfType<CallMethodMessage>().Select(message => message.Packet).ToArray();
+            Assert.AreEqual(2, refused.Length, "A rejected use must resolve both client action channels.");
+            var request = refused.OfType<UserActionFailedPacket>().Single();
+            var action = refused.OfType<ActionFailedPacket>().Single();
+            Assert.AreEqual((ActionId.UseObject, DynamicObjectManager.ControlPointUseArgId), (request.ActionId, request.ActionArgId));
+            Assert.AreEqual((ActionId.UseObject, DynamicObjectManager.ControlPointUseArgId), (action.ActionId, action.ActionArgId));
+            Assert.AreEqual(PlayerMessage.PmUseObjectNotUsable, request.MsgId);
 
             controlPoint.TriggeredByPlayers.Add(firstClient);
             objects.CaptureControlPointRecovery(second, new ActionData(

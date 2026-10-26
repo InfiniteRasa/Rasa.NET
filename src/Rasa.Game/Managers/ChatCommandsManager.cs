@@ -161,14 +161,23 @@ namespace Rasa.Managers
 
             var audit = Audit;
 
-            if (audit == null)
+            // A command that throws is the command's failure, not the GM's: it is logged (and its
+            // audit row marked failed by GmAudit.Run) and the GM told, where the exception used to
+            // go on up to the packet handler, which closes the connection on any exception.
+            try
             {
-                registered.Handler(parts);
-                return;
+                if (audit == null)
+                    registered.Handler(parts);
+                else
+                    audit.Run(audit.Record(client, GmCommandSource.Chat, parts[0], command, registered.Level, GmCommandResult.Executed),
+                        () => registered.Handler(parts));
             }
-
-            audit.Run(audit.Record(client, GmCommandSource.Chat, parts[0], command, registered.Level, GmCommandResult.Executed),
-                () => registered.Handler(parts));
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, $"Command failed: {command}: {e}");
+                CommunicatorManager.Instance.SystemMessage(client,
+                    $"{parts[0]} failed ({e.GetType().Name}: {e.Message}). See the server log.");
+            }
         }
 
         internal static bool HasLevel(Client client, GmLevel required)
@@ -281,6 +290,8 @@ namespace Rasa.Managers
             RegisterCommand(".ambient", GmLevel.GameMaster, AmbientCommand, "class | clear");
             RegisterCommand(".destructible", GmLevel.GameMaster, DestructibleCommand, "action", "arg1", "arg2", "arg3", "arg4", "arg5");
             RegisterCommand(".worldusable", GmLevel.GameMaster, WorldUsableCommand, "action", "arg1", "arg2", "arg3", "arg4", "arg5", "arg6", "arg7", "arg8");
+            RegisterCommand(".torcastra", GmLevel.GameMaster, TorcastraCommand, "alarm | strike | secure <n|all> | gate | unlock <n|all> | reset");
+            RegisterCommand(".squad", GmLevel.GameMaster, SquadCommand, "[types|paths|spawns|export] | type ... | path ... | point [pause] | spawn ...");
             RegisterCommand(".worldcontainer", GmLevel.GameMaster, WorldContainerCommand, "action", "arg1", "arg2", "arg3", "arg4", "arg5", "arg6");
             RegisterCommand(".removeobj", GmLevel.GameMaster, RemoveObjectCommand, "entityId");
             RegisterCommand(".moveobj", GmLevel.GameMaster, MoveObjectCommand, "entityId", "x", "y", "z", "rotation");
@@ -399,7 +410,8 @@ namespace Rasa.Managers
         /// creature or player the #entityId names, to everyone who can see it
         /// (ActorManager.CorrectState). States by the client's name (standing, sitting,
         /// lying_down, flailing, crouched, dead, stunned, combat_engaged ...) or id. What it looks
-        /// like, not what it is: see CorrectState. .speed sets the movement speed this used to.
+        /// like, not what it is: see CorrectState. A player's crouched or standing is left to their
+        /// own client, and the reply says so. .speed sets the movement speed this used to.
         /// </summary>
         private void ActorStateCommand(string[] parts)
         {
@@ -439,15 +451,23 @@ namespace Rasa.Managers
                     }
                     : null;
 
-                if (actor == null || actor.MapContextId != _client.Player.MapContextId)
+                if (!MapInstanceScope.Contains(_client.Player.MapChannel, actor))
                 {
                     CommunicatorManager.Instance.SystemMessage(_client, $"No creature or player {idPart} on this map.");
                     return;
                 }
             }
 
-            ActorManager.CorrectState(_client.Player.MapChannel, actor, states);
-            CommunicatorManager.Instance.SystemMessage(_client, $"{actor.EntityId}: {string.Join(", ", states)}.");
+            var sent = ActorManager.CorrectState(_client.Player.MapChannel, actor, states);
+            var left = states.Where(state => !sent.Contains(state)).Distinct().ToList();
+
+            CommunicatorManager.Instance.SystemMessage(_client, sent.Count > 0
+                ? $"{actor.EntityId}: {string.Join(", ", sent)}."
+                : $"{actor.EntityId}: nothing sent.");
+
+            if (left.Count > 0)
+                CommunicatorManager.Instance.SystemMessage(_client,
+                    $"Left out: {string.Join(", ", left)} - a player crouches and stands from their own client; the server cannot change it there.");
         }
 
         /// <summary>
@@ -493,7 +513,7 @@ namespace Rasa.Managers
                     ? (player.Target != 0 ? ActorById(player.Target) : null)
                     : ulong.TryParse(idPart.Substring(1), out var entityId) ? ActorById(entityId) : null;
 
-                if (actor == null || actor.MapContextId != player.MapContextId)
+                if (!MapInstanceScope.Contains(player.MapChannel, actor))
                 {
                     CommunicatorManager.Instance.SystemMessage(_client, $"No creature or player {idPart} on this map.");
                     return;
@@ -565,7 +585,7 @@ namespace Rasa.Managers
                 _ => null
             };
 
-            if (victim == null || victim == player || victim.MapContextId != player.MapContextId)
+            if (victim == null || victim == player || !MapInstanceScope.Contains(player.MapChannel, victim))
             {
                 CommunicatorManager.Instance.SystemMessage(_client, idPart != null ? $"No creature or player {idPart} on this map." : "Target a creature or another player first.");
                 return;
@@ -607,7 +627,7 @@ namespace Rasa.Managers
                     _ => null
                 };
 
-                if (actor == null || actor.MapContextId != player.MapContextId)
+                if (!MapInstanceScope.Contains(player.MapChannel, actor))
                 {
                     CommunicatorManager.Instance.SystemMessage(_client, $"No creature or player {idPart} on this map.");
                     return;
@@ -965,6 +985,20 @@ namespace Rasa.Managers
         ///   .worldusable clear                   - takes away what .worldusable put put down
         /// A put logs the WorldUsablePreloader Row line for where it stands.
         /// </summary>
+        /// <summary>.torcastra: Torcastra Prison's alarm, bunkers, gate and cell blocks in this copy (TorcastraPrison.Command).</summary>
+        private void TorcastraCommand(string[] parts)
+        {
+            foreach (var line in TorcastraPrison.Command(_client.Player.MapChannel, _client.Player, parts))
+                CommunicatorManager.Instance.SystemMessage(_client, line);
+        }
+
+        /// <summary>.squad: NPC squads - their types, paths and spawns, made and changed in game (NpcSquads.Command).</summary>
+        private void SquadCommand(string[] parts)
+        {
+            foreach (var line in NpcSquads.Command(_client.Player.MapChannel, _client.Player, parts))
+                CommunicatorManager.Instance.SystemMessage(_client, line);
+        }
+
         private void WorldUsableCommand(string[] parts)
         {
             var player = _client.Player;
@@ -2804,8 +2838,19 @@ namespace Rasa.Managers
                 return;
             }
 
+            // A template is made from its class's item data (stack size, hit points); one whose
+            // class has none, or a stack of nothing, is no item, as for .mailitem
+            // (InventoryManager.MailItems).
+            var itemClassInfo = EntityClassManager.Instance.GetClassInfo(itemClass)?.ItemClassInfo;
+
+            if (itemClassInfo == null || itemClassInfo.StackSize == 0)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, $"Item template {itemTemplateId} has no item class data (class {(uint)itemClass}), so it cannot be made.");
+                return;
+            }
+
             // With no quantity, a full stack.
-            var quantity = EntityClassManager.Instance.GetClassInfo(itemClass).ItemClassInfo.StackSize;
+            var quantity = itemClassInfo.StackSize;
 
             if (parts.Length > 2 && !uint.TryParse(parts[2], out quantity))
             {
@@ -3139,13 +3184,13 @@ namespace Rasa.Managers
                     ? player.Target
                     : ulong.TryParse(idPart.Substring(1), out var named) ? named : 0;
 
-                if (!EntityManager.Instance.TryGetObject(entityId, out obj) || obj.MapContextId != player.MapContextId)
+                if (!EntityManager.Instance.TryGetObject(entityId, out obj) || !MapInstanceScope.Contains(player.MapChannel, obj))
                 {
                     CommunicatorManager.Instance.SystemMessage(_client, $"No object {idPart} on this map.");
                     return;
                 }
             }
-            else if (player.Target != 0 && EntityManager.Instance.TryGetObject(player.Target, out var targeted) && targeted.MapContextId == player.MapContextId)
+            else if (player.Target != 0 && EntityManager.Instance.TryGetObject(player.Target, out var targeted) && MapInstanceScope.Contains(player.MapChannel, targeted))
                 obj = targeted;
             else
             {
@@ -3154,7 +3199,8 @@ namespace Rasa.Managers
                 try
                 {
                     obj = EntityManager.Instance.DynamicObjects.Values
-                        .Where(o => o.MapContextId == player.MapContextId && Vector3.Distance(o.Position, player.Position) <= UsableCommandReach)
+                        .Where(o => o.MapContextId == player.MapContextId && Vector3.Distance(o.Position, player.Position) <= UsableCommandReach &&
+                                    MapInstanceScope.Contains(player.MapChannel, o))
                         .OrderBy(o => Vector3.Distance(o.Position, player.Position))
                         .FirstOrDefault();
                 }
@@ -3619,7 +3665,7 @@ namespace Rasa.Managers
                 _ => null
             };
 
-            if (target == null || target.MapContextId != player.MapContextId)
+            if (target == null || !MapInstanceScope.Contains(player.MapChannel, target))
             {
                 CommunicatorManager.Instance.SystemMessage(_client, "Target a creature or player to use .cover");
                 return;
@@ -4914,7 +4960,7 @@ namespace Rasa.Managers
 
         private void ControlPointCommand(string[] parts)
         {
-            const string usage = "usage: .cp | .cp all | .cp <id> afs | bane | clan <clan name or id> | goto | here | lockbox | lockbox remove";
+            const string usage = "usage: .cp | .cp all | .cp <id> afs | bane | clan <clan name or id> | goto | here | assault | lockbox | lockbox remove";
             var client = _client;
             var player = client.Player;
             var points = ControlPoints.Instance;
@@ -4976,6 +5022,12 @@ namespace Rasa.Managers
                 return;
             }
 
+            if (parts[2] == "assault")
+            {
+                CommunicatorManager.Instance.SystemMessage(client, LandingZoneAssaults.TryStart(player.MapChannel, target)
+                    ? "Landing Zone assault started." : "Stand on the public Wilderness map with Landing Zone held by AFS, assaults enabled, and no assault running.");
+                return;
+            }
             switch (parts[2])
             {
                 case "clan" when target.IsBattleground:

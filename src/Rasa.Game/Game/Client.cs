@@ -154,6 +154,8 @@ namespace Rasa.Game
         /// their finished missions are handed in to and their objectives are talked through
         /// with, so that the map and the radar can show them (Managers.MissionContacts). By entity id; emptied when the player leaves the map.
         /// </summary>
+        internal HashSet<ulong> VisibleMissionNpcs { get; } = new();
+
         internal HashSet<ulong> FarContacts { get; } = new HashSet<ulong>();
 
         /// <summary>Environment.TickCount64 at which <see cref="FarContacts"/> is next checked without a mission event asking.</summary>
@@ -191,6 +193,12 @@ namespace Rasa.Game
         /// its player - the ones that sparkle (Managers.MissionObjects). By entity id.
         /// </summary>
         internal HashSet<ulong> MissionObjects { get; } = new HashSet<ulong>();
+
+        /// <summary>
+        /// The locked objects this client has been told are open for its player, by a mission
+        /// they have completed (Managers.MissionLocks). By entity id.
+        /// </summary>
+        internal HashSet<ulong> MissionLocks { get; } = new HashSet<ulong>();
 
         /// <summary>Whether this connection has been sent the message of the day (Managers.MessageOfTheDay).</summary>
         internal bool MotdSent { get; set; }
@@ -815,8 +823,9 @@ namespace Rasa.Game
                 ManifestationManager.Instance.StandIfMoved(this);
 
                 // On the move or not, for whoever shoots at them (ToHit): a Move that says so
-                // and has taken them somewhere.
+                // and has taken them somewhere, and when it came.
                 Player.MoveVelocity = movement.Position != previousPosition ? movement.Velocity : 0;
+                Player.MoveVelocityTick = moveTick;
                 MissionAreaService?.RecordAcceptedMovement(
                     this,
                     previousPosition,

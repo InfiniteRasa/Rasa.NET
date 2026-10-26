@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 
 namespace Rasa.Managers
 {
     using Data;
     using Game;
+    using Packets.MapChannel.Client;
     using Packets.MapChannel.Server;
     using Structures;
     using Structures.World;
@@ -47,6 +49,12 @@ namespace Rasa.Managers
             public int Queued;
             public long ElapsedMs;
             public bool Spawned;
+
+            /// <summary>What comes through, when it is not the pool's own list: an alarm's wave (BaneAlarms).</summary>
+            public List<Creature> Creatures;
+
+            /// <summary>Told the creatures once they are through.</summary>
+            public Action<List<Creature>> Arrived;
         }
 
         private static readonly List<Teleport> Teleports = new List<Teleport>();
@@ -73,6 +81,23 @@ namespace Rasa.Managers
             Teleports.Add(new Teleport { MapChannel = mapChannel, Pool = pool, Arrival = arrival, Queued = creatureCount });
         }
 
+        /// <summary>
+        /// As above, with the creatures given rather than drawn from the pool - an alarm's wave
+        /// (BaneAlarms) - and <paramref name="arrived"/> told them once they are through.
+        /// </summary>
+        public static void BeginTeleport(MapChannel mapChannel, SpawnPool pool, SpawnPoolArrivalEntry arrival, List<Creature> creatures, Action<List<Creature>> arrived = null)
+        {
+            SpawnPoolManager.Instance.IncreaseQueueCount(pool);
+            SpawnPoolManager.Instance.IncreaseQueuedCreatureCount(pool, creatures.Count);
+
+            CellManager.Instance.CellCallMethod(mapChannel, arrival.Position, arrival.EntityId, new ForceStatePacket(UseObjectState.TsState1, 0));
+
+            Teleports.Add(new Teleport { MapChannel = mapChannel, Pool = pool, Arrival = arrival, Queued = creatures.Count, Creatures = creatures, Arrived = arrived });
+        }
+
+        /// <summary>How many teleports are on their way on a map channel.</summary>
+        public static int Pending(MapChannel mapChannel) => Teleports.Count(t => t.MapChannel == mapChannel);
+
         /// <summary>Runs this map's teleporters: the creatures through, then the teleporter off.</summary>
         public static void TeleportWorker(MapChannel mapChannel, long timePassed)
         {
@@ -89,10 +114,11 @@ namespace Rasa.Managers
                 {
                     teleport.Spawned = true;
 
-                    var creatures = SpawnPoolManager.Instance.CreateListOfCreatures(teleport.Pool);
+                    var creatures = teleport.Creatures ?? SpawnPoolManager.Instance.CreateListOfCreatures(teleport.Pool);
 
-                    SpawnPoolManager.Instance.SpawnCreatures(teleport.Pool, creatures, teleport.Arrival);
+                    var spawned = SpawnPoolManager.Instance.SpawnCreatures(teleport.Pool, creatures, teleport.Arrival);
                     SpawnPoolManager.Instance.DecreaseQueuedCreatureCount(teleport.Pool, teleport.Queued);
+                    teleport.Arrived?.Invoke(spawned);
                 }
 
                 if (teleport.ElapsedMs < TeleportHoldMs)
@@ -102,6 +128,23 @@ namespace Rasa.Managers
                 SpawnPoolManager.Instance.DecreaseQueueCount(teleport.Pool);
                 Teleports.RemoveAt(i);
             }
+        }
+
+        /// <summary>
+        /// A creature come through a teleporter: Teleport(where it stands, its yaw,
+        /// BANE_TELEPORTER) on it to everyone who can see it, which plays
+        /// teleport_thrax_arrival.pkg on its body (actor.py Recv_Teleport, _PlayTeleportArrivalFX);
+        /// the teleporter's own effect is its USE_TS_STATE_1. PreTeleport goes first so the
+        /// Teleport's departure effect is the type's - none - and not the default teleporter's
+        /// (Recv_PostTeleport). Nothing for one that steps off a dropship.
+        /// </summary>
+        public static void ShowArrival(MapChannel mapChannel, Creature creature, SpawnPoolArrivalEntry arrival)
+        {
+            if (mapChannel == null || creature == null || arrival == null || arrival.Kind != SpawnPoolArrivalEntry.KindTeleporter)
+                return;
+
+            CellManager.Instance.CellCallMethod(mapChannel, creature, new PreTeleportPacket(TeleportType.BaneTeleporter));
+            CellManager.Instance.CellCallMethod(mapChannel, creature, new TeleportPacket(creature.Position, creature.Rotation, TeleportType.BaneTeleporter, 0));
         }
 
         /// <summary>Where a creature comes out: a walkable spot within StepOutRadius of the point, or the point.</summary>

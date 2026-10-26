@@ -125,7 +125,12 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
-        public void HackHoldsAnEnemysMachineUntilItOrItsMasterIsHurtOrTheMasterAttacks()
+        [DataRow(1U)]
+        [DataRow(2U)]
+        [DataRow(3U)]
+        [DataRow(4U)]
+        [DataRow(5U)]
+        public void HackHoldsAnEnemysMachineUntilItOrItsMasterIsHurtOrTheMasterAttacks(uint pump)
         {
             using var world = new WorldTestContext();
             var red = Fighter(world, RedClanId);
@@ -133,13 +138,14 @@ namespace Rasa.Test.World
             PlaceAll(red, blue);
             var bot = Summon(world, blue, 12);
             bot.ExtraFlags.Add(CreatureFlag.Mechanical);
-            var info = Level(ActionId.AaSapperHack, 1, 20);
+            var info = Level(ActionId.AaSapperHack, pump, 20);
 
             try
             {
                 WithFeud(world, () =>
                 {
                     Assert.IsTrue(Hack(world, red, bot, info));
+                    AssertHackVisual(red);
                     Assert.IsTrue(Stuns.IsStunned(bot));
                     AssertLeft(20000, bot.ActiveEffects.Values.Single(e => e.BreaksOnDamage));
 
@@ -164,6 +170,55 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        [DataRow(1U)]
+        [DataRow(2U)]
+        [DataRow(3U)]
+        [DataRow(4U)]
+        [DataRow(5U)]
+        public void HackShowsItsNativeFxAndPreservesControlDurationAndRestoration(uint pump)
+        {
+            using var world = new WorldTestContext();
+            var caster = Fighter(world, 0);
+            PlaceAll(caster);
+            var target = Summon(world, caster, 5);
+            target.MasterEntityId = 0;
+            target.TargetCategory = TargetCategory.Hostile;
+            target.AggroRange = 17;
+            target.ExtraFlags.Add(CreatureFlag.Mechanical);
+            var info = Level(ActionId.AaSapperHack, pump, 10 + (int)pump * 4);
+            info.Properties[AbilityProperty.EffectRadius] = 10 * (int)pump;
+            try
+            {
+                Assert.IsTrue((bool)Invoke("AttachHack", world.Map, caster.Player, target, info));
+                var effect = target.ActiveEffects.Values.Single(e => e.TypeId == AbilityManager.HackedTypeId);
+                AssertLeft((10 + (int)pump * 4) * 1000, effect);
+                Assert.AreEqual(TargetCategory.Friendly, target.TargetCategory);
+                Assert.AreEqual(caster.Player.EntityId, target.MasterEntityId);
+                Assert.AreEqual(10f * pump, target.AggroRange);
+                AssertHackVisual(caster);
+                Assert.AreEqual(1U, GameEffectManager.EffectsForNewcomer(target, caster.Player).Single(e => e.EffectTypeId == AbilityManager.HackedTypeId).EffectLevel);
+                GameEffectManager.Instance.DettachEffect(world.Map, target, effect);
+                Assert.AreEqual(TargetCategory.Hostile, target.TargetCategory);
+                Assert.AreEqual(0UL, target.MasterEntityId);
+                Assert.AreEqual(17f, target.AggroRange);
+            }
+            finally
+            {
+                foreach (var effect in target.ActiveEffects.Values.ToArray())
+                    GameEffectManager.Instance.DettachEffect(world.Map, target, effect);
+                Unsummon(world, target);
+            }
+        }
+
+        private static void AssertHackVisual(Client viewer)
+        {
+            var effect = WorldTestContext.Drain(viewer).Select(p => p.Message)
+                .OfType<Rasa.Packets.Protocol.CallMethodMessage>().Select(p => p.Packet)
+                .OfType<GameEffectAttachedPacket>().Single(p => p.EffectTypeId == AbilityManager.HackedTypeId);
+            Assert.AreEqual(1U, effect.EffectLevel, "Native HACKED_EFFECT has visual FX only at level 1.");
+        }
+
+        [TestMethod]
         public void TheMagFlashBlindsEnemiesForHalfTheTimeAndDropsTheirTarget()
         {
             using var world = new WorldTestContext();
@@ -180,8 +235,16 @@ namespace Rasa.Test.World
 
                 Invoke("FlashEnemies", world.Map, red.Player, Level(ActionId.AaRangerTacticalEvasion, 1, 5), 10f, 5000, recovery);
 
-                AssertLeft(2500, blue.Player.ActiveEffects.Values.Single(e => e.Blinds));
+                var flash = blue.Player.ActiveEffects.Values.Single(e => e.Blinds);
+                AssertLeft(2500, flash);
                 Assert.AreEqual(0UL, blue.Player.Target);
+
+                // And their guns, as the flash's tooltip tells them: likely to miss, and soft.
+                Assert.AreEqual(AbilityManager.MagFlashToHitModifier, flash.RangedToHitModifier);
+                Assert.AreEqual(AbilityManager.MagFlashRangedDamagePercent, flash.RangedDamagePercent);
+                var shot = new Missile { Source = blue.Player, TargetActor = red.Player, TargetEntityId = red.Player.EntityId, ActionId = ActionId.WeaponAttack, ActionArgId = 1 };
+                Assert.AreEqual(40, ToHit.ChanceOf(shot));
+                Assert.AreEqual(50, GameEffectManager.ApplyRangedDamage(blue.Player, 100));
                 Assert.IsFalse(redMate.Player.ActiveEffects.Values.Any(e => e.Blinds));
                 Assert.IsFalse(far.Player.ActiveEffects.Values.Any(e => e.Blinds), "out of the radius");
                 Assert.AreEqual(blue.Player.EntityId, recovery.Hits.Single().EntityId);

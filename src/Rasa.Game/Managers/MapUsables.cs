@@ -126,14 +126,14 @@ namespace Rasa.Managers
     /// USE_TS_STATE_0 55, USE_TS_STATE_1 56; usabledata.specialFX and alternateMesh):
     ///  - UsableTwoStateBaneTeleporterV01 (8044): its base mesh, arch_bane_teleporter_v01.geo,
     ///    with arch_bane_teleporter_v01.pkg, the teleporter running, in 56; in 55 the dark
-    ///    arch_bane_teleporter_v01_off.geo. Thirty-three, none on a teleport of the server's:
-    ///    56 in the Bane bases (Minos Caverns 11, Devil's Den 14, Pravus Research 6), 55 for the
-    ///    one in Thunderhead and the one on the Incline.
+    ///    arch_bane_teleporter_v01_off.geo. Thirty-three, none on a teleport of the server's, all
+    ///    sent 56, running: the Bane bases (Minos Caverns 11, Devil's Den 14, Pravus Research 6),
+    ///    the one in Thunderhead and the one on the Incline.
     ///  - UsableTwoStateHumTeleporter (7895): arch_hum_teleporter.geo as it stands, and in 56
-    ///    arch_hum_teleporter_disabled.geo; 55 has nothing. Of Thunderhead Base's ten, six stand
-    ///    where the server's local teleporters are (teleporter 542-545, 547, 548: class 29648, a
-    ///    fifth of a metre off) and keep the working mesh, unsent. The four on the deck above,
-    ///    at 383 m, have none behind them, and are sent 56, disabled. test_nexus2's 39 are left.
+    ///    arch_hum_teleporter_disabled.geo; 55 has nothing. None is sent anything, so every one
+    ///    keeps the working mesh: Thunderhead Base's ten, each on a local teleporter of the
+    ///    server's (542-545, 547, 548, and 980-983 on the deck at 383 m: ThunderheadBaseTeleporters),
+    ///    and test_nexus2's 39.
     ///  - UsableTwoStateElohTemplesSpawner (22954): arch_eloh_temples_spawner_on.pkg in 56.
     ///    Nineteen in the Eloh Temples, on.
     ///  - UsableTwoStateBaneIndustrialRoomLogosStoneAnalyzer (7241):
@@ -398,14 +398,8 @@ namespace Rasa.Managers
             Running(PravusResearch, 133981504848603, BaneTeleporter, UseObjectState.TsState1, 264.0f, 8.0148f, 128.0f, "Pravus Research Bane teleporter 4"),
             Running(PravusResearch, 133981504848604, BaneTeleporter, UseObjectState.TsState1, 264.0f, 8.0148f, 208.0f, "Pravus Research Bane teleporter 5"),
             Running(PravusResearch, 133981504848605, BaneTeleporter, UseObjectState.TsState1, 184.0f, 8.0148f, 208.0f, "Pravus Research Bane teleporter 6"),
-            Running(Incline, 134419591482129, BaneTeleporter, UseObjectState.TsState0, -443.8862f, 250.2645f, -31.8161f, "Incline Bane teleporter 1"),
-            Running(Thunderhead, 134419591464848, BaneTeleporter, UseObjectState.TsState0, 0.0f, 377.3421f, 134.0f, "Thunderhead Bane teleporter 1"),
-
-            // The four human teleporters of Thunderhead Base with no local teleporter behind them, on the deck above the working ones: disabled.
-            Running(Thunderhead, 134419591464289, HumanTeleporter, UseObjectState.TsState1, 653.4601f, 383.0f, -496.3599f, "Thunderhead disabled human teleporter 1"),
-            Running(Thunderhead, 134419591464290, HumanTeleporter, UseObjectState.TsState1, 640.3851f, 383.0f, -509.596f, "Thunderhead disabled human teleporter 2"),
-            Running(Thunderhead, 134419591476322, HumanTeleporter, UseObjectState.TsState1, 659.4149f, 383.0f, -490.4725f, "Thunderhead disabled human teleporter 3"),
-            Running(Thunderhead, 134419591476326, HumanTeleporter, UseObjectState.TsState1, 634.4655f, 383.0f, -515.3791f, "Thunderhead disabled human teleporter 4"),
+            Running(Incline, 134419591482129, BaneTeleporter, UseObjectState.TsState1, -443.8862f, 250.2645f, -31.8161f, "Incline Bane teleporter 1"),
+            Running(Thunderhead, 134419591464848, BaneTeleporter, UseObjectState.TsState1, 0.0f, 377.3421f, 134.0f, "Thunderhead Bane teleporter 1"),
 
             // The Eloh temple spawners, on.
             Running(ElohTemples, 134419591464763, ElohTemplesSpawner, UseObjectState.TsState1, -600.0f, 8.0f, -44.0f, "the Eloh Temples Eloh temple spawner 1"),

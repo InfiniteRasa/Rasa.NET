@@ -153,21 +153,24 @@ namespace Rasa.Managers
                 }
             }
 
-            return WithRewardInfo(definition, definition.CreateInfo(
+            return HerbalRemedyProgress.Apply(player, definition, runtimeMission, WithRewardInfo(definition, definition.CreateInfo(
                 runtimeMission.State,
                 runtimeMission.Completeable,
                 runtimeMission.Objectives,
                 objectiveId =>
                     objectiveId == activeDeadlineObjectiveId
                         ? timeRemaining
-                        : null));
+                        : null)));
         }
 
         internal MissionInfo BuildOfferInfo(Mission definition, MissionState state = MissionState.NotAssigned)
         {
             var info = WithRewardInfo(definition, definition.CreateInfo(state, false, definition.CreateInitialObjectiveLogs()));
-            info.AudioSetId = checked((int)(_catalog.SceneBindings.GetValueOrDefault(definition.MissionId)?
-                .Audio?.OfferAudioSetId ?? 0));
+            var scene = _catalog.SceneBindings.GetValueOrDefault(definition.MissionId);
+            info.AudioSetId = checked((int)(scene?.Audio?.OfferAudioSetId ?? 0));
+            // The items it takes to accept it: the client shows them and holds Accept back without them.
+            if (scene?.ItemsRequired != null)
+                info.ItemRequired = scene.ItemsRequired.Select(classId => checked((int)classId)).ToList();
             return info;
         }
 

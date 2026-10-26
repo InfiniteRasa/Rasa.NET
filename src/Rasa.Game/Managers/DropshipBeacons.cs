@@ -114,7 +114,7 @@ namespace Rasa.Managers
             CellManager.Instance.AddToWorld(mapChannel, ship);
 
             // In: the birth plays, and the ship holds in 215 until it settles.
-            CellManager.Instance.CellCallMethod(ship, new UsePacket(owner.EntityId, UseObjectState.WhState2, 0));
+            CellManager.Instance.CellCallMethod(ship, UsePacket.For(ship, owner.EntityId, UseObjectState.WhState2, 0));
             ship.StateId = UseObjectState.WhState2;
 
             var arrival = Math.Max(0, info.Get(AbilityProperty.DelayTimeMs, DefaultArrivalMs));
@@ -233,7 +233,7 @@ namespace Rasa.Managers
                 {
                     beacon.InService = true;
                     beacon.Ship.StateId = UseObjectState.WhState0;
-                    CellManager.Instance.CellCallMethod(beacon.Ship, new UsePacket(beacon.Owner.EntityId, UseObjectState.WhState0, 0));
+                    CellManager.Instance.CellCallMethod(beacon.Ship, UsePacket.For(beacon.Ship, beacon.Owner.EntityId, UseObjectState.WhState0, 0));
 
                     // In service on the server, so a use of it is looked at; the clients are told
                     // one by one, the squad yes and nobody else anything (SyncUsable).
@@ -338,7 +338,7 @@ namespace Rasa.Managers
             // 205 to 214: away. A ship that never settled goes straight from 215, which has no
             // transition to 214 - it is simply taken away when its time comes.
             if (beacon.Ship.StateId == UseObjectState.WhState0)
-                CellManager.Instance.CellCallMethod(beacon.Ship, new UsePacket(beacon.Owner.EntityId, UseObjectState.WhState1, 0));
+                CellManager.Instance.CellCallMethod(beacon.Ship, UsePacket.For(beacon.Ship, beacon.Owner.EntityId, UseObjectState.WhState1, 0));
 
             beacon.Ship.StateId = UseObjectState.WhState1;
         }

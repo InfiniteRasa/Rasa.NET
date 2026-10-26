@@ -719,8 +719,7 @@ namespace Rasa.Managers
                 var tell = message ?? (notifyPartnerOf != null && participant != notifyPartnerOf ? PlayerMessage.PmTradeCancelled : (PlayerMessage?)null);
 
                 if (tell.HasValue)
-                    participant.CallMethod(SysEntity.CommunicatorId,
-                        new DisplayClientMessagePacket(tell.Value, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+                    CommunicatorManager.ShowPlayerMessage(participant, tell.Value);
             }
         }
 
@@ -742,8 +741,7 @@ namespace Rasa.Managers
 
             // The inviter learns their invite lapsed; an invitee whose inviter moved on needs no message.
             if (!session.IsInitiator(requester))
-                other.CallMethod(SysEntity.CommunicatorId,
-                    new DisplayClientMessagePacket(PlayerMessage.PmTradeTheyAreTooBusy, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+                CommunicatorManager.ShowPlayerMessage(other, PlayerMessage.PmTradeTheyAreTooBusy);
         }
 
         private static bool Expired(TradeSession session)
@@ -777,8 +775,7 @@ namespace Rasa.Managers
 
         private static void Decline(Client client, PlayerMessage message)
         {
-            client.CallMethod(SysEntity.CommunicatorId,
-                new DisplayClientMessagePacket(message, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+            CommunicatorManager.ShowPlayerMessage(client, message);
         }
 
         /// <summary>Ends the trade on this client, with the reason. For refusals that stop it.</summary>
@@ -787,8 +784,7 @@ namespace Rasa.Managers
             // The requester's client already shows a "trade requested" indicator; TradeDestroy
             // removes it along with the message saying why.
             client.CallMethod(SysEntity.ClientTradeManagerId, new TradeDestroyPacket());
-            client.CallMethod(SysEntity.CommunicatorId,
-                new DisplayClientMessagePacket(message, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+            CommunicatorManager.ShowPlayerMessage(client, message);
         }
 
         private static bool StillValid(TradeSession session)

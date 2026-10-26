@@ -145,12 +145,12 @@ namespace Rasa.Test.World
 
             var refused = Drain(bystander);
             Assert.AreEqual(1, refused.OfType<TradeDestroyPacket>().Count());
-            Assert.AreEqual(PlayerMessage.PmTradeYouAreTooBusy, refused.OfType<DisplayClientMessagePacket>().Single().MsgId,
+            Assert.AreEqual(PlayerMessage.PmTradeYouAreTooBusy, refused.OfType<Rasa.Packets.ClientMethod.Server.DisplaySystemMessagePacket>().Single().MsgId,
                 "You may not trade with that player at this time.");
             Assert.AreEqual(0, Drain(red).OfType<TradeInvitePacket>().Count());
 
             trades.RequestTrade(red, new RequestTradePacket { TargetEntityId = (long)bystander.Player.EntityId });
-            Assert.AreEqual(PlayerMessage.PmTradeYouAreTooBusy, Drain(red).OfType<DisplayClientMessagePacket>().Single().MsgId, "nor the other way");
+            Assert.AreEqual(PlayerMessage.PmTradeYouAreTooBusy, Drain(red).OfType<Rasa.Packets.ClientMethod.Server.DisplaySystemMessagePacket>().Single().MsgId, "nor the other way");
             Assert.AreEqual(0, Drain(bystander).OfType<TradeInvitePacket>().Count());
 
             Duels.Instance.PlayerLeft(red);

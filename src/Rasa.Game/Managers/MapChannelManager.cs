@@ -462,6 +462,25 @@ namespace Rasa.Managers
                     // Fithik egg clusters someone has walked onto hatch, and grow back.
                     Guard("FithikEggClusters.Worker", mapChannel, () => FithikEggClusters.Worker(mapChannel));
 
+                    // The Ojasa Atta Hive's story, in each copy of it.
+                    Guard("OjasaHive.Worker", mapChannel, () => OjasaHive.Worker(mapChannel));
+
+                    // The Caves of Donn's story, in each copy of them.
+                    Guard("CavesOfDonn.Worker", mapChannel, () => CavesOfDonn.Worker(mapChannel));
+
+                    // The Devil's Den's teleporters, bombs, door, howitzers, Fransisco and counted machinery, in each copy of it.
+                    Guard("DevilsDen.Worker", mapChannel, () => DevilsDen.Worker(mapChannel));
+
+                    // Pravus Research Facility's story, in each copy of it.
+                    Guard("PravusResearchFacility.Worker", mapChannel, () => PravusResearchFacility.Worker(mapChannel));
+
+                    // Torcastra Prison's alarm, gate, consoles and Airman Hamilton, in each copy of it.
+                    Guard("TorcastraPrison.Worker", mapChannel, () => TorcastraPrison.Worker(mapChannel));
+                    Guard("NpcSquads.Worker", mapChannel, () => NpcSquads.Worker(mapChannel));
+
+                    // Players held in a corner the client's collision will not let them out of are taken out.
+                    Guard("StuckSpots.Worker", mapChannel, () => StuckSpots.Worker(mapChannel));
+
                     // Maws come up at whoever comes near, and the ones gone back down are taken off.
                     Guard("MawLurk.Worker", mapChannel, () => MawLurk.Worker(mapChannel));
 
@@ -477,6 +496,12 @@ namespace Rasa.Managers
 
                     // The usable objects the server put down: back when due, bombs going off, random explosions.
                     Guard("PlacedUsables.Worker", mapChannel, () => PlacedUsables.Worker(mapChannel));
+
+                    // A Bane base's cameras looking, and the alarm's reinforcements.
+                    Guard("BaneAlarms.Worker", mapChannel, () => BaneAlarms.Worker(mapChannel));
+
+                    // Minos Caverns' captives, walked out by whoever freed them.
+                    Guard("MinosCaverns.Worker", mapChannel, () => MinosCaverns.Worker(mapChannel));
 
                     // The lootable containers the server put down: openings due to reset closed again.
                     Guard("WorldContainers.Worker", mapChannel, () => WorldContainers.Worker(mapChannel));
@@ -548,6 +573,9 @@ namespace Rasa.Managers
 
                         // ambient/music/sky/minimap regions: tell whoever changed region
                         Guard("RegionManager.Worker", mapChannel, () => RegionManager.Instance.Worker(mapChannel));
+
+                        // the tutorials the server raises: the HUD's after an arrival, a control point's on coming near one
+                        Guard("Tutorials.Worker", mapChannel, () => Tutorials.Worker(mapChannel));
                     }
 
                     // check for effects (buffs)
@@ -581,6 +609,9 @@ namespace Rasa.Managers
 
                         // Scatterbombs: the spent bombs are taken away once their blasts have played.
                         Guard("AbilityManager.ScatterbombWorker", mapChannel, () => AbilityManager.Instance.ScatterbombWorker(mapChannel));
+
+                        // Tactical Retreat: the Rangers whose vanishing effect has played, sent back.
+                        Guard("AbilityManager.ReturnWorker", mapChannel, () => AbilityManager.Instance.ReturnWorker(mapChannel));
 
                         // Cadaver Immolation: the bodies whose delay is up.
                         Guard("AbilityManager.CorpseWorker", mapChannel, () => AbilityManager.Instance.CorpseWorker(mapChannel));
@@ -845,6 +876,7 @@ namespace Rasa.Managers
 
                 // A battleground's teams, clock and scoreboard.
                 Battlegrounds.Instance.PlayerEntered(client);
+                Tutorials.PlayerEntered(client);
 
                 // And what they sold before the ride, still to be bought back.
                 NpcManager.Instance.ResendBuyback(client);
@@ -904,6 +936,7 @@ namespace Rasa.Managers
 
             // A battleground's teams, clock and scoreboard.
             Battlegrounds.Instance.PlayerEntered(client);
+            Tutorials.PlayerEntered(client);
 
             // Why a character that left the world on a map of several copies is outside it.
             ShowArrivalNotice(client);
@@ -995,6 +1028,7 @@ namespace Rasa.Managers
             NpcManager.Instance.ResendBuyback(client);
             ClanFeuds.Instance.PlayerEnteredWorld(client);
             Battlegrounds.Instance.PlayerEntered(client);
+            Tutorials.PlayerEntered(client);
 
             client.PendingTransfer = null;
             client.State = ClientState.Ingame;
@@ -1254,6 +1288,8 @@ namespace Rasa.Managers
         /// <param name="objects">The waypoints and pads to leave; DynamicObjectManager.Instance if not given.</param>
         internal void LeaveForTransfer(Client client, MapChannel origin, DynamicObjectManager objects = null)
         {
+            client.CallMethod(SysEntity.ClientMethodId, new SetControlledActorIdPacket(null));
+
             client.Player.Target = 0;
             LootDispenserManager.Instance.RemoveForOwner(origin, client);
             ManifestationManager.Instance.RemovePlayerCharacter(client);

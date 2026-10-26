@@ -29,6 +29,7 @@ namespace Rasa.Managers
         private static readonly object InstanceLock = new object();
         public const long CreatureLocationUpdateTime = 1500;
         public Dictionary<uint, Creature> LoadedCreatures = new();
+        private Dictionary<uint, Structures.World.CreatureStatEntry> _scenarioStats = new();
         private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
         private readonly ManifestationManager _manifestationManager;
         private readonly MissionApplication _missionManager;
@@ -263,7 +264,7 @@ namespace Rasa.Managers
 
             Game.Missions.World.CreatureGameplayRules.ClearRole(creature);
             CellManager.Instance.CellCallMethod(mapChannel, creature, new StateChangePacket(stateIds));
-            if (creature.SpawnPool?.FollowOwnerCharacterId > 0)
+            if (creature.SpawnPool?.FollowOwnerCharacterId > 0 || creature.SpawnPool?.RouteEscortOwnerCharacterId > 0)
                 PublishEscortStatus(mapChannel, creature, false);
 
             // A turret blows up into its wreck; a Predator or Ravager is its wreck once it has
@@ -516,6 +517,10 @@ namespace Rasa.Managers
             if (damage > 0 && Pvp.Controller(source) is Manifestation hitter)
                 target.LastPlayerHit = hitter;
 
+            // A brawler below the Ojasa hive's Queen: a player's first hit takes a side (OjasaHive).
+            if (damage > 0)
+                OjasaHive.Hit(map, target, source);
+
             if (damage <= 0 || !Game.Missions.World.CreatureGameplayRules.TracksParticipation(target) || !IsHostileTarget(map, source, target))
                 return;
             var client = source is Manifestation player
@@ -528,7 +533,8 @@ namespace Rasa.Managers
         internal static void PublishEscortStatus(MapChannel mapChannel, Creature creature, bool isEscort)
         {
             foreach (var client in CellManager.Instance.GetClientsInCells(mapChannel, creature.Cells))
-                if (client.Player?.Id == creature.SpawnPool?.FollowOwnerCharacterId)
+                if (client.Player?.Id == creature.SpawnPool?.FollowOwnerCharacterId ||
+                    client.Player?.Id == creature.SpawnPool?.RouteEscortOwnerCharacterId)
                     client.CallMethod(creature.EntityId, new UpdateEscortStatusPacket(isEscort));
         }
 
@@ -549,6 +555,11 @@ namespace Rasa.Managers
 
         public Creature CreateCreature(uint dbId, SpawnPool spawnPool)
         {
+            // Recheck at delivery as well as at scheduling: the point may have changed hands
+            // while a dropship or teleporter was bringing this pool in.
+            if ((spawnPool?.IsGarrison == true && spawnPool.Suspended) || !ControlPoints.Instance.MaySpawnServicePool(spawnPool))
+                return null;
+
             // check is creature in database
             if (!LoadedCreatures.TryGetValue(dbId, out var creatureEntry) || creatureEntry == null)
             {
@@ -656,7 +667,8 @@ namespace Rasa.Managers
             // who one of their missions sends them to speak to, which their client keeps (MissionContacts)
             foreach (var cellSeed in needDelete)
                 foreach (var client in mapChannel.MapCellInfo.Cells[cellSeed].ClientList)
-                    if (!MissionContacts.Keep(client, creature))
+                    if (!MissionContacts.Keep(client, creature) &&
+                        (!MissionNpcVisibility.IsScoped(creature) || client.VisibleMissionNpcs.Remove(creature.EntityId)))
                         client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(creature.EntityId));
 
             // add creature to new cell
@@ -673,13 +685,15 @@ namespace Rasa.Managers
 
         public void CreateCreatureOnClient(Client client, Creature creature)
         {
-            if (creature == null)
+            if (creature == null || !MissionNpcVisibility.IsShownTo(client, creature))
                 return;
 
             // One this client was given from afar is taken off it first: a second
             // CreatePhysicalEntity would be an update, and leave it without its overhead icon
             // (MissionContacts.Entering).
             MissionContacts.Entering(client, creature);
+            if (MissionNpcVisibility.IsScoped(creature))
+                client.VisibleMissionNpcs.Add(creature.EntityId);
 
             var entityData = new List<PythonPacket>
             {
@@ -699,12 +713,14 @@ namespace Rasa.Managers
                 new AttributeInfoPacket(creature),
                 // HOSTILE to an enemy of the player it belongs to (Pvp), its own category otherwise.
                 new TargetCategoryPacket(client?.Player != null ? Pvp.CategoryFor(creature, client.Player) : creature.TargetCategory),
-                new UpdateAttributesPacket(creature.Attributes, 0),
+                new UpdateAttributesPacket(GameEffectManager.WithRegen(creature), 0),
                 new IsRunningPacket(creature.IsRunning)
             };
             if (creature.State != CharacterState.Dead &&
-                creature.SpawnPool?.FollowOwnerCharacterId is > 0 &&
-                creature.SpawnPool?.FollowOwnerCharacterId == client.Player?.Id)
+                (creature.SpawnPool?.FollowOwnerCharacterId is > 0 &&
+                 creature.SpawnPool?.FollowOwnerCharacterId == client.Player?.Id ||
+                 creature.SpawnPool?.RouteEscortOwnerCharacterId is > 0 &&
+                 creature.SpawnPool?.RouteEscortOwnerCharacterId == client.Player?.Id))
                 entityData.Add(new UpdateEscortStatusPacket(true));
 
             // A clone's "Clone of %s" takes its master's name from here, and an NPC with no
@@ -750,6 +766,9 @@ namespace Rasa.Managers
             Vector3 position,
             double rotation)
         {
+            if ((spawnPool?.IsGarrison == true && spawnPool.Suspended) || !ControlPoints.Instance.MaySpawnServicePool(spawnPool))
+                return null;
+
             if (!LoadedCreatures.TryGetValue(creatureId, out var template) ||
                 template == null)
                 return null;
@@ -796,21 +815,30 @@ namespace Rasa.Managers
                 NpcManager.Instance.UpdateConversationStatus(client, creature);
         }
 
-        private static void EnsureScenarioAttributes(Creature creature)
+        private void EnsureScenarioAttributes(Creature creature)
         {
             if (creature.Attributes.Count != 0)
                 return;
 
-            var body = (int)Math.Max(15, creature.Level * 3);
-            var health = (int)Math.Max(100, creature.MaxHitPoints);
+            // Assignment-owned actors use the same authored stats as public spawns. A
+            // template's max_hp can predate stat migrations (Solis: 600 versus 4000).
+            // Loaded with the catalog: no world query inside a scene's character transaction.
+            // Synthetic templates or definitions without a stat row retain the fallback.
+            _scenarioStats.TryGetValue(creature.DbId, out var stats);
+            var body = stats?.Body ?? (int)Math.Max(15, creature.Level * 3);
+            var mind = stats?.Mind ?? body;
+            var spirit = stats?.Spirit ?? body;
+            var health = stats?.Health ?? (int)Math.Max(100, creature.MaxHitPoints);
+            var armor = stats?.Armor ?? 100;
             creature.Attributes.Add(Attributes.Body, new ActorAttributes(Attributes.Body, body, body, body, 5, 1000));
-            creature.Attributes.Add(Attributes.Mind, new ActorAttributes(Attributes.Mind, body, body, body, 5, 1000));
-            creature.Attributes.Add(Attributes.Spirit, new ActorAttributes(Attributes.Spirit, body, body, body, 5, 1000));
+            creature.Attributes.Add(Attributes.Mind, new ActorAttributes(Attributes.Mind, mind, mind, mind, 5, 1000));
+            creature.Attributes.Add(Attributes.Spirit, new ActorAttributes(Attributes.Spirit, spirit, spirit, spirit, 5, 1000));
             creature.Attributes.Add(Attributes.Health, CreatureHealth.NewAttribute(health));
             creature.Attributes.Add(Attributes.Chi, new ActorAttributes(Attributes.Chi, 0, 0, 0, 0, 0));
             creature.Attributes.Add(Attributes.Power, new ActorAttributes(Attributes.Power, 0, 0, 0, 0, 0));
             creature.Attributes.Add(Attributes.Aware, new ActorAttributes(Attributes.Aware, 0, 0, 0, 0, 0));
-            creature.Attributes.Add(Attributes.Armor, new ActorAttributes(Attributes.Armor, 100, 100, 100, 5, 1000));
+            creature.Attributes.Add(Attributes.Armor, new ActorAttributes(Attributes.Armor, armor, armor, armor,
+                stats == null ? 5 : CreatureArmor.BaseRegen(armor), stats == null ? 1000 : CombatRegen.RegenPeriodSeconds));
             creature.Attributes.Add(Attributes.Speed, new ActorAttributes(Attributes.Speed, 1, 1, 1, 0, 0));
             creature.Attributes.Add(Attributes.Regen, new ActorAttributes(Attributes.Regen, 0, 0, 0, 0, 0));
         }
@@ -846,6 +874,7 @@ namespace Rasa.Managers
             creature.NameId = data.NameId;
             creature.RunSpeed = data.RunSpeed;
             creature.WalkSpeed = data.WalkSpeed;
+            EntityMovementRates.Apply(creature);
             creature.AppearanceData = appearance;
             creature.Actions = actions;
         }
@@ -855,6 +884,7 @@ namespace Rasa.Managers
             using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
             var creatureList = unitOfWork.Creatures.Get();
             var creatureActions = unitOfWork.Creatures.GetCreatureActions();
+            var scenarioStats = unitOfWork.Creatures.GetAllCreatureStats().ToDictionary(row => row.Id);
 
             // Every creature's look in one query, not one a creature: 1047 creature rows were
             // 1047 queries, 0.4 s of startup on SQLite and a round trip each on MySQL.
@@ -1073,6 +1103,7 @@ namespace Rasa.Managers
                 }
             }
 
+            _scenarioStats = scenarioStats;
             LoadedCreatures = loaded;
         }
 
@@ -1129,7 +1160,8 @@ namespace Rasa.Managers
         public void CellDiscardCreaturesToClient(Client client, List<Creature> discardCreatures)
         {
             foreach (var creature in discardCreatures)
-                client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(creature.EntityId));
+                if (!MissionNpcVisibility.IsScoped(creature) || client.VisibleMissionNpcs.Remove(creature.EntityId))
+                    client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(creature.EntityId));
         }
 
         public void SetLocation(Creature creature, Vector3 position, double orientation, uint mapContextId)

@@ -504,6 +504,42 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void APlacedCoilIsOutOfServiceWhileItIsDownAndABarrelIsNever()
+        {
+            using var world = new WorldTestContext();
+            using var placed = Put(world, Row(1, Coil, 10, 20), Row(2, Barrel, 40, 20));
+            var coil = ObjectOf(world, 1);
+            var barrel = ObjectOf(world, 2);
+            var shooter = Stand(world, coil.Position + new Vector3(30, 0, 0));
+            WorldTestContext.Drain(shooter);
+
+            Shoot(world, shooter, coil, 600);
+            var sent = Sent(shooter);
+            CollectionAssert.AreEqual(new[] { false }, Usable(sent, coil.EntityId), "teslacoil.py: SetUsable is what takes the wreck's targeting away");
+            Assert.IsTrue(IndexOf<UsePacket>(sent, coil.EntityId) < IndexOf<SetUsablePacket>(sent, coil.EntityId), "into its wreck first");
+            Assert.IsFalse(coil.IsEnabled, "and in the UsableInfo of whoever meets it");
+
+            Shoot(world, shooter, barrel, (int)barrel.CurrentHitPoints);
+            Assert.IsEmpty(Usable(Sent(shooter), barrel.EntityId), "an inert destroyable goes by its state");
+            Assert.IsTrue(barrel.IsEnabled);
+
+            _now += 60_000;
+            PlacedDestructibles.Worker(world.Map);
+            sent = Sent(shooter);
+            CollectionAssert.AreEqual(new[] { true }, Usable(sent, coil.EntityId));
+            Assert.IsTrue(IndexOf<UsePacket>(sent, coil.EntityId) < IndexOf<SetUsablePacket>(sent, coil.EntityId),
+                "out of destroyed first: OnEnabledChanged asks IsDestroyed");
+            Assert.IsTrue(coil.IsEnabled);
+            Assert.IsEmpty(Usable(sent, barrel.EntityId));
+        }
+
+        private static List<bool> Usable(List<(ulong EntityId, PythonPacket Packet)> sent, ulong entityId) =>
+            sent.Where(entry => entry.EntityId == entityId).Select(entry => entry.Packet).OfType<SetUsablePacket>().Select(packet => packet.IsEnabled).ToList();
+
+        private static int IndexOf<T>(List<(ulong EntityId, PythonPacket Packet)> sent, ulong entityId) =>
+            sent.FindIndex(entry => entry.EntityId == entityId && entry.Packet is T);
+
+        [TestMethod]
         public void AHortimonculusIsDestroyedGrownAndComesBackAsASproutThatGrows()
         {
             using var world = new WorldTestContext();
@@ -662,10 +698,16 @@ namespace Rasa.Test.World
                 {
                     MigratedDatabaseTemplates.Migrate(context, () => context.Database.Migrate());
 
-                    // No rows of its own: the only ones are a later migration's (Wilderness_post_npcs), taken out
-                    // here so the fixture's lot is all there is.
+                    // No rows of its own: the only ones are later migrations' (Wilderness_post_npcs, Twin_pillars_npcs,
+                    // Caves_of_donn, Devils_den, Torcastra_prison,
+                    // Minos_caverns_content; Cache_of_the_day_containers retires the duplicate barrels), taken out here so the fixture's lot is all there is.
                     CollectionAssert.AreEquivalent(
-                        Enumerable.Range(0, WildernessPostNpcs.Barrels.Length + 1).Select(i => WildernessPostNpcs.FirstDestructible + (uint)i).ToList(),
+                        new[] { WildernessPostNpcs.GateFieldId }
+                            .Concat(Enumerable.Range(0, TwinPillarsNpcs.Destructibles.Length).Select(TwinPillarsNpcs.DestructibleId))
+                            .Concat(CavesOfDonnContent.EggClusters.Select(egg => egg.Id))
+                            .Concat(DevilsDenContent.Breakables.Select(row => row.Id))
+                            .Concat(TorcastraPrisonContent.Destructibles.Select(row => row.Id))
+                            .Concat(MinosCavernsContent.Destructibles().Select(d => d.Id)).ToList(),
                         new WorldDestructibleRepository(context).Get().Select(row => row.Id).ToList(), "no rows of its own");
                     context.Database.ExecuteSqlRaw("DELETE FROM world_destructible");
                     Assert.IsFalse(context.Database.HasPendingModelChanges());

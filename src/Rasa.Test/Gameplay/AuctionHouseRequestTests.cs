@@ -367,7 +367,7 @@ namespace Rasa.Test.Gameplay
                 var told = context.Drain().ToList();
 
                 Assert.AreEqual(0, told.OfType<RemoveInboxItemPacket>().Count());
-                Assert.AreEqual(PlayerMessage.PmInventoryFull, told.OfType<DisplayClientMessagePacket>().Single().MsgId);
+                Assert.AreEqual(PlayerMessage.PmInventoryFull, told.OfType<Rasa.Packets.ClientMethod.Server.DisplaySystemMessagePacket>().Single().MsgId);
 
                 using var unit = context.CreateChar();
 

@@ -335,6 +335,64 @@ namespace Rasa.Test.World
             Assert.AreEqual(UseObjectState.BombStateDisarmed, bomb.StateId);
         }
 
+        /// <summary>
+        /// A charge set beside a door that players cannot use blows it open (PlacedUsables.BlowOpen):
+        /// the charge takes its item to arm, the blast opens every door within reach, a door with no
+        /// reset stays open, and a door out of reach, or already open, is left alone.
+        /// </summary>
+        [TestMethod]
+        public void AChargeThatTakesADetonatorBlowsTheDoorBesideItOpen()
+        {
+            AddFixtureClasses();
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var map = harness.Map;
+            var client = harness.Client;
+            var at = client.Player.Position;
+            var charge = Row(1, Bomb, at.X + 1.5f, at.Z, map: map.MapInfo.MapContextId, usable: true, itemClass: (uint)CartridgeClass, count: 1, damageMin: 1, damageMax: 1);
+            var door = Row(2, Door, at.X + 4f, at.Z, map: map.MapInfo.MapContextId, usable: false);
+            var farDoor = Row(3, Door, at.X + 12f, at.Z, map: map.MapInfo.MapContextId, usable: false);
+            var shutAgain = Row(4, Door, at.X + 1.5f, at.Z + 3f, map: map.MapInfo.MapContextId, usable: false, reset: 20);
+            foreach (var row in new[] { charge, door, farDoor, shutAgain }) row.PosY = at.Y;
+
+            using var placed = Put(map, charge, door, farDoor, shutAgain);
+            var bomb = ObjectOf(map, 1);
+            var held = InventoryManager.Instance.CountItemsByClass(client, CartridgeClass);
+
+            if (held > 0)
+                InventoryManager.Instance.RemoveItemsByClass(client, CartridgeClass, held);
+
+            // The door is no use to a player, and the charge wants its detonator.
+            harness.Drain();
+            UseAndRecover(map, client, ObjectOf(map, 2));
+            Assert.AreEqual(PlayerMessage.PmUseObjectNotUsable, harness.Drain().OfType<UserActionFailedPacket>().Single().MsgId);
+            UseAndRecover(map, client, bomb);
+            Assert.AreEqual(PlayerMessage.PmMissingReqItem, harness.Drain().OfType<UserActionFailedPacket>().Single().MsgId);
+            Assert.AreEqual(UseObjectState.BombStateDisarmed, bomb.StateId);
+
+            Assert.IsNotNull(InventoryManager.Instance.GrantItemToInventory(client, ItemManager.Instance.CreateFromTemplateId(Cartridges, 3)));
+            UseAndRecover(map, client, bomb);
+            Assert.AreEqual(UseObjectState.BombStateArmed, bomb.StateId);
+            Assert.AreEqual(2u, InventoryManager.Instance.CountItemsByClass(client, CartridgeClass), "one detonator spent");
+
+            client.Player.Position = at + new Vector3(0, 0, 30);
+            _now += 5_000;
+            PlacedUsables.Worker(map);
+
+            Assert.AreEqual(UseObjectState.BombStateDetonated, bomb.StateId);
+            Assert.AreEqual(UseObjectState.DoorStateOpen, ObjectOf(map, 2).StateId, "2.5 m away: blown open");
+            Assert.AreEqual(UseObjectState.DoorStateOpen, ObjectOf(map, 4).StateId, "3 m away: blown open");
+            Assert.AreEqual(UseObjectState.DoorStateClosed, ObjectOf(map, 3).StateId, "10.5 m away: out of the charge's reach");
+
+            // The door with a reset shuts again after it; the other stays open, through the charge's own reset.
+            _now += 20_000;
+            PlacedUsables.Worker(map);
+            Assert.AreEqual(UseObjectState.DoorStateClosed, ObjectOf(map, 4).StateId);
+            _now += 30_000;
+            PlacedUsables.Worker(map);
+            Assert.AreEqual(UseObjectState.BombStateDisarmed, bomb.StateId);
+            Assert.AreEqual(UseObjectState.DoorStateOpen, ObjectOf(map, 2).StateId);
+        }
+
         [TestMethod]
         public void ARandomExplosionGoesOffWithinItsIntervalsAndItsEffectIsPutBack()
         {
@@ -560,7 +618,7 @@ namespace Rasa.Test.World
                 using (var context = (WorldContext)PersistenceIntegrationTests.CreateContext(typeof(SqliteWorldContext), database))
                 {
                     MigratedDatabaseTemplates.Migrate(context, () => context.Database.Migrate());
-                    Assert.IsTrue(new WorldUsableRepository(context).Get().All(Seeded), "only the Arieki vents' eruptions, the Lightning Fields' strikes and the Wilderness terminals are seeded");
+                    Assert.IsTrue(new WorldUsableRepository(context).Get().All(Seeded), "only the Arieki vents' eruptions, the Lightning Fields' strikes, the Wilderness terminals and fire pits, the Omega Missile, the Devil's Den's objects, Torcastra Prison's and Minos Caverns' are seeded");
                     Assert.IsFalse(context.Database.HasPendingModelChanges());
                 }
 
@@ -620,10 +678,15 @@ namespace Rasa.Test.World
 
         private static bool Vent(WorldUsableEntry row) => row.Id is >= AriekiVentEruptions.FirstId and <= AriekiVentEruptions.LastId;
 
-        /// <summary>A row a migration seeds: an Arieki vent's eruption, or a Wilderness terminal of Wilderness_post_npcs.</summary>
+        /// <summary>A row a migration seeds: an Arieki vent's eruption, a Wilderness terminal of Wilderness_post_npcs, or a Devil's Den object of Devils_den.</summary>
         private static bool Seeded(WorldUsableEntry row) => Vent(row) ||
             row.Id is >= LightningFieldsStrikes.FirstId and <= LightningFieldsStrikes.LastId ||
-            row.Id >= WildernessPostNpcs.FirstUsable && row.Id < WildernessPostNpcs.FirstUsable + WildernessPostNpcs.Usables.Length;
+            row.Id >= WildernessPostNpcs.FirstUsable && row.Id < WildernessPostNpcs.FirstUsable + WildernessPostNpcs.Usables.Length ||
+            row.Id >= TwinPillarsNpcs.FirstUsable && row.Id < TwinPillarsNpcs.FirstUsable + TwinPillarsNpcs.Usables.Length ||
+            row.Id == OmegaLabsMissile.Id ||
+            DevilsDenContent.Usables.Any(usable => usable.Id == row.Id) ||
+            TorcastraPrisonContent.Usables.Any(usable => usable.Id == row.Id && row.MapContextId == TorcastraPrisonContent.Map) ||
+            MinosCavernsContent.Usables.Any(usable => usable.Id == row.Id && row.MapContextId == MinosCavernsContent.Map);
 
         private static void Run(WorldContext context, MigrationBuilder builder)
         {

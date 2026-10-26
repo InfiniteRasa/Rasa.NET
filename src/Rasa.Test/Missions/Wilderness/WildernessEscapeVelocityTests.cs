@@ -23,12 +23,14 @@ namespace Rasa.Test.Missions.Wilderness
 {
     [TestClass]
     [DoNotParallelize]
-    public class WildernessEscapeVelocityTests
+    // Historical public-lease behavior must remain valid for deployments with authored public actors.
+    // Personal Pierre behavior on the current migration is covered in WildernessPersonalPierreTests.cs.
+    public partial class WildernessEscapeVelocityTests
     {
         [TestMethod]
         public void NativePierreAcceptanceStartsExactly420SecondsWithoutReleasingOrCompletingHer()
         {
-            using var harness = WildernessRuntimeTestHarness.Create();
+            using var harness = LegacyPierreHarness();
             var acceptedAt = harness.UtcNow;
             var pierre = Accept(harness);
 
@@ -52,7 +54,7 @@ namespace Rasa.Test.Missions.Wilderness
         [TestMethod]
         public void TalkingToRodriguezCannotReplaceReleaseEscortAndBoarding()
         {
-            using var harness = WildernessRuntimeTestHarness.Create();
+            using var harness = LegacyPierreHarness();
             var pierre = Accept(harness);
             var rodriguez = harness.Npc(172);
             Assert.IsNotNull(rodriguez);
@@ -74,7 +76,7 @@ namespace Rasa.Test.Missions.Wilderness
         [TestMethod]
         public void NativeForcefieldDestructionRequiresItsOwnerAndDoesNotCompleteTheEscort()
         {
-            using var harness = WildernessRuntimeTestHarness.Create();
+            using var harness = LegacyPierreHarness();
             var pierre = Accept(harness);
             var field = Forcefield(harness);
             var second = harness.Context.CreateAdditionalClient(2, manager: harness.Manager);
@@ -109,7 +111,7 @@ namespace Rasa.Test.Missions.Wilderness
         [DataRow(true)]
         public void RealPublicPierreMustReachTheLzAndThenBoardBeforeRodriguezCanReward(bool fullEquipmentBag)
         {
-            using var harness = WildernessRuntimeTestHarness.Create();
+            using var harness = LegacyPierreHarness();
             var pierre = Accept(harness);
             var start = pierre.Position;
             var spawnId = pierre.SpawnPool.DbId;
@@ -225,7 +227,7 @@ namespace Rasa.Test.Missions.Wilderness
         [TestMethod]
         public void ThePlayerStandingOnTheBoardingPadDoesNotSubstituteForPierre()
         {
-            using var harness = WildernessRuntimeTestHarness.Create();
+            using var harness = LegacyPierreHarness();
             var pierre = Accept(harness);
             ReleaseForcefield(harness);
             var boarding = new Vector3(192.2f, 171.1f, -100.5f);
@@ -244,7 +246,7 @@ namespace Rasa.Test.Missions.Wilderness
         [DataRow(0f, 0.351f, false)]
         public void BoardingDecisionUsesSeparateHorizontalAndFootHeightLimits(float horizontal, float height, bool allowed)
         {
-            using var harness = WildernessRuntimeTestHarness.Create();
+            using var harness = LegacyPierreHarness();
             var pierre = Accept(harness);
             var binding = RescueBinding(harness);
             var lease = harness.Manager.PublicActors.Handle(harness.Map, pierre.SpawnPool.DbId);
@@ -268,7 +270,7 @@ namespace Rasa.Test.Missions.Wilderness
         [TestMethod]
         public void TheDepartureDeadlineWinsWhenBoardingMovementArrivesLate()
         {
-            using var harness = WildernessRuntimeTestHarness.Create();
+            using var harness = LegacyPierreHarness();
             var pierre = Accept(harness);
             var due = harness.UtcNow.AddSeconds(420);
             var landing = Position(RescueBinding(harness).Routes["landing-zone"].Points.Last().Position);
@@ -289,7 +291,7 @@ namespace Rasa.Test.Missions.Wilderness
         [TestMethod]
         public void AfterTheDepartureDeadlinePierreIsHeldAgainAndGivesTheMissionAgain()
         {
-            using var harness = WildernessRuntimeTestHarness.Create();
+            using var harness = LegacyPierreHarness();
             var pierre = Accept(harness);
             var spawnId = pierre.SpawnPool.DbId;
             var first = harness.Client.Player.Missions[666].AssignmentId;
@@ -333,7 +335,7 @@ namespace Rasa.Test.Missions.Wilderness
         [TestMethod]
         public void ReconnectingAt419SecondsPreservesTheOriginalDeadlineAndExpiresAt420()
         {
-            using var harness = WildernessRuntimeTestHarness.Create();
+            using var harness = LegacyPierreHarness();
             Accept(harness);
             var assignment = harness.Client.Player.Missions[666].AssignmentId;
             var due = harness.UtcNow.AddSeconds(420);
@@ -402,7 +404,7 @@ namespace Rasa.Test.Missions.Wilderness
         [TestMethod]
         public void PierreCannotBeKilledWhileStillCaptive()
         {
-            using var harness = WildernessRuntimeTestHarness.Create();
+            using var harness = LegacyPierreHarness();
             var pierre = Accept(harness);
             var spawnId = pierre.SpawnPool.DbId;
             var lease = harness.Manager.PublicActors.Handle(harness.Map, spawnId);
@@ -424,7 +426,7 @@ namespace Rasa.Test.Missions.Wilderness
         [TestMethod]
         public void PierreIsInTheFightFromTheFallOfHerForcefieldAndHeldAgainOnceSheIsBack()
         {
-            using var harness = WildernessRuntimeTestHarness.Create();
+            using var harness = LegacyPierreHarness();
             var pierre = Accept(harness);
             var spawnId = pierre.SpawnPool.DbId;
             var oldLease = harness.Manager.PublicActors.Handle(harness.Map, spawnId);
@@ -460,7 +462,7 @@ namespace Rasa.Test.Missions.Wilderness
         [TestMethod]
         public void PierreDeathDuringTheEscortFailsWithoutGrantingArrivalCredit()
         {
-            using var harness = WildernessRuntimeTestHarness.Create();
+            using var harness = LegacyPierreHarness();
             var pierre = Accept(harness);
             ReleaseForcefield(harness);
             var start = pierre.Position;
@@ -479,7 +481,7 @@ namespace Rasa.Test.Missions.Wilderness
         [TestMethod]
         public void ZeroHealthPierreCannotReceiveBoardingCreditBeforeDeathPublication()
         {
-            using var harness = WildernessRuntimeTestHarness.Create();
+            using var harness = LegacyPierreHarness();
             var pierre = Accept(harness);
             ReleaseForcefield(harness);
             var boarding = new Vector3(192.2f, 171.1f, -100.5f);
@@ -499,7 +501,7 @@ namespace Rasa.Test.Missions.Wilderness
         [TestMethod]
         public void OwnerLossFailsAndReleasesPierreInsteadOfStrandingTheNextPlayer()
         {
-            using var harness = WildernessRuntimeTestHarness.Create();
+            using var harness = LegacyPierreHarness();
             var pierre = Accept(harness);
             var spawnId = pierre.SpawnPool.DbId;
             var oldLease = harness.Manager.PublicActors.Handle(harness.Map, spawnId);
@@ -524,7 +526,7 @@ namespace Rasa.Test.Missions.Wilderness
         [TestMethod]
         public void CompetingPlayerCannotReservePierreAndAbandonmentAllowsTheNextAttempt()
         {
-            using var harness = WildernessRuntimeTestHarness.Create();
+            using var harness = LegacyPierreHarness();
             var pierre = Accept(harness);
             var oldLease = harness.Manager.PublicActors.Handle(harness.Map, pierre.SpawnPool.DbId);
             var second = harness.Context.CreateAdditionalClient(2, manager: harness.Manager);
@@ -563,7 +565,7 @@ namespace Rasa.Test.Missions.Wilderness
         [TestMethod]
         public void ADelayedForcefieldMissileCannotReleasePierreForANewAssignment()
         {
-            using var harness = WildernessRuntimeTestHarness.Create();
+            using var harness = LegacyPierreHarness();
             var pierre = Accept(harness);
             var oldAssignment = harness.Client.Player.Missions[666].AssignmentId;
             var field = Forcefield(harness);
@@ -598,9 +600,17 @@ namespace Rasa.Test.Missions.Wilderness
                 "Only a genuinely new assignment receives a new deadline; a stale recovery cannot restart it.");
         }
 
+        private static WildernessRuntimeTestHarness LegacyPierreHarness() =>
+            WildernessRuntimeTestHarness.Create(additionalContent: migration =>
+            {
+                foreach (var sql in Rasa.Services.Preloader.PierrePersonalEscort.Down()) migration.Sql(sql);
+            });
+
         private static Creature Accept(WildernessRuntimeTestHarness harness)
         {
-            var definition = harness.World.CreatureEntries.SingleOrDefault(creature => creature.NameId == 3097);
+            // Not the second Pierre, standing at the Alia Das hospital as she is after her rescue (TwinPillarsNpcs).
+            var definition = harness.World.CreatureEntries.SingleOrDefault(creature => creature.NameId == 3097 &&
+                creature.Id != Rasa.Services.Preloader.TwinPillarsNpcs.RescuedPierre);
             Assert.IsNotNull(definition, "The coordinator-owned World migration must provide native Sgt. Pierre.");
             Assert.AreEqual(630070U, definition.Id);
             Assert.AreEqual(6340U, definition.ClassId);
@@ -639,7 +649,8 @@ namespace Rasa.Test.Missions.Wilderness
         }
 
         private static DynamicObject Forcefield(WildernessRuntimeTestHarness harness) =>
-            harness.Map.DynamicObjects.Single(obj => obj.SceneMissionId == 666 && obj.SceneActorRole == "forcefield");
+            harness.Map.DynamicObjects.Single(obj => obj.SceneMissionId == 666 && obj.SceneActorRole == "forcefield" &&
+                    obj.SceneOwnerCharacterId == harness.Client.Player.Id);
 
         private static void ReleaseForcefield(WildernessRuntimeTestHarness harness)
         {

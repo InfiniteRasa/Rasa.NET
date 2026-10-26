@@ -14,53 +14,129 @@ namespace Rasa.Test.Missions.Wilderness
     public class WildernessAliaOpeningTests
     {
         [TestMethod]
-        public void SolisCheckInRequiresTheRealPublicRangerToReachHisHut()
+        public void SolisCheckInRequiresTheAssignedRangerToReachHisHut()
         {
             using var harness = WildernessRuntimeTestHarness.Create();
             CompleteEscort(harness);
         }
 
         [TestMethod]
-        public void CommittedArrivalReleasesTheRangerForASecondCharacter()
+        public void TwoCharactersCanAcceptAndCompleteIndependentEscortsAtTheSameTime()
         {
-            using var harness = WildernessRuntimeTestHarness.Create();
-            var oldLease = ReachSolis(harness);
-            for (var tick = 0; tick < 1800 &&
-                 harness.Manager.PublicActors.Handle(harness.Map, WildernessOpeningWorldV1.RangerSpawnId) != null; tick++)
-            {
-                harness.SpawnWorldAfter(250, WildernessOpeningWorldV1.RangerSpawnId);
-                harness.Tick();
-            }
-            Assert.IsNull(harness.Manager.PublicActors.Handle(harness.Map, WildernessOpeningWorldV1.RangerSpawnId));
-            using (var unit = harness.CreateChar())
-            {
-                Assert.AreEqual("Ended", unit.CharacterMissions.Runtime.Scene(oldLease.RunId).Status);
-                Assert.AreEqual(0, unit.CharacterMissions.Runtime.Leases(oldLease.RunId).Count);
-            }
-            Assert.AreEqual(MissionObjectiveState.Incomplete, harness.Client.Player.Missions[1407].Objectives[10].State);
-            var second = harness.Context.CreateAdditionalClient(2, manager: harness.Manager);
+            using var harness=WildernessRuntimeTestHarness.Create();
+            harness.SpawnWorld(100,64,184,219);var rogers=harness.Npc(100);var moawi=harness.Npc(64);var solis=harness.Npc(184);
+            harness.MoveTo(rogers.Position);
+            Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client,rogers.EntityId,1407));
+            var first=AssignedRanger(harness,harness.Client.Player.Id);
+            var second=harness.Context.CreateAdditionalClient(2,manager:harness.Manager);
             try
             {
-                Assert.IsTrue(harness.Manager.AcceptOfferedMission(second, harness.Npc(100).EntityId, 1407));
-                var newLease = harness.Manager.PublicActors.Handle(harness.Map, WildernessOpeningWorldV1.RangerSpawnId);
-                Assert.IsNotNull(newLease);
-                Assert.AreNotEqual(oldLease.RunId, newLease.RunId);
-                Assert.IsFalse(harness.Manager.PublicActors.TryResolve(harness.Map, oldLease, out _));
-                Assert.IsFalse(harness.Manager.Scenes.Submit(oldLease.RunId,
-                    new SceneObservation(SceneEventKind.RouteCompleted, oldLease.Generation,
-                        Role: "ranger", OperationKey: "walk-to-solis")));
-                var solis = harness.Npc(184);
-                Assert.IsTrue(harness.Manager.CompleteOfferedObjective(harness.Client, solis.EntityId, 1407, 10, 1));
-                Assert.IsTrue(harness.Manager.CompleteOfferedMission(harness.Client, solis.EntityId, 1407, null));
-                Assert.AreEqual(newLease, harness.Manager.PublicActors.Handle(harness.Map, WildernessOpeningWorldV1.RangerSpawnId));
+                second.SetWorldPosition(rogers.Position,0);CellManager.Instance.UpdateVisibility(second);
+                Assert.IsTrue(harness.Manager.AcceptOfferedMission(second,rogers.EntityId,1407),"Another character's active escort must not block acceptance.");
+                var other=AssignedRanger(harness,second.Player.Id);
+                Assert.AreNotEqual(first.EntityId,other.EntityId);
+                Assert.AreNotEqual(first.SpawnPool.SceneRunId,other.SpawnPool.SceneRunId);
+                Assert.IsNull(harness.Manager.PublicActors.Handle(harness.Map,WildernessOpeningWorldV1.RangerSpawnId));
+                harness.MoveTo(moawi.Position);
+                Assert.IsTrue(harness.Manager.CompleteOfferedObjective(harness.Client,moawi.EntityId,1407,1,1));
+                second.SetWorldPosition(moawi.Position,0);CellManager.Instance.UpdateVisibility(second);
+                Assert.IsTrue(harness.Manager.CompleteOfferedObjective(second,moawi.EntityId,1407,1,1));
+                Assert.IsFalse(harness.Manager.CompleteOfferedObjective(second,solis.EntityId,1407,10,1));
+                for(var tick=0;tick<900 && (harness.Client.Player.Missions[1407].Objectives[10].State!=MissionObjectiveState.Incomplete ||
+                    second.Player.Missions[1407].Objectives[10].State!=MissionObjectiveState.Incomplete);tick++)
+                {
+                    harness.MoveTo(first.Position+new Vector3(0,0,1));
+                    second.SetWorldPosition(other.Position+new Vector3(0,0,1),0);CellManager.Instance.UpdateVisibility(second);
+                    harness.Tick();
+                }
+                Assert.AreEqual(MissionObjectiveState.Incomplete,harness.Client.Player.Missions[1407].Objectives[10].State);
+                Assert.AreEqual(MissionObjectiveState.Incomplete,second.Player.Missions[1407].Objectives[10].State);
+                harness.MoveTo(solis.Position);
+                Assert.IsTrue(harness.Manager.CompleteOfferedObjective(harness.Client,solis.EntityId,1407,10,1));
+                Assert.IsTrue(harness.Manager.CompleteOfferedMission(harness.Client,solis.EntityId,1407,null));
+                Assert.AreEqual(MissionState.Active,second.Player.Missions[1407].State,"First player's reward cannot complete the other's assignment.");
+                second.SetWorldPosition(solis.Position,0);CellManager.Instance.UpdateVisibility(second);
+                Assert.IsTrue(harness.Manager.CompleteOfferedObjective(second,solis.EntityId,1407,10,1));
+                Assert.IsTrue(harness.Manager.CompleteOfferedMission(second,solis.EntityId,1407,null));
             }
-            finally
-            {
-                CellManager.Instance.RemoveFromWorld(second);
-                harness.Map.ClientList.Remove(second);
-            }
+            finally {CellManager.Instance.RemoveFromWorld(second);harness.Map.ClientList.Remove(second);}
         }
 
+        [TestMethod]
+        public void HistoricalPublicRangerReservationReproducesTheAcceptanceFailure()
+        {
+            using var harness=WildernessRuntimeTestHarness.Create(targetWorldMigration:"20270908000000_Cache_of_the_day_containers");
+            harness.SpawnWorld(100,WildernessOpeningWorldV1.RangerSpawnId);var rogers=harness.Npc(100);harness.MoveTo(rogers.Position);
+            Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client,rogers.EntityId,1407));
+            var second=harness.Context.CreateAdditionalClient(2,manager:harness.Manager);
+            try
+            {
+                second.SetWorldPosition(rogers.Position,0);CellManager.Instance.UpdateVisibility(second);
+                Assert.IsFalse(harness.Manager.AcceptOfferedMission(second,rogers.EntityId,1407));
+                Assert.IsFalse(second.Player.Missions.ContainsKey(1407));
+            }
+            finally{CellManager.Instance.RemoveFromWorld(second);harness.Map.ClientList.Remove(second);}
+        }
+
+        [TestMethod]
+        public void ReconnectingKeepsTheSamePersonalAssignmentAndDoesNotCreateAnotherEscort()
+        {
+            using var harness=WildernessRuntimeTestHarness.Create();harness.SpawnWorld(100,64,184);
+            harness.MoveTo(harness.Npc(100).Position);
+            Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client,harness.Npc(100).EntityId,1407));
+            var ranger=AssignedRanger(harness,harness.Client.Player.Id);var run=ranger.SpawnPool.SceneRunId;
+            harness.MoveTo(harness.Npc(64).Position);
+            Assert.IsTrue(harness.Manager.CompleteOfferedObjective(harness.Client,harness.Npc(64).EntityId,1407,1,1));
+            for(var i=0;i<20;i++){harness.MoveTo(ranger.Position+new Vector3(0,0,1));harness.Tick();}
+            var at=ranger.Position;var assignment=harness.Client.Player.Missions[1407].AssignmentId;
+            var reconnected=harness.Context.CreateCompetingClient(harness.Manager);
+            harness.Manager.PublishInitialState(reconnected);harness.Manager.PublishInitialState(reconnected);
+            var resumed=AssignedRanger(harness,reconnected.Player.Id);
+            Assert.AreEqual(run,resumed.SpawnPool.SceneRunId);Assert.AreEqual(assignment,reconnected.Player.Missions[1407].AssignmentId);
+            Assert.IsTrue(Vector3.Distance(at,resumed.Position)<2,"Reconnect must not reset the route to its start.");
+            for(var i=0;i<900 && reconnected.Player.Missions[1407].Objectives[10].State!=MissionObjectiveState.Incomplete;i++)
+            {reconnected.SetWorldPosition(resumed.Position+new Vector3(0,0,1),0);CellManager.Instance.UpdateVisibility(reconnected);harness.Tick();}
+            Assert.AreEqual(MissionObjectiveState.Incomplete,reconnected.Player.Missions[1407].Objectives[10].State);
+        }
+
+        [TestMethod]
+        public void PersonalRangerDeathFailsOnlyItsOwnersEscort()
+        {
+            using var harness=WildernessRuntimeTestHarness.Create();harness.SpawnWorld(100);var rogers=harness.Npc(100);harness.MoveTo(rogers.Position);
+            Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client,rogers.EntityId,1407));
+            var first=AssignedRanger(harness,harness.Client.Player.Id);
+            var second=harness.Context.CreateAdditionalClient(2,manager:harness.Manager);
+            try
+            {
+                second.SetWorldPosition(rogers.Position,0);CellManager.Instance.UpdateVisibility(second);
+                Assert.IsTrue(harness.Manager.AcceptOfferedMission(second,rogers.EntityId,1407));var other=AssignedRanger(harness,second.Player.Id);
+                first.Attributes[Attributes.Health].Current=0;harness.Creatures.HandleCreatureKill(harness.Map,first,null);harness.Tick();
+                Assert.AreEqual(MissionObjectiveState.Failed,harness.Client.Player.Missions[1407].Objectives[10].State);
+                Assert.AreEqual(MissionState.Active,second.Player.Missions[1407].State);
+                Assert.AreNotEqual(MissionObjectiveState.Failed,second.Player.Missions[1407].Objectives[10].State);
+                Assert.IsTrue(CreatureManager.IsLivingOnMap(harness.Map,other));
+            }
+            finally{CellManager.Instance.RemoveFromWorld(second);harness.Map.ClientList.Remove(second);}
+        }
+
+        [TestMethod]
+        public void OldExclusiveReservationIsRetiredWithoutDiscardingTheAssignment()
+        {
+            using var harness=WildernessRuntimeTestHarness.Create();harness.SpawnWorld(100);harness.MoveTo(harness.Npc(100).Position);
+            Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client,harness.Npc(100).EntityId,1407));
+            var ranger=AssignedRanger(harness,harness.Client.Player.Id);var run=ranger.SpawnPool.SceneRunId;
+            var assignment=harness.Client.Player.Missions[1407].AssignmentId;
+            using(var unit=harness.CreateChar()) unit.ExecuteTransaction(()=>unit.CharacterMissions.Runtime.Add(new Rasa.Structures.Char.MissionActorLeaseEntry
+            {MapKey=Rasa.Game.Missions.World.PublicActorLeaseService.MapKey(harness.Map),SpawnKey="spawn:630001",RunId=run,ActorRole="ranger",Generation=ranger.SpawnPool.SceneGeneration}));
+            var recovered=new Rasa.Game.Missions.World.PublicActorLeaseService(harness,()=>harness.Manager);recovered.Tick(harness.Map);
+            using(var unit=harness.CreateChar())
+            {Assert.AreEqual(0,unit.CharacterMissions.Runtime.Leases(run).Count);Assert.AreEqual("Running",unit.CharacterMissions.Runtime.Scene(run).Status);}
+            Assert.AreEqual(assignment,harness.Client.Player.Missions[1407].AssignmentId);
+            Assert.IsTrue(CreatureManager.IsLivingOnMap(harness.Map,ranger));
+        }
+        private static Rasa.Structures.Creature AssignedRanger(WildernessRuntimeTestHarness harness,uint owner)=>
+            EntityManager.Instance.Creatures.Values.Single(c=>c.SpawnPool?.SceneActorRole=="ranger" &&
+                c.SpawnPool.ScenarioMissionId==1407 && c.SpawnPool.ScenarioOwnerCharacterId==owner && CreatureManager.IsLivingOnMap(harness.Map,c));
         [TestMethod]
         public void OpeningChainRecognizesOwnedLogosAndCollectsRealThraxHeartLoot()
         {
@@ -125,20 +201,18 @@ namespace Rasa.Test.Missions.Wilderness
                 .Aggregate(0U, (total, item) => total + item.StackSize);
         }
 
-        private static ActorHandle ReachSolis(WildernessRuntimeTestHarness harness)
+        private static void ReachSolis(WildernessRuntimeTestHarness harness)
         {
             harness.SpawnWorld(100, 64, 184, 219, WildernessOpeningWorldV1.RangerSpawnId);
             var rogers = harness.Npc(100);
             var moawi = harness.Npc(64);
             var solis = harness.Npc(184);
-            var ranger = harness.Npc(WildernessOpeningWorldV1.RangerSpawnId);
-            Assert.IsNotNull(ranger);
-            var start = ranger.Position;
+            Assert.IsNull(harness.Npc(WildernessOpeningWorldV1.RangerSpawnId));
             var hut = solis.Position;
 
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, rogers.EntityId, 1407));
-            var lease = harness.Manager.PublicActors.Handle(harness.Map, WildernessOpeningWorldV1.RangerSpawnId);
-            Assert.IsNotNull(lease);
+            var ranger = AssignedRanger(harness,harness.Client.Player.Id);
+            var start = ranger.Position;
             Assert.IsTrue(harness.Manager.CompleteOfferedObjective(harness.Client, moawi.EntityId, 1407, 1, 1));
             Assert.IsFalse(harness.Manager.CompleteOfferedObjective(harness.Client, solis.EntityId, 1407, 10, 1),
                 "Talking to Solis must not replace the escort.");
@@ -156,7 +230,6 @@ namespace Rasa.Test.Missions.Wilderness
                 harness.Client.Player.Missions[1407].Objectives[10].State);
             Assert.AreEqual(MissionObjectiveState.Incomplete,
                 harness.Client.Player.Missions[1407].Objectives[10].State);
-            return lease;
         }
 
         private static void CompleteEscort(WildernessRuntimeTestHarness harness)

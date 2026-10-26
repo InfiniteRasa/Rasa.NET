@@ -65,6 +65,8 @@ namespace Rasa.Game.Missions.World
         {
             if (!_runs.TryGetValue(run.Id, out var world) || world.Run.Generation != run.Generation)
                 return WorldEffectResult.Failed("World run is not attached at the current generation.");
+            if (world.Bindings.MapContextId != 0 && world.Map.MapInfo.MapContextId != world.Bindings.MapContextId)
+                return WorldEffectResult.Failed("World effects are outside this scene's authored map.");
             if (intent is PresentationIntent presentation)
             {
                 if (world.Owner?.State != ClientState.Ingame || world.Owner.Player.MapChannel != world.Map)
@@ -237,12 +239,24 @@ namespace Rasa.Game.Missions.World
                 // is in it from the moment she is set on such a route, until her lease resets.
                 if (!world.Bindings.Routes.TryGetValue(route.Route, out var path))
                     return WorldEffectResult.Failed($"Route {route.Route} is not in the scene's bindings.");
-                if (route.ResumeAfterCombat &&
+                var held = world.Bindings.Actors[route.Role].HoldCombatUntilRoute &&
+                    world.Bindings.Actors[route.Role].Kind == SceneActorKind.Creature;
+                if (route.ResumeAfterCombat && held)
+                    actor.Creature.ScriptedCombatAuthorization = new ScriptedCombatAuthorization(actor.Handle, route.OperationKey);
+                if (route.ResumeAfterCombat && !held &&
                     !_leases.AuthorizeCombat(world.Map, actor.Handle, actor.Creature, route.OperationKey))
                     return WorldEffectResult.Failed("A route through combat requires this actor's current public lease.");
                 var started = _routes.Start(world.Map, actor.Handle, actor.Creature, route, path);
                 if (route.ResumeAfterCombat && started.State == WorldEffectState.Failed)
-                    _leases.RevokeCombat(world.Map, actor.Handle, route.OperationKey);
+                {
+                    if (held) actor.Creature.ScriptedCombatAuthorization = null;
+                    else _leases.RevokeCombat(world.Map, actor.Handle, route.OperationKey);
+                }
+                if (held && started.State != WorldEffectState.Failed)
+                {
+                    actor.Creature.SpawnPool.RouteEscortOwnerCharacterId = world.Run.OwnerCharacterId;
+                    CreatureManager.PublishEscortStatus(world.Map, actor.Creature, true);
+                }
                 return started;
             }
             if (intent is AttackActorIntent attack)
@@ -354,6 +368,15 @@ namespace Rasa.Game.Missions.World
 
         private WorldEffectResult Ensure(WorldRun world, SceneActorDefinition definition)
         {
+            var service = definition.Kind == SceneActorKind.Creature && definition.Position != null
+                ? ControlPoints.Instance.ServicePointOf(world.Map, definition.TemplateId, SceneRouteController.Position(definition.Position))
+                : definition.Kind == SceneActorKind.PublicSpawn
+                    ? world.Map.SpawnPools.Where(pool => pool.DbId == definition.TemplateId)
+                        .Select(pool => ControlPoints.Instance.ServicePointOf(world.Map, pool)).FirstOrDefault(point => point != null)
+                    : null;
+            if (service != null && !service.HeldByAfs)
+                return WorldEffectResult.Deferred();
+
             DynamicObject replaced = null;
             if (world.Actors.TryGetValue(definition.Role, out var existing) && IsCurrent(world, existing))
             {
@@ -415,6 +438,7 @@ namespace Rasa.Game.Missions.World
                         Position = SceneRouteController.Position(definition.Position), Rotation = definition.Orientation,
                         ScenarioKey = runtimeKey, ScenarioOwnerCharacterId = world.Run.OwnerCharacterId,
                         SceneRunId = world.Run.Id, SceneActorRole = definition.Role,
+                        SceneOwnerOnly = definition.OwnerOnly,
                         SceneGeneration = world.Run.Generation, SceneSharedKey = definition.SharedKey,
                         ScenarioMissionId = definition.MissionId == 0 ? world.Run.MissionId : definition.MissionId,
                         ScenarioGroupId = definition.GroupId, DbId = definition.SpawnId,
@@ -459,6 +483,7 @@ namespace Rasa.Game.Missions.World
                     obj.MissionDestruction = definition.Destruction;
                     obj.CurrentHitPoints = definition.Destruction?.HitPoints ?? 0;
                     obj.ViewRadius = definition.ViewRadius;
+                    obj.NameOverrideId = definition.NameOverrideId;
                     if (definition.Kind == SceneActorKind.PracticeTarget || definition.Destruction != null)
                         obj.DynamicObjectType = DynamicObjectType.PracticeDummy;
                     if (definition.LootMissionId.HasValue && definition.LootRewardId.HasValue && definition.LootObjectiveId.HasValue)
@@ -481,6 +506,8 @@ namespace Rasa.Game.Missions.World
                 }
                 world.Actors[definition.Role] = new BoundActor(handle, null, obj);
             }
+            if (definition.ReplacesPublicSpawnId != 0 && world.Owner != null)
+                MissionNpcVisibility.Refresh(world.Owner);
             return WorldEffectResult.Applied();
         }
 
@@ -546,13 +573,21 @@ namespace Rasa.Game.Missions.World
         }
 
         /// <summary>
-        /// An object a scene takes up is seen as that scene says (Landmarks): one already standing -
-        /// put down by another scene that shares it, or before its definition had a radius - too.
+        /// An object a scene takes up is seen as that scene says (Landmarks) and called what it
+        /// says (NameOverrideId): one already standing - put down by another scene that shares
+        /// it, or before its definition had either - too. A name given to one already shown goes
+        /// with its next UsableInfo, and to whoever meets it from then on.
         /// </summary>
         private static void ApplyView(DynamicObject obj, SceneActorDefinition definition)
         {
-            if (obj != null)
-                obj.ViewRadius = definition.ViewRadius;
+            if (obj == null)
+                return;
+
+            obj.ViewRadius = definition.ViewRadius;
+
+            // A scene that names nothing leaves a name another scene sharing the object gave it.
+            if (definition.NameOverrideId != 0)
+                obj.NameOverrideId = definition.NameOverrideId;
         }
 
         private void BindCreaturePolicy(WorldRun world, SceneActorDefinition definition, BoundActor actor)
@@ -561,6 +596,10 @@ namespace Rasa.Game.Missions.World
                 return;
             var pool = actor.Creature.SpawnPool;
             var ownership = (pool.SceneRunId, pool.SceneActorRole, pool.SceneGeneration, pool.SceneSharedKey, pool.ScenarioKey);
+            if (definition.HoldCombatUntilRoute)
+                actor.Creature.ScriptedCombatGate = () => _runs.GetValueOrDefault(world.Run.Id) == world &&
+                    world.Actors.GetValueOrDefault(definition.Role) == actor && IsCurrent(world, actor) &&
+                    actor.Creature.ScriptedCombatAuthorization?.Handle == actor.Handle;
             CreatureGameplayRules.BindRole(actor.Creature, world.Map, actor.Handle, definition.GameplayPolicy,
                 () => _runs.GetValueOrDefault(world.Run.Id) == world &&
                     world.Actors.GetValueOrDefault(definition.Role) == actor && IsCurrent(world, actor) &&
@@ -682,6 +721,8 @@ namespace Rasa.Game.Missions.World
                 map.DynamicObjects.Remove(obj);
                 obj.IsInWorld = false;
             }
+            foreach (var owner in map.ClientList.Where(client => client?.Player?.Id == run.OwnerCharacterId))
+                MissionNpcVisibility.Refresh(owner);
         }
 
         private sealed record BoundActor(ActorHandle Handle, Creature Creature, DynamicObject Object);

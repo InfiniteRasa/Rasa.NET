@@ -33,7 +33,8 @@ namespace Rasa.Missions.Content.Wilderness
                 return Fail(state, "departure", failObjective: false);
             if (context.UtcNow >= state.DueAtUtc)
                 return Fail(state, "late-arrival");
-            if (observation.Kind == SceneEventKind.OwnerLost ||
+            if (observation.Kind == SceneEventKind.Signal && observation.SequenceId == 3 ||
+                observation.Kind == SceneEventKind.OwnerLost ||
                 observation.Kind == SceneEventKind.ActorDied && observation.Role == "pierre" ||
                 observation.Kind == SceneEventKind.Cancelled && observation.Name == "route-blocked")
                 return Fail(state, observation.Name ?? observation.Kind.ToString());

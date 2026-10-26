@@ -45,6 +45,22 @@ namespace Rasa.Test.Missions.Wilderness
             Directory.CreateDirectory(_directory);
         }
 
+        /// <summary>
+        /// The maps other than the Wilderness a harness can stand on: name, version, and where a
+        /// player is put on it.
+        /// </summary>
+        private static readonly Dictionary<uint, (string Name, uint Version, Vector3 Start)> OtherMaps = new()
+        {
+            [1865] = ("adv_arieki_torden_incline_ojasaattahive", 222, new Vector3(553.7f, 88.6f, 146.5f)),
+            [1506] = ("adv_foreas_concordia_wilderness_cavesofdonn02", 535, new Vector3(-275.6f, 24.08f, -360f)),
+            [1394] = ("adv_foreas_concordia_palisades_devilsden", 327, new Vector3(16.7733f, 122.6238f, -398.1859f)),
+            [1430] = ("adv_foreas_concordia_wilderness_pravusresearch", 555, new Vector3(-193.5236f, 9.9638f, -257.405f)),
+            [1349] = ("adv_foreas_concordia_divide_torcastraprison", 468, new Vector3(-262f, 13.7f, 310f)),
+            [1347] = ("adv_foreas_concordia_divide_minoscaverns", 293, new Vector3(-15.8f, 29.5f, 122.6f))
+        };
+
+        private uint _mapContextId = 1220;
+
         private void Initialize(Action<MigrationBuilder> additionalContent, string targetWorldMigration,
             Func<int, int, int> lootRoll, Action<Item> beforeItemPublication,
             Action<LootDispenser> beforeCorpsePublication)
@@ -96,13 +112,20 @@ namespace Rasa.Test.Missions.Wilderness
             else
                 throw new InvalidOperationException("Fully migrated Wilderness fixture is missing the ordinary loot schema.");
             Map = Context.Map;
+            var mapName = "adv_foreas_concordia_wilderness";
+            if (OtherMaps.TryGetValue(_mapContextId, out var other))
+            {
+                mapName = other.Name;
+                Map.MapInfo = new MapInfo(_mapContextId, other.Name, other.Version, 0);
+                Client.Player.MapContextId = _mapContextId;
+            }
             Map.NavMesh = TestNavMeshes.Query(
-                NavMeshFile.PathFor(Path.Combine(RepositoryRoot(), "navmesh"), "adv_foreas_concordia_wilderness"));
+                NavMeshFile.PathFor(Path.Combine(RepositoryRoot(), "navmesh"), mapName));
 
             var manifestations = new ManifestationManager(this);
             Maps = new MapChannelManager(this, refreshStats: (_, _) => { }, assignPlayer: _ => { },
                 enterMapChannels: _ => { });
-            Maps.MapChannelArray.Add(1220, Map);
+            Maps.MapChannelArray.Add(_mapContextId, Map);
             Manager = new MissionApplication(this, new Dictionary<uint, Mission>(),
                 new Dictionary<uint, MissionRewardDefinition>(), manifestations, utcNow: () => UtcNow);
             Creatures = new CreatureManager(this, manifestations, Manager);
@@ -141,9 +164,12 @@ namespace Rasa.Test.Missions.Wilderness
 
         internal static WildernessRuntimeTestHarness Create(Action<MigrationBuilder> additionalContent = null,
             string targetWorldMigration = null, Func<int, int, int> lootRoll = null,
-            Action<Item> beforeItemPublication = null, Action<LootDispenser> beforeCorpsePublication = null)
+            Action<Item> beforeItemPublication = null, Action<LootDispenser> beforeCorpsePublication = null,
+            uint mapContextId = 1220)
         {
-            var harness = new WildernessRuntimeTestHarness();
+            if (mapContextId != 1220 && !OtherMaps.ContainsKey(mapContextId))
+                throw new ArgumentException($"No harness for map {mapContextId}.", nameof(mapContextId));
+            var harness = new WildernessRuntimeTestHarness { _mapContextId = mapContextId };
             try
             {
                 harness.Initialize(additionalContent, targetWorldMigration, lootRoll,
@@ -196,6 +222,23 @@ namespace Rasa.Test.Missions.Wilderness
             UtcNow = UtcNow.AddMilliseconds(milliseconds);
             BehaviorManager.Instance.MapChannelThink(Map, milliseconds);
             Manager.Scenes.Tick(Map);
+        }
+
+        internal MissionApplication CreateFreshMissionApplication() => new(this,
+            new Dictionary<uint, Mission>(), new Dictionary<uint, MissionRewardDefinition>(),
+            new ManifestationManager(this), utcNow: () => UtcNow);
+
+        internal Creature SpawnAssignedSolisRanger()
+        {
+            SpawnWorld(100);
+            var rogers = Npc(100);
+            MoveTo(rogers.Position);
+            if (!Manager.AcceptOfferedMission(Client, rogers.EntityId, 1407))
+                throw new InvalidOperationException("The Solis stats fixture could not accept the escort mission.");
+            return EntityManager.Instance.Creatures.Values.Single(creature =>
+                creature.SpawnPool?.SceneActorRole == "ranger" && creature.SpawnPool.ScenarioMissionId == 1407 &&
+                creature.SpawnPool.ScenarioOwnerCharacterId == Client.Player.Id &&
+                CreatureManager.IsLivingOnMap(Map, creature));
         }
 
         internal Creature Npc(uint spawnId) => Map.MapCellInfo.Cells.Values
@@ -376,7 +419,7 @@ namespace Rasa.Test.Missions.Wilderness
                 (Attributes.Regen, 0), (Attributes.Armor, 0)
             })
                 Client.Player.Attributes[kind] = new ActorAttributes(kind, value, value, value, 0, 0);
-            MoveTo(new Vector3(884.11f, 305.8f, 347.81f));
+            MoveTo(OtherMaps.TryGetValue(_mapContextId, out var other) ? other.Start : new Vector3(884.11f, 305.8f, 347.81f));
             Drain();
         }
 

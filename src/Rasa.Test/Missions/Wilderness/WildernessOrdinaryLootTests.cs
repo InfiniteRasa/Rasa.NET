@@ -367,7 +367,7 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.AreEqual(107, harness.Client.Player.Credits[CurencyType.Credits]);
             var firstTake = DrainCalls(harness);
             Assert.IsTrue(firstTake.Any(call => call.Packet is GotLootPacket));
-            Assert.AreEqual(1, firstTake.Count(call => call.Packet is DisplayClientMessagePacket { MsgId: PlayerMessage.PmInventoryFull }));
+            Assert.AreEqual(1, firstTake.Count(call => call.Packet is Rasa.Packets.ClientMethod.Server.DisplaySystemMessagePacket { MsgId: PlayerMessage.PmInventoryFull }));
             for (var index = 0; index < slotsNeeded; index++)
             {
                 var filler = EntityManager.Instance.GetItem(harness.Client.Player.Inventory.PersonalInventory[firstSlot + index]);

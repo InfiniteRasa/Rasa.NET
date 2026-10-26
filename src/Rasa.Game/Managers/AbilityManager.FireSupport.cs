@@ -144,7 +144,8 @@ namespace Rasa.Managers
             {
                 EffectTypeId = typeId,
                 EffectId = strike.EffectId,
-                EffectLevel = (uint)Math.Max(1, level),
+                // The client has the beacon's, bomb's and pool's FX at levels 1, 3 and 6 only.
+                EffectLevel = GameEffectFx.LevelFor(typeId, (uint)Math.Max(1, level)),
                 SourceId = strike.Player.EntityId,
                 Announced = true,
                 Duration = null,

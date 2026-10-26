@@ -324,6 +324,9 @@ namespace Rasa.Managers
 
             // And the objects a mission now wants used, or no longer does, start or stop sparkling.
             TryPublish(() => MissionObjects.Refresh(client, this), "mission objects after mission progress");
+
+            // A lock a mission now opens for them, or no longer does, is told so (MissionLocks).
+            TryPublish(() => MissionLocks.Refresh(client), "mission locks after mission progress");
         }
 
         /// <summary>
@@ -812,6 +815,8 @@ namespace Rasa.Managers
                 string prerequisiteFailure = null;
                 if (!gift && !ArePrerequisitesSatisfied(client.Player, missionId, out prerequisiteFailure))
                     return Reject($"Rejected mission {missionId}: {prerequisiteFailure}");
+                if (!gift && MissingRequiredItem(client.Player, missionId) is { } missingItem)
+                    return Reject($"Rejected mission {missionId}: character {client.Player.Id} carries no item of class {missingItem}, which it requires.");
                 if (client.Player.Missions.TryGetValue(missionId, out var previousLog) &&
                     (previousLog.State is MissionState.Active or MissionState.Success ||
                         gift && previousLog.State == MissionState.Completed))
@@ -1009,6 +1014,7 @@ namespace Rasa.Managers
                         $"mission {missionId} acceptance world state");
                 TryPublish(() => Scenes.MissionChanged(client, missionId, "Accepted"),
                     $"mission {missionId} experience acceptance");
+                Tutorials.Raise(client, TutorialId.Tutmissions);
                 _protocol.PublishAudio(client, missionId, Rasa.Missions.Content.MissionAudioEvent.Accepted);
 
                 // ClassifyNpcConversation's "dispensable" list is recomputed here, so the giver's
@@ -3302,6 +3308,31 @@ namespace Rasa.Managers
                         _ => throw new MissionRuleException("Unsupported mission prerequisite.")
                     });
             return requirements.Count == 0 ? null : new AllRequirements(requirements);
+        }
+
+        /// <summary>
+        /// The first of the mission's items required (MissionSceneDefinition.ItemsRequired) the
+        /// player has none of in the personal inventory, or null: as the client counts them
+        /// (GetCountPersonalInventoryItemsByClass), every item of the class there, mission-issued
+        /// ones too.
+        /// </summary>
+        internal uint? MissingRequiredItem(Manifestation player, uint missionId)
+        {
+            if (_catalog.SceneBindings.GetValueOrDefault(missionId)?.ItemsRequired is not { Count: > 0 } required)
+                return null;
+
+            var carried = player.Inventory.PersonalInventory
+                .Where(entityId => entityId != 0)
+                .Select(entityId => EntityManager.Instance.GetItem(entityId)?.ItemTemplate)
+                .Where(template => template != null)
+                .Select(template => (uint)template.Class)
+                .ToHashSet();
+
+            foreach (var classId in required)
+                if (!carried.Contains(classId))
+                    return classId;
+
+            return null;
         }
 
         private bool ArePrerequisitesSatisfied(

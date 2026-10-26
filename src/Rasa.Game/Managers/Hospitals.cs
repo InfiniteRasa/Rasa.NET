@@ -15,8 +15,10 @@ namespace Rasa.Managers
     /// Hospitals - the client's graveyards - where a dead player goes back to life
     /// (PlayerDeath). They are the teleporter table's type 5 rows.
     ///
-    /// A hospital is gained by walking up to it (within <see cref="DiscoveryRadius"/>), as a
-    /// waypoint is: kept with the character's waypoints (character_teleporter, type 5), and
+    /// A hospital is gained by walking up to it (within <see cref="DiscoveryRadius"/>), or by
+    /// discovering a local waypoint within <see cref="WaypointHospitalRadius"/> of which it is
+    /// the nearest hospital on the same map. Hospital ownership restrictions still apply. It is
+    /// kept with the character's waypoints (character_teleporter, type 5), and
     /// announced with GraveyardGained, "You just gained ... Hospital." The client has no trigger
     /// of its own for it; the server watches the players on each map. The announcement names the
     /// hospital by a waypoint id, and the client has no name for the ids of the rows added to the
@@ -41,6 +43,8 @@ namespace Rasa.Managers
     {
         /// <summary>How close a player comes to a hospital to gain it. Ours: a hospital is a building, not a pad.</summary>
         public const float DiscoveryRadius = 15f;
+        /// <summary>A settlement waypoint can unlock its nearest hospital within this distance.</summary>
+        public const float WaypointHospitalRadius = 100f;
 
         public sealed class Hospital
         {
@@ -65,6 +69,34 @@ namespace Rasa.Managers
 
         /// <summary>Whether the map screen marks a teleporter a safe zone. Replaceable for tests.</summary>
         public static Func<uint, bool> IsSafeZone { get; set; } = id => MapMarkerManager.Instance.IsSafeZone(id);
+
+        /// <summary>Local waypoint-network pads, for discovering their settlement's nearby hospital.</summary>
+        public static Func<IEnumerable<(uint Id, uint MapContextId, Vector3 Position)>> WaypointSource { get; set; } = FromWaypoints;
+
+        private static IEnumerable<(uint, uint, Vector3)> FromWaypoints()
+        {
+            foreach (var waypoint in DynamicObjectManager.Instance.Teleporters.Values)
+                if (waypoint.ObjectData is WaypointInfo info && info.WaypointType == WaypointType.Waypoint && waypoint.MapContextId != 0)
+                    yield return (info.WaypointId, waypoint.MapContextId, waypoint.Position);
+        }
+
+        private static HashSet<uint> KnownWaypointHospitals(Manifestation player, uint mapContextId)
+        {
+            HashSet<uint> known;
+            lock (player.GainedWaypoints)
+                known = player.GainedWaypoints.Where(w => w.WaypointType == (byte)WaypointType.Waypoint)
+                    .Select(w => w.WaypointId).ToHashSet();
+            var unlocked = new HashSet<uint>();
+            if (known.Count == 0) return unlocked;
+            var hospitals = OnMap(mapContextId);
+            foreach (var waypoint in WaypointSource().Where(w => w.MapContextId == mapContextId && known.Contains(w.Id)))
+            {
+                var nearest = Nearest(hospitals, waypoint.Position);
+                if (nearest != null && Vector3.DistanceSquared(nearest.Position, waypoint.Position) <= WaypointHospitalRadius * WaypointHospitalRadius)
+                    unlocked.Add(nearest.TeleporterId);
+            }
+            return unlocked;
+        }
 
         /// <summary>Whether a hospital is the AFS's to use: not while the Bane hold its control point. Replaceable for tests.</summary>
         public static Func<uint, bool> IsOpen { get; set; } = id => ControlPoints.Instance.IsOpen(id);
@@ -182,7 +214,9 @@ namespace Rasa.Managers
 
             var all = OnMap(mapContextId);
             var open = all.Where(h => IsOpen(h.TeleporterId)).ToList();
-            var available = open.Where(h => h.IsFree || Knows(player, h.TeleporterId)).ToList();
+            // Death may arrive before the discovery worker persists the hospital gained at a waypoint.
+            var unlocked = KnownWaypointHospitals(player, mapContextId);
+            var available = open.Where(h => h.IsFree || Knows(player, h.TeleporterId) || unlocked.Contains(h.TeleporterId)).ToList();
 
             // The nearest of those the AFS hold - or of them all, should the Bane hold every one.
             if (available.Count == 0 && all.Count > 0)
@@ -212,8 +246,9 @@ namespace Rasa.Managers
                     continue;
 
                 // A battleground's hospitals are its teams' (Battlegrounds): there is nothing to gain.
+                var unlocked = KnownWaypointHospitals(player, mapChannel.MapInfo.MapContextId);
                 foreach (var hospital in hospitals)
-                    if (Vector3.Distance(player.Position, hospital.Position) <= DiscoveryRadius && IsOpen(hospital.TeleporterId)
+                    if ((Vector3.Distance(player.Position, hospital.Position) <= DiscoveryRadius || unlocked.Contains(hospital.TeleporterId)) && IsOpen(hospital.TeleporterId)
                         && !Battlegrounds.Instance.OwnsTeleporter(hospital.MapContextId, hospital.TeleporterId))
                         Gain(client, hospital);
             }
