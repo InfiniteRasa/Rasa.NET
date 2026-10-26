@@ -451,7 +451,7 @@ namespace Rasa.Managers
                             break;
                         }
 
-                        client.CallMethod(client.Player.EntityId, new PerformWindupPacket(PerformType.TwoArgs, packet.ActionId, packet.ActionArgId));
+                        client.CallMethod(client.Player.EntityId, new PerformWindupPacket(PerformType.ThreeArgs, packet.ActionId, packet.ActionArgId, obj.EntityId));
                         client.CallMethod(packet.EntityId, new UsePacket(client.Player.EntityId, obj.StateId, 100));
                         client.Player.MapChannel.PerformRecovery.Add(new ActionData(client.Player, packet.ActionId, packet.ActionArgId, 100));
 
@@ -473,10 +473,12 @@ namespace Rasa.Managers
                         var windupTime = obj.WindupTime == 0
                             ? DefaultScenarioUseWindupMs
                             : obj.WindupTime;
+                        // Native UseObject.ProcessWindupArgs/Windup requires the usable ID.
+                        // Without it a server-started/recreated action cannot finish client-side.
                         var actionData = new ActionData(client.Player, packet.ActionId, packet.ActionArgId, windupTime);
                         actionData.SourceId = obj.EntityId;
 
-                        client.CallMethod(client.Player.EntityId, new PerformWindupPacket(PerformType.TwoArgs, packet.ActionId, packet.ActionArgId));
+                        client.CallMethod(client.Player.EntityId, new PerformWindupPacket(PerformType.ThreeArgs, packet.ActionId, packet.ActionArgId, obj.EntityId));
                         client.CallMethod(packet.EntityId, new UsePacket(client.Player.EntityId, obj.StateId, (int)windupTime));
                         client.Player.MapChannel.PerformRecovery.Add(actionData);
 
