@@ -114,6 +114,8 @@ namespace Rasa.Game.Missions.Content
                 scene.ItemsRequired.Any(classId => classId == 0 || classId > int.MaxValue) ||
                 scene.ItemsRequired.Distinct().Count() != scene.ItemsRequired.Count))
                 throw new MissionRuleException($"Mission {missionId}: the items required must be a mission's, item classes, and each once.");
+            if (scene.BoundMapContextId == 0 || scene.BoundMapContextId != null && missionId == 0)
+                throw new MissionRuleException($"Mission {missionId}: a scene map must be a mission's, and not zero (an experience has its own).");
             if (scene.Category == 0 || scene.Category != null && missionId == 0)
                 throw new MissionRuleException($"Mission {missionId}: a category must be a mission's, and not zero.");
             if (scene.Audio is { } audio && (audio.Events == null || audio.Announcements == null ||

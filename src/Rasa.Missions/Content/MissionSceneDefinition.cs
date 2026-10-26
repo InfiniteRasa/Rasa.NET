@@ -58,6 +58,16 @@ namespace Rasa.Missions.Content
         /// </summary>
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public List<uint> ItemsRequired { get; set; }
+        /// <summary>
+        /// The map the scene's actors stand on (a map_info id; for a squad instance, the copy the owner is in).
+        /// Unset, the scene runs on the map where the mission was accepted. Set, a mission accepted elsewhere
+        /// waits: its scene starts when the owner first comes onto that map, a step asked for before then waits
+        /// with it, and the run goes with the owner to a later copy of the map (a new squad, a weekly reset).
+        /// The acceptance items come at acceptance either way. (MapContextId above only refuses world effects
+        /// off its map; it does not move or hold a run.)
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public uint? BoundMapContextId { get; set; }
 
         public SceneBindings Bindings(string revision) => new(revision, Actors, Routes,
             Sequences.ToDictionary(entry => entry.Key, entry => new SceneSequence(
