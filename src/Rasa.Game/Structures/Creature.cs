@@ -144,6 +144,13 @@ namespace Rasa.Structures
         internal Game.Missions.World.ScriptedCombatAuthorization ScriptedCombatAuthorization { get; set; }
 
         /// <summary>
+        /// A scene has ordered this creature into a fight (AttackActorIntent, SceneWorldAdapter) and the order stands: it
+        /// goes to its target however far that is from where it was spawned, so no leash by distance from home
+        /// (BehaviorManager.ChasedTooFar) pulls it back. Cleared when the order is cancelled.
+        /// </summary>
+        internal bool SceneAttackOrdered { get; set; }
+
+        /// <summary>
         /// The player this creature belongs to, or 0 for an ordinary world creature.
         ///
         /// Set, a creature is a minion: it takes commands from that player, follows them rather

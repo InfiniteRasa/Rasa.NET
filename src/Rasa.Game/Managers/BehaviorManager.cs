@@ -971,7 +971,7 @@ namespace Rasa.Managers
                     // below; PatrolGroups.TetherDistance). Its leader runs home for the group.
                     // With no leader to go back to, it is leashed as any creature (ChasedTooFar).
                 }
-                else if (ChasedTooFar(creature))
+                else if (!creature.SceneAttackOrdered && ChasedTooFar(creature))
                 {
                     // Dragged too far from home: it runs back, forgetting the fight, and is whole
                     // again when it gets there. For a patrolling creature home is the last path

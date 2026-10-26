@@ -213,6 +213,9 @@ namespace Rasa.Game.Missions.World
             if (!BehaviorManager.Instance.SetActionScriptedMove(run.Map, actor, Position(point.Position), point.Orientation))
                 return false;
             run.Move = actor.Controller.ScriptedMove;
+            // An escort that stops to fight stops when it is hit, not only when it finds a fight at a held waypoint
+            // (1178: Villaran walked on under the first wave's fire).
+            run.Move.FightsBack = run.Intent.ResumeAfterCombat;
             return true;
         }
         internal static Vector3 Position(ScenePosition position) => new(position.X, position.Y, position.Z);
