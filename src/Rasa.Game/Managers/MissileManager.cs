@@ -564,6 +564,9 @@ namespace Rasa.Managers
 
         public void RequestWeaponAttack(Client client, RequestWeaponAttackPacket packet)
         {
+            // An attack asked for calls off a /suicide counting down.
+            Suicide.Cancel(client, Suicide.WeaponReason);
+
             // The alternate attack is a melee swing, not a shot: no ammunition, no heat, the
             // weapon's alt damage, and Hand to Hand's bonus rather than the weapon skill's. It
             // used to come through here as one more shot of the gun.
