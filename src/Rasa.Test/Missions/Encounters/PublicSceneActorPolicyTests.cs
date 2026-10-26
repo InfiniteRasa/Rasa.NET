@@ -741,6 +741,61 @@ namespace Rasa.Test.Missions.Encounters
             Assert.IsFalse(context.Drain().OfType<Rasa.Packets.MapChannel.Server.BarkPackage>().Any());
         }
 
+        /// <summary>
+        /// A kill intent fells a living scene creature at once: dead, its defeat sequence run, and nobody's kill - no
+        /// experience, no harvest right. A second kill, of the dead one, is nothing to do.
+        /// </summary>
+        [TestMethod]
+        public void AKillIntentFellsASceneCreatureAndRunsItsDefeatSequence()
+        {
+            using var fixture = new Fixture();
+            var context = fixture.Context;
+            // One whose kill would be rewarded and looted, were it anybody's.
+            var tala = JsonSerializer.Deserialize<SceneActorDefinition>(
+                @"{""role"":""tala"",""kind"":""Creature"",""templateId"":510210,
+                   ""position"":{""x"":0,""y"":0,""z"":0},
+                   ""gameplayPolicy"":{""rewardScenarioKills"":true,
+                     ""loot"":{""drops"":[{""templateId"":28,""chancePercent"":100,""minimum"":2,""maximum"":2}]}}}",
+                MissionContentCodec.Options);
+            var bindings = new SceneBindings("unversioned", new[] { tala, Enemy("reply") }.ToDictionary(actor => actor.Role),
+                new Dictionary<string, SceneRoute>(), new Dictionary<uint, SceneSequence>
+                {
+                    [0] = new(worldIntents: new[] { new EnsureActorIntent("ensure-tala", "tala") }),
+                    [1] = new(worldIntents: new[] { new KillActorIntent("fell-tala", "tala") }),
+                    [2] = new(worldIntents: new[] { new EnsureActorIntent("ensure-reply", "reply") })
+                }, defeatSequences: new Dictionary<string, uint> { ["tala"] = 2 });
+            var run = context.Manager.Scenes.Start(context.Client, "data.sequence", bindings);
+            var talaCreature = fixture.Actor(run, "tala");
+            var experience = context.Client.Player.Experience;
+            Assert.IsFalse(Spawned(context, run, "reply"));
+
+            Assert.IsTrue(context.Manager.Scenes.Submit(run, new SceneObservation(SceneEventKind.Signal, 1, SequenceId: 1)));
+            context.Manager.Scenes.Tick(context.Map);
+
+            Assert.AreEqual(CharacterState.Dead, talaCreature.State);
+            Assert.AreEqual(0, talaCreature.Attributes[Attributes.Health].Current);
+            Assert.IsTrue(Spawned(context, run, "reply"), "its defeat sequence ran");
+            Assert.AreEqual(experience, context.Client.Player.Experience, "nobody's kill");
+            Assert.AreEqual(0UL, talaCreature.HarvestOwnerEntityId, "nobody's corpse");
+            Assert.AreEqual(0UL, talaCreature.CorpseLootEntityId, "nothing to loot");
+        }
+
+        /// <summary>A kill intent for a dead or absent scene creature is nothing to do.</summary>
+        [TestMethod]
+        public void AKillIntentForADeadOrAbsentSceneCreatureEndsAsNothingToDo()
+        {
+            using var fixture = new Fixture();
+            var context = fixture.Context;
+            var world = new SceneWorldAdapter(context.Manager.PublicActors, (_, _) => { });
+            var run = new SceneRun("kill", "unversioned", "data.sequence", 1, 1, 0, "{}", SceneStatus.Running, 1);
+            world.Attach(run, Bindings(Enemy("victim"), Enemy("absent")), context.Client, context.Map);
+            Assert.AreEqual(WorldEffectState.Applied, world.Apply(run, new EnsureActorIntent("ensure-victim", "victim")).State);
+
+            Assert.AreEqual(WorldEffectState.Suppressed, world.Apply(run, new KillActorIntent("kill-absent", "absent")).State, "never ensured");
+            Dead(fixture.Actor(run.Id, "victim"));
+            Assert.AreEqual(WorldEffectState.Suppressed, world.Apply(run, new KillActorIntent("kill-dead", "victim")).State, "dead already");
+        }
+
         /// <summary>Dead where it stands: a standalone adapter's run is no scene's to record the kill for.</summary>
         private static void Dead(Creature creature)
         {

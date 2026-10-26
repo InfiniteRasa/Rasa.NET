@@ -177,6 +177,7 @@ namespace Rasa.Game.Missions.World
                 return intent is RemoveActorIntent ? WorldEffectResult.Applied() :
                     intent is SetInteractionIntent { IfPresent: true } ? WorldEffectResult.Suppressed("Optional actor is absent.") :
                     intent is BarkActorIntent ? WorldEffectResult.Suppressed("Nobody there to say the bark.") :
+                    intent is KillActorIntent ? WorldEffectResult.Suppressed("Nobody there to kill.") :
                     intent is PoseActorIntent ? WorldEffectResult.Suppressed("Nobody there to take the pose.") :
                     intent is HideSpawnPoolsIntent ? WorldEffectResult.Suppressed("Nobody there to hold the hiding.") :
                     IsAwaitingPrivateSpawn(world, definition) ? WorldEffectResult.Deferred() :
@@ -221,6 +222,16 @@ namespace Rasa.Game.Missions.World
                     return WorldEffectResult.Suppressed("Nobody living there to hold the hiding.");
                 HiddenCreatures.Hide(world.Map, hide.SpawnPools, run.OwnerCharacterId, HideHolder(run.Id, intent.Role));
                 return WorldEffectResult.Applied();
+            }
+            if (intent is KillActorIntent)
+            {
+                if (actor.Creature == null || !CreatureManager.IsLivingOnMap(world.Map, actor.Creature))
+                    return WorldEffectResult.Suppressed("Nobody living there to kill.");
+                // Killed by nobody: no player's kill, loot or credit; its defeat is the scene's (RecordDefeat).
+                CreatureManager.Instance.HandleCreatureKill(world.Map, actor.Creature, null);
+                return actor.Creature.State == CharacterState.Dead
+                    ? WorldEffectResult.Applied()
+                    : WorldEffectResult.Suppressed("The creature did not die: invulnerable, or its death is put off.");
             }
             if (intent is BarkActorIntent bark)
             {

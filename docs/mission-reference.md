@@ -1060,6 +1060,7 @@ route or despawning an actor is not a confirmed defeat.
 | `SetInteractionIntent` | Set enabled/object-state properties |
 | `RunRouteIntent` | Run an authored route |
 | `AttackActorIntent` | Engage a living hostile actor in the same map; omitted `TargetRole` means the run's owner |
+| `KillActorIntent` | Kill a living `Creature` actor (not a `PublicSpawn`) at once, as if killed: its `DefeatSequences` entry runs; no player is credited and nothing is looted; nothing if it is dead or absent |
 | `FollowActorIntent` | Follow a character; ID zero means owner |
 | `PresentationIntent` | Tutorial, audio or greeting using an existing ID |
 | `TransferIntent` | Transfer to a map and authored position |

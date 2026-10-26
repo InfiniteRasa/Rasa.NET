@@ -91,6 +91,11 @@ namespace Rasa.Missions.Scenes
                          target.Kind is not (SceneActorKind.Creature or SceneActorKind.PublicSpawn) ||
                          attack.TargetRole == attack.Role)))
                     return Reject($"Scene operation {intent.OperationKey} references an invalid combat actor.");
+                if (intent is KillActorIntent kill &&
+                    (kill.Role == null || !bindings.Actors.TryGetValue(kill.Role, out var victim) ||
+                     // A public spawn's death is an ActorDied observation, not its DefeatSequences.
+                     victim.Kind != SceneActorKind.Creature))
+                    return Reject($"Scene operation {intent.OperationKey} has no scene creature to kill.");
                 if (intent is BarkActorIntent bark &&
                     (bark.Role == null || bark.BarkId == 0 || !bindings.Actors.TryGetValue(bark.Role, out var speaker) ||
                      speaker.Kind is not (SceneActorKind.Creature or SceneActorKind.PublicSpawn)))

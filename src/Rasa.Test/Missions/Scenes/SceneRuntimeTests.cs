@@ -33,6 +33,34 @@ namespace Rasa.Test.Missions.Scenes
         }
 
         [TestMethod]
+        [DataRow("enemy", true)]
+        [DataRow("door", false)]
+        [DataRow("ranger", false)]
+        [DataRow("missing", false)]
+        public void AKillIntentNamesACreatureActor(string role, bool accepted)
+        {
+            var bindings = new SceneBindings("test",
+                new Dictionary<string, SceneActorDefinition>
+                {
+                    ["enemy"] = new("enemy", SceneActorKind.Creature, 78, new ScenePosition(1, 0, 0)),
+                    ["door"] = new("door", SceneActorKind.Object, 79, new ScenePosition(2, 0, 0)),
+                    ["ranger"] = new("ranger", SceneActorKind.PublicSpawn, 80, new ScenePosition(3, 0, 0))
+                }, new Dictionary<string, SceneRoute>(),
+                new Dictionary<uint, SceneSequence>
+                { [1] = new(new WorldIntent[] { new KillActorIntent("fell", role) }) });
+
+            var result = new SceneRuntime(new SceneScriptRegistry()).Evaluate(Run("data.sequence"), bindings,
+                new SceneObservation(SceneEventKind.Signal, 1, SequenceId: 1), DateTime.UnixEpoch);
+
+            Assert.AreEqual(accepted, result.Accepted);
+
+            // The scene JSON carries it.
+            var json = System.Text.Json.JsonSerializer.Serialize<WorldIntent>(new KillActorIntent("fell", "enemy"));
+            StringAssert.Contains(json, "\"$kind\":\"kill\"");
+            Assert.AreEqual(new KillActorIntent("fell", "enemy"), System.Text.Json.JsonSerializer.Deserialize<WorldIntent>(json));
+        }
+
+        [TestMethod]
         public void TypedScriptAndDataSequenceUseTheSameValidatedDecisionBoundary()
         {
             var registry = new SceneScriptRegistry();

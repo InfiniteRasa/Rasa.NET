@@ -75,6 +75,7 @@ namespace Rasa.Missions.Scenes
     [JsonDerivedType(typeof(RestoreActorPoseIntent), "restore-pose")]
     [JsonDerivedType(typeof(TransitionObjectStateIntent), "object-state")]
     [JsonDerivedType(typeof(AttackActorIntent), "attack")]
+    [JsonDerivedType(typeof(KillActorIntent), "kill")]
     [JsonDerivedType(typeof(QuietSpawnPoolsIntent), "quiet-spawn-pools")]
     [JsonDerivedType(typeof(WakeSpawnPoolsIntent), "wake-spawn-pools")]
     [JsonDerivedType(typeof(BarkActorIntent), "bark")]
@@ -93,6 +94,13 @@ namespace Rasa.Missions.Scenes
     public sealed record AttackActorIntent(string OperationKey, string Role, string TargetRole = null,
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool HoldTarget = false)
         : WorldIntent(OperationKey, Role);
+    /// <summary>
+    /// The living scene creature (SceneActorKind.Creature; not a public spawn, whose death is an ActorDied
+    /// observation and runs no DefeatSequences) dies at once, as if killed (CreatureManager.HandleCreatureKill), and its
+    /// DefeatSequences runs. Nobody killed it: no player is credited and nothing is looted. Nothing if it is
+    /// dead or not there (1975: Quarsh, felled with one blow, fires as he falls and kills Tala).
+    /// </summary>
+    public sealed record KillActorIntent(string OperationKey, string Role) : WorldIntent(OperationKey, Role);
     public sealed record FollowActorIntent(string OperationKey, string Role, uint CharacterId, bool Enabled = true) : WorldIntent(OperationKey, Role);
     public sealed record PresentationIntent(string OperationKey, PresentationKind Kind, uint Value) : WorldIntent(OperationKey, null);
     public sealed record TransferIntent(string OperationKey, uint MapContextId, ScenePosition Position, double Orientation) : WorldIntent(OperationKey, null);
