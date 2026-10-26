@@ -19,7 +19,7 @@ namespace Rasa.Test.World
     public class WildernessUrnEnigmaRegionsTests
     {
         private const string Migration = "20270601000000_Wilderness_urn_enigma_regions";
-        private const string Previous = "20270315000000_Donn_fithik_abilities";
+        private const string Previous = "20270316000000_Donn_fithik_abilities";
 
         private const int Sky = 1, Env = 2, Ambient = 4, Music = 8, Name = 16;
 

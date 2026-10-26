@@ -1052,10 +1052,14 @@ namespace Rasa.Managers
                     if (!remaining.Any(item => item.MayTake(client.Player.EntityId)))
                     {
                         loot.CurrentLooter = 0;
-                        if (loot.Credits > 0)
+                        var hadCredits = loot.Credits > 0;
+                        if (hadCredits)
                             Claim(client, loot, Array.Empty<LootItem>(), null, lootAll: true, quiet: true);
                         LootInfo(client, loot);
-                        CanLootItems(client, loot);
+                        // A successful credit-only Claim already broadcasts CanLootItems.
+                        // Still answer explicitly when no claim was needed or persistence failed.
+                        if (!hadCredits || loot.Credits > 0)
+                            CanLootItems(client, loot);
                         return;
                     }
                     foreach (var lootItem in remaining)

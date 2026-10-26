@@ -12,8 +12,8 @@ namespace Rasa.Test.Database
     [TestClass]
     public class DonnFithikAbilitiesTests
     {
-        private const string Migration = "20270315000000_Donn_fithik_abilities";
-        private const string Previous = "20270310000000_Minos_caverns_missions";
+        private const string Migration = "20270316000000_Donn_fithik_abilities";
+        private const string Previous = "20270315000000_Add_creature_scale";
 
         [TestMethod]
         public void TheDonnFithikLungesAndSpraysAtItsLevelBesideItsBiteAndSelfDestruct()
@@ -53,6 +53,27 @@ namespace Rasa.Test.Database
         }
 
         [TestMethod]
+        public void AWorldWithTheOriginalTimestampKeepsItsAbilitiesWithoutStaleHistory()
+        {
+            using var database = new OrdinaryLootTestDatabase();
+            var migrator = database.Context.GetService<IMigrator>();
+            migrator.Migrate(Previous);
+            foreach (var sql in DonnFithikAbilities.Up())
+                database.Context.Database.ExecuteSqlRaw(sql);
+            database.Context.Database.ExecuteSqlRaw(
+                $"INSERT INTO __EFMigrationsHistory (MigrationId, ProductVersion) VALUES ('{DonnFithikAbilities.OldId}', '9.0.20')");
+
+            migrator.Migrate();
+
+            CollectionAssert.AreEqual(new long[] { 174, 180, 405, 201 }, Actions(database));
+            Assert.AreEqual(2L, Query(database,
+                "SELECT COUNT(*) AS Value FROM creature_action WHERE id IN (566103, 566104)").Single());
+            var applied = database.Context.Database.GetAppliedMigrations().ToList();
+            CollectionAssert.Contains(applied, Migration);
+            CollectionAssert.DoesNotContain(applied, DonnFithikAbilities.OldId);
+        }
+
+        [TestMethod]
         public void TheMigrationMakesTheSameRowsOnMySql()
         {
             using var context = PersistenceIntegrationTests.CreateContext(typeof(MySqlWorldContext), "unused");
@@ -63,6 +84,7 @@ namespace Rasa.Test.Database
             StringAssert.Contains(up, "SELECT 566103, 'Fithik - Caves of Donn 566017 fithik_lunge', 405, 1, 1.0, 30.0, 15000, 1200, 25, 32, 1 FROM creature c WHERE c.id = 566017");
             StringAssert.Contains(up, "UPDATE creature SET action4 = 566104 WHERE id = 566017 AND action4 = 0");
             StringAssert.Contains(up, $"'{Migration}'");
+            StringAssert.Contains(up, DonnFithikAbilities.ForgetOldId);
             StringAssert.Contains(down, "UPDATE creature SET action3 = 0 WHERE id = 566017 AND action3 = 566103;");
             StringAssert.Contains(down, "DELETE FROM creature_action WHERE id = 566104;");
         }

@@ -201,7 +201,20 @@ namespace Rasa.Test.Missions.Wilderness
             AssertUnclaimed(harness, loot, expected.Length, 0);
             LootDispenserManager.Instance.RequestCorpseLooting(harness.Client,
                 new RequestCorpseLootingPacket { EntityId = loot.EntityId });
-            AssertLists(DrainCalls(harness), harness, loot, expected, menu: true);
+            var window = DrainCalls(harness);
+            if (admitted)
+                AssertLists(window, harness, loot, expected, menu: true);
+            else
+            {
+                // Credit-only corpses pay the credits without opening an empty backpack window.
+                // Both the final lootability notification and the refreshed list are sent once.
+                Assert.AreEqual(1, window.Count(call => call.Packet is LootInfoPacket));
+                var canLoot = window.Where(call => call.Packet is CanLootItemsPacket).ToArray();
+                Assert.HasCount(1, canLoot);
+                Assert.IsFalse(((CanLootItemsPacket)canLoot[0].Packet).CanLootItems);
+                Assert.IsFalse(window.Any(call => call.Packet is LootCorpsePacket));
+                Assert.AreEqual(0UL, loot.CurrentLooter);
+            }
             if (admitted)
             {
                 var drop = loot.LootItems.Single();
