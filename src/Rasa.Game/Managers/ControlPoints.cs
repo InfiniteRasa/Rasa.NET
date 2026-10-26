@@ -555,7 +555,7 @@ namespace Rasa.Managers
         /// </summary>
         public bool HoldsBack(SpawnPool pool)
         {
-            return pool != null && pool.HasSpawned && _byPool.TryGetValue(pool.DbId, out var point)
+            return pool != null && !LandingZoneOccupation.IsGroup(pool) && pool.HasSpawned && _byPool.TryGetValue(pool.DbId, out var point)
                    && !point.HeldByAfs && !point.Returning && point.BanePools.Contains(pool.DbId);
         }
 
@@ -720,7 +720,7 @@ namespace Rasa.Managers
                         point.DownSince = null;
                         point.Returning = true;
 
-                        foreach (var pool in PoolsOn(mapChannel, point.BanePools))
+                        foreach (var pool in PoolsOn(mapChannel, point.BanePools).Where(p => !LandingZoneOccupation.IsGroup(p)))
                             pool.UpdateTimer = pool.RespawnTime;
                     }
                 }
@@ -1434,6 +1434,7 @@ namespace Rasa.Managers
                 pool.Suspended = true;
             }
 
+            LandingZoneOccupation.CancelInbound(mapChannel, idle);
             if (takeOff)
                 TakeOffLiving(mapChannel, idle);
 
@@ -1449,7 +1450,8 @@ namespace Rasa.Managers
                 // Set down at once, on the spawn worker's next pass, and where it stands rather
                 // than by its arrival point.
                 pool.HasSpawned = false;
-                pool.UpdateTimer = pool.RespawnTime;
+                // Occupation ships launch five minutes after Bane takeover, not immediately.
+                pool.UpdateTimer = LandingZoneOccupation.IsGroup(pool) ? 0 : pool.RespawnTime;
             }
         }
 

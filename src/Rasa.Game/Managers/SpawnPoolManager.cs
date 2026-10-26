@@ -471,6 +471,7 @@ namespace Rasa.Managers
         /// <summary>Sets a pool's creatures down: through its arrival point, off its dropship, or where it stands.</summary>
         private void Dispatch(MapChannel mapChannel, SpawnPool spawnPool, List<Creature> creatureList)
         {
+            if (LandingZoneOccupation.TryDispatch(mapChannel, spawnPool, creatureList)) return;
             if (LandingZoneGarrison.TryDispatch(mapChannel, spawnPool, creatureList)) return;
 
             // An arrival point: through a teleporter, or off a dropship on a pad or in a bay.
