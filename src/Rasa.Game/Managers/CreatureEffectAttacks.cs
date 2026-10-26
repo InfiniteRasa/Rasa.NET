@@ -38,8 +38,8 @@ namespace Rasa.Managers
     ///
     ///  - Ground blast, no hit (LinkerGroundBlastAbility, PredatorMissileAbility,
     ///    NecromiteSelfDestructAbility): a bomb on the player that goes off on everyone around
-    ///    them (CreatureBombs.GroundBlast). A Necromite's is itself: it is spent on it. The Predator's
-    ///    missile has a cone in its data (CONE_RADIUS 45, FOV_LIMIT 45) as well as the blast's
+    ///    them (CreatureBombs.GroundBlast). A Necromite's is on its own body: it is spent on it.
+    ///    The Predator's missile has a cone in its data (CONE_RADIUS 45, FOV_LIMIT 45) as well as the blast's
     ///    EFFECT_RADIUS; the cone is where it may aim, and the blast is what spreads it, so the
     ///    missile hits the one it was fired at (MissileManager.CreatureAreaHits).
     ///  - Hit and drain (LinkerHandBlastAbility): the row's damage as a hit, POWER_AMOUNT_MIN..MAX
@@ -167,11 +167,7 @@ namespace Rasa.Managers
             // on everyone near them.
             if (kind == Kind.GroundBlast)
             {
-                var bomb = CreatureBombs.GroundBlast(mapChannel, attacker, player, missile.CreatureAction, info);
-
-                // A Necromite's bomb is itself: spent when it goes on.
-                if (module == NecromiteSelfDestructModule && bomb != null)
-                    CreatureBombs.Spend(mapChannel, attacker, player);
+                CreatureBombs.GroundBlast(mapChannel, attacker, player, missile.CreatureAction, info);
 
                 return;
             }
@@ -217,8 +213,7 @@ namespace Rasa.Managers
             // A Necromite that reached a creature blows up on it, as on a player.
             if (module == NecromiteSelfDestructModule)
             {
-                if (CreatureBombs.GroundBlast(mapChannel, attacker, victim, missile.CreatureAction, info) != null)
-                    CreatureBombs.Spend(mapChannel, attacker, victim);
+                CreatureBombs.GroundBlast(mapChannel, attacker, victim, missile.CreatureAction, info);
 
                 return;
             }
