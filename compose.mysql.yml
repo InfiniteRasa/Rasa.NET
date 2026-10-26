@@ -1,0 +1,104 @@
+# MySQL deployment using the published Rasa.NET image.
+# For a local build, layer compose.mysql.dev.yml on top of this file.
+# Set MYSQL_ROOT_PASSWORD and MYSQL_PASSWORD via --env-file mysql.env.
+x-rasa-mysql-environment: &rasa-mysql-environment
+  Databases__Provider: MySql
+  Databases__Auth__Host: mysql
+  Databases__Auth__Port: "3306"
+  Databases__Auth__Database: rasaauth
+  Databases__Auth__User: rasa
+  Databases__Auth__Password: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in mysql.env}
+  Databases__Char__Host: mysql
+  Databases__Char__Port: "3306"
+  Databases__Char__Database: rasachar
+  Databases__Char__User: rasa
+  Databases__Char__Password: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in mysql.env}
+  Databases__World__Host: mysql
+  Databases__World__Port: "3306"
+  Databases__World__Database: rasaworld
+  Databases__World__User: rasa
+  Databases__World__Password: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in mysql.env}
+
+x-rasa-image: &rasa-image ghcr.io/infiniterasa/rasa.net:${RASA_IMAGE_TAG:-unstable}
+
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in mysql.env}
+      MYSQL_DATABASE: rasaauth
+      MYSQL_USER: rasa
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in mysql.env}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/01-rasa-databases.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysql --protocol=tcp -h 127.0.0.1 -u \"$$MYSQL_USER\" -p\"$$MYSQL_PASSWORD\" \"$$MYSQL_DATABASE\" -e 'SELECT 1' >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 90s
+
+  mysql-auth-migrate:
+    image: *rasa-image
+    restart: "no"
+    command: ["auth", "--migrate"]
+    environment: *rasa-mysql-environment
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  mysql-game-migrate:
+    image: *rasa-image
+    restart: "no"
+    command: ["game", "--migrate"]
+    environment: *rasa-mysql-environment
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  auth:
+    image: *rasa-image
+    restart: always
+    command: ["auth"]
+    stdin_open: true
+    tty: true
+    environment: *rasa-mysql-environment
+    depends_on:
+      mysql-auth-migrate:
+        condition: service_completed_successfully
+      mysql-game-migrate:
+        condition: service_completed_successfully
+    ports:
+      - "2106:2106"
+      - "2107:2107"
+
+  game:
+    image: *rasa-image
+    restart: always
+    command: ["game"]
+    stdin_open: true
+    tty: true
+    environment: *rasa-mysql-environment
+    depends_on:
+      mysql-auth-migrate:
+        condition: service_completed_successfully
+      mysql-game-migrate:
+        condition: service_completed_successfully
+    ports:
+      - "8102:8102"
+      - "8001:8001"
+      - "8103:8103/udp"
+      - "8104:8104"
+      - "8105:8105"
+    volumes:
+      - type: bind
+        source: ./appsettings.env.json
+        target: /app/game/appsettings.env.json
+        read_only: true
+        bind:
+          create_host_path: false
+
+volumes:
+  mysql_data:

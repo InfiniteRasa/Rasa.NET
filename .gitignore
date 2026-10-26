@@ -263,3 +263,6 @@ docs/*
 # Local runtime files
 /log-auth.txt
 /log-game.txt
+
+# Local MySQL Compose credentials (never publish)
+mysql.env

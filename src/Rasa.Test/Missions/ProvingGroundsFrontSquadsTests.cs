@@ -244,7 +244,7 @@ namespace Rasa.Test.Missions
             var up = migrator.GenerateScript(Before, Migration);
             var down = migrator.GenerateScript(Migration, Before);
 
-            StringAssert.Contains(up, "CREATE TABLE `spawnpool_draw`");
+            StringAssert.Contains(up, "CREATE TABLE IF NOT EXISTS `spawnpool_draw`");
             StringAssert.Contains(up, "`count` tinyint unsigned NOT NULL");
             StringAssert.Contains(up, "INSERT INTO spawnpool_draw (id, count) SELECT 400301, 3 FROM spawnpool s");
             StringAssert.Contains(up, $"\"{BootcampFrontSquadsV13.WakeOperation}\"");

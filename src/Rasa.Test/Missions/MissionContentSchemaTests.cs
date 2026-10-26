@@ -658,7 +658,17 @@ namespace Rasa.Test.Missions
             var migrations = context.Database.GetMigrations().ToArray();
             var schemaIndex = Array.FindIndex(migrations, id => id.EndsWith("_ConsolidatedWorldSchema"));
             var dataIndex = Array.FindIndex(migrations, id => id.EndsWith("_SeedWorldContent"));
-            Assert.IsTrue(schemaIndex >= 0 && dataIndex == schemaIndex + 1, contextType.Name);
+            Assert.IsTrue(schemaIndex >= 0 && dataIndex > schemaIndex, contextType.Name);
+            // Fresh MySQL schemas require a capacity adjustment before the initial
+            // content seed. SQLite has no equivalent varchar length constraint.
+            // Keep this boundary strict: allow only that specific migration here.
+            var intervening = migrations.Skip(schemaIndex + 1)
+                .Take(dataIndex - schemaIndex - 1).ToArray();
+            CollectionAssert.AreEqual(
+                contextType == typeof(MySqlWorldContext)
+                    ? new[] { "20260926190348_WidenMissionEvidenceNotesBeforeSeed" }
+                    : Array.Empty<string>(),
+                intervening, contextType.Name);
             var schema = CreateMigration(context, "ConsolidatedWorldSchema");
             var data = CreateMigration(context, "SeedWorldContent");
             Assert.IsTrue(schema.UpOperations.All(operation =>

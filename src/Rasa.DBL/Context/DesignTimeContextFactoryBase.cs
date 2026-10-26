@@ -26,6 +26,7 @@ namespace Rasa.Context
             var configuration = new ConfigurationBuilder()
                 .AddJsonFile("databasesettings.json", false, false)
                 .AddJsonFile("databasesettings.env.json", true, false)
+                .AddEnvironmentVariables()
                 .Build();
 
             var databaseSection = configuration
