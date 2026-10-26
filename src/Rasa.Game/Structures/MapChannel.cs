@@ -39,6 +39,12 @@ namespace Rasa.Structures
         /// <summary>Whether this is a copy of a map - somebody's, a squad's, or shared - rather than the map's own channel.</summary>
         public bool IsCopy => IsPrivateInstance || IsSharedInstance || IsSquadInstance;
 
+        /// <summary>
+        /// The map's own spawn pools whose creatures some players are not shown (Managers.HiddenCreatures): pool and
+        /// character to the holders (a scene run's actor) keeping it so.
+        /// </summary>
+        internal Dictionary<(uint Pool, uint Character), HashSet<string>> HiddenPools { get; } = new();
+
         /// <summary>When a shared copy was last seen with nobody in it or on the way (Environment.TickCount64 as the manager reads it); 0 while it has somebody.</summary>
         public long EmptySince { get; set; }
 

@@ -78,6 +78,7 @@ namespace Rasa.Missions.Scenes
     [JsonDerivedType(typeof(QuietSpawnPoolsIntent), "quiet-spawn-pools")]
     [JsonDerivedType(typeof(WakeSpawnPoolsIntent), "wake-spawn-pools")]
     [JsonDerivedType(typeof(BarkActorIntent), "bark")]
+    [JsonDerivedType(typeof(HideSpawnPoolsIntent), "hide-spawn-pools")]
     [JsonDerivedType(typeof(PoseActorIntent), "pose")]
     public abstract record WorldIntent(string OperationKey, string Role);
     public sealed record EnsureActorIntent(string OperationKey, string Role, ScenePosition RestorePosition = null) : WorldIntent(OperationKey, Role);
@@ -113,6 +114,16 @@ namespace Rasa.Missions.Scenes
     /// again, so a new map has them going from the start - while the actor stands.
     /// </summary>
     public sealed record WakeSpawnPoolsIntent(string OperationKey, string Role, uint[] SpawnPools)
+        : WorldIntent(OperationKey, Role);
+
+    /// <summary>
+    /// The map's own spawn pools named (spawnpool ids) are not shown to the run's owner: what they have standing goes
+    /// from the owner's client and is given to no client of theirs, while everyone else sees it as before (1976:
+    /// the public Elder Hathen, while his escort copy stands in for him). Held by its actor (Role), as
+    /// QuietSpawnPoolsIntent is: released when that actor is removed or dies, or the run ends; rebuilt with the
+    /// actor when the map is made again.
+    /// </summary>
+    public sealed record HideSpawnPoolsIntent(string OperationKey, string Role, uint[] SpawnPools)
         : WorldIntent(OperationKey, Role);
 
     /// <summary>
