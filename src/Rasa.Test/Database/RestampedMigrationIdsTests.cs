@@ -18,7 +18,7 @@ namespace Rasa.Test.Database
     {
         private const string Migration = "20270901000000_Forget_restamped_migration_ids";
         private const string Logos = "20270224000000_Logos_shrine_heights", BeforeLogos = "20270223000000_Foreas_base_wormhole_region";
-        private const string Wilderness = "20270601000000_Wilderness_urn_enigma_regions", BeforeWilderness = "20270315000000_Donn_fithik_abilities";
+        private const string Wilderness = "20270601000000_Wilderness_urn_enigma_regions", BeforeWilderness = "20270316000000_Donn_fithik_abilities";
 
         [TestMethod]
         public void AWorldThatRanThemUnderTheirOldIdsEndsAsAnyOtherWithOnlyTheNewHistoryRows()

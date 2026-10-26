@@ -18,13 +18,15 @@ namespace Rasa.Migrations.SqliteWorld
     // ReSharper disable once InconsistentNaming
     [UsedImplicitly]
     [DbContext(typeof(SqliteWorldContext))]
-    [Migration("20270315000000_Donn_fithik_abilities")]
+    [Migration("20270316000000_Donn_fithik_abilities")]
     public class Donn_fithik_abilities : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             foreach (var sql in DonnFithikAbilities.Up())
                 migrationBuilder.Sql(sql);
+            // Remove the original colliding history id after the guarded data migration reruns.
+            migrationBuilder.Sql(DonnFithikAbilities.ForgetOldId);
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)

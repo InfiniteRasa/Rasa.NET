@@ -201,7 +201,15 @@ namespace Rasa.Test.Missions.Wilderness
             AssertUnclaimed(harness, loot, expected.Length, 0);
             LootDispenserManager.Instance.RequestCorpseLooting(harness.Client,
                 new RequestCorpseLootingPacket { EntityId = loot.EntityId });
-            AssertLists(DrainCalls(harness), harness, loot, expected, menu: true);
+            var window = DrainCalls(harness);
+            if (admitted)
+                AssertLists(window, harness, loot, expected, menu: true);
+            else
+            {
+                // Clicking a credit-only corpse claims its credits immediately, with no empty loot window.
+                AssertCreditOnlyClaim(window, loot, 7);
+                Assert.AreEqual(0UL, loot.CurrentLooter);
+            }
             if (admitted)
             {
                 var drop = loot.LootItems.Single();
@@ -228,11 +236,18 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.IsTrue(loot.FullyLooted);
             AssertPersistedCredits(harness, 107);
             Assert.AreEqual(107, harness.Client.Player.Credits[CurencyType.Credits]);
-            var got = DrainCalls(harness).Select(call => call.Packet).OfType<GotLootPacket>().Single();
-            Assert.AreEqual(7, got.Credits);
-            Assert.AreEqual(admitted ? 1 : 0, got.Entries.Count);
+            // The rejected admission was paid on opening the corpse. No second claim should be emitted
+            // when RequestLootAllFromCorpse is attempted against its already-fully-looted dispenser.
+            var afterClaim = DrainCalls(harness).Select(call => call.Packet).OfType<GotLootPacket>().ToArray();
             if (admitted)
+            {
+                var got = afterClaim.Single();
+                Assert.AreEqual(7, got.Credits);
+                Assert.AreEqual(1, got.Entries.Count);
                 AssertDuplicateRefused(harness, loot);
+            }
+            else
+                Assert.HasCount(0, afterClaim);
         }
 
         [TestMethod]
@@ -449,7 +464,8 @@ namespace Rasa.Test.Missions.Wilderness
             AssertLists(published, harness, loot, empty, menu: false);
             LootDispenserManager.Instance.RequestCorpseLooting(harness.Client,
                 new RequestCorpseLootingPacket { EntityId = loot.EntityId });
-            AssertLists(DrainCalls(harness), harness, loot, empty, menu: true);
+            var creditOnly = DrainCalls(harness);
+            AssertCreditOnlyClaim(creditOnly, loot, 7);
             LootDispenserManager.Instance.RequestLootAllFromCorpse(harness.Client,
                 new RequestLootAllFromCorpsePacket { EntityId = loot.EntityId });
             Assert.IsTrue(loot.FullyLooted);
@@ -458,9 +474,8 @@ namespace Rasa.Test.Missions.Wilderness
             using var verify = harness.Context.Open();
             Assert.AreEqual(0, verify.ItemEntries.Count());
             Assert.AreEqual(0, verify.CharacterInventoryEntries.Count());
-            var got = DrainCalls(harness).Select(call => call.Packet).OfType<GotLootPacket>().Single();
-            Assert.AreEqual(0, got.Entries.Count);
-            Assert.AreEqual(7, got.Credits);
+            Assert.IsFalse(DrainCalls(harness).Any(call => call.Packet is GotLootPacket),
+                "A repeat request after a credit-only claim must not pay the same credits twice.");
             AssertDuplicateRefused(harness, loot);
             rolls.AssertExhausted();
         }
@@ -1014,6 +1029,23 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.AreEqual(expected, ((OverallQualityPacket)call.Packet).OverallQuality);
             CollectionAssert.AreEqual(Encode(writer => { writer.WriteTuple(1); writer.WriteInt((int)expected); }),
                 Encode(call.Packet));
+        }
+
+        private static void AssertCreditOnlyClaim(List<CallMethodMessage> calls, LootDispenser loot, int credits)
+        {
+            // This branch sends the final lootability state and credits during RequestCorpseLooting;
+            // LootCorpse must not open an empty backpack, and a later LootAll cannot pay twice.
+            var info = calls.Where(call => call.Packet is LootInfoPacket).ToArray();
+            Assert.HasCount(1, info);
+            Assert.AreEqual(loot.EntityId, info[0].EntityId);
+            var canLoot = calls.Where(call => call.Packet is CanLootItemsPacket).ToArray();
+            Assert.HasCount(1, canLoot);
+            Assert.AreEqual(loot.EntityId, canLoot[0].EntityId);
+            Assert.IsFalse(((CanLootItemsPacket)canLoot[0].Packet).CanLootItems);
+            Assert.IsFalse(calls.Any(call => call.Packet is LootCorpsePacket));
+            var got = calls.Select(call => call.Packet).OfType<GotLootPacket>().Single();
+            Assert.AreEqual(credits, got.Credits);
+            Assert.AreEqual(0, got.Entries.Count);
         }
 
         private static void AssertLists(List<CallMethodMessage> calls, WildernessRuntimeTestHarness harness,

@@ -20,6 +20,9 @@ namespace Rasa.Services.Preloader
     {
         public const uint Fithik = CavesOfDonnContent.Fithik;
         public const uint Lunge = 566103, AcidSpray = 566104;
+        public const string OldId = "20270315000000_Donn_fithik_abilities";
+        public const string ForgetOldId =
+            "DELETE FROM __EFMigrationsHistory WHERE MigrationId = '" + OldId + "';";
 
         /// <summary>A creature_action row and the slot of the Fithik it goes in.</summary>
         public sealed record Row(uint Id, int Slot, string Description, uint ActionId, uint ArgId, double RangeMin, double RangeMax,

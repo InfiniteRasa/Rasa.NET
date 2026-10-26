@@ -21,7 +21,11 @@ namespace Rasa.Test.Gameplay
             f.Loot.LootItems.Single().Taken = true;
             f.Loot.Credits = credits;
             f.Manager.RequestCorpseLooting(f.Client,new RequestCorpseLootingPacket { EntityId=f.Loot.EntityId });
-            Assert.IsFalse(f.Drain().OfType<LootCorpsePacket>().Any());
+            var response = f.Drain().ToList();
+            Assert.IsFalse(response.OfType<LootCorpsePacket>().Any());
+            Assert.AreEqual(1, response.OfType<CanLootItemsPacket>().Count(),
+                "Opening an empty or credit-only corpse must not send duplicate lootability packets.");
+            Assert.AreEqual(1, response.OfType<LootInfoPacket>().Count());
             Assert.AreEqual(100+credits,f.Client.Player.Credits[CurencyType.Credits]);
             Assert.AreEqual(0UL,f.Loot.CurrentLooter);
             using var db = f.Storage.Open();
