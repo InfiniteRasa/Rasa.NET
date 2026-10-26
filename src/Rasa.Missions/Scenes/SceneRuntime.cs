@@ -74,6 +74,9 @@ namespace Rasa.Missions.Scenes
                 if (intent is QuietSpawnPoolsIntent quiet &&
                     (quiet.Role == null || quiet.SpawnPools == null || quiet.SpawnPools.Length == 0 || quiet.SpawnPools.Contains(0u)))
                     return Reject($"Scene operation {intent.OperationKey} quiets no spawn pools, or has no actor holding them.");
+                if (intent is HideSpawnPoolsIntent hide &&
+                    (hide.Role == null || hide.SpawnPools == null || hide.SpawnPools.Length == 0 || hide.SpawnPools.Contains(0u)))
+                    return Reject($"Scene operation {intent.OperationKey} hides no spawn pools, or has no actor holding them.");
                 if (intent is WakeSpawnPoolsIntent wake &&
                     (wake.Role == null || wake.SpawnPools == null || wake.SpawnPools.Length == 0 || wake.SpawnPools.Contains(0u)))
                     return Reject($"Scene operation {intent.OperationKey} wakes no spawn pools, or has no actor holding them.");

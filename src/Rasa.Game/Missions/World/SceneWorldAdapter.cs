@@ -176,6 +176,7 @@ namespace Rasa.Game.Missions.World
                     intent is SetInteractionIntent { IfPresent: true } ? WorldEffectResult.Suppressed("Optional actor is absent.") :
                     intent is BarkActorIntent ? WorldEffectResult.Suppressed("Nobody there to say the bark.") :
                     intent is PoseActorIntent ? WorldEffectResult.Suppressed("Nobody there to take the pose.") :
+                    intent is HideSpawnPoolsIntent ? WorldEffectResult.Suppressed("Nobody there to hold the hiding.") :
                     IsAwaitingPrivateSpawn(world, definition) ? WorldEffectResult.Deferred() :
                     // A creature only the scene spawns, not there: never ensured, or removed. Nothing will bring it
                     // back on its own, so its walk is not waited for (a public spawn's lease can still come).
@@ -208,6 +209,14 @@ namespace Rasa.Game.Missions.World
                 world.Actors.Remove(intent.Role);
                 world.Follows.Remove(intent.Role);
                 world.Attacks.Remove(intent.Role);
+                HiddenCreatures.Release(world.Map, HideHolder(run.Id, intent.Role));
+                return WorldEffectResult.Applied();
+            }
+            if (intent is HideSpawnPoolsIntent hide)
+            {
+                if (actor.Creature == null || !CreatureManager.IsLivingOnMap(world.Map, actor.Creature))
+                    return WorldEffectResult.Suppressed("Nobody living there to hold the hiding.");
+                HiddenCreatures.Hide(world.Map, hide.SpawnPools, run.OwnerCharacterId, HideHolder(run.Id, intent.Role));
                 return WorldEffectResult.Applied();
             }
             if (intent is BarkActorIntent bark)
@@ -639,7 +648,28 @@ namespace Rasa.Game.Missions.World
                   (world.Map.IsPrivateInstance || world.Bindings.Actors[actor.Handle.Role].Kind != SceneActorKind.PublicSpawn ||
                    _leases.TryResolve(world.Map, actor.Handle, out _))
                 : MapInstanceScope.Contains(world.Map, actor.Object));
-        public void Tick(MapChannel map, DateTime utcNow) => _routes.Tick(map, utcNow);
+        public void Tick(MapChannel map, DateTime utcNow)
+        {
+            _routes.Tick(map, utcNow);
+            // A hiding is held by its actor while it stands: dead or gone, what it hid is shown again.
+            if (map.HiddenPools.Count == 0)
+                return;
+            // Its run gone from this map (ended, abandoned, reset) the same.
+            foreach (var holder in map.HiddenPools.Values.SelectMany(holders => holders)
+                         .Where(holder => holder.StartsWith(HidePrefix, StringComparison.Ordinal)).Distinct().ToArray())
+            {
+                var parts = holder.Substring(HidePrefix.Length).Split(':', 2);
+                if (parts.Length != 2 || !_runs.TryGetValue(parts[0], out var world) || world.Map != map ||
+                    !world.Actors.TryGetValue(parts[1], out var actor) || !IsCurrent(world, actor) ||
+                    !CreatureManager.IsLivingOnMap(map, actor.Creature))
+                    HiddenCreatures.Release(map, holder);
+            }
+        }
+
+        private const string HidePrefix = "scene:";
+
+        /// <summary>The holder key of a hiding (HideSpawnPoolsIntent): the run and its actor.</summary>
+        private static string HideHolder(string runId, string role) => $"{HidePrefix}{runId}:{role}";
 
         /// <summary>
         /// A first hit is what CreatureManager.RecordCombatDamage leaves on the creature: LastPlayerHit, set by a hit
@@ -660,6 +690,8 @@ namespace Rasa.Game.Missions.World
         public void Detach(string runId)
         {
             _routes.Cancel(runId);
+            if (_runs.TryGetValue(runId, out var leaving))
+                HiddenCreatures.ReleaseAll(leaving.Map, HideHolder(runId, ""));
             if (_runs.Remove(runId, out var world))
                 foreach (var actor in world.Actors.Values.Where(actor => actor.Creature != null &&
                     (world.Map.IsPrivateInstance || world.Bindings.Actors[actor.Handle.Role].Kind != SceneActorKind.PublicSpawn)))
