@@ -40,8 +40,22 @@ namespace Rasa.Game.Missions.Protocol
                 }
         }
 
-        internal static MissionDialoguePresentation ForObject(Mission mission, SceneObjectConversation binding)
+        /// <summary>
+        /// The topic an object shows. A menu binding, with <paramref name="eligible"/> (the character's requirements), shows
+        /// the first eligible topic of its objective and package, its own first; without it, its own (content validation).
+        /// </summary>
+        internal static MissionDialoguePresentation ForObject(Mission mission, SceneObjectConversation binding,
+            Func<MissionDialogueTopicDefinition, bool> eligible = null)
         {
+            if (binding.Menu && eligible != null)
+            {
+                var page = mission.Dialogue
+                    .Where(topic => topic.ObjectiveId == binding.ObjectiveId && topic.NpcPackageId == binding.NpcPackageId)
+                    .OrderBy(topic => topic.PlayerFlagId == binding.PlayerFlagId &&
+                        (topic.DialogObjectiveId ?? topic.ObjectiveId) == binding.DialogObjectiveId && topic.Kind == binding.Kind ? 0 : 1)
+                    .FirstOrDefault(eligible);
+                return page == null ? null : Project(mission.MissionId, page);
+            }
             var topic = mission.Dialogue.SingleOrDefault(topic => topic.ObjectiveId == binding.ObjectiveId &&
                 topic.NpcPackageId == binding.NpcPackageId && topic.PlayerFlagId == binding.PlayerFlagId &&
                 (topic.DialogObjectiveId ?? topic.ObjectiveId) == binding.DialogObjectiveId && topic.Kind == binding.Kind);

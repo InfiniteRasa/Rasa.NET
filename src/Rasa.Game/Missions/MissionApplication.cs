@@ -1631,7 +1631,7 @@ namespace Rasa.Managers
                 if (!_requirements.Evaluate(client.Player, dialogueRequirement))
                     return Reject($"Rejected mission {key.MissionId} dialogue: objective requirement is not satisfied.");
                 var presentation = conversation.Target.Object is { } obj
-                    ? MissionConversationProjection.ForObject(definition, obj.MissionConversation)
+                    ? ObjectConversations.Presentation(client, obj)
                     : MissionConversationProjection.ForNpc(definition, conversation.Target.NpcPackageId)
                         .SingleOrDefault(candidate => candidate.Key == key);
                 if (presentation?.Key != key || presentation.ProgressionObjectiveId != objectiveId ||
@@ -1700,6 +1700,10 @@ namespace Rasa.Managers
                 if (conversation.Target.Object is { } completedObject)
                     TryPublish(() => client.CallMethod(entityId, ObjectConversations.Status(client, completedObject)),
                         $"mission {key.MissionId} object conversation closure");
+                // A menu's choice that kept its objective open: the page it chose, at once.
+                if (choiceIdx.HasValue && conversation.Target.Object is { MissionConversation: { Menu: true } } menu &&
+                    ObjectConversations.IsAvailable(client, menu))
+                    ObjectConversations.Open(client, entityId);
                 return true;
             }
         }
