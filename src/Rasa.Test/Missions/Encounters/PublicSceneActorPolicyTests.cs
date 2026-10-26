@@ -592,6 +592,37 @@ namespace Rasa.Test.Missions.Encounters
             Assert.AreEqual(0, CreatureGameplayRules.Policy(old).Tags.Count);
         }
 
+        /// <summary>
+        /// A walk, fight, bark or pose for a scene creature that is not there - never ensured, or removed - ends as nothing to
+        /// do (Suppressed: the effect is cancelled), not a failure retried and logged every second for ever (live 1975:
+        /// "effect tala-walks-out remains pending: Actor role tala is unavailable").
+        /// </summary>
+        [TestMethod]
+        public void IntentsForAnAbsentSceneCreatureEndAsNothingToDo()
+        {
+            using var fixture = new Fixture();
+            var context = fixture.Context;
+            var world = new SceneWorldAdapter(context.Manager.PublicActors, (_, _) => { });
+            var actors = new[] { Enemy("walker") }.ToDictionary(actor => actor.Role);
+            var routes = new Dictionary<string, SceneRoute>
+            {
+                ["out"] = new SceneRoute("out", new[] { new SceneWaypoint(new ScenePosition(5, 0, 5)) })
+            };
+            var bindings = new SceneBindings("unversioned", actors, routes, new Dictionary<uint, SceneSequence> { [0] = new() });
+            var run = new SceneRun("absent", "unversioned", "data.sequence", 1, 1, 0, "{}", SceneStatus.Running, 1);
+            world.Attach(run, bindings, context.Client, context.Map);
+
+            Assert.AreEqual(WorldEffectState.Suppressed, world.Apply(run, new RunRouteIntent("walk", "walker", "out")).State, "never ensured");
+            Assert.AreEqual(WorldEffectState.Suppressed, world.Apply(run, new BarkActorIntent("say", "walker", 784)).State);
+            Assert.AreEqual(WorldEffectState.Suppressed, world.Apply(run, new PoseActorIntent("pose", "walker", 8)).State);
+            Assert.AreEqual(WorldEffectState.Applied, world.Apply(run, new EnsureActorIntent("ensure", "walker")).State);
+            Assert.AreEqual(WorldEffectState.Applied, world.Apply(run, new RemoveActorIntent("remove", "walker")).State);
+            Assert.AreEqual(WorldEffectState.Suppressed, world.Apply(run, new RunRouteIntent("walk-again", "walker", "out")).State, "removed");
+            Assert.AreEqual(WorldEffectState.Suppressed, world.Apply(run, new AttackActorIntent("fight", "walker")).State, "nor a fight");
+            Assert.AreEqual(WorldEffectState.Failed, world.Apply(run, new SetInteractionIntent("talk", "walker", true)).State,
+                "other intents keep their failure");
+        }
+
         [TestMethod]
         public void StaleWorldAttachmentCannotRemoveTheCurrentGenerationActor()
         {

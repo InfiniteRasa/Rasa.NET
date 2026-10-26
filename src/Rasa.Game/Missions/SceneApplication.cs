@@ -786,6 +786,44 @@ namespace Rasa.Game.Missions
                 DrainMessages(owner.Run.Id);
         }
 
+        /// <summary>
+        /// The first hit a player's side landed on an actor the scene listens to (SceneBindings.DamagedSequences):
+        /// its sequence is queued once for the run's generation, as RecordDefeat queues an actor's defeat, and run.
+        /// </summary>
+        internal bool RecordFirstHit(MapChannel map, string runId, string role, uint generation)
+        {
+            if (!_runs.TryGetValue(runId, out var owner) || owner.Map != map || owner.Run.Generation != generation ||
+                !owner.Bindings.DamagedSequences.TryGetValue(role, out var sequence))
+                return Reject($"Rejected a stale or wrong-map first hit on scene actor {role}.");
+            var queued = false;
+            try
+            {
+                using var unit = _factory.CreateChar();
+                unit.ExecuteTransaction(() =>
+                {
+                    var store = unit.CharacterMissions.Runtime;
+                    var scene = store.Scene(runId);
+                    if (scene == null || scene.Generation != generation ||
+                        scene.Status is "Resetting" or "Ended" or "Faulted")
+                        throw new GameplayRejectionException($"Rejected a first hit on {role} for a terminated scene.");
+                    RequireCurrentAssignment(unit, scene);
+                    var key = $"damaged-{role}";
+                    if (store.Messages(runId).Any(message => message.Generation == generation && message.OperationKey == key))
+                        return;
+                    store.Add(new MissionSceneMessageEntry
+                    {
+                        RunId = runId, Generation = generation, OperationKey = key, SequenceId = sequence
+                    });
+                    queued = true;
+                });
+            }
+            catch (Exception error) when (GameplayRejectionException.IsExpected(error))
+            {
+                return Reject($"Scene {runId} first hit on {role}: {error.Message}");
+            }
+            return queued && DrainMessages(runId);
+        }
+
         internal void EndDeadline(Repositories.Char.ICharUnitOfWork unit, SceneRun run, uint missionId)
         {
             foreach (var timer in unit.CharacterMissions.Runtime.Timers(run.Id)
@@ -1542,8 +1580,9 @@ namespace Rasa.Game.Missions
                 if (presence.Intent is not EnsureActorIntent)
                     continue;
                 yield return presence.Effect;
+                // A bark is a moment, not a state: a map made again does not say it again.
                 foreach (var property in role.Where(entry => entry.Effect.Version >= presence.Effect.Version &&
-                        entry.Intent is not (EnsureActorIntent or RemoveActorIntent))
+                        entry.Intent is not (EnsureActorIntent or RemoveActorIntent or BarkActorIntent))
                     .GroupBy(entry => entry.Intent.GetType()))
                     yield return property.Last().Effect;
             }
@@ -1659,6 +1698,8 @@ namespace Rasa.Game.Missions
             if (scope != SceneTickScope.Deadlines)
             {
                 _world.Tick(map, _utcNow());
+                foreach (var hit in _world.TakeFirstHits(map))
+                    changed |= RecordFirstHit(map, hit.RunId, hit.Role, hit.Generation);
                 _missions.Credit.Tick(map);
             }
             return changed;

@@ -84,6 +84,14 @@ namespace Rasa.Missions.Scenes
                          target.Kind is not (SceneActorKind.Creature or SceneActorKind.PublicSpawn) ||
                          attack.TargetRole == attack.Role)))
                     return Reject($"Scene operation {intent.OperationKey} references an invalid combat actor.");
+                if (intent is BarkActorIntent bark &&
+                    (bark.Role == null || bark.BarkId == 0 || !bindings.Actors.TryGetValue(bark.Role, out var speaker) ||
+                     speaker.Kind is not (SceneActorKind.Creature or SceneActorKind.PublicSpawn)))
+                    return Reject($"Scene operation {intent.OperationKey} has no bark or no creature to say it.");
+                if (intent is PoseActorIntent pose &&
+                    (pose.Role == null || pose.Pose > byte.MaxValue || !bindings.Actors.TryGetValue(pose.Role, out var poser) ||
+                     poser.Kind is not (SceneActorKind.Creature or SceneActorKind.PublicSpawn)))
+                    return Reject($"Scene operation {intent.OperationKey} has an invalid pose or no creature to take it.");
             }
             var timerNames = new HashSet<string>(StringComparer.Ordinal);
             if (decision.CharacterIntents.OfType<SetCharacterFlagIntent>().Any(intent => intent.FlagId == 0))
