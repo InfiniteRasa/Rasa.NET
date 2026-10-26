@@ -18,6 +18,7 @@ namespace Rasa.Managers
         {
             internal long Due, Started;
             internal int Waves;
+            internal bool WarningSent;
             internal readonly List<SpawnPool> Pools = new();
             internal readonly List<SpawnPool> Reinforcements = new();
             internal Creature Boss;
@@ -31,7 +32,7 @@ namespace Rasa.Managers
             point?.Id == LandingZoneAssaultContent.PointId && !point.IsBattleground &&
             ControlPoints.Instance.Config.LandingZoneAssaultEnabled;
 
-        internal static void Worker(MapChannel map, ControlPoints.Point point)
+        internal static void Worker(MapChannel map, ControlPoints.Point point, bool warn = true)
         {
             if (!ControlsCapture(map, point) || !point.HeldByAfs)
             {
@@ -43,9 +44,20 @@ namespace Rasa.Managers
             var config = ControlPoints.Instance.Config;
             var now = Now();
             var state = States.GetValue(map, _ => new Assault { Due = now + Math.Max(1, config.LandingZoneAssaultPeriodSeconds) * 1000L });
+            // Warn once for the pending assault, on the first worker tick in its final five minutes.
+            // A skipped deadline or a GM-forced immediate start must not produce a late warning.
+            if (warn && state.Waves == 0 && !state.WarningSent && now < state.Due && state.Due - now <= 300000)
+            {
+                state.WarningSent = true;
+                var message = $"The Bane are mustering for an attack on {point.Name} Control Point. Reinforcements requested!";
+                foreach (var client in map.ClientList.ToArray())
+                    if (client?.State == ClientState.Ingame && MapInstanceScope.Contains(map, client.Player))
+                        CommunicatorManager.Instance.SystemMessage(client, message);
+            }
             if (state.Waves == 0 && now >= state.Due)
             {
                 state.Started = now;
+                state.WarningSent = false;
                 state.Due = now + Math.Max(1, config.LandingZoneAssaultPeriodSeconds) * 1000L;
                 Launch(map, point, state, 1);
                 Reinforce(map, state);
@@ -77,11 +89,11 @@ namespace Rasa.Managers
         internal static bool TryStart(MapChannel map, ControlPoints.Point point)
         {
             if (!ControlsCapture(map, point) || !point.HeldByAfs) return false;
-            Worker(map, point);
+            Worker(map, point, warn: false);
             var state = States.GetValue(map, _ => new Assault());
             if (state.Waves != 0) return false;
             state.Due = Now();
-            Worker(map, point);
+            Worker(map, point, warn: false);
             return true;
         }
         private static bool PrepareClaim(MapChannel map, ControlPoints.Point point, Creature boss, Assault state)
