@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -25,7 +26,19 @@ namespace Rasa.Services.Preloader
         public void Preload(MigrationBuilder migrationBuilder)
         {
             Insert(migrationBuilder, WorldDestructibleEntry.TableName, Columns);
+
+            var sealedIds = SealedIds.ToList();
+
+            if (sealedIds.Count > 0)
+                migrationBuilder.Sql($"update {WorldDestructibleEntry.TableName} set sealed = 1 where id in ({string.Join(", ", sealedIds)});");
         }
+
+        /// <summary>
+        /// This lot's force fields players cannot shoot down (world_destructible.sealed): set once
+        /// the rows are in, so <see cref="Columns"/> stay what the table had. Only for a lot of a
+        /// migration after 20270921000000_World_destructible_sealed.
+        /// </summary>
+        protected virtual IEnumerable<uint> SealedIds => Enumerable.Empty<uint>();
 
         /// <summary>Deletes this lot's rows, by id.</summary>
         public void Remove(MigrationBuilder migrationBuilder)

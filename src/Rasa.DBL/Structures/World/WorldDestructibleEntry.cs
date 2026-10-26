@@ -83,6 +83,15 @@ namespace Rasa.Structures.World
         [Required]
         public uint Side { get; set; }
 
+        /// <summary>
+        /// A force field players cannot shoot down (ForceFields.Field.Sealed), in every copy of the
+        /// map; a mission takes it down for good in one copy (MissionActionKind.TakeDownField).
+        /// Nothing for a row that is no force field.
+        /// </summary>
+        [Column("sealed")]
+        [Required]
+        public bool Sealed { get; set; }
+
         [Column("comment", TypeName = "varchar(128)")]
         [Required]
         public string Comment { get; set; }

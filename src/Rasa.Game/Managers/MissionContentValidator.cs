@@ -37,7 +37,8 @@ namespace Rasa.Managers
                 MissionActionKind.IssueMissionItem,
                 MissionActionKind.ConsumeMissionItem,
                 MissionActionKind.RemoveMissionItems,
-                MissionActionKind.FailRelatedMission
+                MissionActionKind.FailRelatedMission,
+                MissionActionKind.TakeDownField
             };
 
         private static readonly HashSet<MissionSpawnGroupPolicy> SupportedSpawnPolicies =
@@ -89,6 +90,16 @@ namespace Rasa.Managers
             {
                 ValidateMission(snapshot, definition, references, diagnostics);
             }
+
+            // A sealed field is only taken down in a squad's copy (PlacedDestructibles.TakeDown): on
+            // another map it stands for good. No mission id: logged, nothing disabled. Only when a
+            // TakeDownField action has read the rows: content without one never reads world_destructible
+            // (a World migrated to before the table has none).
+            foreach (var row in (references.DestructiblesIfRead?.Values ?? Enumerable.Empty<WorldDestructibleEntry>())
+                .Where(row => row.Sealed && !SquadInstancePolicies.IsListedSquadMap(row.MapContextId)).OrderBy(row => row.Id))
+                diagnostics.Add(new MissionValidationDiagnostic(
+                    "sealed-destructible-not-in-squad-instance",
+                    $"world_destructible {row.Id} is sealed on map {row.MapContextId}, which is not entered as a squad's instance; outside a copy nothing takes it down."));
 
             var report = new MissionValidationReport(diagnostics, requiredMissionIds);
             var inactiveRequired = BuildRequiredChainInactiveDiagnostics(
@@ -175,6 +186,17 @@ namespace Rasa.Managers
                 objectPackages, typedScenarios,
                 (unitOfWork?.Creatures?.GetClassFlags() ?? new List<CreatureClassFlagEntry>()).Select(entry => entry.FlagId),
                 unitOfWork?.Spawnpools == null ? null : () => unitOfWork.Spawnpools.Get() ?? new List<SpawnPoolEntry>())
+                .WithDestructibles(unitOfWork == null ? null : () =>
+                {
+                    try
+                    {
+                        return unitOfWork.WorldDestructibles?.Get();
+                    }
+                    catch (NotSupportedException)
+                    {
+                        return null;
+                    }
+                })
                 .WithModules(() => (unitOfWork?.ItemModules?.GetModuleClasses(), unitOfWork?.ItemModules?.GetModifiableClasses()));
         }
 
@@ -546,6 +568,37 @@ namespace Rasa.Managers
                             "Mission flags must use IDs 1..2147483647; higher IDs are reserved for named server state.",
                             definition.MissionId, definition.ContentRevision, transition.ObjectiveId,
                             transition.TransitionId, actionId: action.ActionId));
+                    }
+
+                    // A force field taken down: a row of world_destructible that is one.
+                    if (action.Kind == MissionActionKind.TakeDownField &&
+                        action.ItemIntent is Rasa.Missions.Scenes.TakeDownFieldIntent takeDown &&
+                        references.Destructibles is { } destructibles)
+                    {
+                        if (!destructibles.TryGetValue(takeDown.DestructibleId, out var row))
+                            diagnostics.Add(new MissionValidationDiagnostic(
+                                "missing-destructible",
+                                $"take down field action references missing world_destructible {takeDown.DestructibleId}.",
+                                definition.MissionId, definition.ContentRevision, transition.ObjectiveId,
+                                transition.TransitionId, actionId: action.ActionId));
+                        else if (ForceFields.ClassOf(row.ClassId.ToString()) == null)
+                            diagnostics.Add(new MissionValidationDiagnostic(
+                                "destructible-not-force-field",
+                                $"take down field action references world_destructible {takeDown.DestructibleId} of class {row.ClassId}, which is no force field.",
+                                definition.MissionId, definition.ContentRevision, transition.ObjectiveId,
+                                transition.TransitionId, actionId: action.ActionId));
+                        else if (!row.Sealed)
+                            diagnostics.Add(new MissionValidationDiagnostic(
+                                "destructible-not-sealed",
+                                $"take down field action references world_destructible {takeDown.DestructibleId}, which is not sealed: players shoot it down and it comes back.",
+                                definition.MissionId, definition.ContentRevision, transition.ObjectiveId,
+                                transition.TransitionId, actionId: action.ActionId));
+                        else if (!SquadInstancePolicies.IsListedSquadMap(row.MapContextId))
+                            // No mission id: logged, and the mission stays enabled - a private or
+                            // shared copy of the map still has it taken down (MapChannel.IsCopy).
+                            diagnostics.Add(new MissionValidationDiagnostic(
+                                "destructible-not-in-squad-instance",
+                                $"Mission {definition.MissionId} take down field action {action.ActionId} references world_destructible {takeDown.DestructibleId} on map {row.MapContextId}, which is not entered as a squad's instance; only a copy of it has the field taken down."));
                     }
                 }
             }
@@ -1862,6 +1915,45 @@ namespace Rasa.Managers
 
             private readonly Func<IEnumerable<SpawnPoolEntry>> _spawnPoolSource;
             private Dictionary<uint, (short Mode, uint MapContextId)> _spawnPools;
+
+            /// <summary>
+            /// Every world_destructible row, by id, read the first time a TakeDownField action asks;
+            /// null where the unit of work has none to read, and nothing is checked against it.
+            /// </summary>
+            public IReadOnlyDictionary<uint, WorldDestructibleEntry> Destructibles
+            {
+                get
+                {
+                    if (!_destructiblesRead)
+                    {
+                        _destructiblesRead = true;
+                        _destructibles = _destructibleSource?.Invoke()?
+                            .GroupBy(entry => entry.Id)
+                            .ToDictionary(group => group.Key, group => group.First());
+                    }
+
+                    return _destructibles;
+                }
+            }
+
+            /// <summary>
+            /// The rows if a TakeDownField action has read them (<see cref="Destructibles"/>), else null:
+            /// what is checked of every row does not read the table on its own.
+            /// </summary>
+            public IReadOnlyDictionary<uint, WorldDestructibleEntry> DestructiblesIfRead =>
+                _destructiblesRead ? _destructibles : null;
+
+            private Func<IEnumerable<WorldDestructibleEntry>> _destructibleSource;
+            private Dictionary<uint, WorldDestructibleEntry> _destructibles;
+            private bool _destructiblesRead;
+
+            /// <summary>Where the world_destructible rows are read from (<see cref="Destructibles"/>).</summary>
+            public MissionContentReferenceSet WithDestructibles(Func<IEnumerable<WorldDestructibleEntry>> source)
+            {
+                _destructibleSource = source;
+                _destructiblesRead = false;
+                return this;
+            }
 
             /// <summary>The modules (module_class): each one's class set and variant.</summary>
             public IReadOnlyDictionary<uint, (uint ClassSetId, uint VariantId)> ModuleClasses => LoadModules().Modules;

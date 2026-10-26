@@ -498,6 +498,7 @@ from client projections. Hidden objectives remain in definitions and storage.
 | `ConsumeMissionItem` (11) | `ItemIntentJson` containing a `ConsumeMissionItemIntent` |
 | `RemoveMissionItems` (12) | `ItemIntentJson` containing a `RemoveMissionItemsIntent` |
 | `FailRelatedMission` (13) | `ItemIntentJson` containing a `FailRelatedMissionIntent`; another active assignment's required-objective failure and cleanup |
+| `TakeDownField` (14) | `ItemIntentJson` containing a `TakeDownFieldIntent(OperationKey, DestructibleId)`; the force field of that `world_destructible` row goes down for good on the player's map channel |
 
 Reward rows distinguish fixed and selectable items. At most one turn-in reward
 ID is selected per mission; selectable rewards require a native selection.
@@ -507,6 +508,23 @@ are immediate. Parameter-set checks also apply on insertion. In particular,
 insert a flag action with both flag ID and value, not null fields followed by
 an update. Related failure uses the originating transition transaction and
 does not authorize direct cross-assignment inventory operations.
+
+A force field a mission takes down is a `world_destructible` row of a force
+field class with `sealed = 1` (a lot's `WorldDestructiblePreloader.SealedIds`).
+`PlacedDestructibles` puts it in every copy of its map, each squad instance
+included, and shots take nothing from it (`ForceFields.Field.Sealed`). A
+`TakeDownField` action names the row; after the transition commits, the field
+on the map channel the player is on goes down and never comes back while that
+channel stands. In a squad instance only that copy loses it. A copy made again
+has it up again until a player is in it whose mission has been through that
+transition (its objective is in the transition's state, or the mission is
+done): then it goes down again within a second, as Torcastra's gate opens
+again. A player without that progress sees it up. On an ordinary map it is
+down for everyone until the server restarts, and nothing takes it down again.
+A row that is missing or no force field is a load diagnostic
+(`missing-destructible`, `destructible-not-force-field`); a map without the
+row's field is logged and nothing happens. `sealed` on a row that is no force
+field is logged and ignored. Scenes cannot carry the intent.
 
 An existing item/action identity is not proof of a functional reward. Wilderness
 reconstructs unsupported bomb, grenade, adrenaline, trauma-kit and module rewards

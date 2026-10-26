@@ -26,6 +26,13 @@ namespace Rasa.Structures.World
         IssueMissionItem = 10,
         ConsumeMissionItem = 11,
         RemoveMissionItems = 12,
-        FailRelatedMission = 13
+        FailRelatedMission = 13,
+
+        /// <summary>
+        /// item_intent TakeDownFieldIntent: the force field of a world_destructible row goes down
+        /// for good on the player's map channel - in a squad instance, that copy alone
+        /// (PlacedDestructibles.TakeDown).
+        /// </summary>
+        TakeDownField = 14
     }
 }

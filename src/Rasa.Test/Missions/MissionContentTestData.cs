@@ -53,6 +53,9 @@ namespace Rasa.Test.Missions
         /// <summary>A World unit of work with no spawn pool repository (Spawnpools is null).</summary>
         internal bool NoSpawnPoolRepository { get; set; }
 
+        /// <summary>The world's placed destructibles (world_destructible), for a TakeDownField action to name.</summary>
+        internal List<WorldDestructibleEntry> Destructibles { get; } = new();
+
         internal static MissionContentFixture CreateValid()
         {
             var fixture = new MissionContentFixture();
@@ -438,6 +441,7 @@ namespace Rasa.Test.Missions
             public INpcPackageRepository NpcPackages { get; }
             public IPlayerRandomNameRepository RandomNames => null;
             public ISpawnpoolRepository Spawnpools => _fixture.NoSpawnPoolRepository ? null : new FakeSpawnpoolRepository(_fixture);
+            public IWorldDestructibleRepository WorldDestructibles => new FakeWorldDestructibleRepository(_fixture);
             public IMapEmitterRepository MapEmitters => null;
             public ISpawnPoolArrivalRepository SpawnPoolArrivals => null;
             public ITeleporterRepository Teleporters => null;
@@ -500,6 +504,15 @@ namespace Rasa.Test.Missions
                         BaseRegion = 1
                     })
                     .ToList();
+        }
+
+        private sealed class FakeWorldDestructibleRepository : IWorldDestructibleRepository
+        {
+            private readonly MissionContentFixture _fixture;
+
+            internal FakeWorldDestructibleRepository(MissionContentFixture fixture) => _fixture = fixture;
+
+            public List<WorldDestructibleEntry> Get() => _fixture.Destructibles.OrderBy(entry => entry.Id).ToList();
         }
 
         private sealed class FakeSpawnpoolRepository : ISpawnpoolRepository
@@ -737,7 +750,8 @@ namespace Rasa.Test.Missions
                 IndicatorId = entry.IndicatorId,
                 PlayerFlagId = entry.PlayerFlagId,
                 PlayerFlagValue = entry.PlayerFlagValue,
-                Comment = entry.Comment
+                Comment = entry.Comment,
+                ItemIntentJson = entry.ItemIntentJson
             };
 
         private static MissionRewardDefinitionEntry Clone(MissionRewardDefinitionEntry entry) =>

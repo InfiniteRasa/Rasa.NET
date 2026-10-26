@@ -98,6 +98,8 @@ namespace Rasa.Game.Missions.Content
             ValidateProgressMetadata(missionId, scene, objectiveIds);
             if (scene.Sequences.Values.SelectMany(sequence => sequence.Character).Any(intent => intent is FailRelatedMissionIntent))
                 throw new MissionRuleException("Related mission failure belongs to the originating native transition transaction.");
+            if (scene.Sequences.Values.SelectMany(sequence => sequence.Character).Any(intent => intent is TakeDownFieldIntent))
+                throw new MissionRuleException("Taking down a force field belongs to a native transition action (TakeDownField).");
             if (missionId == 0 && (scene.Items != null || scene.AcceptanceItems != null ||
                 scene.Sequences.Values.SelectMany(sequence => sequence.Character).Any(MissionItemValidation.IsItemIntent)))
                 throw new MissionRuleException("Assignment item operations require a mission-owned scene, not an experience.");

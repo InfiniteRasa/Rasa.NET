@@ -156,6 +156,7 @@ namespace Rasa.Missions.Scenes
     [JsonDerivedType(typeof(RemoveMissionItemsIntent), "remove-mission-items")]
     [JsonDerivedType(typeof(OfferRadioMissionIntent), "offer-radio-mission")]
     [JsonDerivedType(typeof(FailRelatedMissionIntent), "fail-related-mission")]
+    [JsonDerivedType(typeof(TakeDownFieldIntent), "take-down-field")]
     public abstract record CharacterIntent(string OperationKey);
     public sealed record GrantRewardIntent(string OperationKey, uint MissionId, uint RewardId) : CharacterIntent(OperationKey);
     public sealed record GrantAbilityIntent(string OperationKey, uint SkillId, uint AbilityId, byte Level, byte? Slot) : CharacterIntent(OperationKey);
@@ -177,6 +178,8 @@ namespace Rasa.Missions.Scenes
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool IfEligible = false)
         : CharacterIntent(OperationKey);
     public sealed record FailRelatedMissionIntent(string OperationKey, uint MissionId) : CharacterIntent(OperationKey);
+    /// <summary>MissionActionKind.TakeDownField: the force field of world_destructible row <paramref name="DestructibleId"/>.</summary>
+    public sealed record TakeDownFieldIntent(string OperationKey, uint DestructibleId) : CharacterIntent(OperationKey);
 
     public sealed class SceneSequence
     {

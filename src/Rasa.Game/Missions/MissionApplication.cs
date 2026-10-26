@@ -3320,6 +3320,17 @@ namespace Rasa.Managers
                             throw new GameplayRejectionException("Related failure must name another mission.");
                         relatedEffects.Add(PlanRelatedMissionFailure(client, failure.MissionId, unitOfWork));
                         break;
+
+                    case MissionActionKind.TakeDownField:
+                        if (action.ItemIntent is not Rasa.Missions.Scenes.TakeDownFieldIntent takeDown ||
+                            takeDown.DestructibleId == 0)
+                            throw new GameplayRejectionException("Take down field action must name a world_destructible row.");
+                        // Once committed: the field on the map channel the player is on, that copy's alone.
+                        var takeDownPlan = new MissionScenarioPlan();
+                        takeDownPlan.AddPostCommit(() => PlacedDestructibles.TakeDown(
+                            client.Player?.MapChannel, takeDown.DestructibleId, client.Player?.EntityId ?? 0));
+                        relatedEffects.Add(takeDownPlan);
+                        break;
                 }
             }
 

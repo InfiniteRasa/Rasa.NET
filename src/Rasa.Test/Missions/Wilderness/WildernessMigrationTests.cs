@@ -117,8 +117,11 @@ namespace Rasa.Test.Missions.Wilderness
             var expectedEntities = latest.GetEntityTypes().Select(entity => entity.Name).ToArray();
             var expectedProperties = latest.GetEntityTypes().SelectMany(entity =>
                 entity.GetProperties().Select(property => entity.Name + "." + property.Name)).ToArray();
-            var finalConstraint = snapshot.FindEntityType("Rasa.Structures.World.MissionActionEntry")
+            // The action kinds the Wilderness migrations end with (1..13); a kind let in by a later
+            // migration (TakeDownField, 14) is in the snapshot's constraint and not in theirs.
+            var finalConstraint = latest.FindEntityType("Rasa.Structures.World.MissionActionEntry")
                 .FindCheckConstraint("CK_mission_action_kind_parameter_set").Sql;
+            StringAssert.Contains(finalConstraint, "(kind IN (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13))");
             var migrations = assembly.Migrations.Where(entry =>
                 entry.Key.StartsWith("20261104", StringComparison.Ordinal) && entry.Key != WreckCreatures)
                 .OrderBy(entry => entry.Key).ToArray();
