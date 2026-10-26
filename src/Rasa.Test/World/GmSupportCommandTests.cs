@@ -110,6 +110,47 @@ namespace Rasa.Test.World
             StringAssert.Contains(Said(player), "A game master has revived you.");
         }
 
+        [TestMethod]
+        public void PlayerUnstuckOnlyMovesThemselves()
+        {
+            using var context = NewContext();
+            var (gm, player) = TwoPlayers(context);
+
+            Run(gm, player, () => GmSupportCommands.Unstuck(player, new[] { ".unstuck", "Keeper" }));
+
+            StringAssert.Contains(Said(player), "it only moves you");
+            Assert.AreEqual("", Said(gm), "the other player is left alone");
+        }
+
+        [TestMethod]
+        public void PlayerUnstuckWaitsFiveMinutesBetweenUses()
+        {
+            using var context = NewContext();
+            var (gm, player) = TwoPlayers(context);
+            var now = 1_000_000L;
+            GmSupportCommands.Clock = () => now;
+            try
+            {
+                player.Player.State = CharacterState.Dead;
+                player.Player.StateBeforeDeath = CharacterState.Idle;
+                Run(gm, player, () => GmSupportCommands.Unstuck(player, new[] { ".unstuck" }));
+                StringAssert.Contains(Said(player), "You have been moved to");
+
+                now += 60_000;
+                Run(gm, player, () => GmSupportCommands.Unstuck(player, new[] { ".unstuck" }));
+                StringAssert.Contains(Said(player), "You can use .unstuck again in 4m 0s.");
+
+                now += 4 * 60_000;
+                player.Player.State = CharacterState.Dead;
+                Run(gm, player, () => GmSupportCommands.Unstuck(player, new[] { ".unstuck" }));
+                StringAssert.Contains(Said(player), "You have been moved to");
+            }
+            finally
+            {
+                GmSupportCommands.Clock = () => System.Environment.TickCount64;
+            }
+        }
+
         private static MissionTestContext NewContext() =>
             MissionTestContext.WithCustomDefinitions(new Dictionary<uint, Mission>());
 

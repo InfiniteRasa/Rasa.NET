@@ -302,7 +302,8 @@ namespace Rasa.Managers
             RegisterCommand(".playerinfo", GmLevel.GameMaster, parts => GmSupportCommands.PlayerInfo(_client, parts), "familyName/#characterId");
             RegisterCommand(".goto", GmLevel.GameMaster, parts => GmSupportCommands.Goto(_client, parts), "familyName/#characterId");
             RegisterCommand(".summon", GmLevel.GameMaster, parts => GmSupportCommands.Summon(_client, parts), "familyName/#characterId");
-            RegisterCommand(".unstuck", GmLevel.GameMaster, parts => GmSupportCommands.Unstuck(_client, parts), "familyName/#characterId");
+            // Players too: themselves only, every 5 minutes (GmSupportCommands.PlayerUnstuckCooldown).
+            RegisterCommand(".unstuck", GmLevel.Player, parts => GmSupportCommands.Unstuck(_client, parts), "[familyName/#characterId]");
             RegisterCommand(".revive", GmLevel.GameMaster, parts => GmSupportCommands.Revive(_client, parts), "familyName/#characterId");
             RegisterCommand(".kill", GmLevel.GameMaster, parts => GmSupportCommands.Kill(_client, parts), "#entityId");
             RegisterCommand(".gmbar", GmLevel.GameMaster, parts => GmAbilities.FillBar(_client, parts), "loadout");
