@@ -77,6 +77,8 @@ namespace Rasa.Missions.Scenes
     [JsonDerivedType(typeof(AttackActorIntent), "attack")]
     [JsonDerivedType(typeof(QuietSpawnPoolsIntent), "quiet-spawn-pools")]
     [JsonDerivedType(typeof(WakeSpawnPoolsIntent), "wake-spawn-pools")]
+    [JsonDerivedType(typeof(BarkActorIntent), "bark")]
+    [JsonDerivedType(typeof(PoseActorIntent), "pose")]
     public abstract record WorldIntent(string OperationKey, string Role);
     public sealed record EnsureActorIntent(string OperationKey, string Role, ScenePosition RestorePosition = null) : WorldIntent(OperationKey, Role);
     public sealed record RemoveActorIntent(string OperationKey, string Role) : WorldIntent(OperationKey, Role);
@@ -111,6 +113,20 @@ namespace Rasa.Missions.Scenes
     /// again, so a new map has them going from the start - while the actor stands.
     /// </summary>
     public sealed record WakeSpawnPoolsIntent(string OperationKey, string Role, uint[] SpawnPools)
+        : WorldIntent(OperationKey, Role);
+
+    /// <summary>
+    /// The actor says a client bark (barklanguage id) to everyone around it, once, as NpcBarks does
+    /// for an NPC's own lines. A moment, not a state: a map made again does not say it again.
+    /// </summary>
+    public sealed record BarkActorIntent(string OperationKey, string Role, uint BarkId)
+        : WorldIntent(OperationKey, Role);
+
+    /// <summary>
+    /// The creature takes up a pose (Data.NpcPose, as spawnpool_pose.pose: 8 AtConsole, 0 None) where
+    /// it stands, as the GM's .pose does; None takes it off. Held until changed, and on a map made again.
+    /// </summary>
+    public sealed record PoseActorIntent(string OperationKey, string Role, uint Pose)
         : WorldIntent(OperationKey, Role);
 
     [JsonPolymorphic(TypeDiscriminatorPropertyName = "$kind")]
@@ -178,9 +194,12 @@ namespace Rasa.Missions.Scenes
         public IReadOnlyDictionary<uint, SceneSequence> Sequences { get; }
         public IReadOnlyDictionary<string, uint> Names { get; }
         public IReadOnlyDictionary<string, uint> DefeatSequences { get; }
+        /// <summary>Actor role to the sequence its first hit by a player's side runs (MissionSceneDefinition.DamagedSequences).</summary>
+        public IReadOnlyDictionary<string, uint> DamagedSequences { get; }
         public SceneBindings(string release, IDictionary<string, SceneActorDefinition> actors,
             IDictionary<string, SceneRoute> routes, IDictionary<uint, SceneSequence> sequences,
-            IDictionary<string, uint> names = null, IDictionary<string, uint> defeatSequences = null, uint mapContextId = 0)
+            IDictionary<string, uint> names = null, IDictionary<string, uint> defeatSequences = null, uint mapContextId = 0,
+            IDictionary<string, uint> damagedSequences = null)
         {
             Release = release;
             MapContextId = mapContextId;
@@ -193,6 +212,8 @@ namespace Rasa.Missions.Scenes
                 names ?? new Dictionary<string, uint>()));
             DefeatSequences = new ReadOnlyDictionary<string, uint>(new Dictionary<string, uint>(
                 defeatSequences ?? new Dictionary<string, uint>()));
+            DamagedSequences = new ReadOnlyDictionary<string, uint>(new Dictionary<string, uint>(
+                damagedSequences ?? new Dictionary<string, uint>()));
         }
     }
 

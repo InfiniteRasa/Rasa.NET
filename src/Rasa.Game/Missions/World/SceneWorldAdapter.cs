@@ -29,6 +29,13 @@ namespace Rasa.Game.Missions.World
         void Pause(string runId);
         void CancelOperation(string runId, uint generation, string operationKey);
         void Terminate(SceneRun run, MapChannel map);
+
+        /// <summary>
+        /// The actors on <paramref name="map"/> that a scene listens to for a first hit (SceneBindings.DamagedSequences)
+        /// and that a player's side has hit since the last call, each once per run generation.
+        /// </summary>
+        IReadOnlyList<(string RunId, string Role, uint Generation)> TakeFirstHits(MapChannel map) =>
+            Array.Empty<(string, string, uint)>();
     }
 
     internal sealed class SceneWorldAdapter : ISceneWorld
@@ -169,7 +176,13 @@ namespace Rasa.Game.Missions.World
                     RevokeAttackOperation(world, actor, intent.OperationKey);
                 return intent is RemoveActorIntent ? WorldEffectResult.Applied() :
                     intent is SetInteractionIntent { IfPresent: true } ? WorldEffectResult.Suppressed("Optional actor is absent.") :
+                    intent is BarkActorIntent ? WorldEffectResult.Suppressed("Nobody there to say the bark.") :
+                    intent is PoseActorIntent ? WorldEffectResult.Suppressed("Nobody there to take the pose.") :
                     IsAwaitingPrivateSpawn(world, definition) ? WorldEffectResult.Deferred() :
+                    // A creature only the scene spawns, not there: never ensured, or removed. Nothing will bring it
+                    // back on its own, so its walk is not waited for (a public spawn's lease can still come).
+                    intent is (RunRouteIntent or AttackActorIntent) && definition.Kind == SceneActorKind.Creature
+                        ? WorldEffectResult.Suppressed("Nobody there to walk the route or fight.") :
                     WorldEffectResult.Failed($"Actor role {intent.Role} is unavailable.");
             }
             if (intent is RemoveActorIntent)
@@ -197,6 +210,21 @@ namespace Rasa.Game.Missions.World
                 world.Actors.Remove(intent.Role);
                 world.Follows.Remove(intent.Role);
                 world.Attacks.Remove(intent.Role);
+                return WorldEffectResult.Applied();
+            }
+            if (intent is BarkActorIntent bark)
+            {
+                if (actor.Creature == null || !CreatureManager.IsLivingOnMap(world.Map, actor.Creature))
+                    return WorldEffectResult.Suppressed("Nobody living there to say the bark.");
+                NpcBarks.Bark(world.Map, actor.Creature, bark.BarkId);
+                return WorldEffectResult.Applied();
+            }
+            if (intent is PoseActorIntent poseIntent)
+            {
+                if (actor.Creature == null || poseIntent.Pose > byte.MaxValue ||
+                    !Enum.IsDefined(typeof(NpcPose), (byte)poseIntent.Pose))
+                    return WorldEffectResult.Failed($"Pose {poseIntent.Pose} needs a creature and a pose (NpcPose).");
+                NpcPoses.Change(world.Map, actor.Creature, (NpcPose)poseIntent.Pose);
                 return WorldEffectResult.Applied();
             }
             if (intent is SetInteractionIntent interaction)
@@ -296,7 +324,14 @@ namespace Rasa.Game.Missions.World
                     !CreatureManager.IsLivingOnMap(world.Map, target))
                 {
                     RevokeAttackOperation(world, actor, intent.OperationKey);
-                    return WorldEffectResult.Failed("Combat requires living hostile actors in the same runtime map.");
+                    // A scene creature dead or gone, on either end: nothing brings it back, so the fight is not
+                    // waited for. The owner as the target can still come back (revived), and is waited for.
+                    return definition.Kind == SceneActorKind.Creature && actor.Creature != null &&
+                           !CreatureManager.IsLivingOnMap(world.Map, actor.Creature) ||
+                           attack.TargetRole != null && world.Bindings.Actors[attack.TargetRole].Kind == SceneActorKind.Creature &&
+                           !CreatureManager.IsLivingOnMap(world.Map, target)
+                        ? WorldEffectResult.Suppressed("A scene creature in the fight is dead or gone.")
+                        : WorldEffectResult.Failed("Combat requires living hostile actors in the same runtime map.");
                 }
                 if (!BehaviorManager.CanSetActionFighting(actor.Creature, target.EntityId,
                         requireCombatAuthorization: false))
@@ -310,6 +345,15 @@ namespace Rasa.Game.Missions.World
                 if (!BehaviorManager.Instance.TrySetActionFighting(actor.Creature, target.EntityId))
                     return SuppressAttack(world, actor, intent.OperationKey,
                         "The actor refused the fight after its combat authorization was checked.");
+                // An order to fight another actor of the scene is the one it follows: its target is put past what
+                // anyone else on its table could take it over with (Threat.TakeoverPercent), or the player whose hit
+                // started it was hated more at once and taken instead (1975: Quarsh shoots Tala at the first hit).
+                if (attack.TargetRole != null)
+                {
+                    var rival = actor.Creature.Hate.Ranked().Where(entry => entry.Key != target.EntityId)
+                        .Select(entry => entry.Value).DefaultIfEmpty(0).Max();
+                    actor.Creature.Hate.Ensure(target.EntityId, rival * Threat.TakeoverPercent / 100.0 + Threat.NoticedThreat);
+                }
                 world.Attacks[intent.Role] = (intent.OperationKey, target.EntityId);
                 return WorldEffectResult.Applied();
             }
@@ -629,6 +673,23 @@ namespace Rasa.Game.Missions.World
                    _leases.TryResolve(world.Map, actor.Handle, out _))
                 : MapInstanceScope.Contains(world.Map, actor.Object));
         public void Tick(MapChannel map, DateTime utcNow) => _routes.Tick(map, utcNow);
+
+        /// <summary>
+        /// A first hit is what CreatureManager.RecordCombatDamage leaves on the creature: LastPlayerHit, set by a hit
+        /// from a player or a player's creature that took something off it (an immune hit sets nothing). Every
+        /// kind of damage goes through there - weapon fire (MissileManager) and abilities, bombs and damage over
+        /// time (ActorManager.Damage) - so it is read here, as the scene ticks, rather than hooked into each.
+        /// </summary>
+        public IReadOnlyList<(string RunId, string Role, uint Generation)> TakeFirstHits(MapChannel map)
+        {
+            List<(string, string, uint)> hits = null;
+            foreach (var world in _runs.Values.Where(run => run.Map == map && run.Bindings.DamagedSequences.Count > 0))
+                foreach (var role in world.Bindings.DamagedSequences.Keys)
+                    if (!world.Struck.Contains(role) && world.Actors.TryGetValue(role, out var actor) &&
+                        IsCurrent(world, actor) && actor.Creature?.LastPlayerHit != null && world.Struck.Add(role))
+                        (hits ??= new()).Add((world.Run.Id, role, world.Run.Generation));
+            return hits ?? (IReadOnlyList<(string, string, uint)>)Array.Empty<(string, string, uint)>();
+        }
         public void Detach(string runId)
         {
             _routes.Cancel(runId);
@@ -743,6 +804,8 @@ namespace Rasa.Game.Missions.World
             internal Dictionary<string, BoundActor> Actors { get; } = new(StringComparer.Ordinal);
             internal Dictionary<string, (string OperationKey, uint CharacterId, ulong TargetId)> Follows { get; } = new(StringComparer.Ordinal);
             internal Dictionary<string, (string OperationKey, ulong TargetId)> Attacks { get; } = new(StringComparer.Ordinal);
+            /// <summary>The roles whose first hit has been reported (TakeFirstHits), this generation.</summary>
+            internal HashSet<string> Struck { get; } = new(StringComparer.Ordinal);
             internal WorldRun(SceneRun run, SceneBindings bindings, Client owner, MapChannel map)
             { Run = run; Bindings = bindings; Owner = owner; Map = map; }
         }

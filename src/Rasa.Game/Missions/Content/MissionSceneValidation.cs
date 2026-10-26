@@ -192,6 +192,14 @@ namespace Rasa.Game.Missions.Content
                 actor.Kind is not (SceneActorKind.Creature or SceneActorKind.PublicSpawn) ||
                 !scene.Sequences.ContainsKey(entry.Value)) == true)
                 throw new MissionRuleException($"Mission {missionId}: invalid actor defeat sequence.");
+            if (scene.DamagedSequences?.Any(entry =>
+                !scene.Actors.TryGetValue(entry.Key, out var actor) ||
+                actor.Kind is not (SceneActorKind.Creature or SceneActorKind.PublicSpawn) ||
+                !scene.Sequences.ContainsKey(entry.Value)) == true)
+                throw new MissionRuleException($"Mission {missionId}: invalid actor first-hit sequence.");
+            if (scene.Sequences.Values.SelectMany(sequence => sequence.World).OfType<PoseActorIntent>().Any(pose =>
+                pose.Pose > byte.MaxValue || !Enum.IsDefined(typeof(global::Rasa.Data.NpcPose), (byte)pose.Pose)))
+                throw new MissionRuleException($"Mission {missionId}: a pose intent names no pose (NpcPose).");
             var keys = new HashSet<string>(StringComparer.Ordinal);
             var runtime = new SceneRuntime(scripts);
             foreach (var sequence in scene.Sequences)
