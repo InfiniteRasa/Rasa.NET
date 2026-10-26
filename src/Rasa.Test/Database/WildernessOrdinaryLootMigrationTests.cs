@@ -25,6 +25,10 @@ namespace Rasa.Test.Database
     {
         internal const string ContentMigration = "20261203000200_Wilderness_ordinary_loot_v1";
         private const string ThraxRegular = "wilderness_v1_thrax_10_14";
+        private static readonly uint[] LandingZoneOccupationCreatures =
+        {
+            LandingZoneAssaultContent.Private, LandingZoneAssaultContent.Sergeant, LandingZoneAssaultContent.Boss
+        };
         private static readonly uint[] Bosses =
         {
             75, 76, 77, 78, 79, 80, 82, 83, 84, 89, 90, 630040, 630130
@@ -133,6 +137,12 @@ namespace Rasa.Test.Database
             using var world = harness.CreateWorld();
             var content = world.OrdinaryLoot.Get();
             AssertFrozen(content);
+            foreach (var creature in LandingZoneOccupationCreatures)
+            {
+                var binding = content.Bindings.Single(row => row.MapContextId == 1220 && row.CreatureId == creature);
+                Assert.AreEqual(creature == LandingZoneAssaultContent.Boss
+                    ? "wilderness_v1_thrax_10_14_boss" : ThraxRegular, binding.ProfileKey);
+            }
             var catalog = OrdinaryLootCatalog.Load(world);
             Assert.IsNull(catalog.Resolve(1148, 3));
             foreach (var binding in content.Bindings)
@@ -245,8 +255,11 @@ namespace Rasa.Test.Database
             // And this fork's Wilderness Bane turret, which Bind_control_point_turret_loot binds,
             // its Wilderness Bane mortar, which Bane_mortars binds, and the Thrax of the drop-offs
             // Twin_pillars_npcs adds.
+            // Landing_zone_bane_occupation binds the private, sergeant and boss after the frozen
+            // content migration. They are also required by the current runtime when bindings vanish.
             CollectionAssert.AreEqual(RequiredCreatures.Append(ControlPointTurretLoot.Creature).Append(BaneMortars.LootCreature)
-                .Concat(TwinPillarsNpcs.LootedCreatures).OrderBy(id => id).ToArray(), missing);
+                .Concat(TwinPillarsNpcs.LootedCreatures)
+                .Concat(LandingZoneOccupationCreatures).OrderBy(id => id).ToArray(), missing);
             StringAssert.Contains(error.Message, "mission 682@");
             StringAssert.Contains(error.Message, "actor xanx-1, map 1220, creature 87");
             StringAssert.Contains(error.Message, "control point 3");
@@ -430,12 +443,14 @@ namespace Rasa.Test.Database
             rows.Profiles.Where(row => row.ProfileKey.StartsWith("wilderness_v1_", StringComparison.Ordinal)),
             rows.Groups.Where(row => row.ProfileKey.StartsWith("wilderness_v1_", StringComparison.Ordinal)),
             rows.Items.Where(row => row.ProfileKey.StartsWith("wilderness_v1_", StringComparison.Ordinal)),
-            // The v1 content's own: not the bindings this fork adds after it (Bind_control_point_turret_loot,
-            // Bane_mortars, Twin_pillars_npcs).
+            // Only the 36 bindings owned by the original frozen v1 migration. Later migrations
+            // (control-point turrets, mortars, Twin Pillars and Landing Zone occupation) add
+            // valid bindings that must remain installed, but are not part of this golden snapshot.
             rows.Bindings.Where(row => row.MapContextId == 1220 &&
                 !(row.MapContextId == ControlPointTurretLoot.Map && row.CreatureId == ControlPointTurretLoot.Creature) &&
                 !(row.MapContextId == BaneMortars.LootMap && row.CreatureId == BaneMortars.LootCreature) &&
-                !(row.MapContextId == TwinPillarsNpcs.Map && TwinPillarsNpcs.LootedCreatures.Contains(row.CreatureId))),
+                !(row.MapContextId == TwinPillarsNpcs.Map && TwinPillarsNpcs.LootedCreatures.Contains(row.CreatureId)) &&
+                !(row.MapContextId == LandingZoneAssaultContent.MapId && LandingZoneOccupationCreatures.Contains(row.CreatureId))),
             rows.MapPolicies.Where(row => row.MapContextId == 1220));
 
         private static string Serialize(OrdinaryLootContentSnapshot rows) => JsonSerializer.Serialize(rows);
