@@ -312,7 +312,7 @@ namespace Rasa.Managers
             {
                 TypeId = ReanimatedDeathTypeId,
                 EffectId = GameEffectManager.Instance.NextEffectId(mapChannel),
-                EffectLevel = risen.Effect.EffectLevel,
+                EffectLevel = GameEffectFx.LevelFor(ReanimatedDeathTypeId, risen.Effect.EffectLevel),
                 SourceId = risen.Owner.EntityId,
                 IsBuff = false,
                 AttachArgs = new List<object> { ReanimatedDeathSeconds }
