@@ -153,14 +153,14 @@ namespace Rasa.Managers
                 }
             }
 
-            return WithRewardInfo(definition, definition.CreateInfo(
+            return HerbalRemedyProgress.Apply(player, definition, runtimeMission, WithRewardInfo(definition, definition.CreateInfo(
                 runtimeMission.State,
                 runtimeMission.Completeable,
                 runtimeMission.Objectives,
                 objectiveId =>
                     objectiveId == activeDeadlineObjectiveId
                         ? timeRemaining
-                        : null));
+                        : null)));
         }
 
         internal MissionInfo BuildOfferInfo(Mission definition, MissionState state = MissionState.NotAssigned)

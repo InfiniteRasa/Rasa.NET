@@ -58,6 +58,11 @@ namespace Rasa.Managers
             if (!MapInstanceScope.Contains(player.MapChannel, obj))
                 return 0;
 
+            // Scene-owned pickups advance through scene signals, not InteractionUsed triggers.
+            // They still need the native mission-usable highlight while their owner can use them.
+            if (obj.MissionUseAction is { } use)
+                return obj.IsEnabled && DynamicObjectManager.MissionUseAvailable(client, obj) ? use.MissionId : 0;
+
             var wanted = (missions ?? MissionApplication.Instance).WantedInteractions(player);
 
             return wanted.TryGetValue((uint)obj.EntityClassId, out var missionId) ? missionId : 0;

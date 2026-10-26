@@ -21,6 +21,7 @@ namespace Rasa.Game.Missions.Persistence
         private readonly ICharUnitOfWork _unit;
         private readonly MissionApplication _missions;
         private readonly InventoryManager.InventoryPlan _inventory;
+        private bool _refreshHerbalProgress;
 
         internal MissionItemPlanner(Client client, ICharUnitOfWork unit, MissionApplication missions)
         {
@@ -106,12 +107,18 @@ namespace Rasa.Game.Missions.Persistence
                 CharacterId = _client.Player.Id, MissionId = missionId, AssignmentId = assignmentId, Generation = generation,
                 OperationKey = intent.OperationKey, Payload = payload
             });
+            _refreshHerbalProgress |= missionId == 695;
             if (binding.Scope == MissionItemScope.AssignmentIssued)
                 Integration.MissionRequirementService.ExpectAssignmentItem(_unit, _client.Player.Id,
                     missionId, itemKey, _inventory.OwnedQuantity(owner));
         }
 
-        internal void Publish(Client client) => _inventory.Publish(client);
+        internal void Publish(Client client)
+        {
+            _inventory.Publish(client);
+            if (_refreshHerbalProgress)
+                _missions.PublishMissionStatus(client, 695, "Herbal Remedy collected item progress");
+        }
 
         internal void ConsumeTurnIn(CharacterMissionEntry assignment)
         {
