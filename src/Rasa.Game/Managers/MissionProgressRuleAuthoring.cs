@@ -294,7 +294,7 @@ namespace Rasa.Managers
             diagnostic = null;
             var first = triggers[0];
             if (first.MissionId == 0 || !first.CounterId.HasValue || first.CounterId.Value == 0 ||
-                first.InitialValue != 0 || first.TargetValue != (uint)triggers.Count ||
+                first.InitialValue != 0 || first.TargetValue is null or 0 || first.TargetValue > (uint)triggers.Count ||
                 triggers.Any(trigger => !trigger.TryGetEventKind(out var kind) ||
                     kind != MissionProgressEventKind.ScenarioEvent || trigger.MissionId != first.MissionId ||
                     trigger.CounterId != first.CounterId || trigger.InitialValue != 0 ||
@@ -304,7 +304,7 @@ namespace Rasa.Managers
                 triggers.Select(trigger => trigger.SubjectId).Distinct().Count() != triggers.Count)
             {
                 diagnostic = "scoped scene counters require distinct events 1..N in one mission/scenario, " +
-                    "initial_value 0 and target_value equal to the authored event count.";
+                    "initial_value 0 and target_value from 1 to the authored event count.";
                 return false;
             }
             counters = new Dictionary<uint, MissionObjectiveCounterDefinition>
@@ -312,7 +312,8 @@ namespace Rasa.Managers
                 [0] = new(0, 0, first.TargetValue.Value)
             };
             rule = MissionProgressRule.CompleteOnDistinctScenarioEvents(first.MissionId,
-                first.CounterId.Value, new HashSet<uint>(triggers.Select(trigger => trigger.SubjectId.Value)));
+                first.CounterId.Value, new HashSet<uint>(triggers.Select(trigger => trigger.SubjectId.Value)),
+                first.TargetValue.Value);
             return true;
         }
 

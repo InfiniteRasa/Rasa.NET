@@ -54,7 +54,11 @@ namespace Rasa.Structures
             CounterId = counterId;
             var distinctCounter = ruleType == MissionProgressRuleType.CompleteDistinctSet && counterId.HasValue;
             InitialValue = distinctCounter ? 0U : initialValue;
-            TargetValue = distinctCounter ? (uint)_subjectSet.Count : targetValue;
+            // A counted set completes at its target: all its subjects, or as many of them as the
+            // target names ("any 16 of the 22 bodies").
+            if (distinctCounter && (targetValue == 0 || targetValue > (uint)_subjectSet.Count))
+                throw new ArgumentOutOfRangeException(nameof(targetValue), "A distinct-set target counts 1..N of its subjects.");
+            TargetValue = distinctCounter ? targetValue ?? (uint)_subjectSet.Count : targetValue;
             SourceSpawnResolved = sourceSpawnResolved;
             ScopeId = scopeId;
             DetailId = detailId;
@@ -142,12 +146,13 @@ namespace Rasa.Structures
                 detailId: scenarioId);
 
         internal static MissionProgressRule CompleteOnDistinctScenarioEvents(
-            uint missionId, uint scenarioId, IReadOnlySet<uint> subjects) =>
+            uint missionId, uint scenarioId, IReadOnlySet<uint> subjects, uint? targetValue = null) =>
             new(
                 MissionProgressRuleType.CompleteDistinctSet,
                 MissionProgressEventKind.ScenarioEvent,
                 subjects,
                 counterId: 0,
+                targetValue: targetValue,
                 scopeId: missionId,
                 detailId: scenarioId);
 

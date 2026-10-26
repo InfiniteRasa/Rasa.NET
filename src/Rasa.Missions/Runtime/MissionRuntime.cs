@@ -245,7 +245,7 @@ namespace Rasa.Missions.Runtime
                 value < rule.InitialValue.Value || value >= rule.TargetValue.Value)
                 throw new MissionRuleException("Mission counter is stale or cannot advance monotonically.");
             var next = rule.RuleType == MissionProgressRuleType.CompleteDistinctSet
-                ? (uint)rule.Subjects.Count(subject => durableSubjects?.Contains(subject) == true)
+                ? Math.Min((uint)rule.Subjects.Count(subject => durableSubjects?.Contains(subject) == true), rule.TargetValue.Value)
                 : ownedItemQuantity.HasValue ? Math.Min(ownedItemQuantity.Value, rule.TargetValue.Value)
                 : value + Math.Min(candidate.Progress.Quantity, rule.TargetValue.Value - value);
             if ((rule.RuleType == MissionProgressRuleType.CompleteDistinctSet || ownedItemQuantity.HasValue) && next <= value)
