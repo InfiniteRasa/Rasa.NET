@@ -366,7 +366,7 @@ namespace Rasa.Managers
             {
                 TypeId = SprintTypeId,
                 EffectId = NextEffectId(mapChannel),
-                EffectLevel = level.Level,
+                EffectLevel = GameEffectFx.LevelFor(SprintTypeId, level.Level),
                 ActionId = level.ActionId,
                 SourceId = actor.EntityId,
                 Source = actor,
