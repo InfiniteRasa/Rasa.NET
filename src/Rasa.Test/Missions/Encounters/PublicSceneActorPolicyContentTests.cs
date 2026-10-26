@@ -199,6 +199,44 @@ namespace Rasa.Test.Missions.Encounters
             Assert.IsFalse(harness.Manager.LoadMissions().BlocksReadiness);
         }
 
+        /// <summary>A first-hit sequence names an actor of the scene that can be hit, and a sequence it has.</summary>
+        [TestMethod]
+        public void AFirstHitSequenceMustNameACreatureAndASequence()
+        {
+            static void ValidateFirstHit(string role, uint sequence)
+            {
+                var scene = Scene(Actor());
+                scene.Actors["crate"] = new SceneActorDefinition("crate", SceneActorKind.Object, 2, new ScenePosition(0, 0, 0));
+                scene.Sequences[0] = new SceneSequenceDefinition();
+                scene.Sequences[5] = new SceneSequenceDefinition();
+                scene.DamagedSequences = new() { [role] = sequence };
+                Validate(scene);
+            }
+            ValidateFirstHit("enemy", 5);
+            Assert.ThrowsExactly<MissionRuleException>(() => ValidateFirstHit("nobody", 5));
+            Assert.ThrowsExactly<MissionRuleException>(() => ValidateFirstHit("crate", 5));
+            Assert.ThrowsExactly<MissionRuleException>(() => ValidateFirstHit("enemy", 6));
+        }
+
+        /// <summary>A bark names a bark and a creature to say it; a pose names a pose (NpcPose) and a creature to take it.</summary>
+        [TestMethod]
+        public void BarksAndPosesNeedACreatureAndAValue()
+        {
+            static void ValidateWorld(params WorldIntent[] world)
+            {
+                var scene = Scene(Actor());
+                scene.Actors["crate"] = new SceneActorDefinition("crate", SceneActorKind.Object, 2, new ScenePosition(0, 0, 0));
+                scene.Sequences[0] = new SceneSequenceDefinition();
+                scene.Sequences[5] = new SceneSequenceDefinition { World = world.ToList() };
+                Validate(scene);
+            }
+            ValidateWorld(new BarkActorIntent("says", "enemy", 848), new PoseActorIntent("works", "enemy", 8));
+            Assert.ThrowsExactly<MissionRuleException>(() => ValidateWorld(new BarkActorIntent("says", "enemy", 0)));
+            Assert.ThrowsExactly<MissionRuleException>(() => ValidateWorld(new BarkActorIntent("says", "crate", 848)));
+            Assert.ThrowsExactly<MissionRuleException>(() => ValidateWorld(new PoseActorIntent("works", "enemy", 99)));
+            Assert.ThrowsExactly<MissionRuleException>(() => ValidateWorld(new PoseActorIntent("works", "crate", 8)));
+        }
+
         private static SceneActorDefinition Actor(ActorGameplayPolicy policy = null) =>
             new("enemy", SceneActorKind.Creature, 510210, new ScenePosition(0, 0, 0), GameplayPolicy: policy);
 

@@ -338,6 +338,35 @@ namespace Rasa.Test.Missions
             Assert.IsEmpty(harness.Client.FarContacts.ToArray());
         }
 
+        /// <summary>
+        /// A contact a scene hides from the player (HiddenCreatures) is neither given from afar nor held as given; shown
+        /// again, the next pass gives him from afar.
+        /// </summary>
+        [TestMethod]
+        public void AHiddenContactIsGivenFromAfarOnceShownAgain()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var deSimone = Start(harness, finished: true);
+            MissionContacts.Sync(harness.Client);
+            Assert.IsTrue(harness.Client.FarContacts.Contains(deSimone.EntityId));
+            harness.Drain();
+
+            HiddenCreatures.Hide(harness.BootcampMap, new[] { deSimone.SpawnPool.DbId }, harness.Client.Player.Id, "test:holder");
+            Assert.HasCount(1, harness.Drain().OfType<DestroyPhysicalEntityPacket>().Where(packet => packet.EntityId == deSimone.EntityId).ToArray(),
+                "taken off the client that held him from afar");
+            MissionContacts.Sync(harness.Client);
+            Assert.IsFalse(harness.Client.FarContacts.Contains(deSimone.EntityId), "not held from afar while hidden");
+            Assert.IsEmpty(harness.Drain().OfType<CreatePhysicalEntityPacket>().Where(packet => packet.EntityId == deSimone.EntityId).ToArray(),
+                "nor given");
+
+            HiddenCreatures.Release(harness.BootcampMap, "test:holder");
+            harness.Drain();
+            MissionContacts.Sync(harness.Client);
+            Assert.IsTrue(harness.Client.FarContacts.Contains(deSimone.EntityId), "held from afar once shown");
+            Assert.HasCount(1, harness.Drain().OfType<CreatePhysicalEntityPacket>().Where(packet => packet.EntityId == deSimone.EntityId).ToArray(),
+                "and given from afar");
+        }
+
         [TestMethod]
         public void TheMapChecksEachClientEveryFewSeconds()
         {
