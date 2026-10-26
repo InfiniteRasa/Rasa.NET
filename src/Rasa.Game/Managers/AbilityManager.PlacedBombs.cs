@@ -65,8 +65,11 @@ namespace Rasa.Managers
         private static readonly List<PlacedBomb> PlacedBombs = new List<PlacedBomb>();
         private static readonly object PlacedBombsLock = new object();
 
+        /// <summary>Shared placement/worker clock; replaceable per manager for deterministic deadline tests.</summary>
+        internal Func<long> PlacedBombNow { get; set; } = () => Environment.TickCount64;
+
         /// <summary>Puts the bomb down in front of the player, its effect on it, and the bomb as the recovery's hit.</summary>
-        private static void PlaceBomb(MapChannel mapChannel, Manifestation player, ActionLevelInfo info, AbilityRecoveryPacket recovery)
+        private void PlaceBomb(MapChannel mapChannel, Manifestation player, ActionLevelInfo info, AbilityRecoveryPacket recovery)
         {
             var distance = info.Get(AbilityProperty.DropDistanceCentimeters, 20) / 100f;
             var min = info.Get(AbilityProperty.DamageAmountMin);
@@ -93,7 +96,7 @@ namespace Rasa.Managers
                 DamageMax = Math.Max(min, info.Get(AbilityProperty.DamageAmountMax, min)),
                 ScaleType = info.Get(AbilityProperty.DamageScaleType),
                 DamageType = (DamageType)info.Get(AbilityProperty.DamageType, (int)DamageType.EMP),
-                ExplodeAt = Environment.TickCount64 + Math.Max(0, info.Get(AbilityProperty.Delay, 5)) * 1000L
+                ExplodeAt = PlacedBombNow() + Math.Max(0, info.Get(AbilityProperty.Delay, 5)) * 1000L
             };
 
             // Not announced here: the recovery's hit announces it, as OnServerResolution does a
@@ -151,7 +154,7 @@ namespace Rasa.Managers
         internal void PlacedBombWorker(MapChannel mapChannel, long now = 0)
         {
             if (now == 0)
-                now = Environment.TickCount64;
+                now = PlacedBombNow();
 
             List<PlacedBomb> mine;
 
