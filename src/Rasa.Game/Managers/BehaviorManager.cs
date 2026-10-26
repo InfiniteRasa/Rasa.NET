@@ -845,8 +845,11 @@ namespace Rasa.Managers
                 var assisting = AssistedTarget(creature);
                 // Mission escorts and defenders already chose a target within their owner's or
                 // base's bounds above; ambient hate must not override that assignment.
+                // A scene's order to fight one target holds it while it can be fought (AttackActorIntent.HoldTarget).
+                var held = creature.SceneAttackOrder?.HoldTargetId ?? 0;
                 var chosen = LandingZoneAssaultTargeting.IsAssault(creature) || IsMissionEscort(creature) || Game.Missions.World.CreatureGameplayRules.IsDefender(creature)
                     ? creature.Controller.ActionFighting.TargetEntityId
+                    : held != 0 && Threat.CanFight(creature, held) ? held
                     : assisting != 0 ? assisting : Threat.ChooseTarget(creature);
 
                 if (assisting != 0)

@@ -11,6 +11,14 @@ namespace Rasa.Game.Missions.World
         ActorHandle Handle, ActorGameplayPolicy Policy, Func<bool> OwnsActor);
     internal sealed record ScriptedCombatAuthorization(ActorHandle Handle, string OperationKey);
 
+    /// <summary>
+    /// A scene's standing order to fight (AttackActorIntent, SceneWorldAdapter): the run that gave it, and the target it
+    /// holds to (0: none, it fights whom it hates most). While it stands no leash from home pulls the creature back
+    /// (BehaviorManager.ChasedTooFar). It ends with the order, the actor's removal, the run's detach or end, the role's
+    /// clearing and a public actor's reset (<see cref="CreatureGameplayRules.ClearSceneAttackOrder"/>).
+    /// </summary>
+    internal sealed record SceneAttackOrder(string RunId, ulong HoldTargetId);
+
     internal static class CreatureGameplayRules
     {
         internal static void BindRole(Creature creature, MapChannel map, ActorHandle handle,
@@ -35,11 +43,19 @@ namespace Rasa.Game.Missions.World
 
         internal static void ClearRole(Creature creature, ActorHandle handle = null)
         {
+            ClearSceneAttackOrder(creature, handle?.RunId);
             if (creature?.GameplayBinding is { } binding && (handle == null || binding.Handle == handle))
             {
                 creature.GameplayBinding = null;
                 creature.CombatParticipant = null;
             }
+        }
+
+        /// <summary>The creature's scene attack order ends: any order, or only the one <paramref name="runId"/> gave.</summary>
+        internal static void ClearSceneAttackOrder(Creature creature, string runId = null)
+        {
+            if (creature?.SceneAttackOrder is { } order && (runId == null || order.RunId == runId))
+                creature.SceneAttackOrder = null;
         }
 
         private static bool TryRolePolicy(Creature creature, out ActorGameplayPolicy policy)

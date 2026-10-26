@@ -88,7 +88,10 @@ namespace Rasa.Missions.Scenes
     public sealed record RunRouteIntent(string OperationKey, string Role, string Route, int StartWaypoint = 0,
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool ResumeAfterCombat = false)
         : WorldIntent(OperationKey, Role);
-    public sealed record AttackActorIntent(string OperationKey, string Role, string TargetRole = null)
+    // HoldTarget: the attacker keeps its target while the order stands, however much more it comes to hate someone else
+    // (1975: Quarsh shoots Tala even when the player's hits pile up on him first).
+    public sealed record AttackActorIntent(string OperationKey, string Role, string TargetRole = null,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool HoldTarget = false)
         : WorldIntent(OperationKey, Role);
     public sealed record FollowActorIntent(string OperationKey, string Role, uint CharacterId, bool Enabled = true) : WorldIntent(OperationKey, Role);
     public sealed record PresentationIntent(string OperationKey, PresentationKind Kind, uint Value) : WorldIntent(OperationKey, null);

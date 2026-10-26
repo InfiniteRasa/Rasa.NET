@@ -148,7 +148,9 @@ namespace Rasa.Managers
 
             foreach (var creature in map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList).Distinct().ToList())
             {
-                if (!MissionNpcVisibility.IsShownTo(client, creature) || !IsContact(creature, wanted) || InView(player, creature) || client.FarContacts.Contains(creature.EntityId))
+                // One hidden from the player (HiddenCreatures) is not given, nor held: shown again, it is given here.
+                if (!MissionNpcVisibility.IsShownTo(client, creature) || !IsContact(creature, wanted) || InView(player, creature) ||
+                    client.FarContacts.Contains(creature.EntityId) || HiddenCreatures.IsHiddenFrom(creature, client))
                     continue;
 
                 // The creature as any client is given it, its conversation status with it

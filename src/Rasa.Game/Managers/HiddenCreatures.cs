@@ -41,7 +41,11 @@ namespace Rasa.Managers
             var viewers = map.ClientList.Where(client => client?.Player?.Id == characterId).ToArray();
             foreach (var creature in Standing(map, pools))
                 foreach (var viewer in viewers)
+                {
+                    // Held from afar (MissionContacts) it is taken off too, and given from afar again once shown.
+                    viewer.FarContacts.Remove(creature.EntityId);
                     viewer.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(creature.EntityId));
+                }
         }
 
         /// <summary>Whatever <paramref name="holder"/> kept hidden: shown again where no other holder keeps it.</summary>
