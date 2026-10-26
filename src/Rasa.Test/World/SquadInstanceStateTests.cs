@@ -182,6 +182,36 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void APoolAMissionStagesRespawnsOnItsOwnTimeInASquadInstance()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            using var world = new WorldTestContext();
+            var fixture = World(harness, world, saved: false);
+            var instance = fixture.Into(fixture.Player());
+            var (a, b) = (Pool(instance, PoolA), Pool(instance, PoolB));
+            var staged = SpawnPoolManager.Instance.IsStaged;
+            try
+            {
+                // A pool of a public mission NPC (as Out of Thin Air's prisoner): no camp to clear.
+                SpawnPoolManager.Instance.IsStaged = id => id == PoolA;
+                Spawns(instance, 0);
+                Kill(instance, a);
+                Kill(instance, b);
+
+                Spawns(instance, OwnRespawnMs - 1);
+                Assert.AreEqual(0, a.AliveCreatures);
+                Spawns(instance, 1);
+                Assert.AreEqual(2, a.AliveCreatures, "back on its own respawn time, the wall clock not moved");
+                Assert.AreEqual(0, a.ClearedAtUtcMs);
+                Assert.AreEqual(0, b.AliveCreatures, "the other pool waits for the instance's 45 minutes");
+            }
+            finally
+            {
+                SpawnPoolManager.Instance.IsStaged = staged;
+            }
+        }
+
+        [TestMethod]
         public void AMapResetBringsEveryPoolBackAtOnceAndForgetsThatTheyWereDead()
         {
             using var harness = BootcampRuntimeTestHarness.Create();
