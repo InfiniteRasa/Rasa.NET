@@ -1046,7 +1046,18 @@ namespace Rasa.Managers
                         CellManager.Instance.CellCallMethod(obj, new ForceStatePacket(obj.StateId, 0));
                     }
 
+                    // LootCorpse posts UI_SHOW_CORPSELOOT, which also opens the backpack even
+                    // when the corpse window has no rows. Never send it without a takeable item.
                     var remaining = loot.Remaining();
+                    if (!remaining.Any(item => item.MayTake(client.Player.EntityId)))
+                    {
+                        loot.CurrentLooter = 0;
+                        if (loot.Credits > 0)
+                            Claim(client, loot, Array.Empty<LootItem>(), null, lootAll: true, quiet: true);
+                        LootInfo(client, loot);
+                        CanLootItems(client, loot);
+                        return;
+                    }
                     foreach (var lootItem in remaining)
                         if (lootItem.Item != null)
                             ItemManager.Instance.SendItemDataToClient(client, lootItem.Item, false);
