@@ -71,6 +71,7 @@ namespace Rasa.Repositories.World
                     row.Spacing = type.Spacing;
                     row.EngageRange = type.EngageRange;
                     row.Tether = type.Tether;
+                    row.LeaderBystander = type.LeaderBystander;
                 }
 
                 _worldContext.NpcSquadMemberEntries.RemoveRange(_worldContext.NpcSquadMemberEntries.Where(e => e.TypeId == type.Id));
@@ -161,7 +162,7 @@ namespace Rasa.Repositories.World
         private static NpcSquadTypeEntry Copy(NpcSquadTypeEntry type) => new()
         {
             Id = type.Id, Name = type.Name, Formation = type.Formation, Spacing = type.Spacing, EngageRange = type.EngageRange,
-            Tether = type.Tether
+            Tether = type.Tether, LeaderBystander = type.LeaderBystander
         };
 
         private static NpcSquadSpawnEntry Copy(NpcSquadSpawnEntry spawn) => new()

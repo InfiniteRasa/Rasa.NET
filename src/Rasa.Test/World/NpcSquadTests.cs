@@ -21,8 +21,8 @@ namespace Rasa.Test.World
     /// <summary>
     /// NPC squads (NpcSquads; npc_squad_*): the tables, the formations, a GM making a squad in
     /// game and exporting it, and squads in the Wilderness - sent, walking a route in formation,
-    /// joining a fight, gathering after it, losing a leader, and sent again after a wipe; and a
-    /// member fighting on a tether to its leader.
+    /// joining a fight, gathering after it, losing a leader, and sent again after a wipe; a
+    /// member fighting on a tether to its leader; and a leader who is a bystander his members guard.
     /// </summary>
     [TestClass]
     [DoNotParallelize]
@@ -30,8 +30,10 @@ namespace Rasa.Test.World
     {
         private const string Migration = "20270902000000_Npc_squads";
         private const string Previous = "20270901000000_Forget_restamped_migration_ids";
-        private const string Latest = "20270919000000_Npc_squad_tether";
+        private const string Latest = "20270925000000_Npc_squad_leader_bystander";
+        private const string Tethered = "20270919000000_Npc_squad_tether";
         private const string BeforeTether = "20270918000000_Solis_escort_staff";
+        private const string BeforeBystander = "20270922021100_Plateau_holy_vengeance";
 
         private static readonly string[] Tables = { "npc_squad_type", "npc_squad_member", "npc_squad_path", "npc_squad_path_point", "npc_squad_spawn" };
 
@@ -80,7 +82,7 @@ namespace Rasa.Test.World
                 Assert.AreEqual(0, Count(database, $"SELECT COUNT(*) FROM {table}"), table);
 
             // The repository works on the tables as the model has them now: with the columns a
-            // later migration added (Alia_das_afs_squad, Npc_squad_tether), whose squad is cleared
+            // later migration added (Alia_das_afs_squad, Npc_squad_tether, Npc_squad_leader_bystander), whose squad is cleared
             // away first.
             migrator.Migrate(Latest);
             foreach (var table in Tables)
@@ -90,7 +92,7 @@ namespace Rasa.Test.World
 
             Assert.IsTrue(squads.SaveType(new NpcSquadTypeEntry { Id = 1, Name = "Rifles", Formation = 1, Spacing = 4, EngageRange = 25 },
                 new[] { Member(1, 0, AfsSoldier, 1, 1), Member(1, 1, AfsSoldier, 2, 4) }));
-            Assert.IsTrue(squads.SaveType(new NpcSquadTypeEntry { Id = 1, Name = "Rifle squad", Formation = 0, Spacing = 3, EngageRange = 0, Tether = 30 },
+            Assert.IsTrue(squads.SaveType(new NpcSquadTypeEntry { Id = 1, Name = "Rifle squad", Formation = 0, Spacing = 3, EngageRange = 0, Tether = 30, LeaderBystander = 1 },
                 new[] { Member(1, 0, AfsSoldier, 2, 3) }));
             Assert.IsTrue(squads.SavePath(new NpcSquadPathEntry { Id = 7, MapContextId = 1220, Name = "Road", Mode = 1 },
                 new[] { Point(7, 0, 1, 2, 3, 0), Point(7, 1, 4, 5, 6, 2500), Point(7, 2, 7, 8, 9, 0) }));
@@ -98,6 +100,7 @@ namespace Rasa.Test.World
 
             Assert.AreEqual("Rifle squad", squads.GetTypes().Single().Name);
             Assert.AreEqual(30.0, squads.GetTypes().Single().Tether);
+            Assert.AreEqual(1, squads.GetTypes().Single().LeaderBystander);
             Assert.AreEqual(3, squads.GetMembers().Single().MaxCount, "the type's members replaced, not added to");
             CollectionAssert.AreEqual(new uint[] { 0, 1, 2 }, squads.GetPathPoints().Select(point => point.Step).ToArray());
             Assert.AreEqual(2500u, squads.GetPathPoints()[1].PauseMs);
@@ -459,7 +462,7 @@ namespace Rasa.Test.World
             var types = Count(database, "SELECT COUNT(*) FROM npc_squad_type");
             Assert.IsTrue(types > 0, "Alia Das's squad is there to be given one");
 
-            migrator.Migrate(Latest);
+            migrator.Migrate(Tethered);
             Assert.AreEqual(types, Count(database, "SELECT COUNT(*) FROM npc_squad_type WHERE tether = 0"), "no tether: as they went before");
 
             migrator.Migrate(BeforeTether);
@@ -469,8 +472,8 @@ namespace Rasa.Test.World
             using var context = PersistenceIntegrationTests.CreateContext(typeof(Rasa.Context.World.MySqlWorldContext), "unused");
             var mysql = context.GetService<IMigrator>();
 
-            StringAssert.Contains(mysql.GenerateScript(BeforeTether, Latest), "ADD `tether` double NOT NULL DEFAULT 0");
-            StringAssert.Contains(mysql.GenerateScript(Latest, BeforeTether), "DROP COLUMN `tether`");
+            StringAssert.Contains(mysql.GenerateScript(BeforeTether, Tethered), "ADD `tether` double NOT NULL DEFAULT 0");
+            StringAssert.Contains(mysql.GenerateScript(Tethered, BeforeTether), "DROP COLUMN `tether`");
         }
 
         [TestMethod]
@@ -493,7 +496,7 @@ namespace Rasa.Test.World
 
             // The export gives it back.
             var sql = S.ExportSql(0);
-            StringAssert.Contains(sql, "engage_range, tether) VALUES (1, 'Guards', 0, 3, 0, 22.5);");
+            StringAssert.Contains(sql, "engage_range, tether, leader_bystander) VALUES (1, 'Guards', 0, 3, 0, 22.5, 0);");
 
             foreach (var table in Tables)
                 world.Database.ExecuteSqlRaw($"DELETE FROM {table}");
@@ -1013,6 +1016,132 @@ namespace Rasa.Test.World
             creature.Actions.Clear();
             creature.WalkSpeed = creature.RunSpeed = 0;
             creature.Position = at;
+        }
+
+        #endregion
+
+        #region The bystander leader
+
+        [TestMethod]
+        public void TheBystanderFlagGoesInAtNoneForTheTypesThereAreAndDownTakesItOut()
+        {
+            using var database = new OrdinaryLootTestDatabase();
+            var migrator = database.Context.GetService<IMigrator>();
+
+            migrator.Migrate(BeforeBystander);
+            Assert.IsFalse(HasColumn(database, "npc_squad_type", "leader_bystander"));
+            var types = Count(database, "SELECT COUNT(*) FROM npc_squad_type");
+            Assert.IsTrue(types > 0, "Alia Das's squad is there to be given one");
+
+            migrator.Migrate(Latest);
+            Assert.AreEqual(types, Count(database, "SELECT COUNT(*) FROM npc_squad_type WHERE leader_bystander = 0"), "none: as they went before");
+
+            migrator.Migrate(BeforeBystander);
+            Assert.IsFalse(HasColumn(database, "npc_squad_type", "leader_bystander"));
+            Assert.AreEqual(types, Count(database, "SELECT COUNT(*) FROM npc_squad_type"));
+
+            using var context = PersistenceIntegrationTests.CreateContext(typeof(Rasa.Context.World.MySqlWorldContext), "unused");
+            var mysql = context.GetService<IMigrator>();
+
+            StringAssert.Contains(mysql.GenerateScript(BeforeBystander, Latest), "ADD `leader_bystander` tinyint unsigned NOT NULL DEFAULT 0");
+            StringAssert.Contains(mysql.GenerateScript(Latest, BeforeBystander), "DROP COLUMN `leader_bystander`");
+        }
+
+        [TestMethod]
+        public void AGmMakesASquadTypesLeaderABystanderAndItIsSavedAndExported()
+        {
+            using var harness = Create();
+
+            Say(harness, ".squad type new Escort");
+            Say(harness, $".squad type 1 add {AfsSoldier}");
+            Assert.IsFalse(Say(harness, ".squad type 1").First().Contains("bystander"));
+
+            var said = Say(harness, ".squad type 1 bystander on").Single();
+            Assert.IsFalse(said.Contains("NOT SAVED"), said);
+            StringAssert.Contains(said, "its leader a bystander");
+            Assert.IsTrue(S.Types[1].LeaderBystander);
+
+            var world = harness.World;
+            world.ChangeTracker.Clear();
+            Assert.AreEqual(1, world.NpcSquadTypeEntries.AsNoTracking().Single().LeaderBystander);
+
+            // The export gives it back.
+            var sql = S.ExportSql(0);
+            StringAssert.Contains(sql, "engage_range, tether, leader_bystander) VALUES (1, 'Escort', 0, 3, 0, 0, 1);");
+
+            foreach (var table in Tables)
+                world.Database.ExecuteSqlRaw($"DELETE FROM {table}");
+            foreach (var line in sql.Split('\n').Where(line => line.StartsWith("INSERT")))
+                world.Database.ExecuteSqlRaw(line);
+
+            S.Init(harness);
+            Assert.IsTrue(S.Types[1].LeaderBystander);
+
+            Say(harness, ".squad type 1 bystander off");
+            Assert.IsFalse(S.Types[1].LeaderBystander);
+
+            foreach (var bad in new[] { ".squad type 1 bystander yes", ".squad type 1 bystander" })
+            {
+                StringAssert.Contains(Say(harness, bad).Single(), "bystander on|off", bad);
+                Assert.IsFalse(S.Types[1].LeaderBystander, bad);
+            }
+        }
+
+        [TestMethod]
+        public void ABystanderLeaderTakesUpNoFightAndStandsWhileHisMembersFightByHimAndTheNextLeaderFights()
+        {
+            using var harness = Create();
+            var road = Road(harness);
+
+            Squad(harness, AfsSoldier, 0, 3, S.Formation.Line, road, S.PathMode.Loop);
+            Say(harness, ".squad type 1 bystander on");
+            S.Types[1].EngageRange = 0.5f;
+            Step(harness, 250);
+            var squad = S.On(harness.Map)[1];
+
+            for (var i = 0; i < 8; i++)
+                Step(harness, 250);
+
+            var leader = squad.Leader;
+            Assert.IsTrue(S.IsBystander(leader.Creature), "the leader it was sent with");
+            Assert.IsTrue(squad.Members.Where(m => m != leader).All(m => !S.IsBystander(m.Creature)), "his members are none");
+
+            // A Thrax by them, which does nothing; one of the members takes it on.
+            var thrax = harness.Creatures.CreateCreature(ThraxSoldier, null);
+            var at = harness.Map.NavMesh.Nearest(leader.Creature.Position + new Vector3(6f, 0, 0)) ?? throw new AssertFailedException("no navmesh there");
+            CreatureManager.Instance.SetLocation(thrax, at, 0, 1220);
+            thrax.AggroRange = 0.5f;
+            CellManager.Instance.AddToWorld(harness.Map, thrax);
+            PinAt(thrax, at);
+            thrax.Attributes[Attributes.Health].Current = thrax.Attributes[Attributes.Health].CurrentMax = thrax.Attributes[Attributes.Health].NormalMax = 1_000_000;
+            harness.MoveTo(Start);
+
+            var member = squad.Members[1];
+            member.Creature.Hate.Ensure(thrax.EntityId, Threat.NoticedThreat);
+            BehaviorManager.Instance.SetActionFighting(member.Creature, thrax.EntityId);
+            var stood = leader.Creature.Position;
+
+            Step(harness, 250);
+            Step(harness, 250);
+
+            Assert.AreEqual(S.Phase.Fighting, squad.Phase);
+            Assert.IsTrue(squad.Members.Where(m => m != leader).All(m => m.Creature.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting &&
+                m.Creature.Controller.ActionFighting.TargetEntityId == thrax.EntityId), "his members on it");
+            Assert.AreEqual(BehaviorManager.BehaviorActionSquad, leader.Creature.Controller.CurrentAction, "he is not taken in");
+            Assert.IsTrue(Flat(leader.Creature.Position - stood) < 1f, $"he stands: {Flat(leader.Creature.Position - stood):0.0} m on");
+
+            // Nor by a hit, nor by his own scan, nor by anything else.
+            Threat.FromDamage(leader.Creature, thrax, 10);
+            Assert.AreNotEqual(BehaviorManager.BehaviorActionFighting, leader.Creature.Controller.CurrentAction, "a hit");
+            Assert.IsFalse(S.MayTakeUp(leader.Creature, thrax.EntityId), "his scan");
+            Assert.IsFalse(BehaviorManager.Instance.TrySetActionFighting(leader.Creature, thrax.EntityId), "anything else");
+
+            // He falls: the next of them leads, and is no bystander.
+            Kill(leader.Creature);
+            Step(harness, 250);
+            Assert.AreNotSame(leader, squad.Leader);
+            Assert.IsFalse(S.IsBystander(squad.Leader.Creature));
+            Assert.IsTrue(S.MayTakeUp(squad.Leader.Creature, thrax.EntityId));
         }
 
         private static bool HasColumn(OrdinaryLootTestDatabase database, string table, string column) =>

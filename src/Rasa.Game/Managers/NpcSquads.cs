@@ -38,7 +38,8 @@ namespace Rasa.Managers
     /// of them is in a fight the squad stops and the others join it, on the same target; when it
     /// is over they gather on him again and go on from where they left the path. A leader who
     /// falls is replaced by the next of them. A squad type with a tether keeps its members by
-    /// their leader in a fight (<see cref="TetherOf"/>). Each map channel has its own squads - every copy of
+    /// their leader in a fight (<see cref="TetherOf"/>); one whose leader is a bystander keeps him out of
+    /// every fight and its members fight by him (<see cref="IsBystander"/>). Each map channel has its own squads - every copy of
     /// an instance its own - and they are sent when the first player comes onto the map.
     ///
     /// GMs make them in game (.squad): types, paths walked and recorded point by point, spawns put
@@ -121,6 +122,9 @@ namespace Rasa.Managers
 
             /// <summary>How far from the leader a member goes in a fight; 0 for no tether (<see cref="TetherOf"/>).</summary>
             public float Tether { get; set; }
+
+            /// <summary>Whether the leader, as the squad is sent, is a bystander its members guard (<see cref="IsBystander"/>).</summary>
+            public bool LeaderBystander { get; set; }
 
             public List<MemberLine> Members { get; } = new();
         }
@@ -206,7 +210,8 @@ namespace Rasa.Managers
             {
                 Id = row.Id, Name = row.Name, Formation = (Formation)Math.Min(row.Formation, (byte)Formation.Line),
                 Spacing = row.Spacing > 0 ? (float)row.Spacing : (float)DefaultSpacing, EngageRange = (float)Math.Max(0, row.EngageRange),
-                Tether = double.IsFinite(row.Tether) ? (float)Math.Max(0, row.Tether) : 0
+                Tether = double.IsFinite(row.Tether) ? (float)Math.Max(0, row.Tether) : 0,
+                LeaderBystander = row.LeaderBystander != 0
             });
 
             foreach (var row in (members ?? Enumerable.Empty<NpcSquadMemberEntry>()).OrderBy(row => row.Slot))
@@ -263,6 +268,9 @@ namespace Rasa.Managers
             /// <summary>The way he faces when he is there.</summary>
             public float Facing { get; internal set; }
 
+            /// <summary>The leader the squad was sent with, of a type whose leader is a bystander (<see cref="IsBystander"/>).</summary>
+            public bool Bystander { get; internal set; }
+
             // The walker's (BehaviorManager.AdvanceSquad).
             internal Vector3? PathGoal;
             internal long RepathMs;
@@ -307,6 +315,15 @@ namespace Rasa.Managers
 
         /// <summary>The squads on a map channel, by spawn.</summary>
         public static IReadOnlyDictionary<uint, LiveSquad> On(MapChannel map) => map == null ? new Dictionary<uint, LiveSquad>() : StateOf(map).Squads;
+
+        /// <summary>
+        /// Whether the creature is the bystander leader of its squad (npc_squad_type.leader_bystander): the leader it was
+        /// sent with - a talkable NPC his guards walk with (Nakrinx, Valverde Pools). He takes up no fight, neither his
+        /// squad's (Think) nor his scan's (<see cref="MayTakeUp"/>) nor one a hit or anything else would start - all go
+        /// through BehaviorManager.CanSetActionFighting - and while they fight he stands, as a squad in a fight does, so
+        /// they fight by him and a tether holds them to him. When he falls the next of them leads, and fights as any.
+        /// </summary>
+        public static bool IsBystander(Creature creature) => creature?.SquadMember?.Bystander == true;
 
         /// <summary>How far the creature, one of a squad's, looks for a fight.</summary>
         public static float EngageRange(Creature creature)
@@ -408,10 +425,14 @@ namespace Rasa.Managers
         /// does, but one of a squad on a tether only with a target within
         /// <see cref="RejoinDistance"/> of its leader - else it would go out to its tether's end,
         /// hold, go back, see the target again and go out again for as long as it stood there.
-        /// Being shot it fights back regardless, and holds evading at its tether's end.
+        /// Being shot it fights back regardless, and holds evading at its tether's end. A bystander
+        /// leader takes up none (<see cref="IsBystander"/>): he walks on.
         /// </summary>
         public static bool MayTakeUp(Creature creature, ulong targetEntityId)
         {
+            if (IsBystander(creature))
+                return false;
+
             var leader = TetherOf(creature, out var tether);
 
             return leader == null || EntityManager.Instance.GetActor(targetEntityId) is Actor target &&
@@ -555,6 +576,7 @@ namespace Rasa.Managers
             }
 
             var member = new Member(squad, creature) { Place = squad.Members.Count };
+            member.Bystander = type?.LeaderBystander == true && member.Place == 0;
             var spot = map?.NavMesh?.Nearest(spawn.Position) ?? spawn.Position;
             var at = PlaceOf(map, type, member.Place, spot, squad.Heading);
 
@@ -897,7 +919,7 @@ namespace Rasa.Managers
         private static readonly Dictionary<uint, uint> Recording = new();
 
         public const string Help =
-            ".squad [types|paths|spawns|export] | .squad type new <name> | .squad type <id> [add <creature> [min] [max]|remove <slot>|formation wedge|column|line|spacing <m>|engage <m>|tether <m>|name <name>|delete] | " +
+            ".squad [types|paths|spawns|export] | .squad type new <name> | .squad type <id> [add <creature> [min] [max]|remove <slot>|formation wedge|column|line|spacing <m>|engage <m>|tether <m>|bystander on|off|name <name>|delete] | " +
             ".squad path new <name> [loop|back|once] | .squad path <id> [record|add [how]|insert <step> [how]|set <step> [how]|move <step>|undo|remove <step>|mode loop|back|once|name <name>|delete] | " +
             ".squad point [how] - how: [pause s] [run|walk] [engage <m>] | " +
             ".squad spawn add <type> [path] [respawn s] [comment] | .squad spawn <id> [type|path|respawn <v>|comment <text>|arrival none|teleport|move|enable|disable|send|delete]";
@@ -1064,6 +1086,15 @@ namespace Rasa.Managers
                         return;
                     }
                     found.Tether = tether;
+                    break;
+
+                case "bystander":
+                    if (args.Length < 3 || args[2].ToLowerInvariant() is not ("on" or "off"))
+                    {
+                        say.Add($".squad type {id} bystander on|off: whether the leader it is sent with takes up no fight and its members guard him.");
+                        return;
+                    }
+                    found.LeaderBystander = args[2].ToLowerInvariant() == "on";
                     break;
 
                 case "name":
@@ -1352,7 +1383,7 @@ namespace Rasa.Managers
 
         private static string Describe(SquadType type) =>
             $"Type {type.Id} {type.Name}: {type.Formation}, {type.Spacing:0.#} m apart, engages at {(type.EngageRange > 0 ? $"{type.EngageRange:0.#} m" : "its creatures' range")}, " +
-            $"{(type.Tether > 0 ? $"tethered at {type.Tether:0.#} m" : "no tether")}; " +
+            $"{(type.Tether > 0 ? $"tethered at {type.Tether:0.#} m" : "no tether")}{(type.LeaderBystander ? ", its leader a bystander" : string.Empty)}; " +
             (type.Members.Count == 0 ? "no members" : string.Join(", ", type.Members.Select(m => $"{m.CreatureId} {CreatureName(m.CreatureId)} x{m.MinCount}-{m.MaxCount}")));
 
         private static string Describe(SquadPath path, Manifestation gm) =>
@@ -1436,7 +1467,8 @@ namespace Rasa.Managers
 
         private static bool SaveType(SquadType type) =>
             Write(squads => squads.SaveType(
-                new NpcSquadTypeEntry { Id = type.Id, Name = type.Name, Formation = (byte)type.Formation, Spacing = type.Spacing, EngageRange = type.EngageRange, Tether = type.Tether },
+                new NpcSquadTypeEntry { Id = type.Id, Name = type.Name, Formation = (byte)type.Formation, Spacing = type.Spacing, EngageRange = type.EngageRange, Tether = type.Tether,
+                    LeaderBystander = (byte)(type.LeaderBystander ? 1 : 0) },
                 type.Members.Select(m => new NpcSquadMemberEntry { TypeId = type.Id, Slot = m.Slot, CreatureId = m.CreatureId, MinCount = m.MinCount, MaxCount = m.MaxCount }).ToList()));
 
         private static bool SavePath(SquadPath path) =>
@@ -1487,7 +1519,7 @@ namespace Rasa.Managers
 
             foreach (var type in types)
             {
-                sql.AppendLine(FormattableString.Invariant($"INSERT INTO npc_squad_type (id, name, formation, spacing, engage_range, tether) VALUES ({type.Id}, {Quote(type.Name)}, {(byte)type.Formation}, {N(type.Spacing)}, {N(type.EngageRange)}, {N(type.Tether)});"));
+                sql.AppendLine(FormattableString.Invariant($"INSERT INTO npc_squad_type (id, name, formation, spacing, engage_range, tether, leader_bystander) VALUES ({type.Id}, {Quote(type.Name)}, {(byte)type.Formation}, {N(type.Spacing)}, {N(type.EngageRange)}, {N(type.Tether)}, {(type.LeaderBystander ? 1 : 0)});"));
 
                 foreach (var line in type.Members)
                     sql.AppendLine(FormattableString.Invariant($"INSERT INTO npc_squad_member (type_id, slot, creature_id, min_count, max_count) VALUES ({type.Id}, {line.Slot}, {line.CreatureId}, {line.MinCount}, {line.MaxCount});"));

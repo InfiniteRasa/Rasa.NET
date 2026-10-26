@@ -3053,6 +3053,10 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnType("REAL")
                         .HasColumnName("tether");
 
+                    b.Property<byte>("LeaderBystander")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("leader_bystander");
+
                     b.HasKey("Id");
 
                     b.ToTable("npc_squad_type");
