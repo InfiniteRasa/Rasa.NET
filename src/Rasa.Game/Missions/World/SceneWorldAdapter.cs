@@ -364,6 +364,9 @@ namespace Rasa.Game.Missions.World
                     actor.Creature.Hate.Ensure(target.EntityId, rival * Threat.TakeoverPercent / 100.0 + Threat.NoticedThreat);
                 }
                 world.Attacks[intent.Role] = (intent.OperationKey, target.EntityId);
+                // Sent at its target, it goes there: a scene places its attackers where it likes, often further from
+                // the target than the leash from home allows (1178: the first wave 100 m and more north of Villaran).
+                actor.Creature.SceneAttackOrdered = true;
                 return WorldEffectResult.Applied();
             }
             if (intent is FollowActorIntent follow)
@@ -782,6 +785,8 @@ namespace Rasa.Game.Missions.World
                 var ownedCombat = false;
                 if (world.Actors.TryGetValue(control.Key, out var controlled))
                 {
+                    if (controlled.Creature != null)
+                        controlled.Creature.SceneAttackOrdered = false;
                     ownedCombat = controlled.Creature?.ScriptedCombatAuthorization is { } authorization &&
                         authorization.Handle == controlled.Handle && authorization.OperationKey == operationKey;
                     _leases.RevokeCombat(world.Map, controlled.Handle, operationKey);

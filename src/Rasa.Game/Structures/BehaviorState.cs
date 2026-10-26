@@ -35,6 +35,13 @@ namespace Rasa.Structures
         internal Vector3 Destination { get; init; }
         internal double Orientation { get; init; }
         internal bool Arrived { get; set; }
+
+        /// <summary>
+        /// A hit on the walker starts its fight (Threat.FromDamage): a scene route that resumes after combat
+        /// (RunRouteIntent.ResumeAfterCombat, SceneRouteController) holds while it fights and goes on after. Any other
+        /// scripted walk keeps walking through hits.
+        /// </summary>
+        internal bool FightsBack { get; set; }
     }
 
     public class ActionFighting

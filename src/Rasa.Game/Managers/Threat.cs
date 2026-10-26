@@ -92,7 +92,8 @@ namespace Rasa.Managers
             if (victim.Controller != null
                 && (victim.Controller.CurrentAction == BehaviorManager.BehaviorActionWander
                     || victim.Controller.CurrentAction == BehaviorManager.BehaviorActionPatrol
-                    || victim.Controller.CurrentAction == BehaviorManager.BehaviorActionFollowingPath))
+                    || victim.Controller.CurrentAction == BehaviorManager.BehaviorActionFollowingPath
+                    || victim.Controller.CurrentAction == BehaviorManager.BehaviorActionScriptedMove && victim.Controller.ScriptedMove?.FightsBack == true))
                 BehaviorManager.Instance.SetActionFighting(victim, attacker.EntityId);
         }
 
