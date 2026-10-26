@@ -3111,6 +3111,10 @@ namespace Rasa.Migrations.MySqlWorld
                         .HasColumnType("double")
                         .HasColumnName("spacing");
 
+                    b.Property<double>("Tether")
+                        .HasColumnType("double")
+                        .HasColumnName("tether");
+
                     b.HasKey("Id");
 
                     b.ToTable("npc_squad_type");

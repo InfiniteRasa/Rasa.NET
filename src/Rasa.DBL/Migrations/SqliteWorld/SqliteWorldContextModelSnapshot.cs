@@ -3049,6 +3049,10 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnType("REAL")
                         .HasColumnName("spacing");
 
+                    b.Property<double>("Tether")
+                        .HasColumnType("REAL")
+                        .HasColumnName("tether");
+
                     b.HasKey("Id");
 
                     b.ToTable("npc_squad_type");

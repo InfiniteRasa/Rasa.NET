@@ -119,7 +119,7 @@ namespace Rasa.Managers
             // Nor a death's penalties (PlayerDeath.IsDeathPenalty), which Cure does not take off
             // either: no Protect is a way out of them.
             if (!effect.IsBuff && !effect.Environmental && !PlayerDeath.IsDeathPenalty(effect.TypeId)
-                && (DebuffsBlocked(actor) || actor is Creature returning && BehaviorManager.IsReturning(returning)))
+                && (DebuffsBlocked(actor) || actor is Creature returning && (BehaviorManager.IsReturning(returning) || NpcSquads.Evades(returning))))
             {
                 CellManager.Instance.CellCallMethod(mapChannel, actor,
                     new GameEffectAttachFailedPacket(effect.TypeId, GameEffectAttachFailedPacket.FailReason.Immune, effect.SourceId));
