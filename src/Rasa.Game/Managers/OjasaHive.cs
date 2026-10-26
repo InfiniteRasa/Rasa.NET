@@ -734,7 +734,7 @@ namespace Rasa.Managers
                 return;
 
             health.Current = health.CurrentMax;
-            CellManager.Instance.CellCallMethod(creature, new UpdateAttributesPacket(creature.Attributes, 0));
+            CellManager.Instance.CellCallMethod(creature, new UpdateAttributesPacket(GameEffectManager.WithRegen(creature), 0));
         }
 
         /// <summary>Alive and still in the world as itself (as FithikEggClusters counts its hatchlings).</summary>

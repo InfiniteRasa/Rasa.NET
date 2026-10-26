@@ -31,7 +31,11 @@ namespace Rasa.Packets.MapChannel.Server
                 pw.WriteInt(attribute.Current);
                 pw.WriteInt(attribute.NormalMax);
                 pw.WriteInt(attribute.CurrentMax);
-                pw.WriteInt(attribute.RefreshAmount);
+                // Recv_UpdateAttributes uses the same one-second UpdateAttribute path.
+                if (attribute.AttributeId == Attributes.Armor)
+                    UpdateArmorPacket.WriteRefreshAmount(pw, attribute);
+                else
+                    pw.WriteInt(attribute.RefreshAmount);
             }
             pw.WriteULong(WhoId);
         }

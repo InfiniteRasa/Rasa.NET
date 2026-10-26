@@ -713,7 +713,7 @@ namespace Rasa.Managers
                 new AttributeInfoPacket(creature),
                 // HOSTILE to an enemy of the player it belongs to (Pvp), its own category otherwise.
                 new TargetCategoryPacket(client?.Player != null ? Pvp.CategoryFor(creature, client.Player) : creature.TargetCategory),
-                new UpdateAttributesPacket(creature.Attributes, 0),
+                new UpdateAttributesPacket(GameEffectManager.WithRegen(creature), 0),
                 new IsRunningPacket(creature.IsRunning)
             };
             if (creature.State != CharacterState.Dead &&
