@@ -187,6 +187,7 @@ namespace Rasa.Game.Missions.World
             if (intent is RemoveActorIntent)
             {
                 _routes.Cancel(run.Id, intent.Role);
+                CreatureGameplayRules.ClearSceneAttackOrder(actor.Creature, run.Id);
                 if (definition.Kind == SceneActorKind.PublicSpawn)
                 {
                     if (!world.Map.IsPrivateInstance)
@@ -352,7 +353,7 @@ namespace Rasa.Game.Missions.World
                 world.Attacks[intent.Role] = (intent.OperationKey, target.EntityId);
                 // Sent at its target, it goes there: a scene places its attackers where it likes, often further from
                 // the target than the leash from home allows (1178: the first wave 100 m and more north of Villaran).
-                actor.Creature.SceneAttackOrdered = true;
+                actor.Creature.SceneAttackOrder = new SceneAttackOrder(world.Run.Id, attack.HoldTarget ? target.EntityId : 0);
                 return WorldEffectResult.Applied();
             }
             if (intent is FollowActorIntent follow)
@@ -695,6 +696,9 @@ namespace Rasa.Game.Missions.World
             _routes.Cancel(runId);
             if (_runs.TryGetValue(runId, out var leaving))
                 HiddenCreatures.ReleaseAll(leaving.Map, HideHolder(runId, ""));
+            if (_runs.TryGetValue(runId, out var ordered))
+                foreach (var actor in ordered.Actors.Values)
+                    CreatureGameplayRules.ClearSceneAttackOrder(actor.Creature, runId);
             if (_runs.Remove(runId, out var world))
                 foreach (var actor in world.Actors.Values.Where(actor => actor.Creature != null &&
                     (world.Map.IsPrivateInstance || world.Bindings.Actors[actor.Handle.Role].Kind != SceneActorKind.PublicSpawn)))
@@ -752,8 +756,7 @@ namespace Rasa.Game.Missions.World
                 var ownedCombat = false;
                 if (world.Actors.TryGetValue(control.Key, out var controlled))
                 {
-                    if (controlled.Creature != null)
-                        controlled.Creature.SceneAttackOrdered = false;
+                    CreatureGameplayRules.ClearSceneAttackOrder(controlled.Creature, runId);
                     ownedCombat = controlled.Creature?.ScriptedCombatAuthorization is { } authorization &&
                         authorization.Handle == controlled.Handle && authorization.OperationKey == operationKey;
                     _leases.RevokeCombat(world.Map, controlled.Handle, operationKey);

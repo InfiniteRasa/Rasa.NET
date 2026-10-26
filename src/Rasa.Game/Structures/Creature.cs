@@ -146,9 +146,11 @@ namespace Rasa.Structures
         /// <summary>
         /// A scene has ordered this creature into a fight (AttackActorIntent, SceneWorldAdapter) and the order stands: it
         /// goes to its target however far that is from where it was spawned, so no leash by distance from home
-        /// (BehaviorManager.ChasedTooFar) pulls it back. Cleared when the order is cancelled.
+        /// (BehaviorManager.ChasedTooFar) pulls it back; with a held target it fights that one. Ended on every way the
+        /// order or the run ends (CreatureGameplayRules.ClearSceneAttackOrder).
         /// </summary>
-        internal bool SceneAttackOrdered { get; set; }
+        internal Game.Missions.World.SceneAttackOrder SceneAttackOrder { get; set; }
+        internal bool SceneAttackOrdered => SceneAttackOrder != null;
 
         /// <summary>
         /// The player this creature belongs to, or 0 for an ordinary world creature.
