@@ -366,19 +366,20 @@ namespace Rasa.Game.Missions.World
                 if (!BehaviorManager.Instance.TrySetActionFighting(actor.Creature, target.EntityId))
                     return SuppressAttack(world, actor, intent.OperationKey,
                         "The actor refused the fight after its combat authorization was checked.");
-                // An order to fight another actor of the scene is the one it follows: its target is put past what
-                // anyone else on its table could take it over with (Threat.TakeoverPercent), or the player whose hit
-                // started it was hated more at once and taken instead (1975: Quarsh shoots Tala at the first hit).
-                if (attack.TargetRole != null)
+                // An order to fight and hold another actor of the scene is the one it follows: its target is put past
+                // what anyone else on its table could take it over with (Threat.TakeoverPercent), or the player whose
+                // hit started it was hated more at once and taken instead (1975: Quarsh shoots Tala at the first hit).
+                if (attack.TargetRole != null && attack.HoldTarget)
                 {
                     var rival = actor.Creature.Hate.Ranked().Where(entry => entry.Key != target.EntityId)
                         .Select(entry => entry.Value).DefaultIfEmpty(0).Max();
                     actor.Creature.Hate.Ensure(target.EntityId, rival * Threat.TakeoverPercent / 100.0 + Threat.NoticedThreat);
                 }
                 world.Attacks[intent.Role] = (intent.OperationKey, target.EntityId);
-                // Sent at its target, it goes there: a scene places its attackers where it likes, often further from
-                // the target than the leash from home allows (1178: the first wave 100 m and more north of Villaran).
-                actor.Creature.SceneAttackOrder = new SceneAttackOrder(world.Run.Id, attack.HoldTarget ? target.EntityId : 0);
+                // Sent at its target with PastLeash, it goes there: a scene places its attackers where it likes, often
+                // further from the target than the leash from home allows (1178: the first wave 100 m and more north of Villaran).
+                actor.Creature.SceneAttackOrder = new SceneAttackOrder(world.Run.Id, attack.HoldTarget ? target.EntityId : 0,
+                    attack.PastLeash);
                 return WorldEffectResult.Applied();
             }
             if (intent is FollowActorIntent follow)

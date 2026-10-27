@@ -312,6 +312,35 @@ namespace Rasa.Test.Missions
             Assert.AreEqual(100U, target.CurrentHitPoints);
         }
 
+        /// <summary>
+        /// A scene route's walker stops to fight when hit (ScriptedMove.FightsBack) only if the route both resumes after
+        /// combat and asks for it (RunRouteIntent.FightWhenHit): the routes that resumed after combat before, the
+        /// Bootcamp charges and the Wilderness escorts among them, still walk on through hits.
+        /// </summary>
+        [TestMethod]
+        [DataRow(false, false)]
+        [DataRow(true, false)]
+        [DataRow(false, true)]
+        [DataRow(true, true)]
+        public void ARouteWalkerFightsWhenHitOnlyIfTheRouteAsksForIt(bool resumeAfterCombat, bool fightWhenHit)
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            harness.SpawnWorld(630070);
+            var actor = harness.Npc(630070);
+            Assert.IsNotNull(actor);
+            var handle = new ActorHandle(Guid.NewGuid().ToString("N"), "pierre", 1, harness.Map.MissionEpoch);
+            var controller = new SceneRouteController(
+                (map, requested) => map == harness.Map && requested == handle ? actor : null, (_, _) => { });
+            var point = new ScenePosition(actor.Position.X, actor.Position.Y, actor.Position.Z);
+
+            controller.Start(harness.Map, handle, actor,
+                new RunRouteIntent("walk", "pierre", "out", ResumeAfterCombat: resumeAfterCombat, FightWhenHit: fightWhenHit),
+                new SceneRoute("out", new[] { new SceneWaypoint(point) }));
+
+            Assert.IsNotNull(actor.Controller.ScriptedMove);
+            Assert.AreEqual(resumeAfterCombat && fightWhenHit, actor.Controller.ScriptedMove.FightsBack);
+        }
+
         [TestMethod]
         [DataRow(0, CharacterState.Idle)]
         [DataRow(100, CharacterState.Dying)]

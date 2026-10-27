@@ -995,7 +995,7 @@ namespace Rasa.Managers
                     // further than the tether from its leader, and holds at its end for a target
                     // beyond it (below; NpcSquads.TetherOf). Its leader is leashed for the squad.
                 }
-                else if (!creature.SceneAttackOrdered && ChasedTooFar(creature))
+                else if (!creature.SceneAttackPastLeash && ChasedTooFar(creature))
                 {
                     // Dragged too far from home: it runs back, forgetting the fight, and is whole
                     // again when it gets there. For a patrolling creature home is the last path

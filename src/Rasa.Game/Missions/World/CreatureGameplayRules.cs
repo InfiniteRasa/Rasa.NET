@@ -13,11 +13,11 @@ namespace Rasa.Game.Missions.World
 
     /// <summary>
     /// A scene's standing order to fight (AttackActorIntent, SceneWorldAdapter): the run that gave it, and the target it
-    /// holds to (0: none, it fights whom it hates most). While it stands no leash from home pulls the creature back
-    /// (BehaviorManager.ChasedTooFar). It ends with the order, the actor's removal, the run's detach or end, the role's
+    /// holds to (0: none, it fights whom it hates most). With PastLeash, while it stands no leash from home pulls the
+    /// creature back (BehaviorManager.ChasedTooFar). It ends with the order, the actor's removal, the run's detach or end, the role's
     /// clearing and a public actor's reset (<see cref="CreatureGameplayRules.ClearSceneAttackOrder"/>).
     /// </summary>
-    internal sealed record SceneAttackOrder(string RunId, ulong HoldTargetId);
+    internal sealed record SceneAttackOrder(string RunId, ulong HoldTargetId, bool PastLeash);
 
     internal static class CreatureGameplayRules
     {

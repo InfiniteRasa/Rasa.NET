@@ -37,9 +37,9 @@ namespace Rasa.Structures
         internal bool Arrived { get; set; }
 
         /// <summary>
-        /// A hit on the walker starts its fight (Threat.FromDamage): a scene route that resumes after combat
-        /// (RunRouteIntent.ResumeAfterCombat, SceneRouteController) holds while it fights and goes on after. Any other
-        /// scripted walk keeps walking through hits.
+        /// A hit on the walker starts its fight (Threat.FromDamage): a scene route that resumes after combat and fights
+        /// when hit (RunRouteIntent.ResumeAfterCombat with FightWhenHit, SceneRouteController) holds while it fights and
+        /// goes on after. Any other scripted walk keeps walking through hits.
         /// </summary>
         internal bool FightsBack { get; set; }
     }

@@ -459,7 +459,7 @@ namespace Rasa.Test.Missions
             using var harness = CreateFixture(out _);
             var attacker = AcceptFixture(harness);
             Assert.IsTrue(harness.Manager.Scenes.ExecuteNamed(harness.Client, FixtureMissionId, "fight"));
-            Assert.IsTrue(attacker.SceneAttackOrdered, "the order stands");
+            Assert.IsTrue(attacker.SceneAttackOrder != null, "the order stands");
 
             switch (end)
             {
@@ -476,7 +476,7 @@ namespace Rasa.Test.Missions
                     break;
             }
 
-            Assert.IsFalse(attacker.SceneAttackOrdered, $"the order ended with the run ({end})");
+            Assert.IsFalse(attacker.SceneAttackOrder != null, $"the order ended with the run ({end})");
         }
 
         private static WildernessRuntimeTestHarness CreateFixture(out MissionSceneDefinition definition,

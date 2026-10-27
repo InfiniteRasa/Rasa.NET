@@ -310,9 +310,10 @@ namespace Rasa.Test.World
         }
 
         /// <summary>
-        /// A creature a scene has sent at a target (AttackActorIntent: SceneAttackOrdered) goes all the way to it, however
-        /// far that is from where it was spawned; one in an ordinary fight is leashed past MaxChaseDistance from home
-        /// (1178 playtest 2026-10-25: the first wave ran 60 m towards Villaran and went home).
+        /// A creature a scene has sent at a target past the leash (AttackActorIntent.PastLeash) goes all the way to it,
+        /// however far that is from where it was spawned; one in an ordinary fight, or on an order without PastLeash, is
+        /// leashed past MaxChaseDistance from home (1178 playtest 2026-10-25: the first wave ran 60 m towards Villaran and
+        /// went home).
         /// </summary>
         [TestMethod]
         public void ASceneAttackOrderGoesToItsTargetPastTheLeash()
@@ -321,15 +322,20 @@ namespace Rasa.Test.World
             var target = Watch(world, x: 110);
             var ordered = Spawn(world, x: 0, walkSpeed: 3, facing: East);
             var ordinary = Spawn(world, x: 0.5f, walkSpeed: 3, facing: East);
-            ordered.SceneAttackOrder = new Rasa.Game.Missions.World.SceneAttackOrder("test-run", 0);
+            var leashed = Spawn(world, x: 1f, walkSpeed: 3, facing: East);
+            ordered.SceneAttackOrder = new Rasa.Game.Missions.World.SceneAttackOrder("test-run", 0, PastLeash: true);
+            leashed.SceneAttackOrder = new Rasa.Game.Missions.World.SceneAttackOrder("test-run", 0, PastLeash: false);
             Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(ordered, target.Player.EntityId));
             Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(ordinary, target.Player.EntityId));
+            Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(leashed, target.Player.EntityId));
 
             var furthest = 0f;
+            var leashedFurthest = 0f;
             for (var tick = 0; tick < 200; tick++)
             {
                 BehaviorManager.Instance.MapChannelThink(world.Map, Tick);
                 furthest = Math.Max(furthest, ordinary.Position.X);
+                leashedFurthest = Math.Max(leashedFurthest, leashed.Position.X);
             }
 
             Assert.IsGreaterThan(100f, ordered.Position.X, $"the ordered one went to its target, at {ordered.Position}");
@@ -337,11 +343,12 @@ namespace Rasa.Test.World
             Assert.AreEqual(BehaviorManager.BehaviorActionFighting, ordered.Controller.CurrentAction);
             Assert.IsLessThan(BehaviorManager.MaxChaseDistance + 10, furthest, "the ordinary one was leashed");
             Assert.IsLessThan(BehaviorManager.MaxChaseDistance, ordinary.Position.X, $"and went home, at {ordinary.Position}");
+            Assert.IsLessThan(BehaviorManager.MaxChaseDistance + 10, leashedFurthest, "an order without PastLeash was leashed");
         }
 
         /// <summary>
-        /// A hit on a scripted walker starts its fight only if its walk resumes after combat (ScriptedMove.FightsBack, a
-        /// scene route with ResumeAfterCombat): an escort stops to fight back; any other scripted walk goes on.
+        /// A hit on a scripted walker starts its fight only if it fights back (ScriptedMove.FightsBack, a scene route
+        /// with ResumeAfterCombat and FightWhenHit): an escort stops to fight back; any other scripted walk goes on.
         /// </summary>
         [TestMethod]
         [DataRow(true)]
@@ -402,7 +409,7 @@ namespace Rasa.Test.World
             var player = Watch(world, x: 8);
             var gunman = Spawn(world, x: 0, walkSpeed: 2, facing: East);
             Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(gunman, victim.Player.EntityId));
-            gunman.SceneAttackOrder = new Rasa.Game.Missions.World.SceneAttackOrder("test-run", hold ? victim.Player.EntityId : 0);
+            gunman.SceneAttackOrder = new Rasa.Game.Missions.World.SceneAttackOrder("test-run", hold ? victim.Player.EntityId : 0, PastLeash: false);
             gunman.Hate.Ensure(victim.Player.EntityId, 10);
 
             gunman.Hate.Add(player.Player.EntityId, 1000);

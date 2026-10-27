@@ -60,6 +60,36 @@ namespace Rasa.Test.Missions.Scenes
             Assert.AreEqual(new KillActorIntent("fell", "enemy"), System.Text.Json.JsonSerializer.Deserialize<WorldIntent>(json));
         }
 
+        /// <summary>
+        /// The opt-in attack and escort options (AttackActorIntent.HoldTarget and PastLeash, RunRouteIntent.FightWhenHit)
+        /// are off unless set, are left out of the effect journal's JSON when off (journals written before them read the
+        /// same), and come back from it when on: a map made again applies the order as given.
+        /// </summary>
+        [TestMethod]
+        public void OptInAttackAndEscortOptionsAreOffByDefaultAndSurviveTheJournal()
+        {
+            var plainAttack = new AttackActorIntent("fight", "enemy", "victim");
+            var plainRoute = new RunRouteIntent("walk", "escort", "out", ResumeAfterCombat: true);
+            Assert.IsFalse(plainAttack.HoldTarget || plainAttack.PastLeash);
+            Assert.IsFalse(plainRoute.FightWhenHit);
+            var plainAttackJson = System.Text.Json.JsonSerializer.Serialize<WorldIntent>(plainAttack);
+            var plainRouteJson = System.Text.Json.JsonSerializer.Serialize<WorldIntent>(plainRoute);
+            StringAssert.DoesNotMatch(plainAttackJson, new System.Text.RegularExpressions.Regex("HoldTarget|PastLeash"));
+            StringAssert.DoesNotMatch(plainRouteJson, new System.Text.RegularExpressions.Regex("FightWhenHit"));
+            Assert.AreEqual(plainAttack, System.Text.Json.JsonSerializer.Deserialize<WorldIntent>(plainAttackJson));
+            Assert.AreEqual(plainRoute, System.Text.Json.JsonSerializer.Deserialize<WorldIntent>(plainRouteJson));
+
+            WorldIntent[] set =
+            {
+                new AttackActorIntent("hold", "enemy", "victim", HoldTarget: true),
+                new AttackActorIntent("chase", "enemy", PastLeash: true),
+                new RunRouteIntent("walk", "escort", "out", ResumeAfterCombat: true, FightWhenHit: true),
+            };
+            foreach (var intent in set)
+                Assert.AreEqual(intent, System.Text.Json.JsonSerializer.Deserialize<WorldIntent>(
+                    System.Text.Json.JsonSerializer.Serialize(intent)), intent.OperationKey);
+        }
+
         [TestMethod]
         public void TypedScriptAndDataSequenceUseTheSameValidatedDecisionBoundary()
         {

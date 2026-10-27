@@ -87,12 +87,18 @@ namespace Rasa.Missions.Scenes
     public sealed record SetInteractionIntent(string OperationKey, string Role, bool Enabled, uint? ObjectState = null,
         bool IfPresent = false) : WorldIntent(OperationKey, Role);
     public sealed record RunRouteIntent(string OperationKey, string Role, string Route, int StartWaypoint = 0,
-        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool ResumeAfterCombat = false)
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool ResumeAfterCombat = false,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool FightWhenHit = false)
         : WorldIntent(OperationKey, Role);
+    // FightWhenHit (with ResumeAfterCombat): a hit on the walker stops it to fight, not only a fight found at a held
+    // waypoint (1178: Villaran walked on under the first wave's fire).
     // HoldTarget: the attacker keeps its target while the order stands, however much more it comes to hate someone else
     // (1975: Quarsh shoots Tala even when the player's hits pile up on him first).
+    // PastLeash: while the order stands no leash from home pulls the attacker back (1178: the first wave is placed
+    // 100 m and more from Villaran).
     public sealed record AttackActorIntent(string OperationKey, string Role, string TargetRole = null,
-        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool HoldTarget = false)
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool HoldTarget = false,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool PastLeash = false)
         : WorldIntent(OperationKey, Role);
     /// <summary>
     /// The living scene creature (SceneActorKind.Creature; not a public spawn, whose death is an ActorDied

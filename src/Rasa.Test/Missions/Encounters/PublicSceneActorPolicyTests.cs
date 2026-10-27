@@ -684,8 +684,9 @@ namespace Rasa.Test.Missions.Encounters
         }
 
         /// <summary>
-        /// An order to fight another actor of the scene is the one the attacker follows: its target is put past the player
-        /// it hated most, by more than a takeover (Threat.TakeoverPercent). A held order keeps that target (HoldTarget).
+        /// A held order to fight another actor of the scene (HoldTarget) is the one the attacker follows: its target is put
+        /// past the player it hated most, by more than a takeover (Threat.TakeoverPercent), and kept. An order not held
+        /// adds no hate, as before (Daghda's Urn: the attackers sent at Anjuhi).
         /// </summary>
         [TestMethod]
         [DataRow(false)]
@@ -712,9 +713,36 @@ namespace Rasa.Test.Missions.Encounters
             Assert.IsTrue(context.Manager.Scenes.Submit(run, new SceneObservation(SceneEventKind.Signal, 1, SequenceId: 1)));
 
             Assert.AreEqual(victim.EntityId, attacker.Controller.ActionFighting.TargetEntityId);
-            Assert.IsTrue(attacker.Hate.Of(victim.EntityId) > attacker.Hate.Of(player) * Threat.TakeoverPercent / 100.0,
-                "the player cannot take it over");
+            Assert.AreEqual(hold, attacker.Hate.Of(victim.EntityId) > attacker.Hate.Of(player) * Threat.TakeoverPercent / 100.0,
+                hold ? "the player cannot take it over" : "no hate added without HoldTarget");
             Assert.AreEqual(hold ? victim.EntityId : 0UL, attacker.SceneAttackOrder.HoldTargetId);
+        }
+
+        /// <summary>
+        /// An attack order takes the attacker past its leash from home only if it asks for it (AttackActorIntent.PastLeash):
+        /// the orders given before it (Daghda's Urn: Skeev, the attackers sent at Anjuhi) are leashed as before.
+        /// </summary>
+        [TestMethod]
+        [DataRow(false)]
+        [DataRow(true)]
+        public void AnAttackOrderGoesPastTheLeashOnlyIfItAsks(bool pastLeash)
+        {
+            using var fixture = new Fixture();
+            var context = fixture.Context;
+            var actors = new[] { Enemy("attacker") };
+            var bindings = new SceneBindings("unversioned", actors.ToDictionary(actor => actor.Role),
+                new Dictionary<string, SceneRoute>(), new Dictionary<uint, SceneSequence>
+                {
+                    [0] = new(worldIntents: actors.Select(actor => new EnsureActorIntent($"ensure-{actor.Role}", actor.Role))),
+                    [1] = new(worldIntents: new[] { new AttackActorIntent("fight", "attacker", PastLeash: pastLeash) })
+                });
+            var run = context.Manager.Scenes.Start(context.Client, "data.sequence", bindings);
+            var attacker = fixture.Actor(run, "attacker");
+
+            Assert.IsTrue(context.Manager.Scenes.Submit(run, new SceneObservation(SceneEventKind.Signal, 1, SequenceId: 1)));
+
+            Assert.IsNotNull(attacker.SceneAttackOrder, "the order stands");
+            Assert.AreEqual(pastLeash, attacker.SceneAttackPastLeash);
         }
 
         /// <summary>A bark is said by a living scene creature to those around it, and a pose taken up; dead, it says nothing.</summary>

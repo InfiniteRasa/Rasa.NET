@@ -1045,6 +1045,8 @@ and optional `ResumeAtDestination`. Waypoint orientation is radians; pauses are
 milliseconds. Scripted movement needs a complete loaded-navmesh route.
 `RunRouteIntent.ResumeAfterCombat` lets a combat-capable actor pause its route
 while fighting and resume it afterward. Removing that actor cancels its route.
+With `FightWhenHit` as well, a hit on the walking actor stops it to fight, not
+only a fight it finds at a held waypoint.
 
 Optional `MissionSceneDefinition.DefeatSequences` maps actor roles to sequence
 IDs. A confirmed defeat persists the actor outcome and queues that sequence in
@@ -1053,18 +1055,31 @@ scene inbox delivers it once and retries failed scene writes. Scripts can track
 the defeated roles in their checkpoint to gate a finite encounter; losing a
 route or despawning an actor is not a confirmed defeat.
 
+Optional `MissionSceneDefinition.DamagedSequences` maps actor roles to sequence
+IDs that run once, on the first hit a player's side lands on that actor (damage
+that took something off it). A reload or a respawned actor does not run it again
+in the same run generation.
+
+Optional `MissionSceneDefinition.BoundMapContextId` binds the scene to a map: the
+scene starts when the owner first enters that map, a step asked for before then
+waits, and the run goes with the owner to a later copy of the map. The bound
+scenes also set `MapContextId`.
+
 | World intent | Purpose |
 | --- | --- |
 | `EnsureActorIntent` | Ensure the authored actor is present |
 | `RemoveActorIntent` | Remove/release its role |
 | `SetInteractionIntent` | Set enabled/object-state properties |
 | `RunRouteIntent` | Run an authored route |
-| `AttackActorIntent` | Engage a living hostile actor in the same map; omitted `TargetRole` means the run's owner |
+| `AttackActorIntent` | Engage a living hostile actor in the same map; omitted `TargetRole` means the run's owner. `HoldTarget` keeps that target while the order stands, however much the attacker comes to hate someone else. `PastLeash` lets no leash from home pull the attacker back while the order stands |
 | `KillActorIntent` | Kill a living `Creature` actor (not a `PublicSpawn`) at once, as if killed: its `DefeatSequences` entry runs; no player is credited and nothing is looted; nothing if it is dead or absent |
 | `FollowActorIntent` | Follow a character; ID zero means owner |
 | `PresentationIntent` | Tutorial, audio or greeting using an existing ID |
 | `TransferIntent` | Transfer to a map and authored position |
 | `RestoreActorPoseIntent` | Recover a static actor in its owning private map |
+| `BarkActorIntent` | The actor says a client bark (barklanguage ID) once to everyone around it |
+| `PoseActorIntent` | The creature takes up a pose (`spawnpool_pose.pose` values; 0 takes it off), held until changed |
+| `HideSpawnPoolsIntent` | The named map spawn pools are not shown to the run's owner, while the actor stands |
 | `TransitionObjectStateIntent` | Send the native usable transition to an object state, with an optional windup in milliseconds |
 
 Character intents are `GrantRewardIntent`, `GrantAbilityIntent`,
