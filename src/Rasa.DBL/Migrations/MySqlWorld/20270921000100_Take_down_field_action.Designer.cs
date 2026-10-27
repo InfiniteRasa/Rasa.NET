@@ -3517,7 +3517,7 @@ namespace Rasa.Migrations.MySqlWorld
 
                     b.Property<string>("Description")
                         .IsRequired()
-                        .HasColumnType("varchar(64)")
+                        .HasColumnType("text")
                         .HasColumnName("description");
 
                     b.Property<uint>("MapContextId")
@@ -3790,8 +3790,6 @@ namespace Rasa.Migrations.MySqlWorld
                         .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
-
                     b.Property<uint>("ClassId")
                         .HasColumnType("int unsigned")
                         .HasColumnName("class_id");
@@ -3852,8 +3850,6 @@ namespace Rasa.Migrations.MySqlWorld
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int unsigned")
                         .HasColumnName("id");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
 
                     b.Property<uint>("ActionArg")
                         .HasColumnType("int unsigned")
