@@ -84,9 +84,21 @@ namespace Rasa.Game.Missions
             Vector3 position, string eventId, string runId, uint generation) =>
             FreezeScene(unit, source, progress, position, eventId, runId, generation);
 
+        // In a squad's instance also when the source's own objective is done already: the others' may not be.
         internal bool HasGroupRule(Client source, MissionProgressEvent progress) =>
+            SharedInSquadInstance(source, progress) ||
             _missions.ProgressCandidates(source, progress).Any(candidate =>
                 candidate.ObjectiveDefinition.CreditPolicy.Mode != MissionCreditMode.Personal);
+
+        /// <summary>
+        /// In a squad's instance a personal objective's kill or scene event counts for every member of the source's squad
+        /// on that map who has the mission, wherever they stand (retail, user 2026-10-27, to-fix #29): the squad does the
+        /// instance together. Elsewhere a personal objective is the source's alone. Kills and scene events only: one
+        /// member seen (PlayerDetected) does not fail the mission for the others.
+        /// </summary>
+        private static bool SharedInSquadInstance(Client source, MissionProgressEvent progress) =>
+            progress.Kind != MissionProgressEventKind.PlayerDetected &&
+            source?.Player?.MapChannel?.IsSquadInstance == true && PartyManager.Instance.PartyOf(source) != null;
 
         internal void CaptureParticipants(ICharUnitOfWork unit, MapChannel map, uint ownerId,
             uint missionId, string runId, Vector3 position)
@@ -129,13 +141,19 @@ namespace Rasa.Game.Missions
             var result = new List<Recipient>();
             var map = source.Player.MapChannel;
             var party = PartyManager.Instance.PartyOf(source);
+            var squadInstance = SharedInSquadInstance(source, progress);
             foreach (var client in map.ClientList.Append(source).Distinct().ToArray())
             {
                 if (client?.Player?.MapChannel != map || client.State != ClientState.Ingame ||
-                    client.PendingTransfer != null || client.AccountEntry == null || client.Player.State == CharacterState.Dead)
+                    client.PendingTransfer != null || client.AccountEntry == null)
                     continue;
                 var sameParty = party != null && ReferenceEquals(party, PartyManager.Instance.PartyOf(client)) &&
                     party.Find(client.AccountEntry.Id)?.EntityId == client.Player.EntityId;
+                // A dead squad member in a squad's instance still shares the squad's kills (the scene's owner, dead at
+                // the boss's death, among them); elsewhere the dead share in nothing, as before.
+                var dead = client.Player.State == CharacterState.Dead;
+                if (dead && !(squadInstance && sameParty))
+                    continue;
                 foreach (var group in _missions.ProgressCandidates(client, progress)
                     .GroupBy(candidate => candidate.Definition.MissionId))
                 {
@@ -145,8 +163,10 @@ namespace Rasa.Game.Missions
                         participant.AssignmentGeneration != assignment.Generation))
                         participant = null;
                     var objectives = group.Where(candidate =>
-                        candidate.ObjectiveDefinition.CreditPolicy.Eligible(ReferenceEquals(source, client), true,
-                            sameParty, participant != null, Vector3.Distance(client.Player.Position, position)))
+                        !dead && candidate.ObjectiveDefinition.CreditPolicy.Eligible(ReferenceEquals(source, client), true,
+                            sameParty, participant != null, Vector3.Distance(client.Player.Position, position)) ||
+                        squadInstance && sameParty &&
+                        candidate.ObjectiveDefinition.CreditPolicy.Mode == MissionCreditMode.Personal)
                         .Select(candidate => candidate.ObjectiveDefinition.ObjectiveId)
                         // Another name of the same kill has this character's objective already.
                         .Where(objectiveId => credited == null || credited.Add((client.Player.Id, group.Key, objectiveId)))

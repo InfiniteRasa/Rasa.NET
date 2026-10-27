@@ -400,6 +400,185 @@ namespace Rasa.Test.Missions.Encounters
             Assert.AreEqual(MissionObjectiveState.Incomplete, unaccepted.Player.Missions[321].Objectives[1].State);
         }
 
+        /// <summary>
+        /// In a squad's instance a personal kill objective counts for every member of the killer's squad on that map who
+        /// has the mission, however far they stand; never for someone outside the squad. Elsewhere it is the killer's
+        /// alone, as before (retail, user 2026-10-27, to-fix #29).
+        /// </summary>
+        [TestMethod]
+        [DataRow(true)]
+        [DataRow(false)]
+        public void APersonalKillIsSharedWithTheSquadOnlyInASquadInstance(bool squadInstance)
+        {
+            using var context = MissionTestContext.WithProgressMission(
+                MissionProgressRule.CompleteOnExactSubject(MissionProgressEventKind.CreatureKilled, 55));
+            var member = context.CreateAdditionalClient(2);
+            var stranger = context.CreateAdditionalClient(3);
+            var giver = context.AddNpc(77);
+            foreach (var client in new[] { context.Client, member, stranger })
+                Assert.IsTrue(context.Manager.AcceptOfferedMission(client, giver.EntityId, 321));
+            member.Player.Position = new Vector3(500, 0, 0);
+            using var party = new PartyScope(context.Client, member);
+            context.Map.IsSquadInstance = squadInstance;
+            try
+            {
+                Assert.IsTrue(context.Manager.Credit.RecordKill(context.Client,
+                    new[] { MissionProgressEvent.Creature(55) }, Vector3.Zero));
+                context.Manager.Credit.Tick(context.Map);
+
+                Assert.AreEqual(MissionObjectiveState.Completed, context.Client.Player.Missions[321].Objectives[1].State);
+                Assert.AreEqual(squadInstance ? MissionObjectiveState.Completed : MissionObjectiveState.Incomplete,
+                    member.Player.Missions[321].Objectives[1].State, "the squad member, 500 m away");
+                Assert.AreEqual(MissionObjectiveState.Incomplete, stranger.Player.Missions[321].Objectives[1].State);
+            }
+            finally
+            {
+                context.Map.IsSquadInstance = false;
+            }
+        }
+
+        /// <summary>
+        /// In a squad's instance a scene's event on a personal objective (a scene kill: a defeat sequence's signal)
+        /// counts for every member of the owner's squad there who has the mission, not the scene's owner alone.
+        /// Elsewhere it is the owner's alone.
+        /// </summary>
+        [TestMethod]
+        [DataRow(true)]
+        [DataRow(false)]
+        public void APersonalSceneEventIsSharedWithTheSquadOnlyInASquadInstance(bool squadInstance)
+        {
+            using var context = MissionTestContext.WithProgressMission(
+                MissionProgressRule.IncrementCounterOnExactSubject(MissionProgressEventKind.ScenarioEvent, 55, 0, 0, 5),
+                counters: new Dictionary<uint, MissionObjectiveCounterDefinition> { [0] = new(0, 0, 5) });
+            var member = context.CreateAdditionalClient(2);
+            var giver = context.AddNpc(77);
+            foreach (var client in new[] { context.Client, member })
+                Assert.IsTrue(context.Manager.AcceptOfferedMission(client, giver.EntityId, 321));
+            using var party = new PartyScope(context.Client, member);
+            context.Map.IsSquadInstance = squadInstance;
+            try
+            {
+                var bindings = new SceneBindings("test", new Dictionary<string, SceneActorDefinition>(),
+                    new Dictionary<string, SceneRoute>(), new Dictionary<uint, SceneSequence>
+                    {
+                        [0] = new(signals: new[] { new SceneMissionSignal(321, 9, 55) })
+                    });
+                context.Manager.Scenes.Start(context.Client, "data.sequence", bindings, 321);
+                context.Manager.Credit.Tick(context.Map);
+
+                Assert.AreEqual(1U, context.Client.Player.Missions[321].Objectives[1].Counters[0]);
+                Assert.AreEqual(squadInstance ? 1U : 0U, member.Player.Missions[321].Objectives[1].Counters[0]);
+            }
+            finally
+            {
+                context.Map.IsSquadInstance = false;
+            }
+        }
+
+        /// <summary>
+        /// A scene owner and a squad member who are dead when the scene's kill comes still get it in a squad's instance
+        /// (the owner dead at the boss's death); outside one, the dead member gets nothing, as before. Code review
+        /// 2026-10-27: the owner lost their own credit.
+        /// </summary>
+        [TestMethod]
+        public void DeadSquadMembersStillShareASceneKillInASquadInstance()
+        {
+            using var context = MissionTestContext.WithProgressMission(
+                MissionProgressRule.IncrementCounterOnExactSubject(MissionProgressEventKind.ScenarioEvent, 55, 0, 0, 5),
+                counters: new Dictionary<uint, MissionObjectiveCounterDefinition> { [0] = new(0, 0, 5) });
+            var member = context.CreateAdditionalClient(2);
+            var giver = context.AddNpc(77);
+            foreach (var client in new[] { context.Client, member })
+                Assert.IsTrue(context.Manager.AcceptOfferedMission(client, giver.EntityId, 321));
+            using var party = new PartyScope(context.Client, member);
+            context.Map.IsSquadInstance = true;
+            try
+            {
+                context.Client.Player.State = CharacterState.Dead;
+                member.Player.State = CharacterState.Dead;
+                var bindings = new SceneBindings("test", new Dictionary<string, SceneActorDefinition>(),
+                    new Dictionary<string, SceneRoute>(), new Dictionary<uint, SceneSequence>
+                    {
+                        [0] = new(signals: new[] { new SceneMissionSignal(321, 9, 55) })
+                    });
+                context.Manager.Scenes.Start(context.Client, "data.sequence", bindings, 321);
+                context.Manager.Credit.Tick(context.Map);
+
+                Assert.AreEqual(1U, context.Client.Player.Missions[321].Objectives[1].Counters[0], "the dead owner");
+                Assert.AreEqual(1U, member.Player.Missions[321].Objectives[1].Counters[0], "the dead member");
+            }
+            finally
+            {
+                context.Client.Player.State = CharacterState.Idle;
+                member.Player.State = CharacterState.Idle;
+                context.Map.IsSquadInstance = false;
+            }
+        }
+
+        /// <summary>
+        /// A scene's event in a squad's instance reaches a squad member whose objective is still open even when the
+        /// owner's own objective is done already. Code review 2026-10-27.
+        /// </summary>
+        [TestMethod]
+        public void ASceneEventReachesTheSquadWhenTheOwnersObjectiveIsDone()
+        {
+            using var context = MissionTestContext.WithProgressMission(
+                MissionProgressRule.CompleteOnExactSubject(MissionProgressEventKind.ScenarioEvent, 55));
+            var member = context.CreateAdditionalClient(2);
+            var giver = context.AddNpc(77);
+            Assert.IsTrue(context.Manager.AcceptOfferedMission(context.Client, giver.EntityId, 321));
+            using var party = new PartyScope(context.Client, member);
+            context.Map.IsSquadInstance = true;
+            try
+            {
+                Assert.IsTrue(context.Manager.RecordProgress(context.Client, MissionProgressEvent.Scenario(321, 9, 55)));
+                Assert.AreEqual(MissionObjectiveState.Completed, context.Client.Player.Missions[321].Objectives[1].State);
+
+                Assert.IsTrue(context.Manager.AcceptOfferedMission(member, giver.EntityId, 321));
+                var bindings = new SceneBindings("test", new Dictionary<string, SceneActorDefinition>(),
+                    new Dictionary<string, SceneRoute>(), new Dictionary<uint, SceneSequence>
+                    {
+                        [0] = new(signals: new[] { new SceneMissionSignal(321, 9, 55) })
+                    });
+                context.Manager.Scenes.Start(context.Client, "data.sequence", bindings, 321);
+                context.Manager.Credit.Tick(context.Map);
+
+                Assert.AreEqual(MissionObjectiveState.Completed, member.Player.Missions[321].Objectives[1].State);
+            }
+            finally
+            {
+                context.Map.IsSquadInstance = false;
+            }
+        }
+
+        /// <summary>
+        /// One squad member seen (PlayerDetected) is not shared in a squad's instance: the others' missions go on.
+        /// </summary>
+        [TestMethod]
+        public void BeingSeenIsNotSharedWithTheSquadInASquadInstance()
+        {
+            using var context = MissionTestContext.WithProgressMission(
+                MissionProgressRule.CompleteOnExactSubject(MissionProgressEventKind.PlayerDetected, 55));
+            var member = context.CreateAdditionalClient(2);
+            var giver = context.AddNpc(77);
+            foreach (var client in new[] { context.Client, member })
+                Assert.IsTrue(context.Manager.AcceptOfferedMission(client, giver.EntityId, 321));
+            using var party = new PartyScope(context.Client, member);
+            context.Map.IsSquadInstance = true;
+            try
+            {
+                context.Manager.Credit.Record(context.Client, MissionProgressEvent.PlayerDetected(55), Vector3.Zero);
+                context.Manager.Credit.Tick(context.Map);
+
+                Assert.AreEqual(MissionObjectiveState.Completed, context.Client.Player.Missions[321].Objectives[1].State);
+                Assert.AreEqual(MissionObjectiveState.Incomplete, member.Player.Missions[321].Objectives[1].State);
+            }
+            finally
+            {
+                context.Map.IsSquadInstance = false;
+            }
+        }
+
         [TestMethod]
         public void PartialDeliveryRetriesOnlyFrozenAssignmentsAndDoesNotRepeatSuccessfulCredit()
         {
