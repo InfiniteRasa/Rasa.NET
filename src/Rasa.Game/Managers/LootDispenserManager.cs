@@ -606,7 +606,8 @@ namespace Rasa.Managers
         /// <summary>
         /// The corpse's loot, for whoever the killer's squad loot method gives it to
         /// (PartyManager.LootersFor): each of them is shown the dispenser. A mission's authored
-        /// loot is the killer's alone.
+        /// loot is the killer's, and in a squad's instance also that of each squad member near
+        /// the corpse who has the mission (MissionLootSharers): each finds their own item on it.
         /// </summary>
         internal void Loot(Client client, Creature creature, ActorGameplayPolicy policy = null)
         {
@@ -647,9 +648,32 @@ namespace Rasa.Managers
 
             // Plan personal drops after ordinary allocations: another member's items cannot
             // fill the killer's collection deficit, and qualified drops never enter squad rolls.
-            AppendMissionLoot(client, loot);
-            if (loot.Looters.Contains(client.Player.EntityId) && !shownTo.Contains(client))
-                shownTo.Add(client);
+            foreach (var recipient in MissionLootSharers(client, creature))
+            {
+                var wasLooter = loot.Looters.Contains(recipient.Player.EntityId);
+                if (recipient == client)
+                    AppendMissionLoot(recipient, loot);
+                else
+                    try
+                    {
+                        AppendMissionLoot(recipient, loot);
+                    }
+                    catch (Exception error)
+                    {
+                        // One squad member's items failing must not keep the corpse from the others.
+                        Logger.WriteLog(LogType.Error,
+                            $"Mission corpse loot for squad member {recipient.Player.Id} failed: {error.Message}");
+                    }
+                if (recipient != client && loot.LootItems.Any(item => item.ReservedFor == recipient.Player.EntityId &&
+                        MissionLootPlanner.IsQualified(item)))
+                    loot.SquadMissionItemOwners.Add(recipient.Player.EntityId);
+                if (!loot.Looters.Contains(recipient.Player.EntityId))
+                    continue;
+                if (!wasLooter)
+                    loot.MissionItemLooters.Add(recipient.Player.EntityId);
+                if (!shownTo.Contains(recipient))
+                    shownTo.Add(recipient);
+            }
 
             foreach (var looter in shownTo)
             {
@@ -660,6 +684,22 @@ namespace Rasa.Managers
                 OverallQuality(looter, loot);
                 CanLootItems(looter, loot);
             }
+        }
+
+        /// <summary>
+        /// Who finds their mission's items on a corpse: the killer, and in a squad's instance each squad member near
+        /// enough to share in it (PartyManager.SharersOf), whatever the loot method; each gets their own items, as
+        /// their own missions need them (retail, confirmed by the user 2026-10-27: one kill, and all in the squad
+        /// with the mission can loot their item from that corpse). Elsewhere the killer alone, as before.
+        /// </summary>
+        internal static IReadOnlyList<Client> MissionLootSharers(Client killer, Creature corpse)
+        {
+            if (killer.Player.MapChannel?.IsSquadInstance != true)
+                return new[] { killer };
+            var sharers = PartyManager.Instance.SharersOf(killer, corpse.Position);
+            sharers.Remove(killer);
+            sharers.Insert(0, killer);
+            return sharers;
         }
 
         /// <summary>
@@ -1272,9 +1312,15 @@ namespace Rasa.Managers
             {
                 items = taken;
 
-                var emptiesItems = loot.LootItems.All(item => item.Taken || taken.Contains(item));
+                // Another squad member's own mission items (SquadMissionItemOwners) do not keep the corpse from being
+                // emptied, and one who may loot it only for them (MissionItemLooters) takes no credits.
+                var emptiesItems = loot.LootItems.All(item => item.Taken || taken.Contains(item) ||
+                    item.ReservedFor != client.Player.EntityId && loot.SquadMissionItemOwners.Contains(item.ReservedFor) &&
+                    MissionLootPlanner.IsQualified(item));
                 includeCredits = loot.Credits > 0 &&
-                    ((lootAll && loot.CreditSharers.Count == 0) || emptiesItems);
+                    ((lootAll && loot.CreditSharers.Count == 0) || emptiesItems) &&
+                    (!loot.MissionItemLooters.Contains(client.Player.EntityId) ||
+                     loot.CreditSharers.Contains(client.Player.EntityId));
 
                 var recipients = includeCredits ? CreditRecipients(client, loot) : new List<Client> { client };
                 var shares = includeCredits ? SplitCredits(loot.Credits, recipients.Count) : new List<int> { 0 };
