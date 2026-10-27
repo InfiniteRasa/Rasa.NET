@@ -181,19 +181,28 @@ namespace Rasa.Test.World
                 CellManager.Instance.RemoveCreatureFromWorld(fixture.Own, creature);
         }
 
+        /// <summary>
+        /// In a squad's instance a pool a mission stands on comes back on its own respawn time, not after the
+        /// instance's 45 minutes: one a mission stages (a public encounter, as Out of Thin Air's prisoner), or one a
+        /// mission scene names as a public-spawn actor (a named NPC killed on the way, as Maligo Base's officers).
+        /// </summary>
         [TestMethod]
-        public void APoolAMissionStagesRespawnsOnItsOwnTimeInASquadInstance()
+        [DataRow(true, false)]
+        [DataRow(false, true)]
+        public void APoolAMissionStandsOnRespawnsOnItsOwnTimeInASquadInstance(bool staged, bool named)
         {
             using var harness = BootcampRuntimeTestHarness.Create();
             using var world = new WorldTestContext();
             var fixture = World(harness, world, saved: false);
             var instance = fixture.Into(fixture.Player());
             var (a, b) = (Pool(instance, PoolA), Pool(instance, PoolB));
-            var staged = SpawnPoolManager.Instance.IsStaged;
+            var wasStaged = SpawnPoolManager.Instance.IsStaged;
+            var wasNamed = SpawnPoolManager.Instance.IsNamedPublicSpawn;
             try
             {
-                // A pool of a public mission NPC (as Out of Thin Air's prisoner): no camp to clear.
-                SpawnPoolManager.Instance.IsStaged = id => id == PoolA;
+                // A pool of a mission NPC: no camp to clear.
+                SpawnPoolManager.Instance.IsStaged = id => staged && id == PoolA;
+                SpawnPoolManager.Instance.IsNamedPublicSpawn = id => named && id == PoolA;
                 Spawns(instance, 0);
                 Kill(instance, a);
                 Kill(instance, b);
@@ -207,8 +216,30 @@ namespace Rasa.Test.World
             }
             finally
             {
-                SpawnPoolManager.Instance.IsStaged = staged;
+                SpawnPoolManager.Instance.IsStaged = wasStaged;
+                SpawnPoolManager.Instance.IsNamedPublicSpawn = wasNamed;
             }
+        }
+
+        /// <summary>
+        /// The pools mission scenes name as public-spawn actors, and only those: a creature actor's template and an
+        /// NPC are not pools.
+        /// </summary>
+        [TestMethod]
+        public void TheScenesPublicSpawnPoolsAreThePoolsTheirPublicSpawnActorsName()
+        {
+            var scene = new Rasa.Missions.Content.MissionSceneDefinition();
+            scene.Actors["officer"] = new Rasa.Missions.Scenes.SceneActorDefinition("officer",
+                Rasa.Missions.Scenes.SceneActorKind.PublicSpawn, 750089);
+            scene.Actors["guard"] = new Rasa.Missions.Scenes.SceneActorDefinition("guard",
+                Rasa.Missions.Scenes.SceneActorKind.Creature, 750090);
+            var other = new Rasa.Missions.Content.MissionSceneDefinition();
+            other.Actors["prisoner"] = new Rasa.Missions.Scenes.SceneActorDefinition("prisoner",
+                Rasa.Missions.Scenes.SceneActorKind.PublicSpawn, 750077);
+
+            CollectionAssert.AreEquivalent(new uint[] { 750089, 750077 },
+                MissionApplication.PublicSpawnPools(new[] { scene, other }).ToArray());
+            Assert.IsEmpty(MissionApplication.PublicSpawnPools(Array.Empty<Rasa.Missions.Content.MissionSceneDefinition>()));
         }
 
         [TestMethod]

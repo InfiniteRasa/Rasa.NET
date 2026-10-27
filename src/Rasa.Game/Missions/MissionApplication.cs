@@ -160,12 +160,28 @@ namespace Rasa.Managers
             Interactions = new Game.Missions.Integration.MissionInteractionPolicy(this);
             ObjectConversations = new Game.Missions.MissionObjectConversations(_gameUnitOfWorkFactory, this);
             Game.Missions.Integration.MissionRuntimeComposition.Bind(_catalog, Scenes, PublicActors, ActorPolicies);
+            _scenePublicSpawns = PublicSpawnPools(_catalog.SceneBindings.Values);
         }
+
+        private volatile HashSet<uint> _scenePublicSpawns = new();
+
+        /// <summary>The spawn pools that mission scenes name as public-spawn actors (SceneActorKind.PublicSpawn).</summary>
+        internal static HashSet<uint> PublicSpawnPools(IEnumerable<Rasa.Missions.Content.MissionSceneDefinition> scenes) =>
+            scenes.SelectMany(scene => scene.Actors.Values)
+                .Where(actor => actor?.Kind == Rasa.Missions.Scenes.SceneActorKind.PublicSpawn)
+                .Select(actor => actor.TemplateId).ToHashSet();
+
+        /// <summary>
+        /// Whether a mission's scene names this spawn pool as a public-spawn actor: an NPC of the world that a mission
+        /// stands on, as the pool of a public encounter (PublicActors.StagesSpawn) is.
+        /// </summary>
+        internal bool NamesPublicSpawn(uint poolId) => _scenePublicSpawns.Contains(poolId);
 
         internal MissionValidationReport LoadMissions()
         {
             var report = _catalog.Load();
             Game.Missions.Integration.MissionRuntimeComposition.Bind(_catalog, Scenes, PublicActors, ActorPolicies);
+            _scenePublicSpawns = PublicSpawnPools(_catalog.SceneBindings.Values);
             LatestValidationReport = report;
             return report;
         }
