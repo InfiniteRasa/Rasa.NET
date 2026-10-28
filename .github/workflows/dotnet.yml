@@ -178,10 +178,88 @@ jobs:
         path: TestResults/
         retention-days: 14
 
-  # The one check to require: it passes when every lane passed, or when the PR changed only docs.
+  # The existing tests use SQLite; exercise all three MySQL migration chains against a fresh
+  # MySQL 8.4 server, just like compose.mysql.yml does (Auth, Character and World).
+  mysql-migrations:
+    name: MySQL migrations
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci-root-password
+          MYSQL_DATABASE: rasaauth
+          MYSQL_USER: rasa
+          MYSQL_PASSWORD: ci-rasa-password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysql --protocol=tcp -h 127.0.0.1 -urasa -pci-rasa-password rasaauth -e 'SELECT 1' >/dev/null 2>&1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+          --health-start-period=90s
+    env:
+      Databases__Provider: MySql
+      Databases__Auth__Host: 127.0.0.1
+      Databases__Auth__Port: '3306'
+      Databases__Auth__Database: rasaauth
+      Databases__Auth__User: rasa
+      Databases__Auth__Password: ci-rasa-password
+      Databases__Char__Host: 127.0.0.1
+      Databases__Char__Port: '3306'
+      Databases__Char__Database: rasachar
+      Databases__Char__User: rasa
+      Databases__Char__Password: ci-rasa-password
+      Databases__World__Host: 127.0.0.1
+      Databases__World__Port: '3306'
+      Databases__World__Database: rasaworld
+      Databases__World__User: rasa
+      Databases__World__Password: ci-rasa-password
+    steps:
+    - uses: actions/checkout@v7
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v6
+      with:
+        global-json-file: global.json
+    - name: Restore NuGet cache
+      uses: actions/cache/restore@v6
+      with:
+        path: ~/.nuget/packages
+        key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'global.json', '.config/dotnet-tools.json') }}
+        restore-keys: nuget-${{ runner.os }}-
+    # The MySQL image creates rasaauth and the rasa user. The shared Compose SQL creates the
+    # other two databases and grants the rasa user access to them.
+    - name: Initialize Character and World databases
+      env:
+        MYSQL_CONTAINER: ${{ job.services.mysql.id }}
+      run: |
+        docker exec -i "$MYSQL_CONTAINER" sh -c 'exec mysql -uroot -p"$MYSQL_ROOT_PASSWORD"' < docker/mysql/init.sql
+    - name: Build migration executables
+      run: |
+        dotnet build src/Rasa.Auth/Rasa.Auth.csproj --configuration Release
+        dotnet build src/Rasa.Game/Rasa.Game.csproj --configuration Release
+    - name: Apply Auth migrations
+      working-directory: src/Rasa.Auth/bin/Release/net10.0
+      run: |
+        set -euo pipefail
+        dotnet Rasa.Auth.dll --migrate | tee "$RUNNER_TEMP/mysql-auth-migrations.log"
+        grep -Eq '^MySqlAuthContext: (all MySQL migrations applied\.|schema is up to date, nothing to apply\.)' "$RUNNER_TEMP/mysql-auth-migrations.log"
+    - name: Apply Character and World migrations
+      working-directory: src/Rasa.Game/bin/Release/net10.0
+      run: |
+        set -euo pipefail
+        dotnet Rasa.Game.dll --migrate | tee "$RUNNER_TEMP/mysql-game-migrations.log"
+        grep -Eq '^MySqlCharContext: (all MySQL migrations applied\.|schema is up to date, nothing to apply\.)' "$RUNNER_TEMP/mysql-game-migrations.log"
+        grep -Eq '^MySqlWorldContext: (all MySQL migrations applied\.|schema is up to date, nothing to apply\.)' "$RUNNER_TEMP/mysql-game-migrations.log"
+
+  # The one required check: SQLite tests and MySQL migrations must pass (or docs only).
   tests-complete:
     name: tests complete
-    needs: [ changes, build, test ]
+    needs: [ changes, build, test, mysql-migrations ]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -196,6 +274,7 @@ jobs:
         CHANGES: ${{ needs.changes.result }}
         BUILD: ${{ needs.build.result }}
         TEST: ${{ needs.test.result }}
+        MYSQL_MIGRATIONS: ${{ needs.mysql-migrations.result }}
       run: |
         if [ "$CHANGES" = success ] && [ "$CODE" = false ]; then
           echo "Docs-only change; tests skipped."
@@ -208,7 +287,7 @@ jobs:
           failed=$((failed + $(grep -o '<UnitTestResult [^>]*outcome="Failed"' "$trx" | wc -l)))
         done
         echo "Across all lanes: $total results, $passed passed, $failed failed." | tee -a "$GITHUB_STEP_SUMMARY"
-        if [ "$BUILD" != success ] || [ "$TEST" != success ]; then
-          echo "::error::build: $BUILD, test runners: $TEST"
+        if [ "$BUILD" != success ] || [ "$TEST" != success ] || [ "$MYSQL_MIGRATIONS" != success ]; then
+          echo "::error::build: $BUILD, test runners: $TEST, MySQL migrations: $MYSQL_MIGRATIONS"
           exit 1
         fi
