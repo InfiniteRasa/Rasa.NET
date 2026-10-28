@@ -178,6 +178,9 @@ namespace Rasa.Managers
                 return;
             }
 
+            // One of a walking squad stands while the player talks with him (to-fix Pools #7).
+            NpcSquads.HoldForTalk(creature);
+
             var convoDataDict = conversation.CreateConversationData();
 
             if (creature.Npc.Vendor != null)

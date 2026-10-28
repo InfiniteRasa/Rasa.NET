@@ -110,6 +110,15 @@ namespace Rasa.Managers
         /// </summary>
         public const float TetherRejoinMargin = 5f;
 
+        /// <summary>
+        /// How long a walking squad stands once a player opens a talk with one of it (<see cref="HoldForTalk"/>). The
+        /// client shuts its talk window when the speaker is more than 5 m away (conversationwindow.py, Update and
+        /// MAX_CONVERSATION_RANGE), and with it the mission the window was for, so a squad that walked on took its
+        /// talk away before the player could finish it (to-fix Pools #7, The Supply Master's Nakrinx). ESTIMATE: time
+        /// enough to read a page and choose.
+        /// </summary>
+        public const long TalkHoldMs = 60_000;
+
         #region Definitions
 
         public sealed class SquadType
@@ -292,6 +301,9 @@ namespace Rasa.Managers
             internal long PauseUntil;
             internal long RegroupSince;
 
+            /// <summary>Until when it stands for a talk (<see cref="HoldForTalk"/>).</summary>
+            internal long TalkUntil;
+
             /// <summary>How many it was last sent with.</summary>
             internal int SentCount;
 
@@ -329,6 +341,16 @@ namespace Rasa.Managers
         /// again in full, he too (Worker) - else, standing, he would keep it from ever coming back.
         /// </summary>
         public static bool IsBystander(Creature creature) => creature?.SquadMember?.Bystander == true;
+
+        /// <summary>
+        /// A player opened a talk with <paramref name="creature"/>: if it is one of a squad's, the squad stands where it is
+        /// for <see cref="TalkHoldMs"/> from now, a new talk counting again from then. A fight still goes as ever.
+        /// </summary>
+        public static void HoldForTalk(Creature creature)
+        {
+            if (creature?.SquadMember?.Squad is { } squad)
+                squad.TalkUntil = Now() + TalkHoldMs;
+        }
 
         /// <summary>How far the creature, one of a squad's, looks for a fight.</summary>
         public static float EngageRange(Creature creature)
@@ -755,6 +777,13 @@ namespace Rasa.Managers
                     if (squad.Phase == Phase.Holding)
                     {
                         // At the end of a route walked once: it stays there.
+                        leader.Goal = null;
+                        break;
+                    }
+
+                    if (now < squad.TalkUntil)
+                    {
+                        // A player talks with one of it: it waits for him (HoldForTalk).
                         leader.Goal = null;
                         break;
                     }

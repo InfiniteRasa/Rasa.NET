@@ -289,6 +289,43 @@ namespace Rasa.Test.World
             Assert.IsTrue(squad.Members.All(m => m.Creature.Controller.CurrentAction == BehaviorManager.BehaviorActionSquad));
         }
 
+        /// <summary>
+        /// A talk opened with one of a walking squad stands it TalkHoldMs, so the client keeps its talk window open (5 m
+        /// reach) - to-fix Pools #7, Nakrinx walked on and the window shut. Then it walks on.
+        /// </summary>
+        [TestMethod]
+        public void ASquadStandsWhileAPlayerTalksWithOneOfItThenWalksOn()
+        {
+            using var harness = Create();
+            var road = Road(harness);
+
+            Squad(harness, AfsSoldier, 1, 3, S.Formation.Column, road, S.PathMode.Loop);
+
+            Step(harness, 250);
+            var squad = S.On(harness.Map)[1];
+
+            for (var i = 0; i < 4 * 30 || squad.Phase != S.Phase.Moving; i++)
+            {
+                Assert.IsTrue(i < 4 * 120, "it walks");
+                Step(harness, 250);
+            }
+
+            S.HoldForTalk(squad.Members[1].Creature);
+            var at = squad.Leader.Creature.Position;
+
+            for (var i = 0; i < (S.TalkHoldMs - 1000) / 250; i++)
+                Step(harness, 250);
+
+            Assert.IsTrue(Flat(squad.Leader.Creature.Position - at) < 2f,
+                $"it stands for the talk: {Flat(squad.Leader.Creature.Position - at):0.0} m");
+
+            for (var i = 0; i < 4 * 15; i++)
+                Step(harness, 250);
+
+            Assert.IsTrue(Flat(squad.Leader.Creature.Position - at) > 4f,
+                $"then walks on: {Flat(squad.Leader.Creature.Position - at):0.0} m");
+        }
+
         [TestMethod]
         public void ARouteWalkedOnceEndsAndOneWalkedBackTurnsAround()
         {
