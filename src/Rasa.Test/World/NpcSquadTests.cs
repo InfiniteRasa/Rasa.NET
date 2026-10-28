@@ -1144,6 +1144,51 @@ namespace Rasa.Test.World
             Assert.IsTrue(S.MayTakeUp(squad.Leader.Creature, thrax.EntityId));
         }
 
+        [TestMethod]
+        public void ABystanderLeaderLeftAloneWalksOnAndHisSquadIsSentAgainInFullOnItsTime()
+        {
+            using var harness = Create();
+            var road = Road(harness);
+
+            Squad(harness, AfsSoldier, 3, 3, S.Formation.Line, road, S.PathMode.Loop);
+            Say(harness, ".squad type 1 bystander on");
+            Step(harness, 250);
+            var squad = S.On(harness.Map)[1];
+            var leader = squad.Leader;
+            Assert.AreEqual(4, squad.Living.Count());
+
+            // His members fall (to-fix Pools #1: a bot killed Nakrinx's four guards and none came back while he lived).
+            foreach (var member in squad.Members.Where(m => m != leader).ToList())
+                Kill(member.Creature);
+
+            Step(harness, 250);
+            var from = leader.Creature.Position;
+            Step(harness, 10_000);
+            Assert.IsTrue(Flat(leader.Creature.Position - from) > 5f, $"he walks on alone: {Flat(leader.Creature.Position - from):0.0} m");
+            Step(harness, 109_000);
+
+            Assert.AreSame(leader, squad.Leader, "he is not sent again before its time");
+            Assert.AreEqual(1, squad.Living.Count());
+            Assert.IsTrue(Say(harness, ".squad").Any(line => line.Contains("1 out, sent again in")), "a GM sees when");
+
+            Step(harness, 1_000);
+
+            Assert.AreNotSame(leader, squad.Leader, "the squad, he too, is sent again");
+            Assert.IsNull(leader.Creature.SquadMember, "the old leader is taken away");
+            Assert.AreEqual(4, squad.Living.Count(), "in full");
+            Assert.IsTrue(S.IsBystander(squad.Leader.Creature), "its new leader a bystander");
+            Assert.IsTrue(squad.Living.Where(m => m != squad.Leader).All(m => !S.IsBystander(m.Creature)));
+            Assert.IsTrue(Flat(squad.Leader.Creature.Position - road[0]) < 2f, $"at the spawn: {Flat(squad.Leader.Creature.Position - road[0]):0.0} m off");
+
+            // While one of his members stands it is not sent again.
+            var again = squad.Leader;
+            foreach (var member in squad.Members.Where(m => m != again).Skip(1).ToList())
+                Kill(member.Creature);
+            Step(harness, 130_000);
+            Assert.AreSame(again, squad.Leader);
+            Assert.AreEqual(2, squad.Living.Count());
+        }
+
         private static bool HasColumn(OrdinaryLootTestDatabase database, string table, string column) =>
             Count(database, $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = '{column}'") == 1;
 

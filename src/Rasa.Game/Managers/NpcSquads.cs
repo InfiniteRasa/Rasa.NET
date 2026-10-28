@@ -292,6 +292,9 @@ namespace Rasa.Managers
             internal long PauseUntil;
             internal long RegroupSince;
 
+            /// <summary>How many it was last sent with.</summary>
+            internal int SentCount;
+
             /// <summary>Who is still to teleport in, in order, and when the next one does.</summary>
             internal readonly Queue<uint> Arriving = new();
             internal long NextArrivalAt;
@@ -321,7 +324,9 @@ namespace Rasa.Managers
         /// sent with - a talkable NPC his guards walk with (Nakrinx, Valverde Pools). He takes up no fight, neither his
         /// squad's (Think) nor his scan's (<see cref="MayTakeUp"/>) nor one a hit or anything else would start - all go
         /// through BehaviorManager.CanSetActionFighting - and while they fight he stands, as a squad in a fight does, so
-        /// they fight by him and a tether holds them to him. When he falls the next of them leads, and fights as any.
+        /// they fight by him and a tether holds them to him. When he falls the next of them leads, and fights as any. When
+        /// they all fall he walks on alone, and the respawn time after the last of them the squad is taken away and sent
+        /// again in full, he too (Worker) - else, standing, he would keep it from ever coming back.
         /// </summary>
         public static bool IsBystander(Creature creature) => creature?.SquadMember?.Bystander == true;
 
@@ -467,14 +472,31 @@ namespace Rasa.Managers
 
                     if (squad.Phase != Phase.Gone)
                     {
+                        // A bystander leader's squad already due back (below) keeps that time.
+                        var due = now + spawn.RespawnSeconds * 1000L;
                         squad.Phase = Phase.Gone;
-                        squad.RespawnAt = now + spawn.RespawnSeconds * 1000L;
+                        squad.RespawnAt = squad.RespawnAt > 0 ? Math.Min(squad.RespawnAt, due) : due;
                     }
 
                     if (now >= squad.RespawnAt)
                         Send(map, squad, now);
 
                     continue;
+                }
+
+                // A bystander leader whose members have all fallen walks on alone, and the squad
+                // is sent again in full on its time, as one with no one left (IsBystander).
+                if (squad.SentCount > 1 && squad.Arriving.Count == 0 && squad.Living.All(member => member.Bystander))
+                {
+                    if (squad.RespawnAt == 0)
+                        squad.RespawnAt = now + spawn.RespawnSeconds * 1000L;
+
+                    if (now >= squad.RespawnAt)
+                    {
+                        TakeAway(map, squad);
+                        Send(map, squad, now);
+                        continue;
+                    }
                 }
 
                 Think(map, squad, now);
@@ -545,6 +567,7 @@ namespace Rasa.Managers
                 squad.RespawnAt = now + Math.Max(10u, spawn.RespawnSeconds) * 1000L;
             }
 
+            squad.SentCount = creatures.Count;
             Logger.WriteLog(LogType.Debug, $"Squad spawn {spawn.Id} ({type.Name}) sent {squad.Members.Count} on map {spawn.MapContextId}.");
 
             return squad.Members.Count;
@@ -1398,7 +1421,7 @@ namespace Rasa.Managers
             var state = !spawn.Enabled ? "disabled" :
                 live == null ? "not sent yet" :
                 live.Phase == Phase.Gone ? $"gone, back in {Math.Max(0, live.RespawnAt - Now()) / 1000} s" :
-                $"{live.Living.Count()} out, {live.Phase}{(live.PathIndex >= 0 && live.Phase != Phase.Holding ? $" to point {live.PathIndex}" : "")}";
+                $"{live.Living.Count()} out{(live.RespawnAt > 0 ? $", sent again in {Math.Max(0, live.RespawnAt - Now()) / 1000} s" : "")}, {live.Phase}{(live.PathIndex >= 0 && live.Phase != Phase.Holding ? $" to point {live.PathIndex}" : "")}";
 
             return $"Spawn {spawn.Id} {spawn.Comment}: type {spawn.TypeId} {type}, {path}, {(spawn.Arrival == Arrival.Teleport ? "teleports in, " : "")}respawn {spawn.RespawnSeconds} s, {state}, " +
                 $"{Vector3.Distance(spawn.Position, gm.Position):0} m away (.teleport {Coords(spawn.Position)} {spawn.MapContextId})";
