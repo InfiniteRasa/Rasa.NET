@@ -124,7 +124,9 @@ namespace Rasa.Managers
                 pool.DropshipQueue = 0;
                 pool.QueuedCreatureList = null;
             }
-            ControlPoints.TakeOffLiving(map, new List<SpawnPool> { pool });
+            var pools = new List<SpawnPool> { pool };
+            LandingZoneAssaults.CountLiving(map, pools);
+            ControlPoints.TakeOffLiving(map, pools);
             pool.Delivered = null;
             map.SpawnPools.Remove(pool);
         }

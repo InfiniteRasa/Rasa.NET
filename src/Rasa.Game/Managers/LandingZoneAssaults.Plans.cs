@@ -17,9 +17,12 @@ namespace Rasa.Managers
             internal string Name;
             internal long FirstDelayMs, PeriodMs, WaveGapMs, LifetimeMs, ReliefDelayMs;
             internal int Waves;
+            /// <summary>Whether assaults held off make the next bigger (Repelled counts only then).</summary>
+            internal bool Escalates;
             internal LandingZoneAssaultContent.Drop[] Drops;
             internal uint Boss;
-            internal Func<int, int, int, List<SpawnPoolSlot>> Ship;
+            /// <summary>wave, ship, the boss's ship, assaults held off before this one.</summary>
+            internal Func<int, int, int, int, List<SpawnPoolSlot>> Ship;
             internal Action<MapChannel, ControlPoints.Point, Assault> Reinforce;
         }
 
@@ -48,7 +51,7 @@ namespace Rasa.Managers
                 Waves = 3,
                 Drops = LandingZoneAssaultContent.Drops,
                 Boss = LandingZoneAssaultContent.Boss,
-                Ship = (wave, ship, bossShip) =>
+                Ship = (wave, ship, bossShip, _) =>
                 {
                     var slots = new List<SpawnPoolSlot> {
                         new(wave == 1 ? LandingZoneAssaultContent.Trainee : LandingZoneAssaultContent.Private, 3, 5),
@@ -70,12 +73,17 @@ namespace Rasa.Managers
             LifetimeMs = content.LifetimeSeconds * 1000L,
             ReliefDelayMs = content.ReliefSeconds * 1000L,
             Waves = content.Waves.Length,
+            Escalates = content.EscalationStep > 0,
             Drops = content.Drops,
             Boss = content.Boss,
-            Ship = (wave, ship, bossShip) =>
+            Ship = (wave, ship, bossShip, repelled) =>
             {
                 var troops = content.Waves[wave - 1];
-                var slots = troops[ship % troops.Length].Select(t => new SpawnPoolSlot(t.Creature, (short)t.Min, (short)t.Max)).ToList();
+                var grow = 1 + content.EscalationStep * Math.Min(repelled, content.MaxEscalation);
+                short Grown(int count, uint creature) =>
+                    (short)(content.NotEscalated.Contains(creature) ? count : Math.Max(count, (int)Math.Round(count * grow, MidpointRounding.AwayFromZero)));
+                var slots = troops[ship % troops.Length]
+                    .Select(t => new SpawnPoolSlot(t.Creature, Grown(t.Min, t.Creature), Grown(t.Max, t.Creature))).ToList();
                 if (wave == content.Waves.Length && ship == bossShip && content.Boss != 0) slots.Add(new(content.Boss, 1, 1));
                 return slots;
             },

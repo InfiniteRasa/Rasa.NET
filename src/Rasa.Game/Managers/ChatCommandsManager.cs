@@ -5001,13 +5001,15 @@ namespace Rasa.Managers
                         ? $"map {point.MapContextId}"
                         : $"{Vector3.Distance(point.Object?.Position ?? point.Position, player.Position):0.#} m";
 
+                    string Held(ControlPoints.Point p) => LandingZoneAssaults.Repelled(player.MapChannel, p) is var held and > 0
+                        ? $", {held} assault(s) held off" : "";
                     var holder = point.HeldByClan
                         ? $"AFS, clan {points.HolderName(point)} (#{point.ClanId}){(point.LockboxId == 0 ? ", no lockbox" : "")}"
                         : ControlPoints.FactionName(point.Owner);
 
                     CommunicatorManager.Instance.SystemMessage(client, point.IsBattleground
                         ? $"#{point.Id} {point.Name}: a battleground's (.bg), {where}"
-                        : $"#{point.Id} {point.Name}: {holder}, {garrison}, {where}");
+                        : $"#{point.Id} {point.Name}: {holder}, {garrison}{Held(point)}, {where}");
                 }
 
                 if (points.NextClanReset != null && list.Any(p => p.HeldByClan))

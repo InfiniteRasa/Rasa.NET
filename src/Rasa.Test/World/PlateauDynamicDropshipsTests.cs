@@ -111,7 +111,8 @@ namespace Rasa.Test.World
             foreach (var id in new[] { Content.NortheastAfs, Content.NorthwestAfs })
             {
                 var pools = _world.Map.SpawnPools.Where(p => Point(id).AfsPools.Contains(p.DbId) && Content.Garrison.Any(g => g.Id == p.DbId)).ToArray();
-                Assert.AreEqual(4, pools.Length, $"point {id}");
+                Assert.AreEqual(7, pools.Length, $"point {id}");
+                Assert.AreEqual(12, Content.Garrison.Where(g => g.Point == id).Sum(g => g.Troop.Max), $"point {id}: 8 riflemen, 2 machine gunners, 2 mechs");
                 Assert.IsTrue(pools.All(p => p.AnimType == 2 && p.IsGarrison && !p.Suspended), $"point {id}");
             }
             foreach (var id in new[] { Content.SoutheastBane, Content.SouthwestBane })
@@ -140,7 +141,8 @@ namespace Rasa.Test.World
             Assert.AreEqual(6, Assaults(Content.NortheastAfs).Length);
             var troops = Troops(Content.NortheastAfs);
             Assert.AreEqual(1, troops.Count(c => c.DbId == Content.ThraxCommander));
-            Assert.IsTrue(troops.Length is >= 30 and <= 36, $"{troops.Length} Bane: about 10 for each AFS defender");
+            Assert.IsTrue(troops.Length is >= 28 and <= 33, $"{troops.Length} Bane in the first assault (8-9, 9-11, 11-13 with the commander)");
+            Assert.IsFalse(troops.Any(c => c.DbId == Content.ShieldDrone), "no Shield Drones: the AFS cannot get under their shield");
             Assert.IsTrue(troops.All(c => c.Level is >= 28 and <= 33), "2-4 levels over the zone's Bane, the commander 5");
             Assert.AreEqual(0, Relief(Content.NortheastAfs).Length);
             _now += northeast.ReliefSeconds * 1000L - 360000;
@@ -199,9 +201,13 @@ namespace Rasa.Test.World
             _now += 30000;
             Tick();
             Assert.AreEqual(ControlPoints.Bane, point.Owner, "the AI does not take a point");
+            // What is left goes after its time, also when its pool's living count has drifted to 0.
+            var left = AfsSorties.Squad(_world.Map, point).ToArray();
+            Assert.IsTrue(left.Length > 0);
+            ship.SpawnPool.AliveCreatures = 0;
             _now += southeast.SortieLifetimeSeconds * 1000L;
             Tick();
-            Assert.AreEqual(0, AfsSorties.Squad(_world.Map, point).Count(), "what is left goes after its time");
+            Assert.IsFalse(left.Any(c => CreatureManager.IsLivingOnMap(_world.Map, c)), "what is left goes after its time");
         }
 
         [TestMethod]
@@ -215,6 +221,92 @@ namespace Rasa.Test.World
             _now += southeast.FirstDelaySeconds * 1000L;
             Tick();
             Assert.AreEqual(2, Assaults(point.Id).Length, "the Bane counter-attack after a delay");
+        }
+
+        /// <summary>A claim under way when the assault's time runs out finishes: the point is the Bane's, not held off.</summary>
+        [TestMethod]
+        public void AClaimUnderWayFinishesWhenTheAssaultsTimeRunsOut()
+        {
+            var point = Point(Content.NortheastAfs);
+            var plan = Content.Assaults.Single(a => a.PointId == point.Id);
+            Assert.IsTrue(LandingZoneAssaults.TryStart(_world.Map, point));
+            _now += 360000;
+            Tick();
+            Deliver();
+            var defenders = _world.Map.SpawnPools.Where(p => point.AfsPools.Contains(p.DbId) || p.IsControlPointReinforcement).ToList();
+            ControlPoints.TakeOffLiving(_world.Map, defenders);
+            foreach (var pool in defenders)
+            {
+                pool.Suspended |= pool.IsControlPointReinforcement;
+                pool.HasSpawned = true; pool.AliveCreatures = 0; pool.QueuedCreatures = 0; pool.DropshipQueue = 0;
+            }
+            var commander = Troops(point.Id).Single(c => c.DbId == Content.ThraxCommander);
+            _now = 1000 + plan.LifetimeSeconds * 1000L - 5000;
+            commander.Position = Walk(point.Position, "point");
+            Tick();
+            Assert.AreSame(commander, point.Object.UsedBy, "the claim starts 5 s before the assault's time is up");
+            _now += 6000;
+            Tick();
+            Assert.AreEqual(0, LandingZoneAssaults.Repelled(_world.Map, point), "not held off while the claim is under way");
+            _now += 10000;
+            Tick();
+            Assert.AreEqual(ControlPoints.Bane, point.Owner);
+        }
+
+        /// <summary>An assault that is over takes its Bane off, also when its pools' living counts have drifted to 0.</summary>
+        [TestMethod]
+        public void AnAssaultThatIsOverLeavesNoBaneBehindEvenWithItsCountsAtZero()
+        {
+            var point = Point(Content.NortheastAfs);
+            var plan = Content.Assaults.Single(a => a.PointId == point.Id);
+            Assert.IsTrue(LandingZoneAssaults.TryStart(_world.Map, point));
+            Deliver();
+            var troops = Troops(point.Id);
+            Assert.IsTrue(troops.Length > 0);
+            foreach (var pool in Assaults(point.Id)) pool.AliveCreatures = 0;
+            _now += plan.LifetimeSeconds * 1000L;
+            Tick();
+            Assert.AreEqual(ControlPoints.Afs, point.Owner, "held off");
+            Assert.IsFalse(troops.Any(c => CreatureManager.IsLivingOnMap(_world.Map, c)), "no Bane of it stays at the point");
+        }
+
+        /// <summary>
+        /// Each assault the AFS hold off makes the next one bigger (EscalationStep); the count starts
+        /// again when the point changes hands.
+        /// </summary>
+        [TestMethod]
+        public void EachAssaultHeldOffMakesTheNextBiggerUntilThePointChangesHands()
+        {
+            var point = Point(Content.NortheastAfs);
+            var plan = Content.Assaults.Single(a => a.PointId == point.Id);
+            int Soldiers(int repelled)
+            {
+                Assert.IsTrue(LandingZoneAssaults.TryStart(_world.Map, point));
+                Deliver();
+                Assert.AreEqual(repelled, LandingZoneAssaults.Repelled(_world.Map, point));
+                var soldiers = Troops(point.Id).Count(c => c.DbId == Content.ThraxSoldier);
+                _now += plan.LifetimeSeconds * 1000L;
+                Tick();
+                Assert.AreEqual(0, Assaults(point.Id).Length, "over");
+                Assert.AreEqual(ControlPoints.Afs, point.Owner, "held off");
+                return soldiers;
+            }
+            var first = Soldiers(0);
+            var second = Soldiers(1);
+            var third = Soldiers(2);
+            // The first wave's ships: Thrax Soldiers 3-4 and 3; x1.25: 4-5 and 4; x1.5: 5-6 and 5 (rounded).
+            Assert.IsTrue(first is >= 6 and <= 7, $"{first} Thrax Soldiers in the first wave");
+            Assert.IsTrue(second is >= 8 and <= 9, $"{second}: 25% more after one held off");
+            Assert.IsTrue(third is >= 10 and <= 11, $"{third}: 50% more after two");
+            Assert.AreEqual(3, LandingZoneAssaults.Repelled(_world.Map, point));
+            for (var i = 3; i < 7; i++) Soldiers(i);
+            Assert.IsTrue(Soldiers(7) is >= 12 and <= 14, "at most twice the troops (MaxEscalation 4): 6-7 and 6");
+
+            ControlPoints.Instance.SetOwner(point, ControlPoints.Bane, null);
+            Tick();
+            ControlPoints.Instance.SetOwner(point, ControlPoints.Afs, null);
+            Tick();
+            Assert.AreEqual(0, LandingZoneAssaults.Repelled(_world.Map, point), "a point that changed hands starts again");
         }
     }
 }

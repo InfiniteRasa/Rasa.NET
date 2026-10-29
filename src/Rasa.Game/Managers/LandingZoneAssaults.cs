@@ -19,8 +19,10 @@ namespace Rasa.Managers
     {
         private sealed class Assault
         {
-            internal long Due, Started;
+            internal long Due, Started, Logged;
             internal int Waves;
+            /// <summary>Assaults the AFS have held off since the point was last taken: the next is that much bigger.</summary>
+            internal int Repelled;
             internal bool WarningSent, Relieved;
             internal readonly List<SpawnPool> Pools = new();
             internal readonly List<SpawnPool> Reinforcements = new();
@@ -87,10 +89,25 @@ namespace Rasa.Managers
                 state.Relieved = true;
                 plan.Reinforce(map, point, state);
             }
-            if (now - state.Started >= Math.Max(plan.LifetimeMs, (plan.Waves - 1) * gap + 60000))
+            // A claim under way finishes first (live run 2026-10-30: the timeout ended one 8 s in, with
+            // no defender left, and counted the assault as held off).
+            if (now - state.Started >= Math.Max(plan.LifetimeMs, (plan.Waves - 1) * gap + 60000) && !state.Claim.HasValue)
             {
+                // Over with the AFS still holding: held off (a capture leaves through Claim, and a
+                // point that changes hands drops its state, so the count starts again).
+                if (plan.Escalates) state.Repelled++;
+                Logger.WriteLog(LogType.Debug, $"Control point {point.Id} ({point.Name}): assault held off ({state.Repelled} held off since it was last taken).");
                 Clear(map, point, state);
                 return;
+            }
+            if (now - state.Logged >= 60000)
+            {
+                state.Logged = now;
+                Logger.WriteLog(LogType.Debug, $"Control point {point.Id} ({point.Name}): assault +{(now - state.Started) / 1000} s, {Defenders(map, point, state)} AFS defenders " +
+                    $"and {EntityManager.Instance.Creatures.Values.Count(c => state.Pools.Contains(c.SpawnPool) && CreatureManager.IsLivingOnMap(map, c))} Bane stand: " +
+                    string.Join("; ", EntityManager.Instance.Creatures.Values.Where(c => state.Pools.Contains(c.SpawnPool) && CreatureManager.IsLivingOnMap(map, c))
+                        .Select(c => $"{c.DbId} {Vector3.Distance(c.Position, point.Position):0} m {(c.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting ? "fighting" : "idle")} " +
+                            $"hp {c.Attributes[Attributes.Health].Current:0}")) + ".");
             }
             if (state.Boss != null && !CreatureManager.IsLivingOnMap(map, state.Boss)) Cancel(point, state);
             var guards = EntityManager.Instance.Creatures.Values.Where(c => c.SpawnPool != null && point.AfsPools.Contains(c.SpawnPool.DbId) &&
@@ -138,7 +155,7 @@ namespace Rasa.Managers
             for (var i = 0; i < plan.Drops.Length; i++)
             {
                 var drop = plan.Drops[i];
-                var slots = plan.Ship(wave, i, bossShip);
+                var slots = plan.Ship(wave, i, bossShip, state.Repelled);
                 if (slots.Count == 0) continue;
                 var pool = new SpawnPool { MapContextId = point.MapContextId, RuntimeMapChannel = map,
                     Position = drop.Position, Rotation = drop.Rotation, SpawnSlot = slots, AnimType = 1,
@@ -153,14 +170,43 @@ namespace Rasa.Managers
                 };
                 state.Pools.Add(pool);
                 map.SpawnPools.Add(pool);
-                SpawnPoolManager.Instance.EnqueueDropship(map, pool, SpawnPoolManager.Instance.CreateListOfCreatures(pool),
+                var brings = SpawnPoolManager.Instance.CreateListOfCreatures(pool);
+                Logger.WriteLog(LogType.Debug, $"Control point {point.Id} ({point.Name}): assault wave {wave}/{plan.Waves}, ship {i + 1}: " +
+                    $"{brings.Count} Bane ({string.Join(", ", brings.GroupBy(c => c.DbId).Select(g => $"{g.Count()}x {g.Key}"))}), {state.Repelled} held off before.");
+                SpawnPoolManager.Instance.EnqueueDropship(map, pool, brings,
                     new SpawnPoolArrivalEntry { Kind = SpawnPoolArrivalEntry.KindDropship,
                         PosX = drop.Position.X, PosY = drop.Position.Y, PosZ = drop.Position.Z, Rotation = drop.Rotation });
             }
             state.Waves = wave;
+            Logger.WriteLog(LogType.Debug, $"Control point {point.Id} ({point.Name}): before wave {wave}, {Defenders(map, point, state)} AFS defenders " +
+                $"and {EntityManager.Instance.Creatures.Values.Count(c => state.Pools.Contains(c.SpawnPool) && CreatureManager.IsLivingOnMap(map, c))} Bane of the assault stand.");
             foreach (var client in map.ClientList)
                 CommunicatorManager.Instance.SystemMessage(client, $"{plan.Name ?? point.Name}: Bane assault wave {wave}/{plan.Waves} incoming!");
         }
+        /// <summary>
+        /// Sets each pool's living count to the creatures of it that stand: TakeOffLiving takes
+        /// nothing when every count is 0, and a count that has drifted below its living (live run
+        /// 2026-10-29: a Commander and a Technician of a held-off assault stayed at the point until
+        /// it fell) left them standing after their assault was over.
+        /// </summary>
+        internal static void CountLiving(MapChannel map, List<SpawnPool> pools)
+        {
+            foreach (var pool in pools)
+            {
+                var living = EntityManager.Instance.Creatures.Values.Count(c => c.SpawnPool == pool && CreatureManager.IsLivingOnMap(map, c));
+                if (living > pool.AliveCreatures) pool.AliveCreatures = living;
+            }
+        }
+
+        /// <summary>Assaults on the point the AFS have held off since it was last taken (.cp list).</summary>
+        internal static int Repelled(MapChannel map, ControlPoints.Point point) =>
+            map != null && point != null && States.TryGetValue(map, out var states) && states.TryGetValue(point.Id, out var state) ? state.Repelled : 0;
+
+        /// <summary>The point's AFS garrison and relief that stand (for the Debug log).</summary>
+        private static int Defenders(MapChannel map, ControlPoints.Point point, Assault state) =>
+            EntityManager.Instance.Creatures.Values.Count(c => c.SpawnPool != null && CreatureManager.IsLivingOnMap(map, c) &&
+                (point.AfsPools.Contains(c.SpawnPool.DbId) && ControlPoints.Instance.ServicePointOf(map, c.SpawnPool) == null || state.Reinforcements.Contains(c.SpawnPool)));
+
         private static int Vitality(Creature boss) =>
             (int)boss.Attributes[Attributes.Health].Current + (int)boss.Attributes[Attributes.Armor].Current;
 
@@ -182,6 +228,8 @@ namespace Rasa.Managers
             if (point.Object == null || (point.Object.UsedBy != null && point.Object.UsedBy != boss)) return false;
             if (!state.Claim.HasValue)
             {
+                Logger.WriteLog(LogType.Debug, $"Control point {point.Id} ({point.Name}): the {boss.Name ?? "boss"} claims it; AFS garrison " +
+                    $"{ControlPoints.Instance.GarrisonOf(map, point, ControlPoints.Afs)}, {Defenders(map, point, state)} AFS defenders stand.");
                 state.Claim = now;
                 point.Object.UsedBy = boss;
                 CellManager.Instance.CellCallMethod(point.Object, new LockToActorPacket(boss.EntityId));
@@ -224,6 +272,7 @@ namespace Rasa.Managers
                 ship.SpawnPool.DropshipQueue = 0;
                 ship.SpawnPool.QueuedCreatureList = null;
             }
+            CountLiving(map, pools);
             ControlPoints.TakeOffLiving(map, pools);
             foreach (var pool in pools) { pool.Delivered = null; map.SpawnPools.Remove(pool); }
             state.Pools.Clear();
