@@ -38,7 +38,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
             for (var index = 0; index < Fields.Length; index++)
                 yield return PlateauFieldSqlV1.TakeDown(PlateauSelfPreservationV1.MissionId, PlateauSelfPreservationV1.Switches[index].Objective, 1,
                     Action, Fields[index].Id, $"{PlateauSelfPreservationV1.Switches[index].Colour}-field-down",
-                    $"The {PlateauSelfPreservationV1.Switches[index].Colour} switch: the field at {Fields[index].Where} goes down");
+                    $"{PlateauSelfPreservationV1.Switches[index].Colour} switch: field at {Fields[index].Where} down");
         }
 
         public static IEnumerable<string> Down()

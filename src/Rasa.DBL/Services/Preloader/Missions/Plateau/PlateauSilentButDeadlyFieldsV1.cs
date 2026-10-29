@@ -47,7 +47,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
             for (var index = 0; index < Fields.Length; index++)
                 yield return PlateauFieldSqlV1.TakeDown(PlateauSilentButDeadlyV1.MissionId, PlateauSilentButDeadlyV1.Computer, 1,
                     FirstAction + (uint)index, Fields[index].Id, $"ustor-field-{index + 1}-down",
-                    $"Take down the Ustor force field at {Fields[index].Where}");
+                    $"1187 field down: {Fields[index].Where}");
         }
 
         public static IEnumerable<string> Down()

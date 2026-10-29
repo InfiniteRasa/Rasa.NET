@@ -115,9 +115,9 @@ namespace Rasa.Services.Preloader.Missions.Plateau
                 yield return sql;
             foreach (var sql in Human(Neuman, "Information Spec. Neuman - Maligo Base", FemaleClass, NeumanName, NeumanLevel, NeumanPackage, NeumanAt))
                 yield return sql;
-            foreach (var sql in Human(Maybauer, "Demolitionist Maybauer - Maligo Base (One Way Trip scene)", MaleClass, MaybauerName, HumanLevel, MaybauerPackage, null))
+            foreach (var sql in Human(Maybauer, "Demolitionist Maybauer - Maligo Base (877 scene)", MaleClass, MaybauerName, HumanLevel, MaybauerPackage, null))
                 yield return sql;
-            foreach (var sql in Human(Homburg, "Lieutenant Homburg - Maligo Base (One Way Trip scene)", MaleClass, HomburgName, HumanLevel, HomburgPackage, null))
+            foreach (var sql in Human(Homburg, "Lieutenant Homburg - Maligo Base (877 scene)", MaleClass, HomburgName, HumanLevel, HomburgPackage, null))
                 yield return sql;
 
             yield return "INSERT INTO creature (id, comment, class_id, faction, level, max_hp, name_id, run_speed, walk_speed, " +
