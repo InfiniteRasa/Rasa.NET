@@ -3115,6 +3115,10 @@ namespace Rasa.Migrations.MySqlWorld
                         .HasColumnType("double")
                         .HasColumnName("tether");
 
+                    b.Property<byte>("LeaderBystander")
+                        .HasColumnType("tinyint unsigned")
+                        .HasColumnName("leader_bystander");
+
                     b.HasKey("Id");
 
                     b.ToTable("npc_squad_type");

@@ -40,10 +40,16 @@ namespace Rasa.Missions.Scenes
     public sealed record SceneObjectAction(uint MissionId, uint ObjectiveId, uint SequenceId, uint ActionArgId = 1);
     public sealed record SceneObjectDestruction(uint MissionId, uint ObjectiveId, uint SequenceId,
         uint HitPoints = 100, uint DestroyedState = 2);
+    /// <summary>
+    /// An object's conversation. A menu (<paramref name="Menu"/>) shows, of the topics of its objective and package, the
+    /// first the character meets the requirement of (this binding's own first): a terminal whose pages the character's
+    /// flags choose (PoolsSpyNetworkingV1).
+    /// </summary>
     public sealed record SceneObjectConversation(uint MissionId, uint ObjectiveId, uint NpcPackageId,
         uint DialogObjectiveId, uint PlayerFlagId = 1,
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] Definitions.MissionDialogueKind Kind =
-            Definitions.MissionDialogueKind.Completion);
+            Definitions.MissionDialogueKind.Completion,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool Menu = false);
     public sealed record SceneWaypoint(ScenePosition Position, double Orientation = 0, uint PauseMilliseconds = 0,
         // Held and fought from: on a route that resumes after combat, an actor here takes on what
         // it would pick a fight with within this many metres, and goes on once a pause passes

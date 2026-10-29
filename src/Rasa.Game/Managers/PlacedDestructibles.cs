@@ -44,6 +44,10 @@ namespace Rasa.Managers
     ///    takes it down for good in one copy (<see cref="TakeDown"/>, MissionActionKind.TakeDownField).
     ///  - a Shrine (13) or a StatelessSwitch (8) has destroyed content and is no destroyable to the
     ///    client: it is put down as scenery in its one state, and nothing hurts it.
+    ///  - a class with no augmentation at all - a plain model, as the .map's own pieces - is left
+    ///    out, unless <see cref="PlainScenery"/> names it: then it is put down as scenery with no
+    ///    state, as the Pools' Eloh obelisk at the western fort, which the live servers had and the
+    ///    1.16.5 .map has not (PoolsObeliskV1).
     ///
     /// Hit points (ours, by size, unless the row gives some): <see cref="SmallHitPoints"/>,
     /// <see cref="MediumHitPoints"/>, <see cref="LargeHitPoints"/> (<see cref="SizeOf"/>); a force
@@ -88,6 +92,15 @@ namespace Rasa.Managers
 
         /// <summary>The Practice Dummy has its own ways (PracticeTargetManager) and is no row's.</summary>
         public const uint PracticeDummyClass = PracticeTargetManager.EntityClassId;
+
+        /// <summary>
+        /// The plain models (no augmentation) a row may put down, as scenery with no state. Any other
+        /// is a row's mistake and is left out: a destructible table is not for the .map's pieces.
+        /// </summary>
+        public static readonly IReadOnlySet<uint> PlainScenery = new HashSet<uint>
+        {
+            10259,  // ArchElohObeliskV01: the Pools' obelisk at the western Bane fort (PoolsObeliskV1)
+        };
 
         public enum Kind
         {
@@ -460,6 +473,9 @@ namespace Rasa.Managers
             if (augmentations == null)
                 return null;
 
+            if (augmentations.Count == 0)
+                return PlainScenery.Contains(classInfo.ClassId) ? Kind.Scenery : null;
+
             if (augmentations.Contains(AugmentationType.ForceField) || augmentations.Contains(AugmentationType.ClanForceField) ||
                 augmentations.Contains(AugmentationType.OwnableForceField))
                 return Kind.ForceField;
@@ -512,9 +528,13 @@ namespace Rasa.Managers
             Kind.Spawner => UseObjectState.CsStateIdle,
             Kind.TeslaCoil => UseObjectState.StatePowerDown,
             Kind.Switch => UseObjectState.StatePowerUp,
-            _ => EntityClassManager.Instance.GetClassInfo(classId)?.Augmentations?.Contains(AugmentationType.Shrine) == true
-                ? UseObjectState.ShrineState0
-                : UseObjectState.SsState0
+            _ => EntityClassManager.Instance.GetClassInfo(classId)?.Augmentations switch
+            {
+                { } list when list.Contains(AugmentationType.Shrine) => UseObjectState.ShrineState0,
+                { Count: > 0 } => UseObjectState.SsState0,
+                // A plain model has no usable to take a state: none is sent (DynamicObjectManager's scenery).
+                _ => 0
+            }
         };
 
         /// <summary>

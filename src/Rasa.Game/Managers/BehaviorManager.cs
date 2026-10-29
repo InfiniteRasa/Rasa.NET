@@ -2816,6 +2816,10 @@ namespace Rasa.Managers
             if (IsReturning(creature))
                 return false;
 
+            // A squad's bystander leader takes up no fight at all: his guards fight for him (NpcSquads.IsBystander).
+            if (NpcSquads.IsBystander(creature))
+                return false;
+
             // A passive minion does not fight, and this is the one place worth saying so: it
             // covers both the aggro scan and being shot at (MissileManager calls straight in
             // here), so there is no second path where passive quietly stops meaning passive.

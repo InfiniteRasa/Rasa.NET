@@ -89,7 +89,11 @@ namespace Rasa.Missions.Definitions
 
         internal static bool CanSelect(MissionObjectiveExecutableTransition transition, MissionDialogueTopicDefinition topic) =>
             transition.ProgressRule == null &&
-            transition.ToState is null or MissionObjectiveState.Completed or MissionObjectiveState.Failed &&
+            // Incomplete: a choice that leaves the objective open (a menu's page, PoolsSpyNetworkingV1). It can be chosen
+            // again and again, so it may only set flags and start scenarios (no item, reward or other one-time action).
+            (transition.ToState is null or MissionObjectiveState.Completed or MissionObjectiveState.Failed ||
+                transition.ToState == MissionObjectiveState.Incomplete &&
+                transition.Actions.All(action => action.Kind is MissionActionKind.SetPlayerFlag or MissionActionKind.StartScenario)) &&
             transition.Conversations.Any(conversation => conversation.NpcPackageId == topic.NpcPackageId &&
                 conversation.PlayerFlagId == topic.PlayerFlagId &&
                 conversation.Type is MissionObjectiveConversationType.Completion or MissionObjectiveConversationType.Choice1 or

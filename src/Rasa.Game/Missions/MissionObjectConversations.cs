@@ -30,14 +30,14 @@ namespace Rasa.Game.Missions
             mission.State == MissionState.Active &&
             mission.Objectives.TryGetValue(binding.ObjectiveId, out var objective) &&
             objective.State == MissionObjectiveState.Incomplete &&
-            Presentation(obj) is { } presentation &&
+            Presentation(client, obj) is { } presentation &&
             _missions.IsDialogueEligible(client.Player, binding.MissionId, presentation.Definition);
 
         internal NPCConversationStatusPacket Status(Client client, DynamicObject obj)
         {
             if (!IsAvailable(client, obj))
                 return new(ConversationStatus.None, new List<uint>());
-            var kind = Presentation(obj).Key.Kind;
+            var kind = Presentation(client, obj).Key.Kind;
             var status = kind switch
             {
                 MissionConversationTopicKind.ObjectiveCompletion => ConversationStatus.ObjectivComplete,
@@ -49,9 +49,11 @@ namespace Rasa.Game.Missions
             return new(status, new List<uint> { obj.MissionConversation.MissionId });
         }
 
-        private MissionDialoguePresentation Presentation(DynamicObject obj) =>
+        /// <summary>The topic the object shows the character now: a menu's page by the character's requirements.</summary>
+        internal MissionDialoguePresentation Presentation(Client client, DynamicObject obj, ICharUnitOfWork unit = null) =>
             _missions.TryGetOperationalMission(obj.MissionConversation.MissionId, out var definition)
-                ? MissionConversationProjection.ForObject(definition, obj.MissionConversation) : null;
+                ? MissionConversationProjection.ForObject(definition, obj.MissionConversation,
+                    topic => _missions.IsDialogueEligible(client.Player, obj.MissionConversation.MissionId, topic, unit)) : null;
 
         internal bool Open(Client client, ulong entityId)
         {
@@ -72,7 +74,7 @@ namespace Rasa.Game.Missions
                     _missions.RefreshConversationAssignments(client, unit, new[] { binding.MissionId });
                     if (!IsAvailable(client, obj))
                         return Reject("The conversation objective is not available.");
-                    var presentation = Presentation(obj);
+                    var presentation = Presentation(client, obj, unit);
                     if (!_missions.Interactions.CanOpen(client, target, unit) || !DurableAvailable(client, obj, unit) ||
                         !_missions.Interactions.TryCaptureTopic(client, presentation.Key, unit, out var topic, binding.ObjectiveId) ||
                         !_missions.Interactions.CanOpen(client, target, unit))
@@ -104,7 +106,8 @@ namespace Rasa.Game.Missions
                     .TryGetValue(binding.ObjectiveId, out var objective) &&
                 objective.ObjectiveState == (byte)MissionObjectiveState.Incomplete &&
                 _missions.IsObjectiveEligibleAtEvent(client, binding.MissionId, binding.ObjectiveId, unit) &&
-                _missions.IsDialogueEligible(client.Player, binding.MissionId, Presentation(obj).Definition, unit);
+                Presentation(client, obj, unit) is { } presentation &&
+                _missions.IsDialogueEligible(client.Player, binding.MissionId, presentation.Definition, unit);
         }
 
         private static bool Reject(string reason)
