@@ -260,6 +260,8 @@ docs/*
 !docs/wilderness-missions.md
 !docs/plateau-mission-crossref.md
 !docs/plateau-playtest.md
+!docs/pools-mission-crossref.md
+!docs/pools-playtest.md
 !docs/gm-commands.md
 
 # Local runtime files

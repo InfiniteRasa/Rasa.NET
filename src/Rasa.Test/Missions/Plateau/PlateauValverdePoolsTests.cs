@@ -145,7 +145,7 @@ namespace Rasa.Test.Missions.Plateau
             return RequireNpc(plateau, PlateauGiantKillerV1.Bosley);
         }
 
-        /// <summary>Snake at the Snake Pit: his name and package, on the navmesh, walked to from the waypoint.</summary>
+        /// <summary>Snake at the Snake Pit: his name and package, at his place, on the navmesh, walked to from the waypoint.</summary>
         private static Creature Snake(WildernessRuntimeTestHarness harness, MapChannel pools)
         {
             Spawn(pools, PlateauSnakePitV1.Snake);
@@ -155,7 +155,9 @@ namespace Rasa.Test.Missions.Plateau
             Assert.AreNotEqual(TargetCategory.Hostile, snake.TargetCategory);
             AssertStandsOnNavMesh(pools, snake.Position);
             Assert.IsTrue(pools.NavMesh.FindPath(SnakePitWaypoint, snake.Position, out var complete) != null && complete, "Snake is walked to");
-            Assert.IsTrue(Vector3.Distance(SnakePitWaypoint, snake.Position) < 40f, "Snake in the Snake Pit");
+            // At his sourced place since Pools_death_patrol (PoolsWashingtonPlaceV1), 60 m from the waypoint.
+            var at = Rasa.Services.Preloader.Missions.Pools.PoolsWashingtonPlaceV1.At;
+            Assert.AreEqual(new Vector3((float)at.X, (float)at.Y, (float)at.Z), snake.Position, "Snake in the Snake Pit");
             return snake;
         }
 
