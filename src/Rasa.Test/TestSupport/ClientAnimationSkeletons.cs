@@ -33,9 +33,11 @@ namespace Rasa.Test.TestSupport
             [49221] = 23,       // Redshirt_Human_Soldier_Heavy_Female, on the female human skeleton
             [49677] = 14003,    // Bane_Thrax_Soldier_Grunt_Rifle, on the Thrax rifle soldier's skeleton
             [18147] = 13964,    // Bane_Nitroglazer (DevilsDenContent)
-            [18148] = 13923,    // Bane_Sentinel
-            [20519] = 13927,    // Vehicle_Bane_Juggernaut (DevilsDenContent, TorcastraPrisonContent)
-            [37531] = 21,       // Bane_Kael_Armored, on the Kael's skeleton
+            [18148] = 13923,    // Bane_Sentinel (also the Plateau's Surveillance Sentinels)
+            [20519] = 13927,    // Vehicle_Bane_Juggernaut(_Boss) (DevilsDenContent, TorcastraPrisonContent, the Plateau's Prototype Juggernaut)
+            [37531] = 21,       // Bane_Kael_Armored, on the Kael's skeleton (also the Plateau's Maligo Elite Guardmaster, class 25414)
+            [47378] = 13999,    // the Plateau's Maligo Elite Guard (class 29059)
+            [35823] = 14036,    // Redshirt_Forean_Gunner_Infected, the Plateau's Infected Forean
         };
 
         /// <summary>Action animation families with no animation on any skeleton: the client's own gap, played by nothing.</summary>
@@ -55,6 +57,9 @@ namespace Rasa.Test.TestSupport
                 "1386 1387 1388 1389 1392 1393 1394 1395 1396 1397 1399 1400 1413 1414 1415 1416 1417 1418 1420 1423 " +
                 "1429 1430 1431 1432 1436 1437 1440 1479 1481 1483 1485 1486 1487 1510 1517 1518 1519 1522 1524",
             [21] = "622 650 651 656 663 922 1272 1273 1274 1281 1282 1438 1439",
+            [13923] = "1 4 21 83 126 176 458 503 525 526 531 534 542 543 573 612 618 622 650 651 687 730 731 887 905 942 " +
+                "944 1057 1078 1150 1151 1160 1161 1162 1163 1164 1165 1166 1167 1168 1169 1212 1220 1221 1222 1223 " +
+                "1224 1225 1227 1228 1229 1255 1272 1283 1284 1295 1310",   // Bane_Sentinel (animationdata.animationFamilyData)
             [23] = "85 176 490 491 493 498 499 500 501 502 513 514 518 519 556 557 558 559 560 561 562 566 567 568 569 " +
                 "572 583 593 601 609 610 612 622 627 631 632 633 634 637 638 648 650 651 653 654 664 715 727 729 732 " +
                 "739 748 749 750 764 765 767 778 779 785 827 847 871 873 914 915 916 939 945 983 984 985 986 987 988 " +
@@ -124,7 +129,6 @@ namespace Rasa.Test.TestSupport
             [14036] = "622 650 651 863 864 930 931 1272",
             [14041] = "622 650 651 1450 1451 1453 1454 1461 1463",
             [14000] = "622 650 651 734 924 1137 1138 1139 1140 1211 1272",
-            [13923] = "176 612 622 650 651 887 1057 1272",
             [13927] = "622 650 651 940 958 959 1411 1412 1433",
             [13964] = "176 612 622 650 651 887 1055 1272 1493",
         });

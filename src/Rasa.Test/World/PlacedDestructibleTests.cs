@@ -6,6 +6,7 @@ using System.Numerics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Rasa.Test.World
@@ -698,17 +699,13 @@ namespace Rasa.Test.World
                 {
                     MigratedDatabaseTemplates.Migrate(context, () => context.Database.Migrate());
 
-                    // No rows of its own: the only ones are later migrations' (Wilderness_post_npcs, Twin_pillars_npcs,
-                    // Caves_of_donn, Devils_den, Torcastra_prison,
-                    // Minos_caverns_content; Cache_of_the_day_containers retires the duplicate barrels), taken out here so the fixture's lot is all there is.
-                    CollectionAssert.AreEquivalent(
-                        new[] { WildernessPostNpcs.GateFieldId }
-                            .Concat(Enumerable.Range(0, TwinPillarsNpcs.Destructibles.Length).Select(TwinPillarsNpcs.DestructibleId))
-                            .Concat(CavesOfDonnContent.EggClusters.Select(egg => egg.Id))
-                            .Concat(DevilsDenContent.Breakables.Select(row => row.Id))
-                            .Concat(TorcastraPrisonContent.Destructibles.Select(row => row.Id))
-                            .Concat(MinosCavernsContent.Destructibles().Select(d => d.Id)).ToList(),
-                        new WorldDestructibleRepository(context).Get().Select(row => row.Id).ToList(), "no rows of its own");
+                    // No rows of its own: the migration that makes the table puts nothing in it. The rows there are
+                    // later migrations' content (Wilderness_post_npcs, Twin_pillars_npcs, Caves_of_donn, Devils_den,
+                    // Torcastra_prison, Minos_caverns_content, a zone's force fields, ...), taken out here so the
+                    // fixture's lot is all there is.
+                    var made = new Rasa.Migrations.SqliteWorld.Add_world_destructibles();
+                    Assert.IsFalse(made.UpOperations.Any(operation => operation is InsertDataOperation or SqlOperation),
+                        "no rows of its own");
                     context.Database.ExecuteSqlRaw("DELETE FROM world_destructible");
                     Assert.IsFalse(context.Database.HasPendingModelChanges());
                 }

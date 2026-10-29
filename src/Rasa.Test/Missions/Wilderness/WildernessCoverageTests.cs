@@ -26,8 +26,9 @@ namespace Rasa.Test.Missions.Wilderness
             // fifteenth being the Wilderness missions' own 1449. And the Ojasa Atta Hive's five
             // (OjasaHiveContent), the Caves of Donn's six (CavesOfDonnContent), the Devil's Den's
             // eight (DevilsDenContent), Pravus Research's six (PravusResearchContent), Torcastra
-            // Prison's five (TorcastraMissionsV1) and Minos Caverns' four (MinosCavernsMissions), which are instances'.
-            var battlefields = Rasa.Services.Preloader.TargetsOfOpportunitySeed.Zones.Select(zone => zone.MissionId).ToArray();
+            // Prison's five (TorcastraMissionsV1) and Minos Caverns' four (MinosCavernsMissions), which are instances'. And the Plateau ones.
+            var battlefields = Rasa.Services.Preloader.TargetsOfOpportunitySeed.Zones.Select(zone => zone.MissionId)
+                .Concat(Plateau.PlateauMissionTests.MissionIds).ToArray();
             var ojasa = Rasa.Services.Preloader.OjasaHiveContent.Missions;
             var donn = Rasa.Services.Preloader.CavesOfDonnContent.Missions;
             var den = Rasa.Services.Preloader.DevilsDenContent.Missions;
@@ -63,7 +64,11 @@ namespace Rasa.Test.Missions.Wilderness
             {
                 Assert.AreEqual(disposition, WildernessMissionCases.All.Single(entry => entry.MissionId == id).Disposition,
                     $"Native mission {id} must keep its evidence-backed boundary disposition.");
-                Assert.IsFalse(harness.World.MissionContentDefinitionEntries.Any(entry => entry.Enabled && entry.MissionId == id),
+                // A mission of another zone may be enabled with that zone's content (A Mystery Unearthed and
+                // Symbolism with the Plateau's), never as a Wilderness quest.
+                Assert.IsFalse(harness.World.MissionContentDefinitionEntries.Any(entry => entry.Enabled && entry.MissionId == id &&
+                        !(disposition == WildernessDisposition.OtherZone &&
+                          entry.ContentRevision == Rasa.Services.Preloader.Missions.Plateau.PlateauMissionDataV1.Revision)),
                     $"Excluded or conditional mission {id} must not become an ordinary enabled quest.");
             }
         }
