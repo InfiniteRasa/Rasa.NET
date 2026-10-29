@@ -146,8 +146,8 @@ namespace Rasa.Test.World
             // Alia Das NPCs moved or taken away by Alia_das_npcs, the Wilderness ones moved or
             // taken away by Wilderness_post_npcs, the two on tent roofs (Tent_floor_npcs), the Twin
             // Pillars ones moved or taken away by Twin_pillars_npcs, Airman Hamilton, moved to
-            // Torcastra Prison's research ward (Torcastra_prison) and Peterson, Mauer and McLaughlin
-            // (Plateau_defiant_ones).
+            // Torcastra Prison's research ward (Torcastra_prison), Ranger Porthus (Plateau_going_postal)
+            // and Peterson, Mauer and McLaughlin (Plateau_defiant_ones).
             void AssertCorrected(bool expected, params uint[] movedSince)
             {
                 harness.World.ChangeTracker.Clear();
@@ -176,6 +176,7 @@ namespace Rasa.Test.World
                 .Concat(TwinPillarsNpcs.Moves.Select(move => move.Pool)).Concat(TwinPillarsNpcs.Removed.Select(removed => removed.Id))
                 .Append(Rasa.Services.Preloader.BootcampBaseNpcs.DeSimonePoolId)
                 .Append(TorcastraPrisonContent.Hamilton)
+                .Append(Rasa.Services.Preloader.Missions.Plateau.PlateauGoingPostalV1.Porthus)
                 .Concat(Rasa.Services.Preloader.Missions.Plateau.PlateauFortDefianceNpcsV1.Moves.Select(move => move.Pool))
                 .Concat(Rasa.Services.Preloader.Missions.Plateau.PlateauPerduNpcsV1.Moves.Select(move => move.Pool))
                 .Concat(Rasa.Services.Preloader.Missions.Plateau.PlateauWedgeRockNpcsV1.Moves.Select(move => move.Pool))
