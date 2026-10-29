@@ -9,7 +9,8 @@ namespace Rasa.Services.Preloader.Missions.Plateau
     /// <see cref="Tenths"/>), as upstream does for Wilderness (WildernessRespawns). This list is what the tests check
     /// them by.
     ///
-    /// Not here: the mission NPCs' pools written 20, which stay at 20 as a mission NPC's pool is (MissionNpcSpawnpoolPreloader,
+    /// Not here: Zyrutha's and Kythura's pools, already in tenths (PlateauMaligoOfficerSquadRespawnV1, 600 = 60 s);
+    /// the mission NPCs' pools written 20, which stay at 20 as a mission NPC's pool is (MissionNpcSpawnpoolPreloader,
     /// WildernessRespawns); the Giant Killer squad, whose npc_squad_spawn.respawn_seconds is in seconds (NpcSquads).
     /// </summary>
     public static class PlateauPoolRespawnTenthsV1
@@ -20,10 +21,13 @@ namespace Rasa.Services.Preloader.Missions.Plateau
         public static readonly IReadOnlyList<(uint Pool, uint Seconds, string What)> Pools =
             PlateauMaligoGuardsV1.Packs.Select(pack => (pack.Id, PlateauMaligoGuardsV1.RespawnSeconds, "Maligo Elite Guards"))
                 .Concat(PlateauBaneStalkersV1.Pairs.Select(pair => (pair.Id, PlateauBaneStalkersV1.RespawnSeconds, "Bane Stalkers")))
+                .Concat(PlateauTombMiasmasV1.Pools.Select(pool => (pool.Id, PlateauTombMiasmasV1.RespawnSeconds, "Tomb Miasmas")))
+                .Concat(PlateauInfectedForeansV1.Pools.Select(pool => (pool.Id, PlateauInfectedForeansV1.RespawnSeconds, "Infected Foreans")))
                 .Append((PlateauPrototypeJuggernautV1.Pool, PlateauPrototypeJuggernautV1.RespawnSeconds, "Prototype Juggernaut"))
                 .Concat(PlateauMoxLairV1.Pools.Select(pool => (pool.Id, PlateauMoxLairV1.RespawnSeconds, "Mox lair")))
                 .Concat(PlateauSurveillanceSentinelsV1.Sentinels.Select(sentinel =>
                     (sentinel.Pool, PlateauSurveillanceSentinelsV1.RespawnSeconds, "Surveillance Sentinel")))
+                .Append((PlateauUstorYardV1.OfficerPool, PlateauUstorYardV1.OfficerRespawnSeconds, "Ustor Yard officer"))
                 .ToArray();
 
         public static uint Tenths(uint seconds) => seconds * TenthsPerSecond;
