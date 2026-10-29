@@ -41,7 +41,8 @@ namespace Rasa.Test.Missions.Plateau
     /// Sampei's Deadly Silence (1974, Plateau_deadly_silence); Velon Hollow's Ancient Mysteries (1978) and Mountain
     /// Spring Toxins (1979) (Plateau_velon_hollow_bane); Clark's The Better Half (1975, Plateau_better_half); the
     /// Temporal Chamber's Foreas Base Past (1178) and Send a Message (1181) (Plateau_temporal_past); Velon Hollow's
-    /// These Old Bones (1976, Plateau_these_old_bones) and Holy Vengeance (1977, Plateau_holy_vengeance).
+    /// These Old Bones (1976, Plateau_these_old_bones) and Holy Vengeance (1977, Plateau_holy_vengeance); Valverde Pools'
+    /// Retreads to Retreads (1751, Plateau_retreads_to_retreads), on this revision because it follows Weapons Trafficking.
     /// </summary>
     [TestClass]
     [DoNotParallelize]
@@ -73,7 +74,7 @@ namespace Rasa.Test.Missions.Plateau
             PlateauFutureSacrificeV1.MissionId, PlateauFinalAssaultV1.MissionId, PlateauDeadlySilenceV1.MissionId,
             PlateauAncientMysteriesV1.MissionId, PlateauMountainSpringToxinsV1.MissionId, PlateauBetterHalfV1.MissionId,
             PlateauForeasBasePastV1.MissionId, PlateauSendAMessageV1.MissionId, PlateauTheseOldBonesV1.MissionId,
-            PlateauHolyVengeanceV1.MissionId
+            PlateauHolyVengeanceV1.MissionId, PlateauRetreadsToRetreadsV1.MissionId
         };
 
         /// <summary>
@@ -95,8 +96,9 @@ namespace Rasa.Test.Missions.Plateau
         /// their shrine, and The Order Of Velon one, at Hathen. Array Of Hope's one; Future Sacrifice's one (Hudson), The
         /// Final Assault's five, Foreas Base Past's seven, Send a Message's one. Deadly Silence's four, These Old Bones'
         /// four, Holy Vengeance's six, Ancient Mysteries' nine, Mountain Spring Toxins' six, The Better Half's four.
+        /// Retreads to Retreads' one (1751, at Vincent on Valverde Marshes).
         /// </summary>
-        internal const int Indicators = 205;
+        internal const int Indicators = 206;
 
         /// <summary>Visible objectives with no marker: none.</summary>
         internal static readonly (uint Mission, uint Objective)[] NoMarker = { };
@@ -161,6 +163,7 @@ namespace Rasa.Test.Missions.Plateau
         private const string OutOfThinAir = "20270922010800_Plateau_out_of_thin_air";
         private const string WeaponsTrafficking = "20270922010900_Plateau_weapons_trafficking";
         private const string TheseOldBones = "20270922021000_Plateau_these_old_bones";
+        private const string NpcSquadLeaderBystander = "20270925000000_Npc_squad_leader_bystander";
 
         [TestMethod]
         public void TheMissionsAreEnabledAndOperationalAtTheirGiversAndReceiversAndLevels()
@@ -232,7 +235,8 @@ namespace Rasa.Test.Missions.Plateau
                 (PlateauOutOfThinAirV1.MissionId, PlateauMaligoPrisonerV1.Prisoner, null),
                 (PlateauWeaponsTraffickingV1.MissionId, PlateauNewOrdersFromTheGeneralV1.Amee, PlateauNewOrdersFromTheGeneralV1.Amee),
                 (PlateauTheseOldBonesV1.MissionId, PlateauOrderOfVelonV1.Hathen, PlateauTheseOldBonesV1.Algona),
-                (PlateauHolyVengeanceV1.MissionId, PlateauTheseOldBonesV1.Algona, PlateauVillageOfTheDamnedV1.Sampei)
+                (PlateauHolyVengeanceV1.MissionId, PlateauTheseOldBonesV1.Algona, PlateauVillageOfTheDamnedV1.Sampei),
+                (PlateauRetreadsToRetreadsV1.MissionId, PlateauNewOrdersFromTheGeneralV1.Amee, PlateauRetreadsToRetreadsV1.Vincent)
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             var enabled = harness.World.MissionContentDefinitionEntries.AsNoTracking()
@@ -243,7 +247,7 @@ namespace Rasa.Test.Missions.Plateau
                 var entry = enabled.Single(row => row.MissionId == mission);
                 Assert.AreEqual<uint?>(giver, entry.GiverId, $"{mission} giver");
                 Assert.AreEqual<uint?>(receiver, entry.ReceiverId, $"{mission} receiver");
-                Assert.AreEqual<uint?>(mission switch { 1251 or 1015 or 1017 or 1027 or 1044 => 31U, 930 or 1825 or 557 or 934 or 905 or 929 or 936 or 719 => 32U, 2007 => 34U, 2016 or 2017 => 50U, 1974 or 1187 or 1188 or 1189 or 1978 or 1979 or 1975 or 1190 or 1976 or 1977 => 32U, 1047 or 1048 or 1049 or 1051 or 1057 or 877 or 1541 or 904 => 33U, 1068 => 25U, _ => 30U },
+                Assert.AreEqual<uint?>(mission switch { 1251 or 1015 or 1017 or 1027 or 1044 => 31U, 930 or 1825 or 557 or 934 or 905 or 929 or 936 or 719 => 32U, 2007 => 34U, 2016 or 2017 => 50U, 1974 or 1187 or 1188 or 1189 or 1978 or 1979 or 1975 or 1190 or 1976 or 1977 => 32U, 1047 or 1048 or 1049 or 1051 or 1057 or 877 or 1541 or 904 or 1751 => 33U, 1068 => 25U, _ => 30U },
                     entry.Level,
                     $"{mission} level");
                 Assert.AreEqual<uint?>(PlateauMissionDataV1.CategoryId, entry.CategoryId);
@@ -372,7 +376,8 @@ namespace Rasa.Test.Missions.Plateau
                 (1976, 20808, new (uint, uint, uint, uint?)[] { (1, 20841, 20842, null), (2, 20843, 20844, null), (3, 20845, 20846, null),
                     (4, 20847, 20848, null), (5, 20841, 20842, null), (6, 20843, 20844, null), (7, 20845, 20846, null) }),
                 (1977, 20813, new (uint, uint, uint, uint?)[] { (1, 20883, 20884, null), (2, 20885, 20886, null), (3, 20887, 20888, null),
-                    (4, 21162, 21163, null) })
+                    (4, 21162, 21163, null) }),
+                (1751, 17125, new (uint, uint, uint, uint?)[] { (1, 17165, 17166, null) })
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             foreach (var (mission, title, objectives) in expected)
@@ -424,7 +429,7 @@ namespace Rasa.Test.Missions.Plateau
             using var harness = WildernessRuntimeTestHarness.Create();
             var prerequisites = harness.World.MissionPrerequisiteEntries.AsNoTracking()
                 .Where(entry => entry.ContentRevision == PlateauMissionDataV1.Revision).ToArray();
-            Assert.HasCount(51, prerequisites);
+            Assert.HasCount(52, prerequisites);
             var incommunicado = prerequisites.Single(entry => entry.MissionId == PlateauIncommunicadoV1.MissionId);
             Assert.AreEqual(MissionPrerequisiteKind.MissionCompleted, incommunicado.Kind);
             Assert.AreEqual<uint?>(PlateauGiantKillerV1.MissionId, incommunicado.RequiredMissionId);
@@ -461,7 +466,7 @@ namespace Rasa.Test.Missions.Plateau
                 (stalkMarket.Kind, stalkMarket.RequiredMissionId));
             foreach (var mission in new uint[] { 933, 1981, 930, 1034, 1825, 557, 2007, 887, 934, 1983, 931, 970, 2016, 1659, 965, 876, 879 })
                 Assert.IsFalse(prerequisites.Any(entry => entry.MissionId == mission), $"{mission}");
-            foreach (var (mission, required) in new (uint, uint)[] { (713, 887), (954, 887), (855, 713), (1027, 954), (1044, 934), (905, 1983), (929, 905), (936, 929), (719, 936), (867, 970), (1014, 887), (895, 1014), (928, 895), (2017, 2016), (555, 867), (1047, 1044), (1048, 1044), (1049, 1044), (1051, 1044), (1057, 1044), (1982, 1981), (1171, 935), (1167, 1171), (1974, 1981), (1189, 1187), (1188, 1189), (1978, 1981), (1979, 1981), (1975, 1981), (878, 876), (877, 1046), (1068, 877), (1541, 877), (1178, 1167), (1181, 1178), (1190, 1188), (904, 1541), (1976, 1981), (1977, 1976) })
+            foreach (var (mission, required) in new (uint, uint)[] { (713, 887), (954, 887), (855, 713), (1027, 954), (1044, 934), (905, 1983), (929, 905), (936, 929), (719, 936), (867, 970), (1014, 887), (895, 1014), (928, 895), (2017, 2016), (555, 867), (1047, 1044), (1048, 1044), (1049, 1044), (1051, 1044), (1057, 1044), (1982, 1981), (1171, 935), (1167, 1171), (1974, 1981), (1189, 1187), (1188, 1189), (1978, 1981), (1979, 1981), (1975, 1981), (878, 876), (877, 1046), (1068, 877), (1541, 877), (1178, 1167), (1181, 1178), (1190, 1188), (904, 1541), (1976, 1981), (1977, 1976), (1751, 904) })
             {
                 var prerequisite = prerequisites.Single(entry => entry.MissionId == mission);
                 Assert.AreEqual((MissionPrerequisiteKind.MissionCompleted, (uint?)required),
@@ -619,7 +624,9 @@ namespace Rasa.Test.Missions.Plateau
                 (1976, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
                     (MissionEvidenceSourceKind.Reconstruction, 0.2) }),
                 (1977, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
-                    (MissionEvidenceSourceKind.Reconstruction, 0.2) })
+                    (MissionEvidenceSourceKind.Reconstruction, 0.2) }),
+                (1751, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3) })
             })
                 CollectionAssert.AreEqual(confidences, evidence.Where(entry => entry.MissionId == mission)
                     .OrderBy(entry => entry.EvidenceId).Select(entry => (entry.SourceKind, entry.Confidence)).ToArray(),
@@ -1912,6 +1919,25 @@ namespace Rasa.Test.Missions.Plateau
             Assert.IsFalse(Creature(PlateauHolyVengeanceV1.AlgonaEscort) || Creature(PlateauHolyVengeanceV1.Warrior));
             Assert.IsTrue(Has(PlateauTheseOldBonesV1.MissionId));
             Assert.IsTrue(Creature(PlateauTheseOldBonesV1.Algona));
+        }
+
+        /// <summary>Retreads to Retreads (Plateau_retreads_to_retreads) goes with its migration; Holy Vengeance stays.</summary>
+        [TestMethod]
+        public void RetreadsToRetreadsRollsBackWithItsMigration()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            bool Has(uint mission) => world.MissionContentDefinitionEntries.AsNoTracking()
+                .Any(entry => entry.MissionId == mission && entry.ContentRevision == PlateauMissionDataV1.Revision);
+
+            Assert.IsTrue(Has(PlateauRetreadsToRetreadsV1.MissionId));
+            Assert.AreEqual(4, world.MissionRewardItemEntries.AsNoTracking().Count(entry => entry.MissionId == PlateauRetreadsToRetreadsV1.MissionId));
+
+            world.GetService<IMigrator>().Migrate(NpcSquadLeaderBystander);
+            Assert.IsFalse(Has(PlateauRetreadsToRetreadsV1.MissionId));
+            Assert.IsFalse(world.MissionRewardItemEntries.AsNoTracking().Any(entry => entry.MissionId == PlateauRetreadsToRetreadsV1.MissionId));
+            Assert.IsFalse(world.MissionEvidenceEntries.AsNoTracking().Any(entry => entry.MissionId == PlateauRetreadsToRetreadsV1.MissionId));
+            Assert.IsTrue(Has(PlateauHolyVengeanceV1.MissionId));
         }
 
         /// <summary>

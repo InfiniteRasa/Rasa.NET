@@ -26,9 +26,9 @@ namespace Rasa.Test.Missions.Wilderness
             // fifteenth being the Wilderness missions' own 1449. And the Ojasa Atta Hive's five
             // (OjasaHiveContent), the Caves of Donn's six (CavesOfDonnContent), the Devil's Den's
             // eight (DevilsDenContent), Pravus Research's six (PravusResearchContent), Torcastra
-            // Prison's five (TorcastraMissionsV1) and Minos Caverns' four (MinosCavernsMissions), which are instances'. And the Plateau ones.
+            // Prison's five (TorcastraMissionsV1) and Minos Caverns' four (MinosCavernsMissions), which are instances'. And the Plateau and Valverde Pools ones.
             var battlefields = Rasa.Services.Preloader.TargetsOfOpportunitySeed.Zones.Select(zone => zone.MissionId)
-                .Concat(Plateau.PlateauMissionTests.MissionIds).ToArray();
+                .Concat(Plateau.PlateauMissionTests.MissionIds).Concat(Pools.PoolsMissionTests.MissionIds).ToArray();
             var ojasa = Rasa.Services.Preloader.OjasaHiveContent.Missions;
             var donn = Rasa.Services.Preloader.CavesOfDonnContent.Missions;
             var den = Rasa.Services.Preloader.DevilsDenContent.Missions;
