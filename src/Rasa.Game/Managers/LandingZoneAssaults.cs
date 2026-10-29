@@ -11,45 +11,61 @@ using Rasa.Packets.MapChannel.Server;
 
 namespace Rasa.Managers
 {
-    /// <summary>Public Wilderness Landing Zone assaults. All deadlines use the map worker's monotonic clock.</summary>
+    /// <summary>
+    /// Timed Bane assaults on public control points the AFS holds: Wilderness Landing Zone, and
+    /// each point with a plan in <see cref="Plans"/>. All deadlines use the map worker's monotonic clock.
+    /// </summary>
     internal static partial class LandingZoneAssaults
     {
         private sealed class Assault
         {
             internal long Due, Started;
             internal int Waves;
-            internal bool WarningSent;
+            internal bool WarningSent, Relieved;
             internal readonly List<SpawnPool> Pools = new();
             internal readonly List<SpawnPool> Reinforcements = new();
             internal Creature Boss;
             internal long? Claim;
             internal int Vitality;
         }
-        private static readonly ConditionalWeakTable<MapChannel, Assault> States = new();
+        private static readonly ConditionalWeakTable<MapChannel, Dictionary<uint, Assault>> States = new();
         internal static Func<long> Now = () => Environment.TickCount64;
         internal static bool ControlsCapture(MapChannel map, ControlPoints.Point point) =>
-            map != null && !map.IsCopy && map.MapInfo?.MapContextId == LandingZoneAssaultContent.MapId &&
-            point?.Id == LandingZoneAssaultContent.PointId && !point.IsBattleground &&
-            ControlPoints.Instance.Config.LandingZoneAssaultEnabled;
+            map != null && !map.IsCopy && point != null && !point.IsBattleground &&
+            map.MapInfo?.MapContextId == point.MapContextId && PlanFor(point) != null;
+
+        private static Dictionary<uint, Assault> StatesOf(MapChannel map) => States.GetValue(map, _ => new Dictionary<uint, Assault>());
+
+        /// <summary>Each point of the map with an assault plan, from the control points' worker.</summary>
+        internal static void Worker(MapChannel map, IEnumerable<ControlPoints.Point> points)
+        {
+            foreach (var point in points)
+            {
+                if (PlanFor(point) != null)
+                    Worker(map, point);
+                AfsSorties.Worker(map, point);
+            }
+        }
 
         internal static void Worker(MapChannel map, ControlPoints.Point point, bool warn = true)
         {
+            if (point == null) return;
             if (!ControlsCapture(map, point) || !point.HeldByAfs)
             {
-                if (map != null && States.TryGetValue(map, out var old))
+                if (map != null && States.TryGetValue(map, out var states) && states.Remove(point.Id, out var old))
                     Clear(map, point, old);
-                if (map != null) States.Remove(map);
                 return;
             }
-            var config = ControlPoints.Instance.Config;
+            var plan = PlanFor(point);
             var now = Now();
-            var state = States.GetValue(map, _ => new Assault { Due = now + Math.Max(1, config.LandingZoneAssaultPeriodSeconds) * 1000L });
+            var state = StatesOf(map).TryGetValue(point.Id, out var known) ? known
+                : StatesOf(map)[point.Id] = new Assault { Due = now + plan.FirstDelayMs };
             // Warn once for the pending assault, on the first worker tick in its final five minutes.
             // A skipped deadline or a GM-forced immediate start must not produce a late warning.
             if (warn && state.Waves == 0 && !state.WarningSent && now < state.Due && state.Due - now <= 300000)
             {
                 state.WarningSent = true;
-                var message = $"The Bane are mustering for an attack on {point.Name} Control Point. Reinforcements requested!";
+                var message = $"The Bane are mustering for an attack on {plan.Name ?? point.Name} Control Point. Reinforcements requested!";
                 foreach (var client in map.ClientList.ToArray())
                     if (client?.State == ClientState.Ingame && MapInstanceScope.Contains(map, client.Player))
                         CommunicatorManager.Instance.SystemMessage(client, message);
@@ -58,16 +74,20 @@ namespace Rasa.Managers
             {
                 state.Started = now;
                 state.WarningSent = false;
-                state.Due = now + Math.Max(1, config.LandingZoneAssaultPeriodSeconds) * 1000L;
-                Launch(map, point, state, 1);
-                Reinforce(map, state);
+                state.Due = now + plan.PeriodMs;
+                Launch(map, point, plan, state, 1);
             }
             if (state.Waves == 0) return;
-            var gap = Math.Max(1, config.LandingZoneAssaultWaveSeconds) * 1000L;
+            var gap = plan.WaveGapMs;
             // Fixed offsets from the start; survivors never delay a later wave.
-            while (state.Waves < 3 && now - state.Started >= state.Waves * gap)
-                Launch(map, point, state, state.Waves + 1);
-            if (now - state.Started >= Math.Max(config.LandingZoneAssaultLifetimeSeconds * 1000L, 2 * gap + 60000))
+            while (state.Waves < plan.Waves && now - state.Started >= state.Waves * gap)
+                Launch(map, point, plan, state, state.Waves + 1);
+            if (!state.Relieved && now - state.Started >= plan.ReliefDelayMs)
+            {
+                state.Relieved = true;
+                plan.Reinforce(map, point, state);
+            }
+            if (now - state.Started >= Math.Max(plan.LifetimeMs, (plan.Waves - 1) * gap + 60000))
             {
                 Clear(map, point, state);
                 return;
@@ -90,7 +110,7 @@ namespace Rasa.Managers
         {
             if (!ControlsCapture(map, point) || !point.HeldByAfs) return false;
             Worker(map, point, warn: false);
-            var state = States.GetValue(map, _ => new Assault());
+            var state = StatesOf(map).TryGetValue(point.Id, out var known) ? known : StatesOf(map)[point.Id] = new Assault();
             if (state.Waves != 0) return false;
             state.Due = Now();
             Worker(map, point, warn: false);
@@ -112,26 +132,22 @@ namespace Rasa.Managers
         private static Vector3 Destination(MapChannel map, ControlPoints.Point point) =>
             NavMeshManager.NearestWalkable(map, point.Position) ?? point.Position;
 
-        private static void Launch(MapChannel map, ControlPoints.Point point, Assault state, int wave)
+        private static void Launch(MapChannel map, ControlPoints.Point point, Plan plan, Assault state, int wave)
         {
-            var bossShip = Random.Shared.Next(6);
-            for (var i = 0; i < LandingZoneAssaultContent.Drops.Length; i++)
+            var bossShip = Random.Shared.Next(plan.Drops.Length);
+            for (var i = 0; i < plan.Drops.Length; i++)
             {
-                var drop = LandingZoneAssaultContent.Drops[i];
-                var slots = new List<SpawnPoolSlot> {
-                    new(wave == 1 ? LandingZoneAssaultContent.Trainee : LandingZoneAssaultContent.Private, 3, 5),
-                    new(wave == 1 ? LandingZoneAssaultContent.Private : LandingZoneAssaultContent.Sergeant, 1, 1) };
-                if (wave == 1 || Random.Shared.Next(2) == 0) slots.Add(new(LandingZoneAssaultContent.Hunter, 1, 1));
-                else slots.Add(new(LandingZoneAssaultContent.Linker, 2, 2));
-                if (wave == 3 && i == bossShip) slots.Add(new(LandingZoneAssaultContent.Boss, 1, 1));
-                var pool = new SpawnPool { MapContextId = LandingZoneAssaultContent.MapId, RuntimeMapChannel = map,
+                var drop = plan.Drops[i];
+                var slots = plan.Ship(wave, i, bossShip);
+                if (slots.Count == 0) continue;
+                var pool = new SpawnPool { MapContextId = point.MapContextId, RuntimeMapChannel = map,
                     Position = drop.Position, Rotation = drop.Rotation, SpawnSlot = slots, AnimType = 1,
                     Mode = SpawnPoolManager.ModeScripted, SpawnPolicy = MissionSpawnGroupPolicy.ScenarioControlled,
-                    HasSpawned = true, IsControlPointAssault = true };
+                    HasSpawned = true, IsControlPointAssault = true, AssaultPointId = point.Id };
                 pool.Delivered = creatures => {
                     foreach (var creature in creatures)
                     {
-                        if (creature.DbId == LandingZoneAssaultContent.Boss) state.Boss = creature;
+                        if (creature.DbId == plan.Boss) state.Boss = creature;
                         BehaviorManager.Instance.WalkIn(creature, Destination(map, point));
                     }
                 };
@@ -143,7 +159,7 @@ namespace Rasa.Managers
             }
             state.Waves = wave;
             foreach (var client in map.ClientList)
-                CommunicatorManager.Instance.SystemMessage(client, $"Landing Zone: Bane assault wave {wave}/3 incoming!");
+                CommunicatorManager.Instance.SystemMessage(client, $"{plan.Name ?? point.Name}: Bane assault wave {wave}/{plan.Waves} incoming!");
         }
         private static int Vitality(Creature boss) =>
             (int)boss.Attributes[Attributes.Health].Current + (int)boss.Attributes[Attributes.Armor].Current;
@@ -182,7 +198,8 @@ namespace Rasa.Managers
             return true;
         }
         internal static bool IsCapturing(MapChannel map, Actor actor, DynamicObject obj) =>
-            map != null && States.TryGetValue(map, out var state) && state.Claim.HasValue && state.Boss == actor && obj.UsedBy == actor;
+            map != null && States.TryGetValue(map, out var states) &&
+            states.Values.Any(state => state.Claim.HasValue && state.Boss == actor && obj.UsedBy == actor);
         private static void Cancel(ControlPoints.Point point, Assault state)
         {
             if (state.Claim.HasValue && point?.Object?.UsedBy == state.Boss)
@@ -213,6 +230,7 @@ namespace Rasa.Managers
             state.Reinforcements.Clear();
             state.Boss = null;
             state.Waves = 0;
+            state.Relieved = false;
         }
     }
 }
