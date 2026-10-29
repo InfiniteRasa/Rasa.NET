@@ -34,6 +34,8 @@ namespace Rasa.Missions.Definitions
                 return "Character-owned costs cannot have automatic cleanup.";
             if (binding.Drop != null && binding.Scope != MissionItemScope.CharacterOwned)
                 return "Corpse drops require CharacterOwned scope; assignment-issued items use mission item intents.";
+            if (binding.CounterObjectiveId != 0 && binding.Scope != MissionItemScope.AssignmentIssued)
+                return "An item counter objective requires AssignmentIssued scope.";
             return null;
         }
 
@@ -86,6 +88,8 @@ namespace Rasa.Missions.Definitions
                          transition.ProgressRule?.Kind == MissionProgressEventKind.ItemAcquired &&
                          transition.ItemCounters.Count > 0)))
                     yield return $"Mission item {binding.ItemKey} drop must name an item-acquisition objective.";
+                if (binding != null && binding.CounterObjectiveId != 0 && !mission.Objectives.ContainsKey(binding.CounterObjectiveId))
+                    yield return $"Mission item {binding.ItemKey} counter names a missing objective {binding.CounterObjectiveId}.";
             }
             var actions = mission.Objectives.Values.SelectMany(objective => objective.GetExecutableTransitionsOrLegacyDefault())
                 .SelectMany(transition => transition.Actions).ToArray();

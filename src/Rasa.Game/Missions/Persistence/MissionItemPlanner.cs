@@ -22,6 +22,7 @@ namespace Rasa.Game.Missions.Persistence
         private readonly MissionApplication _missions;
         private readonly InventoryManager.InventoryPlan _inventory;
         private bool _refreshHerbalProgress;
+        private readonly System.Collections.Generic.HashSet<(uint MissionId, string ItemKey)> _issuedCounters = new();
 
         internal MissionItemPlanner(Client client, ICharUnitOfWork unit, MissionApplication missions)
         {
@@ -108,6 +109,8 @@ namespace Rasa.Game.Missions.Persistence
                 OperationKey = intent.OperationKey, Payload = payload
             });
             _refreshHerbalProgress |= missionId == 695;
+            if (intent is IssueMissionItemIntent && IssuedItemProgress.Counts(binding))
+                _issuedCounters.Add((missionId, itemKey));
             if (binding.Scope == MissionItemScope.AssignmentIssued)
                 Integration.MissionRequirementService.ExpectAssignmentItem(_unit, _client.Player.Id,
                     missionId, itemKey, _inventory.OwnedQuantity(owner));
@@ -118,6 +121,30 @@ namespace Rasa.Game.Missions.Persistence
             _inventory.Publish(client);
             if (_refreshHerbalProgress)
                 _missions.PublishMissionStatus(client, 695, "Herbal Remedy collected item progress");
+            foreach (var (missionId, itemKey) in _issuedCounters)
+                PublishItemCounter(client, missionId, itemKey);
+        }
+
+        /// <summary>
+        /// An issued item that an objective counts (IssuedItemProgress): the mission's status with its item counter, then
+        /// the counter's own update, which the client shows as an "n/x" banner with the item's name.
+        /// </summary>
+        private void PublishItemCounter(Client client, uint missionId, string itemKey)
+        {
+            if (!_missions.TryGetOperationalMission(missionId, out var mission) ||
+                !mission.Items.TryGetValue(itemKey, out var binding) ||
+                !mission.Objectives.TryGetValue(binding.CounterObjectiveId, out var definition) || !definition.IsVisible ||
+                client.Player.Inventory?.PersonalInventory == null ||
+                client.Player.Missions?.TryGetValue(missionId, out var assignment) != true ||
+                !assignment.Objectives.TryGetValue(binding.CounterObjectiveId, out var objective) ||
+                objective.State is not (MissionObjectiveState.Incomplete or MissionObjectiveState.Completed) ||
+                IssuedItemProgress.ClassOf(binding) is not { } itemClass)
+                return;
+            _missions.PublishMissionStatus(client, missionId, $"mission {missionId} issued item counter");
+            MissionApplication.TryPublish(() => client.CallMethod(client.Player.EntityId,
+                    new Rasa.Packets.Mission.Server.UpdateObjectiveItemCounterPacket(missionId, binding.CounterObjectiveId, itemClass,
+                        IssuedItemProgress.Value(client.Player, missionId, assignment, binding), binding.MaximumQuantity)),
+                $"mission {missionId} objective {binding.CounterObjectiveId} issued item counter");
         }
 
         internal void ConsumeTurnIn(CharacterMissionEntry assignment)

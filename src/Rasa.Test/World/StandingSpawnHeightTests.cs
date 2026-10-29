@@ -145,8 +145,9 @@ namespace Rasa.Test.World
             // Moved since by a later migration: Corporal DeSimone (Place_bootcamp_base_npcs), the
             // Alia Das NPCs moved or taken away by Alia_das_npcs, the Wilderness ones moved or
             // taken away by Wilderness_post_npcs, the two on tent roofs (Tent_floor_npcs), the Twin
-            // Pillars ones moved or taken away by Twin_pillars_npcs, and Airman Hamilton, moved to
-            // Torcastra Prison's research ward (Torcastra_prison).
+            // Pillars ones moved or taken away by Twin_pillars_npcs, Airman Hamilton, moved to
+            // Torcastra Prison's research ward (Torcastra_prison) and Peterson, Mauer and McLaughlin
+            // (Plateau_defiant_ones).
             void AssertCorrected(bool expected, params uint[] movedSince)
             {
                 harness.World.ChangeTracker.Clear();
@@ -174,7 +175,12 @@ namespace Rasa.Test.World
                 .Concat(TentFloors.Pools)
                 .Concat(TwinPillarsNpcs.Moves.Select(move => move.Pool)).Concat(TwinPillarsNpcs.Removed.Select(removed => removed.Id))
                 .Append(Rasa.Services.Preloader.BootcampBaseNpcs.DeSimonePoolId)
-                .Append(TorcastraPrisonContent.Hamilton).ToArray());
+                .Append(TorcastraPrisonContent.Hamilton)
+                .Concat(Rasa.Services.Preloader.Missions.Plateau.PlateauFortDefianceNpcsV1.Moves.Select(move => move.Pool))
+                .Concat(Rasa.Services.Preloader.Missions.Plateau.PlateauPerduNpcsV1.Moves.Select(move => move.Pool))
+                .Concat(Rasa.Services.Preloader.Missions.Plateau.PlateauWedgeRockNpcsV1.Moves.Select(move => move.Pool))
+                .Concat(Rasa.Services.Preloader.Missions.Plateau.PlateauCidNpcsV1.Moves.Select(move => move.Pool))
+                .Append(Rasa.Services.Preloader.Missions.Plateau.PlateauBaileyNpcsV1.McCormick).ToArray());
 
             // The vendor of Torcastra Prison was 5.69 m over the floor of the hall; Private
             // Parsons a metre in the ground. General Beacham, in the sandbags beside Cimoch, has

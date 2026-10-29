@@ -104,11 +104,12 @@ namespace Rasa.Test.Gameplay
 
             // How many of each list have a creature row today. The rest are in the list for the
             // day they have one. (Descent's one is Fortuna and Merrick, who stand there as NPCs;
-            // the Mires officers and the Plains' Stalker Overlord are TargetsOfOpportunityGivers'.)
+            // the Mires officers and the Plains' Stalker Overlord are TargetsOfOpportunityGivers';
+            // Plateau's fifth, the Prototype Juggernaut, is PlateauPrototypeJuggernautV1's.)
             CollectionAssert.AreEquivalent(
                 new Dictionary<string, int>
                 {
-                    ["Wilderness"] = 6, ["Divide"] = 5, ["Palisades"] = 8, ["Plateau"] = 4, ["Pools"] = 7, ["Marshes"] = 9,
+                    ["Wilderness"] = 6, ["Divide"] = 5, ["Palisades"] = 8, ["Plateau"] = 5, ["Pools"] = 7, ["Marshes"] = 9,
                     ["Descent"] = 1, ["Plains"] = 4, ["Mires"] = 7, ["Incline"] = 4, ["Ashen Desert"] = 5, ["Thunderhead"] = 2,
                     ["Abyss"] = 1, ["Crucible"] = 1
                 }.ToArray(),
