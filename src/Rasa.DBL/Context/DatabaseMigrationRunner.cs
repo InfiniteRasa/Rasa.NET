@@ -2,8 +2,6 @@ using System;
 using System.Diagnostics;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Rasa.Context
 {
@@ -26,15 +24,14 @@ namespace Rasa.Context
                 return;
             }
 
-            Console.WriteLine($"{name}: applying {pending.Count} MySQL migration(s)...");
-            var migrator = context.GetService<IMigrator>();
-            for (var i = 0; i < pending.Count; i++)
-            {
-                var timer = Stopwatch.StartNew();
-                Console.WriteLine($"{name}: [{i + 1}/{pending.Count}] {pending[i]} - starting");
-                migrator.Migrate(pending[i]);
-                Console.WriteLine($"{name}: [{i + 1}/{pending.Count}] {pending[i]} - done in {timer.ElapsedMilliseconds} ms");
-            }
+            // One targetless Migrate() applies every pending migration in order. Migrating to each
+            // pending id in turn is wrong: a migration dated before ones already applied (named
+            // "...Before..." so it runs ahead of them on a fresh database) is an older target, and
+            // EF reaches an older target by rolling back everything applied after it.
+            Console.WriteLine($"{name}: applying {pending.Count} MySQL migration(s): {string.Join(", ", pending)}");
+            var timer = Stopwatch.StartNew();
+            context.Database.Migrate();
+            Console.WriteLine($"{name}: done in {timer.ElapsedMilliseconds} ms");
             Console.WriteLine($"{name}: all MySQL migrations applied.");
         }
     }
