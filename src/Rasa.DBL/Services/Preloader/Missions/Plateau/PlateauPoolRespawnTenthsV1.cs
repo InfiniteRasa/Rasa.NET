@@ -27,7 +27,11 @@ namespace Rasa.Services.Preloader.Missions.Plateau
                 .Concat(PlateauMoxLairV1.Pools.Select(pool => (pool.Id, PlateauMoxLairV1.RespawnSeconds, "Mox lair")))
                 .Concat(PlateauSurveillanceSentinelsV1.Sentinels.Select(sentinel =>
                     (sentinel.Pool, PlateauSurveillanceSentinelsV1.RespawnSeconds, "Surveillance Sentinel")))
+                .Concat(PlateauVelonElderBossesV1.All.Select(boss => (boss.Pool, PlateauVelonElderBossesV1.RespawnSeconds, boss.Name)))
                 .Append((PlateauUstorYardV1.OfficerPool, PlateauUstorYardV1.OfficerRespawnSeconds, "Ustor Yard officer"))
+                .Append((PlateauVelonHollowBaneV1.ControlRoomPool, PlateauVelonHollowBaneV1.BossRespawnSeconds, "Velon Hollow control room officer"))
+                .Append((PlateauVelonHollowBaneV1.TunnelPool, PlateauVelonHollowBaneV1.BossRespawnSeconds, "Velon Hollow tunnel officer"))
+                .Append((PlateauVelonHollowBaneV1.MoxPool, PlateauVelonHollowBaneV1.BossRespawnSeconds, "Velon Hollow Mox boss"))
                 .ToArray();
 
         public static uint Tenths(uint seconds) => seconds * TenthsPerSecond;

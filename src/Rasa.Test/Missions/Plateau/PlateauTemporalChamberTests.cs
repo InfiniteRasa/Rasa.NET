@@ -1,0 +1,798 @@
+extern alias RasaGame;
+
+using System.Collections.Generic;
+using System.Linq;
+using System.Numerics;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Rasa.Data;
+using Rasa.Game;
+using Rasa.Managers;
+using Rasa.Missions.Content.Plateau;
+using Rasa.Packets.MapChannel.Client;
+using Rasa.Packets.Mission.Server;
+using Rasa.Services.Preloader.Missions.Plateau;
+using Rasa.Structures;
+using Rasa.Test.Missions.Wilderness;
+
+namespace Rasa.Test.Missions.Plateau
+{
+    using static PlateauCampResistanceTests;
+    using static PlateauInstanceMaps;
+    using static PlateauTrinityBridgeLogosTests;
+
+    /// <summary>
+    /// The Temporal Chamber's missions, played through as a player plays them: Array Of Hope
+    /// (935: the six Logos Conduits on Trinity Bridge, then Veryin beyond the portal), Future Sacrifice
+    /// (1171: through the chamber's teleporter to Colonel Hudson in Alia Das), The Final Assault (1167:
+    /// three stations, then the detonator on the power core, turned in to Veryin), Foreas Base Past (1178:
+    /// through the pad on Veryin's left, Villaran escorted to the drop-ship, Xykryl's strike force) and Send a
+    /// Message (1181: the Communications Array).
+    ///
+    /// Why these tests: the conduits are personal objects on the public Plateau, but Veryin and Hudson are
+    /// the server's NPCs of the squad instance 2029, which MapChannelManager copies as the player goes
+    /// through the portal (map_link 49). A talk to Veryin that did not wait for the conduits, a copy without
+    /// the teleporter pair, or a core that took the detonator before the three stations would each break the
+    /// chain; so the door is walked as MapLinkManager walks it, the teleporter as LocalTeleporterWorker takes
+    /// a player, and the stations are shot as Toxic Detox's pumps (PlateauMartyrsCanyonTests).
+    ///
+    /// [TestCategory]: none, as PlateauCampResistanceTests.
+    /// </summary>
+    [TestClass]
+    [DoNotParallelize]
+    public class PlateauTemporalChamberTests
+    {
+        private const uint ArrayOfHope = PlateauArrayOfHopeV1.MissionId;
+        private const uint FutureSacrifice = PlateauFutureSacrificeV1.MissionId;
+        private const uint FinalAssault = PlateauFinalAssaultV1.MissionId;
+        private const uint Chamber = PlateauTemporalChamberNpcsV1.MapContextId;
+        private const uint ForeasBasePast = PlateauForeasBasePastV1.MissionId;
+        private const uint SendAMessage = PlateauSendAMessageV1.MissionId;
+
+        /// <summary>
+        /// <paramref name="mission"/>'s markers are exactly <paramref name="expected"/>: each on its objective within its
+        /// distance (in X and Z) of its place.
+        /// </summary>
+        private static void AssertMarkers(WildernessRuntimeTestHarness harness, uint mission,
+            params (uint Objective, Vector3 At, float Within, string What)[] expected)
+        {
+            var markers = harness.World.MissionIndicatorEntries.AsNoTracking().Where(row => row.MissionId == mission).ToList();
+            Assert.HasCount(expected.Length, markers, $"{mission}'s markers");
+            foreach (var (objective, at, within, what) in expected)
+                Assert.IsTrue(markers.Any(row => row.ObjectiveId == objective &&
+                    Vector2.Distance(new((float)row.PosX, (float)row.PosZ), new(at.X, at.Z)) < within), what);
+        }
+
+        [TestMethod]
+        public void ArrayOfHopeWaitsForTheSixLogosAndVeryinWaitsForTheSixConduits()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var plateau = EnterPlateau(harness);
+            SeedCompleted(harness, PlateauVoiceFromThePastV1.MissionId, PlateauTrinityLogosPastV1.MissionId, 1047, 1048, 1049, 1051);
+            var hologram = Hologram(plateau);
+            Assert.IsFalse(Offered(harness, hologram).Contains(ArrayOfHope), "waits for the sixth Logos mission");
+            SeedCompleted(harness, 1057);
+
+            var offer = WildernessRanjaGorgeTests.Offer(harness, hologram, ArrayOfHope);
+            CollectionAssert.AreEqual(new[]
+                {
+                    (PlateauArrayOfHopeV1.StandardMedPack, 3U), (PlateauArrayOfHopeV1.IncendiaryGrenade, 3U),
+                    (PlateauArrayOfHopeV1.AdvancedMedPack, 2U), (PlateauArrayOfHopeV1.EmpGrenade, 3U)
+                },
+                offer.SelectableReward.Select(item => (item.ItemTemplateId, item.Quantity)).ToArray());
+            Assert.IsFalse(plateau.DynamicObjects.Any(obj => obj.SceneMissionId == ArrayOfHope), "no conduit before the mission");
+            harness.MoveTo(hologram.Position);
+            Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, hologram.EntityId, ArrayOfHope));
+            harness.Drain();
+
+            var conduits = Conduits(plateau);
+            for (var index = 0; index < conduits.Length; index++)
+            {
+                Assert.AreEqual(PlateauArrayOfHopeV1.ConduitClass, (uint)conduits[index].EntityClassId);
+                Assert.AreEqual(PlateauArrayOfHopeV1.ReadyState, (uint)conduits[index].StateId);
+                var ground = plateau.NavMesh.GroundHeight(conduits[index].Position);
+                Assert.IsNotNull(ground, $"{conduits[index].SceneActorRole} has no navmesh under it");
+                Assert.AreEqual(ground.Value, conduits[index].Position.Y, 0.5f, $"{conduits[index].SceneActorRole} on the bridge");
+            }
+
+            // Through the portal before the conduits: Veryin has nothing to say yet.
+            var copy = IntoTheChamber(harness);
+            var veryin = Npc(copy, PlateauTemporalChamberNpcsV1.Veryin, PlateauTemporalChamberNpcsV1.VeryinPackage);
+            harness.MoveTo(veryin.Position);
+            harness.Drain();
+            Assert.IsFalse(harness.Manager.CompleteOfferedObjective(harness.Client, veryin.EntityId, ArrayOfHope, 1, 1),
+                "Veryin waits for the conduits");
+            Return(harness, plateau);
+
+            for (var index = 0; index < conduits.Length; index++)
+            {
+                Assert.AreNotEqual(MissionObjectiveState.Completed,
+                    harness.Client.Player.Missions[ArrayOfHope].Objectives[PlateauArrayOfHopeV1.Tally].State, $"before conduit {index + 1}");
+                Use(harness, plateau, conduits[index]);
+                Assert.AreEqual(PlateauArrayOfHopeV1.UsedState, (uint)conduits[index].StateId, $"conduit {index + 1} on");
+            }
+            Use(harness, plateau, conduits[0]);
+            Assert.AreEqual(MissionObjectiveState.Completed,
+                harness.Client.Player.Missions[ArrayOfHope].Objectives[PlateauArrayOfHopeV1.Tally].State, "the six conduits");
+            Assert.IsFalse(harness.Client.Player.Missions[ArrayOfHope].Completeable);
+
+            copy = IntoTheChamber(harness);
+            veryin = Npc(copy, PlateauTemporalChamberNpcsV1.Veryin, PlateauTemporalChamberNpcsV1.VeryinPackage);
+            AssertHandInTopic(Conversation(harness, veryin), ArrayOfHope, 1);
+            harness.MoveTo(veryin.Position);
+            harness.Drain();
+            Assert.IsTrue(harness.Manager.CompleteOfferedObjective(harness.Client, veryin.EntityId, ArrayOfHope, 1, 1), "Who comes here?");
+            harness.Drain();
+            Assert.IsTrue(harness.Client.Player.Missions[ArrayOfHope].Completeable);
+
+            WildernessRanjaGorgeTests.CompleteAndCheckReward(harness, veryin, ArrayOfHope, 1,
+                PlateauArrayOfHopeV1.Experience, PlateauArrayOfHopeV1.Credits);
+            Assert.AreEqual(3U, WildernessRanjaGorgeTests.Held(harness, PlateauArrayOfHopeV1.IncendiaryGrenade), "the second choice");
+        }
+
+        [TestMethod]
+        public void VeryinSendsThePlayerThroughTheTeleporterToHudsonWhoGivesTheFinalAssault()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var plateau = EnterPlateau(harness);
+            SeedCompleted(harness, ArrayOfHope);
+            var copy = IntoTheChamber(harness);
+            var veryin = Npc(copy, PlateauTemporalChamberNpcsV1.Veryin, PlateauTemporalChamberNpcsV1.VeryinPackage);
+            var hudson = Npc(copy, PlateauTemporalChamberNpcsV1.Hudson, PlateauTemporalChamberNpcsV1.HudsonPackage);
+
+            var offer = WildernessRanjaGorgeTests.Offer(harness, veryin, FutureSacrifice);
+            CollectionAssert.AreEqual(new[]
+                {
+                    (PlateauFutureSacrificeV1.ResKit, 1U), (PlateauFutureSacrificeV1.ConcussionGrenade, 3U),
+                    (PlateauFutureSacrificeV1.AdvancedMedPack, 6U), (PlateauFutureSacrificeV1.FragGrenade, 3U)
+                },
+                offer.SelectableReward.Select(item => (item.ItemTemplateId, item.Quantity)).ToArray());
+            harness.MoveTo(veryin.Position);
+            Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, veryin.EntityId, FutureSacrifice));
+            harness.Drain();
+
+            // The pad on Veryin's right takes the player to Hudson's.
+            var pad = copy.Teleporters[PlateauTemporalChamberNpcsV1.ChamberPad];
+            var far = copy.Teleporters[PlateauTemporalChamberNpcsV1.AliaDasPad];
+            Assert.AreNotSame(harness.Objects.Teleporters[PlateauTemporalChamberNpcsV1.ChamberPad], pad, "the copy's own pad");
+            Teleport(harness, copy, pad);
+            Assert.IsTrue(Vector3.Distance(harness.Client.Player.Position, far.Position) < 2f, "at the Alia Das pad");
+            Assert.IsTrue(Vector3.Distance(harness.Client.Player.Position, hudson.Position) < 15f, "by Hudson");
+            // 1's marker on Hudson, in the instance.
+            AssertMarkers(harness, FutureSacrifice, (1, hudson.Position, 2f, "1 at Hudson"));
+
+            AssertHandInTopic(Conversation(harness, hudson), FutureSacrifice, 1);
+            harness.MoveTo(hudson.Position);
+            harness.Drain();
+            Assert.IsTrue(harness.Manager.CompleteOfferedObjective(harness.Client, hudson.EntityId, FutureSacrifice, 1, 1));
+            harness.Drain();
+            WildernessRanjaGorgeTests.CompleteAndCheckReward(harness, hudson, FutureSacrifice, 2,
+                PlateauFutureSacrificeV1.Experience, PlateauFutureSacrificeV1.Credits);
+            Assert.AreEqual(6U, WildernessRanjaGorgeTests.Held(harness, PlateauFutureSacrificeV1.AdvancedMedPack), "the third choice");
+
+            WildernessRanjaGorgeTests.Offer(harness, hudson, FinalAssault);
+            harness.Objects.DynamicObjectProximityWorker(copy, far, 0);   // off the pad they arrived on, by Hudson
+            Teleport(harness, copy, far);
+            Assert.IsTrue(Vector3.Distance(harness.Client.Player.Position, pad.Position) < 2f, "and back to the chamber");
+        }
+
+        /// <summary>
+        /// To-fix #35: Colonel Hudson, AFS (FRIENDLY), stood 17.6 m from the ground of Thrax pool 531644, inside the aggro
+        /// range (18 m). A Thrax killed him, and a squad copy's pool does not come back, so 1171 had nobody to turn in to.
+        /// He stands out of reach now, on the navmesh by the Alia Das pad. The player is a GM out of sight, as the playtest
+        /// bot was: the Thrax notice only Hudson.
+        /// </summary>
+        [TestMethod]
+        public void HudsonOutlivesTheCopysThrax()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            EnterPlateau(harness);
+            harness.Client.Player.GmInvisible = true;
+            var copy = IntoTheChamber(harness);
+            var hudson = Npc(copy, PlateauTemporalChamberNpcsV1.Hudson, PlateauTemporalChamberNpcsV1.HudsonPackage);
+            AssertStandsOnNavMesh(copy, hudson.Position);
+            Assert.IsTrue(Vector3.Distance(hudson.Position, copy.Teleporters[PlateauTemporalChamberNpcsV1.AliaDasPad].Position) < 15f,
+                "by the Alia Das pad");
+            PlateauMaligoBaseTests.AssertOutlivesTheBane(harness, copy, PlateauTemporalChamberNpcsV1.HudsonPool);
+        }
+
+        [TestMethod]
+        public void TheFinalAssaultTakesThreeStationsBeforeTheCoreTakesTheDetonator()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            Assert.IsTrue(harness.Manager.Scenes.TryGetSceneMap(FinalAssault, out var bound));
+            Assert.AreEqual(Chamber, bound, "1167 is bound to the Temporal Chamber");
+            var plateau = EnterPlateau(harness);
+            SeedCompleted(harness, ArrayOfHope, FutureSacrifice);
+            var copy = IntoTheChamber(harness);
+            var veryin = Npc(copy, PlateauTemporalChamberNpcsV1.Veryin, PlateauTemporalChamberNpcsV1.VeryinPackage);
+            var hudson = Npc(copy, PlateauTemporalChamberNpcsV1.Hudson, PlateauTemporalChamberNpcsV1.HudsonPackage);
+            Assert.IsFalse(copy.DynamicObjects.Any(obj => obj.SceneMissionId == FinalAssault), "nothing before the mission");
+            var fields = PlateauUstorYardTests.PlaceFields(harness, copy, new[] { PlateauFinalAssaultFieldV1.Field });
+            try
+            {
+            // The field stands across the service entrance, on the way the navmesh walks in.
+            var mouth = new Vector3((float)PlateauFinalAssaultFieldV1.X - 3.5f, 301.7f, -446f);
+            var inside = new Vector3((float)PlateauFinalAssaultFieldV1.X - 3.5f, 301.2f, -438f);
+            Assert.IsNotNull(copy.NavMesh.GroundHeight(mouth), "the way in, outside");
+            Assert.IsNotNull(copy.NavMesh.GroundHeight(inside), "the way in, inside");
+            Assert.IsTrue(ForceFields.StopsPlayer(copy, mouth, inside), "the field closes the service entrance");
+
+            var offer = WildernessRanjaGorgeTests.Offer(harness, hudson, FinalAssault);
+            CollectionAssert.AreEqual(new[]
+                {
+                    PlateauFinalAssaultV1.RocketLauncher, PlateauFinalAssaultV1.Rifle,
+                    PlateauFinalAssaultV1.IncendiaryNetGun, PlateauFinalAssaultV1.PulsePistol
+                },
+                offer.SelectableReward.Select(item => item.ItemTemplateId).ToArray());
+            harness.MoveTo(hudson.Position);
+            Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, hudson.EntityId, FinalAssault));
+            harness.Drain();
+            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, PlateauFinalAssaultV1.Detonator), "Hudson's detonator");
+
+            var stations = PlateauFinalAssaultV1.Stations.Select(station => copy.DynamicObjects.Single(obj =>
+                obj.SceneMissionId == FinalAssault && obj.SceneActorRole == PlateauFinalAssaultV1.StationRole(station.Objective))).ToArray();
+            var core = copy.DynamicObjects.Single(obj => obj.SceneMissionId == FinalAssault && obj.SceneActorRole == PlateauFinalAssaultV1.CoreRole);
+            Assert.AreEqual(PlateauFinalAssaultV1.CoreClass, (uint)core.EntityClassId);
+            foreach (var station in stations)
+            {
+                Assert.AreEqual(PlateauFinalAssaultV1.IntactState, (uint)station.StateId);
+                var ground = copy.NavMesh.GroundHeight(station.Position);
+                Assert.IsNotNull(ground, $"{station.SceneActorRole} has no navmesh under it");
+                Assert.AreEqual(ground.Value, station.Position.Y, 0.5f, $"{station.SceneActorRole} on the ground");
+            }
+
+            // A marker for each objective with a place: each station's on its station, 2's on the core and the entrance.
+            var markers = harness.World.MissionIndicatorEntries.AsNoTracking().Where(row => row.MissionId == FinalAssault).ToList();
+            Assert.HasCount(5, markers);
+            foreach (var (station, obj) in PlateauFinalAssaultV1.Stations.Zip(stations))
+                Assert.IsTrue(markers.Any(row => row.ObjectiveId == station.Objective &&
+                    Vector2.Distance(new((float)row.PosX, (float)row.PosZ), new(obj.Position.X, obj.Position.Z)) < 1f), $"objective {station.Objective}'s marker");
+            Assert.IsTrue(markers.Any(row => row.ObjectiveId == PlateauFinalAssaultV1.Detonate &&
+                Vector2.Distance(new((float)row.PosX, (float)row.PosZ), new(core.Position.X, core.Position.Z)) < 1f), "2's marker on the core");
+            Assert.IsTrue(markers.Any(row => row.ObjectiveId == PlateauFinalAssaultV1.Detonate &&
+                Vector2.Distance(new((float)row.PosX, (float)row.PosZ), new(mouth.X, mouth.Z)) < 5f), "2's marker at the way in");
+
+            var mission = harness.Client.Player.Missions[FinalAssault];
+            Assert.AreEqual(MissionObjectiveState.Inactive, mission.Objectives[PlateauFinalAssaultV1.Detonate].State);
+            Use(harness, copy, core);
+            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, PlateauFinalAssaultV1.Detonator), "the core is locked");
+            Assert.AreEqual(PlateauFinalAssaultV1.CoreReadyState, (uint)core.StateId);
+
+            var objectives = new[] { PlateauFinalAssaultV1.Alpha, PlateauFinalAssaultV1.Bravo, PlateauFinalAssaultV1.Charlie };
+            for (var index = 0; index < stations.Length; index++)
+            {
+                Damage(harness, copy, stations[index], (int)PlateauFinalAssaultV1.StationHitPoints);
+                Assert.AreEqual(PlateauFinalAssaultV1.DestroyedState, (uint)stations[index].StateId, $"station {index + 1} down");
+                mission = harness.Client.Player.Missions[FinalAssault];
+                Assert.AreEqual(MissionObjectiveState.Completed, mission.Objectives[objectives[index]].State, $"objective {objectives[index]}");
+                Assert.AreEqual(index == 2 ? MissionObjectiveState.Incomplete : MissionObjectiveState.Inactive,
+                    mission.Objectives[PlateauFinalAssaultV1.Detonate].State, $"the core after station {index + 1}");
+                if (index < 2)
+                    PlateauUstorYardTests.AssertFieldsUp(copy, fields);
+            }
+            PlateauUstorYardTests.AssertFieldsDown(copy, fields);
+            Assert.IsFalse(ForceFields.StopsPlayer(copy, mouth, inside), "the way into the facility is open");
+
+            Use(harness, copy, core);
+            Assert.AreEqual(0U, WildernessRanjaGorgeTests.Held(harness, PlateauFinalAssaultV1.Detonator), "the detonator on the core");
+            Assert.AreEqual(PlateauFinalAssaultV1.CoreSetState, (uint)core.StateId);
+            mission = harness.Client.Player.Missions[FinalAssault];
+            Assert.AreEqual(MissionObjectiveState.Completed, mission.Objectives[PlateauFinalAssaultV1.Detonate].State);
+            Assert.IsTrue(mission.Completeable);
+
+            WildernessRanjaGorgeTests.CompleteAndCheckReward(harness, veryin, FinalAssault, 0,
+                PlateauFinalAssaultV1.Experience, PlateauFinalAssaultV1.Credits);
+            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, PlateauFinalAssaultV1.RocketLauncher), "the first choice");
+            }
+            finally
+            {
+                PlateauUstorYardTests.ForgetFields(copy);
+            }
+        }
+
+        [TestMethod]
+        public void ForeasBasePastEscortsVillaranToTheDropshipAndBeatsXykrylsStrikeForce()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            EnterPlateau(harness);
+            SeedCompleted(harness, ArrayOfHope, FutureSacrifice);
+            var copy = IntoTheChamber(harness);
+            var veryin = Npc(copy, PlateauTemporalChamberNpcsV1.Veryin, PlateauTemporalChamberNpcsV1.VeryinPackage);
+            Assert.IsFalse(Offered(harness, veryin).Contains(ForeasBasePast), "waits for The Final Assault");
+            SeedCompleted(harness, FinalAssault);
+
+            var offer = WildernessRanjaGorgeTests.Offer(harness, veryin, ForeasBasePast);
+            Assert.IsEmpty(offer.SelectableReward, "no items");
+            harness.MoveTo(veryin.Position);
+            Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, veryin.EntityId, ForeasBasePast));
+            harness.Drain();
+            Tick(harness, copy, 250);
+
+            // From the start: the defenders, Villaran beside Fonseca, the drop-ship on its pad; no Bane yet.
+            foreach (var role in PlateauForeasBasePastScene.Statics.Take(4).Append(PlateauForeasBasePastScene.Villaran))
+            {
+                var friend = SceneCreature(harness, copy, ForeasBasePast, role);
+                Assert.IsNotNull(friend, $"{role} is there");
+                Assert.AreEqual(TargetCategory.Friendly, friend.TargetCategory, role);
+                AssertStandsOnNavMesh(copy, friend.Position);
+            }
+            foreach (var role in new[] { "landing-pad", "dropship" })
+                AssertStandsOnNavMesh(copy, SceneObject(harness, copy, ForeasBasePast, role).Position);
+            Assert.IsTrue(PlateauForeasBasePastScene.FirstWave.Concat(PlateauForeasBasePastScene.SecondWave())
+                .All(role => SceneCreature(harness, copy, ForeasBasePast, role) == null), "no Bane before Fonseca's talk");
+            var villaran = SceneCreature(harness, copy, ForeasBasePast, PlateauForeasBasePastScene.Villaran);
+            Assert.AreEqual(PlateauForeasBasePastNpcsV1.Villaran, villaran.DbId);
+            for (var index = 0; index < PlateauForeasBasePastV1.Route.Length; index++)
+                AssertStandsOnNavMesh(copy, ToVector(PlateauForeasBasePastV1.Route[index]));
+
+            // The pad on Veryin's left takes the player to Foreas Base, north of HQ; Fonseca is inside.
+            var pad = copy.Teleporters[PlateauForeasBasePastNpcsV1.ChamberPad];
+            var far = copy.Teleporters[PlateauForeasBasePastNpcsV1.PastPad];
+            Assert.IsTrue(pad.Position.X < veryin.Position.X, "on Veryin's left (Hudson's is on the right)");
+            Teleport(harness, copy, pad);
+            Assert.IsTrue(Vector3.Distance(harness.Client.Player.Position, far.Position) < 2f, "at the pad north of HQ");
+            Spawn(copy, PlateauForeasBasePastNpcsV1.FonsecaPool);
+            var fonseca = Living(copy).Single(npc => npc.DbId == PlateauForeasBasePastNpcsV1.Fonseca && npc.Npc != null &&
+                ReferenceEquals(npc.RuntimeMapChannel, copy));
+            Assert.AreEqual(PlateauForeasBasePastNpcsV1.FonsecaPackage, fonseca.Npc.NpcPackageId);
+            AssertStandsOnNavMesh(copy, fonseca.Position);
+            Assert.IsTrue(Vector3.Distance(fonseca.Position, villaran.Position) < 5f, "Villaran beside him");
+            Assert.IsTrue(copy.NavMesh.FindPath(far.Position, fonseca.Position, out var toFonseca) != null && toFonseca, "the pad to Fonseca");
+            // A marker for each objective: the talks at Fonseca, 3 at the drop-ship, 5 at the strike force, 7 at the pad and Veryin.
+            var xykryl = PlateauForeasBasePastV1.SecondWaveAt[0];
+            AssertMarkers(harness, ForeasBasePast,
+                (PlateauForeasBasePastV1.FirstTalk, fonseca.Position, 2f, "1 at Fonseca"),
+                (PlateauForeasBasePastV1.Escort, SceneObject(harness, copy, ForeasBasePast, "dropship").Position, 1f, "3 at the drop-ship"),
+                (PlateauForeasBasePastV1.SecondTalk, fonseca.Position, 2f, "4 at Fonseca"),
+                (PlateauForeasBasePastV1.Kill, new Vector3(xykryl.X, xykryl.Y, xykryl.Z), 1f, "5 at the strike force"),
+                (PlateauForeasBasePastV1.ThirdTalk, fonseca.Position, 2f, "6 at Fonseca"),
+                (PlateauForeasBasePastV1.Return, far.Position, 1f, "7 at the pad north of HQ"),
+                (PlateauForeasBasePastV1.Return, veryin.Position, 2f, "7 at Veryin"));
+
+            // 1: Villaran sets off; the first wave waits out of sight until he steps out of HQ's door.
+            Talk(harness, fonseca, ForeasBasePast, PlateauForeasBasePastV1.FirstTalk);
+            Tick(harness, copy, 250);
+            var mission = harness.Client.Player.Missions[ForeasBasePast];
+            Assert.AreEqual(MissionObjectiveState.Incomplete, mission.Objectives[PlateauForeasBasePastV1.Escort].State);
+            Assert.IsTrue(PlateauForeasBasePastScene.FirstWave.All(role => SceneCreature(harness, copy, ForeasBasePast, role) == null),
+                "no Bane while he is inside");
+            var start = villaran.Position;
+            Creature[] wave = null;
+            for (var tick = 0; tick < 60 && wave == null; tick++)
+            {
+                harness.MoveTo(villaran.Position + Vector3.UnitZ);
+                Tick(harness, copy, 1000);
+                if (PlateauForeasBasePastScene.FirstWave.Any(role => SceneCreature(harness, copy, ForeasBasePast, role) != null))
+                    wave = PlateauForeasBasePastScene.FirstWave.Select(role => SceneCreature(harness, copy, ForeasBasePast, role)).ToArray();
+            }
+            Assert.IsNotNull(wave, $"the first wave came (Villaran at {villaran.Position})");
+            var door = ToVector(PlateauForeasBasePastV1.Route[PlateauForeasBasePastScene.LeavesHq]);
+            Assert.IsTrue(Vector3.Distance(villaran.Position, door) < 4, $"as he left HQ, at {villaran.Position}");
+            var gate = ToVector(PlateauForeasBasePastV1.WavesFace);
+            for (var index = 0; index < wave.Length; index++)
+            {
+                var role = PlateauForeasBasePastScene.FirstWave[index];
+                Assert.IsNotNull(wave[index], role);
+                Assert.AreEqual(TargetCategory.Hostile, wave[index].TargetCategory);
+                Assert.AreEqual(index < 4 ? PlateauForeasBasePastNpcsV1.Recon : PlateauForeasBasePastNpcsV1.Cavalryman, wave[index].DbId);
+                Assert.IsTrue(Vector3.Distance(wave[index].Position, ToVector(PlateauForeasBasePastV1.FirstWaveAt[index])) < 1.5f,
+                    $"{role} at its place, {wave[index].Position}");
+                AssertStandsOnNavMesh(copy, ToVector(PlateauForeasBasePastV1.FirstWaveAt[index]), 0.5f);
+                Assert.IsTrue(Vector3.Distance(wave[index].Position, door) > 100, $"{role} out of sight of HQ's door");
+                AssertFaces(wave[index], gate);
+                Assert.IsTrue(copy.NavMesh.FindPath(copy.NavMesh.Nearest(wave[index].Position).Value, gate, out var reaches) != null &&
+                    reaches, $"{role} can reach the north gate");
+            }
+
+            // They run at him and meet him on his way to the gate: none goes home on the way (the leash from its spawn).
+            for (var tick = 0; tick < 40 && wave.Any(bane => Living(copy).Contains(bane) &&
+                     Vector3.Distance(bane.Position, villaran.Position) > 25); tick++)
+            {
+                harness.MoveTo(villaran.Position + Vector3.UnitZ);
+                Tick(harness, copy, 1000);
+            }
+            foreach (var bane in wave.Where(bane => Living(copy).Contains(bane)))
+            {
+                Assert.IsFalse(BehaviorManager.IsReturning(bane), $"{bane.SpawnPool.SceneActorRole} did not go home");
+                Assert.IsTrue(Vector3.Distance(bane.Position, villaran.Position) <= 25,
+                    $"{bane.SpawnPool.SceneActorRole} came to Villaran: {bane.Position}, he at {villaran.Position}");
+            }
+            Assert.IsNotNull(SceneCreature(harness, copy, ForeasBasePast, PlateauForeasBasePastScene.Villaran), "Villaran stands");
+
+            // Under their fire he stops and fights back (his route resumes after combat), then walks on once they are dead.
+            // His health is raised here only so that the six cannot kill him while the test watches.
+            Assert.HasCount(1, villaran.Actions, "he has an attack (the Forean lightning, creature_action row 6)");
+            villaran.Attributes[Attributes.Health] = new ActorAttributes(Attributes.Health, 1000000, 1000000, 1000000, 0, 0);
+            var heldAt = villaran.Position;
+            var fought = false;
+            for (var tick = 0; tick < 8; tick++)
+            {
+                harness.MoveTo(villaran.Position + Vector3.UnitZ);
+                Tick(harness, copy, 1000);
+                MissileManager.Instance.DoWork(copy, 1000);
+                fought |= villaran.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting;
+            }
+            Assert.IsTrue(fought, "Villaran fights back when hit");
+            Assert.IsTrue(Vector3.Distance(heldAt, villaran.Position) < 10,
+                $"he held while attacked ({Vector3.Distance(heldAt, villaran.Position):0.0} m in 8 s; walking it is 20 m)");
+            foreach (var bane in wave.Where(bane => Living(copy).Contains(bane)))
+                Kill(harness, copy, bane);
+            for (var tick = 0; tick < 6 && villaran.Controller.CurrentAction != BehaviorManager.BehaviorActionScriptedMove; tick++)
+                Tick(harness, copy, 1000);
+            Assert.AreEqual(BehaviorManager.BehaviorActionScriptedMove, villaran.Controller.CurrentAction, "the fight over, he walks on");
+            harness.MoveTo(fonseca.Position);
+            harness.Drain();
+            Assert.IsFalse(harness.Manager.CompleteOfferedObjective(harness.Client, fonseca.EntityId, ForeasBasePast,
+                PlateauForeasBasePastV1.SecondTalk, 1), "Fonseca's second talk waits for the escort");
+
+            // 3: Villaran walks on out through the gate to the drop-ship and is gone.
+            for (var tick = 0; tick < 300 && mission.Objectives[PlateauForeasBasePastV1.Escort].State != MissionObjectiveState.Completed; tick++)
+            {
+                if (SceneCreature(harness, copy, ForeasBasePast, PlateauForeasBasePastScene.Villaran) != null)
+                    harness.MoveTo(villaran.Position + Vector3.UnitZ);
+                Tick(harness, copy, 1000);
+            }
+            Assert.AreEqual(MissionObjectiveState.Completed, mission.Objectives[PlateauForeasBasePastV1.Escort].State,
+                $"Villaran stalled at {villaran.Position}");
+            Assert.IsTrue(Vector3.Distance(start, villaran.Position) > 90, "he walked the whole way");
+            Assert.IsTrue(Vector3.Distance(ToVector(PlateauForeasBasePastV1.DropshipAt), villaran.Position) < 15, "by the drop-ship");
+            Assert.IsNull(SceneCreature(harness, copy, ForeasBasePast, PlateauForeasBasePastScene.Villaran), "he has boarded");
+            Assert.AreEqual(MissionObjectiveState.Incomplete, mission.Objectives[PlateauForeasBasePastV1.SecondTalk].State);
+
+            // The drop-ship leaves with him a moment later; its pad stays. Back in from a recovery, it is not put back.
+            Assert.IsTrue(DropshipThere(harness, copy), "the drop-ship waits a moment");
+            for (var tick = 0; tick < 4; tick++)
+                Tick(harness, copy, 1000);
+            Assert.IsFalse(DropshipThere(harness, copy), "the drop-ship has left");
+            SceneObject(harness, copy, ForeasBasePast, "landing-pad");
+            harness.Manager.Scenes.Detach(harness.Client, copy);
+            harness.Manager.Scenes.Resume(harness.Client);
+            harness.Drain();
+            Tick(harness, copy, 250);
+            Assert.IsFalse(DropshipThere(harness, copy), "not back after the recovery");
+            SceneObject(harness, copy, ForeasBasePast, "landing-pad");
+            Assert.IsNotNull(SceneCreature(harness, copy, ForeasBasePast, "defender-1"), "the defenders stand");
+
+            // A reload halfway keeps the escort done and the drop-ship there; no Villaran comes back.
+            WildernessRanjaGorgeTests.Reload(harness);
+            Tick(harness, copy, 250);
+            mission = harness.Client.Player.Missions[ForeasBasePast];
+            Assert.AreEqual(MissionObjectiveState.Completed, mission.Objectives[PlateauForeasBasePastV1.Escort].State, "after the reload");
+            Assert.AreEqual(MissionObjectiveState.Incomplete, mission.Objectives[PlateauForeasBasePastV1.SecondTalk].State, "after the reload");
+            Assert.IsNull(SceneCreature(harness, copy, ForeasBasePast, PlateauForeasBasePastScene.Villaran), "still boarded");
+            Assert.IsFalse(DropshipThere(harness, copy), "the drop-ship still gone");
+
+            // 4, 5: Xykryl and his strike force, whoever kills them: Xykryl on counter 0 (8952, 0/1), the four on
+            // counter 1 (8953, 0/4) (to-fix #43).
+            Talk(harness, fonseca, ForeasBasePast, PlateauForeasBasePastV1.SecondTalk);
+            Tick(harness, copy, 250);
+            var strike = PlateauForeasBasePastScene.SecondWave().Select(role => SceneCreature(harness, copy, ForeasBasePast, role)).ToArray();
+            Assert.AreEqual(PlateauForeasBasePastNpcsV1.Xykryl, strike[0].DbId);
+            Assert.IsTrue(strike.Skip(1).All(bane => bane.DbId == PlateauForeasBasePastNpcsV1.SpecialForces));
+            // One group about Xykryl, facing the gate, coming at the player in HQ (no leash from their spawns).
+            for (var index = 0; index < strike.Length; index++)
+            {
+                Assert.IsTrue(Vector3.Distance(strike[index].Position, ToVector(PlateauForeasBasePastV1.SecondWaveAt[0])) <= 8,
+                    $"{index} with Xykryl: {strike[index].Position}");
+                AssertStandsOnNavMesh(copy, ToVector(PlateauForeasBasePastV1.SecondWaveAt[index]), 0.5f);
+                AssertFaces(strike[index], gate);
+            }
+            var player = harness.Client.Player;
+            player.Attributes[Attributes.Health] = new ActorAttributes(Attributes.Health, 1000000, 1000000, 1000000, 0, 0);
+            for (var tick = 0; tick < 60 && strike.Any(bane => Vector3.Distance(bane.Position, player.Position) > 30); tick++)
+                Tick(harness, copy, 1000);
+            foreach (var bane in strike)
+            {
+                Assert.IsFalse(BehaviorManager.IsReturning(bane), $"{bane.SpawnPool.SceneActorRole} did not go home");
+                Assert.IsTrue(Vector3.Distance(bane.Position, player.Position) <= 30,
+                    $"{bane.SpawnPool.SceneActorRole} came at the player: {bane.Position}, the player at {player.Position}");
+            }
+            for (var index = 0; index < strike.Length; index++)
+            {
+                Assert.AreEqual(TargetCategory.Hostile, strike[index].TargetCategory);
+                Assert.AreEqual(MissionObjectiveState.Incomplete, mission.Objectives[PlateauForeasBasePastV1.Kill].State, $"before kill {index + 1}");
+                if (index == 1)
+                {
+                    // A defender's kill counts as the player's.
+                    strike[index].Attributes[Attributes.Health].Current = 0;
+                    harness.Creatures.HandleCreatureKill(copy, strike[index], null);
+                    Tick(harness, copy, 250);
+                }
+                else
+                    Kill(harness, copy, strike[index]);
+                if (index == 0)
+                    Assert.AreEqual(1U, mission.Objectives[PlateauForeasBasePastV1.Kill].Counters[0], "Bane Taskmaster Killed");
+                if (index < strike.Length - 1)
+                    Assert.AreEqual((uint)index, mission.Objectives[PlateauForeasBasePastV1.Kill].Counters[1], "Taskmaster Strike Force Eliminated");
+            }
+            Assert.AreEqual(MissionObjectiveState.Completed, mission.Objectives[PlateauForeasBasePastV1.Kill].State, "the five killed");
+            Assert.AreEqual(MissionObjectiveState.Incomplete, mission.Objectives[PlateauForeasBasePastV1.ThirdTalk].State);
+
+            // 6, 7: Fonseca, then back through the pad north of HQ to Veryin.
+            Talk(harness, fonseca, ForeasBasePast, PlateauForeasBasePastV1.ThirdTalk);
+            Assert.AreEqual(MissionObjectiveState.Incomplete, mission.Objectives[PlateauForeasBasePastV1.Return].State);
+            Assert.IsFalse(mission.Completeable);
+            harness.MoveTo(far.Position + new Vector3(0, 0, 4));
+            harness.Objects.DynamicObjectProximityWorker(copy, far, 0);
+            Teleport(harness, copy, far);
+            Assert.IsTrue(Vector3.Distance(harness.Client.Player.Position, pad.Position) < 2f, "back in the chamber");
+            Talk(harness, veryin, ForeasBasePast, PlateauForeasBasePastV1.Return);
+            Assert.IsTrue(harness.Client.Player.Missions[ForeasBasePast].Completeable);
+            WildernessRanjaGorgeTests.CompleteAndCheckReward(harness, veryin, ForeasBasePast, null,
+                PlateauForeasBasePastV1.Experience, PlateauForeasBasePastV1.Credits);
+            Assert.IsTrue(Offered(harness, veryin).Contains(SendAMessage), "Send a Message opens");
+        }
+
+        [TestMethod]
+        public void ForeasBasePastFailsWhenVillaranDiesOnTheWay()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            EnterPlateau(harness);
+            SeedCompleted(harness, ArrayOfHope, FutureSacrifice, FinalAssault);
+            var copy = IntoTheChamber(harness);
+            var veryin = Npc(copy, PlateauTemporalChamberNpcsV1.Veryin, PlateauTemporalChamberNpcsV1.VeryinPackage);
+            harness.MoveTo(veryin.Position);
+            Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, veryin.EntityId, ForeasBasePast));
+            harness.Drain();
+            Tick(harness, copy, 250);
+            Teleport(harness, copy, copy.Teleporters[PlateauForeasBasePastNpcsV1.ChamberPad]);
+            Spawn(copy, PlateauForeasBasePastNpcsV1.FonsecaPool);
+            var fonseca = Living(copy).Single(npc => npc.DbId == PlateauForeasBasePastNpcsV1.Fonseca && npc.Npc != null &&
+                ReferenceEquals(npc.RuntimeMapChannel, copy));
+            Talk(harness, fonseca, ForeasBasePast, PlateauForeasBasePastV1.FirstTalk);
+            var villaran = SceneCreature(harness, copy, ForeasBasePast, PlateauForeasBasePastScene.Villaran);
+            for (var tick = 0; tick < 4; tick++)
+                Tick(harness, copy, 1000);
+            Assert.IsTrue(Vector3.Distance(ToVector(PlateauForeasBasePastV1.VillaranAt), villaran.Position) > 2, "he is on his way");
+
+            villaran.Attributes[Attributes.Health].Current = 0;
+            harness.Creatures.HandleCreatureKill(copy, villaran, null);
+            Tick(harness, copy, 250);
+            var mission = harness.Client.Player.Missions[ForeasBasePast];
+            Assert.AreEqual(MissionObjectiveState.Failed, mission.Objectives[PlateauForeasBasePastV1.Escort].State);
+            Assert.AreEqual(MissionState.Failed, mission.State);
+            Assert.AreEqual(MissionObjectiveState.Inactive, mission.Objectives[PlateauForeasBasePastV1.SecondTalk].State);
+        }
+
+        [TestMethod]
+        public void ForeasBasePastAbandonedTakesItsSceneAndIsOfferedAgain()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            EnterPlateau(harness);
+            SeedCompleted(harness, ArrayOfHope, FutureSacrifice, FinalAssault);
+            var copy = IntoTheChamber(harness);
+            var veryin = Npc(copy, PlateauTemporalChamberNpcsV1.Veryin, PlateauTemporalChamberNpcsV1.VeryinPackage);
+            harness.MoveTo(veryin.Position);
+            Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, veryin.EntityId, ForeasBasePast));
+            harness.Drain();
+            Tick(harness, copy, 250);
+            Teleport(harness, copy, copy.Teleporters[PlateauForeasBasePastNpcsV1.ChamberPad]);
+            Spawn(copy, PlateauForeasBasePastNpcsV1.FonsecaPool);
+            var fonseca = Living(copy).Single(npc => npc.DbId == PlateauForeasBasePastNpcsV1.Fonseca && npc.Npc != null &&
+                ReferenceEquals(npc.RuntimeMapChannel, copy));
+            Talk(harness, fonseca, ForeasBasePast, PlateauForeasBasePastV1.FirstTalk);
+            // On until he is out of HQ and the first wave has come.
+            for (var tick = 0; tick < 60 && SceneCreature(harness, copy, ForeasBasePast, PlateauForeasBasePastScene.FirstWave[0]) == null; tick++)
+                Tick(harness, copy, 1000);
+            var roles = PlateauForeasBasePastScene.FirstWave.Concat(PlateauForeasBasePastScene.Statics.Take(4))
+                .Append(PlateauForeasBasePastScene.Villaran).ToArray();
+            Assert.IsTrue(roles.All(role => SceneCreature(harness, copy, ForeasBasePast, role) != null), "the escort under way");
+
+            var creatures = Living(copy).Where(creature => creature.SpawnPool?.SceneRunId != null &&
+                ReferenceEquals(creature.RuntimeMapChannel, copy) && roles.Contains(creature.SpawnPool.SceneActorRole)).ToArray();
+            Assert.IsTrue(harness.Manager.TryAbandon(harness.Client, ForeasBasePast));
+            Tick(harness, copy, 250);
+            Assert.IsFalse(harness.Client.Player.Missions.ContainsKey(ForeasBasePast), "gone from the log");
+            Assert.IsFalse(creatures.Any(creature => Living(copy).Contains(creature)), "Villaran, the defenders and the wave are gone");
+            Assert.IsFalse(copy.DynamicObjects.Any(obj => obj.SceneMissionId == ForeasBasePast && obj.IsInWorld), "the drop-ship is gone");
+            Assert.IsTrue(Offered(harness, veryin).Contains(ForeasBasePast), "Veryin offers it again");
+        }
+
+        [TestMethod]
+        public void SendAMessageUsesTheCommunicationsArray()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            EnterPlateau(harness);
+            SeedCompleted(harness, ArrayOfHope, FutureSacrifice, FinalAssault);
+            var copy = IntoTheChamber(harness);
+            var veryin = Npc(copy, PlateauTemporalChamberNpcsV1.Veryin, PlateauTemporalChamberNpcsV1.VeryinPackage);
+            Assert.IsFalse(Offered(harness, veryin).Contains(SendAMessage), "waits for Foreas Base Past");
+            SeedCompleted(harness, ForeasBasePast);
+            Assert.IsEmpty(WildernessRanjaGorgeTests.Offer(harness, veryin, SendAMessage).SelectableReward, "no items");
+            harness.MoveTo(veryin.Position);
+            Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, veryin.EntityId, SendAMessage));
+            harness.Drain();
+
+            var array = SceneObject(harness, copy, SendAMessage, PlateauSendAMessageV1.ArrayRole);
+            Assert.AreEqual(PlateauSendAMessageV1.ArrayClass, (uint)array.EntityClassId);
+            Assert.AreEqual(PlateauSendAMessageV1.ReadyState, (uint)array.StateId);
+            AssertMarkers(harness, SendAMessage, (PlateauSendAMessageV1.Use, array.Position, 1f, "2 at the Array"));
+            AssertStandsOnNavMesh(copy, array.Position, 0.5f);
+            Assert.IsTrue(copy.NavMesh.FindPath(veryin.Position, array.Position, out var walked) != null && walked, "walked to from Veryin");
+            Assert.IsFalse(harness.Client.Player.Missions[SendAMessage].Completeable);
+
+            Use(harness, copy, array);
+            Assert.AreEqual(PlateauSendAMessageV1.UsedState, (uint)array.StateId);
+            Assert.AreEqual(MissionObjectiveState.Completed,
+                harness.Client.Player.Missions[SendAMessage].Objectives[PlateauSendAMessageV1.Use].State);
+            Assert.IsTrue(harness.Client.Player.Missions[SendAMessage].Completeable);
+            WildernessRanjaGorgeTests.CompleteAndCheckReward(harness, veryin, SendAMessage, null,
+                PlateauSendAMessageV1.Experience, PlateauSendAMessageV1.Credits);
+        }
+
+        /// <summary>
+        /// The chamber as the server loads it (LoadMap), with its teleporters as InitTeleporters reads them and
+        /// the links as InitLocalTeleporters does, then the player through the portal into the squad's copy.
+        /// </summary>
+        private static MapChannel IntoTheChamber(WildernessRuntimeTestHarness harness)
+        {
+            if (!harness.Maps.MapChannelArray.ContainsKey(Chamber))
+            {
+                var template = LoadMap(harness, Chamber);
+                foreach (var row in harness.World.TeleporterEntries.AsNoTracking().Where(row => row.MapContextId == Chamber && row.Type == 1).ToArray())
+                {
+                    var pad = new DynamicObject
+                    {
+                        Position = new Vector3((float)row.PosX, (float)row.PosY, (float)row.PosZ),
+                        Rotation = row.Rotation,
+                        MapContextId = Chamber,
+                        RuntimeMapChannel = template,
+                        EntityClassId = (EntityClasses)row.ClassId,
+                        Comment = row.Description,
+                        ObjectData = new WaypointInfo(row.Id, false, WaypointType.LocalTeleporter),
+                        DynamicObjectType = DynamicObjectType.LocalTeleporter
+                    };
+                    template.Teleporters.Add(row.Id, pad);
+                    harness.Objects.Teleporters.Add(row.Id, pad);
+                }
+                harness.Objects.InitLocalTeleporters();
+                harness.Objects.DynamicObjectWorker(template, 0);
+            }
+            var copy = ThroughTheDoor(harness, Chamber);
+            Assert.IsTrue(copy.IsSquadInstance);
+            return copy;
+        }
+
+        private static Creature Npc(MapChannel map, uint creature, uint package)
+        {
+            if (!Living(map).Any(candidate => candidate.DbId == creature))
+                Spawn(map, creature == PlateauTemporalChamberNpcsV1.Veryin ? PlateauTemporalChamberNpcsV1.VeryinPool : PlateauTemporalChamberNpcsV1.HudsonPool);
+            var npc = Living(map).Single(candidate => candidate.DbId == creature && candidate.Npc != null);
+            Assert.AreEqual(package, npc.Npc.NpcPackageId);
+            return npc;
+        }
+
+        /// <summary>The scene creature of this test's own run (as PlateauMaligoBaseTests.SceneCreature).</summary>
+        private static Creature SceneCreature(WildernessRuntimeTestHarness harness, MapChannel map, uint mission, string role)
+        {
+            var runs = Runs(harness, mission);
+            return Living(map).SingleOrDefault(creature => ReferenceEquals(creature.RuntimeMapChannel, map) &&
+                creature.SpawnPool?.SceneActorRole == role && runs.Contains(creature.SpawnPool.SceneRunId));
+        }
+
+        private static DynamicObject SceneObject(WildernessRuntimeTestHarness harness, MapChannel map, uint mission, string role)
+        {
+            var runs = Runs(harness, mission);
+            var obj = map.DynamicObjects.SingleOrDefault(candidate => candidate.SceneMissionId == mission && candidate.SceneActorRole == role &&
+                candidate.IsInWorld && runs.Contains(candidate.SceneRunId));
+            Assert.IsNotNull(obj, $"{role} is there");
+            return obj;
+        }
+
+        private static bool DropshipThere(WildernessRuntimeTestHarness harness, MapChannel map)
+        {
+            var runs = Runs(harness, ForeasBasePast);
+            return map.DynamicObjects.Any(candidate => candidate.SceneMissionId == ForeasBasePast &&
+                candidate.SceneActorRole == PlateauForeasBasePastScene.Dropship && candidate.IsInWorld && runs.Contains(candidate.SceneRunId));
+        }
+
+        /// <summary>
+        /// The creature stands facing <paramref name="point"/> (within about 25 degrees): its Rotation, what the clients are
+        /// sent, a yaw facing (-sin, -cos) in (X, Z) (Facing).
+        /// </summary>
+        private static void AssertFaces(Creature creature, Vector3 point)
+        {
+            var to = Vector2.Normalize(new Vector2(point.X - creature.Position.X, point.Z - creature.Position.Z));
+            var facing = new Vector2((float)-System.Math.Sin(creature.Rotation), (float)-System.Math.Cos(creature.Rotation));
+            Assert.IsTrue(Vector2.Dot(facing, to) > 0.9f, $"{creature.SpawnPool?.SceneActorRole} faces {facing}, not {to}");
+        }
+
+        private static HashSet<string> Runs(WildernessRuntimeTestHarness harness, uint mission)
+        {
+            using var unit = harness.CreateChar();
+            return unit.CharacterMissions.Runtime.Scenes(harness.Client.Player.Id, mission).Select(scene => scene.RunId).ToHashSet();
+        }
+
+        /// <summary>Kills the creature as the player and runs the map on.</summary>
+        private static void Kill(WildernessRuntimeTestHarness harness, MapChannel map, Creature creature)
+        {
+            harness.MoveTo(creature.Position);
+            creature.Attributes[Attributes.Health].Current = 0;
+            harness.Creatures.HandleCreatureKill(map, creature, harness.Client.Player);
+            Tick(harness, map, 250);
+        }
+
+        /// <summary>The NPC's hand-in topic of this objective, and the objective completes there.</summary>
+        private static void Talk(WildernessRuntimeTestHarness harness, Creature npc, uint mission, uint objective)
+        {
+            AssertHandInTopic(Conversation(harness, npc), mission, objective);
+            harness.MoveTo(npc.Position);
+            harness.Drain();
+            Assert.IsTrue(harness.Manager.CompleteOfferedObjective(harness.Client, npc.EntityId, mission, objective, 1),
+                $"{mission}.{objective}");
+            harness.Drain();
+        }
+
+        /// <summary>As PlateauMaligoBaseTests.Tick.</summary>
+        private static void Tick(WildernessRuntimeTestHarness harness, MapChannel map, long milliseconds)
+        {
+            harness.UtcNow = harness.UtcNow.AddMilliseconds(milliseconds);
+            BehaviorManager.Instance.MapChannelThink(map, System.Math.Min(milliseconds, 1000));
+            harness.Manager.Scenes.Tick(map);
+            harness.Drain();
+        }
+
+        private static void AssertStandsOnNavMesh(MapChannel map, Vector3 position, float tolerance = 1f)
+        {
+            var ground = map.NavMesh.GroundHeight(position);
+            Assert.IsNotNull(ground, $"navmesh under {position}");
+            Assert.AreEqual(ground.Value, position.Y, tolerance, $"{position} on the ground");
+        }
+
+        private static Vector3 ToVector(Rasa.Missions.Scenes.ScenePosition at) => new(at.X, at.Y, at.Z);
+
+        private static HashSet<uint> Offered(WildernessRuntimeTestHarness harness, Creature npc) =>
+            Conversation(harness, npc).TryGetValue(ConversationType.MissionDispense, out var offered)
+                ? ((Dictionary<uint, MissionInfo>)offered).Keys.ToHashSet()
+                : new HashSet<uint>();
+
+        private static DynamicObject[] Conduits(MapChannel plateau) => Enumerable.Range(0, PlateauArrayOfHopeV1.Conduits.Length)
+            .Select(index => plateau.DynamicObjects.Single(obj => obj.SceneMissionId == ArrayOfHope &&
+                obj.SceneActorRole == PlateauArrayOfHopeV1.ConduitRole(index)))
+            .ToArray();
+
+        /// <summary>A use of the object from where it stands, and its recovery if one is due (PlateauChasmTests.Use).</summary>
+        private static void Use(WildernessRuntimeTestHarness harness, MapChannel map, DynamicObject obj)
+        {
+            harness.MoveTo(obj.Position + new Vector3(0, 0, 1));
+            harness.Drain();
+            var count = map.PerformRecovery.Count;
+            harness.Objects.RequestUseObjectPacket(harness.Client, new RequestUseObjectPacket
+            {
+                EntityId = obj.EntityId, ActionId = ActionId.UseObject, ActionArgId = 1
+            });
+            if (map.PerformRecovery.Count > count)
+            {
+                var recovery = map.PerformRecovery.Last();
+                map.PerformRecovery.Remove(recovery);
+                ActorActionManager.Instance.PerformRecovery(map, recovery);
+            }
+            harness.Drain();
+        }
+
+        /// <summary>A weapon hit on the object, as PlateauMartyrsCanyonTests.DamagePump.</summary>
+        private static void Damage(WildernessRuntimeTestHarness harness, MapChannel map, DynamicObject obj, int damage)
+        {
+            harness.MoveTo(obj.Position + new Vector3(0, 0, 1));
+            var action = new ActionData(harness.Client.Player, ActionId.WeaponAttack, 133, 0) { TargetId = obj.EntityId };
+            MissileManager.Instance.MissileLaunch(map, action, damage);
+            MissileManager.Instance.DoWork(map, 1000);
+            harness.Drain();
+        }
+
+        /// <summary>Onto the pad, as LocalTeleporterWorker takes a player, and the passage through.</summary>
+        private static void Teleport(WildernessRuntimeTestHarness harness, MapChannel map, DynamicObject pad)
+        {
+            harness.MoveTo(pad.Position);
+            harness.Drain();
+            harness.Objects.DynamicObjectProximityWorker(map, pad, 0);
+            Assert.IsNotNull(harness.Client.PendingTransfer, "taken by the pad");
+            System.Threading.Thread.Sleep((int)DynamicObjectManager.PassageHoldMs + 50);
+            harness.Objects.PassagesWorker(map);
+            harness.Objects.TeleportAcknowledge(harness.Client);
+            harness.Drain();
+            Assert.IsNull(harness.Client.PendingTransfer);
+        }
+    }
+}
