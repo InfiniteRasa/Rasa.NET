@@ -44,7 +44,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
         {
             var mission = new PlateauMissionDataV1(migration, MissionId, "Canyon Sweep", 5875, Carvelle, Carvelle, Level);
             mission.Reward(Experience, Credits, new[] { ElectricInjectorGun, ElectricChaingun, SonicCannon, SonicShotgun });
-            mission.FlagPrerequisite(DeliveredFlag, 1, "Requires Carvelle's communicator delivered (Incommunicado objective 1)");
+            mission.FlagPrerequisite(DeliveredFlag, 1, "Carvelle's communicator delivered (Incommunicado objective 1)");
 
             mission.Objective(1, 5879, 6333, 0, MissionObjectiveState.Incomplete, counterTextId: 5880);
             mission.Transition(1);

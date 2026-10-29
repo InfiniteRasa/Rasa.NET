@@ -55,7 +55,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
         {
             var mission = new PlateauMissionDataV1(migration, MissionId, "Blueprint For Victory", 5881, Petrie, Bosley, Level);
             mission.Reward(Experience, Credits, new[] { BioLegs, GravitonLegs, MechHelmet, StealthHelmet });
-            mission.FlagPrerequisite(DeliveredFlag, 1, "Requires Petrie's communicator delivered (Incommunicado objective 2)");
+            mission.FlagPrerequisite(DeliveredFlag, 1, "Petrie's communicator delivered (Incommunicado objective 2)");
 
             mission.Objective(1, 5922, 6311, 0, MissionObjectiveState.Incomplete);
             mission.Objective(3, 6024, 6312, 1, MissionObjectiveState.Inactive);

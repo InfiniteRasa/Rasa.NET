@@ -64,7 +64,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
         {
             var mission = new PlateauMissionDataV1(migration, MissionId, "Toxic Detox", 5916, Locke, Locke, Level);
             mission.Reward(Experience, Credits, new[] { AreaRepairTool, SonicDisperser, Rifle, SonicTorqueshellRifle });
-            mission.FlagPrerequisite(DeliveredFlag, 1, "Requires Locke's communicator delivered (Incommunicado objective 3)");
+            mission.FlagPrerequisite(DeliveredFlag, 1, "Locke's communicator delivered (Incommunicado objective 3)");
 
             mission.Objective(1, 5920, 6474, 0, MissionObjectiveState.Incomplete, counterTextId: 5921);
             mission.Scenario(1, "Destroy five distinct Bane Toxic Waste Pumps", (uint)Pumps.Length);

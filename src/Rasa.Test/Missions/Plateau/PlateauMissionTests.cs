@@ -440,6 +440,40 @@ namespace Rasa.Test.Missions.Plateau
                     $"mission {row.MissionId} objective {row.ObjectiveId} indicator {row.IndicatorId}");
         }
 
+        /// <summary>
+        /// Every text the World migrations write fits its MySQL column (MySqlWorldContextModelSnapshot): SQLite takes a
+        /// text of any length, MySQL stops the migration ("Data too long for column"). The MySQL migrations write the
+        /// same rows as the SQLite ones (the same data classes).
+        /// </summary>
+        [TestMethod]
+        public void EveryWorldTextFitsItsMySqlColumn()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var model = new Rasa.Migrations.MySqlWorld.MySqlWorldContextModelSnapshot().Model;
+            var tooLong = new System.Collections.Generic.List<string>();
+            var checkedColumns = 0;
+            foreach (var entity in model.GetEntityTypes())
+            {
+                var table = entity.GetTableName();
+                if (table == null) continue;
+                foreach (var property in entity.GetProperties())
+                {
+                    var type = property.GetColumnType();
+                    var match = type == null ? null : System.Text.RegularExpressions.Regex.Match(type, @"^(?:var)?char\((\d+)\)$");
+                    var length = match is { Success: true } ? int.Parse(match.Groups[1].Value) : property.GetMaxLength();
+                    if (length == null) continue;
+                    checkedColumns++;
+                    var column = property.GetColumnName();
+                    var count = harness.World.Database.SqlQueryRaw<int>(
+                        $"SELECT COUNT(*) AS Value FROM \"{table}\" WHERE length(\"{column}\") > {length}").AsEnumerable().Single();
+                    if (count > 0)
+                        tooLong.Add($"{table}.{column} ({length}): {count} rows");
+                }
+            }
+            Assert.IsGreaterThan(50, checkedColumns, "columns with a MySQL length");
+            Assert.IsEmpty(tooLong, string.Join("; ", tooLong));
+        }
+
         [TestMethod]
         public void TheReconSquadsStandAndRollBackAndGoliathsPoolHasNoGuards()
         {
