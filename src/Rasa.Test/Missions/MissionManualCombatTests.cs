@@ -445,6 +445,40 @@ namespace Rasa.Test.Missions
                 attacker.ScriptedCombatAuthorization.Handle.RunId).Single(effect => effect.OperationKey == "begin-fight").Status);
         }
 
+        /// <summary>
+        /// A public actor's scene attack order (SceneAttackOrder: no leash from home) ends with its run, however the run
+        /// ends: abandoned (the lease reset), detached, or the role cleared. Left standing, the actor never leashed again
+        /// for any later player (code review 2026-10-25).
+        /// </summary>
+        [TestMethod]
+        [DataRow("abandon")]
+        [DataRow("detach")]
+        [DataRow("clear-role")]
+        public void ASceneAttackOrderEndsWithItsRun(string end)
+        {
+            using var harness = CreateFixture(out _);
+            var attacker = AcceptFixture(harness);
+            Assert.IsTrue(harness.Manager.Scenes.ExecuteNamed(harness.Client, FixtureMissionId, "fight"));
+            Assert.IsTrue(attacker.SceneAttackOrder != null, "the order stands");
+
+            switch (end)
+            {
+                case "abandon":
+                    Assert.IsTrue(harness.Manager.TryAbandon(harness.Client, FixtureMissionId));
+                    harness.Tick();
+                    Assert.IsNull(harness.Manager.PublicActors.Handle(harness.Map, SkeevSpawnId), "the lease is reset");
+                    break;
+                case "detach":
+                    harness.Manager.Scenes.Detach(harness.Client, harness.Map);
+                    break;
+                default:
+                    CreatureGameplayRules.ClearRole(attacker);
+                    break;
+            }
+
+            Assert.IsFalse(attacker.SceneAttackOrder != null, $"the order ended with the run ({end})");
+        }
+
         private static WildernessRuntimeTestHarness CreateFixture(out MissionSceneDefinition definition,
             bool creatureTarget = false)
         {

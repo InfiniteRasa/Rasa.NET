@@ -35,6 +35,13 @@ namespace Rasa.Structures
         internal Vector3 Destination { get; init; }
         internal double Orientation { get; init; }
         internal bool Arrived { get; set; }
+
+        /// <summary>
+        /// A hit on the walker starts its fight (Threat.FromDamage): a scene route that resumes after combat and fights
+        /// when hit (RunRouteIntent.ResumeAfterCombat with FightWhenHit, SceneRouteController) holds while it fights and
+        /// goes on after. Any other scripted walk keeps walking through hits.
+        /// </summary>
+        internal bool FightsBack { get; set; }
     }
 
     public class ActionFighting
@@ -64,6 +71,19 @@ namespace Rasa.Structures
         /// for each time this one runs out, only once the path update lock is up (BehaviorManager).
         /// </summary>
         public bool RouteIncomplete { get; set; }
+
+        /// <summary>
+        /// Milliseconds a squad member has held at the end of its tether to its leader this fight,
+        /// with no attack it could make (Managers.NpcSquads.HoldsAtTether); 0 while it is not
+        /// holding. While it holds, it evades: it takes no damage.
+        /// </summary>
+        public long TetherHeldMs { get; set; }
+
+        /// <summary>
+        /// Whether a squad member held at its tether's end had an attack that reaches its target
+        /// this think: it answers, and does not evade while it does (Managers.NpcSquads.Evades).
+        /// </summary>
+        public bool TetherAnswers { get; set; }
 
         /// <summary>The place round its target it is stepping off to, out of a crowd of its side (Spacing); null when it is not.</summary>
         public Vector3? SpreadingTo { get; set; }

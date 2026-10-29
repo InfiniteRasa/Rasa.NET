@@ -450,7 +450,13 @@ namespace Rasa.Managers
                 // channel or a chain of stuns ran it out, and the creature came out of them to
                 // drop its hate table and turn on whoever stood nearest.
                 if (creature.Controller.CurrentAction == BehaviorActionFighting)
+                {
                     creature.LastAgression = 0;
+
+                    // Nor does it stop the clock of one held at its tether's end (TetherClock).
+                    if (creature.Controller.ActionFighting.TetherHeldMs > 0)
+                        creature.Controller.ActionFighting.TetherHeldMs += Math.Max(1, delta);
+                }
 
                 needCellUpdate = CellChanged(creature, delta);
                 return;
@@ -758,10 +764,15 @@ namespace Rasa.Managers
             }
             else if (creature.Controller.CurrentAction == BehaviorActionSquad)
             {
-                // It notices a fight as a wandering creature does, as far off as its squad looks.
+                // It notices a fight as a wandering creature does, as far off as its squad looks;
+                // one on a tether only a fight it would join its squad in (NpcSquads.MayTakeUp).
                 if (creature.LastAgression >= AggroScanDelayMs && ScansForEnemies(creature)
-                    && CheckForAttackableEntityInRange(mapChannel, creature, NpcSquads.EngageRange(creature)))
+                    && FindAttackableInRange(mapChannel, creature, NpcSquads.EngageRange(creature)) is var found && found != 0
+                    && NpcSquads.MayTakeUp(creature, found))
+                {
+                    SetActionFighting(creature, found);
                     return;
+                }
 
                 AdvanceSquad(mapChannel, creature, delta);
             }
@@ -838,6 +849,11 @@ namespace Rasa.Managers
             }
             else if (creature.Controller.CurrentAction == BehaviorActionFighting)
             {
+                // One of a squad on a tether: past its end, or held there too long, the fight is
+                // over for it, whatever else it would do this think (TetherClock).
+                if (TetherClock(creature, delta))
+                    return;
+
                 // Who it hates most and can still fight is who it fights (Threat). Nobody left:
                 // the fight is over and the table goes with it. A minion assisting someone fights
                 // what they have targeted first, switching when they do, and falls back on its
@@ -845,8 +861,11 @@ namespace Rasa.Managers
                 var assisting = AssistedTarget(creature);
                 // Mission escorts and defenders already chose a target within their owner's or
                 // base's bounds above; ambient hate must not override that assignment.
+                // A scene's order to fight one target holds it while it can be fought (AttackActorIntent.HoldTarget).
+                var held = creature.SceneAttackOrder?.HoldTargetId ?? 0;
                 var chosen = LandingZoneAssaultTargeting.IsAssault(creature) || IsMissionEscort(creature) || Game.Missions.World.CreatureGameplayRules.IsDefender(creature)
                     ? creature.Controller.ActionFighting.TargetEntityId
+                    : held != 0 && Threat.CanFight(creature, held) ? held
                     : assisting != 0 ? assisting : Threat.ChooseTarget(creature);
 
                 if (assisting != 0)
@@ -970,7 +989,13 @@ namespace Rasa.Managers
                         return;
                     }
                 }
-                else if (ChasedTooFar(creature))
+                else if (NpcSquads.TetherOf(creature, out _) != null)
+                {
+                    // One of a squad on a tether is not leashed from its place: it chases no
+                    // further than the tether from its leader, and holds at its end for a target
+                    // beyond it (below; NpcSquads.TetherOf). Its leader is leashed for the squad.
+                }
+                else if (!creature.SceneAttackPastLeash && ChasedTooFar(creature))
                 {
                     // Dragged too far from home: it runs back, forgetting the fight, and is whole
                     // again when it gets there. For a patrolling creature home is the last path
@@ -979,6 +1004,15 @@ namespace Rasa.Managers
                     return;
                 }
                 creature.LastAgression = 0; // update aggression time if we found our target
+
+                // One of a squad holding at its tether's end (HoldAtTether, below): its clock runs
+                // on every think of the fight, whatever it does meanwhile (TetherClock), until its
+                // target is well inside the tether again and it can get to it.
+                var tetherLeader = NpcSquads.TetherOf(creature, out var tether);
+                var holding = creature.Controller.ActionFighting;
+
+                if (holding.TetherHeldMs > 0 && tetherLeader != null && NpcSquads.WithinTether(tetherLeader, tether, targetPosition))
+                    holding.TetherHeldMs = 0;
 
                 // Free to act, yet for StallEvadeMs it has neither struck nor gained ground - its
                 // target where the navmesh gives no route, or inside the reach of every attack it
@@ -1022,7 +1056,7 @@ namespace Rasa.Managers
                 // One of a crowd of its side that stands here - all come to the same spot, or
                 // came out on top of each other - steps off to its own place round its target,
                 // as far from it as it is now (Spacing). It attacks again once there.
-                if (Spread(mapChannel, creature, targetPosition, delta))
+                if (holding.TetherHeldMs == 0 && Spread(mapChannel, creature, targetPosition, delta))
                     return;
 
                 var needToMove = true;
@@ -1185,6 +1219,10 @@ namespace Rasa.Managers
 
                 if (needToMove == false)
                 {
+                    // An attack that reaches its target: one held at its tether's end answers
+                    // this think, and does not evade (NpcSquads.Evades). Its clock runs on.
+                    holding.TetherAnswers = true;
+
                     // Holding here - an attack cooling down with nothing closer to use, the
                     // opening roll - after a think that stepped: the clients carry the last
                     // movement on at its speed until they are told otherwise.
@@ -1231,6 +1269,16 @@ namespace Rasa.Managers
                 if (targetDistSqr <= nearEnough * nearEnough && !sightBlocked)
                 {
                     StopIfMoving(creature);
+                    return;
+                }
+
+                // One of a squad on a tether goes no further from its leader than that: at its end,
+                // with nothing it can strike its target with from there, it holds, facing it, and
+                // evades - it takes no damage, as one running home does not, so it is not shot
+                // down where it cannot answer (HoldAtTether).
+                if (tetherLeader != null && NpcSquads.HoldsAtTether(creature, tetherLeader, tether, targetPosition))
+                {
+                    HoldAtTether(creature, targetPosition);
                     return;
                 }
 
@@ -1304,6 +1352,10 @@ namespace Rasa.Managers
                         pathTarget = Spacing.AroundClear(mapChannel, targetPosition, pathTarget,
                             Spacing.Taken(mapChannel, creature, targetPosition)) ?? pathTarget;
 
+                    // No further than its tether from its squad's leader.
+                    if (tetherLeader != null)
+                        pathTarget = NpcSquads.Tether(mapChannel, tetherLeader, tether, pathTarget);
+
                     creature.Controller.ActionFighting.RouteIncomplete = !BuildPath(mapChannel, creature, pathTarget, bounded: true);
 
                     // where the target was when this path was built
@@ -1319,6 +1371,14 @@ namespace Rasa.Managers
                 // field, the end of a path that stops short - is not (Stalled).
                 if (creature.Position != before)
                     MadeProgress(creature);
+                else if (tetherLeader != null && creature.Controller.Path.Count == 0 && creature.MovementSpeed > 0 && !CrowdControl.IsRooted(creature)
+                    && !NpcSquads.WithinTether(tetherLeader, tether, targetPosition))
+                {
+                    // On a tether, a route that brings it no nearer - cut short by the tether, or
+                    // by something in the way - is as far as it goes: it holds there, as at the
+                    // tether's end, rather than standing until it is stalled and sent home whole.
+                    HoldAtTether(creature, targetPosition);
+                }
             }//---fighting
         }
 
@@ -1368,6 +1428,10 @@ namespace Rasa.Managers
             var spot = Spacing.AroundClear(mapChannel, targetPosition, creature.Position, taken)
                 ?? Spacing.AroundClear(mapChannel, targetPosition, creature.Position,
                     Math.Max(Spacing.AcrossGround(creature.Position, targetPosition), NearEnoughFor(creature) - 0.1f), taken);
+
+            // On a tether, no further from its squad's leader than that (NpcSquads.Tether).
+            if (spot.HasValue && NpcSquads.TetherOf(creature, out var tether) is Creature leader)
+                spot = NpcSquads.Tether(mapChannel, leader, tether, spot.Value);
 
             fighting.SettleMs = Spacing.SettleMs;
 
@@ -2776,6 +2840,9 @@ namespace Rasa.Managers
             if (!CanSetActionFighting(creature, targetEntityId))
                 return false;
 
+            // Held at its tether's end, a hit from its target is no new fight: the hold goes on (NpcSquads.TetherHoldMs).
+            var sameFight = creature.Controller.CurrentAction == BehaviorActionFighting && creature.Controller.ActionFighting.TargetEntityId == targetEntityId;
+
             // A fight starting, not a change of target within one: its first attack is rolled for again (OpensNow).
             if (creature.Controller.CurrentAction != BehaviorActionFighting)
             {
@@ -2799,6 +2866,8 @@ namespace Rasa.Managers
             creature.Controller.TimerPathUpdateLock = 0;
             creature.Controller.ActionFighting.TargetEntityId = targetEntityId;
             creature.Controller.ActionFighting.StalledMs = 0;
+            if (!sameFight)
+                creature.Controller.ActionFighting.TetherHeldMs = 0;
             creature.Controller.ActionFighting.RouteIncomplete = false;
             creature.Controller.ActionFighting.SpreadingTo = null;
             creature.Controller.ActionFighting.SettleMs = 0;
@@ -2815,6 +2884,12 @@ namespace Rasa.Managers
 
             // Its target, to everyone who can see it: the guns that aim, aim (Targets).
             Targets.Sync(creature.RuntimeMapChannel ?? MapChannelManager.Instance.FindByContextId(creature.MapContextId), creature);
+
+            // A fight starting, or a new target in one: a player it turns on is detected, for the
+            // missions that care (PlayerDetection).
+            if (!sameFight)
+                PlayerDetection.Fighting(creature.RuntimeMapChannel ?? MapChannelManager.Instance.FindByContextId(creature.MapContextId), creature, targetEntityId);
+
             return true;
         }
 
@@ -3059,6 +3134,74 @@ namespace Rasa.Managers
         internal static void MadeProgress(Creature creature)
         {
             creature.Controller.ActionFighting.StalledMs = 0;
+        }
+
+        /// <summary>
+        /// The tether's part at the start of a fighting think of one of a squad on one; true when
+        /// it has given the fight up. Further from its leader than the tether and its slack - its
+        /// leader gone on, or run home after a leash of his own, and left it there - it gives the
+        /// fight up at once. Held at the tether's end, its clock runs on every think, whatever the
+        /// think does after (a step, an attack in reach, a target near it), and held for
+        /// NpcSquads.TetherHoldMs it gives the fight up. Either way it is not made whole: it goes
+        /// back to its place as it is (NpcSquads.Think).
+        /// </summary>
+        private bool TetherClock(Creature creature, long delta)
+        {
+            var fighting = creature.Controller.ActionFighting;
+            var leader = NpcSquads.TetherOf(creature, out var tether);
+
+            fighting.TetherAnswers = false;
+
+            if (leader == null)
+            {
+                fighting.TetherHeldMs = 0;
+                return false;
+            }
+
+            if (fighting.TetherHeldMs > 0)
+            {
+                fighting.StalledMs = 0;
+                fighting.TetherHeldMs += Math.Max(1, delta);
+            }
+
+            if (!NpcSquads.PastTether(creature, leader, tether) && fighting.TetherHeldMs < NpcSquads.TetherHoldMs)
+                return false;
+
+            creature.LastRestTime = 0;
+            GiveUp(creature);
+            return true;
+        }
+
+        /// <summary>
+        /// One of a squad on a tether holds where it is, facing its target, the turn sent to the
+        /// clients as a squad member's is (AdvanceSquad). Its hold clock starts if it is not running
+        /// yet; it runs at the top of the fighting think (NpcSquads.TetherHoldMs), and while it
+        /// runs the member evades (NpcSquads.Evades).
+        /// </summary>
+        private static void HoldAtTether(Creature creature, Vector3 targetPosition)
+        {
+            var fighting = creature.Controller.ActionFighting;
+            var yaw = AbilityManager.YawTowards(creature.Position, targetPosition);
+            var turn = MathF.Abs(MathF.IEEERemainder(creature.LastYaw - yaw, MathF.PI * 2));
+            var starting = fighting.TetherHeldMs == 0;
+
+            if (starting)
+            {
+                creature.Controller.Path.Clear();
+                creature.Controller.PathIndex = 0;
+                fighting.TetherHeldMs = 1;
+            }
+
+            fighting.StalledMs = 0;
+
+            if (starting || turn > 0.35f)
+            {
+                creature.LastYaw = yaw;
+                creature.Rotation = yaw;
+                StopWalking(creature);
+            }
+            else
+                StopIfMoving(creature);
         }
 
         #region Leash

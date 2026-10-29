@@ -146,6 +146,15 @@ namespace Rasa.Structures
         internal Game.Missions.World.ScriptedCombatAuthorization ScriptedCombatAuthorization { get; set; }
 
         /// <summary>
+        /// A scene has ordered this creature into a fight (AttackActorIntent, SceneWorldAdapter) and the order stands:
+        /// with PastLeash it goes to its target however far that is from where it was spawned, so no leash by distance
+        /// from home (BehaviorManager.ChasedTooFar) pulls it back; with a held target it fights that one. Ended on every
+        /// way the order or the run ends (CreatureGameplayRules.ClearSceneAttackOrder).
+        /// </summary>
+        internal Game.Missions.World.SceneAttackOrder SceneAttackOrder { get; set; }
+        internal bool SceneAttackPastLeash => SceneAttackOrder?.PastLeash == true;
+
+        /// <summary>
         /// The player this creature belongs to, or 0 for an ordinary world creature.
         ///
         /// Set, a creature is a minion: it takes commands from that player, follows them rather

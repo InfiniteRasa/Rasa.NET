@@ -21,7 +21,8 @@ namespace Rasa.Test.World
     /// <summary>
     /// NPC squads (NpcSquads; npc_squad_*): the tables, the formations, a GM making a squad in
     /// game and exporting it, and squads in the Wilderness - sent, walking a route in formation,
-    /// joining a fight, gathering after it, losing a leader, and sent again after a wipe.
+    /// joining a fight, gathering after it, losing a leader, and sent again after a wipe; and a
+    /// member fighting on a tether to its leader.
     /// </summary>
     [TestClass]
     [DoNotParallelize]
@@ -29,7 +30,8 @@ namespace Rasa.Test.World
     {
         private const string Migration = "20270902000000_Npc_squads";
         private const string Previous = "20270901000000_Forget_restamped_migration_ids";
-        private const string Latest = "20270903000000_Alia_das_afs_squad";
+        private const string Latest = "20270919000000_Npc_squad_tether";
+        private const string BeforeTether = "20270918000000_Solis_escort_staff";
 
         private static readonly string[] Tables = { "npc_squad_type", "npc_squad_member", "npc_squad_path", "npc_squad_path_point", "npc_squad_spawn" };
 
@@ -78,7 +80,8 @@ namespace Rasa.Test.World
                 Assert.AreEqual(0, Count(database, $"SELECT COUNT(*) FROM {table}"), table);
 
             // The repository works on the tables as the model has them now: with the columns a
-            // later migration added (Alia_das_afs_squad), whose squad is cleared away first.
+            // later migration added (Alia_das_afs_squad, Npc_squad_tether), whose squad is cleared
+            // away first.
             migrator.Migrate(Latest);
             foreach (var table in Tables)
                 database.Context.Database.ExecuteSqlRaw($"DELETE FROM {table}");
@@ -87,13 +90,14 @@ namespace Rasa.Test.World
 
             Assert.IsTrue(squads.SaveType(new NpcSquadTypeEntry { Id = 1, Name = "Rifles", Formation = 1, Spacing = 4, EngageRange = 25 },
                 new[] { Member(1, 0, AfsSoldier, 1, 1), Member(1, 1, AfsSoldier, 2, 4) }));
-            Assert.IsTrue(squads.SaveType(new NpcSquadTypeEntry { Id = 1, Name = "Rifle squad", Formation = 0, Spacing = 3, EngageRange = 0 },
+            Assert.IsTrue(squads.SaveType(new NpcSquadTypeEntry { Id = 1, Name = "Rifle squad", Formation = 0, Spacing = 3, EngageRange = 0, Tether = 30 },
                 new[] { Member(1, 0, AfsSoldier, 2, 3) }));
             Assert.IsTrue(squads.SavePath(new NpcSquadPathEntry { Id = 7, MapContextId = 1220, Name = "Road", Mode = 1 },
                 new[] { Point(7, 0, 1, 2, 3, 0), Point(7, 1, 4, 5, 6, 2500), Point(7, 2, 7, 8, 9, 0) }));
             Assert.IsTrue(squads.SaveSpawn(Spawn(3, 1, 7)));
 
             Assert.AreEqual("Rifle squad", squads.GetTypes().Single().Name);
+            Assert.AreEqual(30.0, squads.GetTypes().Single().Tether);
             Assert.AreEqual(3, squads.GetMembers().Single().MaxCount, "the type's members replaced, not added to");
             CollectionAssert.AreEqual(new uint[] { 0, 1, 2 }, squads.GetPathPoints().Select(point => point.Step).ToArray());
             Assert.AreEqual(2500u, squads.GetPathPoints()[1].PauseMs);
@@ -439,6 +443,580 @@ namespace Rasa.Test.World
             Assert.IsFalse(S.On(harness.Map).ContainsKey(1));
             Assert.AreEqual(0, squad.Living.Count());
         }
+
+        #endregion
+
+        #region The tether
+
+        [TestMethod]
+        public void TheTetherGoesInAtNoneForTheTypesThereAreAndDownTakesItOut()
+        {
+            using var database = new OrdinaryLootTestDatabase();
+            var migrator = database.Context.GetService<IMigrator>();
+
+            migrator.Migrate(BeforeTether);
+            Assert.IsFalse(HasColumn(database, "npc_squad_type", "tether"));
+            var types = Count(database, "SELECT COUNT(*) FROM npc_squad_type");
+            Assert.IsTrue(types > 0, "Alia Das's squad is there to be given one");
+
+            migrator.Migrate(Latest);
+            Assert.AreEqual(types, Count(database, "SELECT COUNT(*) FROM npc_squad_type WHERE tether = 0"), "no tether: as they went before");
+
+            migrator.Migrate(BeforeTether);
+            Assert.IsFalse(HasColumn(database, "npc_squad_type", "tether"));
+            Assert.AreEqual(types, Count(database, "SELECT COUNT(*) FROM npc_squad_type"));
+
+            using var context = PersistenceIntegrationTests.CreateContext(typeof(Rasa.Context.World.MySqlWorldContext), "unused");
+            var mysql = context.GetService<IMigrator>();
+
+            StringAssert.Contains(mysql.GenerateScript(BeforeTether, Latest), "ADD `tether` double NOT NULL DEFAULT 0");
+            StringAssert.Contains(mysql.GenerateScript(Latest, BeforeTether), "DROP COLUMN `tether`");
+        }
+
+        [TestMethod]
+        public void AGmPutsATetherOnASquadTypeAndItIsSavedAndExported()
+        {
+            using var harness = Create();
+
+            Say(harness, ".squad type new Guards");
+            Say(harness, $".squad type 1 add {AfsSoldier}");
+            StringAssert.Contains(Say(harness, ".squad type 1").First(), "no tether");
+
+            var said = Say(harness, ".squad type 1 tether 22.5").Single();
+            Assert.IsFalse(said.Contains("NOT SAVED"), said);
+            StringAssert.Contains(said, "tethered at 22.5 m");
+            Assert.AreEqual(22.5f, S.Types[1].Tether);
+
+            var world = harness.World;
+            world.ChangeTracker.Clear();
+            Assert.AreEqual(22.5, world.NpcSquadTypeEntries.AsNoTracking().Single().Tether);
+
+            // The export gives it back.
+            var sql = S.ExportSql(0);
+            StringAssert.Contains(sql, "engage_range, tether) VALUES (1, 'Guards', 0, 3, 0, 22.5);");
+
+            foreach (var table in Tables)
+                world.Database.ExecuteSqlRaw($"DELETE FROM {table}");
+            foreach (var line in sql.Split('\n').Where(line => line.StartsWith("INSERT")))
+                world.Database.ExecuteSqlRaw(line);
+
+            S.Init(harness);
+            Assert.AreEqual(22.5f, S.Types[1].Tether);
+
+            Say(harness, ".squad type 1 tether 0");
+            Assert.AreEqual(0f, S.Types[1].Tether);
+
+            // Only a finite length, none below 0; with none given, how to give one.
+            foreach (var bad in new[] { ".squad type 1 tether Infinity", ".squad type 1 tether NaN", ".squad type 1 tether -3", ".squad type 1 tether" })
+            {
+                StringAssert.Contains(Say(harness, bad).Single(), "tether <m>", bad);
+                Assert.AreEqual(0f, S.Types[1].Tether, bad);
+            }
+
+            // Nor from a row.
+            S.Load(new[] { new NpcSquadTypeEntry { Id = 1, Name = "x", Spacing = 3, Tether = double.PositiveInfinity },
+                new NpcSquadTypeEntry { Id = 2, Name = "y", Spacing = 3, Tether = double.NaN } }, null, null, null, null);
+            Assert.AreEqual((0f, 0f), (S.Types[1].Tether, S.Types[2].Tether));
+        }
+
+        [TestMethod]
+        public void OnAShortTetherAMemberStillJoinsAFightByItsLeader()
+        {
+            Assert.AreEqual(25f, S.RejoinDistance(30));
+            Assert.AreEqual(5f, S.RejoinDistance(10), "half of it");
+            Assert.AreEqual(2f, S.RejoinDistance(4), "half of it, not below nothing");
+        }
+
+        [TestMethod]
+        public void OnATetherAMemberChasesNoFurtherHoldsEvadingThereThenGoesBackToItsPlaceAndRejoinsWhenTheTargetComesNear()
+        {
+            using var harness = Create();
+            const float tether = 12f;
+            var (squad, leader, member, thrax) = TetherFight(harness, tether);
+
+            Assert.AreSame(leader, S.TetherOf(member.Creature, out var length).SquadMember);
+            Assert.AreEqual(tether, length);
+            Assert.IsNull(S.TetherOf(leader.Creature, out _), "the leader is on none");
+
+            // Another of them is not drawn into a fight with a target that far from the leader:
+            // it keeps its place about him.
+            var other = squad.Members[2];
+            Assert.AreEqual(BehaviorManager.BehaviorActionSquad, other.Creature.Controller.CurrentAction);
+
+            // It chases as far as its tether, and holds there, in the fight, evading.
+            var furthest = 0f;
+            for (var i = 0; i < 4 * 20 && !S.Evades(member.Creature); i++)
+            {
+                Step(harness, 250);
+                furthest = Math.Max(furthest, Flat(member.Creature.Position - leader.Creature.Position));
+            }
+
+            Assert.IsTrue(S.Evades(member.Creature), "it holds at the tether's end");
+            Assert.AreEqual(BehaviorManager.BehaviorActionFighting, member.Creature.Controller.CurrentAction, "it does not drop the fight");
+            Assert.IsTrue(furthest <= tether + 1f, $"no further than the tether from its leader: {furthest:0.0} m");
+            Assert.IsTrue(Flat(member.Creature.Position - leader.Creature.Position) >= tether - S.TetherSlack - 0.5f);
+            Assert.IsFalse(BehaviorManager.IsReturning(member.Creature));
+            var off = MathF.Abs(MathF.IEEERemainder(member.Creature.LastYaw - AbilityManager.YawTowards(member.Creature.Position, thrax.Position), MathF.PI * 2));
+            Assert.IsTrue(off < 0.4f, $"facing its target: {off:0.00} rad off");
+
+            // The target moves round, still out of reach: it turns to it, as the clients are told (LastYaw).
+            var round = thrax.Position - member.Creature.Position;
+            var turned = Vector3.Transform(round, Quaternion.CreateFromAxisAngle(Vector3.UnitY, 1f));
+            var thraxAt = thrax.Position;
+            PinAt(thrax, harness.Map.NavMesh.Nearest(member.Creature.Position + turned) ?? throw new AssertFailedException("no navmesh there"));
+            Step(harness, 250);
+            Assert.IsTrue(S.Evades(member.Creature));
+            off = MathF.Abs(MathF.IEEERemainder(member.Creature.LastYaw - AbilityManager.YawTowards(member.Creature.Position, thrax.Position), MathF.PI * 2));
+            Assert.IsTrue(off < 0.4f, $"turned to its target: {off:0.00} rad off");
+            PinAt(thrax, thraxAt);
+
+            // Holding where it cannot answer, it is not shot down, nor debuffed.
+            Assert.IsTrue(DamageImmunity.IsImmune(member.Creature, DamageType.Physical));
+            Assert.IsFalse(DamageImmunity.IsImmune(other.Creature, DamageType.Physical), "one not holding is not");
+            member.Creature.Attributes[Attributes.Health].Current = 50;
+
+            // Held too long: back to its place, as it is - not run home and made whole.
+            for (var i = 0; i < 4 * 12 && member.Creature.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting; i++)
+                Step(harness, 250);
+
+            Assert.AreNotEqual(BehaviorManager.BehaviorActionFighting, member.Creature.Controller.CurrentAction, "the fight given up");
+            Assert.IsFalse(S.Evades(member.Creature));
+            Assert.AreEqual(50, member.Creature.Attributes[Attributes.Health].Current);
+
+            for (var i = 0; i < 4 * 8; i++)
+                Step(harness, 250);
+
+            Assert.AreEqual(BehaviorManager.BehaviorActionSquad, member.Creature.Controller.CurrentAction, "not drawn back in while the target is beyond its tether");
+            var place = S.PlaceOf(harness.Map, S.Types[1], member.Place, leader.Creature.Position, squad.Heading);
+            Assert.IsTrue(Flat(member.Creature.Position - place) < 2f, $"back in its place: {Flat(member.Creature.Position - place):0.0} m off it");
+            Assert.AreEqual(BehaviorManager.BehaviorActionFighting, leader.Creature.Controller.CurrentAction, "its leader fights on");
+
+            // The target comes within the tether, short of its end, of the leader: they join.
+            PinAt(thrax, harness.Map.NavMesh.Nearest(leader.Creature.Position + new Vector3(tether - S.TetherRejoinMargin - 1, 0, 0)).Value);
+            Step(harness, 250);
+
+            Assert.IsTrue(squad.Members.All(m => m.Creature.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting &&
+                m.Creature.Controller.ActionFighting.TargetEntityId == thrax.EntityId), "all of them on it");
+        }
+
+        [TestMethod]
+        public void OnATetherAMemberWhoseLeaderFallsIsTetheredToTheNextOne()
+        {
+            using var harness = Create();
+            const float tether = 12f;
+            var (squad, leader, member, _) = TetherFight(harness, tether);
+            var next = squad.Members[1];
+
+            for (var i = 0; i < 4 * 20 && !S.Evades(member.Creature); i++)
+                Step(harness, 250);
+            Assert.IsTrue(S.Evades(member.Creature));
+
+            Kill(leader.Creature);
+            Assert.AreSame(next.Creature, S.TetherOf(member.Creature, out _), "the next of them leads");
+
+            // The new leader stands half a tether behind it, toward its old one: it is no longer at
+            // its tether's end, and goes on after its target until it is at the end of his.
+            Root(next.Creature);
+            next.Creature.Position = harness.Map.NavMesh.Nearest(member.Creature.Position - new Vector3(tether / 2, 0, 0)).Value;
+            var heldAt = member.Creature.Position;
+
+            var furthest = 0f;
+            for (var i = 0; i < 4 * 4; i++)
+            {
+                Step(harness, 250);
+                furthest = Math.Max(furthest, Flat(member.Creature.Position - next.Creature.Position));
+            }
+
+            Assert.AreEqual(BehaviorManager.BehaviorActionFighting, member.Creature.Controller.CurrentAction);
+            Assert.IsTrue(S.Evades(member.Creature), "it holds at the end of the new leader's tether");
+            Assert.IsTrue(Flat(member.Creature.Position - heldAt) >= tether / 2 - 2f, $"further on: {Flat(member.Creature.Position - heldAt):0.0} m");
+            Assert.IsTrue(furthest <= tether + 1f, $"no further than the tether from the new leader: {furthest:0.0} m");
+
+            // The last of them standing is his own leader: on no tether, leashed as any creature.
+            Kill(next.Creature);
+            foreach (var m in squad.Members.Where(m => m != member))
+                Kill(m.Creature);
+            Assert.IsNull(S.TetherOf(member.Creature, out _));
+        }
+
+        [TestMethod]
+        public void OnATetherAMemberDoesNotGoLookingForAFightBeyondItAndJoinsOneNearItsLeader()
+        {
+            using var harness = Create();
+            const float tether = 12f;
+            var road = Road(harness);
+
+            // They look further than the tether; their creatures' own aggro ranges as they are.
+            Squad(harness, AfsSoldier, 0, 3, S.Formation.Line, road, S.PathMode.Loop);
+            S.Types[1].EngageRange = 30f;
+            S.Types[1].Tether = tether;
+            Step(harness, 250);
+            var squad = S.On(harness.Map)[1];
+            var leader = squad.Leader;
+            Root(leader.Creature);
+
+            for (var i = 0; i < 8; i++)
+                Step(harness, 250);
+
+            // A Thrax 15 m from the leader: past where they take a fight up, inside where they look.
+            var at = harness.Map.NavMesh.Nearest(leader.Creature.Position + new Vector3(15f, 0, 0)).Value;
+            var thrax = harness.Creatures.CreateCreature(ThraxSoldier, null);
+            CreatureManager.Instance.SetLocation(thrax, at, 0, 1220);
+            thrax.AggroRange = 0.5f;
+            CellManager.Instance.AddToWorld(harness.Map, thrax);
+            PinAt(thrax, at);
+            harness.MoveTo(Start);
+
+            for (var i = 0; i < 4 * 15; i++)
+            {
+                Step(harness, 250);
+                PinAt(thrax, at);
+                foreach (var member in squad.Members.Skip(1))
+                    Assert.AreNotEqual(BehaviorManager.BehaviorActionFighting, member.Creature.Controller.CurrentAction,
+                        $"member {member.Place} took it up after {i * 250} ms");
+            }
+
+            // Brought within the tether, short of its end, of the leader: they take it up.
+            at = harness.Map.NavMesh.Nearest(leader.Creature.Position + new Vector3(S.RejoinDistance(tether) - 1, 0, 0)).Value;
+            PinAt(thrax, at);
+            for (var i = 0; i < 4 * 4 && !squad.Members.All(m => m.Creature.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting); i++)
+            {
+                Step(harness, 250);
+                PinAt(thrax, at);
+            }
+
+            Assert.IsTrue(squad.Members.All(m => m.Creature.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting));
+        }
+
+        [TestMethod]
+        public void OnATetherAMemberHeldAtItsEndGivesUpInTimeThoughItsLeaderMoves()
+        {
+            using var harness = Create();
+            const float tether = 12f;
+            var (_, leader, member, _) = TetherFight(harness, tether);
+
+            for (var i = 0; i < 4 * 20 && !S.Evades(member.Creature); i++)
+                Step(harness, 250);
+            Assert.IsTrue(S.Evades(member.Creature));
+            var home = leader.Creature.Position;
+            var toward = harness.Map.NavMesh.Nearest(home + new Vector3(2.5f, 0, 0)).Value;
+
+            // The leader steps toward the target and back, every second: the tether's end moves.
+            var ms = 0;
+            for (; ms < S.TetherHoldMs + 3000 && member.Creature.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting; ms += 250)
+            {
+                if (ms % 1000 == 0)
+                    leader.Creature.Position = ms % 2000 == 0 ? toward : home;
+
+                Step(harness, 250);
+
+                if (member.Creature.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting)
+                {
+                    Assert.IsTrue(S.Evades(member.Creature), $"still held, out of reach, after {ms} ms");
+                    Assert.IsTrue(Flat(member.Creature.Position - leader.Creature.Position) <= tether + 3.5f);
+                }
+            }
+
+            Assert.AreNotEqual(BehaviorManager.BehaviorActionFighting, member.Creature.Controller.CurrentAction, "it gave the fight up");
+            Assert.IsTrue(ms <= S.TetherHoldMs + 250, $"in its time: {ms} ms");
+        }
+
+        [TestMethod]
+        public void OnATetherAMemberWhoseRouteGoesNoNearerHoldsThereAndIsNotSentHomeWhole()
+        {
+            using var harness = Create();
+            var (_, _, member, _) = TetherFight(harness, 12f);
+            var controller = member.Creature.Controller;
+            member.Creature.Attributes[Attributes.Health].Current = 50;
+
+            // No route that brings it nearer: as on ground the navmesh does not join up.
+            void NoRoute()
+            {
+                controller.Path.Clear();
+                controller.PathIndex = 0;
+                controller.ActionFighting.RouteIncomplete = true;
+                controller.TimerPathUpdateLock = 10_000;
+            }
+
+            var evaded = false;
+            for (var i = 0; i < 4 * 18 && controller.CurrentAction == BehaviorManager.BehaviorActionFighting; i++)
+            {
+                NoRoute();
+                Step(harness, 250);
+                evaded |= S.Evades(member.Creature);
+                Assert.IsFalse(BehaviorManager.IsReturning(member.Creature), $"not sent home after {i * 250} ms");
+            }
+
+            Assert.IsTrue(evaded, "it held, evading");
+            Assert.AreNotEqual(BehaviorManager.BehaviorActionFighting, controller.CurrentAction, "and gave the fight up");
+            Assert.IsFalse(BehaviorManager.IsReturning(member.Creature));
+            Assert.AreEqual(50, member.Creature.Attributes[Attributes.Health].Current, "as it is");
+        }
+
+        [TestMethod]
+        public void OnATetherAMemberHeldWithItsTargetRightBesideItStillGivesUpInTime()
+        {
+            using var harness = Create();
+            var (_, _, member, thrax) = TetherFight(harness, 12f);
+
+            for (var i = 0; i < 4 * 20 && !S.Evades(member.Creature); i++)
+                Step(harness, 250);
+            Assert.IsTrue(S.Evades(member.Creature));
+
+            // Right by it, on the far side of the tether's end, near enough that it does not step
+            // up to it, and inside the least range of every attack it has; and it cannot walk
+            // backwards off it (CreatureStepBack). It stands, as one near enough does.
+            foreach (var action in member.Creature.Actions)
+                (action.RangeMin, action.RangeMax) = (5, 10);
+            member.Creature.WalkSpeed = 0;
+            var away = Vector3.Normalize(new Vector3(thrax.Position.X - member.Creature.Position.X, 0, thrax.Position.Z - member.Creature.Position.Z));
+            var at = harness.Map.NavMesh.Nearest(member.Creature.Position + away * 1.5f).Value;
+
+            for (var i = 0; i < 4 * 13 && member.Creature.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting; i++)
+            {
+                PinAt(thrax, at);
+                Step(harness, 250);
+            }
+
+            Assert.AreNotEqual(BehaviorManager.BehaviorActionFighting, member.Creature.Controller.CurrentAction, "it gave the fight up");
+            Assert.IsFalse(S.Evades(member.Creature));
+        }
+
+        [TestMethod]
+        public void OnATetherTwoMembersAtItsEndDoNotStepOffPastIt()
+        {
+            using var harness = Create();
+            const float tether = 12f;
+
+            // A Bane squad, at an AFS soldier: one of a crowd of the Bane steps off (Spacing.Keeps).
+            var (squad, leader, member, thrax) = TetherFight(harness, tether, ThraxSoldier, AfsSoldier);
+            var second = squad.Members[2];
+
+            for (var i = 0; i < 4 * 20 && !S.Evades(member.Creature); i++)
+                Step(harness, 250);
+            Assert.IsTrue(S.Evades(member.Creature));
+
+            // Another of them comes to the same spot: one of a crowd of its side, it would step off
+            // round their target to a place of its own (Spacing) - not past the tether.
+            second.Creature.Position = harness.Map.NavMesh.Nearest(member.Creature.Position + new Vector3(0, 0, 0.3f)).Value;
+            second.Creature.Hate.Ensure(thrax.EntityId, Threat.NoticedThreat);
+            BehaviorManager.Instance.SetActionFighting(second.Creature, thrax.EntityId);
+
+            // Held, it does not step off round the target, its hold clock running on; and neither
+            // goes past the tether.
+            for (var i = 0; i < 4 * 6; i++)
+            {
+                Step(harness, 250);
+
+                Assert.IsFalse(S.Evades(member.Creature) && member.Creature.Controller.ActionFighting.SpreadingTo.HasValue,
+                    $"held, it stepped off after {i * 250} ms");
+
+                foreach (var m in new[] { member, second })
+                    Assert.IsTrue(Flat(m.Creature.Position - leader.Creature.Position) <= tether + 1f,
+                        $"member {m.Place} {Flat(m.Creature.Position - leader.Creature.Position):0.0} m from its leader after {i * 250} ms");
+            }
+        }
+
+        [TestMethod]
+        public void OnATetherAMemberHeldWhenItsLeaderRunsHomeGivesUpAtOnceAndGoesBack()
+        {
+            using var harness = Create();
+            const float tether = 12f;
+            var (squad, leader, member, _) = TetherFight(harness, tether);
+
+            for (var i = 0; i < 4 * 20 && !S.Evades(member.Creature); i++)
+                Step(harness, 250);
+            Assert.IsTrue(S.Evades(member.Creature));
+            member.Creature.Attributes[Attributes.Health].Current = 50;
+
+            // The leader, free again, was dragged too far from home: he runs back to it (his own
+            // leash), away from the member, as Goliath did in play.
+            var other = squad.Members[1].Creature;
+            leader.Creature.WalkSpeed = other.WalkSpeed;
+            leader.Creature.RunSpeed = other.RunSpeed;
+            leader.Creature.MovementSpeed = 1;
+            var home = harness.Map.NavMesh.Nearest(leader.Creature.Position - new Vector3(61f, 0, 0)) ?? throw new AssertFailedException("no navmesh there");
+            leader.Creature.HomePos.Position = home;
+
+            var past = -1;
+            var gaveUp = -1;
+            for (var ms = 0; ms < 20_000 && gaveUp < 0; ms += 250)
+            {
+                Step(harness, 250);
+
+                if (past < 0 && Flat(member.Creature.Position - leader.Creature.Position) > tether + S.TetherSlack)
+                    past = ms;
+                if (member.Creature.Controller.CurrentAction != BehaviorManager.BehaviorActionFighting)
+                    gaveUp = ms;
+            }
+
+            Assert.IsTrue(BehaviorManager.IsReturning(leader.Creature) || Flat(leader.Creature.Position - home) < 3f, "the leader ran home");
+            Assert.IsTrue(past >= 0, "left past its tether");
+            Assert.IsTrue(gaveUp >= 0 && gaveUp - past <= 500, $"it gave the fight up at once: {gaveUp - past} ms after it was left past its tether");
+            Assert.IsTrue(gaveUp < S.TetherHoldMs, $"within the hold time: {gaveUp} ms");
+            Assert.AreEqual(0, member.Creature.Hate.Ranked().Count(), "nor does it keep its target");
+            Assert.IsFalse(BehaviorManager.IsReturning(member.Creature));
+            Assert.AreEqual(50, member.Creature.Attributes[Attributes.Health].Current, "as it is, not made whole");
+
+            // Back to its place about the leader, once he is home.
+            var off = float.MaxValue;
+            for (var i = 0; i < 4 * 40 && off > 3f; i++)
+            {
+                Step(harness, 250);
+                off = Flat(member.Creature.Position - S.PlaceOf(harness.Map, S.Types[1], member.Place, leader.Creature.Position, squad.Heading));
+            }
+
+            Assert.IsTrue(off <= 3f, $"back in its place: {off:0.0} m off it");
+            Assert.AreNotEqual(BehaviorManager.BehaviorActionFighting, member.Creature.Controller.CurrentAction);
+        }
+
+        [TestMethod]
+        public void OnATetherAMemberHeldWhenItsLeaderGoesOnGivesUpOnceItIsLeftPastItsEnd()
+        {
+            using var harness = Create();
+            const float tether = 12f;
+            var (_, leader, member, _) = TetherFight(harness, tether);
+
+            for (var i = 0; i < 4 * 20 && !S.Evades(member.Creature); i++)
+                Step(harness, 250);
+            Assert.IsTrue(S.Evades(member.Creature));
+
+            // The leader walks on away from it, a metre a think.
+            var past = -1;
+            var gaveUp = -1;
+            for (var ms = 0; ms < 6000 && gaveUp < 0; ms += 250)
+            {
+                leader.Creature.Position = harness.Map.NavMesh.Nearest(leader.Creature.Position - new Vector3(1f, 0, 0)) ?? leader.Creature.Position;
+                Step(harness, 250);
+
+                if (past < 0 && Flat(member.Creature.Position - leader.Creature.Position) > tether + S.TetherSlack)
+                    past = ms;
+                if (member.Creature.Controller.CurrentAction != BehaviorManager.BehaviorActionFighting)
+                    gaveUp = ms;
+            }
+
+            Assert.IsTrue(past >= 0, "left past its tether");
+            Assert.IsTrue(gaveUp >= 0 && gaveUp - past <= 250, $"it gave the fight up at once: {gaveUp - past} ms after it was left past its tether");
+            Assert.IsFalse(S.Evades(member.Creature));
+        }
+
+        [TestMethod]
+        public void OnATetherTheHoldRunsOutThoughAnAttackOfItsComesInReach()
+        {
+            using var harness = Create();
+            var (_, _, member, _) = TetherFight(harness, 12f);
+
+            for (var i = 0; i < 4 * 20 && !S.Evades(member.Creature); i++)
+                Step(harness, 250);
+            Assert.IsTrue(S.Evades(member.Creature));
+            var heldFor = member.Creature.Controller.ActionFighting.TetherHeldMs;
+
+            // Now every attack it has reaches its target, but each is cooling down: it stands in
+            // reach, as a Kael with its charge used did in play. It answers - it does not evade -
+            // and its hold runs out all the same.
+            var ms = 0;
+            for (; ms < S.TetherHoldMs + 2000 && member.Creature.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting; ms += 250)
+            {
+                foreach (var action in member.Creature.Actions)
+                    (action.RangeMin, action.RangeMax, action.CooldownTimer) = (0, 500, 100_000);
+
+                Step(harness, 250);
+
+                if (member.Creature.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting)
+                    Assert.IsFalse(S.Evades(member.Creature), $"in reach, it answers: no evading after {ms} ms");
+            }
+
+            Assert.AreNotEqual(BehaviorManager.BehaviorActionFighting, member.Creature.Controller.CurrentAction, "it gave the fight up");
+            Assert.IsTrue(heldFor + ms <= S.TetherHoldMs + 500, $"when the hold ran out: {heldFor + ms} ms");
+        }
+
+        [TestMethod]
+        public void WithNoTetherAMemberChasesAsBefore()
+        {
+            using var harness = Create();
+            var (squad, leader, member, _) = TetherFight(harness, 0);
+
+            Assert.IsNull(S.TetherOf(member.Creature, out _));
+
+            var furthest = 0f;
+            for (var i = 0; i < 4 * 20; i++)
+            {
+                Step(harness, 250);
+                furthest = Math.Max(furthest, Flat(member.Creature.Position - leader.Creature.Position));
+                Assert.IsFalse(S.Evades(member.Creature));
+            }
+
+            Assert.IsTrue(furthest > 12f + 5f, $"it goes on after its target: {furthest:0.0} m from its leader");
+        }
+
+        /// <summary>
+        /// A squad of four on the road, with the tether given, its leader rooted to the spot and in
+        /// a fight with a Thrax that stands well out of reach of any of them, and the third of them
+        /// sent at it too. Returns the squad, its leader, that member and the Thrax.
+        /// </summary>
+        private (S.LiveSquad, S.Member, S.Member, Creature) TetherFight(WildernessRuntimeTestHarness harness, float tether,
+            uint creatureId = AfsSoldier, uint enemyId = ThraxSoldier)
+        {
+            var road = Road(harness);
+
+            Squad(harness, creatureId, 0, 3, S.Formation.Line, road, S.PathMode.Loop);
+            S.Types[1].EngageRange = 0.5f;
+            S.Types[1].Tether = tether;
+            Step(harness, 250);
+            var squad = S.On(harness.Map)[1];
+
+            for (var i = 0; i < 8; i++)
+                Step(harness, 250);
+
+            var leader = squad.Leader;
+            var member = squad.Members[3];
+            Root(leader.Creature);
+
+            // Out of reach of the member's attacks from anywhere on a tether of 12 m.
+            var reach = member.Creature.Actions.Select(action => (float)action.RangeMax).DefaultIfEmpty(0).Max();
+            var thrax = harness.Creatures.CreateCreature(enemyId, null);
+            var at = harness.Map.NavMesh.Nearest(leader.Creature.Position + new Vector3(12f + reach + 8f, 0, 0)) ?? throw new AssertFailedException("no navmesh there");
+            Assert.IsTrue(Flat(at - leader.Creature.Position) > 12f + reach + 4f, $"the Thrax out of reach: {Flat(at - leader.Creature.Position):0.0} m off, reach {reach}");
+            CreatureManager.Instance.SetLocation(thrax, at, 0, 1220);
+            thrax.AggroRange = 0.5f;
+            CellManager.Instance.AddToWorld(harness.Map, thrax);
+            PinAt(thrax, at);
+            harness.MoveTo(Start);
+
+            foreach (var fighter in new[] { leader, member })
+            {
+                fighter.Creature.Hate.Ensure(thrax.EntityId, Threat.NoticedThreat);
+                BehaviorManager.Instance.SetActionFighting(fighter.Creature, thrax.EntityId);
+            }
+
+            S.Worker(harness.Map);
+            Assert.AreEqual(S.Phase.Fighting, squad.Phase);
+
+            return (squad, leader, member, thrax);
+        }
+
+        /// <summary>
+        /// The creature cannot move - rooted, stunned - so a fight it cannot press does not wear out
+        /// (BehaviorManager.Stalled); nor charge, which carries it to its target whatever its speed
+        /// (KaelRushingBlow), so it is given no attacks.
+        /// </summary>
+        private static void Root(Creature creature)
+        {
+            creature.WalkSpeed = creature.RunSpeed = 0;
+            creature.MovementSpeed = 0;
+            creature.Actions.Clear();
+        }
+
+        /// <summary>The creature stands where it is put and does nothing.</summary>
+        private static void PinAt(Creature creature, Vector3 at)
+        {
+            creature.Actions.Clear();
+            creature.WalkSpeed = creature.RunSpeed = 0;
+            creature.Position = at;
+        }
+
+        private static bool HasColumn(OrdinaryLootTestDatabase database, string table, string column) =>
+            Count(database, $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = '{column}'") == 1;
 
         #endregion
 

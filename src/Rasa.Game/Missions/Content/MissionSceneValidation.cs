@@ -80,6 +80,8 @@ namespace Rasa.Game.Missions.Content
             if (scene.HiddenObjectiveIds != null &&
                 (scene.HiddenObjectiveIds.Distinct().Count() != scene.HiddenObjectiveIds.Count ||
                  scene.HiddenObjectiveIds.Any(id => !ids.Contains(id))) ||
+                scene.CounterGroups != null &&
+                scene.CounterGroups.Any(entry => entry.Value == null || !ids.Contains(entry.Key)) ||
                 scene.ExistingFactObjectiveIds != null &&
                 (scene.ExistingFactObjectiveIds.Distinct().Count() != scene.ExistingFactObjectiveIds.Count ||
                  scene.ExistingFactObjectiveIds.Any(id => !ids.Contains(id))) ||
@@ -98,6 +100,8 @@ namespace Rasa.Game.Missions.Content
             ValidateProgressMetadata(missionId, scene, objectiveIds);
             if (scene.Sequences.Values.SelectMany(sequence => sequence.Character).Any(intent => intent is FailRelatedMissionIntent))
                 throw new MissionRuleException("Related mission failure belongs to the originating native transition transaction.");
+            if (scene.Sequences.Values.SelectMany(sequence => sequence.Character).Any(intent => intent is TakeDownFieldIntent))
+                throw new MissionRuleException("Taking down a force field belongs to a native transition action (TakeDownField).");
             if (missionId == 0 && (scene.Items != null || scene.AcceptanceItems != null ||
                 scene.Sequences.Values.SelectMany(sequence => sequence.Character).Any(MissionItemValidation.IsItemIntent)))
                 throw new MissionRuleException("Assignment item operations require a mission-owned scene, not an experience.");
@@ -114,6 +118,8 @@ namespace Rasa.Game.Missions.Content
                 scene.ItemsRequired.Any(classId => classId == 0 || classId > int.MaxValue) ||
                 scene.ItemsRequired.Distinct().Count() != scene.ItemsRequired.Count))
                 throw new MissionRuleException($"Mission {missionId}: the items required must be a mission's, item classes, and each once.");
+            if (scene.BoundMapContextId == 0 || scene.BoundMapContextId != null && missionId == 0)
+                throw new MissionRuleException($"Mission {missionId}: a scene map must be a mission's, and not zero (an experience has its own).");
             if (scene.Category == 0 || scene.Category != null && missionId == 0)
                 throw new MissionRuleException($"Mission {missionId}: a category must be a mission's, and not zero.");
             if (scene.Audio is { } audio && (audio.Events == null || audio.Announcements == null ||
@@ -190,6 +196,14 @@ namespace Rasa.Game.Missions.Content
                 actor.Kind is not (SceneActorKind.Creature or SceneActorKind.PublicSpawn) ||
                 !scene.Sequences.ContainsKey(entry.Value)) == true)
                 throw new MissionRuleException($"Mission {missionId}: invalid actor defeat sequence.");
+            if (scene.DamagedSequences?.Any(entry =>
+                !scene.Actors.TryGetValue(entry.Key, out var actor) ||
+                actor.Kind is not (SceneActorKind.Creature or SceneActorKind.PublicSpawn) ||
+                !scene.Sequences.ContainsKey(entry.Value)) == true)
+                throw new MissionRuleException($"Mission {missionId}: invalid actor first-hit sequence.");
+            if (scene.Sequences.Values.SelectMany(sequence => sequence.World).OfType<PoseActorIntent>().Any(pose =>
+                pose.Pose > byte.MaxValue || !Enum.IsDefined(typeof(global::Rasa.Data.NpcPose), (byte)pose.Pose)))
+                throw new MissionRuleException($"Mission {missionId}: a pose intent names no pose (NpcPose).");
             var keys = new HashSet<string>(StringComparer.Ordinal);
             var runtime = new SceneRuntime(scripts);
             foreach (var sequence in scene.Sequences)

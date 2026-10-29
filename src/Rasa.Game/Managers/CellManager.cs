@@ -700,7 +700,7 @@ namespace Rasa.Managers
 
             foreach (var cell in CellsIn(mapChannel, creature.Cells))
                 foreach (var client in cell.ClientList)
-                    if (MissionNpcVisibility.IsShownTo(client, creature))
+                    if (MissionNpcVisibility.IsShownTo(client, creature) && !HiddenCreatures.IsHiddenFrom(creature, client))
                         client.MoveObject(move);
 
             // And the clients a mission has given this NPC to from across the map.
@@ -766,14 +766,14 @@ namespace Rasa.Managers
 
             foreach (var cell in CellsIn(mapChannel, creature.Cells))
                 foreach (var client in cell.ClientList)
-                    if (MissionNpcVisibility.IsShownTo(client, creature))
+                    if (MissionNpcVisibility.IsShownTo(client, creature) && !HiddenCreatures.IsHiddenFrom(creature, client))
                         client.CallMethod(creature.EntityId, packet);
         }
 
         internal void CellCallMethod(MapChannel mapChannel, Actor origin, PythonPacket packet)
         {
             foreach (var client in GetClientsInCells(mapChannel, origin.Cells))
-                if (origin is not Creature creature || MissionNpcVisibility.IsShownTo(client, creature))
+                if (origin is not Creature creature || MissionNpcVisibility.IsShownTo(client, creature) && !HiddenCreatures.IsHiddenFrom(creature, client))
                     client.CallMethod(origin.EntityId, packet);
 
             // A player's squad and team mates who hold them from across the map (FarAllies).

@@ -273,6 +273,57 @@ namespace Rasa.Test.Missions
             Assert.IsNull(diagnostic);
         }
 
+        /// <summary>
+        /// A scoped scene set counts to its target, from 1 to its event count: "any 16 of the 22 bodies" (Death Patrol,
+        /// PoolsDeathPatrolV1). A target of 0 or above the event count can never be reached as authored.
+        /// </summary>
+        [TestMethod]
+        public void ScopedSceneSetCountsAnyTargetOfItsEvents()
+        {
+            Assert.IsTrue(MissionProgressRuleAuthoring.TryBuild(SceneSet(events: 22, target: 16),
+                out var rule, out var counters, out _, out var diagnostic), diagnostic);
+            Assert.AreEqual(22, rule.Subjects.Count);
+            Assert.AreEqual(16U, rule.TargetValue);
+            Assert.AreEqual(16U, counters[0].TargetValue);
+
+            Assert.IsTrue(MissionProgressRuleAuthoring.TryBuild(SceneSet(events: 22, target: 22),
+                out rule, out _, out _, out _));
+            Assert.AreEqual(22U, rule.TargetValue, "all of them");
+
+            foreach (var target in new[] { 0U, 23U })
+            {
+                Assert.IsFalse(MissionProgressRuleAuthoring.TryBuild(SceneSet(events: 22, target: target),
+                    out rule, out _, out _, out diagnostic), $"target {target}");
+                Assert.IsNull(rule);
+                Assert.AreEqual("scoped scene counters require distinct events 1..N in one mission/scenario, " +
+                    "initial_value 0 and target_value from 1 to the authored event count.", diagnostic);
+            }
+        }
+
+        private static MissionTriggerDefinition[] SceneSet(uint events, uint target)
+        {
+            var triggers = new MissionTriggerDefinition[events];
+            for (var id = 1U; id <= events; id++)
+                triggers[id - 1] = new(new MissionTriggerEntry
+                {
+                    MissionId = 1315,
+                    ContentRevision = "pools_1_16_5",
+                    ObjectiveId = 5,
+                    TransitionId = 1,
+                    TriggerId = id,
+                    Requirement = MissionContentRequirement.Required,
+                    Kind = MissionTriggerKind.ProgressEvent,
+                    Sequence = id,
+                    EventKind = (byte)MissionProgressEventKind.ScenarioEvent,
+                    SubjectId = id,
+                    CounterId = 1,
+                    InitialValue = 0,
+                    TargetValue = target,
+                    Comment = $"Body {id}"
+                });
+            return triggers;
+        }
+
         private static MissionTriggerDefinition CreateCounterTrigger(
             uint initialValue,
             uint targetValue,

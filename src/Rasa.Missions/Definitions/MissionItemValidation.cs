@@ -70,6 +70,7 @@ namespace Rasa.Missions.Definitions
             MissionActionKind.ConsumeMissionItem => action.ItemIntent is ConsumeMissionItemIntent,
             MissionActionKind.RemoveMissionItems => action.ItemIntent is RemoveMissionItemsIntent,
             MissionActionKind.FailRelatedMission => action.ItemIntent is FailRelatedMissionIntent,
+            MissionActionKind.TakeDownField => action.ItemIntent is TakeDownFieldIntent,
             _ => action.ItemIntent == null
         };
 
@@ -96,6 +97,10 @@ namespace Rasa.Missions.Definitions
                     (failure.MissionId == 0 || failure.MissionId == mission.MissionId ||
                      string.IsNullOrWhiteSpace(failure.OperationKey) || failure.OperationKey.Length > 160))
                     yield return $"Related failure action {action.ActionId} must name another mission and a stable operation key.";
+                if (action.ItemIntent is TakeDownFieldIntent takeDown &&
+                    (takeDown.DestructibleId == 0 ||
+                     string.IsNullOrWhiteSpace(takeDown.OperationKey) || takeDown.OperationKey.Length > 160))
+                    yield return $"Take down field action {action.ActionId} must name a world_destructible row and a stable operation key.";
             }
             var keys = new HashSet<string>(StringComparer.Ordinal);
             var turnInKeys = mission.Items.Values.Where(binding => binding.TurnInQuantity > 0)

@@ -23,8 +23,9 @@ namespace Rasa.Managers
     ///
     ///  - A squad type (npc_squad_type, npc_squad_member) is what it is made of: lines of creature
     ///    rows, each from a least to a most of it, drawn each time it is sent; how it stands
-    ///    (a wedge, a column or a line abreast, so many metres apart); and how far its members look
-    ///    for a fight (0 for each creature's own aggro range).
+    ///    (a wedge, a column or a line abreast, so many metres apart); how far its members look
+    ///    for a fight (0 for each creature's own aggro range); and how far from the leader they go
+    ///    in one (0 for no tether).
     ///  - A path (npc_squad_path, npc_squad_path_point) is a route on one map: points the leader
     ///    goes to in turn across the navmesh, each with a stand there if it says so, and at the end
     ///    round again from the first, back the way it came, or a stop there for good.
@@ -36,7 +37,8 @@ namespace Rasa.Managers
     /// to catch up when they are far from them. He waits for anyone left well behind. When one
     /// of them is in a fight the squad stops and the others join it, on the same target; when it
     /// is over they gather on him again and go on from where they left the path. A leader who
-    /// falls is replaced by the next of them. Each map channel has its own squads - every copy of
+    /// falls is replaced by the next of them. A squad type with a tether keeps its members by
+    /// their leader in a fight (<see cref="TetherOf"/>). Each map channel has its own squads - every copy of
     /// an instance its own - and they are sent when the first player comes onto the map.
     ///
     /// GMs make them in game (.squad): types, paths walked and recorded point by point, spawns put
@@ -93,6 +95,20 @@ namespace Rasa.Managers
         /// <summary>How far a member goes to join a fight another of them is in.</summary>
         public const float AssistRange = 60f;
 
+        /// <summary>Within this of the tether's end a member counts as at it.</summary>
+        public const float TetherSlack = 1.5f;
+
+        /// <summary>How long a member holds at its tether's end, evading, before it gives the fight up and goes back to its place.</summary>
+        public const long TetherHoldMs = 10_000;
+
+        /// <summary>
+        /// On a tether, a member joins its squad's fight only with a target this much nearer the
+        /// leader than the tether's length: inside it, so it can get to it, and short of its end,
+        /// so a target there does not draw it in and out of the fight. On a short tether, no
+        /// nearer than half of it (<see cref="RejoinDistance"/>).
+        /// </summary>
+        public const float TetherRejoinMargin = 5f;
+
         #region Definitions
 
         public sealed class SquadType
@@ -102,6 +118,10 @@ namespace Rasa.Managers
             public Formation Formation { get; set; }
             public float Spacing { get; set; }
             public float EngageRange { get; set; }
+
+            /// <summary>How far from the leader a member goes in a fight; 0 for no tether (<see cref="TetherOf"/>).</summary>
+            public float Tether { get; set; }
+
             public List<MemberLine> Members { get; } = new();
         }
 
@@ -185,7 +205,8 @@ namespace Rasa.Managers
             _types = (types ?? Enumerable.Empty<NpcSquadTypeEntry>()).ToDictionary(row => row.Id, row => new SquadType
             {
                 Id = row.Id, Name = row.Name, Formation = (Formation)Math.Min(row.Formation, (byte)Formation.Line),
-                Spacing = row.Spacing > 0 ? (float)row.Spacing : (float)DefaultSpacing, EngageRange = (float)Math.Max(0, row.EngageRange)
+                Spacing = row.Spacing > 0 ? (float)row.Spacing : (float)DefaultSpacing, EngageRange = (float)Math.Max(0, row.EngageRange),
+                Tether = double.IsFinite(row.Tether) ? (float)Math.Max(0, row.Tether) : 0
             });
 
             foreach (var row in (members ?? Enumerable.Empty<NpcSquadMemberEntry>()).OrderBy(row => row.Slot))
@@ -298,6 +319,103 @@ namespace Rasa.Managers
             var type = squad != null && _types.TryGetValue(squad.Spawn.TypeId, out var t) ? t : null;
 
             return type != null && type.EngageRange > 0 ? type.EngageRange : creature?.AggroRange ?? 0;
+        }
+
+        /// <summary>
+        /// The leader the creature, one of a squad's, is tethered to in a fight, and how far:
+        /// with a tether on its squad's type, its squad's leader while there is one other than
+        /// itself - the next of them when he falls. Null for any other creature, which is leashed
+        /// from its home (BehaviorManager.ChasedTooFar).
+        ///
+        /// A member on a tether is not leashed from its place: it chases no further than the
+        /// tether from its leader (<see cref="Tether"/>), and at the tether's end, with nothing it
+        /// can strike its target with, it holds, facing it, and evades (<see cref="HoldsAtTether"/>,
+        /// <see cref="Evades"/>) - so a player with a long reach cannot shoot down one that cannot
+        /// answer - until <see cref="TetherHoldMs"/> is up and it goes back to its place. It joins
+        /// the fight again once the target is within <see cref="RejoinDistance"/> of the leader
+        /// (Think), and takes one up on its own only then (<see cref="MayTakeUp"/>).
+        /// </summary>
+        public static Creature TetherOf(Creature creature, out float tether)
+        {
+            tether = 0;
+            var squad = creature?.SquadMember?.Squad;
+
+            if (squad == null || !_types.TryGetValue(squad.Spawn.TypeId, out var type) || type.Tether <= 0)
+                return null;
+
+            var leader = squad.Leader?.Creature;
+
+            if (leader == null || ReferenceEquals(leader, creature))
+                return null;
+
+            tether = type.Tether;
+            return leader;
+        }
+
+        /// <summary>
+        /// Whether the member is at the end of its tether with its target beyond it: it can get
+        /// no nearer to it. Asked once it has found no attack it can make from where it is.
+        /// </summary>
+        public static bool HoldsAtTether(Creature member, Creature leader, float tether, Vector3 targetPosition) =>
+            Vector3.Distance(Flat(targetPosition), Flat(leader.Position)) > tether
+            && Vector3.Distance(Flat(member.Position), Flat(leader.Position)) >= tether - TetherSlack;
+
+        /// <summary>The point, or where the tether lets the member get to on the way there from its leader: no further than the tether from him.</summary>
+        public static Vector3 Tether(MapChannel map, Creature leader, float tether, Vector3 point)
+        {
+            var across = Flat(point) - Flat(leader.Position);
+            var length = across.Length();
+
+            if (length <= tether)
+                return point;
+
+            return NavMeshManager.SnapToGround(map, leader.Position + across * (tether / length));
+        }
+
+        /// <summary>
+        /// Whether the creature is a member holding at its tether's end in a fight, with no attack
+        /// that reaches its target this think: it takes no damage, nor any debuff (DamageImmunity,
+        /// GameEffectManager).
+        /// </summary>
+        public static bool Evades(Creature creature) =>
+            creature?.SquadMember != null && creature.Controller?.CurrentAction == BehaviorManager.BehaviorActionFighting &&
+            creature.Controller.ActionFighting.TetherHeldMs > 0 && !creature.Controller.ActionFighting.TetherAnswers;
+
+        /// <summary>
+        /// Whether the member is further from its leader than its tether and <see cref="TetherSlack"/>:
+        /// left there by a leader gone on, or run home; it gives its fight up (BehaviorManager).
+        /// </summary>
+        public static bool PastTether(Creature member, Creature leader, float tether) =>
+            Vector3.Distance(Flat(member.Position), Flat(leader.Position)) > tether + TetherSlack;
+
+        /// <summary>
+        /// Whether a target is well inside the tether of a member to its leader - by
+        /// <see cref="TetherSlack"/> - so the member can get to it: one held at the tether's end
+        /// is no longer held (BehaviorManager).
+        /// </summary>
+        public static bool WithinTether(Creature leader, float tether, Vector3 targetPosition) =>
+            Vector3.Distance(Flat(targetPosition), Flat(leader.Position)) <= tether - TetherSlack;
+
+        /// <summary>
+        /// How near the leader a target is for a member on a tether to take a fight up with it:
+        /// <see cref="TetherRejoinMargin"/> inside the tether, and on a tether of 10 m or less half
+        /// of it, so a short one is no bar to every fight.
+        /// </summary>
+        public static float RejoinDistance(float tether) => Math.Max(tether - TetherRejoinMargin, tether / 2);
+
+        /// <summary>
+        /// Whether the creature takes a fight up with the target its own scan found: any creature
+        /// does, but one of a squad on a tether only with a target within
+        /// <see cref="RejoinDistance"/> of its leader - else it would go out to its tether's end,
+        /// hold, go back, see the target again and go out again for as long as it stood there.
+        /// Being shot it fights back regardless, and holds evading at its tether's end.
+        /// </summary>
+        public static bool MayTakeUp(Creature creature, ulong targetEntityId)
+        {
+            var leader = TetherOf(creature, out var tether);
+
+            return leader == null || EntityManager.Instance.GetActor(targetEntityId) is Actor target &&
+                Vector3.Distance(Flat(target.Position), Flat(leader.Position)) < RejoinDistance(tether) && !PastTether(creature, leader, tether);
         }
 
         /// <summary>From the map channel worker: every squad of the map sent, moved and sent again.</summary>
@@ -510,6 +628,7 @@ namespace Rasa.Managers
                 squad.Phase = Phase.Fighting;
 
                 var target = fighting.Select(member => member.Creature.Controller.ActionFighting.TargetEntityId).FirstOrDefault(id => id != 0);
+                var tether = type?.Tether ?? 0;
 
                 foreach (var member in living.Except(fighting))
                 {
@@ -517,10 +636,22 @@ namespace Rasa.Managers
 
                     if (target != 0 && member.Creature.Controller.CurrentAction == BehaviorManager.BehaviorActionSquad &&
                         EntityManager.Instance.GetActor(target) is Actor enemy &&
-                        Vector3.Distance(enemy.Position, member.Creature.Position) <= AssistRange)
+                        Vector3.Distance(enemy.Position, member.Creature.Position) <= AssistRange &&
+                        (tether <= 0 || member == leader || Vector3.Distance(Flat(enemy.Position), Flat(leader.Creature.Position)) < RejoinDistance(tether) &&
+                         !PastTether(member.Creature, leader.Creature, tether)))
                     {
                         member.Creature.Hate.Ensure(target, Threat.NoticedThreat);
                         BehaviorManager.Instance.SetActionFighting(member.Creature, target);
+                        continue;
+                    }
+
+                    // On a tether, one out of the fight - its target too far from the leader, or
+                    // held at its tether's end too long - keeps its place about the leader.
+                    if (tether > 0 && member != leader)
+                    {
+                        member.Goal = PlaceOf(map, type, member.Place, leader.Creature.Position, squad.Heading);
+                        member.Speed = Math.Max(pace, member.Creature.RunSpeed);
+                        member.Facing = squad.Heading;
                     }
                 }
 
@@ -766,7 +897,7 @@ namespace Rasa.Managers
         private static readonly Dictionary<uint, uint> Recording = new();
 
         public const string Help =
-            ".squad [types|paths|spawns|export] | .squad type new <name> | .squad type <id> [add <creature> [min] [max]|remove <slot>|formation wedge|column|line|spacing <m>|engage <m>|name <name>|delete] | " +
+            ".squad [types|paths|spawns|export] | .squad type new <name> | .squad type <id> [add <creature> [min] [max]|remove <slot>|formation wedge|column|line|spacing <m>|engage <m>|tether <m>|name <name>|delete] | " +
             ".squad path new <name> [loop|back|once] | .squad path <id> [record|add [how]|insert <step> [how]|set <step> [how]|move <step>|undo|remove <step>|mode loop|back|once|name <name>|delete] | " +
             ".squad point [how] - how: [pause s] [run|walk] [engage <m>] | " +
             ".squad spawn add <type> [path] [respawn s] [comment] | .squad spawn <id> [type|path|respawn <v>|comment <text>|arrival none|teleport|move|enable|disable|send|delete]";
@@ -923,6 +1054,16 @@ namespace Rasa.Managers
 
                 case "engage":
                     found.EngageRange = Math.Max(0f, float.Parse(args[2], CultureInfo.InvariantCulture));
+                    break;
+
+                case "tether":
+                    if (args.Length < 3 || !float.TryParse(args[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var tether) ||
+                        !float.IsFinite(tether) || tether < 0)
+                    {
+                        say.Add($".squad type {id} tether <m>: how far from the leader a member goes in a fight, 0 for no tether.");
+                        return;
+                    }
+                    found.Tether = tether;
                     break;
 
                 case "name":
@@ -1210,7 +1351,8 @@ namespace Rasa.Managers
         }
 
         private static string Describe(SquadType type) =>
-            $"Type {type.Id} {type.Name}: {type.Formation}, {type.Spacing:0.#} m apart, engages at {(type.EngageRange > 0 ? $"{type.EngageRange:0.#} m" : "its creatures' range")}; " +
+            $"Type {type.Id} {type.Name}: {type.Formation}, {type.Spacing:0.#} m apart, engages at {(type.EngageRange > 0 ? $"{type.EngageRange:0.#} m" : "its creatures' range")}, " +
+            $"{(type.Tether > 0 ? $"tethered at {type.Tether:0.#} m" : "no tether")}; " +
             (type.Members.Count == 0 ? "no members" : string.Join(", ", type.Members.Select(m => $"{m.CreatureId} {CreatureName(m.CreatureId)} x{m.MinCount}-{m.MaxCount}")));
 
         private static string Describe(SquadPath path, Manifestation gm) =>
@@ -1294,7 +1436,7 @@ namespace Rasa.Managers
 
         private static bool SaveType(SquadType type) =>
             Write(squads => squads.SaveType(
-                new NpcSquadTypeEntry { Id = type.Id, Name = type.Name, Formation = (byte)type.Formation, Spacing = type.Spacing, EngageRange = type.EngageRange },
+                new NpcSquadTypeEntry { Id = type.Id, Name = type.Name, Formation = (byte)type.Formation, Spacing = type.Spacing, EngageRange = type.EngageRange, Tether = type.Tether },
                 type.Members.Select(m => new NpcSquadMemberEntry { TypeId = type.Id, Slot = m.Slot, CreatureId = m.CreatureId, MinCount = m.MinCount, MaxCount = m.MaxCount }).ToList()));
 
         private static bool SavePath(SquadPath path) =>
@@ -1345,7 +1487,7 @@ namespace Rasa.Managers
 
             foreach (var type in types)
             {
-                sql.AppendLine(FormattableString.Invariant($"INSERT INTO npc_squad_type (id, name, formation, spacing, engage_range) VALUES ({type.Id}, {Quote(type.Name)}, {(byte)type.Formation}, {N(type.Spacing)}, {N(type.EngageRange)});"));
+                sql.AppendLine(FormattableString.Invariant($"INSERT INTO npc_squad_type (id, name, formation, spacing, engage_range, tether) VALUES ({type.Id}, {Quote(type.Name)}, {(byte)type.Formation}, {N(type.Spacing)}, {N(type.EngageRange)}, {N(type.Tether)});"));
 
                 foreach (var line in type.Members)
                     sql.AppendLine(FormattableString.Invariant($"INSERT INTO npc_squad_member (type_id, slot, creature_id, min_count, max_count) VALUES ({type.Id}, {line.Slot}, {line.CreatureId}, {line.MinCount}, {line.MaxCount});"));

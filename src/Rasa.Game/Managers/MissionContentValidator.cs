@@ -37,7 +37,8 @@ namespace Rasa.Managers
                 MissionActionKind.IssueMissionItem,
                 MissionActionKind.ConsumeMissionItem,
                 MissionActionKind.RemoveMissionItems,
-                MissionActionKind.FailRelatedMission
+                MissionActionKind.FailRelatedMission,
+                MissionActionKind.TakeDownField
             };
 
         private static readonly HashSet<MissionSpawnGroupPolicy> SupportedSpawnPolicies =
@@ -89,6 +90,16 @@ namespace Rasa.Managers
             {
                 ValidateMission(snapshot, definition, references, diagnostics);
             }
+
+            // A sealed field is only taken down in a squad's copy (PlacedDestructibles.TakeDown): on
+            // another map it stands for good. No mission id: logged, nothing disabled. Only when a
+            // TakeDownField action has read the rows: content without one never reads world_destructible
+            // (a World migrated to before the table has none).
+            foreach (var row in (references.DestructiblesIfRead?.Values ?? Enumerable.Empty<WorldDestructibleEntry>())
+                .Where(row => row.Sealed && !SquadInstancePolicies.IsListedSquadMap(row.MapContextId)).OrderBy(row => row.Id))
+                diagnostics.Add(new MissionValidationDiagnostic(
+                    "sealed-destructible-not-in-squad-instance",
+                    $"world_destructible {row.Id} is sealed on map {row.MapContextId}, which is not entered as a squad's instance; outside a copy nothing takes it down."));
 
             var report = new MissionValidationReport(diagnostics, requiredMissionIds);
             var inactiveRequired = BuildRequiredChainInactiveDiagnostics(
@@ -173,8 +184,52 @@ namespace Rasa.Managers
                 creatureClasses,
                 (unitOfWork?.MapInfos?.Get() ?? new List<MapInfoEntry>()).Select(entry => entry.Id),
                 objectPackages, typedScenarios,
-                (unitOfWork?.Creatures?.GetClassFlags() ?? new List<CreatureClassFlagEntry>()).Select(entry => entry.FlagId))
+                (unitOfWork?.Creatures?.GetClassFlags() ?? new List<CreatureClassFlagEntry>()).Select(entry => entry.FlagId),
+                unitOfWork?.Spawnpools == null ? null : () => unitOfWork.Spawnpools.Get() ?? new List<SpawnPoolEntry>())
+                .WithDestructibles(unitOfWork == null ? null : () =>
+                {
+                    try
+                    {
+                        return unitOfWork.WorldDestructibles?.Get();
+                    }
+                    catch (NotSupportedException)
+                    {
+                        return null;
+                    }
+                })
                 .WithModules(() => (unitOfWork?.ItemModules?.GetModuleClasses(), unitOfWork?.ItemModules?.GetModifiableClasses()));
+        }
+
+        /// <summary>
+        /// A radio source "mission.rewarded:{id}" must name a mission in the content, and its
+        /// mission must have a MissionCompleted prerequisite on that mission. Both diagnostics
+        /// have no mission id on purpose: they are logged as errors but neither disable the
+        /// mission nor block readiness, so a wrong id takes away only that one follow-up offer
+        /// instead of the Game server. A key that does not parse is invalid-mission-channel.
+        /// </summary>
+        private static void ValidateMissionRewardedSources(
+            MissionContentSnapshot snapshot,
+            MissionContentDefinition definition,
+            ICollection<MissionValidationDiagnostic> diagnostics)
+        {
+            foreach (var source in definition.Mission.RadioSources)
+            {
+                if (source?.Kind != Rasa.Missions.Definitions.MissionOfferSourceKind.ServerEvent ||
+                    !Rasa.Missions.Definitions.MissionOfferSourceDefinition.TryParseMissionRewarded(source.Key, out var trigger))
+                    continue;
+                if (!snapshot.Definitions.ContainsKey(trigger))
+                    diagnostics.Add(new MissionValidationDiagnostic("missing-radio-source-mission",
+                        $"Mission {definition.MissionId} radio source {source.Key} names mission {trigger}, which is not in the enabled content; the follow-up offer is never sent.",
+                        contentRevision: definition.ContentRevision));
+                if (!definition.Prerequisites.Any(prerequisite =>
+                        prerequisite.Kind == MissionPrerequisiteKind.MissionCompleted &&
+                        prerequisite.RequiredMissionId == trigger &&
+                        (prerequisite.RequiredMissionStateValue is null ||
+                            prerequisite.RequiredMissionStateValue == (byte)MissionState.Completed)))
+                    diagnostics.Add(new MissionValidationDiagnostic("missing-radio-source-prerequisite",
+                        $"Mission {definition.MissionId} radio source {source.Key} has no MissionCompleted prerequisite on mission {trigger}; its map-arrival offer can come before that mission is done.",
+                        contentRevision: definition.ContentRevision));
+            }
         }
 
         private static void ValidateMission(
@@ -191,6 +246,7 @@ namespace Rasa.Managers
                     diagnostics.Add(new MissionValidationDiagnostic("missing-radio-source-map",
                         $"Radio source {source.Key} references unavailable map context {map}.",
                         definition.MissionId, definition.ContentRevision));
+            ValidateMissionRewardedSources(snapshot, definition, diagnostics);
             if (definition.Mission.RepeatPolicy.ValidationError is { } repeatError)
                 diagnostics.Add(new MissionValidationDiagnostic("invalid-repeat-policy", repeatError,
                     definition.MissionId, definition.ContentRevision));
@@ -512,6 +568,37 @@ namespace Rasa.Managers
                             "Mission flags must use IDs 1..2147483647; higher IDs are reserved for named server state.",
                             definition.MissionId, definition.ContentRevision, transition.ObjectiveId,
                             transition.TransitionId, actionId: action.ActionId));
+                    }
+
+                    // A force field taken down: a row of world_destructible that is one.
+                    if (action.Kind == MissionActionKind.TakeDownField &&
+                        action.ItemIntent is Rasa.Missions.Scenes.TakeDownFieldIntent takeDown &&
+                        references.Destructibles is { } destructibles)
+                    {
+                        if (!destructibles.TryGetValue(takeDown.DestructibleId, out var row))
+                            diagnostics.Add(new MissionValidationDiagnostic(
+                                "missing-destructible",
+                                $"take down field action references missing world_destructible {takeDown.DestructibleId}.",
+                                definition.MissionId, definition.ContentRevision, transition.ObjectiveId,
+                                transition.TransitionId, actionId: action.ActionId));
+                        else if (ForceFields.ClassOf(row.ClassId.ToString()) == null)
+                            diagnostics.Add(new MissionValidationDiagnostic(
+                                "destructible-not-force-field",
+                                $"take down field action references world_destructible {takeDown.DestructibleId} of class {row.ClassId}, which is no force field.",
+                                definition.MissionId, definition.ContentRevision, transition.ObjectiveId,
+                                transition.TransitionId, actionId: action.ActionId));
+                        else if (!row.Sealed)
+                            diagnostics.Add(new MissionValidationDiagnostic(
+                                "destructible-not-sealed",
+                                $"take down field action references world_destructible {takeDown.DestructibleId}, which is not sealed: players shoot it down and it comes back.",
+                                definition.MissionId, definition.ContentRevision, transition.ObjectiveId,
+                                transition.TransitionId, actionId: action.ActionId));
+                        else if (!SquadInstancePolicies.IsListedSquadMap(row.MapContextId))
+                            // No mission id: logged, and the mission stays enabled - a private or
+                            // shared copy of the map still has it taken down (MapChannel.IsCopy).
+                            diagnostics.Add(new MissionValidationDiagnostic(
+                                "destructible-not-in-squad-instance",
+                                $"Mission {definition.MissionId} take down field action {action.ActionId} references world_destructible {takeDown.DestructibleId} on map {row.MapContextId}, which is not entered as a squad's instance; only a copy of it has the field taken down."));
                     }
                 }
             }
@@ -969,6 +1056,58 @@ namespace Rasa.Managers
                                 diagnostics.Add(new MissionValidationDiagnostic(
                                     "missing-entity-class",
                                     $"creature class kill progress rule references missing entity class {subjectId}.",
+                                    definition.MissionId,
+                                    definition.ContentRevision,
+                                    objective.ObjectiveId));
+                            }
+
+                            break;
+
+                        // Only an automatic pool on a map entered as a squad's instance is ever
+                        // cleared (SpawnPoolManager.Emptied, SquadInstanceState): any other is an
+                        // objective that cannot be completed.
+                        case MissionProgressEventKind.SpawnPoolCleared:
+                            // A World unit of work with no spawn pool repository cannot say a pool is
+                            // missing: the rule is not checked, as a pool it cannot see is not absent.
+                            if (!references.HasSpawnPools)
+                                break;
+                            if (!references.SpawnPools.TryGetValue(subjectId, out var pool))
+                            {
+                                diagnostics.Add(new MissionValidationDiagnostic(
+                                    "missing-spawn-pool",
+                                    $"cleared spawn pool progress rule references missing spawn pool {subjectId}.",
+                                    definition.MissionId,
+                                    definition.ContentRevision,
+                                    objective.ObjectiveId));
+                            }
+                            else if (pool.Mode != SpawnPoolManager.ModeAutomatic)
+                            {
+                                diagnostics.Add(new MissionValidationDiagnostic(
+                                    "spawn-pool-not-automatic",
+                                    $"cleared spawn pool progress rule references spawn pool {subjectId} of mode {pool.Mode}; only an automatic pool (mode 0) is cleared.",
+                                    definition.MissionId,
+                                    definition.ContentRevision,
+                                    objective.ObjectiveId));
+                            }
+                            else if (!SquadInstancePolicies.IsListedSquadMap(pool.MapContextId))
+                            {
+                                diagnostics.Add(new MissionValidationDiagnostic(
+                                    "spawn-pool-not-in-squad-instance",
+                                    $"cleared spawn pool progress rule references spawn pool {subjectId} on map {pool.MapContextId}, which is not entered as a squad's instance.",
+                                    definition.MissionId,
+                                    definition.ContentRevision,
+                                    objective.ObjectiveId));
+                            }
+
+                            break;
+
+                        // Any pool's creature can detect the player, on any map (PlayerDetection).
+                        case MissionProgressEventKind.PlayerDetected:
+                            if (references.HasSpawnPools && !references.SpawnPools.ContainsKey(subjectId))
+                            {
+                                diagnostics.Add(new MissionValidationDiagnostic(
+                                    "missing-spawn-pool",
+                                    $"player detected progress rule references missing spawn pool {subjectId}.",
                                     definition.MissionId,
                                     definition.ContentRevision,
                                     objective.ObjectiveId));
@@ -1762,6 +1901,60 @@ namespace Rasa.Managers
             /// <summary>Every creature flag some creature class carries.</summary>
             public HashSet<uint> CreatureFlagIds { get; }
 
+            /// <summary>
+            /// Every spawn pool of the world (spawnpool), its mode and its map, read the first
+            /// time a cleared-pool rule asks: content with none never reads the table.
+            /// </summary>
+            public IReadOnlyDictionary<uint, (short Mode, uint MapContextId)> SpawnPools =>
+                _spawnPools ??= (_spawnPoolSource?.Invoke() ?? Enumerable.Empty<SpawnPoolEntry>())
+                    .GroupBy(entry => entry.Id)
+                    .ToDictionary(group => group.Key, group => ((short)group.First().Mode, group.First().MapContextId));
+
+            /// <summary>Whether the spawn pools can be read at all (the unit of work has a spawn pool repository).</summary>
+            public bool HasSpawnPools => _spawnPoolSource != null;
+
+            private readonly Func<IEnumerable<SpawnPoolEntry>> _spawnPoolSource;
+            private Dictionary<uint, (short Mode, uint MapContextId)> _spawnPools;
+
+            /// <summary>
+            /// Every world_destructible row, by id, read the first time a TakeDownField action asks;
+            /// null where the unit of work has none to read, and nothing is checked against it.
+            /// </summary>
+            public IReadOnlyDictionary<uint, WorldDestructibleEntry> Destructibles
+            {
+                get
+                {
+                    if (!_destructiblesRead)
+                    {
+                        _destructiblesRead = true;
+                        _destructibles = _destructibleSource?.Invoke()?
+                            .GroupBy(entry => entry.Id)
+                            .ToDictionary(group => group.Key, group => group.First());
+                    }
+
+                    return _destructibles;
+                }
+            }
+
+            /// <summary>
+            /// The rows if a TakeDownField action has read them (<see cref="Destructibles"/>), else null:
+            /// what is checked of every row does not read the table on its own.
+            /// </summary>
+            public IReadOnlyDictionary<uint, WorldDestructibleEntry> DestructiblesIfRead =>
+                _destructiblesRead ? _destructibles : null;
+
+            private Func<IEnumerable<WorldDestructibleEntry>> _destructibleSource;
+            private Dictionary<uint, WorldDestructibleEntry> _destructibles;
+            private bool _destructiblesRead;
+
+            /// <summary>Where the world_destructible rows are read from (<see cref="Destructibles"/>).</summary>
+            public MissionContentReferenceSet WithDestructibles(Func<IEnumerable<WorldDestructibleEntry>> source)
+            {
+                _destructibleSource = source;
+                _destructiblesRead = false;
+                return this;
+            }
+
             /// <summary>The modules (module_class): each one's class set and variant.</summary>
             public IReadOnlyDictionary<uint, (uint ClassSetId, uint VariantId)> ModuleClasses => LoadModules().Modules;
 
@@ -1808,9 +2001,11 @@ namespace Rasa.Managers
                 IEnumerable<uint> mapContextIds,
                 IReadOnlyDictionary<uint, IReadOnlySet<uint>> objectPackages,
                 IReadOnlyDictionary<uint, IReadOnlySet<uint>> typedScenarios,
-                IEnumerable<uint> creatureFlagIds = null)
+                IEnumerable<uint> creatureFlagIds = null,
+                Func<IEnumerable<SpawnPoolEntry>> spawnPools = null)
             {
                 CreatureFlagIds = new HashSet<uint>(creatureFlagIds ?? Array.Empty<uint>());
+                _spawnPoolSource = spawnPools;
                 NpcPackageIds = new HashSet<uint>(npcPackageIds ?? Array.Empty<uint>());
                 ObjectNpcPackages = objectPackages;
                 TypedScenarioIds = typedScenarios;

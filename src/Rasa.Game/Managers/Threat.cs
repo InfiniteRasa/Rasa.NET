@@ -89,10 +89,16 @@ namespace Rasa.Managers
             victim.Hate.Ensure(attacker.EntityId, NoticedThreat);
             victim.Hate.Add(attacker.EntityId, hate);
 
+            // A walker on a route that resumes after combat fights from where it was hit: its home is the next waypoint while
+            // it walks (SetActionScriptedMove), maybe more than the leash away, and would end the fight at its next think.
+            if (victim.Controller?.CurrentAction == BehaviorManager.BehaviorActionScriptedMove && victim.Controller.ScriptedMove?.FightsBack == true)
+                victim.HomePos.Position = victim.Position;
+
             if (victim.Controller != null
                 && (victim.Controller.CurrentAction == BehaviorManager.BehaviorActionWander
                     || victim.Controller.CurrentAction == BehaviorManager.BehaviorActionPatrol
-                    || victim.Controller.CurrentAction == BehaviorManager.BehaviorActionFollowingPath))
+                    || victim.Controller.CurrentAction == BehaviorManager.BehaviorActionFollowingPath
+                    || victim.Controller.CurrentAction == BehaviorManager.BehaviorActionScriptedMove && victim.Controller.ScriptedMove?.FightsBack == true))
                 BehaviorManager.Instance.SetActionFighting(victim, attacker.EntityId);
         }
 

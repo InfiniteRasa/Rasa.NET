@@ -592,6 +592,249 @@ namespace Rasa.Test.Missions.Encounters
             Assert.AreEqual(0, CreatureGameplayRules.Policy(old).Tags.Count);
         }
 
+        /// <summary>
+        /// A walk, fight, bark or pose for a scene creature that is not there - never ensured, or removed - ends as nothing to
+        /// do (Suppressed: the effect is cancelled), not a failure retried and logged every second for ever (live 1975:
+        /// "effect tala-walks-out remains pending: Actor role tala is unavailable").
+        /// </summary>
+        [TestMethod]
+        public void IntentsForAnAbsentSceneCreatureEndAsNothingToDo()
+        {
+            using var fixture = new Fixture();
+            var context = fixture.Context;
+            var world = new SceneWorldAdapter(context.Manager.PublicActors, (_, _) => { });
+            var actors = new[] { Enemy("walker") }.ToDictionary(actor => actor.Role);
+            var routes = new Dictionary<string, SceneRoute>
+            {
+                ["out"] = new SceneRoute("out", new[] { new SceneWaypoint(new ScenePosition(5, 0, 5)) })
+            };
+            var bindings = new SceneBindings("unversioned", actors, routes, new Dictionary<uint, SceneSequence> { [0] = new() });
+            var run = new SceneRun("absent", "unversioned", "data.sequence", 1, 1, 0, "{}", SceneStatus.Running, 1);
+            world.Attach(run, bindings, context.Client, context.Map);
+
+            Assert.AreEqual(WorldEffectState.Suppressed, world.Apply(run, new RunRouteIntent("walk", "walker", "out")).State, "never ensured");
+            Assert.AreEqual(WorldEffectState.Suppressed, world.Apply(run, new BarkActorIntent("say", "walker", 784)).State);
+            Assert.AreEqual(WorldEffectState.Suppressed, world.Apply(run, new PoseActorIntent("pose", "walker", 8)).State);
+            Assert.AreEqual(WorldEffectState.Applied, world.Apply(run, new EnsureActorIntent("ensure", "walker")).State);
+            Assert.AreEqual(WorldEffectState.Applied, world.Apply(run, new RemoveActorIntent("remove", "walker")).State);
+            Assert.AreEqual(WorldEffectState.Suppressed, world.Apply(run, new RunRouteIntent("walk-again", "walker", "out")).State, "removed");
+            Assert.AreEqual(WorldEffectState.Suppressed, world.Apply(run, new AttackActorIntent("fight", "walker")).State, "nor a fight");
+            Assert.AreEqual(WorldEffectState.Failed, world.Apply(run, new SetInteractionIntent("talk", "walker", true)).State,
+                "other intents keep their failure");
+        }
+
+        /// <summary>
+        /// A fight whose scene creature is dead, on either end, ends as nothing to do: nothing brings it back.
+        /// </summary>
+        [TestMethod]
+        public void AFightWithADeadSceneCreatureEndsAsNothingToDo()
+        {
+            using var fixture = new Fixture();
+            var context = fixture.Context;
+            var world = new SceneWorldAdapter(context.Manager.PublicActors, (_, _) => { });
+            var run = new SceneRun("dead", "unversioned", "data.sequence", 1, 1, 0, "{}", SceneStatus.Running, 1);
+            world.Attach(run, Bindings(Enemy("attacker"), Enemy("victim")), context.Client, context.Map);
+            Assert.AreEqual(WorldEffectState.Applied, world.Apply(run, new EnsureActorIntent("ensure-attacker", "attacker")).State);
+            Assert.AreEqual(WorldEffectState.Applied, world.Apply(run, new EnsureActorIntent("ensure-victim", "victim")).State);
+
+            Dead(fixture.Actor(run.Id, "victim"));
+            Assert.AreEqual(WorldEffectState.Suppressed,
+                world.Apply(run, new AttackActorIntent("fight", "attacker", "victim")).State, "a dead target");
+            Dead(fixture.Actor(run.Id, "attacker"));
+            Assert.AreEqual(WorldEffectState.Suppressed,
+                world.Apply(run, new AttackActorIntent("fight-owner", "attacker")).State, "a dead attacker");
+        }
+
+        /// <summary>
+        /// The first hit a player lands on an actor the scene listens to (DamagedSequences) runs its sequence, once: a hit
+        /// that took nothing off it does not count, and a second hit runs nothing more.
+        /// </summary>
+        [TestMethod]
+        public void AFirstPlayerHitOnASceneActorRunsItsSequenceOnce()
+        {
+            using var fixture = new Fixture();
+            var context = fixture.Context;
+            var bindings = new SceneBindings("unversioned", new[] { Enemy("enemy"), Enemy("reply") }.ToDictionary(actor => actor.Role),
+                new Dictionary<string, SceneRoute>(), new Dictionary<uint, SceneSequence>
+                {
+                    [0] = new(worldIntents: new[] { new EnsureActorIntent("ensure-enemy", "enemy") }),
+                    [1] = new(worldIntents: new[] { new EnsureActorIntent("ensure-reply", "reply") })
+                }, damagedSequences: new Dictionary<string, uint> { ["enemy"] = 1 });
+            var run = context.Manager.Scenes.Start(context.Client, "data.sequence", bindings);
+            var enemy = fixture.Actor(run, "enemy");
+
+            CreatureManager.RecordCombatDamage(context.Map, enemy, context.Client.Player, 0);
+            context.Manager.Scenes.Tick(context.Map);
+            Assert.AreEqual(0, Messages(context, run), "a hit that took nothing off it");
+            Assert.IsFalse(Spawned(context, run, "reply"));
+
+            CreatureManager.RecordCombatDamage(context.Map, enemy, context.Client.Player, 5);
+            context.Manager.Scenes.Tick(context.Map);
+            Assert.IsTrue(Spawned(context, run, "reply"), "the first hit ran its sequence");
+
+            CreatureManager.RecordCombatDamage(context.Map, enemy, context.Client.Player, 5);
+            context.Manager.Scenes.Tick(context.Map);
+            Assert.AreEqual(1, Messages(context, run), "the first hit only");
+
+            static int Messages(MissionTestContext context, string run)
+            {
+                using var unit = context.CreateChar();
+                return unit.CharacterMissions.Runtime.Messages(run).Count(message => message.OperationKey == "damaged-enemy");
+            }
+        }
+
+        /// <summary>
+        /// A held order to fight another actor of the scene (HoldTarget) is the one the attacker follows: its target is put
+        /// past the player it hated most, by more than a takeover (Threat.TakeoverPercent), and kept. An order not held
+        /// adds no hate, as before (Daghda's Urn: the attackers sent at Anjuhi).
+        /// </summary>
+        [TestMethod]
+        [DataRow(false)]
+        [DataRow(true)]
+        public void AnOrderToFightASceneActorOutranksTheAttackersTopOfHate(bool hold)
+        {
+            using var fixture = new Fixture();
+            var context = fixture.Context;
+            fixture.Creatures.LoadedCreatures[510207] = new Creature(fixture.Creatures.LoadedCreatures[510210])
+                { DbId = 510207, TargetCategory = TargetCategory.Friendly };
+            var actors = new[] { Enemy("attacker"), Enemy("victim") with { TemplateId = 510207 } };
+            var bindings = new SceneBindings("unversioned", actors.ToDictionary(actor => actor.Role),
+                new Dictionary<string, SceneRoute>(), new Dictionary<uint, SceneSequence>
+                {
+                    [0] = new(worldIntents: actors.Select(actor => new EnsureActorIntent($"ensure-{actor.Role}", actor.Role))),
+                    [1] = new(worldIntents: new[] { new AttackActorIntent("shoot", "attacker", "victim", hold) })
+                });
+            var run = context.Manager.Scenes.Start(context.Client, "data.sequence", bindings);
+            var attacker = fixture.Actor(run, "attacker");
+            var victim = fixture.Actor(run, "victim");
+            var player = context.Client.Player.EntityId;
+            attacker.Hate.Add(player, 500);
+
+            Assert.IsTrue(context.Manager.Scenes.Submit(run, new SceneObservation(SceneEventKind.Signal, 1, SequenceId: 1)));
+
+            Assert.AreEqual(victim.EntityId, attacker.Controller.ActionFighting.TargetEntityId);
+            Assert.AreEqual(hold, attacker.Hate.Of(victim.EntityId) > attacker.Hate.Of(player) * Threat.TakeoverPercent / 100.0,
+                hold ? "the player cannot take it over" : "no hate added without HoldTarget");
+            Assert.AreEqual(hold ? victim.EntityId : 0UL, attacker.SceneAttackOrder.HoldTargetId);
+        }
+
+        /// <summary>
+        /// An attack order takes the attacker past its leash from home only if it asks for it (AttackActorIntent.PastLeash):
+        /// the orders given before it (Daghda's Urn: Skeev, the attackers sent at Anjuhi) are leashed as before.
+        /// </summary>
+        [TestMethod]
+        [DataRow(false)]
+        [DataRow(true)]
+        public void AnAttackOrderGoesPastTheLeashOnlyIfItAsks(bool pastLeash)
+        {
+            using var fixture = new Fixture();
+            var context = fixture.Context;
+            var actors = new[] { Enemy("attacker") };
+            var bindings = new SceneBindings("unversioned", actors.ToDictionary(actor => actor.Role),
+                new Dictionary<string, SceneRoute>(), new Dictionary<uint, SceneSequence>
+                {
+                    [0] = new(worldIntents: actors.Select(actor => new EnsureActorIntent($"ensure-{actor.Role}", actor.Role))),
+                    [1] = new(worldIntents: new[] { new AttackActorIntent("fight", "attacker", PastLeash: pastLeash) })
+                });
+            var run = context.Manager.Scenes.Start(context.Client, "data.sequence", bindings);
+            var attacker = fixture.Actor(run, "attacker");
+
+            Assert.IsTrue(context.Manager.Scenes.Submit(run, new SceneObservation(SceneEventKind.Signal, 1, SequenceId: 1)));
+
+            Assert.IsNotNull(attacker.SceneAttackOrder, "the order stands");
+            Assert.AreEqual(pastLeash, attacker.SceneAttackPastLeash);
+        }
+
+        /// <summary>A bark is said by a living scene creature to those around it, and a pose taken up; dead, it says nothing.</summary>
+        [TestMethod]
+        public void ALivingSceneCreatureSaysItsBarkAndTakesItsPose()
+        {
+            using var fixture = new Fixture();
+            var context = fixture.Context;
+            var world = new SceneWorldAdapter(context.Manager.PublicActors, (_, _) => { });
+            var attached = new SceneRun("speaks", "unversioned", "data.sequence", 1, 1, 0, "{}", SceneStatus.Running, 1);
+            world.Attach(attached, Bindings(Enemy("speaker")), context.Client, context.Map);
+            Assert.AreEqual(WorldEffectState.Applied, world.Apply(attached, new EnsureActorIntent("ensure", "speaker")).State);
+            var speaker = fixture.Actor(attached.Id, "speaker");
+            context.Drain();
+
+            Assert.AreEqual(WorldEffectState.Applied, world.Apply(attached, new BarkActorIntent("say", "speaker", 848)).State);
+            Assert.AreEqual(848U, context.Drain().OfType<Rasa.Packets.MapChannel.Server.BarkPackage>().Single().BarkId);
+            Assert.AreEqual(WorldEffectState.Applied, world.Apply(attached, new PoseActorIntent("work", "speaker", 8)).State);
+            Assert.AreEqual(NpcPose.AtConsole, speaker.Pose);
+
+            Dead(speaker);
+            context.Drain();
+            Assert.AreEqual(WorldEffectState.Suppressed, world.Apply(attached, new BarkActorIntent("say-again", "speaker", 848)).State);
+            Assert.IsFalse(context.Drain().OfType<Rasa.Packets.MapChannel.Server.BarkPackage>().Any());
+        }
+
+        /// <summary>
+        /// A kill intent fells a living scene creature at once: dead, its defeat sequence run, and nobody's kill - no
+        /// experience, no harvest right. A second kill, of the dead one, is nothing to do.
+        /// </summary>
+        [TestMethod]
+        public void AKillIntentFellsASceneCreatureAndRunsItsDefeatSequence()
+        {
+            using var fixture = new Fixture();
+            var context = fixture.Context;
+            // One whose kill would be rewarded and looted, were it anybody's.
+            var tala = JsonSerializer.Deserialize<SceneActorDefinition>(
+                @"{""role"":""tala"",""kind"":""Creature"",""templateId"":510210,
+                   ""position"":{""x"":0,""y"":0,""z"":0},
+                   ""gameplayPolicy"":{""rewardScenarioKills"":true,
+                     ""loot"":{""drops"":[{""templateId"":28,""chancePercent"":100,""minimum"":2,""maximum"":2}]}}}",
+                MissionContentCodec.Options);
+            var bindings = new SceneBindings("unversioned", new[] { tala, Enemy("reply") }.ToDictionary(actor => actor.Role),
+                new Dictionary<string, SceneRoute>(), new Dictionary<uint, SceneSequence>
+                {
+                    [0] = new(worldIntents: new[] { new EnsureActorIntent("ensure-tala", "tala") }),
+                    [1] = new(worldIntents: new[] { new KillActorIntent("fell-tala", "tala") }),
+                    [2] = new(worldIntents: new[] { new EnsureActorIntent("ensure-reply", "reply") })
+                }, defeatSequences: new Dictionary<string, uint> { ["tala"] = 2 });
+            var run = context.Manager.Scenes.Start(context.Client, "data.sequence", bindings);
+            var talaCreature = fixture.Actor(run, "tala");
+            var experience = context.Client.Player.Experience;
+            Assert.IsFalse(Spawned(context, run, "reply"));
+
+            Assert.IsTrue(context.Manager.Scenes.Submit(run, new SceneObservation(SceneEventKind.Signal, 1, SequenceId: 1)));
+            context.Manager.Scenes.Tick(context.Map);
+
+            Assert.AreEqual(CharacterState.Dead, talaCreature.State);
+            Assert.AreEqual(0, talaCreature.Attributes[Attributes.Health].Current);
+            Assert.IsTrue(Spawned(context, run, "reply"), "its defeat sequence ran");
+            Assert.AreEqual(experience, context.Client.Player.Experience, "nobody's kill");
+            Assert.AreEqual(0UL, talaCreature.HarvestOwnerEntityId, "nobody's corpse");
+            Assert.AreEqual(0UL, talaCreature.CorpseLootEntityId, "nothing to loot");
+        }
+
+        /// <summary>A kill intent for a dead or absent scene creature is nothing to do.</summary>
+        [TestMethod]
+        public void AKillIntentForADeadOrAbsentSceneCreatureEndsAsNothingToDo()
+        {
+            using var fixture = new Fixture();
+            var context = fixture.Context;
+            var world = new SceneWorldAdapter(context.Manager.PublicActors, (_, _) => { });
+            var run = new SceneRun("kill", "unversioned", "data.sequence", 1, 1, 0, "{}", SceneStatus.Running, 1);
+            world.Attach(run, Bindings(Enemy("victim"), Enemy("absent")), context.Client, context.Map);
+            Assert.AreEqual(WorldEffectState.Applied, world.Apply(run, new EnsureActorIntent("ensure-victim", "victim")).State);
+
+            Assert.AreEqual(WorldEffectState.Suppressed, world.Apply(run, new KillActorIntent("kill-absent", "absent")).State, "never ensured");
+            Dead(fixture.Actor(run.Id, "victim"));
+            Assert.AreEqual(WorldEffectState.Suppressed, world.Apply(run, new KillActorIntent("kill-dead", "victim")).State, "dead already");
+        }
+
+        /// <summary>Dead where it stands: a standalone adapter's run is no scene's to record the kill for.</summary>
+        private static void Dead(Creature creature)
+        {
+            creature.State = CharacterState.Dead;
+            creature.Attributes[Attributes.Health].Current = 0;
+        }
+
+        private static bool Spawned(MissionTestContext context, string run, string role) => context.Map.MapCellInfo.Cells.Values
+            .SelectMany(cell => cell.CreatureList).Any(creature =>
+                creature.SpawnPool?.SceneRunId == run && creature.SpawnPool.SceneActorRole == role);
+
         [TestMethod]
         public void StaleWorldAttachmentCannotRemoveTheCurrentGenerationActor()
         {

@@ -44,6 +44,14 @@ namespace Rasa.Structures
         public static MissionProgressEvent CreatureClass(uint entityClassId) =>
             new(MissionProgressEventKind.CreatureClassKilled, entityClassId);
 
+        /// <summary>A spawn pool of a squad's instance is cleared: every creature of it is dead.</summary>
+        public static MissionProgressEvent SpawnPoolCleared(uint spawnPoolId) =>
+            new(MissionProgressEventKind.SpawnPoolCleared, spawnPoolId);
+
+        /// <summary>A creature of this spawn pool started to fight the player: they are detected.</summary>
+        public static MissionProgressEvent PlayerDetected(uint spawnPoolId) =>
+            new(MissionProgressEventKind.PlayerDetected, spawnPoolId);
+
         public static MissionProgressEvent Mission(uint completedMissionId) =>
             new(MissionProgressEventKind.MissionCompleted, completedMissionId);
 

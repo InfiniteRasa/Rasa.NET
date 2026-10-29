@@ -607,8 +607,9 @@ namespace Rasa.Managers
                 completed ? MissionObjectiveState.Completed : null,
                 counterId,
                 counterValue,
-                candidate.ExecutableTransition.ProgressRule.InitialValue,
-                candidate.ExecutableTransition.ProgressRule.TargetValue,
+                // The objective's own counter: a split scene set's counters each have their own target.
+                candidate.ObjectiveDefinition.Counters[counterId].InitialValue,
+                candidate.ObjectiveDefinition.Counters[counterId].TargetValue,
                 completed,
                 actionApplication,
                 titleId: titleId);

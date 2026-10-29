@@ -43,6 +43,14 @@ namespace Rasa.Structures.World
         [Column("engage_range")]
         [Required]
         public double EngageRange { get; set; }
+
+        /// <summary>
+        /// How far from its leader a member goes in a fight, in metres; 0 for no tether, the member
+        /// leashed from its place as any creature is from its home.
+        /// </summary>
+        [Column("tether")]
+        [Required]
+        public double Tether { get; set; }
     }
 
     /// <summary>

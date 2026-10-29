@@ -28,6 +28,11 @@ namespace Rasa.Structures
         public uint? ScopeId { get; }
         public uint? DetailId { get; }
         public uint? DurationSeconds { get; }
+        /// <summary>
+        /// A scene set split over the client's counters: entry N is the events counter N counts.
+        /// Null for one counter (counter 0, as <see cref="CounterId"/>).
+        /// </summary>
+        public IReadOnlyList<IReadOnlyCollection<uint>> CounterGroups { get; }
         internal MissionProgressRuleType RuleType { get; }
 
         private MissionProgressRule(
@@ -40,7 +45,8 @@ namespace Rasa.Structures
             bool? sourceSpawnResolved = null,
             uint? scopeId = null,
             uint? detailId = null,
-            uint? durationSeconds = null)
+            uint? durationSeconds = null,
+            IReadOnlyList<IReadOnlyCollection<uint>> counterGroups = null)
         {
             if (!Enum.IsDefined(typeof(MissionProgressEventKind), kind))
                 throw new ArgumentOutOfRangeException(nameof(kind));
@@ -54,11 +60,38 @@ namespace Rasa.Structures
             CounterId = counterId;
             var distinctCounter = ruleType == MissionProgressRuleType.CompleteDistinctSet && counterId.HasValue;
             InitialValue = distinctCounter ? 0U : initialValue;
-            TargetValue = distinctCounter ? (uint)_subjectSet.Count : targetValue;
+            // A counted set completes at its target: all its subjects, or as many of them as the
+            // target names ("any 16 of the 22 bodies").
+            if (distinctCounter && (targetValue == 0 || targetValue > (uint)_subjectSet.Count))
+                throw new ArgumentOutOfRangeException(nameof(targetValue), "A distinct-set target counts 1..N of its subjects.");
+            TargetValue = distinctCounter ? targetValue ?? (uint)_subjectSet.Count : targetValue;
             SourceSpawnResolved = sourceSpawnResolved;
             ScopeId = scopeId;
             DetailId = detailId;
             DurationSeconds = durationSeconds;
+            CounterGroups = counterGroups;
+        }
+
+        /// <summary>
+        /// This scene set with its events split over the client's counters, one group each
+        /// ("Vital Bane Equipment Destroyed 0/6", "Bane Equipment Locker Destroyed 0/10"):
+        /// group N is counter N, its target all its events. The objective completes when every
+        /// group is full, so the set must count all its events. Null if the groups do not part
+        /// the events exactly or name more counters than the client has (3).
+        /// </summary>
+        internal MissionProgressRule SplitIntoCounters(IReadOnlyList<IReadOnlyList<uint>> groups)
+        {
+            if (RuleType != MissionProgressRuleType.CompleteDistinctSet || Kind != MissionProgressEventKind.ScenarioEvent ||
+                CounterId != 0 || TargetValue != (uint)_subjectSet.Count ||
+                groups == null || groups.Count < 2 || groups.Count > 3 ||
+                groups.Any(group => group == null || group.Count == 0 || group.Distinct().Count() != group.Count) ||
+                groups.Sum(group => group.Count) != _subjectSet.Count ||
+                !_subjectSet.SetEquals(groups.SelectMany(group => group)))
+                return null;
+            return new MissionProgressRule(RuleType, Kind, _subjectSet, CounterId, InitialValue, TargetValue,
+                SourceSpawnResolved, ScopeId, DetailId, DurationSeconds,
+                Array.AsReadOnly(groups.Select(group => (IReadOnlyCollection<uint>)Array.AsReadOnly(
+                    group.OrderBy(value => value).ToArray())).ToArray()));
         }
 
         public static MissionProgressRule CompleteOnExactSubject(
@@ -142,12 +175,13 @@ namespace Rasa.Structures
                 detailId: scenarioId);
 
         internal static MissionProgressRule CompleteOnDistinctScenarioEvents(
-            uint missionId, uint scenarioId, IReadOnlySet<uint> subjects) =>
+            uint missionId, uint scenarioId, IReadOnlySet<uint> subjects, uint? targetValue = null) =>
             new(
                 MissionProgressRuleType.CompleteDistinctSet,
                 MissionProgressEventKind.ScenarioEvent,
                 subjects,
                 counterId: 0,
+                targetValue: targetValue,
                 scopeId: missionId,
                 detailId: scenarioId);
 
@@ -176,11 +210,14 @@ namespace Rasa.Structures
             IReadOnlySet<uint> subjects,
             uint? counterId = null)
         {
-            if (kind != MissionProgressEventKind.WaypointAcquired &&
-                kind != MissionProgressEventKind.LogosAcquired)
+            if (!IsDistinctFact(kind))
                 throw new ArgumentOutOfRangeException(
                     nameof(kind),
-                    "Distinct completion supports waypoint or Logos events.");
+                    "Distinct completion supports waypoint, Logos or cleared spawn pool events.");
+            if (kind == MissionProgressEventKind.SpawnPoolCleared && counterId.HasValue)
+                throw new ArgumentException(
+                    "A cleared spawn pool set has no counter: a pool that comes back would make it go down.",
+                    nameof(counterId));
             return new MissionProgressRule(
                 MissionProgressRuleType.CompleteDistinctSet, kind, subjects, counterId);
         }
@@ -224,12 +261,30 @@ namespace Rasa.Structures
                 targetValue);
         }
 
+        /// <summary>
+        /// The facts a distinct-set rule is complete on, all of them held at once: waypoints and
+        /// Logos the character has, and the spawn pools that are dead in the squad's instance the
+        /// character stands in.
+        /// </summary>
+        public static bool IsDistinctFact(MissionProgressEventKind kind) =>
+            kind is MissionProgressEventKind.WaypointAcquired or MissionProgressEventKind.LogosAcquired or
+                MissionProgressEventKind.SpawnPoolCleared;
+
         /// <summary>The three ways a kill is named: the creature, a flag of its class, its class.</summary>
         public static bool IsKill(MissionProgressEventKind kind) =>
             kind == MissionProgressEventKind.CreatureKilled ||
             kind == MissionProgressEventKind.CreatureFlagKilled ||
             kind == MissionProgressEventKind.CreatureClassKilled ||
             kind == MissionProgressEventKind.ObjectDestroyed;
+
+        /// <summary>
+        /// The happenings a squad shares (GroupCreditService): a kill, a scene's signal, and the
+        /// player detected - one of a squad seen is the squad seen.
+        /// </summary>
+        public static bool IsShared(MissionProgressEventKind kind) =>
+            IsKill(kind) ||
+            kind == MissionProgressEventKind.ScenarioEvent ||
+            kind == MissionProgressEventKind.PlayerDetected;
 
         public static MissionProgressRule IncrementItemCounterOnExactSubject(
             MissionProgressEventKind kind,
@@ -279,6 +334,13 @@ namespace Rasa.Structures
                     itemCounter.ItemClassId == CounterId.Value &&
                     itemCounter.InitialValue == InitialValue.Value &&
                     itemCounter.TargetValue == TargetValue.Value;
+            if (CounterGroups != null)
+                return CounterGroups.Select((group, index) => (group, index)).All(entry =>
+                    objective.Counters.TryGetValue((uint)entry.index, out var groupCounter) &&
+                    groupCounter.CounterId == (uint)entry.index &&
+                    groupCounter.InitialValue == 0 &&
+                    groupCounter.TargetValue == (uint)entry.group.Count) &&
+                    objective.Counters.Count == CounterGroups.Count;
             if (RuleType != MissionProgressRuleType.IncrementExactCounter &&
                 (RuleType != MissionProgressRuleType.CompleteDistinctSet || !CounterId.HasValue))
                 return true;

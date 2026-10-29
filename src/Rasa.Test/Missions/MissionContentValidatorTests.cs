@@ -352,6 +352,33 @@ namespace Rasa.Test.Missions
             Assert.IsTrue(report.BlocksReadiness);
         }
 
+        /// <summary>
+        /// A World unit of work with no spawn pool repository (as a test's own unit of work) cannot see the pools: a
+        /// cleared-pool rule is not checked, so it reports no missing pool and does not block readiness.
+        /// </summary>
+        [TestMethod]
+        public void ValidatorDoesNotCallAPoolMissingWhenItCannotReadThePools()
+        {
+            var fixture = MissionContentFixture.CreateValid();
+            ConfigurePureProgressObjective(fixture);
+            fixture.Triggers[0].EventKind = (byte)MissionProgressEventKind.SpawnPoolCleared;
+            fixture.Triggers[0].SubjectId = 531225;
+            fixture.Triggers[0].CounterId = null;
+            fixture.Triggers[0].InitialValue = null;
+            fixture.Triggers[0].TargetValue = null;
+            fixture.Triggers[0].SourceSpawnResolved = null;
+            fixture.NoSpawnPoolRepository = true;
+            var snapshot = new MissionContentLoader().Load(fixture.CreateRepository());
+            var report = new MissionContentValidator().Validate(
+                snapshot,
+                fixture.CreateWorldUnitOfWork());
+
+            CollectionAssert.DoesNotContain(
+                report.Diagnostics.Select(diagnostic => diagnostic.Code).ToArray(),
+                "missing-spawn-pool");
+            Assert.IsFalse(report.BlocksReadiness);
+        }
+
         [TestMethod]
         public void ValidatorSortsDiagnosticsDeterministicallyForOperators()
         {
@@ -713,6 +740,42 @@ namespace Rasa.Test.Missions
                 fixture.Triggers[0].SourceSpawnResolved = true;
                 fixture.ItemTemplateClasses.Clear();
             }, "missing-item-template");
+
+            yield return Case("missing cleared spawn pool", fixture =>
+            {
+                ConfigurePureProgressObjective(fixture);
+                fixture.Triggers[0].EventKind = (byte)MissionProgressEventKind.SpawnPoolCleared;
+                fixture.Triggers[0].SubjectId = 531225;
+                fixture.Triggers[0].CounterId = null;
+                fixture.Triggers[0].InitialValue = null;
+                fixture.Triggers[0].TargetValue = null;
+                fixture.Triggers[0].SourceSpawnResolved = null;
+                fixture.SpawnPools.Add(new SpawnPoolEntry { Id = 531226, MapContextId = 2136 });
+            }, "missing-spawn-pool");
+
+            yield return Case("cleared spawn pool that is not automatic", fixture =>
+            {
+                ConfigurePureProgressObjective(fixture);
+                fixture.Triggers[0].EventKind = (byte)MissionProgressEventKind.SpawnPoolCleared;
+                fixture.Triggers[0].SubjectId = 531225;
+                fixture.Triggers[0].CounterId = null;
+                fixture.Triggers[0].InitialValue = null;
+                fixture.Triggers[0].TargetValue = null;
+                fixture.Triggers[0].SourceSpawnResolved = null;
+                fixture.SpawnPools.Add(new SpawnPoolEntry { Id = 531225, Mode = 1, MapContextId = 2136 });
+            }, "spawn-pool-not-automatic");
+
+            yield return Case("cleared spawn pool off a squad instance", fixture =>
+            {
+                ConfigurePureProgressObjective(fixture);
+                fixture.Triggers[0].EventKind = (byte)MissionProgressEventKind.SpawnPoolCleared;
+                fixture.Triggers[0].SubjectId = 531225;
+                fixture.Triggers[0].CounterId = null;
+                fixture.Triggers[0].InitialValue = null;
+                fixture.Triggers[0].TargetValue = null;
+                fixture.Triggers[0].SourceSpawnResolved = null;
+                fixture.SpawnPools.Add(new SpawnPoolEntry { Id = 531225, MapContextId = 1497 });
+            }, "spawn-pool-not-in-squad-instance");
 
             yield return Case("missing ability target creature", fixture =>
             {

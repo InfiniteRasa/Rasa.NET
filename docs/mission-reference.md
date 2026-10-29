@@ -436,13 +436,40 @@ Progress event values come from `MissionProgressEventKind`, not client opcodes:
 | 11 | `DeadlineElapsed` | Prefer `TimerElapsed`; runtime supplies mission/objective scope |
 | 12 | `ObjectiveStateReached` | Prefer the typed objective-state trigger |
 | 13 | `ObjectHit` | `SubjectId` is entity class; `CounterId` is action ID |
+| 14 | `CreatureFlagKilled` | `SubjectId` is a creature flag its class carries (`creature_class_flag`) |
+| 15 | `CreatureClassKilled` | `SubjectId` is the killed creature's entity class |
+| 16 | `ObjectDestroyed` | `SubjectId` is the destroyed placed destructible's entity class |
+| 17 | `SpawnPoolCleared` | `SubjectId` is a spawn pool ID; squad instances only (see below) |
+| 18 | `PlayerDetected` | `SubjectId` is a spawn pool ID; a creature of it started to fight the player (see below) |
 
 For item counters, set `InitialValue` and `TargetValue`, omit `CounterId`, and
 provide the native counter-text binding. Generic counters require all three.
 Targets must exceed initial values. Do not combine counter ranges with
 `SourceSpawnResolved`.
 
-Multiple waypoint or Logos triggers form an all-distinct-subject set. A scoped
+Multiple waypoint, Logos or `SpawnPoolCleared` triggers form an all-distinct-subject set.
+
+`PlayerDetected` ("Avoid Detection While Uploading Virus") fires when a creature
+of the named pool starts to fight the player or turns on them in a fight: it
+noticed them in its aggro scan, or they hit it first. Whatever keeps a creature
+from noticing keeps the player undetected: Stealth Armor's shorter range, Cloak
+Wave, a mag flash. It is a moment, not a fact: nothing counts it again later.
+Several `PlayerDetected` triggers in one transition are rejected (they are not
+a distinct-subject set). Shared with the squad as a kill is, under a shared
+`MissionCreditPolicy`. Validator: `missing-spawn-pool`.
+
+`SpawnPoolCleared` ("Secure the outer Bane Outpost") completes when every named
+pool is dead at the same time in the squad's instance the player is in: nothing
+of the pool alive, queued or on its way, whatever count it spawned. A pool that
+respawns must be cleared again. Off a squad's instance no pool is cleared. Each
+pool must be an automatic pool (`mode` 0) on a map listed in
+`SquadInstances.Maps` (validator: `missing-spawn-pool`,
+`spawn-pool-not-automatic`, `spawn-pool-not-in-squad-instance`). These rules
+take `SubjectId` only: no counter, because a respawning pool would make it go
+down. The players in the instance are told on the spawn pools' next pass; one
+who arrives after the pools died is told on arrival. With
+`RecognizeExistingFacts`, taking the mission inside the instance counts the
+pools already dead there. A scoped
 `ScenarioEvent` set uses one mission/scenario, distinct nonzero event IDs,
 `InitialValue = 0` and `TargetValue = number of events`. Its `CounterId` still
 names the scenario; native display counter `0` is derived from the set.
@@ -471,6 +498,7 @@ from client projections. Hidden objectives remain in definitions and storage.
 | `ConsumeMissionItem` (11) | `ItemIntentJson` containing a `ConsumeMissionItemIntent` |
 | `RemoveMissionItems` (12) | `ItemIntentJson` containing a `RemoveMissionItemsIntent` |
 | `FailRelatedMission` (13) | `ItemIntentJson` containing a `FailRelatedMissionIntent`; another active assignment's required-objective failure and cleanup |
+| `TakeDownField` (14) | `ItemIntentJson` containing a `TakeDownFieldIntent(OperationKey, DestructibleId)`; the force field of that `world_destructible` row goes down for good on the player's map channel |
 
 Reward rows distinguish fixed and selectable items. At most one turn-in reward
 ID is selected per mission; selectable rewards require a native selection.
@@ -480,6 +508,23 @@ are immediate. Parameter-set checks also apply on insertion. In particular,
 insert a flag action with both flag ID and value, not null fields followed by
 an update. Related failure uses the originating transition transaction and
 does not authorize direct cross-assignment inventory operations.
+
+A force field a mission takes down is a `world_destructible` row of a force
+field class with `sealed = 1` (a lot's `WorldDestructiblePreloader.SealedIds`).
+`PlacedDestructibles` puts it in every copy of its map, each squad instance
+included, and shots take nothing from it (`ForceFields.Field.Sealed`). A
+`TakeDownField` action names the row; after the transition commits, the field
+on the map channel the player is on goes down and never comes back while that
+channel stands. In a squad instance only that copy loses it. A copy made again
+has it up again until a player is in it whose mission has been through that
+transition (its objective is in the transition's state, or the mission is
+done): then it goes down again within a second, as Torcastra's gate opens
+again. A player without that progress sees it up. On an ordinary map it is
+down for everyone until the server restarts, and nothing takes it down again.
+A row that is missing or no force field is a load diagnostic
+(`missing-destructible`, `destructible-not-force-field`); a map without the
+row's field is logged and nothing happens. `sealed` on a row that is no force
+field is logged and ignored. Scenes cannot carry the intent.
 
 An existing item/action identity is not proof of a functional reward. Wilderness
 reconstructs unsupported bomb, grenade, adrenaline, trauma-kit and module rewards
@@ -1000,6 +1045,8 @@ and optional `ResumeAtDestination`. Waypoint orientation is radians; pauses are
 milliseconds. Scripted movement needs a complete loaded-navmesh route.
 `RunRouteIntent.ResumeAfterCombat` lets a combat-capable actor pause its route
 while fighting and resume it afterward. Removing that actor cancels its route.
+With `FightWhenHit` as well, a hit on the walking actor stops it to fight, not
+only a fight it finds at a held waypoint.
 
 Optional `MissionSceneDefinition.DefeatSequences` maps actor roles to sequence
 IDs. A confirmed defeat persists the actor outcome and queues that sequence in
@@ -1008,17 +1055,31 @@ scene inbox delivers it once and retries failed scene writes. Scripts can track
 the defeated roles in their checkpoint to gate a finite encounter; losing a
 route or despawning an actor is not a confirmed defeat.
 
+Optional `MissionSceneDefinition.DamagedSequences` maps actor roles to sequence
+IDs that run once, on the first hit a player's side lands on that actor (damage
+that took something off it). A reload or a respawned actor does not run it again
+in the same run generation.
+
+Optional `MissionSceneDefinition.BoundMapContextId` binds the scene to a map: the
+scene starts when the owner first enters that map, a step asked for before then
+waits, and the run goes with the owner to a later copy of the map. The bound
+scenes also set `MapContextId`.
+
 | World intent | Purpose |
 | --- | --- |
 | `EnsureActorIntent` | Ensure the authored actor is present |
 | `RemoveActorIntent` | Remove/release its role |
 | `SetInteractionIntent` | Set enabled/object-state properties |
 | `RunRouteIntent` | Run an authored route |
-| `AttackActorIntent` | Engage a living hostile actor in the same map; omitted `TargetRole` means the run's owner |
+| `AttackActorIntent` | Engage a living hostile actor in the same map; omitted `TargetRole` means the run's owner. `HoldTarget` keeps that target while the order stands, however much the attacker comes to hate someone else. `PastLeash` lets no leash from home pull the attacker back while the order stands |
+| `KillActorIntent` | Kill a living `Creature` actor (not a `PublicSpawn`) at once, as if killed: its `DefeatSequences` entry runs; no player is credited and nothing is looted; nothing if it is dead or absent |
 | `FollowActorIntent` | Follow a character; ID zero means owner |
 | `PresentationIntent` | Tutorial, audio or greeting using an existing ID |
 | `TransferIntent` | Transfer to a map and authored position |
 | `RestoreActorPoseIntent` | Recover a static actor in its owning private map |
+| `BarkActorIntent` | The actor says a client bark (barklanguage ID) once to everyone around it |
+| `PoseActorIntent` | The creature takes up a pose (`spawnpool_pose.pose` values; 0 takes it off), held until changed |
+| `HideSpawnPoolsIntent` | The named map spawn pools are not shown to the run's owner, while the actor stands |
 | `TransitionObjectStateIntent` | Send the native usable transition to an object state, with an optional windup in milliseconds |
 
 Character intents are `GrantRewardIntent`, `GrantAbilityIntent`,

@@ -30,6 +30,19 @@ namespace Rasa.Structures
         /// whoever takes the items. Empty for a corpse that is one player's.
         /// </summary>
         public List<ulong> CreditSharers = new List<ulong>();
+
+        /// <summary>
+        /// The squad members other than the killer who found their own mission items on it (in a squad's instance,
+        /// LootDispenserManager.MissionLootSharers): their untaken items do not keep it from being emptied by the
+        /// others.
+        /// </summary>
+        public HashSet<ulong> SquadMissionItemOwners = new HashSet<ulong>();
+
+        /// <summary>
+        /// Those of SquadMissionItemOwners who may loot it only for their own mission items: no share of its credits
+        /// unless they share in them anyway (CreditSharers).
+        /// </summary>
+        public HashSet<ulong> MissionItemLooters = new HashSet<ulong>();
         public ulong AttachedTo { get; set; }
         public bool FullyLooted { get; set; }
         public bool IsLootable { get; set; }

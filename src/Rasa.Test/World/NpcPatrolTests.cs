@@ -309,6 +309,116 @@ namespace Rasa.Test.World
             Assert.IsTrue(sentry.Controller.ActionPatrol.Arrived);
         }
 
+        /// <summary>
+        /// A creature a scene has sent at a target past the leash (AttackActorIntent.PastLeash) goes all the way to it,
+        /// however far that is from where it was spawned; one in an ordinary fight, or on an order without PastLeash, is
+        /// leashed past MaxChaseDistance from home (1178 playtest 2026-10-25: the first wave ran 60 m towards Villaran and
+        /// went home).
+        /// </summary>
+        [TestMethod]
+        public void ASceneAttackOrderGoesToItsTargetPastTheLeash()
+        {
+            using var world = new WorldTestContext();
+            var target = Watch(world, x: 110);
+            var ordered = Spawn(world, x: 0, walkSpeed: 3, facing: East);
+            var ordinary = Spawn(world, x: 0.5f, walkSpeed: 3, facing: East);
+            var leashed = Spawn(world, x: 1f, walkSpeed: 3, facing: East);
+            ordered.SceneAttackOrder = new Rasa.Game.Missions.World.SceneAttackOrder("test-run", 0, PastLeash: true);
+            leashed.SceneAttackOrder = new Rasa.Game.Missions.World.SceneAttackOrder("test-run", 0, PastLeash: false);
+            Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(ordered, target.Player.EntityId));
+            Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(ordinary, target.Player.EntityId));
+            Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(leashed, target.Player.EntityId));
+
+            var furthest = 0f;
+            var leashedFurthest = 0f;
+            for (var tick = 0; tick < 200; tick++)
+            {
+                BehaviorManager.Instance.MapChannelThink(world.Map, Tick);
+                furthest = Math.Max(furthest, ordinary.Position.X);
+                leashedFurthest = Math.Max(leashedFurthest, leashed.Position.X);
+            }
+
+            Assert.IsGreaterThan(100f, ordered.Position.X, $"the ordered one went to its target, at {ordered.Position}");
+            Assert.IsFalse(BehaviorManager.IsReturning(ordered));
+            Assert.AreEqual(BehaviorManager.BehaviorActionFighting, ordered.Controller.CurrentAction);
+            Assert.IsLessThan(BehaviorManager.MaxChaseDistance + 10, furthest, "the ordinary one was leashed");
+            Assert.IsLessThan(BehaviorManager.MaxChaseDistance, ordinary.Position.X, $"and went home, at {ordinary.Position}");
+            Assert.IsLessThan(BehaviorManager.MaxChaseDistance + 10, leashedFurthest, "an order without PastLeash was leashed");
+        }
+
+        /// <summary>
+        /// A hit on a scripted walker starts its fight only if it fights back (ScriptedMove.FightsBack, a scene route
+        /// with ResumeAfterCombat and FightWhenHit): an escort stops to fight back; any other scripted walk goes on.
+        /// </summary>
+        [TestMethod]
+        [DataRow(true)]
+        [DataRow(false)]
+        public void AHitOnAScriptedWalkStartsAFightOnlyIfItFightsBack(bool fightsBack)
+        {
+            using var world = new WorldTestContext();
+            var attacker = Watch(world, x: 10);
+            var walker = Spawn(world, x: 0, walkSpeed: 2, facing: East);
+            walker.Controller.ScriptedMove = new ScriptedMove { Destination = new Vector3(50, 0, 0), FightsBack = fightsBack };
+            walker.Controller.CurrentAction = BehaviorManager.BehaviorActionScriptedMove;
+
+            Threat.FromDamage(walker, attacker.Player, 10);
+
+            Assert.AreEqual(fightsBack ? BehaviorManager.BehaviorActionFighting : BehaviorManager.BehaviorActionScriptedMove,
+                walker.Controller.CurrentAction);
+            if (fightsBack)
+                Assert.AreEqual(attacker.Player.EntityId, walker.Controller.ActionFighting.TargetEntityId);
+        }
+
+        /// <summary>
+        /// A walker that fights back, hit more than the leash away from its next waypoint (its home while it walks), fights
+        /// from where it was hit: the fight is not dropped at its next think (code review 2026-10-25: long Wilderness and
+        /// Bootcamp legs).
+        /// </summary>
+        [TestMethod]
+        public void AWalkerHitFarFromItsNextWaypointKeepsItsFight()
+        {
+            using var world = new WorldTestContext();
+            var attacker = Watch(world, x: 10);
+            var walker = Spawn(world, x: 0, walkSpeed: 2, facing: East);
+            var waypoint = new Vector3(-150, 0, 0);
+            walker.Controller.ScriptedMove = new ScriptedMove { Destination = waypoint, FightsBack = true };
+            walker.Controller.CurrentAction = BehaviorManager.BehaviorActionScriptedMove;
+            walker.HomePos.Position = waypoint;   // as SetActionScriptedMove sets it
+
+            Threat.FromDamage(walker, attacker.Player, 10);
+            for (var tick = 0; tick < 4; tick++)
+                BehaviorManager.Instance.MapChannelThink(world.Map, Tick);
+
+            Assert.IsFalse(BehaviorManager.IsReturning(walker), "not leashed home to the waypoint");
+            Assert.AreEqual(BehaviorManager.BehaviorActionFighting, walker.Controller.CurrentAction);
+            Assert.AreEqual(attacker.Player.EntityId, walker.Controller.ActionFighting.TargetEntityId);
+        }
+
+        /// <summary>
+        /// A scene's order to fight one target, held (AttackActorIntent.HoldTarget), keeps that target however much more the
+        /// creature comes to hate someone else; without the hold the most hated takes over (code review 2026-10-25, 1975:
+        /// the player's hits on Quarsh turned him from Tala).
+        /// </summary>
+        [TestMethod]
+        [DataRow(true)]
+        [DataRow(false)]
+        public void AHeldSceneAttackOrderKeepsItsTarget(bool hold)
+        {
+            using var world = new WorldTestContext();
+            var victim = Watch(world, x: 6);
+            var player = Watch(world, x: 8);
+            var gunman = Spawn(world, x: 0, walkSpeed: 2, facing: East);
+            Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(gunman, victim.Player.EntityId));
+            gunman.SceneAttackOrder = new Rasa.Game.Missions.World.SceneAttackOrder("test-run", hold ? victim.Player.EntityId : 0, PastLeash: false);
+            gunman.Hate.Ensure(victim.Player.EntityId, 10);
+
+            gunman.Hate.Add(player.Player.EntityId, 1000);
+            for (var tick = 0; tick < 4; tick++)
+                BehaviorManager.Instance.MapChannelThink(world.Map, Tick);
+
+            Assert.AreEqual(hold ? victim.Player.EntityId : player.Player.EntityId, gunman.Controller.ActionFighting.TargetEntityId);
+        }
+
         [TestMethod]
         public void AHitOnItsBeatStartsAFightAsOneOnAStrollDoes()
         {

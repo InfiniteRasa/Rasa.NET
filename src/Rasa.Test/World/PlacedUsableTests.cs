@@ -650,7 +650,8 @@ namespace Rasa.Test.World
                 {
                     context.GetService<IMigrator>().Migrate("20261213000000_Add_world_destructibles");
                     Assert.ThrowsExactly<Microsoft.Data.Sqlite.SqliteException>(() => context.WorldUsableEntries.AsNoTracking().ToList());
-                    Assert.IsEmpty(context.WorldDestructibleEntries.AsNoTracking().ToList(), "the table before it is left");
+                    // Only the ids: a later migration adds world_destructible.sealed, which this one's table has not.
+                    Assert.IsEmpty(context.WorldDestructibleEntries.AsNoTracking().Select(row => row.Id).ToList(), "the table before it is left");
                 }
             }
             finally

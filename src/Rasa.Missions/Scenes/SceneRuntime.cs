@@ -78,6 +78,9 @@ namespace Rasa.Missions.Scenes
                 if (intent is QuietSpawnPoolsIntent quiet &&
                     (quiet.Role == null || quiet.SpawnPools == null || quiet.SpawnPools.Length == 0 || quiet.SpawnPools.Contains(0u)))
                     return Reject($"Scene operation {intent.OperationKey} quiets no spawn pools, or has no actor holding them.");
+                if (intent is HideSpawnPoolsIntent hide &&
+                    (hide.Role == null || hide.SpawnPools == null || hide.SpawnPools.Length == 0 || hide.SpawnPools.Contains(0u)))
+                    return Reject($"Scene operation {intent.OperationKey} hides no spawn pools, or has no actor holding them.");
                 if (intent is WakeSpawnPoolsIntent wake &&
                     (wake.Role == null || wake.SpawnPools == null || wake.SpawnPools.Length == 0 || wake.SpawnPools.Contains(0u)))
                     return Reject($"Scene operation {intent.OperationKey} wakes no spawn pools, or has no actor holding them.");
@@ -88,6 +91,19 @@ namespace Rasa.Missions.Scenes
                          target.Kind is not (SceneActorKind.Creature or SceneActorKind.PublicSpawn) ||
                          attack.TargetRole == attack.Role)))
                     return Reject($"Scene operation {intent.OperationKey} references an invalid combat actor.");
+                if (intent is KillActorIntent kill &&
+                    (kill.Role == null || !bindings.Actors.TryGetValue(kill.Role, out var victim) ||
+                     // A public spawn's death is an ActorDied observation, not its DefeatSequences.
+                     victim.Kind != SceneActorKind.Creature))
+                    return Reject($"Scene operation {intent.OperationKey} has no scene creature to kill.");
+                if (intent is BarkActorIntent bark &&
+                    (bark.Role == null || bark.BarkId == 0 || !bindings.Actors.TryGetValue(bark.Role, out var speaker) ||
+                     speaker.Kind is not (SceneActorKind.Creature or SceneActorKind.PublicSpawn)))
+                    return Reject($"Scene operation {intent.OperationKey} has no bark or no creature to say it.");
+                if (intent is PoseActorIntent pose &&
+                    (pose.Role == null || pose.Pose > byte.MaxValue || !bindings.Actors.TryGetValue(pose.Role, out var poser) ||
+                     poser.Kind is not (SceneActorKind.Creature or SceneActorKind.PublicSpawn)))
+                    return Reject($"Scene operation {intent.OperationKey} has an invalid pose or no creature to take it.");
             }
             var timerNames = new HashSet<string>(StringComparer.Ordinal);
             if (decision.CharacterIntents.OfType<SetCharacterFlagIntent>().Any(intent => intent.FlagId == 0))

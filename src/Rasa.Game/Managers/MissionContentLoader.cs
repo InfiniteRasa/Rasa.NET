@@ -277,6 +277,8 @@ namespace Rasa.Managers
                 var runtime = MissionObjectiveRuntimeAnalyzer.Analyze(
                     objectiveEntry.ObjectiveId,
                     transitionsByObjective[objectiveEntry.ObjectiveId].ToArray());
+                if (progressMetadata?.CounterGroups?.TryGetValue(objectiveEntry.ObjectiveId, out var groups) == true)
+                    runtime = MissionObjectiveRuntimeAnalyzer.SplitCounters(runtime, groups);
                 foreach (var diagnostic in runtime.Diagnostics)
                     diagnostics?.Add(diagnostic.Message);
 

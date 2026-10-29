@@ -209,6 +209,157 @@ namespace Rasa.Test.Missions
             Assert.AreEqual(1U, fixture.Counter);
         }
 
+        /// <summary>
+        /// In a squad's instance one kill drops the mission's item for each squad member near the corpse who has the
+        /// mission: each finds their own item on it, reserved to them, whatever the loot method and whether the
+        /// creature has its own authored loot; a member without the mission gets none (retail, user 2026-10-27).
+        /// Outside a squad's instance the killer alone gets it, as before.
+        /// </summary>
+        [TestMethod]
+        [DataRow(true, PartyLootMethod.FreeForAll, true)]
+        [DataRow(true, PartyLootMethod.Rotation, true)]
+        [DataRow(true, PartyLootMethod.Individual, true)]
+        [DataRow(true, PartyLootMethod.FreeForAll, false)]
+        [DataRow(false, PartyLootMethod.FreeForAll, true)]
+        public void InASquadInstanceEveryMemberWithTheMissionLootsTheirOwnItemFromOneKill(bool squadInstance,
+            PartyLootMethod method, bool squadLoot)
+        {
+            using var fixture = new Fixture(questTemplateId: 30);
+            var context = fixture.Context;
+            var member = context.CreateAdditionalClient(2);
+            var bystander = context.CreateAdditionalClient(3);
+            foreach (var other in new[] { member, bystander })
+                other.Player.Attributes[Attributes.Health] = new ActorAttributes(Attributes.Health, 100, 100, 100, 0, 0);
+            Assert.IsTrue(context.Manager.AcceptOfferedMission(member, context.AddNpc(77).EntityId, 901));
+            using var party = new PartyScope(method, context.Client, member, bystander);
+            using var items = new ItemManagerScope(context);
+            context.Map.IsSquadInstance = squadInstance;
+            try
+            {
+                var loot = fixture.Spawn(squadLoot: squadLoot);
+                var quest = loot.LootItems.Where(item => item.ItemTemplateId == 30).ToArray();
+
+                var killers = quest.Where(item => item.ReservedFor == context.Client.Player.EntityId).ToArray();
+                var members = quest.Where(item => item.ReservedFor == member.Player.EntityId).ToArray();
+                Assert.HasCount(1, killers, "the killer's own item");
+                Assert.HasCount(squadInstance ? 1 : 0, members, "the member's own item, in a squad instance only");
+                Assert.IsFalse(quest.Any(item => item.ReservedFor == bystander.Player.EntityId), "no mission, no item");
+                if (!squadInstance)
+                    return;
+                Assert.IsTrue(loot.Looters.Contains(member.Player.EntityId), "the member may loot the corpse");
+                Assert.IsTrue(MissionTestContext.Drain(member).OfType<CanLootItemsPacket>().Any(),
+                    "the member is shown the corpse for their item");
+
+                var mine = members.Single();
+                Assert.IsTrue(LootDispenserManager.LootableBy(loot, member.Player.EntityId).Contains(mine));
+                Assert.IsFalse(LootDispenserManager.LootableBy(loot, context.Client.Player.EntityId).Contains(mine));
+                Assert.IsFalse(LootDispenserManager.LootableBy(loot, member.Player.EntityId).Contains(killers.Single()));
+
+                fixture.Manager.RequestLootItemFromCorpse(context.Client,
+                    new RequestLootItemFromCorpsePacket { EntityId = loot.EntityId, ItemId = mine.EntityId, DestSlot = 50 });
+                Assert.IsFalse(mine.Taken, "the killer cannot take the member's item");
+                fixture.Manager.RequestLootItemFromCorpse(member,
+                    new RequestLootItemFromCorpsePacket { EntityId = loot.EntityId, ItemId = mine.EntityId, DestSlot = 50 });
+                Assert.IsTrue(mine.Taken);
+                Assert.AreEqual(1U, member.Player.Missions[901].Objectives[1].ItemCounters[3147], "the member's progress");
+                Assert.AreEqual(0U, fixture.Counter, "the killer's progress waits for their own item");
+            }
+            finally
+            {
+                context.Map.IsSquadInstance = false;
+            }
+        }
+
+        /// <summary>
+        /// A squad member who may loot a corpse in a squad's instance only for their own mission item takes none of its
+        /// credits, even emptying it of everything they may take (Individual loot, or the creature's own authored
+        /// loot: no CreditSharers); and no member's untaken mission item keeps the others from emptying it and being
+        /// paid. Code review 2026-10-27: the member walking past took the killer's credits.
+        /// </summary>
+        [TestMethod]
+        [DataRow(PartyLootMethod.Individual, true)]
+        [DataRow(PartyLootMethod.FreeForAll, false)]
+        [DataRow(PartyLootMethod.FreeForAll, true)]
+        public void ASquadMemberLootingOnlyTheirMissionItemTakesNoCreditsAndDoesNotHoldBackTheCorpse(
+            PartyLootMethod method, bool squadLoot)
+        {
+            using var fixture = new Fixture(questTemplateId: 30);
+            var context = fixture.Context;
+            var member = context.CreateAdditionalClient(2);
+            member.Player.Attributes[Attributes.Health] = new ActorAttributes(Attributes.Health, 100, 100, 100, 0, 0);
+            Assert.IsTrue(context.Manager.AcceptOfferedMission(member, context.AddNpc(77).EntityId, 901));
+            using var party = new PartyScope(method, context.Client, member);
+            using var items = new ItemManagerScope(context);
+            context.Map.IsSquadInstance = true;
+            try
+            {
+                var loot = fixture.Spawn(squadLoot: squadLoot);
+                loot.Credits = 7;
+                var mine = loot.LootItems.Single(item => item.ReservedFor == member.Player.EntityId);
+                var killerCredits = context.Client.Player.Credits[CurencyType.Credits];
+                var memberCredits = member.Player.Credits[CurencyType.Credits];
+                var onlyForTheirItem = loot.MissionItemLooters.Contains(member.Player.EntityId);
+                Assert.AreEqual(loot.CreditSharers.Count == 0, onlyForTheirItem,
+                    "the member is a looter only for their item where the corpse is not shared");
+
+                fixture.Manager.RequestLootAllFromCorpse(member, new RequestLootAllFromCorpsePacket { EntityId = loot.EntityId });
+
+                Assert.IsTrue(mine.Taken, "the member took their own item");
+                if (onlyForTheirItem)
+                {
+                    Assert.AreEqual(7, loot.Credits, "the member took no credits");
+                    Assert.AreEqual(memberCredits, member.Player.Credits[CurencyType.Credits]);
+                }
+
+                var before = loot.Credits;
+                fixture.Take(loot);
+                Assert.AreEqual(0, loot.Credits, "the killer emptying the corpse is paid");
+                Assert.IsGreaterThan(killerCredits, context.Client.Player.Credits[CurencyType.Credits]);
+                if (onlyForTheirItem)
+                    Assert.AreEqual(killerCredits + before, context.Client.Player.Credits[CurencyType.Credits]);
+            }
+            finally
+            {
+                context.Map.IsSquadInstance = false;
+            }
+        }
+
+        /// <summary>
+        /// Emptying a corpse in a squad's instance pays its credits even while another member's own mission item is
+        /// still on it: the killer, taking their items one by one, is paid with the last of their own.
+        /// </summary>
+        [TestMethod]
+        public void AnotherMembersUntakenMissionItemDoesNotHoldBackTheCorpsesCredits()
+        {
+            using var fixture = new Fixture(questTemplateId: 30);
+            var context = fixture.Context;
+            var member = context.CreateAdditionalClient(2);
+            member.Player.Attributes[Attributes.Health] = new ActorAttributes(Attributes.Health, 100, 100, 100, 0, 0);
+            Assert.IsTrue(context.Manager.AcceptOfferedMission(member, context.AddNpc(77).EntityId, 901));
+            using var party = new PartyScope(PartyLootMethod.Individual, context.Client, member);
+            using var items = new ItemManagerScope(context);
+            context.Map.IsSquadInstance = true;
+            try
+            {
+                var loot = fixture.Spawn(squadLoot: true);
+                loot.Credits = 7;
+                var mine = loot.LootItems.Single(item => item.ReservedFor == member.Player.EntityId);
+                var killerCredits = context.Client.Player.Credits[CurencyType.Credits];
+
+                foreach (var item in loot.LootItems.Where(item => item.MayTake(context.Client.Player.EntityId)).ToArray())
+                    fixture.Manager.RequestLootItemFromCorpse(context.Client,
+                        new RequestLootItemFromCorpsePacket { EntityId = loot.EntityId, ItemId = item.EntityId, DestSlot = 50 });
+
+                Assert.IsFalse(mine.Taken);
+                Assert.AreEqual(0, loot.Credits, "paid with the killer's last item");
+                Assert.AreEqual(killerCredits + 7, context.Client.Player.Credits[CurencyType.Credits]);
+            }
+            finally
+            {
+                context.Map.IsSquadInstance = false;
+            }
+        }
+
         [TestMethod]
         [DataRow(PartyLootMethod.FreeForAll, false)]
         [DataRow(PartyLootMethod.Rotation, false)]

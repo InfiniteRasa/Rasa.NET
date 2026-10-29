@@ -39,6 +39,7 @@ namespace Rasa.Game.Missions
         private readonly Dictionary<string, (MapChannel Map, DateTime Due)> _rewardRetirements = new(StringComparer.Ordinal);
         private readonly Dictionary<string, (Client Owner, uint Generation, DateTime Due)> _resumeRetries = new(StringComparer.Ordinal);
         private readonly Dictionary<uint, MissionExperienceDefinition> _experiences = new();
+        private readonly Dictionary<uint, uint> _sceneMaps = new();
         private readonly Dictionary<(uint Character, MapChannel Map), Client> _resumed = new();
         private readonly SceneDueQueue _due = new();
         private readonly Queue<(string RunId, SceneObservation Observation)> _observations = new();
@@ -56,19 +57,37 @@ namespace Rasa.Game.Missions
             _world = worldFactory?.Invoke(ObserveWorld) ?? new SceneWorldAdapter(missions.PublicActors, ObserveWorld);
         }
 
-        internal void Bind(uint missionId, string script, SceneBindings bindings)
+        internal void Bind(uint missionId, string script, SceneBindings bindings, uint? mapContextId = null)
         {
             if (!_runtime.Supports(script, 1))
                 throw new GameplayRejectionException($"Missing script {script}/1 for mission {missionId}.");
             _bindings.Add(missionId, (script, bindings));
             foreach (var actor in bindings.Actors.Values.Where(actor => actor.ReplacesPublicSpawnId != 0))
                 _npcReplacements[actor.ReplacesPublicSpawnId] = (missionId, actor.HoldCombatUntilRoute, actor.ReplaceWhilePresent, actor.Role);
+            if (mapContextId is uint map)
+                _sceneMaps.Add(missionId, map);
         }
 
         private readonly Dictionary<uint, (uint Mission, bool Protected, bool WhilePresent, string Role)> _npcReplacements = new();
         internal (uint Mission, bool Protected, bool WhilePresent, string Role) NpcReplacement(uint spawnId) => _npcReplacements.GetValueOrDefault(spawnId);
 
         internal bool Owns(uint missionId) => _bindings.ContainsKey(missionId);
+
+        /// <summary>The map a mission's scene is bound to (MissionSceneDefinition.BoundMapContextId), if it is.</summary>
+        internal bool TryGetSceneMap(uint missionId, out uint mapContextId) => _sceneMaps.TryGetValue(missionId, out mapContextId);
+
+        /// <summary>
+        /// Whether a mission's run, its row on <paramref name="rowMapKey"/>, can stand on <paramref name="map"/>. A
+        /// scene bound to a map (MissionSceneDefinition.BoundMapContextId) stands on any copy of it and on no other map;
+        /// else on the row's own map, or on its character's private instance, which is made again under a new key.
+        /// </summary>
+        private bool CanStandOn(uint missionId, string rowMapKey, MapChannel map) =>
+            _sceneMaps.TryGetValue(missionId, out var bound)
+                ? map.MapInfo.MapContextId == bound
+                : map.IsPrivateInstance || rowMapKey == PublicActorLeaseService.MapKey(map);
+
+        /// <summary>The row's map key of a bound scene not yet on its map: it is no map's key, so no lease, offer or talk takes it.</summary>
+        internal static string AwaitingMapKey(uint mapContextId) => $"{mapContextId}:awaiting";
         internal bool UsesScript(uint missionId, string script) =>
             _bindings.TryGetValue(missionId, out var binding) && binding.Script == script;
 
@@ -107,6 +126,7 @@ namespace Rasa.Game.Missions
             _bindings.Clear();
             _npcReplacements.Clear();
             _experiences.Clear();
+            _sceneMaps.Clear();
         }
 
         internal void BindExperience(MissionExperienceDefinition experience)
@@ -179,7 +199,7 @@ namespace Rasa.Game.Missions
                 {
                     var current = assignments.TryGetValue(binding.Key, out var assignment) &&
                         assignment.AssignmentId == row.AssignmentId;
-                    if (!map.IsPrivateInstance && row.MapKey != PublicActorLeaseService.MapKey(map))
+                    if (!CanStandOn(binding.Key, row.MapKey, map))
                         continue;
                     if (!string.IsNullOrEmpty(row.AssignmentId) &&
                         unit.CharacterMissions.Runtime.WasRewarded(row.AssignmentId))
@@ -222,7 +242,7 @@ namespace Rasa.Game.Missions
             using var unit = _factory.CreateChar();
             foreach (var binding in _bindings.OrderBy(entry => entry.Key))
                 foreach (var row in unit.CharacterMissions.Runtime.Scenes(characterId, binding.Key))
-                    if (row.Status != "Resetting" && (map.IsPrivateInstance || row.MapKey == PublicActorLeaseService.MapKey(map)))
+                    if (row.Status != "Resetting" && CanStandOn(binding.Key, row.MapKey, map))
                         Attach(characterId, map, owner, row.RunId, binding.Value.Bindings);
         }
 
@@ -300,7 +320,9 @@ namespace Rasa.Game.Missions
                 RunId = Guid.NewGuid().ToString("N"), AssignmentId = assignment.AssignmentId,
                 MissionId = assignment.MissionId, OwnerCharacterId = owner.Player.Id,
                 ScriptKey = binding.Script, Release = binding.Bindings.Release, StateVersion = 1,
-                MapKey = PublicActorLeaseService.MapKey(owner.Player.MapChannel)
+                MapKey = _sceneMaps.TryGetValue(assignment.MissionId, out var bound) &&
+                    owner.Player.MapChannel.MapInfo.MapContextId != bound
+                    ? AwaitingMapKey(bound) : PublicActorLeaseService.MapKey(owner.Player.MapChannel)
             };
             unit.CharacterMissions.Runtime.Add(scene);
             unit.CharacterMissions.Runtime.Add(new MissionSceneParticipantEntry
@@ -799,6 +821,44 @@ namespace Rasa.Game.Missions
                 DrainMessages(owner.Run.Id);
         }
 
+        /// <summary>
+        /// The first hit a player's side landed on an actor the scene listens to (SceneBindings.DamagedSequences):
+        /// its sequence is queued once for the run's generation, as RecordDefeat queues an actor's defeat, and run.
+        /// </summary>
+        internal bool RecordFirstHit(MapChannel map, string runId, string role, uint generation)
+        {
+            if (!_runs.TryGetValue(runId, out var owner) || owner.Map != map || owner.Run.Generation != generation ||
+                !owner.Bindings.DamagedSequences.TryGetValue(role, out var sequence))
+                return Reject($"Rejected a stale or wrong-map first hit on scene actor {role}.");
+            var queued = false;
+            try
+            {
+                using var unit = _factory.CreateChar();
+                unit.ExecuteTransaction(() =>
+                {
+                    var store = unit.CharacterMissions.Runtime;
+                    var scene = store.Scene(runId);
+                    if (scene == null || scene.Generation != generation ||
+                        scene.Status is "Resetting" or "Ended" or "Faulted")
+                        throw new GameplayRejectionException($"Rejected a first hit on {role} for a terminated scene.");
+                    RequireCurrentAssignment(unit, scene);
+                    var key = $"damaged-{role}";
+                    if (store.Messages(runId).Any(message => message.Generation == generation && message.OperationKey == key))
+                        return;
+                    store.Add(new MissionSceneMessageEntry
+                    {
+                        RunId = runId, Generation = generation, OperationKey = key, SequenceId = sequence
+                    });
+                    queued = true;
+                });
+            }
+            catch (Exception error) when (GameplayRejectionException.IsExpected(error))
+            {
+                return Reject($"Scene {runId} first hit on {role}: {error.Message}");
+            }
+            return queued && DrainMessages(runId);
+        }
+
         internal void EndDeadline(Repositories.Char.ICharUnitOfWork unit, SceneRun run, uint missionId)
         {
             foreach (var timer in unit.CharacterMissions.Runtime.Timers(run.Id)
@@ -824,6 +884,20 @@ namespace Rasa.Game.Missions
                     return Reject("A shared participant cannot execute the initiator's scene.");
                 assignmentId = assignment.AssignmentId;
             }
+            // A scene bound to another map waits for its owner there: the run's row is kept (Resume starts it on
+            // arrival), and a step asked for now is kept as a message for it (DrainMessages on arrival).
+            if (_sceneMaps.TryGetValue(missionId, out var sceneMap) && owner.Player.MapChannel.MapInfo.MapContextId != sceneMap)
+            {
+                using var unit = _factory.CreateChar();
+                unit.ExecuteTransaction(() =>
+                {
+                    if (!started)
+                        QueueSequence(unit, owner, missionId, sequenceId);
+                    else if (unit.CharacterMissions.Runtime.AssignmentScene(assignmentId) == null)
+                        PrepareAssignment(unit, owner, unit.CharacterMissions.GetByCharacterAndMission(owner.Player.Id, missionId));
+                });
+                return true;
+            }
             if (!_assignmentScenes.TryGetValue((owner.Player.Id, missionId, assignmentId), out var id))
             {
                 using var unit = _factory.CreateChar();
@@ -847,6 +921,8 @@ namespace Rasa.Game.Missions
                     Attach(owner, id, binding.Bindings);
                 }
             }
+            else if (sceneMap != 0 && _runs.TryGetValue(id, out var placed) && placed.Map != owner.Player.MapChannel)
+                Attach(owner, id, binding.Bindings);   // still on an earlier copy of its map: it comes here first
             if (started)
                 return Submit(id, new SceneObservation(SceneEventKind.Started, _runs[id].Run.Generation));
             using (var unit = _factory.CreateChar())
@@ -955,8 +1031,7 @@ namespace Rasa.Game.Missions
             using var unit = _factory.CreateChar();
             var row = unit.CharacterMissions.Runtime.Scene(runId)
                 ?? throw new GameplayRejectionException($"Scene run {runId} is unavailable.");
-            if (row.OwnerCharacterId != characterId ||
-                !map.IsPrivateInstance && row.MapKey != PublicActorLeaseService.MapKey(map))
+            if (row.OwnerCharacterId != characterId || !CanStandOn(row.MissionId, row.MapKey, map))
                 throw new GameplayRejectionException($"Scene run {runId} belongs to a different character/map.");
             var run = ReadRun(row);
             if (run.Status == SceneStatus.Resetting ||
@@ -972,11 +1047,13 @@ namespace Rasa.Game.Missions
             // run goes on in the new one: its row names the map it is in now. The conversation,
             // offer and lease checks compare the row's map with the player's, and on the old key
             // refused every actor of the run - a corpse that offered its dialogue and answered
-            // nothing.
+            // nothing. A scene bound to a map goes the same way: from waiting to the first copy its owner comes
+            // to, and on to a later copy (a new squad's, one made again after a reset).
             var mapKey = PublicActorLeaseService.MapKey(map);
+            var bound = _sceneMaps.ContainsKey(row.MissionId);
             unit.ExecuteTransaction(() =>
             {
-                if (map.IsPrivateInstance && row.MapKey != mapKey)
+                if ((map.IsPrivateInstance || bound) && row.MapKey != mapKey)
                     row.MapKey = mapKey;
 
                 foreach (var timer in unit.CharacterMissions.Runtime.Timers(runId)
@@ -1559,8 +1636,9 @@ namespace Rasa.Game.Missions
                 if (presence.Intent is not EnsureActorIntent)
                     continue;
                 yield return presence.Effect;
+                // A bark is a moment, not a state: a map made again does not say it again.
                 foreach (var property in role.Where(entry => entry.Effect.Version >= presence.Effect.Version &&
-                        entry.Intent is not (EnsureActorIntent or RemoveActorIntent))
+                        entry.Intent is not (EnsureActorIntent or RemoveActorIntent or BarkActorIntent))
                     .GroupBy(entry => entry.Intent.GetType()))
                     yield return property.Last().Effect;
             }
@@ -1676,6 +1754,8 @@ namespace Rasa.Game.Missions
             if (scope != SceneTickScope.Deadlines)
             {
                 _world.Tick(map, _utcNow());
+                foreach (var hit in _world.TakeFirstHits(map))
+                    changed |= RecordFirstHit(map, hit.RunId, hit.Role, hit.Generation);
                 _missions.Credit.Tick(map);
             }
             return changed;

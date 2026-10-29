@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Rasa.Data;
 using Rasa.Managers;
@@ -14,6 +15,7 @@ using Rasa.Packets.Mission.Server;
 using Rasa.Services.Preloader.Missions.Wilderness;
 using Rasa.Structures;
 using Rasa.Structures.Char;
+using Rasa.Structures.World;
 
 namespace Rasa.Test.Missions.Wilderness
 {
@@ -108,8 +110,15 @@ namespace Rasa.Test.Missions.Wilderness
         public void HistoricalSceneryReproducesTheMissingFuelCredit()
         {
             using var harness = WildernessRuntimeTestHarness.Create(targetWorldMigration:"20270907000000_Defender_reinforcement_timers");
-            using(var world=harness.CreateWorld())
-                PlacedDestructibles.Load(world.WorldDestructibles.Get().Where(row=>row.MapContextId==1220 && row.ClassId==9260));
+            // The columns the table had at that migration: a later one adds world_destructible.sealed.
+            PlacedDestructibles.Load(harness.World.WorldDestructibleEntries.AsNoTracking()
+                .Where(row=>row.MapContextId==1220 && row.ClassId==9260).OrderBy(row=>row.Id)
+                .Select(row=>new WorldDestructibleEntry
+                {
+                    Id=row.Id, MapContextId=row.MapContextId, ClassId=row.ClassId, PosX=row.PosX, PosY=row.PosY, PosZ=row.PosZ,
+                    Rotation=row.Rotation, HitPoints=row.HitPoints, CreatureId=row.CreatureId, CreatureCount=row.CreatureCount,
+                    Side=row.Side, Comment=row.Comment
+                }).ToList());
             try
             {
                 PlacedDestructibles.Place(harness.Map);Accept(harness,172,665);

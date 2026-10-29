@@ -160,12 +160,28 @@ namespace Rasa.Managers
             Interactions = new Game.Missions.Integration.MissionInteractionPolicy(this);
             ObjectConversations = new Game.Missions.MissionObjectConversations(_gameUnitOfWorkFactory, this);
             Game.Missions.Integration.MissionRuntimeComposition.Bind(_catalog, Scenes, PublicActors, ActorPolicies);
+            _scenePublicSpawns = PublicSpawnPools(_catalog.SceneBindings.Values);
         }
+
+        private volatile HashSet<uint> _scenePublicSpawns = new();
+
+        /// <summary>The spawn pools that mission scenes name as public-spawn actors (SceneActorKind.PublicSpawn).</summary>
+        internal static HashSet<uint> PublicSpawnPools(IEnumerable<Rasa.Missions.Content.MissionSceneDefinition> scenes) =>
+            scenes.SelectMany(scene => scene.Actors.Values)
+                .Where(actor => actor?.Kind == Rasa.Missions.Scenes.SceneActorKind.PublicSpawn)
+                .Select(actor => actor.TemplateId).ToHashSet();
+
+        /// <summary>
+        /// Whether a mission's scene names this spawn pool as a public-spawn actor: an NPC of the world that a mission
+        /// stands on, as the pool of a public encounter (PublicActors.StagesSpawn) is.
+        /// </summary>
+        internal bool NamesPublicSpawn(uint poolId) => _scenePublicSpawns.Contains(poolId);
 
         internal MissionValidationReport LoadMissions()
         {
             var report = _catalog.Load();
             Game.Missions.Integration.MissionRuntimeComposition.Bind(_catalog, Scenes, PublicActors, ActorPolicies);
+            _scenePublicSpawns = PublicSpawnPools(_catalog.SceneBindings.Values);
             LatestValidationReport = report;
             return report;
         }
@@ -228,6 +244,41 @@ namespace Rasa.Managers
                     continue;
                 Offers.TryOffer(client, definition.MissionId,
                     global::Rasa.Missions.Definitions.MissionOfferSourceIdentity.ServerEvent("class.qualification"));
+            }
+        }
+
+        /// <summary>
+        /// Offers by radio the missions that follow a turn-in, as Headquarters calls with the next
+        /// order when the character is rewarded for an earlier mission (Plateau 555 after 867).
+        /// Those missions have a ServerEvent source keyed "mission.rewarded:{id}". Called only after
+        /// the reward is committed, so the rewarded mission already counts as completed for the
+        /// follow-up's prerequisite. A follow-up with more than one trigger has a prerequisite on
+        /// each, so it is offered at the turn-in of the last of them. An offer the player does not
+        /// take comes again by the mission's map-arrival source.
+        /// </summary>
+        internal void OfferAfterTurnIn(Client client, uint rewardedMissionId)
+        {
+            if (!IsActivePlayer(client))
+                return;
+            var key = global::Rasa.Missions.Definitions.MissionOfferSourceDefinition.MissionRewardedKey(rewardedMissionId);
+            using var unit = _gameUnitOfWorkFactory.CreateChar();
+            foreach (var definition in _catalog.Missions.Values
+                .Where(mission => mission.IsOperational &&
+                    mission.AcceptanceChannel.HasFlag(global::Rasa.Missions.Definitions.MissionChannel.Radio))
+                .OrderBy(mission => mission.MissionId))
+            {
+                var source = definition.RadioSources.SingleOrDefault(candidate =>
+                    candidate.Kind == global::Rasa.Missions.Definitions.MissionOfferSourceKind.ServerEvent &&
+                    candidate.Key == key);
+                if (source == null ||
+                    source.MapContextId.HasValue && source.MapContextId != client.Player.MapChannel.MapInfo.MapContextId ||
+                    !CanAdmit(client.Player, definition, unit, out _) ||
+                    !HasJournalCapacity(client.Player.Id, definition.MissionId, unit) ||
+                    !_requirements.Evaluate(client.Player, source.Requirement, unit) ||
+                    !ArePrerequisitesSatisfied(client.Player, definition.MissionId, unit, out _))
+                    continue;
+                Offers.TryOffer(client, definition.MissionId,
+                    global::Rasa.Missions.Definitions.MissionOfferSourceIdentity.ServerEvent(key));
             }
         }
 
@@ -1425,6 +1476,8 @@ namespace Rasa.Managers
                         $"mission {missionId} hybrid unlock");
                     _protocol.PublishAudio(client, missionId, Rasa.Missions.Content.MissionAudioEvent.Completed);
                     RefreshNpcConversationStatuses(client);
+                    TryPublish(() => OfferAfterTurnIn(client, missionId),
+                        $"mission {missionId} follow-up radio offers");
                     return true;
                 }
                 finally
@@ -1538,6 +1591,8 @@ namespace Rasa.Managers
                             client.Player.EntityId,
                             new MissionRewardedPacket(missionId)),
                         $"mission {missionId} reward reconciliation");
+                    TryPublish(() => OfferAfterTurnIn(client, missionId),
+                        $"mission {missionId} follow-up radio offers after reconciliation");
                     break;
             }
         }
@@ -2498,7 +2553,30 @@ namespace Rasa.Managers
             client?.Player == null ? Array.Empty<ProgressCandidate>() :
                 _runtime.SelectCandidates(client.Player.Missions, new[] { progress },
                     client.Player.GainedWaypoints.Select(entry => entry.WaypointId).ToHashSet(),
-                    client.Player.Logos.ToHashSet());
+                    client.Player.Logos.ToHashSet(), ClearedSpawnPools(client, new[] { progress }));
+
+        /// <summary>
+        /// The spawn pools that are dead in the squad's instance the character stands in
+        /// (SquadInstanceState): what a "clear the outpost" objective is complete on. None on a
+        /// map that is not a squad's instance, which keeps no such account; and none looked for
+        /// when no event of the batch is a pool's.
+        /// </summary>
+        internal static IReadOnlySet<uint> ClearedSpawnPools(Client client, IReadOnlyList<MissionProgressEvent> progress) =>
+            progress?.Any(entry => entry.Kind == MissionProgressEventKind.SpawnPoolCleared) == true
+                ? ClearedSpawnPools(client)
+                : new HashSet<uint>();
+
+        /// <inheritdoc cref="ClearedSpawnPools(Client, IReadOnlyList{MissionProgressEvent})"/>
+        internal static IReadOnlySet<uint> ClearedSpawnPools(Client client)
+        {
+            var map = client?.Player?.MapChannel;
+
+            if (map?.SquadState == null)
+                return new HashSet<uint>();
+
+            return map.SpawnPools.Where(pool => pool.ClearedAtUtcMs != 0 && pool.DbId != 0)
+                .Select(pool => pool.DbId).ToHashSet();
+        }
 
         internal bool IsObjectiveEligibleAtEvent(Client client, uint missionId, uint objectiveId, ICharUnitOfWork unit) =>
             TryGetOperationalMission(missionId, out var mission) && mission.Objectives.ContainsKey(objectiveId) &&
@@ -2512,7 +2590,7 @@ namespace Rasa.Managers
             // or quantity.
             return _runtime.SelectCandidates(client.Player.Missions, progress,
                 client.Player.GainedWaypoints.Select(entry => entry.WaypointId).ToHashSet(),
-                client.Player.Logos.ToHashSet()).Count > 0 ||
+                client.Player.Logos.ToHashSet(), ClearedSpawnPools(client, progress)).Count > 0 ||
                 _runtime.SelectHistoryAggregates(client.Player.Missions, progress).Count > 0;
         }
 
@@ -2546,7 +2624,7 @@ namespace Rasa.Managers
 
             var candidates = _runtime.SelectCandidates(client.Player.Missions, progressEvents,
                 client.Player.GainedWaypoints.Select(entry => entry.WaypointId).ToHashSet(),
-                client.Player.Logos.ToHashSet());
+                client.Player.Logos.ToHashSet(), ClearedSpawnPools(client, progressEvents));
             if (!requirementsFrozen)
                 candidates = candidates.Where(candidate => _requirements.Evaluate(client.Player,
                     candidate.Definition.ObjectiveRequirements.GetValueOrDefault(candidate.ObjectiveDefinition.ObjectiveId))).ToArray();
@@ -2672,6 +2750,10 @@ namespace Rasa.Managers
                                     });
                             durableSubjects = observed;
                         }
+                        // The pools of the instance are dead or not by the instance's own account,
+                        // which its squad_instance rows keep: there is nothing of the character's to read.
+                        else if (rule.Kind == MissionProgressEventKind.SpawnPoolCleared)
+                            durableSubjects = ClearedSpawnPools(client);
                         else
                             durableSubjects = rule.Kind == MissionProgressEventKind.WaypointAcquired
                                 ? durableWaypointIds ??= unitOfWork.CharacterTeleporters.Get(client.Player.Id)
@@ -2689,6 +2771,15 @@ namespace Rasa.Managers
                         continue;
                     if (decision.CounterId.HasValue)
                     {
+                        // A split scene set's other counters that moved in this batch: before the
+                        // one that carries the completion, so the client sees them first.
+                        foreach (var other in decision.OtherCounters ?? Array.Empty<(uint CounterId, uint CounterValue)>())
+                        {
+                            durableObjective.Counters.Single(entry => entry.CounterId == other.CounterId)
+                                .CounterValue = other.CounterValue;
+                            publications.Add(ProgressPublication.Counter(candidate, other.CounterId,
+                                other.CounterValue, false, TransitionActionApplication.Empty));
+                        }
                         if (decision.IsItemCounter)
                             durableObjective.ItemCounters.Single(entry => entry.ItemClassId == decision.CounterId.Value)
                                 .CounterValue = decision.CounterValue.Value;
@@ -2926,14 +3017,18 @@ namespace Rasa.Managers
                         .Where(entry => entry.MissionState is (uint)MissionState.Success or (uint)MissionState.Completed)
                         .Select(entry => entry.MissionId)).ToHashSet()
                 : new HashSet<uint>();
+            var clearedPools = kinds.Contains(MissionProgressEventKind.SpawnPoolCleared)
+                ? ClearedSpawnPools(client)
+                : new HashSet<uint>();
             var events = waypoints.Select(MissionProgressEvent.Waypoint)
                 .Concat(logos.Select(MissionProgressEvent.Logos))
-                .Concat(successfulMissions.Select(MissionProgressEvent.Mission)).ToArray();
+                .Concat(successfulMissions.Select(MissionProgressEvent.Mission))
+                .Concat(clearedPools.Select(MissionProgressEvent.SpawnPoolCleared)).ToArray();
             while (mission.MissionState == (uint)MissionState.Active)
             {
                 var snapshot = MissionStatePublication.Capture(mission, objectives);
                 var candidates = _runtime.SelectCandidates(
-                    new Dictionary<uint, MissionLog> { [definition.MissionId] = snapshot }, events, waypoints, logos)
+                    new Dictionary<uint, MissionLog> { [definition.MissionId] = snapshot }, events, waypoints, logos, clearedPools)
                     .Where(candidate => optedIn.Contains(candidate.ObjectiveDefinition.ObjectiveId) &&
                         _requirements.Evaluate(client.Player,
                             definition.ObjectiveRequirements.GetValueOrDefault(candidate.ObjectiveDefinition.ObjectiveId), unit))
@@ -3249,6 +3344,17 @@ namespace Rasa.Managers
                             failure.MissionId == action.MissionId)
                             throw new GameplayRejectionException("Related failure must name another mission.");
                         relatedEffects.Add(PlanRelatedMissionFailure(client, failure.MissionId, unitOfWork));
+                        break;
+
+                    case MissionActionKind.TakeDownField:
+                        if (action.ItemIntent is not Rasa.Missions.Scenes.TakeDownFieldIntent takeDown ||
+                            takeDown.DestructibleId == 0)
+                            throw new GameplayRejectionException("Take down field action must name a world_destructible row.");
+                        // Once committed: the field on the map channel the player is on, that copy's alone.
+                        var takeDownPlan = new MissionScenarioPlan();
+                        takeDownPlan.AddPostCommit(() => PlacedDestructibles.TakeDown(
+                            client.Player?.MapChannel, takeDown.DestructibleId, client.Player?.EntityId ?? 0));
+                        relatedEffects.Add(takeDownPlan);
                         break;
                 }
             }
@@ -3703,7 +3809,7 @@ namespace Rasa.Managers
             return false;
         }
 
-        private static bool IsActivePlayer(Client client)
+        internal static bool IsActivePlayer(Client client)
         {
             var player = client.Player;
             return client.State == ClientState.Ingame &&

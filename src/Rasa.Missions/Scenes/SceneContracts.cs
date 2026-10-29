@@ -75,18 +75,38 @@ namespace Rasa.Missions.Scenes
     [JsonDerivedType(typeof(RestoreActorPoseIntent), "restore-pose")]
     [JsonDerivedType(typeof(TransitionObjectStateIntent), "object-state")]
     [JsonDerivedType(typeof(AttackActorIntent), "attack")]
+    [JsonDerivedType(typeof(KillActorIntent), "kill")]
     [JsonDerivedType(typeof(QuietSpawnPoolsIntent), "quiet-spawn-pools")]
     [JsonDerivedType(typeof(WakeSpawnPoolsIntent), "wake-spawn-pools")]
+    [JsonDerivedType(typeof(BarkActorIntent), "bark")]
+    [JsonDerivedType(typeof(HideSpawnPoolsIntent), "hide-spawn-pools")]
+    [JsonDerivedType(typeof(PoseActorIntent), "pose")]
     public abstract record WorldIntent(string OperationKey, string Role);
     public sealed record EnsureActorIntent(string OperationKey, string Role, ScenePosition RestorePosition = null) : WorldIntent(OperationKey, Role);
     public sealed record RemoveActorIntent(string OperationKey, string Role) : WorldIntent(OperationKey, Role);
     public sealed record SetInteractionIntent(string OperationKey, string Role, bool Enabled, uint? ObjectState = null,
         bool IfPresent = false) : WorldIntent(OperationKey, Role);
     public sealed record RunRouteIntent(string OperationKey, string Role, string Route, int StartWaypoint = 0,
-        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool ResumeAfterCombat = false)
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool ResumeAfterCombat = false,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool FightWhenHit = false)
         : WorldIntent(OperationKey, Role);
-    public sealed record AttackActorIntent(string OperationKey, string Role, string TargetRole = null)
+    // FightWhenHit (with ResumeAfterCombat): a hit on the walker stops it to fight, not only a fight found at a held
+    // waypoint (1178: Villaran walked on under the first wave's fire).
+    // HoldTarget: the attacker keeps its target while the order stands, however much more it comes to hate someone else
+    // (1975: Quarsh shoots Tala even when the player's hits pile up on him first).
+    // PastLeash: while the order stands no leash from home pulls the attacker back (1178: the first wave is placed
+    // 100 m and more from Villaran).
+    public sealed record AttackActorIntent(string OperationKey, string Role, string TargetRole = null,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool HoldTarget = false,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool PastLeash = false)
         : WorldIntent(OperationKey, Role);
+    /// <summary>
+    /// The living scene creature (SceneActorKind.Creature; not a public spawn, whose death is an ActorDied
+    /// observation and runs no DefeatSequences) dies at once, as if killed (CreatureManager.HandleCreatureKill), and its
+    /// DefeatSequences runs. Nobody killed it: no player is credited and nothing is looted. Nothing if it is
+    /// dead or not there (1975: Quarsh, felled with one blow, fires as he falls and kills Tala).
+    /// </summary>
+    public sealed record KillActorIntent(string OperationKey, string Role) : WorldIntent(OperationKey, Role);
     public sealed record FollowActorIntent(string OperationKey, string Role, uint CharacterId, bool Enabled = true) : WorldIntent(OperationKey, Role);
     public sealed record PresentationIntent(string OperationKey, PresentationKind Kind, uint Value) : WorldIntent(OperationKey, null);
     public sealed record TransferIntent(string OperationKey, uint MapContextId, ScenePosition Position, double Orientation) : WorldIntent(OperationKey, null);
@@ -113,6 +133,30 @@ namespace Rasa.Missions.Scenes
     public sealed record WakeSpawnPoolsIntent(string OperationKey, string Role, uint[] SpawnPools)
         : WorldIntent(OperationKey, Role);
 
+    /// <summary>
+    /// The map's own spawn pools named (spawnpool ids) are not shown to the run's owner: what they have standing goes
+    /// from the owner's client and is given to no client of theirs, while everyone else sees it as before (1976:
+    /// the public Elder Hathen, while his escort copy stands in for him). Held by its actor (Role), as
+    /// QuietSpawnPoolsIntent is: released when that actor is removed or dies, or the run ends; rebuilt with the
+    /// actor when the map is made again.
+    /// </summary>
+    public sealed record HideSpawnPoolsIntent(string OperationKey, string Role, uint[] SpawnPools)
+        : WorldIntent(OperationKey, Role);
+
+    /// <summary>
+    /// The actor says a client bark (barklanguage id) to everyone around it, once, as NpcBarks does
+    /// for an NPC's own lines. A moment, not a state: a map made again does not say it again.
+    /// </summary>
+    public sealed record BarkActorIntent(string OperationKey, string Role, uint BarkId)
+        : WorldIntent(OperationKey, Role);
+
+    /// <summary>
+    /// The creature takes up a pose (Data.NpcPose, as spawnpool_pose.pose: 8 AtConsole, 0 None) where
+    /// it stands, as the GM's .pose does; None takes it off. Held until changed, and on a map made again.
+    /// </summary>
+    public sealed record PoseActorIntent(string OperationKey, string Role, uint Pose)
+        : WorldIntent(OperationKey, Role);
+
     [JsonPolymorphic(TypeDiscriminatorPropertyName = "$kind")]
     [JsonDerivedType(typeof(GrantRewardIntent), "reward")]
     [JsonDerivedType(typeof(GrantAbilityIntent), "ability")]
@@ -126,6 +170,7 @@ namespace Rasa.Missions.Scenes
     [JsonDerivedType(typeof(RemoveMissionItemsIntent), "remove-mission-items")]
     [JsonDerivedType(typeof(OfferRadioMissionIntent), "offer-radio-mission")]
     [JsonDerivedType(typeof(FailRelatedMissionIntent), "fail-related-mission")]
+    [JsonDerivedType(typeof(TakeDownFieldIntent), "take-down-field")]
     public abstract record CharacterIntent(string OperationKey);
     public sealed record GrantRewardIntent(string OperationKey, uint MissionId, uint RewardId) : CharacterIntent(OperationKey);
     public sealed record GrantAbilityIntent(string OperationKey, uint SkillId, uint AbilityId, byte Level, byte? Slot) : CharacterIntent(OperationKey);
@@ -147,6 +192,8 @@ namespace Rasa.Missions.Scenes
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool IfEligible = false)
         : CharacterIntent(OperationKey);
     public sealed record FailRelatedMissionIntent(string OperationKey, uint MissionId) : CharacterIntent(OperationKey);
+    /// <summary>MissionActionKind.TakeDownField: the force field of world_destructible row <paramref name="DestructibleId"/>.</summary>
+    public sealed record TakeDownFieldIntent(string OperationKey, uint DestructibleId) : CharacterIntent(OperationKey);
 
     public sealed class SceneSequence
     {
@@ -178,9 +225,12 @@ namespace Rasa.Missions.Scenes
         public IReadOnlyDictionary<uint, SceneSequence> Sequences { get; }
         public IReadOnlyDictionary<string, uint> Names { get; }
         public IReadOnlyDictionary<string, uint> DefeatSequences { get; }
+        /// <summary>Actor role to the sequence its first hit by a player's side runs (MissionSceneDefinition.DamagedSequences).</summary>
+        public IReadOnlyDictionary<string, uint> DamagedSequences { get; }
         public SceneBindings(string release, IDictionary<string, SceneActorDefinition> actors,
             IDictionary<string, SceneRoute> routes, IDictionary<uint, SceneSequence> sequences,
-            IDictionary<string, uint> names = null, IDictionary<string, uint> defeatSequences = null, uint mapContextId = 0)
+            IDictionary<string, uint> names = null, IDictionary<string, uint> defeatSequences = null, uint mapContextId = 0,
+            IDictionary<string, uint> damagedSequences = null)
         {
             Release = release;
             MapContextId = mapContextId;
@@ -193,6 +243,8 @@ namespace Rasa.Missions.Scenes
                 names ?? new Dictionary<string, uint>()));
             DefeatSequences = new ReadOnlyDictionary<string, uint>(new Dictionary<string, uint>(
                 defeatSequences ?? new Dictionary<string, uint>()));
+            DamagedSequences = new ReadOnlyDictionary<string, uint>(new Dictionary<string, uint>(
+                damagedSequences ?? new Dictionary<string, uint>()));
         }
     }
 

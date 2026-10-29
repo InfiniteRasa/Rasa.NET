@@ -31,6 +31,21 @@ namespace Rasa.Data
         /// destroyed: the subject is its entity class - "Destroy 8 warnet nests". Shared with the
         /// destroyer's squad as a kill is.
         /// </summary>
-        ObjectDestroyed
+        ObjectDestroyed,
+
+        /// <summary>
+        /// A spawn pool of a squad's instance has nothing left alive, queued or on its way: the
+        /// subject is the spawn pool id. "Secure the outer Bane Outpost" is its pools cleared.
+        /// Only a squad's instance keeps which of its pools are dead (SquadInstanceState).
+        /// </summary>
+        SpawnPoolCleared,
+
+        /// <summary>
+        /// The player was detected: a creature of a spawn pool started to fight them - noticed
+        /// them (the aggro scan, so Stealth Armor's shorter range, Cloak Wave and a mag flash all
+        /// count) or was hit by them first. The subject is the spawn pool id. "Avoid Detection
+        /// While Uploading Virus" fails on it. Shared with the player's squad as a kill is.
+        /// </summary>
+        PlayerDetected
     }
 }

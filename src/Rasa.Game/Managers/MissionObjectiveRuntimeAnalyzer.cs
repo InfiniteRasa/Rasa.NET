@@ -89,6 +89,40 @@ namespace Rasa.Managers
                 executableTransitions);
         }
 
+        /// <summary>
+        /// The objective's one scene set split over the client's counters (MissionSceneDefinition.CounterGroups):
+        /// counter N counts group N, each from 0 to all its events. A shape that cannot split is a diagnostic.
+        /// </summary>
+        internal static MissionObjectiveRuntimeAnalysis SplitCounters(
+            MissionObjectiveRuntimeAnalysis runtime, IReadOnlyList<List<uint>> groups)
+        {
+            if (runtime.Diagnostics.Count > 0)
+                return runtime;
+            var split = runtime.ExecutableTransitions.Count == 1 && runtime.ProgressRule != null
+                ? runtime.ProgressRule.SplitIntoCounters(groups)
+                : null;
+            if (split == null)
+                return new MissionObjectiveRuntimeAnalysis(
+                    new[]
+                    {
+                        new MissionObjectiveRuntimeDiagnostic("invalid-counter-groups",
+                            "counter groups need one transition with a scene set that counts all its events, parted exactly into 2 or 3 groups.")
+                    },
+                    Array.Empty<MissionObjectiveConversation>(), Array.Empty<uint>(), Array.Empty<uint>(), null,
+                    new Dictionary<uint, MissionObjectiveCounterDefinition>(),
+                    new Dictionary<uint, MissionObjectiveItemCounterDefinition>(),
+                    Array.Empty<MissionObjectiveExecutableTransition>());
+            var counters = split.CounterGroups
+                .Select((group, index) => new MissionObjectiveCounterDefinition((uint)index, 0, (uint)group.Count))
+                .ToDictionary(counter => counter.CounterId);
+            var transition = runtime.ExecutableTransitions[0];
+            var executable = new MissionObjectiveExecutableTransition(transition.TransitionId, transition.Sequence,
+                transition.ToState, transition.Conversations, split, counters, transition.ItemCounters, transition.Actions);
+            return new MissionObjectiveRuntimeAnalysis(runtime.Diagnostics, runtime.Conversations,
+                runtime.RevealedObjectiveIds, runtime.ActivatedObjectiveIds, split, counters, runtime.ItemCounters,
+                new[] { executable });
+        }
+
         private static bool TryBuildExecutableTransition(
             MissionObjectiveTransitionDefinition transition,
             out MissionObjectiveExecutableTransition executableTransition,

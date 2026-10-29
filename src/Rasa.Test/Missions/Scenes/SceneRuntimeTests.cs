@@ -33,6 +33,64 @@ namespace Rasa.Test.Missions.Scenes
         }
 
         [TestMethod]
+        [DataRow("enemy", true)]
+        [DataRow("door", false)]
+        [DataRow("ranger", false)]
+        [DataRow("missing", false)]
+        public void AKillIntentNamesACreatureActor(string role, bool accepted)
+        {
+            var bindings = new SceneBindings("test",
+                new Dictionary<string, SceneActorDefinition>
+                {
+                    ["enemy"] = new("enemy", SceneActorKind.Creature, 78, new ScenePosition(1, 0, 0)),
+                    ["door"] = new("door", SceneActorKind.Object, 79, new ScenePosition(2, 0, 0)),
+                    ["ranger"] = new("ranger", SceneActorKind.PublicSpawn, 80, new ScenePosition(3, 0, 0))
+                }, new Dictionary<string, SceneRoute>(),
+                new Dictionary<uint, SceneSequence>
+                { [1] = new(new WorldIntent[] { new KillActorIntent("fell", role) }) });
+
+            var result = new SceneRuntime(new SceneScriptRegistry()).Evaluate(Run("data.sequence"), bindings,
+                new SceneObservation(SceneEventKind.Signal, 1, SequenceId: 1), DateTime.UnixEpoch);
+
+            Assert.AreEqual(accepted, result.Accepted);
+
+            // The scene JSON carries it.
+            var json = System.Text.Json.JsonSerializer.Serialize<WorldIntent>(new KillActorIntent("fell", "enemy"));
+            StringAssert.Contains(json, "\"$kind\":\"kill\"");
+            Assert.AreEqual(new KillActorIntent("fell", "enemy"), System.Text.Json.JsonSerializer.Deserialize<WorldIntent>(json));
+        }
+
+        /// <summary>
+        /// The opt-in attack and escort options (AttackActorIntent.HoldTarget and PastLeash, RunRouteIntent.FightWhenHit)
+        /// are off unless set, are left out of the effect journal's JSON when off (journals written before them read the
+        /// same), and come back from it when on: a map made again applies the order as given.
+        /// </summary>
+        [TestMethod]
+        public void OptInAttackAndEscortOptionsAreOffByDefaultAndSurviveTheJournal()
+        {
+            var plainAttack = new AttackActorIntent("fight", "enemy", "victim");
+            var plainRoute = new RunRouteIntent("walk", "escort", "out", ResumeAfterCombat: true);
+            Assert.IsFalse(plainAttack.HoldTarget || plainAttack.PastLeash);
+            Assert.IsFalse(plainRoute.FightWhenHit);
+            var plainAttackJson = System.Text.Json.JsonSerializer.Serialize<WorldIntent>(plainAttack);
+            var plainRouteJson = System.Text.Json.JsonSerializer.Serialize<WorldIntent>(plainRoute);
+            StringAssert.DoesNotMatch(plainAttackJson, new System.Text.RegularExpressions.Regex("HoldTarget|PastLeash"));
+            StringAssert.DoesNotMatch(plainRouteJson, new System.Text.RegularExpressions.Regex("FightWhenHit"));
+            Assert.AreEqual(plainAttack, System.Text.Json.JsonSerializer.Deserialize<WorldIntent>(plainAttackJson));
+            Assert.AreEqual(plainRoute, System.Text.Json.JsonSerializer.Deserialize<WorldIntent>(plainRouteJson));
+
+            WorldIntent[] set =
+            {
+                new AttackActorIntent("hold", "enemy", "victim", HoldTarget: true),
+                new AttackActorIntent("chase", "enemy", PastLeash: true),
+                new RunRouteIntent("walk", "escort", "out", ResumeAfterCombat: true, FightWhenHit: true),
+            };
+            foreach (var intent in set)
+                Assert.AreEqual(intent, System.Text.Json.JsonSerializer.Deserialize<WorldIntent>(
+                    System.Text.Json.JsonSerializer.Serialize(intent)), intent.OperationKey);
+        }
+
+        [TestMethod]
         public void TypedScriptAndDataSequenceUseTheSameValidatedDecisionBoundary()
         {
             var registry = new SceneScriptRegistry();

@@ -28,6 +28,8 @@ namespace Rasa.Game.Missions.Persistence
 
         internal static void Attach(LootItem item, QualifiedDrop drop) => Qualifications.Add(item, drop);
 
+        internal static bool IsQualified(LootItem item) => Qualifications.TryGetValue(item, out _);
+
         internal static IReadOnlyList<QualifiedDrop> Plan(Client client, LootDispenser loot,
             MissionApplication missions, ICharUnitOfWork unit, Func<int, int, int> roll)
         {

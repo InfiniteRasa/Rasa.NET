@@ -83,6 +83,27 @@ namespace Rasa.Test.World
         #region The respawn
 
         [TestMethod]
+        public void APoolWhoseLastCreatureDiesIsToBeToldToTheMissionsOnce()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            using var world = new WorldTestContext();
+            var fixture = World(harness, world, saved: false);
+            var instance = fixture.Into(fixture.Player());
+            var a = Pool(instance, PoolA);
+
+            Spawns(instance, 0);
+            Assert.AreEqual(0, instance.SquadState.TakeNewlyCleared().Count);
+
+            // One of two dead: not cleared.
+            Kill(instance, a, 1);
+            Assert.AreEqual(0, instance.SquadState.TakeNewlyCleared().Count);
+
+            Kill(instance, a);
+            CollectionAssert.AreEqual(new[] { a }, instance.SquadState.TakeNewlyCleared().ToArray());
+            Assert.AreEqual(0, instance.SquadState.TakeNewlyCleared().Count);
+        }
+
+        [TestMethod]
         public void AClearedPoolComesBackFortyFiveMinutesAfterItsLastCreatureDiedAndNotBefore()
         {
             using var harness = BootcampRuntimeTestHarness.Create();
@@ -158,6 +179,67 @@ namespace Rasa.Test.World
 
             foreach (var creature in Creatures(fixture.Own).ToList())
                 CellManager.Instance.RemoveCreatureFromWorld(fixture.Own, creature);
+        }
+
+        /// <summary>
+        /// In a squad's instance a pool a mission stands on comes back on its own respawn time, not after the
+        /// instance's 45 minutes: one a mission stages (a public encounter, as Out of Thin Air's prisoner), or one a
+        /// mission scene names as a public-spawn actor (a named NPC killed on the way, as Maligo Base's officers).
+        /// </summary>
+        [TestMethod]
+        [DataRow(true, false)]
+        [DataRow(false, true)]
+        public void APoolAMissionStandsOnRespawnsOnItsOwnTimeInASquadInstance(bool staged, bool named)
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            using var world = new WorldTestContext();
+            var fixture = World(harness, world, saved: false);
+            var instance = fixture.Into(fixture.Player());
+            var (a, b) = (Pool(instance, PoolA), Pool(instance, PoolB));
+            var wasStaged = SpawnPoolManager.Instance.IsStaged;
+            var wasNamed = SpawnPoolManager.Instance.IsNamedPublicSpawn;
+            try
+            {
+                // A pool of a mission NPC: no camp to clear.
+                SpawnPoolManager.Instance.IsStaged = id => staged && id == PoolA;
+                SpawnPoolManager.Instance.IsNamedPublicSpawn = id => named && id == PoolA;
+                Spawns(instance, 0);
+                Kill(instance, a);
+                Kill(instance, b);
+
+                Spawns(instance, OwnRespawnMs - 1);
+                Assert.AreEqual(0, a.AliveCreatures);
+                Spawns(instance, 1);
+                Assert.AreEqual(2, a.AliveCreatures, "back on its own respawn time, the wall clock not moved");
+                Assert.AreEqual(0, a.ClearedAtUtcMs);
+                Assert.AreEqual(0, b.AliveCreatures, "the other pool waits for the instance's 45 minutes");
+            }
+            finally
+            {
+                SpawnPoolManager.Instance.IsStaged = wasStaged;
+                SpawnPoolManager.Instance.IsNamedPublicSpawn = wasNamed;
+            }
+        }
+
+        /// <summary>
+        /// The pools mission scenes name as public-spawn actors, and only those: a creature actor's template and an
+        /// NPC are not pools.
+        /// </summary>
+        [TestMethod]
+        public void TheScenesPublicSpawnPoolsAreThePoolsTheirPublicSpawnActorsName()
+        {
+            var scene = new Rasa.Missions.Content.MissionSceneDefinition();
+            scene.Actors["officer"] = new Rasa.Missions.Scenes.SceneActorDefinition("officer",
+                Rasa.Missions.Scenes.SceneActorKind.PublicSpawn, 750089);
+            scene.Actors["guard"] = new Rasa.Missions.Scenes.SceneActorDefinition("guard",
+                Rasa.Missions.Scenes.SceneActorKind.Creature, 750090);
+            var other = new Rasa.Missions.Content.MissionSceneDefinition();
+            other.Actors["prisoner"] = new Rasa.Missions.Scenes.SceneActorDefinition("prisoner",
+                Rasa.Missions.Scenes.SceneActorKind.PublicSpawn, 750077);
+
+            CollectionAssert.AreEquivalent(new uint[] { 750089, 750077 },
+                MissionApplication.PublicSpawnPools(new[] { scene, other }).ToArray());
+            Assert.IsEmpty(MissionApplication.PublicSpawnPools(Array.Empty<Rasa.Missions.Content.MissionSceneDefinition>()));
         }
 
         [TestMethod]

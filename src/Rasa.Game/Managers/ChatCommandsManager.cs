@@ -1472,7 +1472,7 @@ namespace Rasa.Managers
         /// <summary>
         /// .destructible: the destructible world objects the server puts down (PlacedDestructibles).
         ///   .destructible classes [word]   - the classes that can be placed, with what they are and their hit points
-        ///   .destructible put &lt;class&gt; [hp] [creatureId] [count] [afs|bane]   - at your feet, facing your way; not saved
+        ///   .destructible put &lt;class&gt; [hp] [creatureId] [count] [afs|bane] [sealed]   - at your feet, facing your way; not saved
         ///   .destructible near             - what is placed within 30 m
         ///   .destructible kill [row]       - takes the nearest (or the row's) down at once
         ///   .destructible back [row]       - brings it back now
@@ -1490,12 +1490,14 @@ namespace Rasa.Managers
             string Describe(PlacedDestructibles.Live live)
             {
                 var obj = live.Object;
-                var back = live.RespawnAt > 0 ? $", back in {Math.Max(0, live.RespawnAt - PlacedDestructibles.Now()) / 1000} s" : "";
+                var back = live.RespawnAt == long.MaxValue ? ", down for good"
+                    : live.RespawnAt > 0 ? $", back in {Math.Max(0, live.RespawnAt - PlacedDestructibles.Now()) / 1000} s" : "";
+                var sealedField = live.Field?.Sealed == true ? ", sealed" : "";
                 var spawns = live.CreatureId != 0 ? $", spawns {live.CreatureCount} x creature {live.CreatureId}" : "";
 
                 return $"{(live.Placement.IsPutDown ? "put down" : $"row {live.Placement.Id}")}: {(uint)live.Placement.ClassId} "
                     + $"{EntityClassManager.Instance.GetClassInfo(live.Placement.ClassId)?.ClassName} ({live.Placement.Kind}), "
-                    + $"{live.HitPoints}/{live.MaxHitPoints} hp, {obj?.StateId}{back}{spawns}, {Vector3.Distance(obj?.Position ?? player.Position, player.Position):0.0} m away";
+                    + $"{live.HitPoints}/{live.MaxHitPoints} hp{sealedField}, {obj?.StateId}{back}{spawns}, {Vector3.Distance(obj?.Position ?? player.Position, player.Position):0.0} m away";
             }
 
             PlacedDestructibles.Live Target(string row)
@@ -1553,7 +1555,7 @@ namespace Rasa.Managers
                     {
                         if (parts.Length < 3)
                         {
-                            Say("usage: .destructible put <class id or name> [hp] [creatureId] [count] [afs|bane] - 0 for the class's own");
+                            Say("usage: .destructible put <class id or name> [hp] [creatureId] [count] [afs|bane] [sealed] - 0 for the class's own");
                             return;
                         }
 
@@ -1592,7 +1594,8 @@ namespace Rasa.Managers
                         var sidePart = parts.Skip(3).FirstOrDefault(p => p.Equals("afs", StringComparison.OrdinalIgnoreCase) || p.Equals("bane", StringComparison.OrdinalIgnoreCase));
                         var side = sidePart == null ? Structures.World.WorldDestructibleEntry.SideDefault
                             : sidePart.Equals("afs", StringComparison.OrdinalIgnoreCase) ? Structures.World.WorldDestructibleEntry.SideAfs : Structures.World.WorldDestructibleEntry.SideBane;
-                        var numbers = parts.Where(p => p != sidePart).ToArray();
+                        var sealedPart = parts.Skip(3).FirstOrDefault(p => p.Equals("sealed", StringComparison.OrdinalIgnoreCase));
+                        var numbers = parts.Where(p => p != sidePart && p != sealedPart).ToArray();
                         uint NumberOf(int index) => numbers.Length > index && uint.TryParse(numbers[index], out var value) ? value : 0;
 
                         var hitPoints = NumberOf(3);
@@ -1607,7 +1610,7 @@ namespace Rasa.Managers
 
                         var position = _client.Movement.Position;
                         var rotation = _client.Movement.ViewDirection.X;
-                        var live = PlacedDestructibles.PutDown(mapChannel, classId, position, rotation, hitPoints, creatureId, count, side);
+                        var live = PlacedDestructibles.PutDown(mapChannel, classId, position, rotation, hitPoints, creatureId, count, side, sealedPart != null);
 
                         if (live == null)
                         {
@@ -1620,6 +1623,10 @@ namespace Rasa.Managers
                         // The preloader's line for a migration, as it stands: the id is the next free one.
                         var line = FormattableString.Invariant(
                             $"Row(id, {player.MapContextId}, {(uint)classId}, {position.X:0.####}, {position.Y:0.####}, {position.Z:0.####}, {rotation:0.####}, \"{EntityClassManager.Instance.GetClassInfo(classId)?.ClassName}\", {hitPoints}, {creatureId}, {count}, {side})");
+
+                        // A sealed force field: its id goes in the lot's SealedIds as well.
+                        if (live.Placement.Sealed)
+                            line += " // sealed: its id in SealedIds";
 
                         Say(line);
                         Logger.WriteLog(LogType.Command, $"[.destructible] {player.FamilyName}: {line}");
@@ -1676,7 +1683,7 @@ namespace Rasa.Managers
                     return;
 
                 default:
-                    Say("usage: .destructible classes [word] | put <class> [hp] [creatureId] [count] [afs|bane] | near | kill [row] | back [row] | clear");
+                    Say("usage: .destructible classes [word] | put <class> [hp] [creatureId] [count] [afs|bane] [sealed] | near | kill [row] | back [row] | clear");
                     Say("       put stands it at your feet, facing your way, not saved, and prints the WorldDestructiblePreloader Row line for a migration.");
                     return;
             }

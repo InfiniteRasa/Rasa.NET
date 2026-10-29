@@ -303,6 +303,10 @@ namespace Rasa.Managers
             BaneArrivals.TeleportWorker(mapChannel, timePassed);
             LandingZoneGarrison.Worker(mapChannel, timePassed);
 
+            // The pools of a squad's instance that died since the last pass, for the missions
+            // of the players in it (SpawnPoolClearedProgress).
+            SpawnPoolClearedProgress.Announce(mapChannel);
+
             var spawnPools = mapChannel.SpawnPools.Count > 0
                 ? mapChannel.SpawnPools
                 : LoadedSpawnPools.Values.Where(pool => pool.MapContextId == mapChannel.MapInfo.MapContextId).ToList();
@@ -341,8 +345,11 @@ namespace Rasa.Managers
                 // In a squad's instance a pool that has been cleared comes back a set time after
                 // the last of it died, by the clock on the wall, and its own respawn time is not
                 // waited for (SquadInstanceState). It is cleared no longer once something of it
-                // is queued or alive (Filled).
-                var squadState = spawnPool.Mode == ModeAutomatic ? mapChannel.SquadState : null;
+                // is queued or alive (Filled). A pool a mission stands on (ReturnsOnOwnTime) is no
+                // camp: its NPC is back on its own respawn time, for the mission to be offered again
+                // or done on it.
+                var squadState = mapChannel.SquadState != null && spawnPool.Mode == ModeAutomatic && !ReturnsOnOwnTime(spawnPool.DbId)
+                    ? mapChannel.SquadState : null;
 
                 if (squadState != null)
                 {
@@ -987,6 +994,18 @@ namespace Rasa.Managers
         /// officer he threatens. Replaceable for tests.
         /// </summary>
         internal Func<uint, bool> IsStaged { get; set; } = poolId => MissionApplication.Instance.PublicActors.StagesSpawn(poolId);
+
+        /// <summary>Whether a mission scene names a spawn pool as a public-spawn actor (MissionApplication.NamesPublicSpawn).</summary>
+        internal Func<uint, bool> IsNamedPublicSpawn { get; set; } =
+            poolId => MissionApplication.Instance?.NamesPublicSpawn(poolId) == true;
+
+        /// <summary>
+        /// Whether a pool in a squad's instance comes back on its own respawn time rather than the instance's
+        /// (SquadInstanceState): a pool a mission stages (IsStaged), or one a mission scene names as a public-spawn
+        /// actor (IsNamedPublicSpawn) - a named NPC a mission is done on, which a player may kill on the way before
+        /// its objective is open (Maligo Base's officers).
+        /// </summary>
+        private bool ReturnsOnOwnTime(uint poolId) => IsStaged(poolId) || IsNamedPublicSpawn(poolId);
 
         /// <summary>
         /// Every automatic pool of hostile creatures whose area comes within SafeClearance of a
