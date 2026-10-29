@@ -65,9 +65,10 @@ namespace Rasa.Test.Missions.Wilderness
                 Assert.AreEqual(disposition, WildernessMissionCases.All.Single(entry => entry.MissionId == id).Disposition,
                     $"Native mission {id} must keep its evidence-backed boundary disposition.");
                 // A mission of another zone may be enabled with that zone's content (A Mystery Unearthed and
-                // Symbolism with the Plateau's), never as a Wilderness quest.
+                // Symbolism with the Plateau's), never as a Wilderness quest. The Final Assault (1167) is enabled
+                // with the Plateau's Temporal Chamber instance content.
                 Assert.IsFalse(harness.World.MissionContentDefinitionEntries.Any(entry => entry.Enabled && entry.MissionId == id &&
-                        !(disposition == WildernessDisposition.OtherZone &&
+                        !((disposition == WildernessDisposition.OtherZone || id == 1167U) &&
                           entry.ContentRevision == Rasa.Services.Preloader.Missions.Plateau.PlateauMissionDataV1.Revision)),
                     $"Excluded or conditional mission {id} must not become an ordinary enabled quest.");
             }
