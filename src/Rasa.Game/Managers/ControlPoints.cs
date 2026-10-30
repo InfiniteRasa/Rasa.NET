@@ -490,7 +490,7 @@ namespace Rasa.Managers
                 ShowLockbox(point);
             }
             RefreshServices(mapChannel);
-            LandingZoneAssaults.Worker(mapChannel, ById(Rasa.Services.Preloader.LandingZoneAssaultContent.PointId));
+            LandingZoneAssaults.Worker(mapChannel, _points.Values.Where(p => p.MapContextId == mapChannel.MapInfo?.MapContextId).ToList());
         }
 
         /// <summary>
@@ -684,7 +684,7 @@ namespace Rasa.Managers
                 return;
 
             RefreshServices(mapChannel);
-            LandingZoneAssaults.Worker(mapChannel, ById(Rasa.Services.Preloader.LandingZoneAssaultContent.PointId));
+            LandingZoneAssaults.Worker(mapChannel, _points.Values.Where(p => p.MapContextId == mapChannel.MapInfo?.MapContextId).ToList());
 
             foreach (var point in _points.Values.Where(p => p.MapContextId == mapChannel.MapInfo.MapContextId && !p.IsBattleground).ToList())
             {

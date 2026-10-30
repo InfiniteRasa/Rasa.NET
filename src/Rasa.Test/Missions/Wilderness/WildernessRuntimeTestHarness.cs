@@ -56,7 +56,9 @@ namespace Rasa.Test.Missions.Wilderness
             [1394] = ("adv_foreas_concordia_palisades_devilsden", 327, new Vector3(16.7733f, 122.6238f, -398.1859f)),
             [1430] = ("adv_foreas_concordia_wilderness_pravusresearch", 555, new Vector3(-193.5236f, 9.9638f, -257.405f)),
             [1349] = ("adv_foreas_concordia_divide_torcastraprison", 468, new Vector3(-262f, 13.7f, 310f)),
-            [1347] = ("adv_foreas_concordia_divide_minoscaverns", 293, new Vector3(-15.8f, 29.5f, 122.6f))
+            [1347] = ("adv_foreas_concordia_divide_minoscaverns", 293, new Vector3(-15.8f, 29.5f, 122.6f)),
+            [1497] = ("adv_foreas_valverde_plateau", 1556, new Vector3(-191.7f, 423.2f, 869.5f)),
+            [1304] = ("adv_foreas_valverde_pools", 520, new Vector3(201.46f, 867.5f, 332.048f))
         };
 
         private uint _mapContextId = 1220;
