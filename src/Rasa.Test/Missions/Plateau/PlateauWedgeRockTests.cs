@@ -208,7 +208,7 @@ namespace Rasa.Test.Missions.Plateau
             }
 
             harness.MoveTo(pieces[1].Position + new Vector3(0, 0, 1));
-            Use(harness, plateau, pieces[1], 1, recovers: false);
+            Use(harness, plateau, pieces[1], PlateauSoyuzSalvageV1.OldUseArgument, recovers: false);
             Use(harness, plateau, pieces[1], PlateauSoyuzSalvageV1.UseArgument, recovers: true);
             Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, Debris));
             Assert.IsTrue(harness.Client.Player.Missions[SoyuzSalvage].Completeable);
