@@ -4967,7 +4967,7 @@ namespace Rasa.Managers
 
         private void ControlPointCommand(string[] parts)
         {
-            const string usage = "usage: .cp | .cp all | .cp <id> afs | bane | clan <clan name or id> | goto | here | assault | lockbox | lockbox remove";
+            const string usage = "usage: .cp | .cp all | .cp <id> afs | bane | clan <clan name or id> | goto | here | assault | sortie | lockbox | lockbox remove";
             var client = _client;
             var player = client.Player;
             var points = ControlPoints.Instance;
@@ -5001,13 +5001,15 @@ namespace Rasa.Managers
                         ? $"map {point.MapContextId}"
                         : $"{Vector3.Distance(point.Object?.Position ?? point.Position, player.Position):0.#} m";
 
+                    string Held(ControlPoints.Point p) => LandingZoneAssaults.Repelled(player.MapChannel, p) is var held and > 0
+                        ? $", {held} assault(s) held off" : "";
                     var holder = point.HeldByClan
                         ? $"AFS, clan {points.HolderName(point)} (#{point.ClanId}){(point.LockboxId == 0 ? ", no lockbox" : "")}"
                         : ControlPoints.FactionName(point.Owner);
 
                     CommunicatorManager.Instance.SystemMessage(client, point.IsBattleground
                         ? $"#{point.Id} {point.Name}: a battleground's (.bg), {where}"
-                        : $"#{point.Id} {point.Name}: {holder}, {garrison}, {where}");
+                        : $"#{point.Id} {point.Name}: {holder}, {garrison}{Held(point)}, {where}");
                 }
 
                 if (points.NextClanReset != null && list.Any(p => p.HeldByClan))
@@ -5029,10 +5031,16 @@ namespace Rasa.Managers
                 return;
             }
 
+            if (parts[2] == "sortie")
+            {
+                CommunicatorManager.Instance.SystemMessage(client, AfsSorties.TryStart(player.MapChannel, target)
+                    ? $"AFS sortie against {target.Name} started." : "Stand on the point's public map with the point held by the Bane, its sorties enabled, and no sortie running.");
+                return;
+            }
             if (parts[2] == "assault")
             {
                 CommunicatorManager.Instance.SystemMessage(client, LandingZoneAssaults.TryStart(player.MapChannel, target)
-                    ? "Landing Zone assault started." : "Stand on the public Wilderness map with Landing Zone held by AFS, assaults enabled, and no assault running.");
+                    ? $"{target.Name} assault started." : "Stand on the point's public map with the point held by AFS, its assaults enabled, and no assault running.");
                 return;
             }
             switch (parts[2])

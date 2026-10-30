@@ -3220,7 +3220,7 @@ namespace Rasa.Managers
         public static bool ChasedTooFar(Creature creature)
         {
             var home = LandingZoneAssaultTargeting.IsAssault(creature)
-                ? ControlPoints.Instance.ById(Rasa.Services.Preloader.LandingZoneAssaultContent.PointId)?.Position ?? creature.HomePos.Position
+                ? ControlPoints.Instance.ById(creature.SpawnPool.AssaultPointId is > 0 and var id ? id : Rasa.Services.Preloader.LandingZoneAssaultContent.PointId)?.Position ?? creature.HomePos.Position
                 : creature.HomePos.Position;
             var dx = creature.Position.X - home.X;
             var dz = creature.Position.Z - home.Z;
