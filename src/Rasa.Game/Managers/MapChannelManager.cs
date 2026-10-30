@@ -1158,7 +1158,7 @@ namespace Rasa.Managers
             if (EntityManager.Instance.Players.TryGetValue(player.EntityId, out var registered) && registered == player)
                 EntityManager.Instance.ReleaseEntity(player.EntityId, EntityType.Character);
 
-            player.Cells = new uint[5, 5];
+            player.Cells = CellManager.EmptyMatrix();
             player.MapChannel = null;
             player.RuntimeMapChannel = null;
             player.RemoveFromMap = false;
@@ -1661,7 +1661,7 @@ namespace Rasa.Managers
                 {
                     queued.Player.MapChannel = null;
                     queued.Player.RuntimeMapChannel = null;
-                    queued.Player.Cells = new uint[5, 5];
+                    queued.Player.Cells = CellManager.EmptyMatrix();
                 }
             }
 
@@ -1672,7 +1672,7 @@ namespace Rasa.Managers
                 {
                     client.Player.MapChannel = null;
                     client.Player.RuntimeMapChannel = null;
-                    client.Player.Cells = new uint[5, 5];
+                    client.Player.Cells = CellManager.EmptyMatrix();
                 }
             }
             map.ClientList.Clear();

@@ -38,10 +38,11 @@ namespace Rasa.Managers
 
         /// <summary>
         /// Furthest a missile may be aimed. Cells are 25.6 units and a client is only ever told
-        /// about the 5x5 cells around it, so nothing past ~64 units is even on its screen; this
-        /// is twice that, which no weapon reaches and no honest client asks for.
+        /// about the cells CellManager.ViewRange out around it: at the default 2, nothing past ~64
+        /// units is even on its screen, and this is twice that (128), which no weapon reaches and
+        /// no honest client asks for. It grows with the range.
         /// </summary>
-        internal const float MaxTargetDistance = 128f;
+        internal static float MaxTargetDistance => 64f * CellManager.ViewRange;
 
         private MissileManager()
         {

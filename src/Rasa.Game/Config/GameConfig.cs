@@ -26,5 +26,13 @@
         /// saved only as they leave the world.
         /// </summary>
         public int AutoSaveMinutes { get; set; } = Managers.AutoSave.DefaultMinutes;
+
+        /// <summary>
+        /// How many 25.6 m map cells out from their own a player is shown the world: creatures,
+        /// players and objects (Managers.CellManager.ViewRange). 2, the default, is 5 x 5 cells, at
+        /// least 51 m each way; 3 is 7 x 7, at least 77 m; 4 is 9 x 9, at least 102 m. More range
+        /// sends each client more entities and more of their movement. 1 to 4; read at the start.
+        /// </summary>
+        public int CellViewRange { get; set; } = Managers.CellManager.DefaultViewRange;
     }
 }

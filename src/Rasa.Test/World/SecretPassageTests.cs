@@ -330,7 +330,7 @@ namespace Rasa.Test.World
             Assert.AreEqual(MathF.PI, (float)player.Rotation, 1e-4f);
             Assert.AreEqual(ClientState.Teleporting, client.State);
             Assert.IsNotNull(client.PendingTransfer);
-            Assert.AreEqual(CenterCell(SecretPassages.AliaCavernsDoor.Destination), player.Cells[2, 2], "the player still sees the cave's cells");
+            Assert.AreEqual(CenterCell(SecretPassages.AliaCavernsDoor.Destination), CellManager.Centre(player.Cells), "the player still sees the cave's cells");
 
             var sent = Methods(client);
             var begin = sent.FindIndex(packet => packet is BeginTeleportPacket);
@@ -369,7 +369,7 @@ namespace Rasa.Test.World
             Assert.AreEqual(SecretPassages.EnhanceShrineExit.Destination, player.Position);
             Assert.AreEqual(0f, (float)player.Rotation, 1e-4f);
             Assert.AreEqual(ClientState.Teleporting, client.State);
-            Assert.AreEqual(CenterCell(SecretPassages.EnhanceShrineExit.Destination), player.Cells[2, 2], "the player still sees the shrine's cells");
+            Assert.AreEqual(CenterCell(SecretPassages.EnhanceShrineExit.Destination), CellManager.Centre(player.Cells), "the player still sees the shrine's cells");
             Assert.IsTrue(Methods(client).Any(packet => packet is TeleportPacket));
 
             manager.TeleportAcknowledge(client);

@@ -194,7 +194,7 @@ namespace Rasa.Managers
             client.Player?.InsideMapLinks.Clear();
         }
 
-        /// <summary>The links in the 5x5 cell matrix whose radius contains the position.</summary>
+        /// <summary>The links in the cell matrix whose radius contains the position.</summary>
         private static List<MapLink> LinksAround(MapChannel mapChannel, uint[,] cells, Vector3 position, bool enabledOnly)
         {
             var result = new List<MapLink>();

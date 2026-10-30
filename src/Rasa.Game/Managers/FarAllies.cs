@@ -304,7 +304,7 @@ namespace Rasa.Managers
             if (mine == null || theirs == null)
                 return false;
 
-            var centre = theirs[2, 2];
+            var centre = CellManager.Centre(theirs);
 
             foreach (var cell in mine)
                 if (cell == centre)

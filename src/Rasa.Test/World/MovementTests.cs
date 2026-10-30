@@ -28,7 +28,7 @@ namespace Rasa.Test.World
             CellManager.Instance.AddToWorld(client);
             CellManager.Instance.AddToWorld(client);
 
-            var center = world.Map.MapCellInfo.Cells[client.Player.Cells[2, 2]];
+            var center = world.Map.MapCellInfo.Cells[CellManager.Centre(client.Player.Cells)];
             Assert.AreEqual(1, center.ClientList.Count(c => c == client));
         }
 

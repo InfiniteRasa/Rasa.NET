@@ -166,6 +166,7 @@ namespace Rasa.Game
             Logger.UpdateConfig(Config.LoggerConfig);
 
             AutoSave.IntervalMinutes = Config.GameConfig?.AutoSaveMinutes ?? AutoSave.DefaultMinutes;
+            CellManager.SetViewRange(Config.GameConfig?.CellViewRange ?? CellManager.DefaultViewRange);
 
             // The maps that run in several shared copies. A copy already open stays as it is.
             MapInstancePolicies.Apply(Config.MapInstances);

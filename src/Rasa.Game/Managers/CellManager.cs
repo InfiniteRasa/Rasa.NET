@@ -22,7 +22,26 @@ namespace Rasa.Managers
         private static readonly object InstanceLock = new object();
         public static readonly float CellSize = 25.6f;
         public static readonly float CellBias = 32768.0f;
-        private const uint CellViewRange = 2;
+        public const int DefaultViewRange = 2, MaxViewRange = 4;
+
+        /// <summary>
+        /// How many cells out from a player's own the server shows the world (GameConfig.CellViewRange):
+        /// 2 is 5 x 5 cells, at least 51 m each way; 3 is 7 x 7, at least 77 m. A change while the
+        /// server runs (a config reload) takes effect on each map's next visibility update
+        /// (ApplyViewRange): every matrix knows its own size, so old and new ones mix until then.
+        /// </summary>
+        public static int ViewRange => _viewRange;
+
+        private static volatile int _viewRange = DefaultViewRange;
+
+        public static void SetViewRange(int range)
+        {
+            range = Math.Clamp(range, 1, MaxViewRange);
+            if (range == _viewRange)
+                return;
+            Logger.WriteLog(LogType.Initialize, $"Cell view range {_viewRange} -> {range}: {(2 * range + 1)} x {(2 * range + 1)} cells.");
+            _viewRange = range;
+        }
         private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
         public static CellManager Instance
         {
@@ -65,7 +84,7 @@ namespace Rasa.Managers
             var cellMatrix = CreateCellMatrix(mapChannel, cellPosX, cellPosZ);
 
             // add creature to the cell
-            mapChannel.MapCellInfo.Cells[cellMatrix[2, 2]].CreatureList.Add(creature);
+            mapChannel.MapCellInfo.Cells[Centre(cellMatrix)].CreatureList.Add(creature);
             // add cellMatrix to creature
             creature.Cells = cellMatrix;
 
@@ -96,7 +115,7 @@ namespace Rasa.Managers
             var cellMatrix = CreateCellMatrix(mapChannel, cellPosX, cellPosZ);
 
             // add mapTrigger to the cell
-            mapChannel.MapCellInfo.Cells[cellMatrix[2, 2]].MapTriggers.Add(trigger);
+            mapChannel.MapCellInfo.Cells[Centre(cellMatrix)].MapTriggers.Add(trigger);
         }
 
         //mapLink
@@ -109,10 +128,10 @@ namespace Rasa.Managers
             var cellPosZ = (uint)(link.Position.Z / CellSize + CellBias);
 
             // The matrix is built so the link's neighbours exist for the players who will look
-            // at it from up to two cells away.
+            // at it from up to ViewRange cells away.
             var cellMatrix = CreateCellMatrix(mapChannel, cellPosX, cellPosZ);
 
-            mapChannel.MapCellInfo.Cells[cellMatrix[2, 2]].MapLinks.Add(link);
+            mapChannel.MapCellInfo.Cells[Centre(cellMatrix)].MapLinks.Add(link);
         }
 
         public void RemoveFromWorld(MapChannel mapChannel, MapLink link)
@@ -145,7 +164,7 @@ namespace Rasa.Managers
             var cellMatrix = CreateCellMatrix(mapChannel, cellPosX, cellPosZ);
 
             // add Object to the cell
-            mapChannel.MapCellInfo.Cells[cellMatrix[2, 2]].DynamicObjectList.Add(dynamicObject);
+            mapChannel.MapCellInfo.Cells[Centre(cellMatrix)].DynamicObjectList.Add(dynamicObject);
 
             // notify client's about new object
             var ListOfClients = new List<Client>();
@@ -176,7 +195,7 @@ namespace Rasa.Managers
             var cellMatrix = CreateCellMatrix(client.Player.MapChannel, CellPosX, CellPosZ);
 
             // add client to the cell
-            client.Player.MapChannel.MapCellInfo.Cells[cellMatrix[2, 2]].ClientList.Add(client);
+            client.Player.MapChannel.MapCellInfo.Cells[Centre(cellMatrix)].ClientList.Add(client);
             // add cellMatrix to client
             client.Player.Cells = cellMatrix;
             client.Player.RuntimeMapChannel = client.Player.MapChannel;
@@ -390,7 +409,7 @@ namespace Rasa.Managers
             Landmarks.Removed(dynObject);
 
             // remove object from cell
-            mapChannel.MapCellInfo.Cells[cellMatrix[2, 2]].DynamicObjectList.Remove(dynObject);
+            mapChannel.MapCellInfo.Cells[Centre(cellMatrix)].DynamicObjectList.Remove(dynObject);
         }
 
         public uint GetCellSeed(Vector3 position)
@@ -438,13 +457,16 @@ namespace Rasa.Managers
                 cell.ClientList.RemoveAll(player => player == client);
             if (client.Player.MapChannel == map)
             {
-                client.Player.Cells = new uint[5, 5];
+                client.Player.Cells = EmptyMatrix();
                 client.Player.RuntimeMapChannel = null;
             }
         }
 
         public void UpdateVisibility(MapChannel mapChannel)
         {
+            if (mapChannel.CellViewRange != ViewRange)
+                ApplyViewRange(mapChannel);
+
             foreach (var client in mapChannel.ClientList.ToArray())
                 if (client?.Player?.MapChannel == mapChannel)
                     UpdateVisibility(client);
@@ -470,7 +492,7 @@ namespace Rasa.Managers
 
             var map = player.MapChannel;
             var newCenter = (x & 0xFFFF) | (z << 16);
-            if (player.Cells[2, 2] == newCenter)
+            if (Centre(player.Cells) == newCenter)
             {
                 var members = map.MapCellInfo.Cells[newCenter].ClientList;
                 if (members.Count(member => member == client) > 1)
@@ -481,9 +503,50 @@ namespace Rasa.Managers
                 return;
             }
 
-            var next = CreateCellMatrix(map, x, z);
+            ChangeCells(client, CreateCellMatrix(map, x, z));
+        }
+
+        /// <summary>
+        /// The view range has changed since this map last looked (SetViewRange): each creature's
+        /// matrix - who sees it - takes the new size where it stands, and each player's too, with
+        /// what comes into or goes out of their sight sent as when they walk. Two players who come
+        /// into or go out of each other's sight are sent once, by the first of them.
+        /// </summary>
+        internal void ApplyViewRange(MapChannel map)
+        {
+            var range = ViewRange;
+            map.CellViewRange = range;
+
+            foreach (var creature in map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList).Distinct().ToList())
+            {
+                var centre = Centre(creature.Cells);
+                creature.Cells = CreateCellMatrix(map, centre & 0xFFFF, centre >> 16);
+            }
+
+            var done = new HashSet<Client>();
+            foreach (var client in map.ClientList.ToArray())
+            {
+                if (client?.Player?.MapChannel != map || !IsInWorld(client))
+                    continue;
+                var centre = Centre(client.Player.Cells);
+                ChangeCells(client, CreateCellMatrix(map, centre & 0xFFFF, centre >> 16), done);
+                done.Add(client);
+            }
+        }
+
+        /// <summary>
+        /// Gives the player a new matrix and sends what comes into and goes out of sight with it.
+        /// Players in <paramref name="settled"/> have already been sent this player both ways.
+        /// </summary>
+        private void ChangeCells(Client client, uint[,] next, ISet<Client> settled = null)
+        {
+            var player = client.Player;
+            var map = player.MapChannel;
+            var newCenter = Centre(next);
             GetCellMatrixDiff(player.Cells, next, out var added, out var removed);
             var leaving = GetClientsInCells(map, removed, client);
+            if (settled != null)
+                leaving.RemoveAll(settled.Contains);
             var removedCells = GetCells(map, removed).ToList();
             foreach (var cell in GetCells(map, player.Cells.Cast<uint>()))
                 cell.ClientList.RemoveAll(member => member == client);
@@ -503,6 +566,8 @@ namespace Rasa.Managers
                 Landmarks.Keep(client, removedCells.SelectMany(cell => cell.DynamicObjectList).Distinct().ToList()));
 
             var entering = GetClientsInCells(map, added, client);
+            if (settled != null)
+                entering.RemoveAll(settled.Contains);
             var addedCells = GetCells(map, added).ToList();
             ManifestationManager.Instance.CellIntroduceClientToPlayers(client, FarAllies.NotHolding(client, entering));
             ManifestationManager.Instance.CellIntroducePlayersToClient(client, FarAllies.NotHeldBy(client, entering));
@@ -522,9 +587,9 @@ namespace Rasa.Managers
                 return false;
             var biasedX = position.X / CellSize + CellBias;
             var biasedZ = position.Z / CellSize + CellBias;
-            if (biasedX < CellViewRange || biasedZ < CellViewRange ||
-                biasedX >= ushort.MaxValue - CellViewRange + 1 ||
-                biasedZ >= ushort.MaxValue - CellViewRange + 1)
+            if (biasedX < ViewRange || biasedZ < ViewRange ||
+                biasedX >= ushort.MaxValue - ViewRange + 1 ||
+                biasedZ >= ushort.MaxValue - ViewRange + 1)
                 return false;
             x = (uint)biasedX;
             z = (uint)biasedZ;
@@ -535,7 +600,7 @@ namespace Rasa.Managers
         {
             var player = client.Player;
             return player?.MapChannel != null && player.Cells != null &&
-                player.MapChannel.MapCellInfo.Cells.TryGetValue(player.Cells[2, 2], out var cell) &&
+                player.MapChannel.MapCellInfo.Cells.TryGetValue(Centre(player.Cells), out var cell) &&
                 cell.ClientList.Contains(client);
         }
 
@@ -642,37 +707,28 @@ namespace Rasa.Managers
             needUpdate = newCells;
         }
 
+        /// <summary>
+        /// The cells a player sees, and an entity is seen from, around the one at (cellPosX, cellPosZ):
+        /// ViewRange cells out on each side, the actor's own in the middle (Centre).
+        /// </summary>
         public uint[,] CreateCellMatrix(MapChannel mapChannel, uint cellPosX, uint cellPosZ)
         {
-            var cellMatrix = new uint[5, 5];
-            cellMatrix[0, 0] = GetCell(mapChannel, cellPosX - 2, cellPosZ - 2).CellSeed;
-            cellMatrix[0, 1] = GetCell(mapChannel, cellPosX - 2, cellPosZ - 1).CellSeed;
-            cellMatrix[0, 2] = GetCell(mapChannel, cellPosX - 2, cellPosZ).CellSeed;
-            cellMatrix[0, 3] = GetCell(mapChannel, cellPosX - 2, cellPosZ + 1).CellSeed;
-            cellMatrix[0, 4] = GetCell(mapChannel, cellPosX - 2, cellPosZ + 2).CellSeed;
-            cellMatrix[1, 0] = GetCell(mapChannel, cellPosX - 1, cellPosZ - 2).CellSeed;
-            cellMatrix[1, 1] = GetCell(mapChannel, cellPosX - 1, cellPosZ - 1).CellSeed;
-            cellMatrix[1, 2] = GetCell(mapChannel, cellPosX - 1, cellPosZ).CellSeed;
-            cellMatrix[1, 3] = GetCell(mapChannel, cellPosX - 1, cellPosZ + 1).CellSeed;
-            cellMatrix[1, 4] = GetCell(mapChannel, cellPosX - 1, cellPosZ + 2).CellSeed;
-            cellMatrix[2, 0] = GetCell(mapChannel, cellPosX, cellPosZ - 2).CellSeed;
-            cellMatrix[2, 1] = GetCell(mapChannel, cellPosX, cellPosZ - 1).CellSeed;
-            cellMatrix[2, 2] = GetCell(mapChannel, cellPosX, cellPosZ).CellSeed;        // Actor is here
-            cellMatrix[2, 3] = GetCell(mapChannel, cellPosX, cellPosZ + 1).CellSeed;
-            cellMatrix[2, 4] = GetCell(mapChannel, cellPosX, cellPosZ + 2).CellSeed;
-            cellMatrix[3, 0] = GetCell(mapChannel, cellPosX + 1, cellPosZ - 2).CellSeed;
-            cellMatrix[3, 1] = GetCell(mapChannel, cellPosX + 1, cellPosZ - 1).CellSeed;
-            cellMatrix[3, 2] = GetCell(mapChannel, cellPosX + 1, cellPosZ).CellSeed;
-            cellMatrix[3, 3] = GetCell(mapChannel, cellPosX + 1, cellPosZ + 1).CellSeed;
-            cellMatrix[3, 4] = GetCell(mapChannel, cellPosX + 1, cellPosZ + 2).CellSeed;
-            cellMatrix[4, 0] = GetCell(mapChannel, cellPosX + 2, cellPosZ - 2).CellSeed;
-            cellMatrix[4, 1] = GetCell(mapChannel, cellPosX + 2, cellPosZ - 1).CellSeed;
-            cellMatrix[4, 2] = GetCell(mapChannel, cellPosX + 2, cellPosZ).CellSeed;
-            cellMatrix[4, 3] = GetCell(mapChannel, cellPosX + 2, cellPosZ + 1).CellSeed;
-            cellMatrix[4, 4] = GetCell(mapChannel, cellPosX + 2, cellPosZ + 2).CellSeed;
+            var range = ViewRange;
+            var size = 2 * range + 1;
+            var cellMatrix = new uint[size, size];
+
+            for (var i = 0; i < size; i++)
+                for (var j = 0; j < size; j++)
+                    cellMatrix[i, j] = GetCell(mapChannel, (uint)(cellPosX + i - range), (uint)(cellPosZ + j - range)).CellSeed;
 
             return cellMatrix;
         }
+
+        /// <summary>A matrix of ViewRange's size with no cells in it yet: a player not in the world.</summary>
+        public static uint[,] EmptyMatrix() => new uint[2 * ViewRange + 1, 2 * ViewRange + 1];
+
+        /// <summary>The middle cell of a matrix from CreateCellMatrix: the one the actor stands in.</summary>
+        public static uint Centre(uint[,] cells) => cells[cells.GetLength(0) / 2, cells.GetLength(1) / 2];
 
         #region SendPackets
         /// <summary>
