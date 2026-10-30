@@ -35,7 +35,17 @@ namespace Rasa.Services.Preloader.Missions.Plateau
         public const uint Grissom = 510180;
         public const uint DebrisTemplate = 122851, DebrisClass = 29785;
         public const uint ModelRocket = 122834;         // AccountReward_SoyuzModelRocket_Default
-        public const uint UseArgument = 3, ReadyState = 81, TakenState = 82;
+        /// <summary>
+        /// The use argument the client sends for 29783/29784: 1 (generated/client/usabledata gives them no
+        /// other). It was 3, and SceneApplication.CanUseObject refused the real client's use; the
+        /// migration Plateau_soyuz_salvage_use_argument puts 1 in a binding written with 3.
+        /// </summary>
+        public const uint UseArgument = 1, OldUseArgument = 3;
+        public const uint ReadyState = 81, TakenState = 82;
+
+        public static string UseArgumentSql(uint from, uint to) =>
+            $"UPDATE mission_scene_binding SET bindings = REPLACE(bindings, '\"actionArgId\":{from}', '\"actionArgId\":{to}') " +
+            $"WHERE mission_id = {MissionId} AND content_revision = '{PlateauMissionDataV1.Revision}';";
         public const string DebrisKey = "soyuz-debris";
 
         /// <summary>(role, class, place): north-west of the tower ruins, by the chasm's east part, by the Septic Bog.</summary>

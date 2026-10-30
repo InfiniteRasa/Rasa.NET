@@ -1815,6 +1815,27 @@ namespace Rasa.Test.Missions.Plateau
         /// in Plateau_maligo_base); the scenes of 876 and 877 name the pools as public-spawn actors.
         /// </summary>
         [TestMethod]
+        public void TheSoyuzDebrisTakeTheUseArgumentTheClientSends()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            string Binding() => world.Database.SqlQueryRaw<string>(
+                $"SELECT bindings AS Value FROM mission_scene_binding WHERE mission_id = {PlateauSoyuzSalvageV1.MissionId}").Single();
+            int Count(string json, uint argument) => json.Split($"\"actionArgId\":{argument}").Length - 1;
+
+            // To-fix #48: the client sends 1 for classes 29783/29784 (generated/client/usabledata).
+            Assert.AreEqual(1u, PlateauSoyuzSalvageV1.UseArgument);
+            Assert.AreEqual(3, Count(Binding(), 1), "each debris piece");
+            Assert.AreEqual(0, Count(Binding(), 3));
+
+            world.GetService<IMigrator>().Migrate("20271006000000_Pools_turpis_refinery");
+            Assert.AreEqual(3, Count(Binding(), 3), "the binding as the earlier migration wrote it");
+            world.GetService<IMigrator>().Migrate();
+            Assert.AreEqual(3, Count(Binding(), 1), "Plateau_soyuz_salvage_use_argument puts 1 in it");
+            Assert.AreEqual(0, Count(Binding(), 3));
+        }
+
+        [TestMethod]
         public void MaligoOfficersRespawnAfterAMinute()
         {
             using var harness = WildernessRuntimeTestHarness.Create();
