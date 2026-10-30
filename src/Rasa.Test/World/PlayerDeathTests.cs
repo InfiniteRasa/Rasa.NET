@@ -324,8 +324,8 @@ namespace Rasa.Test.World
                 Assert.AreEqual(100f, client.Player.Position.X, 0.01f);
                 Assert.AreEqual(0f, client.Player.Position.Z, 0.01f, "at Alia Das");
                 Assert.IsTrue(client.Player.InsideMapLinks.Contains(link.Id), "standing in it, as one who arrived through it");
-                Assert.AreEqual(client.Player.Cells[2, 2], CellManager.Instance.CreateCellMatrix(world.Map,
-                    CellManager.Instance.GetCellSeed(client.Player.Position) & 0xFFFF, CellManager.Instance.GetCellSeed(client.Player.Position) >> 16)[2, 2], "in the cells where they got up");
+                Assert.AreEqual(CellManager.Centre(client.Player.Cells), CellManager.Centre(CellManager.Instance.CreateCellMatrix(world.Map,
+                    CellManager.Instance.GetCellSeed(client.Player.Position) & 0xFFFF, CellManager.Instance.GetCellSeed(client.Player.Position) >> 16)), "in the cells where they got up");
 
                 MapLinkManager.Instance.Worker(world.Map);
                 Assert.IsFalse(MapErrorManager.Instance.Errors(MapId).Any(e => e.Contains("map_link 917")), "not sent through it");

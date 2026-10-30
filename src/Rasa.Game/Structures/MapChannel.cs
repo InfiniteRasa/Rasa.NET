@@ -80,6 +80,9 @@ namespace Rasa.Structures
         // cell
         public MapCellInfo MapCellInfo = new MapCellInfo();
 
+        /// <summary>The cell view range this map's matrices were last made for (CellManager.ApplyViewRange).</summary>
+        public int CellViewRange = Managers.CellManager.DefaultViewRange;
+
         /// <summary>The map's navmesh, or null when no navmesh/&lt;map&gt;.nav was built for it. See NavMeshManager.</summary>
         public Navigation.NavMeshQuery NavMesh { get; set; }
 

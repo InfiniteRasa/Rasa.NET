@@ -95,7 +95,7 @@ namespace Rasa.Structures
         /// </summary>
         public Dictionary<ActionId, long> ActionReuseUntil { get; } = new Dictionary<ActionId, long>();
 
-        public uint[,] Cells = new uint[5 ,5];
+        public uint[,] Cells = Managers.CellManager.EmptyMatrix();
         // sometimes we only have access to the actor, the owner variable allows us to access the client anyway (only if actor is a player manifestation)
         //public MapChannelClient Owner { get; set; }
     }

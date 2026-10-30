@@ -2306,7 +2306,7 @@ namespace Rasa.Managers
 
         private static void SynchronizeMovementCell(MapChannel mapChannel, Creature creature)
         {
-            if (CellManager.Instance.GetCellSeed(creature.Position) == creature.Cells[2, 2])
+            if (CellManager.Instance.GetCellSeed(creature.Position) == CellManager.Centre(creature.Cells))
                 return;
 
             CreatureManager.Instance.CellUpdateLocation(mapChannel, creature,
@@ -2411,7 +2411,7 @@ namespace Rasa.Managers
 
             creature.UpdatePositionCounter = CreatureManager.CreatureLocationUpdateTime;
 
-            return CellManager.Instance.GetCellSeed(creature.Position) != creature.Cells[2, 2];
+            return CellManager.Instance.GetCellSeed(creature.Position) != CellManager.Centre(creature.Cells);
         }
 
         /// <summary>

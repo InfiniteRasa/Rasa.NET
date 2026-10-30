@@ -417,7 +417,7 @@ namespace Rasa.Test.World
             var origin = new Vector3(10, 0, 10);
             var bootstrap = new Creature { Position = origin };
             CellManager.Instance.AddToWorld(world.Map, bootstrap);
-            var center = world.Map.MapCellInfo.Cells[bootstrap.Cells[2, 2]];
+            var center = world.Map.MapCellInfo.Cells[CellManager.Centre(bootstrap.Cells)];
             CellManager.Instance.RemoveCreatureFromWorld(world.Map, bootstrap);
             var clients = center.ClientList;
             var otherPool = CreatePool();
@@ -690,7 +690,7 @@ namespace Rasa.Test.World
             var origin = new Vector3(10, 0, 10);
             var bootstrap = new Creature { Position = origin };
             CellManager.Instance.AddToWorld(world.Map, bootstrap);
-            var cell = world.Map.MapCellInfo.Cells[bootstrap.Cells[2, 2]];
+            var cell = world.Map.MapCellInfo.Cells[CellManager.Centre(bootstrap.Cells)];
             CellManager.Instance.RemoveCreatureFromWorld(world.Map, bootstrap);
             var clients = cell.ClientList;
             var reads = 0;
@@ -735,7 +735,7 @@ namespace Rasa.Test.World
             var second = CreateThinkingCreature(pool, new Vector3(15, 0, 10), dead);
             CellManager.Instance.AddToWorld(world.Map, first);
             CellManager.Instance.AddToWorld(world.Map, second);
-            var center = world.Map.MapCellInfo.Cells[first.Cells[2, 2]];
+            var center = world.Map.MapCellInfo.Cells[CellManager.Centre(first.Cells)];
             var other = world.Map.MapCellInfo.Cells.Values.First(cell => cell != center);
             center.CreatureList.Add(first);
             other.CreatureList.Add(first);
@@ -768,7 +768,7 @@ namespace Rasa.Test.World
             var corpse = CreateThinkingCreature(pool, new Vector3(10, 0, 10), true);
             corpse.Controller.DeadTime = 19500;
             CellManager.Instance.AddToWorld(world.Map, corpse);
-            var center = world.Map.MapCellInfo.Cells[corpse.Cells[2, 2]];
+            var center = world.Map.MapCellInfo.Cells[CellManager.Centre(corpse.Cells)];
             var other = world.Map.MapCellInfo.Cells.Values.First(cell => cell != center);
             center.CreatureList.Add(corpse);
             other.CreatureList.Add(corpse);
