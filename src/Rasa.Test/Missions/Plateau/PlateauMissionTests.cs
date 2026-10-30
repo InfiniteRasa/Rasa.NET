@@ -590,7 +590,7 @@ namespace Rasa.Test.Missions.Plateau
                 (1974, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
                     (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
                 (1187, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
-                    (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
+                    (MissionEvidenceSourceKind.Reconstruction, 0.3), (MissionEvidenceSourceKind.Documentation, 0.5) }),
                 (1189, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
                     (MissionEvidenceSourceKind.Reconstruction, 0.3) }),
                 (1188, new[] { (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
@@ -1480,8 +1480,8 @@ namespace Rasa.Test.Missions.Plateau
 
             Assert.IsFalse(world.WorldDestructibleEntries.AsNoTracking().Any(entry => entry.Id == PlateauSilentButDeadlyFieldsV1.Retired),
                 "1187: no field on the hospital's gate");
-            Assert.AreEqual(2, world.MissionActionEntries.AsNoTracking().Count(entry => entry.MissionId == PlateauSilentButDeadlyV1.MissionId &&
-                entry.Kind == MissionActionKind.TakeDownField), "1187: two fields taken down");
+            Assert.AreEqual(4, world.MissionActionEntries.AsNoTracking().Count(entry => entry.MissionId == PlateauSilentButDeadlyV1.MissionId &&
+                entry.Kind == MissionActionKind.TakeDownField), "1187: two yard fields and two station doors taken down");
 
             world.GetService<IMigrator>().Migrate("20270921000100_Take_down_field_action");
             foreach (var lot in lots)
@@ -1500,6 +1500,8 @@ namespace Rasa.Test.Missions.Plateau
         {
             (PlateauSilentButDeadlyV1.MissionId, PlateauUstorYardV1.MapContextId, PlateauSilentButDeadlyFieldsV1.FieldClass,
                 PlateauSilentButDeadlyFieldsV1.Fields.Select(field => (field.Id, PlateauSilentButDeadlyV1.Computer, 1U)).ToArray()),
+            (PlateauSilentButDeadlyV1.MissionId, PlateauUstorYardV1.MapContextId, PlateauSilentButDeadlyStationV1.FieldClass,
+                PlateauSilentButDeadlyStationV1.Fields.Select(field => (field.Id, PlateauSilentButDeadlyV1.Generator, 1U)).ToArray()),
             (PlateauFinalAssaultV1.MissionId, PlateauTemporalChamberNpcsV1.MapContextId, PlateauFinalAssaultFieldV1.FieldClass,
                 new[] { (PlateauFinalAssaultFieldV1.Field, PlateauFinalAssaultV1.Tally, 1U) }),
             (PlateauSelfPreservationV1.MissionId, PlateauMaligoBaseV1.MapContextId, PlateauSelfPreservationFieldsV1.FieldClass,

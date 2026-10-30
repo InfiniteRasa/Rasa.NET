@@ -27,35 +27,44 @@ namespace Rasa.Services.Preloader.Missions.Plateau
     /// requirement; follow-up Interception!; 40,000 XP; one of a Vitalius Electric Injector Gun, an Animatics
     /// Pulse Pistol, a Vextronics Incendiary Net Gun, a Teleract Sonic Cannon; avoiding detection by the
     /// Spy's Polymorph. TR MMO DB: level 32, 5,000 credits (TaRapedia: 500). A patch note: "bots were not
-    /// turning evil when you failed this mission".
+    /// turning evil when you failed this mission". Ten Ton Hammer's Guide to Ustor Yard (Taea, 2008; its
+    /// coordinates matched the server for Rapp): "the mission marker at 276,164,-158. Look on the side of the
+    /// generator for the detonator spot and set your charge. The mission will update as you've blown open the
+    /// door to the security station. Just northwest of the blown generator is the entrance to Security Station
+    /// Bravo. Proceed to the southeast room, jumping off the catwalk and down into a mess of Bane, including the
+    /// named Taskmaster Yvik. When you clear the room, the mission updates with a new objective to interface with
+    /// the computer ... The computer is on the west side of the station at 153,157,-194." Client name 9561
+    /// "Taskmaster Yvik" (creaturenamelanguage), used by no creature before.
     ///
-    /// Reconstructed (ESTIMATE, the user's choices of 2026-10-22, detection and fields 2026-10-26):
+    /// Reconstructed (ESTIMATE, the user's choices of 2026-10-22, detection and fields 2026-10-26, the guide's
+    /// places and the station's door 2026-10-30):
     ///  - Detection (MissionProgressEventKind.PlayerDetected): while 1 is open (the generator down, the virus not
     ///    up), a creature of one of <see cref="GuardPools"/> - the yard's Thrax pools nearest the service entrance
-    ///    and the station - turning on the player fails 1 (optional, so the mission goes on) and opens 5: a
-    ///    security detail of four comes up the station's tunnel (the patrol's places), its kills counted by a
-    ///    hidden tally (<see cref="DetailTally"/>) complete 5, and the Bane computer comes as after 3. TaRapedia:
-    ///    "If the second objective is failed, i.e. you are detected: Presence Detected! ... Interface with Bane
-    ///    Computer". Killing the Thrax ahead, before the generator, avoids it (TaRapedia's walkthrough).
-    ///    Required: 6 and 4 only, so either way ends. 5,000 credits and level 32 from TR MMO DB.
-    ///  - 6: the generator, a personal UsableInertDestBaneOutpostGenerator (3857) beside the wreck at the entrance,
-    ///    with an Explosive Charge (UsableBombHumV01 7870, as One Way Trip's) beside it: using the charge blows the
-    ///    generator. Not shot: the client's class data has 3857 not targetable (target_flag 0), so the real client
-    ///    cannot aim at it (to-fix #30; the user's first choice was "shot, not bombed"). The AFS Charge item is not
-    ///    given (the use is the detonation). No door: the station's way in is open (its navmesh is not joined to
-    ///    the yard's: playtest).
+    ///    and the station - turning on the player fails 1 (optional, so the mission goes on) and opens 5: the
+    ///    station's security detail, Taskmaster Yvik and three security, stands in the station's south-east room
+    ///    (the guide's), where they fight the player who comes in (no attack order: they keep to the room); their
+    ///    kills, counted by a hidden tally (<see cref="DetailTally"/>), complete 5, and the Bane computer comes as
+    ///    after 3. TaRapedia: "If the second objective is failed, i.e. you are detected: Presence Detected! ...
+    ///    Interface with Bane Computer". Killing the Thrax ahead, before the generator, avoids it (TaRapedia's
+    ///    walkthrough). Required: 6 and 4 only, so either way ends. 5,000 credits and level 32 from TR MMO DB.
+    ///  - 6: the generator, a personal UsableInertDestBaneOutpostGenerator (3857) at the guide's marker, south-east
+    ///    of the entrance, on a rock the real client cannot climb; its Explosive Charge (UsableBombHumV01 7870, as One
+    ///    Way Trip's) at the rock's foot on the pool floor, west of it: using the charge blows the generator. Not shot: the client's class data has 3857 not
+    ///    targetable (target_flag 0), so the real client cannot aim at it (to-fix #30; the user's first choice was
+    ///    "shot, not bombed"). The AFS Charge item is not given (the use is the detonation). The door: a sealed
+    ///    field in each of the station's two service entrances, taken down by 6 (PlateauSilentButDeadlyStationV1).
     ///  - 1: the virus at the station's console, a personal UsableTwoStateBaneConsoleSwitchV01 (7468), set
     ///    up once the generator is down; the virus item is not given (the use is the upload).
     ///  - 3: four of the yard's security (PlateauUstorYardV1.Security) come up the station's tunnel and attack;
     ///    the four kills, counted by a hidden tally (objective <see cref="Tally"/>: 3 has no client counter
     ///    text), complete it.
-    ///  - 4: the Bane computer, a personal UsableStatelessBaneConsoleKeyboard (20631) by the prison
-    ///    junction, set up once the patrol (or the detail) is down. Its use is hidden 7 "Activate forcefield
-    ///    keyboard", and 7 done completes 4, whose transition takes the yard's force fields down
-    ///    (PlateauSilentButDeadlyFieldsV1, TakeDownField).
-    ///  - Indicators (one for each objective with a place; hidden 7, 8 and 9 have none): 5 and 3 at the station's
-    ///    tunnel (the patrol and detail are there), 6 at the generator, 1 at the station's console, 4 at the Bane
-    ///    computer.
+    ///  - 4: the Bane computer, a personal UsableStatelessBaneConsoleKeyboard (20631) at the guide's place, on the
+    ///    west side by the client map's consoles, set up once the patrol (or the detail) is down. Its use is hidden
+    ///    7 "Activate forcefield keyboard", and 7 done completes 4, whose transition takes the yard's force fields
+    ///    down (PlateauSilentButDeadlyFieldsV1, TakeDownField).
+    ///  - Indicators (one for each objective with a place; hidden 7, 8 and 9 have none): 3 at the station's
+    ///    tunnel (the patrol is there), 5 at the south-east room (the detail), 6 at the generator, 1 at the
+    ///    station's console, 4 at the Bane computer.
     ///  - The weapons as the Uncommon base templates of the bands that hold level 32 ("Pulse" as EMP).
     /// </summary>
     public static class PlateauSilentButDeadlyV1
@@ -75,9 +84,13 @@ namespace Rasa.Services.Preloader.Missions.Plateau
         /// </summary>
         public static readonly uint[] GuardPools = { 531651, 560022, 531658 };
 
-        /// <summary>The station's tunnel, where the patrol and the detail come: objective 5's indicator.</summary>
+        /// <summary>The station's tunnel, where the patrol comes: objective 3's indicator.</summary>
         public static readonly (double X, double Y, double Z) TunnelAt = (190, 157.8, -192);
         public const double TunnelRadius = 30;
+
+        /// <summary>The station's south-east room (the guide's), at the prison junction, where the detail stands: objective 5's indicator.</summary>
+        public static readonly (double X, double Y, double Z) RoomAt = (228, 157.95, -198);
+        public const double RoomRadius = 12;
 
         /// <summary>The radius of the generator's, the console's and the computer's indicators.</summary>
         public const double ObjectRadius = 8;
@@ -102,12 +115,24 @@ namespace Rasa.Services.Preloader.Missions.Plateau
         public const uint IncendiaryNetGun = 48360;     // Weapon_Avatar_NetGun_Fire_UNC_31_to_35
         public const uint SonicCannon = 49164;          // Weapon_Avatar_RocketLauncher_Sonic_UNC_29_to_33
 
-        public static readonly ScenePosition GeneratorAt = new(225.8f, 179.09f, -117.6f);
+        /// <summary>The guide's mission marker (276, 164, -158), on the navmesh's ground there; the entrance is north-west of it.</summary>
+        public static readonly ScenePosition GeneratorAt = new(276, 164.96f, -158);
 
-        /// <summary>The generator's Explosive Charge, 5 m west of it, towards the entrance (clear of its collision: to-fix #31's lesson), on the navmesh's ground there.</summary>
-        public static readonly ScenePosition ChargeAt = new(220.8f, 178.51f, -117.6f);
+        /// <summary>
+        /// The generator's Explosive Charge, on the pool floor at the west foot of the generator's rock (navmesh ground): the
+        /// rock's top, where the generator stands, is closed on all sides to the real client (to-fix #51: the client's own
+        /// collision stops a player from the pool, the cleft to the south-east and the north-east; the server's navmesh
+        /// walks up it). A player reaches the pool floor here (the playtest stood at 267.7, 163, -151.4).
+        /// </summary>
+        public static readonly ScenePosition ChargeAt = new(268.5f, 163.55f, -155.5f);
+        /// <summary>Objective 6's marker on the generator, wide enough for the charge at the rock's foot.</summary>
+        public const double GeneratorRadius = 10;
         public static readonly ScenePosition ConsoleAt = new(158, 157.8f, -192);
-        public static readonly ScenePosition ComputerAt = new(228, 157.8f, -196);
+
+        /// <summary>The guide's (153, 157, -194), in front of the client map's west console (150.3, 157.6, -193.6), on the navmesh.</summary>
+        public static readonly ScenePosition ComputerAt = new(153.45f, 157.8f, -194);
+        /// <summary>The yaw of the client map's west console (ArchBaneObjConsoleV02 at 150.3, -193.6).</summary>
+        public const double ComputerYaw = -1.4908;
 
         /// <summary>The station patrol, in the tunnel between the room and the consoles.</summary>
         public static readonly ScenePosition[] PatrolAt =
@@ -117,6 +142,22 @@ namespace Rasa.Services.Preloader.Missions.Plateau
             new(192, 157.8f, -196),
             new(216, 157.8f, -196),
         };
+
+        /// <summary>
+        /// The security detail in the south-east room, all on the navmesh: Taskmaster Yvik (<see cref="DetailRole"/> 0,
+        /// PlateauSilentButDeadlyStationV1.Yvik) at the junction, three security round him.
+        /// </summary>
+        public static readonly ScenePosition[] DetailAt =
+        {
+            new(230, 158, -198),
+            new(224, 157.95f, -196),
+            new(232, 157.99f, -190.4f),
+            new(232, 157.9f, -204),
+        };
+
+        /// <summary>The detail's creature: Yvik first, then the yard's security.</summary>
+        public static uint DetailCreature(int index) =>
+            index == 0 ? PlateauSilentButDeadlyStationV1.Yvik : PlateauUstorYardV1.Security;
 
         public static string PatrolRole(int index) => $"station-patrol-{index + 1}";
         public static string DetailRole(int index) => $"security-detail-{index + 1}";
@@ -137,11 +178,11 @@ namespace Rasa.Services.Preloader.Missions.Plateau
             mission.Objective(DetailTally, 9226, 9227, 7, MissionObjectiveState.Incomplete, required: false);   // counts only the detail
             mission.Scenario(Results, "Generator down, virus uploaded, computer used", 3);
             mission.Scenario(PatrolDown, "The station patrol killed", (uint)PatrolAt.Length);
-            mission.Scenario(DetailDown, "The security detail killed", (uint)PatrolAt.Length);
+            mission.Scenario(DetailDown, "The security detail killed", (uint)DetailAt.Length);
             mission.Scenario(ComputerAppears, "The Bane computer set up", 0);
             mission.Scenario(DetailComes, "Presence detected: the security detail comes", 0);
-            mission.Indicator(Detected, 1, TunnelAt.X, TunnelAt.Y, TunnelAt.Z, TunnelRadius);
-            mission.Indicator(Generator, 2, GeneratorAt.X, GeneratorAt.Y, GeneratorAt.Z, ObjectRadius);
+            mission.Indicator(Detected, 1, RoomAt.X, RoomAt.Y, RoomAt.Z, RoomRadius);
+            mission.Indicator(Generator, 2, GeneratorAt.X, GeneratorAt.Y, GeneratorAt.Z, GeneratorRadius);
             mission.Indicator(Upload, 3, ConsoleAt.X, ConsoleAt.Y, ConsoleAt.Z, ObjectRadius);
             mission.Indicator(Patrol, 4, TunnelAt.X, TunnelAt.Y, TunnelAt.Z, TunnelRadius);
             mission.Indicator(Computer, 5, ComputerAt.X, ComputerAt.Y, ComputerAt.Z, ObjectRadius);
@@ -176,8 +217,8 @@ namespace Rasa.Services.Preloader.Missions.Plateau
 
             // 5: the detail's four kills, counted by its hidden tally, as 3's.
             mission.Transition(DetailTally);
-            for (var kill = 1U; kill <= PatrolAt.Length; kill++)
-                mission.Progress(DetailTally, MissionProgressEventKind.ScenarioEvent, kill, (uint)PatrolAt.Length, counter: DetailDown, trigger: kill);
+            for (var kill = 1U; kill <= DetailAt.Length; kill++)
+                mission.Progress(DetailTally, MissionProgressEventKind.ScenarioEvent, kill, (uint)DetailAt.Length, counter: DetailDown, trigger: kill);
             mission.Transition(Detected);
             mission.ObjectiveState(Detected, DetailTally, MissionObjectiveState.Completed);
             Open(mission, Detected, 1, Computer);
@@ -204,7 +245,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
             scene.Actors[ConsoleRole] = new SceneActorDefinition(ConsoleRole, SceneActorKind.Object, ConsoleClass, ConsoleAt,
                 InitialObjectState: ConsoleReadyState, UseAction: new SceneObjectAction(MissionId, Upload, Uploaded, UseArgument));
             scene.Actors[ComputerRole] = new SceneActorDefinition(ComputerRole, SceneActorKind.Object, ComputerClass, ComputerAt,
-                Orientation: 1.5708, InitialObjectState: ComputerState,
+                Orientation: ComputerYaw, InitialObjectState: ComputerState,
                 UseAction: new SceneObjectAction(MissionId, Computer, ComputerUsed, UseArgument));
 
             scene.Sequences[0] = new SceneSequenceDefinition
@@ -245,16 +286,16 @@ namespace Rasa.Services.Preloader.Missions.Plateau
                 };
             }
             scene.Sequences[Uploaded] = uploaded;
-            // Detected: the console is no use now, and the station's security detail comes up the tunnel.
+            // Detected: the console is no use now, and the station's security detail stands in the south-east room,
+            // where it fights the player who comes in (no attack order: it keeps to the room, as the guide's).
             var detail = new SceneSequenceDefinition { World = { new SetInteractionIntent("console-locked", ConsoleRole, false, IfPresent: true) } };
-            for (var index = 0; index < PatrolAt.Length; index++)
+            for (var index = 0; index < DetailAt.Length; index++)
             {
                 var role = DetailRole(index);
                 var defeated = 21U + (uint)index;
-                scene.Actors[role] = new SceneActorDefinition(role, SceneActorKind.Creature, PlateauUstorYardV1.Security, PatrolAt[index],
+                scene.Actors[role] = new SceneActorDefinition(role, SceneActorKind.Creature, DetailCreature(index), DetailAt[index],
                     Orientation: 1.5708, GameplayPolicy: Hostile());
                 detail.World.Add(new EnsureActorIntent($"{role}-comes", role));
-                detail.World.Add(QuestSceneIntents.Attack($"{role}-attacks", role));
                 scene.DefeatSequences[role] = defeated;
                 scene.Sequences[defeated] = new SceneSequenceDefinition
                 {
@@ -278,11 +319,17 @@ namespace Rasa.Services.Preloader.Missions.Plateau
                 "Gun/Animatics Pulse Pistol/Vextronics Incendiary Net Gun/Teleract Sonic Cannon. TR MMO DB level32, 5000 credits.");
             mission.Evidence(3, MissionEvidenceSourceKind.Reconstruction, "repository:PlateauSilentButDeadlyV1",
                 "Level32, 5000 credits (MMO DB). Path 6,1,3,4, or detected (a creature of pool 531651/560022/531658 fights the " +
-                "player while 1 is open): 1 fails, 5 (four security, the detail), 4. Generator3857 blown by an Explosive Charge7870 beside it (3857 is not client-targetable); " +
-                "console7468 (the upload, no virus item); four security650062 attack; computer20631 once they are down, its use " +
-                "hidden 7, which completes 4; 4 takes down three sealed Bane minor-entrance fields at the yard's minor entrances " +
-                "(client map). Weapons 15582, 17055, 48360, 49164. Places and guard pools are estimates. Indicators: 5 and 3 " +
-                "at the tunnel, 6 at the generator, 1 at the console, 4 at the computer.", 0.3);
+                "player while 1 is open): 1 fails, 5 (the detail: Yvik750066 and three security in the south-east room), 4. " +
+                "Generator3857 at the guide's marker (276,164,-158), blown by an Explosive Charge7870 at its rock's foot (the rock top is closed to the client) (3857 is not " +
+                "client-targetable); 6 takes down sealed fields in both service entrances; console7468 (the upload, no virus " +
+                "item); four security750062 attack; computer20631 at the guide's west side (153,157,-194) once they are down, " +
+                "its use hidden 7, which completes 4; 4 takes down sealed Bane minor-entrance fields at the yard's minor entrances " +
+                "(client map). Weapons 15582, 17055, 48360, 49164. Guard pools, the detail's and the patrol's places are " +
+                "estimates. Indicators: 3 at the tunnel, 5 at the south-east room, 6 at the generator, 1 at the console, 4 at " +
+                "the computer.", 0.3);
+            mission.Evidence(4, MissionEvidenceSourceKind.Documentation, "https://www.tentonhammer.com/guides/guide-to-ustor-yard",
+                "Marker 276,164,-158; detonator on the generator's side; blown open the door to the security station; entrance " +
+                "north-west of the generator; south-east room, Bane with Taskmaster Yvik; computer west side 153,157,-194.", 0.5);
 
             mission.Enable(scene);
         }
