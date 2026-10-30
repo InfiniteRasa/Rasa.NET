@@ -16,7 +16,7 @@ namespace Rasa.Managers
     /// a fire team of 3-4 flunkies", "constantly depositing lonely squads with NO BACKUP" (IGN Vault
     /// / planettr, 2007-12), and "while the AFS attacks, we've yet to see the AI overrun one" (Ten
     /// Ton Hammer, Valverde Pools): a squad cannot take the point; it can thin the garrison for
-    /// players, who take it. Plans: <see cref="PlateauDynamicDropshipsContent"/>.
+    /// players, who take it. Plans: <see cref="DynamicDropshipsContent"/>.
     /// </summary>
     internal static class AfsSorties
     {
@@ -28,10 +28,10 @@ namespace Rasa.Managers
 
         private static readonly ConditionalWeakTable<MapChannel, Dictionary<uint, Sortie>> States = new();
 
-        private static PlateauDynamicDropshipsContent.Assault PlanFor(MapChannel map, ControlPoints.Point point) =>
+        private static DynamicDropshipsContent.Assault PlanFor(MapChannel map, ControlPoints.Point point) =>
             map == null || map.IsCopy || point == null || point.IsBattleground || map.MapInfo?.MapContextId != point.MapContextId ||
             !ControlPoints.Instance.Config.ControlPointAssaultEnabled ? null
-                : PlateauDynamicDropshipsContent.Assaults.FirstOrDefault(a => a.MapId == point.MapContextId && a.PointId == point.Id && a.Sortie.Length > 0);
+                : DynamicDropshipsContent.Assaults.FirstOrDefault(a => a.MapId == point.MapContextId && a.PointId == point.Id && a.Sortie.Length > 0);
 
         internal static IEnumerable<Creature> Squad(MapChannel map, ControlPoints.Point point) =>
             map != null && point != null && States.TryGetValue(map, out var states) && states.TryGetValue(point.Id, out var sortie) && sortie.Pool != null
@@ -85,7 +85,7 @@ namespace Rasa.Managers
             return true;
         }
 
-        private static void Launch(MapChannel map, ControlPoints.Point point, PlateauDynamicDropshipsContent.Assault plan, Sortie state)
+        private static void Launch(MapChannel map, ControlPoints.Point point, DynamicDropshipsContent.Assault plan, Sortie state)
         {
             var drop = plan.Drops[Random.Shared.Next(plan.Drops.Length)];
             var pool = new SpawnPool

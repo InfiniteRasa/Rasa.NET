@@ -34,7 +34,7 @@ namespace Rasa.Managers
             if (point.MapContextId == LandingZoneAssaultContent.MapId && point.Id == LandingZoneAssaultContent.PointId)
                 return config.LandingZoneAssaultEnabled ? LandingZone(config) : null;
             if (!config.ControlPointAssaultEnabled) return null;
-            var content = PlateauDynamicDropshipsContent.Assaults.FirstOrDefault(a => a.MapId == point.MapContextId && a.PointId == point.Id);
+            var content = DynamicDropshipsContent.Assaults.FirstOrDefault(a => a.MapId == point.MapContextId && a.PointId == point.Id);
             return content == null ? null : FromContent(content);
         }
 
@@ -65,7 +65,7 @@ namespace Rasa.Managers
             };
         }
 
-        private static Plan FromContent(PlateauDynamicDropshipsContent.Assault content) => new()
+        private static Plan FromContent(DynamicDropshipsContent.Assault content) => new()
         {
             FirstDelayMs = content.FirstDelaySeconds * 1000L,
             PeriodMs = content.PeriodSeconds * 1000L,
@@ -95,7 +95,7 @@ namespace Rasa.Managers
         /// pad, "helping to wipe up remaining Bane forces" (zerias, 2008). Its troops take post by
         /// the gate and fight what is left.
         /// </summary>
-        private static void Relieve(MapChannel map, ControlPoints.Point point, Assault state, PlateauDynamicDropshipsContent.Assault content)
+        private static void Relieve(MapChannel map, ControlPoints.Point point, Assault state, DynamicDropshipsContent.Assault content)
         {
             if (content.Relief.Length == 0) return;
             var pool = new SpawnPool

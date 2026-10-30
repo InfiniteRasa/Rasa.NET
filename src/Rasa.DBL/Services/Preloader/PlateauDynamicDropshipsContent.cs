@@ -4,6 +4,8 @@ using System.Globalization;
 using System.Linq;
 using System.Numerics;
 
+using static Rasa.Services.Preloader.DynamicDropshipsContent;
+
 namespace Rasa.Services.Preloader
 {
     /// <summary>
@@ -37,61 +39,6 @@ namespace Rasa.Services.Preloader
 
         public const uint Rifleman = 692001, MachineGunner = 692002, Mech = 692003;
         public const uint RifleShot = 692001, MachineGunBurst = 692002, MechMinigun = 692003;
-
-        public readonly struct Troop
-        {
-            public uint Creature { get; }
-            public int Min { get; }
-            public int Max { get; }
-            public Troop(uint creature, int min, int max) { Creature = creature; Min = min; Max = max; }
-        }
-
-        public sealed class Assault
-        {
-            public uint MapId { get; init; } = PlateauDynamicDropshipsContent.MapId;
-            public uint PointId { get; init; }
-            /// <summary>From the server start, or from the AFS taking the point, to the first assault.</summary>
-            public int FirstDelaySeconds { get; init; }
-            public int PeriodSeconds { get; init; }
-            public int WaveSeconds { get; init; }
-            public int LifetimeSeconds { get; init; }
-            public LandingZoneAssaultContent.Drop[] Drops { get; init; }
-            /// <summary>Per wave, per ship: what the ship brings.</summary>
-            public Troop[][][] Waves { get; init; }
-            /// <summary>Comes with one ship of the last wave and takes the point if the defence falls.</summary>
-            public uint Boss { get; init; }
-            /// <summary>From the assault's start to the AFS relief ship.</summary>
-            public int ReliefSeconds { get; init; } = 480;
-            public LandingZoneAssaultContent.Drop ReliefPad { get; init; }
-            public Vector3 ReliefPost { get; init; }
-            public Troop[] Relief { get; init; }
-            /// <summary>While the Bane hold the point: one AFS ship with this squad now and then (AfsSorties).</summary>
-            public Troop[] Sortie { get; init; } = SortieSquad;
-            public int SortieFirstDelaySeconds { get; init; }
-            public int SortiePeriodSeconds { get; init; } = 1800;
-            public int SortieLifetimeSeconds { get; init; } = 600;
-            /// <summary>
-            /// Each assault the AFS hold off makes the next one bigger by this share of its troops
-            /// (LandingZoneAssaults), until the point falls; it starts again from nothing when the
-            /// point changes hands. 0: no growth.
-            /// </summary>
-            public double EscalationStep { get; init; } = Escalation;
-            /// <summary>Held-off assaults that count towards the growth: at most twice the troops.</summary>
-            public int MaxEscalation { get; init; } = 4;
-            /// <summary>One of each, however big the assault grows: a named creature.</summary>
-            public uint[] NotEscalated { get; init; } = { Kael };
-        }
-
-        // "Allowing the Bane to control these points may give them the means to drop an ever
-        // increasing number of troops" (Ten Ton Hammer, E3 2005); "as Bane are killed, even more are
-        // called in for backup" (TaRapedia, Control Point); "The game had a built in 'ramp up' for the
-        // number of Bane that would spawn in and assault so that EVENTUALLY the Control Point would get
-        // overrun" (a retail player, City of Titans forum, "CONTROL POINTS ... how Tabula Rasa did it").
-        // 25% more troops (Commander and Kael one each) for each assault held off: ESTIMATE, so that a
-        // point no player defends holds off the first two and falls in the third (live run without
-        // Shield Drones: Northwest and a captured Southwest both fell in the third). Capped at twice the
-        // troops (MaxEscalation, ESTIMATE) so that a point players keep defending does not grow without end.
-        public const double Escalation = 0.25;
 
         // ESTIMATE: retail "3-4 waves", "usually 2 ships", "about 4-8 per ship"; Thrax infantry
         // first, caretakers and technicians behind them, a Kael and the commander in the last
@@ -131,35 +78,35 @@ namespace Rasa.Services.Preloader
         {
             new()
             {
-                PointId = NortheastAfs, FirstDelaySeconds = 900, SortieFirstDelaySeconds = 1200, PeriodSeconds = 2700, WaveSeconds = 180, LifetimeSeconds = 900,
+                MapId = MapId, PointId = NortheastAfs, FirstDelaySeconds = 900, SortieFirstDelaySeconds = 1200, PeriodSeconds = 2700, WaveSeconds = 180, LifetimeSeconds = 900,
                 // Outside the west gate (client ArchHumOutpostFenceGateV02 at (78, 370, 426)).
                 Drops = new[] { Toward(new(31.9f, 370.7f, 440.6f), NortheastAt), Toward(new(23.6f, 371.1f, 401.2f), NortheastAt) },
-                Waves = Waves, Boss = ThraxCommander, Relief = Relief,
+                Waves = Waves, Boss = ThraxCommander, Relief = Relief, Sortie = SortieSquad, NotEscalated = new[] { Kael },
                 ReliefPad = Toward(new(104f, 369.2f, 418f), NortheastAt), ReliefPost = new(90f, 370f, 418f)
             },
             new()
             {
-                PointId = NorthwestAfs, FirstDelaySeconds = 2250, SortieFirstDelaySeconds = 300, PeriodSeconds = 2700, WaveSeconds = 180, LifetimeSeconds = 900,
+                MapId = MapId, PointId = NorthwestAfs, FirstDelaySeconds = 2250, SortieFirstDelaySeconds = 300, PeriodSeconds = 2700, WaveSeconds = 180, LifetimeSeconds = 900,
                 // Outside the north gate (client gate at (-377, 376, 467)).
                 Drops = new[] { Toward(new(-370.1f, 375.0f, 499.3f), NorthwestAt), Toward(new(-417.6f, 376.3f, 492.8f), NorthwestAt) },
-                Waves = Waves, Boss = ThraxCommander, Relief = Relief,
+                Waves = Waves, Boss = ThraxCommander, Relief = Relief, Sortie = SortieSquad, NotEscalated = new[] { Kael },
                 // The point's dropship pad (client ArchHumDropshipLandingpadV02, patch 2008-06-23).
                 ReliefPad = Toward(new(-416.0f, 375.8f, 399.0f), NorthwestAt), ReliefPost = new(-385f, 375.1f, 455f)
             },
             new()
             {
-                PointId = SoutheastBane, FirstDelaySeconds = 600, SortieFirstDelaySeconds = 450, PeriodSeconds = 2700, WaveSeconds = 180, LifetimeSeconds = 900,
+                MapId = MapId, PointId = SoutheastBane, FirstDelaySeconds = 600, SortieFirstDelaySeconds = 450, PeriodSeconds = 2700, WaveSeconds = 180, LifetimeSeconds = 900,
                 // Outside the west entrance (client ArchBaneOutpostWallMinorEntranceV01 at (54.7, 371.2, -128)).
                 Drops = new[] { Toward(new(22.6f, 373.7f, -123.9f), SoutheastAt), Toward(new(29.8f, 373.7f, -100.7f), SoutheastAt) },
-                Waves = Waves, Boss = ThraxCommander, Relief = Relief,
+                Waves = Waves, Boss = ThraxCommander, Relief = Relief, Sortie = SortieSquad, NotEscalated = new[] { Kael },
                 ReliefPad = Toward(new(84f, 370.3f, -132f), SoutheastAt), ReliefPost = new(66f, 370.3f, -128f)
             },
             new()
             {
-                PointId = SouthwestBane, FirstDelaySeconds = 600, SortieFirstDelaySeconds = 1350, PeriodSeconds = 2700, WaveSeconds = 180, LifetimeSeconds = 900,
+                MapId = MapId, PointId = SouthwestBane, FirstDelaySeconds = 600, SortieFirstDelaySeconds = 1350, PeriodSeconds = 2700, WaveSeconds = 180, LifetimeSeconds = 900,
                 // Outside the east entrance (client entrance at (-294.7, 375.2, -108)).
                 Drops = new[] { Toward(new(-268.3f, 376.9f, -109.9f), SouthwestAt), Toward(new(-282.0f, 374.9f, -70.4f), SouthwestAt) },
-                Waves = Waves, Boss = ThraxCommander, Relief = Relief,
+                Waves = Waves, Boss = ThraxCommander, Relief = Relief, Sortie = SortieSquad, NotEscalated = new[] { Kael },
                 ReliefPad = Toward(new(-318f, 374.2f, -105f), SouthwestAt), ReliefPost = new(-303f, 374.4f, -106f)
             }
         };
