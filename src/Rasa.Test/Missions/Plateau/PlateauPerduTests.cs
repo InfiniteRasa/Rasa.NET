@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Rasa.Data;
 using Rasa.Game;
@@ -195,19 +197,45 @@ namespace Rasa.Test.Missions.Plateau
                 var soldier = Npc(plateau, PlateauPerduNpcsV1.Implanted[index].Pool, PlateauPerduNpcsV1.Implanted[index].Id);
                 Assert.IsFalse(HandsIn(harness, soldier, MindBender, data.Extract), "no extraction before he is found");
                 Talk(harness, soldier, MindBender, data.Find);
-                Assert.AreEqual(0U, WildernessRanjaGorgeTests.Held(harness, data.Implant), "finding him is not the implant");
-                Talk(harness, soldier, MindBender, data.Extract);
-                Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, data.Implant), $"{data.Key}");
+
+                // To-fix #49: the extraction completes with the find; the client has no line for a second talk.
+                Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, data.Implant), $"{data.Key} with the one talk");
+                Assert.AreEqual(MissionObjectiveState.Completed, harness.Client.Player.Missions[MindBender].Objectives[data.Extract].State, $"{data.Key}");
+                Assert.IsFalse(HandsIn(harness, soldier, MindBender, data.Extract), "no second talk");
                 Assert.AreEqual(index == PlateauMindBenderV1.Soldiers.Length - 1,
                     harness.Client.Player.Missions[MindBender].Completeable, $"after {data.Key}");
             }
 
+            // To-fix #49: Perdu's talk offers the turn-in (the real client found none after the first fix).
+            harness.MoveTo(perdu.Position);
+            harness.Drain();
+            Assert.IsTrue(Conversation(harness, perdu).TryGetValue(ConversationType.MissionComplete, out var completeable) &&
+                ((Dictionary<uint, RewardInfo>)completeable).ContainsKey(MindBender), "Perdu offers the turn-in");
             WildernessRanjaGorgeTests.CompleteAndCheckReward(harness, perdu, MindBender, 2,
                 PlateauMindBenderV1.Experience, PlateauMindBenderV1.Credits);
             Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, PlateauMindBenderV1.MechGloves), "the third choice");
             Assert.AreEqual(0U, WildernessRanjaGorgeTests.Held(harness, PlateauMindBenderV1.ExtractorTemplate), "Perdu takes the extractor back");
             foreach (var data in PlateauMindBenderV1.Soldiers)
                 Assert.AreEqual(0U, WildernessRanjaGorgeTests.Held(harness, data.Implant), "and the implants");
+        }
+
+        [TestMethod]
+        public void MindBendersExtractionsCompleteWithTheFindsAfterTheMigration()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            string Kinds() => string.Join(",", world.Database.SqlQueryRaw<string>(
+                "SELECT CAST(kind AS TEXT) AS Value FROM mission_trigger WHERE mission_id = " +
+                $"{PlateauMindBenderV1.MissionId} AND objective_id IN (3, 8, 9, 10) ORDER BY objective_id").ToList());
+            var conversation = ((byte)Rasa.Structures.World.MissionTriggerKind.Conversation).ToString();
+            var reached = ((byte)Rasa.Structures.World.MissionTriggerKind.ObjectiveState).ToString();
+
+            // To-fix #49: no extraction waits for a second talk the client has no line for.
+            Assert.AreEqual(string.Join(",", Enumerable.Repeat(reached, 4)), Kinds());
+            world.GetService<IMigrator>().Migrate("20271006000000_Pools_turpis_refinery");
+            Assert.AreEqual(string.Join(",", Enumerable.Repeat(conversation, 4)), Kinds(), "as Plateau_mind_bender wrote them");
+            world.GetService<IMigrator>().Migrate();
+            Assert.AreEqual(string.Join(",", Enumerable.Repeat(reached, 4)), Kinds(), "Plateau_mind_bender_extract_on_find");
         }
 
         [TestMethod]
