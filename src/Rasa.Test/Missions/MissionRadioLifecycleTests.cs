@@ -192,6 +192,22 @@ namespace Rasa.Test.Missions
         }
 
         [TestMethod]
+        public void AnOfferNotForcedWaitsAsLongAsItsSession()
+        {
+            // The client keeps an offer that is not forced as a pending radio icon until the map
+            // changes: a click on it after five minutes still accepts.
+            var now = new DateTime(2026, 9, 25, 12, 0, 0, DateTimeKind.Utc);
+            using var context = RadioContext(utcNow: () => now);
+            Assert.IsTrue(context.Manager.Offers.TryOffer(context.Client, 731,
+                MissionOfferSourceIdentity.ServerEvent("fixture.arrival"), forceDialog: false));
+            Assert.IsFalse(context.Drain().OfType<DispenseRadioMissionPacket>().Single().ForceDialog);
+            Assert.AreEqual(now.Add(Rasa.Game.Missions.MissionOfferAuthority.PendingCallLifetime), ReadOffer(context).ExpiresAtUtc);
+            now = now.AddMinutes(30);
+            Assert.IsTrue(context.Manager.TryAcceptRadioMission(context.Client, 731));
+            Assert.AreEqual(MissionOfferState.Consumed, ReadOffer(context).State);
+        }
+
+        [TestMethod]
         public void OfferIdentitySurvivesTheMySqlDatetimeSixPrecisionBoundary()
         {
             var now = DateTime.Parse("2026-09-25T12:00:00.1234567Z", CultureInfo.InvariantCulture,

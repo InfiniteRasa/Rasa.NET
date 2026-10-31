@@ -65,7 +65,7 @@ namespace Rasa.Test.Missions
             var packets = context.Drain();
             var offer = packets.OfType<DispenseRadioMissionPacket>().Single();
             Assert.AreEqual(FollowUp, offer.MissionId);
-            Assert.IsTrue(offer.ForceDialog);
+            Assert.IsFalse(offer.ForceDialog, "a forced offer cannot be declined, and the client accepts it when its window closes");
             Assert.IsLessThan(packets.IndexOf(offer), packets.FindIndex(packet => packet is MissionRewardedPacket),
                 "The offer comes after the reward.");
             var pending = ReadOffer(context, FollowUp);
@@ -216,7 +216,7 @@ namespace Rasa.Test.Missions
         }
 
         [TestMethod]
-        public void AnOfferNotTakenComesAgainOnTheNextArrivalAfterItExpires()
+        public void AnOfferNotTakenComesAgainOnTheNextArrival()
         {
             var now = new DateTime(2026, 10, 21, 12, 0, 0, DateTimeKind.Utc);
             using var context = FollowUpContext(FollowUpMission(FollowUp), utcNow: () => now);
@@ -225,7 +225,9 @@ namespace Rasa.Test.Missions
             Assert.IsTrue(context.Manager.TryCompleteRadioMission(context.Client, Trigger, 1, null));
             Assert.AreEqual(FollowUp, context.Drain().OfType<DispenseRadioMissionPacket>().Single().MissionId);
 
+            // Not forced, the offer waits as long as its session; an arrival is a new one.
             now = now.AddMinutes(5);
+            context.Client.InvalidateMissionSession();
             context.Manager.OfferArrivalMissions(context.Client);
 
             Assert.AreEqual(FollowUp, context.Drain().OfType<DispenseRadioMissionPacket>().Single().MissionId);
