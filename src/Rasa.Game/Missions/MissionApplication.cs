@@ -277,8 +277,10 @@ namespace Rasa.Managers
                     !_requirements.Evaluate(client.Player, source.Requirement, unit) ||
                     !ArePrerequisitesSatisfied(client.Player, definition.MissionId, unit, out _))
                     continue;
+                // Not forced: the client puts a forced offer up with Decline disabled, and accepts
+                // it when the window closes (conversationwindow.Hide), as when an abandon closes it.
                 Offers.TryOffer(client, definition.MissionId,
-                    global::Rasa.Missions.Definitions.MissionOfferSourceIdentity.ServerEvent(key));
+                    global::Rasa.Missions.Definitions.MissionOfferSourceIdentity.ServerEvent(key), forceDialog: false);
             }
         }
 
@@ -551,8 +553,9 @@ namespace Rasa.Managers
                     !ArePrerequisitesSatisfied(player, definition.MissionId, out _))
                     continue;
 
+                // Not forced (see OfferAfterTurnIn): the player may turn the call down.
                 Offers.TryOffer(client, definition.MissionId,
-                    MissionOfferSourceIdentity.ServerEvent(MissionOfferSourceDefinition.MapArrivalKey));
+                    MissionOfferSourceIdentity.ServerEvent(MissionOfferSourceDefinition.MapArrivalKey), forceDialog: false);
             }
         }
 
