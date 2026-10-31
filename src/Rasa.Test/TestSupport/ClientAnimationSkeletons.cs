@@ -40,6 +40,7 @@ namespace Rasa.Test.TestSupport
             [35823] = 14036,    // Redshirt_Forean_Gunner_Infected, the Plateau's Infected Forean
             [17734] = 13975,    // Creature_Magmonix(_Boss), on the Treeback's skeleton (Magma Caverns' Magmonix and Ember)
             [17409] = 13916,    // Creature_Atta_Queen_Boss (Queen Kardash)
+            [16732] = 13892,    // the Treelurker (class 10347), Pools' Oakril (TargetsOfOpportunitySeed.Valverde)
         };
 
         /// <summary>Action animation families with no animation on any skeleton: the client's own gap, played by nothing.</summary>
@@ -84,6 +85,7 @@ namespace Rasa.Test.TestSupport
             [13886] = "622 650 651 859 860 925 1272",
             [13887] = "622 650 651 895 896 923 1041 1042 1272 1277 1278",
             [13888] = "622 650 651 808 1421 1422 1426 1428",
+            [13892] = "622 650 651 819 823 824 825 826 1272 1398",
             [13889] = "650 651 813 814 815 938 943 1272",
             [13890] = "650 651 853 854 855 927 936 937",
             [13891] = "622 650 651 861 862 928 1272",
