@@ -27,7 +27,8 @@ namespace Rasa.Test.Missions
     /// Opportunity gives, "Kill 40 Xanx!", and the other battlefields have theirs. The
     /// Wilderness's are on the Wilderness missions' own Targets of Opportunity
     /// (WildernessTargetsKillRulesTests). The Divide's is Agent Garrett's to give
-    /// (TargetsOfOpportunityGivers); the Plateau's is still offered by radio on arrival.
+    /// (TargetsOfOpportunityGivers), Plateau's Doss's (TargetsOfOpportunitySeed.Valverde); the Pools' is
+    /// still offered by radio on arrival.
     /// </summary>
     [TestClass]
     [DoNotParallelize]
@@ -37,8 +38,8 @@ namespace Rasa.Test.Missions
         private const uint KillXanx = 3;                // "Kill 40 Xanx!"
         private const uint Exterminator = 464;          // "Divide Exterminator"
         private const uint DivideMap = 1148;
-        private const uint Plateau = 1586;              // still offered by radio
-        private const uint PlateauMap = 1497;
+        private const uint Pools = 1594;                // still offered by radio
+        private const uint PoolsMap = 1304;
 
         private const uint Xanx = TargetsOfOpportunitySeed.Flag.Xanx;
         private const uint Thrax = TargetsOfOpportunitySeed.Flag.Thrax;
@@ -406,14 +407,17 @@ namespace Rasa.Test.Missions
             }
 
             Assert.AreEqual(14, world.Set<MissionContentDefinitionEntry>().AsNoTracking().Count(row => row.ContentRevision == TargetsOfOpportunitySeed.Revision));
-            // The seed's rows, and those added to three of its missions since (TargetsOfOpportunitySeed.OneOffs).
+            // The seed's rows, and those added to its missions since (TargetsOfOpportunitySeed.OneOffs, .Valverde).
             var added = TargetsOfOpportunitySeed.OneOffs.Objectives.Length;
             var addedTriggers = TargetsOfOpportunitySeed.OneOffs.KillTriggers.Length + TargetsOfOpportunitySeed.OneOffs.AreaTriggers.Length;
+
+            added += TargetsOfOpportunitySeed.Valverde.AllObjectives.Count;
+            addedTriggers += TargetsOfOpportunitySeed.Valverde.TriggerRows.Length;
 
             Assert.AreEqual(59 + 14 + added, world.Set<MissionObjectiveDefinitionEntry>().AsNoTracking().Count(row => row.ContentRevision == TargetsOfOpportunitySeed.Revision));
             Assert.AreEqual(TargetsOfOpportunitySeed.Zones.Sum(zone => zone.Kills.Sum(kill => kill.Subjects.Count)) + addedTriggers,
                 world.Set<MissionTriggerEntry>().AsNoTracking().Count(row => row.ContentRevision == TargetsOfOpportunitySeed.Revision));
-            Assert.AreEqual(42 + TargetsOfOpportunitySeed.OneOffs.Evidence.Length,
+            Assert.AreEqual(42 + TargetsOfOpportunitySeed.OneOffs.Evidence.Length + TargetsOfOpportunitySeed.Valverde.Evidence.Length,
                 world.Set<MissionEvidenceEntry>().AsNoTracking().Count(row => row.ContentRevision == TargetsOfOpportunitySeed.Revision));
         }
 
@@ -431,21 +435,28 @@ namespace Rasa.Test.Missions
                 Assert.IsTrue(harness.Manager.LoadedMissions.TryGetValue(zone.MissionId, out var mission), zone.Name);
                 Assert.IsTrue(mission.IsOperational, $"{zone.Name}: {mission.OperationalDiagnostic}");
                 Assert.AreEqual(TargetsOfOpportunitySeed.Revision, mission.ContentRevision);
-                // Six from their officers (TargetsOfOpportunityGivers), the rest by radio.
+                // Six from their officers (TargetsOfOpportunityGivers), Plateau's from Doss
+                // (TargetsOfOpportunitySeed.Valverde), the rest by radio.
                 var giver = TargetsOfOpportunityGivers.Givers.SingleOrDefault(candidate => candidate.MissionId == zone.MissionId);
-                var channel = giver == null ? MissionChannel.Radio : MissionChannel.Npc;
+                var channel = giver == null && zone.MissionId != TargetsOfOpportunitySeed.Valverde.PlateauMissionId ? MissionChannel.Radio : MissionChannel.Npc;
                 Assert.AreEqual(channel, mission.AcceptanceChannel, zone.Name);
                 Assert.AreEqual(channel, mission.CompletionChannel, zone.Name);
-                Assert.AreEqual(giver?.Id, mission.MissionGiver, zone.Name);
-                Assert.AreEqual(giver?.Id, mission.MissionReciver, zone.Name);
-                // Its kills, "complete all", and what was added to it since (OneOffTitlesTests).
-                Assert.HasCount(zone.Kills.Count + 1 + (TargetsOfOpportunitySeed.OneOffs.AddedObjectives.GetValueOrDefault(zone.MissionId)?.Length ?? 0),
+                var giverId = zone.MissionId == TargetsOfOpportunitySeed.Valverde.PlateauMissionId ? TargetsOfOpportunitySeed.Valverde.Doss : giver?.Id;
+                Assert.AreEqual(giverId, mission.MissionGiver, zone.Name);
+                Assert.AreEqual(giverId, mission.MissionReciver, zone.Name);
+                // Its kills, "complete all", and what was added to it since (OneOffTitlesTests,
+                // ValverdeTargetsOfOpportunityTests).
+                var valverde = TargetsOfOpportunitySeed.Valverde.AllObjectives.Count(added => added.MissionId == zone.MissionId);
+                Assert.HasCount(zone.Kills.Count + 1 + (TargetsOfOpportunitySeed.OneOffs.AddedObjectives.GetValueOrDefault(zone.MissionId)?.Length ?? 0) + valverde,
                     mission.Objectives);
 
+                // The one required objective: nothing completes it, the mission stays. Plateau's
+                // and the Pools' are the sum of the rest, and give a title.
                 var all = mission.Objectives[zone.AllObjectiveId];
-                Assert.IsTrue(all.IsRequired.Value, "the one required objective: nothing completes it, the mission stays");
+                Assert.IsTrue(all.IsRequired.Value, zone.Name);
                 Assert.IsEmpty(all.GetExecutableTransitionsOrLegacyDefault());
-                Assert.IsNull(all.TitleId);
+                Assert.AreEqual(valverde > 0, all.IsAggregate, zone.Name);
+                Assert.AreEqual(valverde > 0, all.TitleId.HasValue, zone.Name);
 
                 foreach (var kill in zone.Kills)
                 {
@@ -475,22 +486,22 @@ namespace Rasa.Test.Missions
 
             // Bootcamp is nobody's battlefield.
             harness.Manager.OfferArrivalMissions(harness.Client);
-            Assert.IsFalse(harness.Drain().OfType<DispenseRadioMissionPacket>().Any(offer => offer.MissionId == Plateau));
+            Assert.IsFalse(harness.Drain().OfType<DispenseRadioMissionPacket>().Any(offer => offer.MissionId == Pools));
 
-            // Onto the Plateau, as a map change puts a player there (MapChannelManager: AssignPlayer).
-            Arrive(harness, PlateauMap);
+            // Onto the Pools, as a map change puts a player there (MapChannelManager: AssignPlayer).
+            Arrive(harness, PoolsMap);
             harness.Drain();
             ManifestationManager.Instance.AssignPlayer(harness.Client);
 
             var offered = harness.Drain().OfType<DispenseRadioMissionPacket>().Single();
-            Assert.AreEqual(Plateau, offered.MissionId);
+            Assert.AreEqual(Pools, offered.MissionId);
             Assert.IsFalse(offered.ForceDialog, "a forced offer cannot be declined, and the client accepts it when its window closes");
 
-            Assert.IsTrue(harness.Manager.TryAcceptRadioMission(harness.Client, Plateau));
+            Assert.IsTrue(harness.Manager.TryAcceptRadioMission(harness.Client, Pools));
 
             var gained = harness.Drain().OfType<MissionGainedPacket>().Single();
-            Assert.AreEqual(Plateau, gained.MissionId);
-            var log = harness.Client.Player.Missions[Plateau];
+            Assert.AreEqual(Pools, gained.MissionId);
+            var log = harness.Client.Player.Missions[Pools];
             Assert.AreEqual(MissionState.Active, log.State);
             Assert.IsFalse(log.Completeable, "its one required objective is not done");
 
