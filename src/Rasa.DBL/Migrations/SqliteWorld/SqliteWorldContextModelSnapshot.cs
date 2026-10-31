@@ -1879,6 +1879,10 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnType("varchar(64)")
                         .HasColumnName("comment");
 
+                    b.Property<uint>("MapContextId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("map_context_id");
+
                     b.Property<double>("PosX")
                         .HasColumnType("REAL")
                         .HasColumnName("pos_x");

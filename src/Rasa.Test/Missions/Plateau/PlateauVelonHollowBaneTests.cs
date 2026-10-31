@@ -738,6 +738,35 @@ namespace Rasa.Test.Missions.Plateau
             Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, MountainSpringToxins, PlateauMountainSpringToxinsV1.Find));
         }
 
+        /// <summary>
+        /// Ancient Mysteries' markers each on their own map (MissionIndicatorMapsV1, a player's report 2026-10-30): on the
+        /// Plateau only 2's, at the way in; in Velon Hollow only 1's six, at the bosses; back on the Plateau none of 1's.
+        /// </summary>
+        [TestMethod]
+        public void AncientMysteriesSendsEachMapOnlyItsOwnMarkers()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var plateau = EnterPlateau(harness);
+            HundraAndMarkin(harness, plateau);
+            Assert.HasCount(1, Markers(harness, PlateauAncientMysteriesV1.Explore), "on the Plateau: the way into Velon Hollow");
+
+            var copy = IntoVelonHollow(harness);
+            Assert.IsTrue(harness.Client.MissionAreaService.RecordArrival(harness.Client));
+            harness.Drain();
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, AncientMysteries, PlateauAncientMysteriesV1.Recover));
+            Assert.HasCount(PlateauAncientMysteriesV1.BossesAt.Length, Markers(harness, PlateauAncientMysteriesV1.Recover), "in Velon Hollow: the bosses");
+            Assert.IsEmpty(Markers(harness, PlateauAncientMysteriesV1.Explore), "the Plateau's way in is not drawn in Velon Hollow");
+
+            Leave(harness, copy, plateau);
+            Assert.IsEmpty(Markers(harness, PlateauAncientMysteriesV1.Recover), "Velon Hollow's bosses are not drawn on the Plateau");
+            Assert.HasCount(1, Markers(harness, PlateauAncientMysteriesV1.Explore));
+        }
+
+        /// <summary>The indicators the client is sent for one of 1978's objectives, on the map the player is on.</summary>
+        private static System.Collections.Generic.List<MissionIndicator> Markers(WildernessRuntimeTestHarness harness, uint objectiveId) =>
+            harness.Manager.BuildStatusSnapshot(harness.Client.Player)[AncientMysteries].ObjectivesList
+                .Single(objective => objective.ObjectiveId == objectiveId).IndicatorList;
+
         /// <summary>Hundra and Markin at New Velon; 1978 offered after Village Of The Damned and accepted at Hundra.</summary>
         private static (Creature Hundra, Creature Markin) HundraAndMarkin(WildernessRuntimeTestHarness harness, MapChannel plateau)
         {

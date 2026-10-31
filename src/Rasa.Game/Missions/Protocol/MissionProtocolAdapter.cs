@@ -153,14 +153,30 @@ namespace Rasa.Managers
                 }
             }
 
-            return IssuedItemProgress.Apply(player, definition, runtimeMission, HerbalRemedyProgress.Apply(player, definition, runtimeMission, WithRewardInfo(definition, definition.CreateInfo(
+            return OnPlayersMap(player, IssuedItemProgress.Apply(player, definition, runtimeMission, HerbalRemedyProgress.Apply(player, definition, runtimeMission, WithRewardInfo(definition, definition.CreateInfo(
                 runtimeMission.State,
                 runtimeMission.Completeable,
                 runtimeMission.Objectives,
                 objectiveId =>
                     objectiveId == activeDeadlineObjectiveId
                         ? timeRemaining
-                        : null))));
+                        : null)))));
+        }
+
+        /// <summary>
+        /// Only the indicators on the map the player is on (MissionIndicator.MapContextId): the client
+        /// draws each indicator it is sent on its current map, so another map's would stand in the wrong
+        /// place. The mission info is sent again on every map change (ManifestationManager.AssignPlayer).
+        /// </summary>
+        internal static MissionInfo OnPlayersMap(Manifestation player, MissionInfo info)
+        {
+            var mapContextId = player?.MapChannel?.MapInfo?.MapContextId ?? player?.MapContextId ?? 0;
+            if (info == null || mapContextId == 0)
+                return info;
+
+            foreach (var objective in info.ObjectivesList)
+                objective.IndicatorList.RemoveAll(indicator => !indicator.IsOn(mapContextId));
+            return info;
         }
 
         internal MissionInfo BuildOfferInfo(Mission definition, MissionState state = MissionState.NotAssigned)

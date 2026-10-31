@@ -266,7 +266,8 @@ namespace Rasa.Structures
                 Position = indicator.Position,
                 Radius = indicator.Radius,
                 IndicatorId = indicator.IndicatorId,
-                Show3DEffect = indicator.Show3DEffect
+                Show3DEffect = indicator.Show3DEffect,
+                MapContextId = indicator.MapContextId
             };
 
         internal MissionObjectiveDefinition WithCreditPolicy(global::Rasa.Missions.Runtime.MissionCreditPolicy policy) =>

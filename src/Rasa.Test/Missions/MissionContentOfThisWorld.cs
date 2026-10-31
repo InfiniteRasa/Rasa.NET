@@ -35,5 +35,22 @@ namespace Rasa.Test.Missions
                         $"0 AS module_1, 0 AS module_2, 0 AS module_3, 0 AS module_4 FROM {table}")
                     .AsNoTracking().ToList();
         }
+
+        /// <summary>A world before Mission_indicator_maps has no map_context_id: every indicator on every map (0), as then.</summary>
+        List<MissionIndicatorEntry> IMissionContentRepository.GetIndicators()
+        {
+            const string table = MissionIndicatorEntry.TableName;
+
+            var hasMaps = _context.Database
+                .SqlQueryRaw<int>("SELECT COUNT(*) AS Value FROM pragma_table_info({0}) WHERE name = 'map_context_id'", table)
+                .AsEnumerable().Single() > 0;
+
+            return hasMaps
+                ? GetIndicators()
+                : _context.MissionIndicatorEntries
+                    .FromSqlRaw($"SELECT mission_id, content_revision, objective_id, indicator_id, requirement, pos_x, pos_y, pos_z, " +
+                        $"radius, show_3d_effect, 0 AS map_context_id, comment FROM {table}")
+                    .AsNoTracking().ToList();
+        }
     }
 }

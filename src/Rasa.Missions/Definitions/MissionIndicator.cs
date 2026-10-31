@@ -21,5 +21,13 @@ namespace Rasa.Structures
         /// </summary>
         public uint? ClientNameId => IndicatorId < UnnamedFrom ? (uint?)IndicatorId : null;
         public bool Show3DEffect { get; init; }
+        /// <summary>
+        /// The map the indicator is on: only a player on that map is sent it (an indicator has no map
+        /// on the wire, so the client draws every one it is sent on the map the player is on). 0, every map.
+        /// </summary>
+        public uint MapContextId { get; init; }
+
+        /// <summary>Whether a player on this map is sent the indicator.</summary>
+        public bool IsOn(uint mapContextId) => MapContextId == 0 || MapContextId == mapContextId;
     }
 }
