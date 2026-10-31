@@ -982,7 +982,9 @@ namespace Rasa.Test.Missions.Pools
             // South Of The Border's marker at Snake goes with him.
             (double, double, double) Marker()
             {
-                var row = world.MissionIndicatorEntries.AsNoTracking().Single(entry => entry.MissionId == PlateauSouthOfTheBorderV1.MissionId);
+                // Its place only: a world rolled back before Mission_indicator_maps has no map_context_id.
+                var row = world.MissionIndicatorEntries.AsNoTracking().Where(entry => entry.MissionId == PlateauSouthOfTheBorderV1.MissionId)
+                    .Select(entry => new { entry.PosX, entry.PosY, entry.PosZ }).Single();
                 return (System.Math.Round(row.PosX, 2), System.Math.Round(row.PosY, 2), System.Math.Round(row.PosZ, 2));
             }
 

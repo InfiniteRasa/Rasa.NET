@@ -1937,6 +1937,10 @@ namespace Rasa.Migrations.MySqlWorld
                         .HasColumnType("varchar(64)")
                         .HasColumnName("comment");
 
+                    b.Property<uint>("MapContextId")
+                        .HasColumnType("int(11) unsigned")
+                        .HasColumnName("map_context_id");
+
                     b.Property<double>("PosX")
                         .HasColumnType("double")
                         .HasColumnName("pos_x");

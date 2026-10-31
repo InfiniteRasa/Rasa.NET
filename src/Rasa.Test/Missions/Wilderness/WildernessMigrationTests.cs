@@ -679,8 +679,10 @@ namespace Rasa.Test.Missions.Wilderness
 
             migrator.Migrate(WildernessWorldBoundary);
 
+            // Its keys only: the world rolled back is before Mission_indicator_maps, with no map_context_id.
             var rolledBack = harness.World.MissionIndicatorEntries.AsNoTracking()
-                .Where(row => row.ContentRevision == WildernessMissionDataV1.Revision).ToArray();
+                .Where(row => row.ContentRevision == WildernessMissionDataV1.Revision)
+                .Select(row => new { row.MissionId, row.ObjectiveId, row.IndicatorId }).ToArray();
             Assert.AreEqual(97, rolledBack.Length);
             Assert.IsTrue(rolledBack.All(row => row.IndicatorId >= 1 && row.IndicatorId <= 12));
             Assert.AreEqual(4, rolledBack.Count(row => row.MissionId == 430 && row.IndicatorId == row.ObjectiveId));

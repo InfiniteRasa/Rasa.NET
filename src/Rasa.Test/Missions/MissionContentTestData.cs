@@ -797,6 +797,7 @@ namespace Rasa.Test.Missions
                 PosZ = entry.PosZ,
                 Radius = entry.Radius,
                 Show3DEffect = entry.Show3DEffect,
+                MapContextId = entry.MapContextId,
                 Comment = entry.Comment
             };
 

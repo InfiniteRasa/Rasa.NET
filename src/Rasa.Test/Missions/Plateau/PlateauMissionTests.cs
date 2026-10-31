@@ -1956,8 +1956,10 @@ namespace Rasa.Test.Missions.Plateau
             }
             (double, double, double) Marker(uint objective, uint indicator)
             {
-                var row = world.MissionIndicatorEntries.AsNoTracking().Single(entry => entry.MissionId == PlateauCrypticMessagesV1.MissionId &&
-                    entry.ObjectiveId == objective && entry.IndicatorId == Rasa.Structures.MissionIndicator.UnnamedFrom + indicator);
+                // Its place only: a world rolled back before Mission_indicator_maps has no map_context_id.
+                var row = world.MissionIndicatorEntries.AsNoTracking().Where(entry => entry.MissionId == PlateauCrypticMessagesV1.MissionId &&
+                    entry.ObjectiveId == objective && entry.IndicatorId == Rasa.Structures.MissionIndicator.UnnamedFrom + indicator)
+                    .Select(entry => new { entry.PosX, entry.PosY, entry.PosZ }).Single();
                 return (row.PosX, row.PosY, row.PosZ);
             }
 

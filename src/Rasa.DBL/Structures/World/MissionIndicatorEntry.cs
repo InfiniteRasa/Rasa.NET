@@ -49,6 +49,11 @@ namespace Rasa.Structures.World
         [Required]
         public bool Show3DEffect { get; set; }
 
+        /// <summary>The map the indicator is on, sent only to a player on that map; 0, every map.</summary>
+        [Column("map_context_id")]
+        [Required]
+        public uint MapContextId { get; set; }
+
         [Column("comment", TypeName = "varchar(64)")]
         [Required]
         public string Comment { get; set; } = string.Empty;

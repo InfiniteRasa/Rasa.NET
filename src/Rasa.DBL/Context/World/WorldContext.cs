@@ -1010,6 +1010,9 @@ namespace Rasa.Context.World
                 .Property(entry => entry.Requirement)
                 .HasConversion<byte>()
                 .AsUnsignedTinyInt(_dbContextPropertyModifier, 3);
+            modelBuilder.Entity<MissionIndicatorEntry>()
+                .Property(entry => entry.MapContextId)
+                .AsUnsignedInt(_dbContextPropertyModifier, 11);
 
             modelBuilder.Entity<MissionAreaEntry>()
                 .HasKey(entry => new { entry.MissionId, entry.ContentRevision, entry.AreaId });

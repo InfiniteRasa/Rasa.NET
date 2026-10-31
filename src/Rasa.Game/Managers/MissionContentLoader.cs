@@ -109,7 +109,8 @@ namespace Rasa.Managers
                                     (float)entry.PosY,
                                     (float)entry.PosZ),
                                 Radius = entry.Radius,
-                                Show3DEffect = entry.Show3DEffect
+                                Show3DEffect = entry.Show3DEffect,
+                                MapContextId = entry.MapContextId
                             })
                             .ToArray());
 
