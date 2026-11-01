@@ -2256,6 +2256,10 @@ namespace Rasa.Managers
             // And the hit points of those that can be shot down, which makes them targets (WorldDestructibles).
             WorldDestructibles.PlayerEnteredMap(client);
 
+            // A Tier IV character who has no signature ability yet - one who advanced before it
+            // was given, or a clone - is given it now, before the skills go out.
+            GrantSignatureSkill(client);
+
             client.CallMethod(player.EntityId, new AdvancementStatsPacket(
                 player.Level,
                 player.Experience,
@@ -3120,9 +3124,16 @@ namespace Rasa.Managers
 
             // The skills the new class grants become trainable through the gate in
             // ValidateSkillLevels, which reads Player.Class - so nothing else has to change for
-            // them to unlock. Resending the skills and the points is what makes the window
-            // redraw with them in it.
+            // them to unlock. A Tier IV class's signature ability is not trained but given, at
+            // its one rank (GrantSignatureSkill). Resending the skills and the points is what
+            // makes the window redraw with them in it.
+            var signature = GrantSignatureSkill(client);
             client.CallMethod(player.EntityId, new SkillsPacket(player.Skills));
+            if (signature)
+            {
+                client.CallMethod(player.EntityId, GmAbilities.AbilitiesFor(client));
+                AbilityManager.Instance.RefreshUnimplementedBlocks(client);
+            }
             SendAvailableAllocationPoints(client);
 
             // What is ahead from here: the next tier's pair, or nothing at tier 4.
@@ -3138,6 +3149,14 @@ namespace Rasa.Managers
             client.Player.Class = newClassId;
             client.CallMethod(client.Player.EntityId, new CharacterClassPacket(client.Player.Class));
             CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Class, client.Player.Class);
+
+            if (GrantSignatureSkill(client))
+            {
+                client.CallMethod(client.Player.EntityId, new SkillsPacket(client.Player.Skills));
+                client.CallMethod(client.Player.EntityId, GmAbilities.AbilitiesFor(client));
+                AbilityManager.Instance.RefreshUnimplementedBlocks(client);
+                SendAvailableAllocationPoints(client);
+            }
 
             // Class is the third field of the same party tuple, so it goes stale the same way.
             PartyManager.Instance.MemberInfoChanged(client);
@@ -3385,12 +3404,13 @@ namespace Rasa.Managers
         /// <summary>
         /// What a character's skills are after the Respec Skills token (Respec): the Recruit
         /// skills they have (CharacterManager.StartingSkills) at rank 1 - which a new character
-        /// starts with, and whose five points every budget includes - and nothing else. Every
-        /// other point comes back to spend again.
+        /// starts with, and whose five points every budget includes - and their signature
+        /// ability, which cost nothing; and nothing else. Every other point comes back to spend
+        /// again.
         /// </summary>
         public static Dictionary<SkillId, SkillsData> SkillsAfterRespec(Manifestation player) =>
             player.Skills.Values
-                .Where(skill => CharacterManager.StartingSkills.Contains(skill.SkillId))
+                .Where(skill => CharacterManager.StartingSkills.Contains(skill.SkillId) || IsSignatureSkill(skill.SkillId))
                 .ToDictionary(skill => skill.SkillId, skill => new SkillsData(skill.SkillId, skill.AbilityId, Math.Min(1, skill.SkillLevel)));
 
         /// <summary>Whether the Respec Skills token would change anything: a skill beyond the Recruit ones, or one above rank 1.</summary>
@@ -3466,7 +3486,7 @@ namespace Rasa.Managers
             var spent = 0;
 
             foreach (var skill in player.Skills.Values)
-                if (!except.Contains(skill.SkillId) && skill.SkillLevel >= 0 && skill.SkillLevel <= MaxSkillLevel)
+                if (!except.Contains(skill.SkillId) && !IsSignatureSkill(skill.SkillId) && skill.SkillLevel >= 0 && skill.SkillLevel <= MaxSkillLevel)
                     spent += requiredSkillLevelPoints[skill.SkillLevel];
 
             return spent;
@@ -3519,9 +3539,12 @@ namespace Rasa.Managers
             if (level >= 50)
                 pointsAvailable += 4;
 
-            // subtract spent skill levels
+            // subtract spent skill levels; a signature ability is given, not bought
             foreach (var skill in player.Skills)
             {
+                if (IsSignatureSkill(skill.Key))
+                    continue;
+
                 var skillLevel = skill.Value.SkillLevel;
                 if (skillLevel < 0 || skillLevel > 5)
                     continue; // should not be possible
@@ -3544,6 +3567,72 @@ namespace Rasa.Managers
                 _skillClasses[(SkillId)entry.Id] = ((CharacterClass)entry.ClassId, (int)entry.RequiredLevel);
 
             Logger.WriteLog(LogType.Initialize, $"Loaded {_skillClasses.Count} skill class requirements.");
+        }
+
+        /// <summary>
+        /// The eight Tier IV signature abilities' skills (gameuiutil.IsSignatureAbilitySkill):
+        /// T4_DEMOLITIONIST_SIG_EXPLOSIVE_WAVE 20, T4_GRENADIER_SIG_CONCUSSIVE_WAVE 47,
+        /// T4_GUARDIAN_SIG_SHIELD_WAVE 92, T4_SPY_SIG_CLOAK_WAVE 110, T4_SNIPER_SIG_CRIT_WAVE 149,
+        /// T4_MEDIC_SIG_REGENERATION_WAVE 154, T4_EXOBIOLOGIST_SIG_REANIMATION_WAVE 156 and
+        /// T4_ENGINEER_SIG_BASE_WAVE 157. Each has one rank (skillData maxRank 1).
+        ///
+        /// The client's skills window draws a signature row with no plus or minus at all
+        /// (skillsabilitieswindow.py: only rows that are not 'SignatureAbilities' get them), and
+        /// its one icon only once the skill is held at rank 1: there is no way for a player to
+        /// train one. It is the class's to give - <see cref="GrantSignatureSkill"/> - for no
+        /// points; the Logos it needs (AbilityLogos) are what stand between the player and using it.
+        /// </summary>
+        public static readonly IReadOnlyCollection<SkillId> SignatureSkills = new HashSet<SkillId>
+        {
+            (SkillId)20, (SkillId)47, (SkillId)92, (SkillId)110, (SkillId)149, (SkillId)154, (SkillId)156, (SkillId)157
+        };
+
+        public static bool IsSignatureSkill(SkillId skillId) => SignatureSkills.Contains(skillId);
+
+        /// <summary>The signature skill the player's class gives at their level (skillCharacter), or <see cref="SkillId.None"/>.</summary>
+        internal SkillId SignatureSkillFor(Manifestation player)
+        {
+            foreach (var skillId in SignatureSkills)
+                if (_skillClasses.TryGetValue(skillId, out var requirement)
+                    && CharacterClassTree.Is((CharacterClass)player.Class, requirement.Class)
+                    && player.Level >= requirement.Level)
+                    return skillId;
+
+            return SkillId.None;
+        }
+
+        /// <summary>
+        /// Gives the player their class's signature ability at its one rank, kept with their
+        /// skills, if they have not got it. True if it was given; the caller tells the client.
+        /// </summary>
+        internal bool GrantSignatureSkill(Client client)
+        {
+            var player = client?.Player;
+
+            if (player == null)
+                return false;
+
+            var skillId = SignatureSkillFor(player);
+
+            if (skillId == SkillId.None || player.Skills.TryGetValue(skillId, out var held) && held.SkillLevel >= 1)
+                return false;
+
+            var abilityId = SkillIdx2AbilityId[GetSkillIndexById((int)skillId)];
+
+            try
+            {
+                using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+                unitOfWork.CharacterSkills.AddOrUpdate(player.Id, (uint)skillId, abilityId, 1);
+            }
+            catch (Exception error) when (error is DbUpdateException || error is DbException)
+            {
+                Logger.WriteLog(LogType.Error, $"Could not give character {player.Id} the signature skill {(int)skillId}: {error.Message}");
+                return false;
+            }
+
+            player.Skills[skillId] = new SkillsData(skillId, abilityId, 1);
+            Logger.WriteLog(LogType.Debug, $"{player.FamilyName} was given the signature skill {(int)skillId} (ability {abilityId}).");
+            return true;
         }
 
         /// <summary>
@@ -3591,6 +3680,10 @@ namespace Rasa.Managers
 
                 if (!_skillClasses.TryGetValue(skillId, out var requirement))
                     return $"skill {rawId}, which no class grants";
+
+                // The client draws no plus for one (skillsabilitieswindow.py): it is given.
+                if (IsSignatureSkill(skillId))
+                    return $"skill {rawId}, a signature ability, which is given and not trained";
 
                 // gameuiutil's IsCharacterClass: the skill's class has to be the player's own or
                 // one they advanced through. A Commando keeps their Soldier and Recruit skills
