@@ -3013,6 +3013,18 @@ namespace Rasa.Managers
         public const int AdrenalinePerKillPercent = 20;
 
         /// <summary>
+        /// The adrenaline bar's maximum, the same for every character: the action data counts
+        /// adrenaline in tenths of a percent of the bar. Rage costs 100 and 200 ("Adrenaline:
+        /// 10%" and "20%" in its tooltip), the signature waves 1000 ("Adrenaline: 100%"), and
+        /// Sprint drains 30 every two seconds ("1.5% every second"). The client checks a cost
+        /// against the bar in those units (BaseActorAbility.CheckConsumables: current &lt; cost),
+        /// so the bar has to be 1000 for the costs to be the tooltips' shares and a wave to be
+        /// castable on a full bar. It used to be the power formula's total (Body + 2 Mind),
+        /// 100 to 250: Rage took 100 of a 230 bar, and no character could ever pay for a wave.
+        /// </summary>
+        public const int AdrenalineBarMax = 1000;
+
+        /// <summary>
         /// Adds adrenaline to the player's bar, up to its maximum, and tells the client. whoId 0
         /// makes the client announce the change (the floating number over the bar), as the live
         /// server did from the killing blow.
@@ -5032,15 +5044,10 @@ namespace Rasa.Managers
             totalHealth = Math.Max(1, WithPercent(totalHealth, GameEffectManager.AttributePercentOf(player, Attributes.Health)));
 
             // The per-point factor shrinks with level; the attribute totals grow. Both sides of
-            // these divisions were int, so the factor was truncated: 3 at level 1 instead of
-            // 3.43, 1 from level 20 (1.11), and 0 from level 26 for power and 39 for regen - a
-            // character that levelled far enough had no chi and no regeneration at all. The
-            // health line above already divides as float and was right.
+            // this division were int, so the factor was truncated, and from level 39 a character
+            // had no regeneration at all. The health line above already divides as float and was
+            // right.
             float attributeDivisor = 2 * (level - 1) + 2 * (2 * (level - 1) + 10) + 10;
-
-            // Power
-            float basePower = (3 * level + 100) / attributeDivisor;
-            int totalPower  = (int)(basePower * (totalBody + 2 * totalMind));
 
             // Regen
             float baseRegen = (2 * level + 100) / attributeDivisor;
@@ -5072,9 +5079,9 @@ namespace Rasa.Managers
             attribute[Attributes.Health].NormalMax  = totalHealth;
             attribute[Attributes.Health].CurrentMax = Math.Max(1, totalHealth + healthBonus);
 
-            // chi/adrenaline
-            attribute[Attributes.Chi].NormalMax     = totalPower;
-            attribute[Attributes.Chi].CurrentMax    = totalPower;
+            // chi/adrenaline: a fixed bar, the units the costs and drains are given in.
+            attribute[Attributes.Chi].NormalMax     = AdrenalineBarMax;
+            attribute[Attributes.Chi].CurrentMax    = AdrenalineBarMax;
 
             attribute[Attributes.Regen].NormalMax   = totalRegen; // regenRate in percent
             attribute[Attributes.Regen].CurrentMax  = Math.Max(0, totalRegen + regenBonus);
