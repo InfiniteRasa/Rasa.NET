@@ -1070,10 +1070,26 @@ namespace Rasa.Managers
             // The rounds come out of the clip in memory. The row is not written for a shot: it
             // was, in a transaction of its own on this loop, for every shot of every player
             // (WeaponClips, which says when it is written instead).
+            //
+            // A leech gun's fire opens with its burst (ConstantFire.BurstShotsOf): the first pulse
+            // of a pull is two shots' rounds for two shots' damage, as many of the two as the clip
+            // still holds.
+            var constantFire = ConstantFire.Handles(weaponClassInfo);
+            var ammoPerShot = weapon.ItemTemplate.WeaponInfo.AmmoPerShot;
+            var shots = constantFire && !ConstantFire.IsFiring(client)
+                ? ConstantFire.BurstShotsOf(weaponClassInfo.WeaponAttackActionId, usesAmmo ? weapon.CurrentAmmo : uint.MaxValue, ammoPerShot)
+                : 1;
+
             if (usesAmmo)
             {
-                WeaponClips.Spend(client, weapon, weapon.ItemTemplate.WeaponInfo.AmmoPerShot, _gameUnitOfWorkFactory);
-                client.CallMethod(weapon.EntityId, new WeaponAmmoInfoPacket(weapon.CurrentAmmo));
+                WeaponClips.Spend(client, weapon, ammoPerShot * (uint)shots, _gameUnitOfWorkFactory);
+
+                // A constant fire's clip is told after the pulse: the client takes a shot's rounds
+                // off its own count on every tick (ConstantFireEffect.OnTick, UseAmmo), so the
+                // count sent before it came out one round short, and a burst's second round was
+                // never counted at all.
+                if (!constantFire)
+                    client.CallMethod(weapon.EntityId, new WeaponAmmoInfoPacket(weapon.CurrentAmmo));
             }
 
             client.Player.NextShotAt = Math.Max(client.Player.NextShotAt, now - ShotTolerance) +
@@ -1175,10 +1191,13 @@ namespace Rasa.Managers
 
             // A constant-fire weapon (leech, polarity and propellant guns, machine guns) is not fired as a missile: this interval of
             // the fire is a tick of the effect on the shooter (ConstantFire).
-            if (ConstantFire.Handles(weaponClassInfo))
+            if (constantFire)
             {
-                ConstantFire.Pulse(client.Player.MapChannel, client, weapon, action, damage,
+                ConstantFire.Pulse(client.Player.MapChannel, client, weapon, action, damage * shots,
                     WeaponDamageType(client.Player, (DamageType)weaponClassInfo.DamageType), critBonus);
+
+                if (usesAmmo)
+                    client.CallMethod(weapon.EntityId, new WeaponAmmoInfoPacket(weapon.CurrentAmmo));
 
                 return FireResult.Fired;
             }

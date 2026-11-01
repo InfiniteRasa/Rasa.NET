@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -156,6 +156,28 @@ namespace Rasa.Managers
 
 
         /// <summary>
+        /// The shots a leech gun's burst is: "One click will fire a 2 ammunition burst which deals
+        /// double the damage listed on the weapon" (the community wiki's Leech Gun page). Holding
+        /// the trigger goes on from there at a shot a pulse.
+        /// </summary>
+        public const int LeechBurstShots = 2;
+
+        /// <summary>
+        /// How many shots the first pulse of a fire is: a leech gun's burst, as many of its shots
+        /// as the clip holds rounds for, and one for every other weapon.
+        /// </summary>
+        public static int BurstShotsOf(ActionId actionId, uint currentAmmo, uint ammoPerShot)
+        {
+            if (actionId != ActionId.WeaponDensitygun)
+                return 1;
+
+            if (ammoPerShot == 0)
+                return LeechBurstShots;
+
+            return (int)Math.Clamp(currentAmmo / ammoPerShot, 1, LeechBurstShots);
+        }
+
+        /// <summary>
         /// A polarity charge after one more beam hit of amount on targetId: the same target adds
         /// to it up to MaxChargePulses pulses, another target starts it again.
         /// </summary>
@@ -173,10 +195,15 @@ namespace Rasa.Managers
         /// <summary>What a polarity charge discharges for.</summary>
         public static int ReleaseOf(int charge) => charge <= 0 ? 0 : charge * ReleasePercent / 100;
 
+        /// <summary>
+        /// Whether this client's fire is running: the next pulse goes on with it rather than
+        /// starting one, as Begin decides it.
+        /// </summary>
         public static bool IsFiring(Client client)
         {
             lock (SessionsLock)
-                return Sessions.ContainsKey(client);
+                return Sessions.TryGetValue(client, out var running)
+                       && client.Player != null && client.Player.ActiveEffects.ContainsKey(running.Effect.EffectId);
         }
 
         /// <summary>How a leech's healing splits for one person: health up to what they are missing, the rest to armour.</summary>
@@ -443,8 +470,8 @@ namespace Rasa.Managers
         private static Session Begin(MapChannel mapChannel, Client client, Item weapon, ActionData action, DamageType damageType)
         {
             lock (SessionsLock)
-                if (Sessions.TryGetValue(client, out var running) && client.Player.ActiveEffects.ContainsKey(running.Effect.EffectId))
-                    return running;
+                if (IsFiring(client))
+                    return Sessions[client];
 
             var player = client.Player;
             var info = weapon.ItemTemplate.WeaponInfo;
