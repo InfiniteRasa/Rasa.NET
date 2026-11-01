@@ -690,7 +690,7 @@ namespace Rasa.Managers
                 return;
 
             dynamicObject.IsEnabled = enabled;
-            if (dynamicObject.SceneRunId != null)
+            if (dynamicObject.SceneRunId != null || dynamicObject.ScenarioKey != null)
             {
                 var classInfo = EntityClassManager.Instance.GetClassInfo(dynamicObject.EntityClassId)
                     ?? throw new GameplayRejectionException($"Missing scene object class {dynamicObject.EntityClassId}.");
@@ -772,11 +772,20 @@ namespace Rasa.Managers
             player.Missions.TryGetValue(use.MissionId, out var mission) && mission.State == MissionState.Active &&
             mission.Objectives.TryGetValue(use.ObjectiveId, out var objective) && objective.State == MissionObjectiveState.Incomplete;
 
+        /// <summary>
+        /// Whether the client may pick the object out - the use key and the mouse go only to a
+        /// targetable usable. A class the client makes targetable is; so is an enabled object a
+        /// scene or an instance's own script put down (SceneRunId, ScenarioKey), whatever its
+        /// class says. The Caves of Donn's gate (UsableDoorForeanElohCaveofDonnV01) and cave-ins
+        /// (UsableInertDestTerraCaveinV02) are classes with no target flag that an instance puts
+        /// down itself, with no scene run: they were sent untargetable, and a player could walk
+        /// up to them and never use them.
+        /// </summary>
         internal static bool IsTargetableFor(Client client, DynamicObject obj) =>
             obj != null && IsShownTo(client, obj) && (obj.MissionUseAction != null
                 ? obj.IsEnabled && MissionUseAvailable(client, obj)
                 : EntityClassManager.Instance.GetClassInfo(obj.EntityClassId)?.TargetFlag == true ||
-                    obj.SceneRunId != null && obj.IsEnabled);
+                    (obj.SceneRunId != null || obj.ScenarioKey != null) && obj.IsEnabled);
 
         internal void CreateDynamicObjectOnClient(Client client, DynamicObject dynamicObject)
         {

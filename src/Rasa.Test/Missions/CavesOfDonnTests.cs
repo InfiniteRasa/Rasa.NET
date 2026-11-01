@@ -11,6 +11,7 @@ using Rasa.Data;
 using Rasa.Managers;
 using Rasa.Missions.Content;
 using Rasa.Packets.MapChannel.Client;
+using Rasa.Packets.Game.Server;
 using Rasa.Packets.MapChannel.Server;
 using Rasa.Services.Preloader;
 using Rasa.Structures;
@@ -458,6 +459,48 @@ namespace Rasa.Test.Missions
 
             Work(harness);
             Assert.IsTrue(Vector3.Distance(nekala.Position, D.NekalaAtEntrance) < 1, $"Nekala waits by the entrance, at {nekala.Position}");
+        }
+
+        /// <summary>
+        /// The gate and the cave-ins are classes the client does not make targetable, put down by
+        /// the copy itself with no scene run: they were sent untargetable, and the use key never
+        /// picked them out. They are targetable while in service, and the gate is not once open.
+        /// </summary>
+        [TestMethod]
+        public void TheGateAndTheCaveInsCanBePickedOut()
+        {
+            using var harness = Create();
+            Work(harness);
+            var gate = Object(harness, D.GateClass);
+            var caveIns = Enumerable.Range(0, D.CaveIns.Length).Select(i => CaveIn(harness, i)).ToList();
+
+            foreach (var obj in caveIns.Append(gate))
+            {
+                Assert.IsFalse(EntityClassManager.Instance.GetClassInfo(obj.EntityClassId).TargetFlag, $"{obj.EntityClassId}: no target flag of its own");
+                Assert.IsTrue(DynamicObjectManager.IsTargetableFor(harness.Client, obj), obj.ScenarioKey);
+            }
+
+            harness.Drain();
+            DynamicObjectManager.Instance.CreateDynamicObjectOnClient(harness.Client, gate);
+            var made = harness.Drain().OfType<CreatePhysicalEntityPacket>().Single(packet => packet.EntityId == gate.EntityId);
+            Assert.IsTrue(made.EntityData.OfType<IsTargetablePacket>().Single().IsTargetable, "sent so");
+
+            Know(harness, D.TrapLogos, D.FeelingLogos, D.HealLogos);
+            WildernessTwinPillarsTests.Accept(harness, Put(harness, D.Nekala, D.NekalaAtMarFend), D.TheReasonWhy);
+            harness.MoveTo(gate.Position + new Vector3(1, 0, 0));
+            harness.Drain();
+            harness.Objects.RequestUseObjectPacket(harness.Client, new RequestUseObjectPacket
+            {
+                EntityId = gate.EntityId,
+                ActionId = ActionId.UseObject,
+                ActionArgId = DynamicObjectManager.FootlockerUseArgId
+            });
+            ActorActionManager.Instance.DoWork(harness.Map, 10000);
+            var sent = harness.Drain();
+
+            Assert.IsTrue(CavesOfDonn.IsGateOpen(harness.Map));
+            Assert.IsFalse(DynamicObjectManager.IsTargetableFor(harness.Client, gate), "open, out of service");
+            Assert.IsTrue(sent.OfType<IsTargetablePacket>().Any(packet => !packet.IsTargetable), "and the client told");
         }
 
         /// <summary>
