@@ -67,7 +67,8 @@ namespace Rasa.Services.Preloader
         /// level 35 as the other seven, health and armour as their formula
         /// (TargetsOfOpportunityGivers.Boss), attacks from their kin scaled by 2^(levels/8):
         /// Cainynix from Kennilaxx (Palisades, 28), Grumble from the Ashen Desert Tree Mite (39).
-        /// No Treelurker stands anywhere: Oakril's claw and frighten (ActionId 183, 181) are ESTIMATE.
+        /// No Treelurker stands anywhere: Oakril's claw and frighten (ActionId 183, 181) are the
+        /// client's (actiondata), scaled as a boss's on a base argument.
         ///
         /// Character: a held mission with fewer objectives than its definition is cleared on login,
         /// so every holder of 1586 or 1594 is given the new objectives' rows (<see cref="CharUp"/>),
@@ -279,9 +280,11 @@ namespace Rasa.Services.Preloader
                 new(650252, "Cainynix (Howler boss) howler_shriek", 512, 1, 0.0, 15.0, 30000, 1000, 0, 0, 1),
                 // Grumble, from the Ashen Desert Tree Mite's (540019, 39): 55029, x 2^(-4/8).
                 new(650253, "Grumble (Treemite boss) treemite_spit", 196, 1, 1.0, 20.0, 4000, 825, 143, 286, 4),
-                // Oakril: no Treelurker stands anywhere. ESTIMATE: Cainynix's melee for the claw, the shriek's timing for the frighten.
-                new(650254, "Oakril (Treelurker boss) treelurker_claw", 183, 1, 0.5, 3.0, 4000, 0, 182, 238, 1),
-                new(650255, "Oakril (Treelurker boss) treelurker_frighten", 181, 1, 0.0, 15.0, 30000, 1000, 0, 0, 1)
+                // Oakril: no Treelurker stands anywhere. The client's actiondata: 183/1 windup 3000, reach 4, cooldown 100,
+                // DAMAGE_AMOUNT 50-75, type 1; 181/1 no windup, reach 40, cooldown 8000, 48-94, type 7. Damage x 2^(34/8) x 0.5
+                // (a boss on a base argument, as Kennilaxx's). Ranges as the kin's rows: a melee reach + 1 from 0.5, a ranged one from 1.
+                new(650254, "Oakril (Treelurker boss) treelurker_claw", 183, 1, 0.5, 5.0, 100, 3000, 476, 714, 1),
+                new(650255, "Oakril (Treelurker boss) treelurker_frighten", 181, 1, 1.0, 40.0, 8000, 0, 457, 894, 7)
             };
 
             public sealed record NewBoss(uint Id, string Comment, uint ClassId, uint NameId, double X, double Y, double Z, uint[] Actions)
