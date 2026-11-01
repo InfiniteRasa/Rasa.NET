@@ -135,6 +135,13 @@ namespace Rasa.Structures
         /// in the world; this is the dispenser holding what is actually on it.
         /// </summary>
         public ulong CorpseLootEntityId { get; internal set; }
+
+        /// <summary>
+        /// What a Filcher has taken off corpses and carries until it dies (LootDispenserManager.Steal):
+        /// a dispenser of the items, shown on the Filcher to those whose corpse it robbed and on no
+        /// map's table, so nobody loots a living Filcher. Null when it carries nothing.
+        /// </summary>
+        public LootDispenser CarriedLoot { get; internal set; }
         // creature actions
         public List<CreatureAction> Actions = new List<CreatureAction>();
 

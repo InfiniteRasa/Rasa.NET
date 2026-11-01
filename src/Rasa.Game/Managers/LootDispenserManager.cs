@@ -429,6 +429,9 @@ namespace Rasa.Managers
                 CreateLoot(killer, owner, loot, (policy ?? Game.Missions.World.CreatureGameplayRules.Policy(creature)).Loot,
                     mapContextId, creatureId, partyId);
 
+                // A Filcher's corpse has what it stole on it too.
+                TakeOverCarried(creature, loot, owner, partyId);
+
                 lock (mapChannel.LootSyncRoot)
                 {
                     _beforeCorpsePublication?.Invoke(loot);
@@ -1977,5 +1980,182 @@ namespace Rasa.Managers
 
         /// <summary>The rows TakenInfo should mark; the client keys off the ones it is sent.</summary>
         private static List<LootItem> Taken(LootDispenser loot) => loot.LootItems.FindAll(i => i.Taken);
+
+        #region Filchers
+
+        /// <summary>
+        /// What a Filcher takes off a corpse: what stacks - ammunition, med kits, the consumables -
+        /// that nobody has taken and nobody holds a claim to. Not a squad roll's winnings or a
+        /// mission's drop (ReservedFor), which are one player's, nor gear, which stays on the
+        /// corpse. The corpse's credits are the killer's at the kill (Loot), so none are left for it.
+        /// </summary>
+        internal static List<LootItem> Stealable(LootDispenser loot) =>
+            loot?.LootItems.FindAll(item => !item.Taken && item.ReservedFor == 0 && item.Item != null && IsStackable(item.Item))
+            ?? new List<LootItem>();
+
+        private static bool IsStackable(Item item) =>
+            item.ItemTemplate != null && EntityClassManager.Instance.GetClassInfo(item.ItemTemplate.Class)?.ItemClassInfo?.StackSize > 1;
+
+        /// <summary>
+        /// A Filcher takes what it may off a corpse (<see cref="Stealable"/>) and carries it
+        /// (Creature.CarriedLoot) until it dies, when it is on the Filcher's own corpse with what
+        /// it drops (<see cref="Create(Client, Creature, List{Client}, uint, ActorGameplayPolicy)"/>).
+        /// The items move whole, rows and all: they were deleted with the corpse's dispenser,
+        /// which is what a Filcher left of the loot before - nothing, on its corpse or anywhere.
+        ///
+        /// Those the corpse was shown to see its loot go: the corpse's window and sparkle lose it,
+        /// and the corpse goes as an empty one when nothing is left. They see it on the Filcher
+        /// instead: a dispenser attached to it, lootable to their clients so the sparkle shows
+        /// (LootDispenser._AttachLootSFX) and on no map's table, so a request to loot it - the
+        /// client's auto-loot as they come near - finds nothing. It used to sparkle once with the
+        /// take's own effect and go. False when there was nothing to take.
+        /// </summary>
+        internal bool Steal(MapChannel map, Creature corpse, Creature filcher)
+        {
+            if (map == null || corpse == null || filcher == null)
+                return false;
+
+            RetryPendingRetirements();
+            var notices = new List<RetirementNotice>();
+            List<Client> viewers;
+            List<Client> newViewers;
+            LootDispenser carried;
+
+            lock (map.LootSyncRoot)
+            {
+                if (corpse.CorpseLootEntityId == 0 || !map.LootDispensers.TryGetValue(corpse.CorpseLootEntityId, out var loot) ||
+                    !loot.IsLootable || loot.FullyLooted || loot.CurrentLooter != 0)
+                    return false;
+
+                var taken = Stealable(loot);
+
+                if (taken.Count == 0)
+                    return false;
+
+                viewers = LootersHere(map, loot);
+
+                if (loot.OwnerClient != null && !viewers.Contains(loot.OwnerClient) && map.ClientList.Contains(loot.OwnerClient))
+                    viewers.Add(loot.OwnerClient);
+
+                carried = filcher.CarriedLoot ??= new LootDispenser
+                {
+                    IsLootable = true,
+                    AttachedTo = filcher.EntityId,
+                    Map = map,
+                    UnitOfWorkFactory = loot.UnitOfWorkFactory ?? _gameUnitOfWorkFactory,
+                    LootQuality = LootQuality.Junk
+                };
+
+                foreach (var item in taken)
+                {
+                    loot.LootItems.Remove(item);
+                    carried.LootItems.Add(item);
+
+                    if (((LootQuality)item.Item.ItemTemplate.QualityId).Rank() > carried.LootQuality.Rank())
+                        carried.LootQuality = (LootQuality)item.Item.ItemTemplate.QualityId;
+                }
+
+                // The corpse's sparkle is of the best of what is left on it.
+                loot.LootQuality = LootQuality.Junk;
+
+                foreach (var item in loot.Remaining().Where(item => item.Item != null))
+                    if (((LootQuality)item.Item.ItemTemplate.QualityId).Rank() > loot.LootQuality.Rank())
+                        loot.LootQuality = (LootQuality)item.Item.ItemTemplate.QualityId;
+
+                newViewers = viewers.Where(viewer => carried.Looters.Add(viewer.Player.EntityId)).ToList();
+
+                if (!loot.HasLoot)
+                    notices.AddRange(Retire(map, loot, true));
+                else
+                    foreach (var viewer in viewers)
+                    {
+                        LootInfo(viewer, loot);
+                        OverallQuality(viewer, loot);
+                        CanLootItems(viewer, loot);
+                    }
+            }
+
+            Publish(notices);
+
+            foreach (var viewer in newViewers)
+                ShowCarried(viewer, carried);
+
+            // One shown it already sees the best of it now.
+            foreach (var viewer in viewers.Except(newViewers))
+                OverallQuality(viewer, carried);
+
+            return true;
+        }
+
+        /// <summary>The carried loot's sparkle on the Filcher, for one client: a dispenser it may not open, of nothing it may take.</summary>
+        private static void ShowCarried(Client client, LootDispenser carried)
+        {
+            if (client?.State != ClientState.Ingame)
+                return;
+
+            client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(carried.EntityId, carried.EntityClassId));
+            client.CallMethod(carried.EntityId, new AttachInfoPacket(carried.AttachedTo));
+            client.CallMethod(carried.EntityId, new LootInfoPacket(new List<LootItem>()));
+            client.CallMethod(carried.EntityId, new OverallQualityPacket(carried.LootQuality));
+            client.CallMethod(carried.EntityId, new CanLootItemsPacket(true, new List<LootItem>()));
+        }
+
+        /// <summary>The sparkle off the Filcher, for everyone it was shown to.</summary>
+        private static void HideCarried(MapChannel map, LootDispenser carried)
+        {
+            foreach (var client in map?.ClientList.ToArray() ?? Array.Empty<Client>())
+                if (client?.Player != null && carried.Looters.Contains(client.Player.EntityId) && client.State == ClientState.Ingame)
+                    client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(carried.EntityId));
+        }
+
+        /// <summary>
+        /// What the creature carried (<see cref="Steal"/>), onto the loot of its corpse: the
+        /// owner's, or the squad's, as the creature's own drops are.
+        /// </summary>
+        private static void TakeOverCarried(Creature creature, LootDispenser loot, Client owner, uint partyId)
+        {
+            var carried = creature?.CarriedLoot;
+
+            if (carried == null)
+                return;
+
+            creature.CarriedLoot = null;
+            HideCarried(carried.Map, carried);
+
+            foreach (var item in carried.LootItems.Where(item => !item.Taken && item.Item != null))
+            {
+                loot.LootItems.Add(new LootItem(item.Item, owner.Player.EntityId, partyId));
+
+                if (((LootQuality)item.Item.ItemTemplate.QualityId).Rank() > loot.LootQuality.Rank())
+                    loot.LootQuality = (LootQuality)item.Item.ItemTemplate.QualityId;
+            }
+
+            carried.LootItems.Clear();
+            EntityManager.Instance.FreeEntity(carried.EntityId);
+        }
+
+        /// <summary>
+        /// What the creature carried goes with it: a Filcher killed with no player behind the kill,
+        /// or leaving the world alive. Its items are deleted as a corpse's unclaimed loot is.
+        /// </summary>
+        internal void DiscardCarried(MapChannel map, Creature creature)
+        {
+            var carried = creature?.CarriedLoot;
+
+            if (carried == null)
+                return;
+
+            creature.CarriedLoot = null;
+            map ??= carried.Map;
+            HideCarried(map, carried);
+
+            if (map == null)
+                return;
+
+            lock (map.LootSyncRoot)
+                Retire(map, carried, false, failedCreation: true);
+        }
+
+        #endregion
     }
 }

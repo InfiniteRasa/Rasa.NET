@@ -406,6 +406,10 @@ namespace Rasa.Managers
                 }
             }
 
+            // What a Filcher carried went onto its corpse's loot above; with no loot made - no
+            // player behind the kill - it goes with the Filcher.
+            LootDispenserManager.Instance.DiscardCarried(mapChannel, creature);
+
             var progressClient = ambient ? null : client;
             var missions = _missionManager ?? MissionApplication.Instance;
             if (creature.SpawnPool?.SceneRunId != null)
