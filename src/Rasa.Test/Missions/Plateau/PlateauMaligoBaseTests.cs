@@ -271,6 +271,9 @@ namespace Rasa.Test.Missions.Plateau
             }
             var switches = Enumerable.Range(0, PlateauSelfPreservationV1.Switches.Length)
                 .Select(index => SceneObject(harness, copy, SelfPreservation, PlateauSelfPreservationV1.SwitchRole(index))).ToArray();
+            // The navmesh runs past the turn's curved wall: at (-27, 331.3) the yellow switch stood outside it, with no
+            // client floor and no line of sight (to-fix #54 retest). On the turn's floor (piece 4167, stuckprobe column).
+            Assert.IsLessThan(0.01f, Vector3.Distance(new Vector3(-27, -130.88f, 328.5f), switches[1].Position), "the yellow switch on the turn's floor");
             for (var index = 0; index < switches.Length; index++)
             {
                 Assert.AreEqual(PlateauSelfPreservationV1.SwitchClass, (uint)switches[index].EntityClassId);

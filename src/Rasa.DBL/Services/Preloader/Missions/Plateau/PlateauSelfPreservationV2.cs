@@ -50,6 +50,19 @@ namespace Rasa.Services.Preloader.Missions.Plateau
 
         public static string ChargeRole(uint sequence) => $"security-cpu-charge-{sequence}";
 
+        /// <summary>
+        /// The switches as PlateauSelfPreservationV1.Switches, but the yellow one 2.8 m south, onto the floor of the
+        /// service turn (piece 4167) west of its field: at (-27, 331.3) it stood outside the turn's curved wall, with no
+        /// client floor behind it and no line of sight from the corridor (to-fix #54 retest; tools/stuckprobe slice and
+        /// column, navmesh region 27). ESTIMATE place.
+        /// </summary>
+        public static readonly (uint Objective, uint Sequence, string Colour, ScenePosition At, double Facing)[] Switches =
+        {
+            PlateauSelfPreservationV1.Switches[0],
+            (3, 12, "yellow", new(-27, -130.88f, 328.5f), 3.1416),
+            PlateauSelfPreservationV1.Switches[2],
+        };
+
         public static void Up(MigrationBuilder migration)
         {
             var mission = new PlateauMissionDataV1(migration, MissionId, "Self Preservation", 4603, null, null, Level);
