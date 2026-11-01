@@ -235,6 +235,20 @@ namespace Rasa.Test.Missions
                     Assert.AreEqual(PoolsMap, world.Set<SpawnPoolEntry>().AsNoTracking().Single(row => row.Id == boss.Id).MapContextId, boss.Comment);
                 }
 
+                // The Striders: Thrax Cavalrymen as the Foreas Base past's, in a pool of their own on Pools.
+                var cavalryman = world.Set<CreatureEntry>().AsNoTracking().Single(row => row.Id == Rasa.Services.Preloader.Missions.Plateau.PlateauForeasBasePastNpcsV1.Cavalryman);
+                var strider = world.Set<CreatureEntry>().AsNoTracking().Single(row => row.Id == Valverde.Strider);
+                Assert.AreEqual(cavalryman.ClassId, strider.ClassId);
+                Assert.AreEqual(cavalryman.Level, strider.Level);
+                Assert.AreEqual(cavalryman.Action1, strider.Action1);
+                Assert.AreEqual(cavalryman.Action2, strider.Action2);
+                var striders = world.Set<SpawnPoolEntry>().AsNoTracking().Single(row => row.Id == Valverde.StriderPool);
+                Assert.AreEqual(PoolsMap, striders.MapContextId);
+                Assert.AreEqual(Valverde.Strider, striders.Creature1Id);
+                Assert.AreEqual(Valverde.StriderMax, striders.Creature1MaxCount);
+                Assert.AreEqual((byte)Valverde.StriderMin, striders.Creature1MinCount);
+                Assert.AreEqual(Valverde.StriderRespawn, striders.RespawnTime);
+
                 world.GetService<IMigrator>().Migrate(WorldBefore);
 
                 CollectionAssert.AreEqual(before, Dump(world));
@@ -497,6 +511,32 @@ namespace Rasa.Test.Missions
         }
 
         [TestMethod]
+        public void ThePoolsHaveStridersToKillBesidesKrammitron()
+        {
+            var nav = TestNavMeshes.Query(NavMeshFile.PathFor(Path.Combine(RepositoryRoot(), "navmesh"), "adv_foreas_valverde_pools"));
+            var position = new Vector3((float)Valverde.StriderX, (float)Valverde.StriderY, (float)Valverde.StriderZ);
+            var floor = nav.Nearest(position);
+            Assert.IsTrue(floor.HasValue, $"no ground at {position}");
+            Assert.IsTrue(Vector3.Distance(floor.Value, position) <= 0.5f, $"{position} is {Vector3.Distance(floor.Value, position):F2} m off {floor.Value}");
+
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var places = new List<(uint Map, Vector3 Position, string What)>();
+            foreach (var teleporter in DynamicObjectManager.Instance.Teleporters.Values)
+                if (teleporter.ObjectData is WaypointInfo info && (info.WaypointType == WaypointType.Hospital || info.WaypointType == WaypointType.Waypoint))
+                    places.Add((teleporter.MapContextId, teleporter.Position, $"{info.WaypointType} {info.WaypointId}"));
+            var found = SpawnPoolManager.Instance.PoolsTooClose(places).Select(entry => entry.Message).Where(message => message.StartsWith($"spawnpool {Valverde.StriderPool}:")).ToList();
+            Assert.IsEmpty(found, string.Join("\n", found));
+
+            // Hostile, armed, and a Strider: its kill counts on objective 57.
+            var creature = CreatureManager.Instance.LoadedCreatures[Valverde.Strider];
+            Assert.AreEqual(TargetCategory.Hostile, creature.TargetCategory);
+            Assert.HasCount(2, creature.Actions);
+            Assert.Contains((int)Seed.Flag.Strider, CreatureManager.CreatureFlagsOf(creature));
+            var pool = SpawnPoolManager.Instance.LoadedSpawnPools[Valverde.StriderPool];
+            Assert.AreEqual(PoolsMap, pool.MapContextId);
+        }
+
+        [TestMethod]
         public void EveryTargetOfPlateauMakesAMasterOfPlateauAndDossTakesItBack()
         {
             using var harness = BootcampRuntimeTestHarness.Create();
@@ -720,7 +760,7 @@ namespace Rasa.Test.Missions
                 connection.Open();
 
             var queries = MissionTables.Select(table => (table, $"select * from {table} where mission_id in ({string.Join(", ", Missions)})"))
-                .Concat(CreatureTables.Select(table => (table, $"select * from {table} where id in ({string.Join(", ", Valverde.NewBosses.Select(boss => boss.Id))})")))
+                .Concat(CreatureTables.Select(table => (table, $"select * from {table} where id in ({string.Join(", ", Valverde.NewBosses.Select(boss => boss.Id).Append(Valverde.Strider))})")))
                 .Append(("creature_action", $"select * from creature_action where id in ({string.Join(", ", Valverde.Attacks.Select(attack => attack.Id))})"));
 
             foreach (var (table, query) in queries)

@@ -70,6 +70,14 @@ namespace Rasa.Services.Preloader
         /// No Treelurker stands anywhere: Oakril's claw and frighten (ActionId 183, 181) are the
         /// client's (actiondata), scaled as a boss's on a base argument.
         ///
+        /// No Strider stood on the Pools but the boss Krammitron, so "Kill 10 Striders" (57) had
+        /// only him. TaRapedia's Eastern Listening Post: "striders may spawn" at its beacon in a large
+        /// crater (240.4, -141.2). A pool of two or three Thrax Cavalrymen (the Strider, class
+        /// Vehicle_Bane_Strider_V1 9804, as the Foreas Base past's PlateauForeasBasePastNpcsV1: level
+        /// 30, its health, armour and attacks) is put on the crater's floor 20 m south-west of the
+        /// beacon (the beacon's own ground is a 44 m2 pocket of the navmesh), its respawn as the
+        /// Pools' Thrax pools' (1200). ESTIMATE: the pool's size and the place in the crater.
+        ///
         /// Character: a held mission with fewer objectives than its definition is cleared on login,
         /// so every holder of 1586 or 1594 is given the new objectives' rows (<see cref="CharUp"/>),
         /// as OneOffs does. Waypoints, Logos and missions done before count on the next login
@@ -304,6 +312,10 @@ namespace Rasa.Services.Preloader
                 new(650249, "Oakril - Pools", 10347, 10020, -600.0, 925.4, 650.0, new uint[] { 650254, 650255 })
             };
 
+            /// <summary>The Pools' Striders (Thrax Cavalrymen): a public pool in the Eastern Listening Post's crater.</summary>
+            public const uint Strider = 650256, StriderPool = 650256, StriderRespawn = 1200, StriderMin = 2, StriderMax = 3;
+            public const double StriderX = 225.0, StriderY = 679.7, StriderZ = -155.0, StriderRadius = 10.0;
+
             // ---- the SQL ----
 
             private static readonly string[] RewardColumns =
@@ -401,7 +413,7 @@ namespace Rasa.Services.Preloader
                 {
                     PoolsMissionId, Revision, EvidenceId, (byte)MissionEvidenceOwnerKind.Mission, PoolsMissionId, (byte)MissionEvidenceSourceKind.Reconstruction,
                     "https://tabularasa.fandom.com/wiki/Pools_Targets_of_Opportunity", "generated/client/missionobjective.pyo, titledata.pyo", 0.4,
-                    "objectives 1, 6 (64-73), 8, 40 (59-61), 55 added; story set and operations ESTIMATE; Cainynix, Grumble, Oakril placed; 70000 XP"
+                    "objectives 1, 6 (64-73), 8, 40 (59-61), 55 added; story set and operations ESTIMATE; Cainynix, Grumble, Oakril placed; a Strider pool (Thrax Cavalrymen) in the Eastern Listening Post crater; 70000 XP"
                 }
             };
 
@@ -427,6 +439,20 @@ namespace Rasa.Services.Preloader
                             + $"({boss.Id}, 0, 0, {TargetsOfOpportunityGivers.BossRespawn}, {Literal(boss.X)}, {Literal(boss.Y)}, {Literal(boss.Z)}, 0, {PoolsMap}, "
                             + $"{boss.Id}, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);";
                     }
+
+                    var cavalryman = Missions.Plateau.PlateauForeasBasePastNpcsV1.Cavalryman;
+                    yield return "insert into creature (id, comment, class_id, faction, level, max_hp, name_id, run_speed, walk_speed, "
+                        + "action1, action2, action3, action4, action5, action6, action7, action8) "
+                        + $"select {Strider}, 'Thrax Cavalryman - Pools (Strider)', class_id, faction, level, max_hp, name_id, run_speed, walk_speed, "
+                        + $"action1, action2, action3, action4, action5, action6, action7, action8 from creature where id = {cavalryman};";
+                    yield return "insert into creature_stat (id, body, mind, spirit, health, armor) "
+                        + $"select {Strider}, body, mind, spirit, health, armor from creature_stat where id = {cavalryman};";
+                    yield return "insert into spawnpool (id, mode, anim_type, respown_time, pos_x, pos_y, pos_z, rotation, map_context_id, "
+                        + "creature_1_Id, creature_1_min_count, creature_1_max_count, creature_2_Id, creature_2_min_count, creature_2_max_count, "
+                        + "creature_3_Id, creature_3_min_count, creature_3_max_count, creature_4_Id, creature_4_min_count, creature_4_max_count, "
+                        + "creature_5_Id, creature_5_min_count, creature_5_max_count, creature_6_Id, creature_6_min_count, creature_6_max_count, radius) values "
+                        + $"({StriderPool}, 0, 0, {StriderRespawn}, {Literal(StriderX)}, {Literal(StriderY)}, {Literal(StriderZ)}, 0, {PoolsMap}, "
+                        + $"{Strider}, {StriderMin}, {StriderMax}, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, {Literal(StriderRadius)});";
 
                     yield return Insert(MissionObjectiveDefinitionEntry.TableName, ObjectiveColumns, ObjectiveRows);
                     yield return Insert(MissionObjectiveTransitionEntry.TableName, TransitionColumns, TransitionRows);
@@ -460,6 +486,9 @@ namespace Rasa.Services.Preloader
                             yield return $"delete from {table} where mission_id = {mission} and content_revision = '{Revision}' and objective_id in ({ids});";
                         yield return $"delete from mission_reward_definition where mission_id = {mission} and content_revision = '{Revision}' and reward_id = 1;";
                     }
+                    yield return $"delete from spawnpool where id = {StriderPool};";
+                    yield return $"delete from creature_stat where id = {Strider};";
+                    yield return $"delete from creature where id = {Strider};";
                     var bosses = string.Join(", ", NewBosses.Select(boss => boss.Id));
                     yield return $"delete from spawnpool where id in ({bosses});";
                     yield return $"delete from creature_stat where id in ({bosses});";
