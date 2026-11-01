@@ -74,6 +74,15 @@ namespace Rasa.Managers
         public const int BrazierWindupMs = 1_000;
         public const uint NekalaBombs = 2;
 
+        /// <summary>
+        /// The copy's people, whose missions it is: Stone (Too Quiet), Napoli (Bugged to Death),
+        /// Nekala (The Reason Why) and the Dying Forean (What Evil Lurks). An ambush comes down on
+        /// Mar Fend, where Nekala stands, and they are Friendly, so they fought it: Nekala was
+        /// killed, came back two seconds later into the same fight, and nobody could take The
+        /// Reason Why from her while it lasted. They take no harm (<see cref="ProtectStoryNpcs"/>).
+        /// </summary>
+        public static readonly uint[] StoryNpcs = { D.Stone, D.Napoli, D.Nekala, D.DyingForean };
+
         /// <summary>How near Elder Nekala a member has to come for her to hand them more bombs.</summary>
         public const float NekalaResupplyRadius = 10f;
 
@@ -158,6 +167,7 @@ namespace Rasa.Managers
                 SetUp(map, state);
 
             ClearCaveIns(map, state, now);
+            ProtectStoryNpcs(map);
 
             var members = Members(map);
 
@@ -711,13 +721,25 @@ namespace Rasa.Managers
 
         #endregion
 
+        /// <summary>The copy's people take no harm, each one as it comes into the world again.</summary>
+        private static void ProtectStoryNpcs(MapChannel map)
+        {
+            foreach (var creature in Creatures(map))
+                if (!creature.ImmuneToAllDamage && Array.IndexOf(StoryNpcs, creature.DbId) >= 0)
+                    creature.ImmuneToAllDamage = true;
+        }
+
         #region What Evil Lurks
 
         private static void WhatEvilLurks(MapChannel map, State state, List<Client> members, long now)
         {
-            if (state.Blown[0])
-                foreach (var client in members.Where(client => Wants(client.Player, D.WhatEvilLurks, 4)))
-                    Record(state, client, D.WhatEvilLurks, D.CaveOpened, now);
+            // The cave is open to a member once its cave-in is down - or once they are in it
+            // anyway, past it or by another way (the client map's tunnel down to the extraction
+            // point has no cave-in of ours): one who got in so found the Lost Foreans with the
+            // objective still on the cave-in, and nothing of the rest open to them.
+            foreach (var client in members.Where(client => Wants(client.Player, D.WhatEvilLurks, 4) &&
+                         (state.Blown[0] || Vector3.Distance(client.Player.Position, D.SpiritCave) <= LostRadius)))
+                Record(state, client, D.WhatEvilLurks, D.CaveOpened, now);
 
             var found = state.Extracted ? D.Extraction : D.SpiritCave;
 

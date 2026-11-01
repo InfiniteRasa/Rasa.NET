@@ -217,6 +217,68 @@ namespace Rasa.Test.Missions
             Assert.IsTrue(harness.Client.Player.Missions[D.WhatEvilLurks].Completeable);
         }
 
+        /// <summary>
+        /// Into Spirit Cave with its cave-in still standing - past it, or by the tunnel it does not
+        /// stand in: the cave counts as open, and the Lost Foreans are found and spoken to. It used
+        /// to wait on the cave-in, and nothing past it could be done.
+        /// </summary>
+        [TestMethod]
+        public void InSpiritCaveWithItsCaveInStandingTheCaveCountsAsOpen()
+        {
+            using var harness = Create();
+            var dying = Put(harness, D.DyingForean, D.DyingForeanSpot);
+            WildernessTwinPillarsTests.Accept(harness, dying, D.WhatEvilLurks);
+
+            harness.MoveTo(D.FallenSoldier);
+            Work(harness);
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, D.WhatEvilLurks, 4), "outside, with the cave-in up");
+
+            harness.MoveTo(D.SpiritCave + new Vector3(4, 0, 4));
+            Work(harness);
+            Assert.IsFalse(CavesOfDonn.IsBlown(harness.Map, 0));
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, D.WhatEvilLurks, 4));
+            Work(harness);
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, D.WhatEvilLurks, 3), "the Lost Foreans found");
+
+            var survivors = CavesOfDonn.Survivors(harness.Map);
+            WildernessTwinPillarsTests.Talk(harness, survivors[0], D.WhatEvilLurks, 5);
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, D.WhatEvilLurks, 5));
+        }
+
+        /// <summary>
+        /// The ambush comes down on Mar Fend where Nekala stands: she, Stone, Napoli and the Dying
+        /// Forean take no harm from it, so none of their missions is out of reach while it lasts -
+        /// one of them again from the pool too. The Lost Foreans can still die: that is the escort.
+        /// </summary>
+        [TestMethod]
+        public void TheCopysPeopleTakeNoHarm()
+        {
+            using var harness = Create();
+            var nekala = Put(harness, D.Nekala, D.NekalaAtMarFend);
+            var stone = Put(harness, D.Stone, D.StoneAtEntrance);
+            var dying = Put(harness, D.DyingForean, D.DyingForeanSpot);
+            var bane = Put(harness, D.MachinaChampion, D.MarFend);
+            Work(harness);
+
+            foreach (var npc in new[] { nekala, stone, dying })
+            {
+                var health = npc.Attributes[Attributes.Health].Current;
+                Assert.AreEqual(0, ActorManager.Instance.Damage(harness.Map, npc, health + 1000, bane), $"{npc.DbId}");
+                Assert.AreEqual(health, npc.Attributes[Attributes.Health].Current);
+                Assert.AreNotEqual(CharacterState.Dead, npc.State);
+            }
+
+            var again = Put(harness, D.Nekala, D.NekalaAtMarFend);
+            Work(harness);
+            Assert.IsTrue(DamageImmunity.IsImmune(again, DamageType.Physical), "a new one, as her pool puts one down");
+
+            WildernessTwinPillarsTests.Accept(harness, dying, D.WhatEvilLurks);
+            harness.MoveTo(D.SpiritCave + new Vector3(4, 0, 4));
+            Work(harness);
+            Work(harness);
+            Assert.IsTrue(CavesOfDonn.Survivors(harness.Map).All(survivor => !survivor.ImmuneToAllDamage));
+        }
+
         [TestMethod]
         public void ALostForeanDyingOnTheWayOutFailsTheEscort()
         {
