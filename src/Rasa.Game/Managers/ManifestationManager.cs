@@ -2268,7 +2268,7 @@ namespace Rasa.Managers
                 GetSkillPointsAvailable(player)
             ));
 
-            client.CallMethod(player.EntityId, new SkillsPacket(player.Skills));
+            client.CallMethod(player.EntityId, GmAbilities.SkillsFor(client));
 
             client.CallMethod(player.EntityId, GmAbilities.AbilitiesFor(client));
 
@@ -3128,7 +3128,7 @@ namespace Rasa.Managers
             // its one rank (GrantSignatureSkill). Resending the skills and the points is what
             // makes the window redraw with them in it.
             var signature = GrantSignatureSkill(client);
-            client.CallMethod(player.EntityId, new SkillsPacket(player.Skills));
+            client.CallMethod(player.EntityId, GmAbilities.SkillsFor(client));
             if (signature)
             {
                 client.CallMethod(player.EntityId, GmAbilities.AbilitiesFor(client));
@@ -3152,7 +3152,7 @@ namespace Rasa.Managers
 
             if (GrantSignatureSkill(client))
             {
-                client.CallMethod(client.Player.EntityId, new SkillsPacket(client.Player.Skills));
+                client.CallMethod(client.Player.EntityId, GmAbilities.SkillsFor(client));
                 client.CallMethod(client.Player.EntityId, GmAbilities.AbilitiesFor(client));
                 AbilityManager.Instance.RefreshUnimplementedBlocks(client);
                 SendAvailableAllocationPoints(client);
@@ -3378,7 +3378,7 @@ namespace Rasa.Managers
 
             if (untrain.Count > 0)
             {
-                client.CallMethod(player.EntityId, new SkillsPacket(player.Skills));
+                client.CallMethod(player.EntityId, GmAbilities.SkillsFor(client));
                 client.CallMethod(player.EntityId, GmAbilities.AbilitiesFor(client));
                 AbilityManager.Instance.RefreshUnimplementedBlocks(client);
                 SyncSkillPassives(client);
@@ -3443,7 +3443,7 @@ namespace Rasa.Managers
             {
                 player.Skills = SkillsAfterRespec(player);
 
-                client.CallMethod(player.EntityId, new SkillsPacket(player.Skills));
+                client.CallMethod(player.EntityId, GmAbilities.SkillsFor(client));
                 client.CallMethod(player.EntityId, GmAbilities.AbilitiesFor(client));
                 AbilityManager.Instance.RefreshUnimplementedBlocks(client);
                 SyncSkillPassives(client);
@@ -3729,7 +3729,7 @@ namespace Rasa.Managers
                     $"{client.Player.FamilyName} sent a LevelSkills this character may not have: {refusal}. Ignored.");
 
                 // Their copy of the skills is now ahead of ours; put it back.
-                client.CallMethod(client.Player.EntityId, new SkillsPacket(client.Player.Skills));
+                client.CallMethod(client.Player.EntityId, GmAbilities.SkillsFor(client));
                 SendAvailableAllocationPoints(client);
                 return;
             }
@@ -3789,7 +3789,7 @@ namespace Rasa.Managers
 
             client.Player.Skills = updated;
             client.CallMethod(client.Player.EntityId,
-                new SkillsPacket(updated));
+                GmAbilities.SkillsFor(client));
             client.CallMethod(client.Player.EntityId,
                 new AbilitiesPacket(updated));
             AbilityManager.Instance.RefreshUnimplementedBlocks(client);
