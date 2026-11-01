@@ -779,13 +779,15 @@ namespace Rasa.Managers
         /// class says. The Caves of Donn's gate (UsableDoorForeanElohCaveofDonnV01) and cave-ins
         /// (UsableInertDestTerraCaveinV02) are classes with no target flag that an instance puts
         /// down itself, with no scene run: they were sent untargetable, and a player could walk
-        /// up to them and never use them.
+        /// up to them and never use them. A world_usable row the players may use is too
+        /// (PlacedUsables, its usable column): the Minos Caverns prison cell door
+        /// (UsableDoorBanePrisonV01), "opened by hand", had no target flag and could not be.
         /// </summary>
         internal static bool IsTargetableFor(Client client, DynamicObject obj) =>
             obj != null && IsShownTo(client, obj) && (obj.MissionUseAction != null
                 ? obj.IsEnabled && MissionUseAvailable(client, obj)
                 : EntityClassManager.Instance.GetClassInfo(obj.EntityClassId)?.TargetFlag == true ||
-                    (obj.SceneRunId != null || obj.ScenarioKey != null) && obj.IsEnabled);
+                    (obj.SceneRunId != null || obj.ScenarioKey != null || obj.DynamicObjectType == DynamicObjectType.PlacedUsable) && obj.IsEnabled);
 
         internal void CreateDynamicObjectOnClient(Client client, DynamicObject dynamicObject)
         {

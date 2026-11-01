@@ -252,6 +252,36 @@ namespace Rasa.Test.World
             Assert.AreEqual(UseObjectState.TsState1, beam.StateId);
         }
 
+        /// <summary>
+        /// A row the players may use is sent targetable whatever its class's flag - the use key
+        /// and the mouse go only to a targetable usable, and the Minos Caverns prison cell door
+        /// (UsableDoorBanePrisonV01), opened by hand, has none. One shut to players is not.
+        /// </summary>
+        [TestMethod]
+        public void AUsableRowIsTargetableWhateverItsClassSaysAndAShutOneIsNot()
+        {
+            AddFixtureClasses();
+            using var world = new WorldTestContext();
+            var user = Stand(world, new Vector3(10, 2, 21));
+            using var placed = Put(world.Map, Row(1, Door, 10, 20, usable: true), Row(2, Door, 14, 20));
+
+            var open = ObjectOf(world.Map, 1);
+            var shut = ObjectOf(world.Map, 2);
+            Assert.IsFalse(EntityClassManager.Instance.GetClassInfo(Door).TargetFlag, "no target flag of its own");
+
+            var made = Sent(user).Select(entry => entry.Packet).OfType<CreatePhysicalEntityPacket>().ToList();
+            Assert.IsTrue(made.Single(packet => packet.EntityId == open.EntityId).EntityData.OfType<IsTargetablePacket>().Single().IsTargetable);
+            Assert.IsFalse(made.Single(packet => packet.EntityId == shut.EntityId).EntityData.OfType<IsTargetablePacket>().Single().IsTargetable,
+                "a charged door is blown open, not used");
+
+            UseAndRecover(world.Map, user, open);
+            Assert.AreEqual(UseObjectState.DoorStateOpen, open.StateId);
+
+            var prisonDoor = MinosCavernsContent.Usables.Single(row => row.Id == MinosCavernsContent.PrisonDoor);
+            Assert.AreEqual(MinosCavernsContent.PrisonDoorClass, prisonDoor.ClassId);
+            Assert.AreEqual(1u, prisonDoor.Usable_, "the cell door is one the players use");
+        }
+
         [TestMethod]
         public void ThreeAndFiveStateSwitchesStepRoundAndADoorClosesAfterItsReset()
         {
