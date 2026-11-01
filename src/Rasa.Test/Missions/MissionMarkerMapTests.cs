@@ -46,6 +46,10 @@ namespace Rasa.Test.Missions
         [DataRow(593U, 1U, 54U, 1220U)]
         [DataRow(1491U, 1U, 278U, 1761U)]
         [DataRow(1491U, 2U, 1000000002U, 1865U)]
+        [DataRow(935U, 1U, 1000000002U, 2029U)]
+        [DataRow(1329U, 1U, 1000000001U, 1694U)]
+        [DataRow(2017U, 1U, 1000000001U, 1304U)]
+        [DataRow(2017U, 6U, 1000000004U, 1220U)]
         public void LegacyCrossMapGoalsKeepTheirAuthoredIndoorOrOutdoorMap(uint mission, uint objective, uint indicator, uint map)
         {
             var catalog = Catalog();
@@ -120,6 +124,109 @@ namespace Rasa.Test.Missions
             var info = Info(Pin(42));
             MissionMarkerProjection.Apply(new Manifestation { MapContextId = 1220 }, 9, info, catalog);
             Assert.HasCount(ambiguous ? 0 : 1, info.ObjectivesList[0].IndicatorList);
+        }
+
+        // Logos: Feeling, Trap, Heal (923) is given in the Wilderness; Feeling's shrine (13) is in the Caves of Donn.
+        private const uint WildernessMap = 1220, CavesOfDonn = 1506, Feeling = 13, Trap = 55;
+        private static readonly System.Numerics.Vector3 FeelingAt = new(-160.24219f, 38.746094f, -325.59766f);
+
+        private static LogosEntry Shrine(uint id, uint map, System.Numerics.Vector3 at) =>
+            new() { Id = id, MapContextId = map, PosX = at.X, PosY = at.Y, PosZ = at.Z, Name = "shrine" };
+
+        /// <summary>Mission 9, objective 1: acquire the Logos given, with the markers given (none by default).</summary>
+        private static MissionContentCatalog LogosCatalog(MissionProgressRule rule, params MissionIndicator[] pins)
+        {
+            var objective = new MissionObjectiveDefinition(1, 1, 1, null, 0, MissionObjectiveState.Incomplete,
+                true, null, null, null, revealedObjectiveIds: System.Array.Empty<uint>(), activatedObjectiveIds: System.Array.Empty<uint>(),
+                indicators: pins, progressRule: rule);
+            var catalog = Catalog(new Mission(9, "find the Logos", 1, 10, 10, 1, 1, 1, false, false, new[] { objective }));
+            catalog.IndicatorMapDefaults[9] = WildernessMap;   // the giver's map
+            MissionMarkerProjection.LoadShrines(catalog, new[]
+            {
+                Shrine(Feeling, CavesOfDonn, FeelingAt),
+                Shrine(Trap, CavesOfDonn, new(-326.8789f, 24.050781f, -220.82031f)),
+                Shrine(1, WildernessMap, new(363.872f, 214.211f, 619.304f))
+            });
+            return catalog;
+        }
+
+        private static MissionInfo Published(MissionContentCatalog catalog, uint map, uint missionId = 9, uint objectiveId = 1)
+        {
+            var objective = catalog.Missions[missionId].Objectives[objectiveId].CreateRuntime(MissionObjectiveState.Incomplete,
+                new Dictionary<uint, uint>(), new Dictionary<uint, uint>());
+            var info = new MissionInfo { MissionState = MissionState.Active, ObjectivesList = new() { objective } };
+            return MissionMarkerProjection.Apply(new Manifestation { MapContextId = map }, missionId, info, catalog);
+        }
+
+        /// <summary>
+        /// The Wilderness Logos dispatches have no authored marker: the shrine is marked, on its
+        /// own map, as the authored ones on shrines are (radius 8, unnamed).
+        /// </summary>
+        [TestMethod]
+        public void AFindTheLogosObjectiveWithNoMarkerIsMarkedOnItsShrine()
+        {
+            var catalog = LogosCatalog(MissionProgressRule.CompleteOnExactSubject(MissionProgressEventKind.LogosAcquired, Feeling));
+
+            var pin = Published(catalog, CavesOfDonn).ObjectivesList[0].IndicatorList.Single();
+            Assert.AreEqual(FeelingAt, pin.Position);
+            Assert.AreEqual(CavesOfDonn, pin.MapContextId);
+            Assert.AreEqual(MissionMarkerProjection.ShrineMarkerRadius, pin.Radius);
+            Assert.AreEqual(MissionIndicator.UnnamedFrom + 1, pin.IndicatorId);
+            Assert.IsFalse(pin.Show3DEffect);
+
+            Assert.HasCount(0, Published(catalog, WildernessMap).ObjectivesList[0].IndicatorList, "not at Donn's coordinates on the giver's map");
+            Assert.HasCount(0, catalog.Missions[9].Objectives[1].Indicators, "the definition is not changed");
+        }
+
+        /// <summary>An authored marker on a Logos objective is on the shrine's map, not the giver's (923's "Logos Puzzle" markers).</summary>
+        [TestMethod]
+        public void AnAuthoredLogosMarkerIsOnItsShrinesMap()
+        {
+            var catalog = LogosCatalog(MissionProgressRule.CompleteOnExactSubject(MissionProgressEventKind.LogosAcquired, Feeling), Pin(344));
+
+            Assert.AreEqual(344U, Published(catalog, CavesOfDonn).ObjectivesList[0].IndicatorList.Single().IndicatorId);
+            Assert.HasCount(0, Published(catalog, WildernessMap).ObjectivesList[0].IndicatorList);
+        }
+
+        /// <summary>A list of Logos gets no marker made up for it; its authored ones follow the shrines when they share a map, else the mission's.</summary>
+        [TestMethod]
+        [DataRow(Trap, CavesOfDonn)]
+        [DataRow(1U, WildernessMap)]
+        public void AListOfLogosIsNotMarkedButItsMarkersFollowOneMap(uint second, uint map)
+        {
+            var subjects = new HashSet<uint> { Feeling, second };
+            var unmarked = LogosCatalog(MissionProgressRule.CompleteWhenAllDistinctSubjectsObserved(MissionProgressEventKind.LogosAcquired, subjects));
+            Assert.HasCount(0, Published(unmarked, CavesOfDonn).ObjectivesList[0].IndicatorList);
+            Assert.HasCount(0, Published(unmarked, WildernessMap).ObjectivesList[0].IndicatorList);
+
+            var marked = LogosCatalog(MissionProgressRule.CompleteWhenAllDistinctSubjectsObserved(MissionProgressEventKind.LogosAcquired, subjects), Pin(344));
+            Assert.HasCount(1, Published(marked, map).ObjectivesList[0].IndicatorList);
+        }
+
+        /// <summary>
+        /// The shipped content: Logos: Area (1640) is marked on its Wilderness shrine; Logos:
+        /// Feeling, Trap, Heal (923), given in the Wilderness, has its markers in the Caves of Donn.
+        /// </summary>
+        [TestMethod, DoNotParallelize]
+        public void TheShippedLogosMissionsAreMarkedWhereTheirShrinesAre()
+        {
+            using var harness = Wilderness.WildernessRuntimeTestHarness.Create();
+            var catalog = new MissionContentCatalog(harness, new Dictionary<uint, Mission>(), null);
+            catalog.Load();
+
+            var area = Published(catalog, WildernessMap, 1640, 4).ObjectivesList.Single().IndicatorList.Single();
+            Assert.AreEqual(new System.Numerics.Vector3(363.872f, 214.211f, 619.304f), area.Position, "shrine 1, Area");
+
+            Assert.HasCount(1, Published(catalog, CavesOfDonn, 923, 4).ObjectivesList.Single().IndicatorList);
+            Assert.HasCount(0, Published(catalog, WildernessMap, 923, 4).ObjectivesList.Single().IndicatorList);
+
+            using var world = harness.CreateWorld();
+            var shrines = world.Logoses.GetLogos().Select(shrine => (uint?)shrine.Id).ToList();
+            var asked = world.MissionContent.GetTriggers()
+                .Where(trigger => trigger.EventKind == (byte)MissionProgressEventKind.LogosAcquired)
+                .Select(trigger => trigger.SubjectId).Distinct().ToList();
+            Assert.IsNotEmpty(asked);
+            CollectionAssert.IsSubsetOf(asked, shrines, "every Logos a mission asks for has a shrine");
         }
 
         [TestMethod]
