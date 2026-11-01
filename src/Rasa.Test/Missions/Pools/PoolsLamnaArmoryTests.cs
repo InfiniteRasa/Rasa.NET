@@ -426,6 +426,43 @@ namespace Rasa.Test.Missions.Pools
         }
 
         /// <summary>Kills key <paramref name="index"/>'s boss and picks the key up from the corpse.</summary>
+        /// <summary>
+        /// Playtest 2026-11-01: Operation Overlord held over a server restart came back with its keys but without its
+        /// slots and switch - the run stayed on the old copy's map key. The Pools' instance scenes are bound to their
+        /// instance's map (PoolsInstanceScenesBoundV1): the run goes to the next copy of the Armory and its slots and
+        /// switch stand there.
+        /// </summary>
+        [TestMethod]
+        public void OperationOverlordGoesWithItsOwnerToTheNextCopyOfTheArmory()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            foreach (var (mission, map, _) in PoolsInstanceScenesBoundV1.Missions)
+            {
+                Assert.IsTrue(harness.Manager.Scenes.TryGetSceneMap(mission, out var bound), $"{mission} is bound");
+                Assert.AreEqual(map, bound, $"{mission} to its instance");
+            }
+
+            var copy = IntoArmory(harness);
+            var bromfield = Giver(copy, PoolsLamnaArmoryNpcsV1.Bromfield);
+            WildernessRanjaGorgeTests.Offer(harness, bromfield, Overlord);
+            Accept(harness, bromfield, Overlord);
+            SceneObject(harness, copy, Overlord, PoolsOperationOverlordV1.SwitchRole);
+
+            // The copy goes (a restart, a reset); the next one is a new instance.
+            OutOfArmory(harness, copy);
+            copy.HeldUntil = 0;
+            copy.ClientList.RemoveAll(client => !ReferenceEquals(client, harness.Client));
+            Assert.IsTrue(harness.Maps.CloseSquadInstance(copy), "the copy closed");
+            var next = IntoArmory(harness);
+            Assert.AreNotSame(copy, next, "a new copy");
+            Assert.AreNotEqual(copy.InstanceId, next.InstanceId);
+
+            for (var index = 0; index < PoolsOperationOverlordV1.Keys.Length; index++)
+                Assert.AreEqual(PoolsOperationOverlordV1.SlotReadyState, (uint)SceneObject(harness, next, Overlord, PoolsOperationOverlordV1.SlotRole(index)).StateId);
+            SceneObject(harness, next, Overlord, PoolsOperationOverlordV1.SwitchRole);
+            OutOfArmory(harness, next);
+        }
+
         private static void TakeKey(WildernessRuntimeTestHarness harness, MapChannel copy, int index)
         {
             var key = PoolsOperationOverlordV1.Keys[index];
