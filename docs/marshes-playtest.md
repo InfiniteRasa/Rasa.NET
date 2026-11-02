@@ -41,6 +41,13 @@ Set 5, the sentry tower of Far West Watch (migration `20271104000400_Marshes_sen
 - [ ] 1876 Under the Radar - Part II, control point version (Valverde Marshes): Kiang offers it after 1875 (with 1877), level 37. A personal Bane computer (20631, argument 1) right outside the Bane Assertion Camp control point (101, 226.1, -289, Ten Ton Hammer); use it: Bane Troop Data (no room: the computer waits). No capture needed. A marker, the client name "Bane Terminal", at the computer. Turn in at Kiang: 140000 XP, 7400 credits, one of Bio 121241, Graviton 121242, Stealth 121243, Mech Boots 121244; he keeps the data. Sets flag 1876001 ("Part II done") for 1870 and 1879. Abandon: the data and the computer go.
 - [ ] 1877 Under the Radar - Part II, Overseer Nelg version (Valverde Marshes): Kiang offers it after 1875 (with 1876), level 37. At the accept your own Overseer Nelg (new, level 38, 12000 HP) stands in his post east of Paludos (170, 224.7, 55, Ten Ton Hammer) and attacks; kill him and loot his corpse: Bane Troop Data (always, while the mission is open). A marker at his post. Turn in at Kiang: 140000 XP, 7400 credits, one of Bio 121245, Graviton 121246, Stealth 121247, Mech Boots 121248. Sets flag 1876001 too. Can the player reach the post (its floor is a navmesh part of its own)? If not: Nelg and his marker on the deck east of it (176.8, 224.68, 41.2). Is Nelg too strong alone? A corpse left to rot (120 s) leaves no data and no new Nelg comes, not after a relog or a server restart either: abandon and take it again.
 
+Set 6, the sentry tower's second part (migration `20271104000500_Marshes_sentry_tower_two`).
+
+- [ ] 1878 The Core of the Matter (Valverde Marshes): McDonald offers it after 1875, level 37. Three personal Bane item crates (11116, argument 3) before the Bane Supply Depot door: (420, 224.2, -590), (450, 223.7, -580), (465.6, 223.9, -587.2); open two: a Bane Power Core each (no room: the crate waits). One marker round the crates (radius 30). Turn in at McDonald: 150000 XP, 7600 credits, one of Bio Gloves 121229, Graviton Helmet 121230, Mech Gloves 121231, Stealth Gloves 121232; he keeps the cores. Is the base by the door the "Bane base near the supply depot"? Abandon: the cores and the crates go.
+- [ ] 1879 This Calls For Destruction (Valverde Marshes): Kiang offers it once Part II (1876 or 1877) is done, level 37. At the accept: three Bane Computer Viruses (needs a free slot). Three personal Bane console switches (7468, argument 1) beside the map's Bane terminals south of the depot: (415, 222.2, -715), (410, 222.1, -735.2), (435, 222.1, -735); each takes one virus. Then 2 opens: a personal Bane generator (3857) at (400, 222.1, -730) with an Explosive Charge (7870, argument 1) 5 m east of it; use the charge: the generator blows. Markers round the consoles (radius 20) and at the generator. Turn in at Kiang: 65000 XP, 5400 credits, one of Stealth Vest 121233, Bio Vest 121234, Mech Legs 121235, Graviton Vest 121236. Do the consoles change state and the generator show as destroyed? Abandon: the viruses left and the objects go.
+- [ ] 1870 Data Disaster (Valverde Marshes): McDonald offers it once Part II is done, level 37. A personal Bane CommLink terminal (10519, talks with package 2374) on the deck east of Nelg's post (178, 224.7, 46); talk to it and pick "AFS Troop placement info.": 1 done. A marker at the terminal. Turn in at McDonald: 70000 XP, 5550 credits, one of Reflective Legs 121205, Hazmat Legs 121206, Motor Assist Legs 121207, Mech Vest 121208. Ten Ton Hammer puts the terminal upstairs at (166, 232, 57): the roof of the post, a navmesh island. Can the player get up there? If so: move the terminal there. Abandon: the terminal goes.
+- [ ] 1873 Need a Little Help Here (Valverde Marshes): Archer Thoung (new Forean archer, -126.9, 221.1, -343.3, by the sentry tower) offers it, no requirement, level 37. Four personal Bane item crates (11116, argument 3) by Nelg's post: three on its east deck (176.8, 224.7, 41.2), (181.8, 224.7, 45.8), (183.2, 224.7, 42.8), one below it (170, 216.1, 40); a Medical Booster Pack each. The four open 2-5: talk to Pvt. Brady (-110, 217.6, -320), Archer Zui (-110, 216.9, -335), Warrior Dahn (-125, 221.1, -335) and Elder Nez (-132.1, 221.2, -330.6) (new, packages 2375-2378, the client's thank-you lines); each takes one pack. Markers at the crates and at each soldier. Turn in at Thoung: 70000 XP, 5550 credits, one of Weapon Module: Crit Hit Bonus [4] 123161, Armor Module: Armor Absorption [4] 122951, Tool Module: Threat Reduction [4] 123141, Weapon Module: Armor Piercing [4] 123146. Do the soldiers show the thank-you line? Abandon: the packs and the crates go.
+
 ## Assumptions and choices (not from a source)
 
 Rules carried over from the Pools batch (`docs/pools-playtest.md`):
@@ -115,6 +122,20 @@ Per mission:
   control points drive no mission objective). The data of the computer is 1876's own and does not count for 1877.
 - 1877: Nelg a copy of Overseer Nivvik's row (class 10504, his attacks) at level 38 with 12000 HP (no source), armour 390,
   set down by the mission at the accept (no dropship shown), in his post, not on the roof.
+- Set 6 rewards: the client's per-mission blocks as set 5 (121229-121232 for 1878, 121233-121236 for 1879, 121205-121208
+  for 1870, each in Ten Ton Hammer's or TaRapedia's kinds). 1873 has no block: the four grade [4] modules of Bane
+  Investigation (932, the user's reading of "Modification").
+- 1878: level 37 (no source); three crates before the depot door, any two (the client "Gather 2"); a hidden objective
+  counts them (the client's objective has no counter).
+- 1879: the hub is the client map's terminal group south of the depot (no source places it); the consoles are Silent But
+  Deadly's console class beside the map terminals; the generator is Silent But Deadly's outpost generator with its charge
+  (3857 is not targetable in the client); the Generator Bomb item is not given. 2 opens only after 1 (the client log
+  "then destroy").
+- 1870 and 1879: offered on flag 1876001 (either version of Part II).
+- 1870: no item (the objective has none); the terminal talks, as 932's CommLink terminal.
+- 1873: Thoung and Zui Forean archers, Dahn a spearman, Nez a shaman (the server's Forean elders), level 37; Brady a copy of
+  Private Remick's row and look (class 3846, level 10). The four soldiers at the tower's foot (no source places them). No
+  requirement (TaRapedia none). A hidden objective counts the four packs.
 
 ## Deviations (client/server limits)
 
@@ -141,6 +162,10 @@ Per mission:
   defeated scene actor is not set down again).
 - 1876 and 1877: both offered and both can be done (ESTIMATE). TaRapedia's history has the Nelg objective until 2008-04
   and the control point one after, so retail likely had one version at a time.
+- 1870: the terminal stands on the deck east of Nelg's post, not upstairs at Ten Ton Hammer's (166, 232, 57): the post's
+  floor and roof are navmesh islands (no walk from the Bane Assertion Camp waypoint).
+- 1873: the supplies are in crates by Nelg's post (Ten Ton Hammer), not dropped by a "northbound patrol" (client text);
+  three crates on the walked-to deck and one below, as the post's floor is a navmesh island.
 
 ## Server data that differs from the sources (not changed)
 

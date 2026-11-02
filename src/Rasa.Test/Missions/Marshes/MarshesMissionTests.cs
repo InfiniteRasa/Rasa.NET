@@ -29,7 +29,9 @@ namespace Rasa.Test.Missions.Marshes
     /// McCormick's The Regulator: Part I (925) and Parts II-IV (1028, 1029, 1030), with Retread Wilson, Conscript Kaav and a
     /// Strider pool (Marshes_regulator); set 5, the sentry tower of Far West Watch, Sergeant McDonald's Mortar Madness (1874),
     /// Warrior Dikah's Under the Radar (1875) and Lt. Kiang's two versions of Under the Radar - Part II (1876, the control
-    /// point one; 1877, Overseer Nelg's), with McDonald, Dikah, Kiang and Nelg (Marshes_sentry_tower).
+    /// point one; 1877, Overseer Nelg's), with McDonald, Dikah, Kiang and Nelg (Marshes_sentry_tower); set 6, the sentry tower's
+    /// second part, McDonald's The Core of the Matter (1878) and Data Disaster (1870), Kiang's This Calls For Destruction (1879)
+    /// and Archer Thoung's Need a Little Help Here (1873), with Thoung, Brady, Zui, Dahn and Nez (Marshes_sentry_tower_two).
     /// </summary>
     [TestClass]
     [DoNotParallelize]
@@ -43,7 +45,9 @@ namespace Rasa.Test.Missions.Marshes
             MarshesReapingTheHarvestV1.MissionId, MarshesHasslingTheHarvestersV1.MissionId, MarshesBuriedGasLinesV1.MissionId,
             MarshesButcherBakerCaretakerV1.MissionId, MarshesRegulatorPartOneV1.MissionId, MarshesRegulatorPartTwoV1.MissionId,
             MarshesRegulatorPartThreeV1.MissionId, MarshesRegulatorPartFourV1.MissionId, MarshesMortarMadnessV1.MissionId,
-            MarshesUnderTheRadarV1.MissionId, MarshesUnderTheRadarPartTwoV1.MissionId, MarshesUnderTheRadarNelgV1.MissionId
+            MarshesUnderTheRadarV1.MissionId, MarshesUnderTheRadarPartTwoV1.MissionId, MarshesUnderTheRadarNelgV1.MissionId,
+            MarshesCoreOfTheMatterV1.MissionId, MarshesThisCallsForDestructionV1.MissionId, MarshesDataDisasterV1.MissionId,
+            MarshesNeedALittleHelpHereV1.MissionId
         };
 
         /// <summary>It Lies in Ruins: a Marshes mission on the Plateau revision (in PlateauMissionTests.MissionIds).</summary>
@@ -60,15 +64,18 @@ namespace Rasa.Test.Missions.Marshes
         /// Caretaker's three, on the bosses' pools. The Regulator's four: Part I's at Wilson, Part II's at Kaav, Part III's on
         /// the Strider pool, Part IV's the client's "Paludos Ruins" at the scrapper. Mortar Madness' eight, one on each mortar
         /// of the eastern wall line; Under the Radar's the client's "Downed Dropship" at the black box; Part II's the client's
-        /// "Bane Terminal" at the computer (1876) and one at Nelg's post (1877).
+        /// "Bane Terminal" at the computer (1876) and one at Nelg's post (1877). The Core of the Matter's one round the crates;
+        /// This Calls For Destruction's two, round the consoles and at the generator; Data Disaster's one at the terminal; Need a
+        /// Little Help Here's five, round the crates and at each of the four soldiers.
         /// </summary>
-        internal const int Indicators = 53;
+        internal const int Indicators = 62;
 
         private const string Paludos = "20271104000000_Marshes_paludos";
         private const string FalconHold = "20271104000100_Marshes_falcon_hold";
         private const string Harvesters = "20271104000200_Marshes_harvesters";
         private const string Regulator = "20271104000300_Marshes_regulator";
         private const string SentryTower = "20271104000400_Marshes_sentry_tower";
+        private const string SentryTowerTwo = "20271104000500_Marshes_sentry_tower_two";
 
         /// <summary>
         /// The migration directly before <paramref name="migration"/> (IMigrationsAssembly, ordinal order), the target that
@@ -92,7 +99,8 @@ namespace Rasa.Test.Missions.Marshes
                 (959, 760309, 760309, 33), (961, 760309, 760309, 37),
                 (881, 510165, 510165, 33), (890, 510166, 510166, 37), (913, 760312, 760312, 37), (968, 510164, 510164, 36),
                 (925, 510201, 760313, 35), (1028, 760313, 760314, 37), (1029, 760314, 760313, 37), (1030, 760313, 510201, 35),
-                (1874, 760316, 760316, 37), (1875, 760317, 760318, 37), (1876, 760318, 760318, 37), (1877, 760318, 760318, 37)
+                (1874, 760316, 760316, 37), (1875, 760317, 760318, 37), (1876, 760318, 760318, 37), (1877, 760318, 760318, 37),
+                (1878, 760316, 760316, 37), (1879, 760318, 760318, 37), (1870, 760316, 760316, 37), (1873, 760320, 760320, 37)
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             var enabled = harness.World.MissionContentDefinitionEntries.AsNoTracking()
@@ -251,7 +259,13 @@ namespace Rasa.Test.Missions.Marshes
                 (1874, marshes, 19154, new (uint, uint, uint, uint?)[] { (1, 19553, 19554, 19555) }),
                 (1875, marshes, 19159, new (uint, uint, uint, uint?)[] { (1, 19563, 19564, null) }),
                 (1876, marshes, 19164, new (uint, uint, uint, uint?)[] { (1, 19687, 19688, null) }),
-                (1877, marshes, 19169, new (uint, uint, uint, uint?)[] { (1, 19685, 19686, null) })
+                (1877, marshes, 19169, new (uint, uint, uint, uint?)[] { (1, 19685, 19686, null) }),
+                // 1878's objective 2 and 1873's 6 are the server's hidden tallies, under the client's objective 1 texts.
+                (1878, marshes, 19174, new (uint, uint, uint, uint?)[] { (1, 19556, 19557, null), (2, 19556, 19557, null) }),
+                (1879, marshes, 19179, new (uint, uint, uint, uint?)[] { (1, 19558, 19559, 19560), (2, 19561, 19562, null) }),
+                (1870, marshes, 19134, new (uint, uint, uint, uint?)[] { (1, 19550, 19551, null) }),
+                (1873, marshes, 19149, new (uint, uint, uint, uint?)[] { (1, 19565, 19566, null), (2, 19567, 19568, null),
+                    (3, 19570, 19571, null), (4, 19573, 19574, null), (5, 19576, 19577, null), (6, 19565, 19566, null) })
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             foreach (var (mission, revision, title, objectives) in expected)
@@ -296,6 +310,12 @@ namespace Rasa.Test.Missions.Marshes
             // Set 5 has none (no objectiveconversation for 1874-1877).
             foreach (var mission in new uint[] { 1874, 1875, 1876, 1877 })
                 Assert.IsEmpty(Talks(mission, marshes), $"{mission}");
+            // Set 6: 1870's at the CommLink terminal's (objectiveconversation 1870,1 package 2374), 1873's at the four soldiers'
+            // (1873,2-5 packages 2375-2378); 1878 and 1879 have none.
+            CollectionAssert.AreEqual(new (uint, uint?)[] { (1, 2374) }, Talks(1870, marshes));
+            CollectionAssert.AreEqual(new (uint, uint?)[] { (2, 2375), (3, 2376), (4, 2377), (5, 2378) }, Talks(1873, marshes));
+            Assert.IsEmpty(Talks(1878, marshes));
+            Assert.IsEmpty(Talks(1879, marshes));
         }
 
         /// <summary>
@@ -303,7 +323,9 @@ namespace Rasa.Test.Missions.Marshes
         /// Ruins Retreads to Retreads (TaRapedia), on one revision each. Hassling the Harvesters, Beware: Buried Gas Lines and A
         /// Butcher, a Baker, and a Caretaker follow Reaping the Harvest, which needs none (TaRapedia). The Regulator's parts
         /// follow each other, Part I needs none (TaRapedia). Both versions of Under the Radar - Part II follow Under the Radar;
-        /// Mortar Madness and Under the Radar need none (TaRapedia). None repeats.
+        /// Mortar Madness and Under the Radar need none (TaRapedia). The Core of the Matter follows Under the Radar (TaRapedia);
+        /// This Calls For Destruction and Data Disaster follow either version of Part II, by its mission flag; Need a Little
+        /// Help Here needs none. None repeats.
         /// </summary>
         [TestMethod]
         public void OnlyTheFollowUpsRequireAMission()
@@ -313,14 +335,22 @@ namespace Rasa.Test.Missions.Marshes
                 {
                     (961U, (uint?)959), (890U, (uint?)881), (913U, (uint?)881), (968U, (uint?)881),
                     (1028U, (uint?)925), (1029U, (uint?)1028), (1030U, (uint?)1029),
-                    (1876U, (uint?)1875), (1877U, (uint?)1875)
+                    (1876U, (uint?)1875), (1877U, (uint?)1875), (1878U, (uint?)1875)
                 },
                 harness.World.MissionPrerequisiteEntries.AsNoTracking()
-                .Where(entry => entry.ContentRevision == MarshesMissionDataV1.Revision).AsEnumerable()
-                .Select(entry => (entry.MissionId, entry.RequiredMissionId)).ToArray());
+                .Where(entry => entry.ContentRevision == MarshesMissionDataV1.Revision && entry.Kind == MissionPrerequisiteKind.MissionCompleted)
+                .AsEnumerable().Select(entry => (entry.MissionId, entry.RequiredMissionId)).ToArray());
             Assert.IsTrue(harness.World.MissionPrerequisiteEntries.AsNoTracking()
-                .Where(entry => entry.ContentRevision == MarshesMissionDataV1.Revision).AsEnumerable()
-                .All(entry => entry.Kind == MissionPrerequisiteKind.MissionCompleted && entry.RequiredMissionState == (byte)Rasa.Data.MissionState.Completed));
+                .Where(entry => entry.ContentRevision == MarshesMissionDataV1.Revision && entry.Kind == MissionPrerequisiteKind.MissionCompleted)
+                .AsEnumerable().All(entry => entry.RequiredMissionState == (byte)Rasa.Data.MissionState.Completed));
+            // The others: 1870 and 1879 on the "Part II done" flag (1876001 = 1), of 1876 and 1877.
+            CollectionAssert.AreEquivalent(new[] { (1870U, (uint?)1876001, (uint?)1), (1879U, (uint?)1876001, (uint?)1) },
+                harness.World.MissionPrerequisiteEntries.AsNoTracking()
+                .Where(entry => entry.ContentRevision == MarshesMissionDataV1.Revision && entry.Kind != MissionPrerequisiteKind.MissionCompleted)
+                .AsEnumerable().Select(entry => (entry.MissionId, entry.PlayerFlagId, entry.PlayerFlagValue)).ToArray());
+            Assert.IsTrue(harness.World.MissionPrerequisiteEntries.AsNoTracking()
+                .Where(entry => entry.ContentRevision == MarshesMissionDataV1.Revision && entry.Kind != MissionPrerequisiteKind.MissionCompleted)
+                .AsEnumerable().All(entry => entry.Kind == MissionPrerequisiteKind.PlayerFlagValue));
             var ruins = harness.World.MissionPrerequisiteEntries.AsNoTracking().Single(entry => entry.MissionId == ItLiesInRuins);
             Assert.AreEqual((PlateauMissionDataV1.Revision, MissionPrerequisiteKind.MissionCompleted, (uint?)1751),
                 (ruins.ContentRevision, ruins.Kind, ruins.RequiredMissionId));
@@ -390,7 +420,16 @@ namespace Rasa.Test.Missions.Marshes
                 (1875, marshes, 65000, 5400, new (uint, uint)[] { (121237, 1), (121238, 1), (121239, 1), (121240, 1) }),
                 // Bio, Graviton, Stealth, Mech boots 35-39, one block each.
                 (1876, marshes, 140000, 7400, new (uint, uint)[] { (121241, 1), (121242, 1), (121243, 1), (121244, 1) }),
-                (1877, marshes, 140000, 7400, new (uint, uint)[] { (121245, 1), (121246, 1), (121247, 1), (121248, 1) })
+                (1877, marshes, 140000, 7400, new (uint, uint)[] { (121245, 1), (121246, 1), (121247, 1), (121248, 1) }),
+                // Bio gloves, Graviton helmet, Mech gloves, Stealth gloves 35-39.
+                (1878, marshes, 150000, 7600, new (uint, uint)[] { (121229, 1), (121230, 1), (121231, 1), (121232, 1) }),
+                // Stealth vest, Bio vest, Mech legs, Graviton vest 35-39.
+                (1879, marshes, 65000, 5400, new (uint, uint)[] { (121233, 1), (121234, 1), (121235, 1), (121236, 1) }),
+                // Reflective and Hazmat legs 34-38, Motor Assist legs 38-42, Mech vest 35-39.
+                (1870, marshes, 70000, 5550, new (uint, uint)[] { (121205, 1), (121206, 1), (121207, 1), (121208, 1) }),
+                // Weapon Module: Crit Hit Bonus, Armor Module: Armor Absorption, Tool Module: Threat Reduction, Weapon Module:
+                // Armor Piercing [4], as 932.
+                (1873, marshes, 70000, 5550, new (uint, uint)[] { (123161, 1), (122951, 1), (123141, 1), (123146, 1) })
             })
             {
                 var reward = harness.World.Set<MissionRewardDefinitionEntry>().AsNoTracking()
@@ -476,8 +515,9 @@ namespace Rasa.Test.Missions.Marshes
                 .ToHashSet();
             var objectives = world.MissionObjectiveDefinitionEntries.AsNoTracking().Where(entry => entry.ContentRevision == revision)
                 .Select(entry => new { entry.MissionId, entry.ObjectiveId }).ToList();
-            Assert.HasCount(30, objectives, "the objectives are read");
+            Assert.HasCount(41, objectives, "the objectives are read");
             Assert.IsTrue(hidden.Contains((881U, 2U)), "881's tally is hidden");
+            Assert.IsTrue(hidden.Contains((1878U, 2U)) && hidden.Contains((1873U, 6U)), "1878's and 1873's tallies are hidden");
             var missing = objectives.Select(entry => (entry.MissionId, entry.ObjectiveId))
                 .Where(key => !marked.Contains(key) && !hidden.Contains(key)).OrderBy(key => key).ToArray();
             Assert.IsEmpty(missing, string.Join(", ", missing));
@@ -510,7 +550,12 @@ namespace Rasa.Test.Missions.Marshes
                 (925, 1, -138, -472, 8), (1028, 1, 440, -590, 8),   // Wilson, Kaav
                 (1029, 1, 300, -650, 20), (1030, 1, -2, 29, 15),    // the Strider pool 760315, the scrapper (TaRapedia /loc)
                 (1875, 1, -51, -366, 15), (1876, 1, 101, -289, 8),  // the black box, the computer (Ten Ton Hammer)
-                (1877, 1, 170, 55, 15)                              // Nelg's post (Ten Ton Hammer)
+                (1877, 1, 170, 55, 15),                             // Nelg's post (Ten Ton Hammer)
+                (1878, 1, 443, -585, 30),                           // round the three core crates before the depot door
+                (1879, 1, 420, -728, 20), (1879, 2, 400, -730, 10), // round the three consoles, the generator
+                (1870, 1, 178, 46, 10),                             // the CommLink terminal on the deck by Nelg's post
+                (1873, 1, 178, 43, 15),                             // round the four supply crates
+                (1873, 2, -110, -320, 8), (1873, 3, -110, -335, 8), (1873, 4, -125, -335, 8), (1873, 5, -132.11, -330.6, 8)   // the soldiers
             };
             // 1874's eight: the Bane Mortar pools of the eastern wall line (World DB 592164-592171).
             foreach (var (x, z) in new (double, double)[]
@@ -566,8 +611,9 @@ namespace Rasa.Test.Missions.Marshes
                 }
             }
             // Helka's corpse and pack, the twelve feed acceptors; 881's seven harvesters and their taps, 890's five harvesters,
-            // 913's eight receptacles; 1030's scrapper; 1875's black box, 1876's computer.
-            Assert.AreEqual(14 + 14 + 5 + 8 + 1 + 2, objects);
+            // 913's eight receptacles; 1030's scrapper; 1875's black box, 1876's computer; 1878's three crates, 1879's three
+            // consoles, generator and charge, 1870's terminal, 1873's four crates.
+            Assert.AreEqual(14 + 14 + 5 + 8 + 1 + 2 + 3 + 5 + 1 + 4, objects);
         }
 
         /// <summary>
@@ -584,6 +630,8 @@ namespace Rasa.Test.Missions.Marshes
             [11114] = 3,    // UsableItemDisp_item_canister_hum_v01 (1030 viral scrapper; g_usabledata.dis:19364)
             [22105] = 1,    // UsableItemDispBlackBox (1875 black box; lookup[0] None, the client sends 1)
             [20631] = 1,    // UsableStatelessBaneConsoleKeyboard (1876 Bane computer; lookup[0] None, the client sends 1)
+            [7468] = 1,     // UsableTwoStateBaneConsoleSwitchV01 (1879 Bane computers; lookup[0] 1)
+            [7870] = 1,     // UsableBombHumV01 (1879 generator charge; lookup[0] None, the client sends 1)
         };
 
         [TestMethod]
@@ -605,8 +653,9 @@ namespace Rasa.Test.Missions.Marshes
                         $"{binding.MissionId} {actor.Role}: class {actor.TemplateId} is used with the client's argument");
                 }
             }
-            // Helka's pack, the twelve feeders, the seven taps, the eight receptacles, the scrapper, the black box, the computer.
-            Assert.AreEqual(1 + 12 + 7 + 8 + 1 + 2, used);
+            // Helka's pack, the twelve feeders, the seven taps, the eight receptacles, the scrapper, the black box, the computer;
+            // 1878's three crates, 1879's three consoles and the charge, 1873's four crates (1870's terminal talks).
+            Assert.AreEqual(1 + 12 + 7 + 8 + 1 + 2 + 3 + 4 + 4, used);
         }
 
         /// <summary>
@@ -638,8 +687,10 @@ namespace Rasa.Test.Missions.Marshes
             // Set 2 adds Horsh (his pool and six appearance slots), two pools and two scenes (959, 961); set 3 Brazos (his pool
             // and six slots) and three scenes (881, 890, 913); set 4 Wilson (his pool, package and six slots), Kaav (pool,
             // package), the Strider and its pool, and four scenes (925, 1028, 1029, 1030); set 5 McDonald, Dikah and Kiang (pool,
-            // package, slots: six, the spear, six), Nelg, and three scenes (1875, 1876, 1877).
-            Assert.AreEqual((12, 18, 10, 34, 3, 4, 15), All(), "541, 968 and 1874 have no scene");
+            // package, slots: six, the spear, six), Nelg, and three scenes (1875, 1876, 1877); set 6 Thoung, Brady, Zui, Dahn and
+            // Nez (pool, package, slots: the bow, Remick's six, the bow, the spear, the staff) and four scenes (1878, 1879, 1870,
+            // 1873).
+            Assert.AreEqual((17, 23, 15, 44, 3, 4, 19), All(), "541, 968 and 1874 have no scene");
             Assert.AreEqual(4, Upstream());
 
             world.GetService<IMigrator>().Migrate(Previous(world, Paludos));
@@ -831,6 +882,52 @@ namespace Rasa.Test.Missions.Marshes
             world.GetService<IMigrator>().Migrate(SentryTower);
             Assert.IsTrue(setFive.All(Has));
             Assert.AreEqual(full, SetFive());
+        }
+
+        /// <summary>
+        /// Marshes_sentry_tower_two takes out The Core of the Matter, This Calls For Destruction, Data Disaster and Need a Little
+        /// Help Here, Thoung, Brady, Zui, Dahn and Nez; sets 1-5 and the rows they copy or use (Remick, McDonald, Kiang, the
+        /// "Part II done" flag's actions) stay. Up again, all are back.
+        /// </summary>
+        [TestMethod]
+        public void TheSentryTowersSecondPartRollsBackWithItsMigration()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            bool Has(uint mission) => world.MissionContentDefinitionEntries.AsNoTracking()
+                .Any(entry => entry.MissionId == mission && entry.ContentRevision == MarshesMissionDataV1.Revision);
+            int Count(string sql) => world.Database.SqlQueryRaw<int>(sql).AsEnumerable().Single();
+            (int, int, int, int, int, int, int) SetSix() => (
+                Count("SELECT COUNT(*) AS Value FROM creature WHERE id BETWEEN 760320 AND 760324") +
+                    Count("SELECT COUNT(*) AS Value FROM spawnpool WHERE id BETWEEN 760320 AND 760324"),
+                Count("SELECT COUNT(*) AS Value FROM npc_package WHERE id BETWEEN 760320 AND 760324") +
+                    Count("SELECT COUNT(*) AS Value FROM creature_appearance WHERE id BETWEEN 760320 AND 760324"),
+                Count("SELECT COUNT(*) AS Value FROM mission_indicator WHERE mission_id IN (1878, 1879, 1870, 1873)"),
+                Count("SELECT COUNT(*) AS Value FROM mission_evidence WHERE mission_id IN (1878, 1879, 1870, 1873)"),
+                Count("SELECT COUNT(*) AS Value FROM mission_scene_binding WHERE mission_id IN (1878, 1879, 1870, 1873)"),
+                Count("SELECT COUNT(*) AS Value FROM mission_reward_item WHERE mission_id IN (1878, 1879, 1870, 1873)"),
+                Count("SELECT COUNT(*) AS Value FROM mission_prerequisite WHERE mission_id IN (1878, 1879, 1870, 1873)"));
+            int Kept() => Count("SELECT COUNT(*) AS Value FROM creature WHERE id IN (510188, 760316, 760318)") +
+                Count("SELECT COUNT(*) AS Value FROM mission_action WHERE mission_id IN (1876, 1877) AND player_flag_id = 1876001");
+            var setSix = new uint[] { 1878, 1879, 1870, 1873 };
+            var before = new uint[] { 541, 498, 539, 917, 959, 961, 881, 890, 913, 968, 925, 1028, 1029, 1030, 1874, 1875, 1876, 1877 };
+            // 5 creatures and 5 pools; 5 packages, 1 + 6 + 1 + 1 + 1 slots; 1 + 2 + 1 + 5 markers; 12 sources; 4 scenes; 4 x 4
+            // items; 3 prerequisites (1875, the flag twice).
+            var full = (10, 15, 9, 12, 4, 16, 3);
+
+            Assert.IsTrue(setSix.All(Has));
+            Assert.AreEqual(full, SetSix());
+            Assert.AreEqual(5, Kept());
+
+            world.GetService<IMigrator>().Migrate(Previous(world, SentryTowerTwo));
+            Assert.IsFalse(setSix.Any(Has));
+            Assert.AreEqual((0, 0, 0, 0, 0, 0, 0), SetSix());
+            Assert.AreEqual(5, Kept(), "Remick, McDonald, Kiang and the flag's actions stay");
+            Assert.IsTrue(before.All(Has), "sets 1-5 stay");
+
+            world.GetService<IMigrator>().Migrate(SentryTowerTwo);
+            Assert.IsTrue(setSix.All(Has));
+            Assert.AreEqual(full, SetSix());
         }
     }
 }
