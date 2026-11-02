@@ -58,7 +58,16 @@ namespace Rasa.Managers
         {
             Faction,    // FORCEFIELD 62
             Clan,       // CLANFORCEFIELD 79
-            Ownable     // OWNABLEFORCEFIELD 84
+            Ownable,    // OWNABLEFORCEFIELD 84
+
+            /// <summary>
+            /// DOOR (10) held shut by the server: a sealed door of a facility's, which stops
+            /// everyone - players and creatures of any side - and every shot until something opens
+            /// it for good (the Phanin Research Facility's, PhaninResearch). Shut is
+            /// USE_DOOR_STATE_CLOSED, open USE_DOOR_STATE_OPEN; the client's door takes its
+            /// collision from its state (door.py), and has no hit points or block info to be told.
+            /// </summary>
+            Door
         }
 
         public enum Side
@@ -103,7 +112,11 @@ namespace Rasa.Managers
 
             // Two the client marks for deletion, each on another's mesh: humbase's (21637) and banemajor's (22127).
             new FieldClass("humbaseold", 9473, Kind.Faction, new Vector3(-9.17f, 4.1f, -0.17f), new Vector3(9.17f, 12.34f, 0.17f), "UsableForceFieldDELETEV01, on the human base gate's mesh"),
-            new FieldClass("banemajorold", 9747, Kind.Faction, new Vector3(-16.48f, 0.21f, -0.29f), new Vector3(16.48f, 20.38f, 0.31f), "UsableForceFieldDELETEDELETEDUPE, on the Bane major entrance's mesh")
+            new FieldClass("banemajorold", 9747, Kind.Faction, new Vector3(-16.48f, 0.21f, -0.29f), new Vector3(16.48f, 20.38f, 0.31f), "UsableForceFieldDELETEDELETEDUPE, on the Bane major entrance's mesh"),
+
+            // A door, not a field: arch_brann_corridor_door_01_4m_v01.geo's collision box (mesh01.glm),
+            // for the Brann corridor jambs (ArchBrannCorridorJamb014mV01).
+            new FieldClass("branndoor", 10749, Kind.Door, new Vector3(-3.52f, 0.42f, -0.55f), new Vector3(3.52f, 6.12f, 0.55f), "Brann corridor door (UsableDoorBrannCorridor04mV01)")
         };
 
         /// <summary>The ownable field's hue for each side, 0-255 red, green, blue, alpha: ours.</summary>
@@ -164,11 +177,28 @@ namespace Rasa.Managers
                 return Fields.Where(f => f.MapChannel == mapChannel).ToList();
         }
 
+        /// <summary>
+        /// A map channel going away (MapChannelManager.CleanupPrivateMapChannel): the fields still
+        /// on it out of the list - those an instance put down itself rather than through
+        /// PlacedDestructibles, which takes its own away first. Returns how many went.
+        /// </summary>
+        public static int Forget(MapChannel mapChannel)
+        {
+            if (mapChannel == null)
+                return 0;
+
+            lock (FieldsLock)
+                return Fields.RemoveAll(f => f.MapChannel == mapChannel);
+        }
+
         #region States
 
         /// <summary>The usable state a field of this kind, side and health is in.</summary>
         public static UseObjectState StateOf(Kind kind, Side side, int health, int maxHealth)
         {
+            if (kind == Kind.Door)
+                return health <= 0 ? UseObjectState.DoorStateOpen : UseObjectState.DoorStateClosed;
+
             if (kind == Kind.Clan)
                 return health <= 0 ? UseObjectState.StateDestroyed : side == Side.A ? UseObjectState.CffStateAfsOwns : UseObjectState.CffStateBaneOwns;
 
@@ -256,6 +286,10 @@ namespace Rasa.Managers
         public static bool StopsCategory(Side side, TargetCategory category) =>
             side == Side.A ? category == TargetCategory.Hostile : category == TargetCategory.Friendly;
 
+        /// <summary>Whether an intact field stops a creature of this category: a shut door stops every one.</summary>
+        public static bool StopsCreature(Field field, TargetCategory category) =>
+            !field.IsDestroyed && (field.Class.Kind == Kind.Door || StopsCategory(field.Side, category));
+
         public static bool StopsPlayer(Field field) => !field.IsDestroyed && StopsPlayers(field.Side);
 
         #endregion
@@ -332,6 +366,10 @@ namespace Rasa.Managers
             if (!(obj.ObjectData is Field field) || client?.Player == null)
                 return;
 
+            // A door has neither: its state, sent with its creation, is its collision.
+            if (field.Class.Kind == Kind.Door)
+                return;
+
             client.CallMethod(obj.EntityId, new UsableDamageInfoPacket(true, false, field.MaxHealth, field.Health));
             client.CallMethod(obj.EntityId, new BlockInfoPacket(client.Player.EntityId, StopsPlayer(field)));
 
@@ -347,6 +385,9 @@ namespace Rasa.Managers
         /// <summary>Everyone who can see the field, each told whether it blocks them now.</summary>
         private static void SendBlockInfo(Field field)
         {
+            if (field.Class.Kind == Kind.Door)
+                return;
+
             foreach (var client in ClientsAround(field))
                 if (client.Player != null)
                     client.CallMethod(field.Object.EntityId, new BlockInfoPacket(client.Player.EntityId, StopsPlayer(field)));
@@ -392,7 +433,8 @@ namespace Rasa.Managers
 
             field.Health -= taken;
 
-            CellManager.Instance.CellCallMethod(field.Object, new UpdateHitPointsPacket(field.Health));
+            if (field.Class.Kind != Kind.Door)
+                CellManager.Instance.CellCallMethod(field.Object, new UpdateHitPointsPacket(field.Health));
             UpdateState(field, before, byEntityId);
 
             return taken;
@@ -555,8 +597,7 @@ namespace Rasa.Managers
                 return false;
 
             foreach (var field in OnMap(mapChannel))
-                if (!field.IsDestroyed && StopsCategory(field.Side, creature.TargetCategory)
-                    && Crosses(field.Class, field.Position, field.Yaw, from, to))
+                if (StopsCreature(field, creature.TargetCategory) && Crosses(field.Class, field.Position, field.Yaw, from, to))
                     return true;
 
             return false;

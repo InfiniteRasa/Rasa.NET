@@ -341,6 +341,12 @@ namespace Rasa.Managers
                 ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, magmaRefusal);
                 return;
             }
+            // The Phanin Research Facility's mainframes, research consoles and medical crates (PhaninResearch).
+            if (PhaninResearch.Refusal(client, obj) is { } phaninRefusal)
+            {
+                ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, phaninRefusal);
+                return;
+            }
             if (obj.MissionUseAction != null &&
                 (!MissionUseAvailable(client, obj) ||
                  !(_missionManager ?? MissionApplication.Instance).Scenes.CanUseObject(client, obj, packet.ActionArgId)))

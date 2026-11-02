@@ -28,8 +28,9 @@ namespace Rasa.Test.Missions.Wilderness
             // eight (DevilsDenContent), Pravus Research's six (PravusResearchContent), Torcastra
             // Prison's five (TorcastraMissionsV1), Minos Caverns' four (MinosCavernsMissions), Crater Lake's ten
             // (CraterLakeContent), the Energy Weapon Center's five (EnergyWeaponCenterContent), Timora Mines' six and
-            // Stolen History (TimoraMinesMissionsV1), Warnet Caverns' eight (WarnetCavernsMissions) and the Kardash Atta
-            // Colony's ten (KardashAttaColonyContent), which are instances'. And the Plateau and Valverde Pools ones.
+            // Stolen History (TimoraMinesMissionsV1), Warnet Caverns' eight (WarnetCavernsMissions), the Kardash Atta
+            // Colony's ten (KardashAttaColonyContent) and the Phanin Research Facility's seven (PhaninResearchContent),
+            // which are instances'. And the Plateau and Valverde Pools ones.
             var battlefields = Rasa.Services.Preloader.TargetsOfOpportunitySeed.Zones.Select(zone => zone.MissionId)
                 .Concat(Plateau.PlateauMissionTests.MissionIds).Concat(Pools.PoolsMissionTests.MissionIds).ToArray();
             var ojasa = Rasa.Services.Preloader.OjasaHiveContent.Missions;
@@ -44,11 +45,12 @@ namespace Rasa.Test.Missions.Wilderness
                 .Concat(Rasa.Services.Preloader.MagmaCavernsContent.Missions).ToArray();
             var ewc = Rasa.Services.Preloader.EnergyWeaponCenterContent.Missions;
             var kardash = Rasa.Services.Preloader.KardashAttaColonyContent.Missions;
+            var phanin = Rasa.Services.Preloader.PhaninResearchContent.Missions;
             CollectionAssert.AreEquivalent(expected.Concat(WildernessMissionCases.ProtectedBootcampMissionIds)
-                    .Concat(battlefields).Concat(ojasa).Concat(donn).Concat(den).Concat(pravus).Concat(minos).Concat(craterLake).Concat(ewc).Concat(kardash).ToArray(),
+                    .Concat(battlefields).Concat(ojasa).Concat(donn).Concat(den).Concat(pravus).Concat(minos).Concat(craterLake).Concat(ewc).Concat(kardash).Concat(phanin).ToArray(),
                 enabled.Select(entry => entry.MissionId).ToArray());
             Assert.AreEqual(69 + battlefields.Length + ojasa.Length + donn.Length + den.Length + pravus.Length + minos.Length + craterLake.Length +
-                ewc.Length + kardash.Length, enabled.Length);
+                ewc.Length + kardash.Length + phanin.Length, enabled.Length);
             Assert.IsTrue(expected.All(id => harness.Manager.LoadedMissions[id].IsOperational),
                 "An enabled but nonoperational definition is not outdoor coverage.");
         }

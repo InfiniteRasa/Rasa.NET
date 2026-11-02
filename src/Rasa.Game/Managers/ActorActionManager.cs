@@ -217,6 +217,13 @@ namespace Rasa.Managers
                         break;
                     }
 
+                    // One of the Phanin Research Facility's usables (PhaninResearch), whatever its arg.
+                    if (PhaninResearch.IsUseOf(mapChannel, action))
+                    {
+                        PhaninResearch.UseRecovery(mapChannel, action);
+                        break;
+                    }
+
                     // A usable of the client's .map (MapUsables), whatever its arg: no object of
                     // the server's has its id.
                     if (MapUsables.IsUseOf(action))

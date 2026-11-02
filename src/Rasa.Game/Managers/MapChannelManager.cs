@@ -468,6 +468,9 @@ namespace Rasa.Managers
                     // The Kardash Atta Colony's console, transducers and Bane at the Queen, in each copy of it.
                     Guard("KardashAttaColony.Worker", mapChannel, () => KardashAttaColony.Worker(mapChannel));
 
+                    // The Phanin Research Facility's mainframes, doors, consoles, crates and caged Atta, in each copy of it.
+                    Guard("PhaninResearch.Worker", mapChannel, () => PhaninResearch.Worker(mapChannel));
+
                     // The Caves of Donn's story, in each copy of them.
                     Guard("CavesOfDonn.Worker", mapChannel, () => CavesOfDonn.Worker(mapChannel));
 
@@ -1703,6 +1706,7 @@ namespace Rasa.Managers
 
             // What was placed on it (PlacedDestructibles), its force fields out of ForceFields' list too.
             PlacedDestructibles.Forget(map);
+            ForceFields.Forget(map);
             PlacedUsables.Forget(map);
             WorldContainers.Forget(map);
 

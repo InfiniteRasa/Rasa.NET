@@ -238,6 +238,10 @@ namespace Rasa.Managers
             if (!Battlegrounds.Instance.MayEnter(client, link.DestMapContextId))
                 return;
 
+            // The Phanin Research Facility is sealed to a player without its keycard (PhaninResearch).
+            if (!PhaninResearch.MayEnter(client, link.DestMapContextId))
+                return;
+
             if (!MapChannelManager.Instance.MapChannelArray.ContainsKey(link.DestMapContextId))
             {
                 MapErrorManager.Instance.Record(link.MapContextId, $"map_link {link.Id} ({link.Comment}) leads to map {link.DestMapContextId}, which is not loaded");
