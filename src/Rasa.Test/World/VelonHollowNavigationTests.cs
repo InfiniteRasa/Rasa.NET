@@ -107,8 +107,9 @@ namespace Rasa.Test.World
             Assert.AreEqual(file.BaseStream.Length, file.BaseStream.Position);
             using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
             foreach (var tile in tiles.Where(t => !Rebuilt.Contains((t.Key.X, t.Key.Z)))) hash.AppendData(tile.Value);
-            // Fingerprint of the 1,593 untouched tile payloads in development 7d5733e3.
-            Assert.AreEqual("5359453892DBFE2D13138B4DD916AA52531AD62C71B43368E8F148949D2C6779", Convert.ToHexString(hash.GetHashAndReset()));
+            // Fingerprint of the 1,593 untouched tile payloads, as the child-bone collision rebuild
+            // (79f36cd6) left them.
+            Assert.AreEqual("9987EEB4666E81D9345548174DF6FEB4AC2224A7F7DA871B73B3919A03645B08", Convert.ToHexString(hash.GetHashAndReset()));
             var mesh = Query().NavMesh;
             var selected = Enumerable.Range(0, mesh.GetMaxTiles()).Select(mesh.GetTile)
                 .Where(t => t?.data?.header != null && Rebuilt.Contains((t.data.header.x, t.data.header.y))).ToArray();
