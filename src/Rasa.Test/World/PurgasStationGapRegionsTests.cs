@@ -32,6 +32,13 @@ namespace Rasa.Test.World
         };
 
         [TestMethod]
+        public void EachCommentFitsTheMySqlColumn()
+        {
+            foreach (var volume in PurgasStationGapRegions.Volumes)
+                Assert.IsLessThanOrEqualTo(PurgasStationGapRegions.CommentLength, volume.Comment.Length, volume.Comment);
+        }
+
+        [TestMethod]
         public void LevelThreesBendAndServiceTubeAreItsMainCorridor()
         {
             var (before, after) = Migrated();

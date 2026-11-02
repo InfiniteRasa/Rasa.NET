@@ -44,11 +44,14 @@ namespace Rasa.Services.Preloader
 
         private const string Map = "foreas_concordia_divide_purgasstation2 - ";
 
+        /// <summary>map_region.comment's MySQL length; a longer text stops the migration there.</summary>
+        public const int CommentLength = 96;
+
         public static readonly Volume[] Volumes =
         {
-            Of(LevelThreeMainRegion, -14, 6, -230, -200, -10, 24, AnyLevel, Map + "Level 03: Main Corridor (the bend from the east basin room)"),
-            Of(LevelThreeMainRegion, 6, 38, -198, -187, -10, 24, AnyLevel, Map + "Level 03: Main Corridor (service tube to the console nook)"),
-            Of(LevelOneServiceRegion, -173, -163, 14, 34, 61, 72, AnyLevel, Map + "Level 01: Service Corridor (top of the ramp from Level 02)"),
+            Of(LevelThreeMainRegion, -14, 6, -230, -200, -10, 24, AnyLevel, Map + "Level 03: Main Corridor (bend from the east basin room)"),
+            Of(LevelThreeMainRegion, 6, 38, -198, -187, -10, 24, AnyLevel, Map + "Level 03: Main Corridor (service tube to the console)"),
+            Of(LevelOneServiceRegion, -173, -163, 14, 34, 61, 72, AnyLevel, Map + "Level 01: Service Corridor (top of the Level 02 ramp)"),
         };
 
         private static Volume Of(uint region, double west, double east, double south, double north, double floor, double roof, byte underground, string comment) =>
@@ -62,11 +65,12 @@ namespace Rasa.Services.Preloader
                     $"FROM map_info m WHERE m.map_context_id = {MapContextId} AND NOT EXISTS (SELECT 1 FROM map_region x WHERE {At(v, "x")});";
         }
 
+        /// <summary>Not by the comment: a SQLite world may have the longer texts these had before.</summary>
         public static IEnumerable<string> Down()
         {
             foreach (var v in Volumes.Reverse())
                 yield return $"DELETE FROM map_region WHERE {At(v, "map_region")} AND ABS(half_x - {N(v.HalfX)}) < 0.01 AND ABS(half_z - {N(v.HalfZ)}) < 0.01 " +
-                    $"AND ABS(min_y - {N(v.MinY)}) < 0.01 AND ABS(max_y - {N(v.MaxY)}) < 0.01 AND underground = {v.Underground} AND comment = {S(v.Comment)};";
+                    $"AND ABS(min_y - {N(v.MinY)}) < 0.01 AND ABS(max_y - {N(v.MaxY)}) < 0.01 AND underground = {v.Underground};";
         }
 
         private static string At(Volume v, string t) =>
