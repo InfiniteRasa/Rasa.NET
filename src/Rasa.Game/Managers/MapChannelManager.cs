@@ -482,6 +482,9 @@ namespace Rasa.Managers
 
                     // Torcastra Prison's alarm, gate, consoles and Airman Hamilton, in each copy of it.
                     Guard("TorcastraPrison.Worker", mapChannel, () => TorcastraPrison.Worker(mapChannel));
+
+                    // Timora Mines' drills, fuel lakes, security, escort and ambush, in each copy of it.
+                    Guard("TimoraMines.Worker", mapChannel, () => TimoraMines.Worker(mapChannel));
                     Guard("NpcSquads.Worker", mapChannel, () => NpcSquads.Worker(mapChannel));
 
                     // Players held in a corner the client's collision will not let them out of are taken out.

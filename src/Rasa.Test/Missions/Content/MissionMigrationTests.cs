@@ -94,8 +94,8 @@ namespace Rasa.Test.Missions.Content
             using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true);
             // Bootcamp's five, the Wilderness outdoor release, the battlefields' Targets of
             // Opportunity, the Ojasa Atta Hive's five, the Caves of Donn's six, the Devil's Den's
-            // eight, Pravus Research's six, Torcastra Prison's five, Minos Caverns' four, Crater Lake's ten, the Energy Weapon Center's five, the
-            // Plateau missions and the Valverde Pools missions.
+            // eight, Pravus Research's six, Torcastra Prison's five, Minos Caverns' four, Crater Lake's ten, the Energy Weapon Center's five,
+            // Timora Mines' six and Stolen History, the Plateau missions and the Valverde Pools missions.
             var targets = Rasa.Services.Preloader.TargetsOfOpportunitySeed.Zones.Select(zone => zone.MissionId)
                 .Concat(Rasa.Test.Missions.Plateau.PlateauMissionTests.MissionIds)
                 .Concat(Rasa.Test.Missions.Pools.PoolsMissionTests.MissionIds).ToArray();
@@ -109,7 +109,8 @@ namespace Rasa.Test.Missions.Content
                     .Concat(Rasa.Services.Preloader.Missions.Torcastra.TorcastraMissionsV1.Enabled)
                     .Concat(Rasa.Services.Preloader.MinosCavernsMissions.Missions)
                     .Concat(Rasa.Services.Preloader.CraterLakeContent.Missions)
-                    .Concat(Rasa.Services.Preloader.EnergyWeaponCenterContent.Missions).Distinct().ToArray(),
+                    .Concat(Rasa.Services.Preloader.EnergyWeaponCenterContent.Missions)
+                    .Concat(Rasa.Services.Preloader.Missions.Timora.TimoraMinesMissionsV1.Enabled).Distinct().ToArray(),
                 harness.WorldContext.MissionContentDefinitionEntries.Where(entry => entry.Enabled)
                     .Select(entry => entry.MissionId).ToArray());
             Assert.IsTrue(expected.All(id => harness.Manager.LoadedMissions[id].IsOperational));

@@ -292,6 +292,7 @@ namespace Rasa.Managers
             RegisterCommand(".worldusable", GmLevel.GameMaster, WorldUsableCommand, "action", "arg1", "arg2", "arg3", "arg4", "arg5", "arg6", "arg7", "arg8");
             RegisterCommand(".torcastra", GmLevel.GameMaster, TorcastraCommand, "alarm | strike | secure <n|all> | gate | unlock <n|all> | reset");
             RegisterCommand(".ewc", GmLevel.GameMaster, EnergyWeaponCenterCommand, "generator | invert | tanks | casso");
+            RegisterCommand(".timora", GmLevel.GameMaster, TimoraCommand, "drills | pumps | security | disarm | burn | pump | reset");
             RegisterCommand(".squad", GmLevel.GameMaster, SquadCommand, "[types|paths|spawns|export] | type ... | path ... | point [pause] | spawn ...");
             RegisterCommand(".worldcontainer", GmLevel.GameMaster, WorldContainerCommand, "action", "arg1", "arg2", "arg3", "arg4", "arg5", "arg6");
             RegisterCommand(".removeobj", GmLevel.GameMaster, RemoveObjectCommand, "entityId");
@@ -997,6 +998,13 @@ namespace Rasa.Managers
         private void EnergyWeaponCenterCommand(string[] parts)
         {
             foreach (var line in EnergyWeaponCenter.Command(_client.Player.MapChannel, _client.Player, parts))
+                CommunicatorManager.Instance.SystemMessage(_client, line);
+        }
+
+        /// <summary>.timora: Timora Mines' drills, pumps, fuel lakes and security, escort and ambush in this copy (TimoraMines.Command).</summary>
+        private void TimoraCommand(string[] parts)
+        {
+            foreach (var line in TimoraMines.Command(_client.Player.MapChannel, _client.Player, parts))
                 CommunicatorManager.Instance.SystemMessage(_client, line);
         }
 

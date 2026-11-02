@@ -27,7 +27,8 @@ namespace Rasa.Test.Missions.Wilderness
             // (OjasaHiveContent), the Caves of Donn's six (CavesOfDonnContent), the Devil's Den's
             // eight (DevilsDenContent), Pravus Research's six (PravusResearchContent), Torcastra
             // Prison's five (TorcastraMissionsV1), Minos Caverns' four (MinosCavernsMissions), Crater Lake's ten
-            // (CraterLakeContent) and the Energy Weapon Center's five (EnergyWeaponCenterContent), which are instances'. And the Plateau and Valverde Pools ones.
+            // (CraterLakeContent), the Energy Weapon Center's five (EnergyWeaponCenterContent) and Timora Mines' six and
+            // Stolen History (TimoraMinesMissionsV1), which are instances'. And the Plateau and Valverde Pools ones.
             var battlefields = Rasa.Services.Preloader.TargetsOfOpportunitySeed.Zones.Select(zone => zone.MissionId)
                 .Concat(Plateau.PlateauMissionTests.MissionIds).Concat(Pools.PoolsMissionTests.MissionIds).ToArray();
             var ojasa = Rasa.Services.Preloader.OjasaHiveContent.Missions;
@@ -35,7 +36,8 @@ namespace Rasa.Test.Missions.Wilderness
             var den = Rasa.Services.Preloader.DevilsDenContent.Missions;
             var pravus = Rasa.Services.Preloader.PravusResearchContent.Missions
                 .Concat(Rasa.Services.Preloader.Missions.Torcastra.TorcastraMissionsV1.Enabled).ToArray();
-            var minos = Rasa.Services.Preloader.MinosCavernsMissions.Missions;
+            var minos = Rasa.Services.Preloader.MinosCavernsMissions.Missions
+                .Concat(Rasa.Services.Preloader.Missions.Timora.TimoraMinesMissionsV1.Enabled).ToArray();
             var craterLake = Rasa.Services.Preloader.CraterLakeContent.Missions;
             var ewc = Rasa.Services.Preloader.EnergyWeaponCenterContent.Missions;
             CollectionAssert.AreEquivalent(expected.Concat(WildernessMissionCases.ProtectedBootcampMissionIds)

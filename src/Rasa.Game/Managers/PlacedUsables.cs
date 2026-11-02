@@ -632,6 +632,10 @@ namespace Rasa.Managers
             if (EnergyWeaponCenter.RefusalOf(client, live) is { } energyWeapon)
                 return energyWeapon;
 
+            // Timora Mines' consoles and charges, and Stolen History's crates (TimoraMines).
+            if (TimoraMines.RefusalOf(client, live) is { } timora)
+                return timora;
+
             switch (live.Placement.Kind)
             {
                 case Kind.Dispenser:
@@ -770,6 +774,9 @@ namespace Rasa.Managers
 
             // What it does in Torcastra Prison (TorcastraPrison).
             TorcastraPrison.Used(client, live, next);
+
+            // What it does in Timora Mines (TimoraMines).
+            TimoraMines.Used(client, live, next);
 
             return next;
         }

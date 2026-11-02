@@ -894,6 +894,10 @@ namespace Rasa.Managers
             if (!live.Placement.IsPutDown)
                 CavesOfDonn.Destroyed(map, live.Placement.Id);
 
+            // A Timora Mines fuel lake: whoever lit it (TimoraMines).
+            if (!live.Placement.IsPutDown)
+                TimoraMines.Destroyed(map, live.Placement.Id, by);
+
             // A Bane base's databank: its alarm (BaneAlarms).
             BaneAlarms.Destroyed(map, live, by);
 

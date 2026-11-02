@@ -128,7 +128,8 @@ namespace Rasa.Test.Missions
                 Assert.AreEqual(M.Category, mission.CategoryId);
             }
 
-            Assert.IsFalse(harness.Manager.TryGetOperationalMission(M.StolenHistory, out _), "Stolen History waits for Minos Caverns and Timora Mines");
+            // Stolen History is switched on by Timora_mines, with its last piece (TimoraMinesTests).
+            Assert.IsTrue(harness.Manager.TryGetOperationalMission(M.StolenHistory, out _), "Stolen History, once Timora Mines is in");
 
             // Each marker is the client's own name for it, or none and named by its objective.
             var markers = harness.World.MissionIndicatorEntries.AsNoTracking().Where(row => row.ContentRevision == M.Revision).ToList();

@@ -252,7 +252,8 @@ namespace Rasa.Test.World
                 Assert.AreEqual(PlacedUsables.Kind.Door, usables[MinosCavernsContent.PrisonDoor].Placement.Kind);
                 Assert.IsTrue(usables[MinosCavernsContent.PrisonDoor].Placement.Usable);
                 Assert.AreEqual(PlacedUsables.Kind.Dispenser, usables[MinosCavernsContent.MapChest].Placement.Kind);
-                Assert.IsFalse(usables[MinosCavernsContent.MapChest].Placement.Usable);
+                // Made usable by Timora_mines, for Stolen History (TimoraMinesTests).
+                Assert.IsTrue(usables[MinosCavernsContent.MapChest].Placement.Usable);
             }
             finally
             {
