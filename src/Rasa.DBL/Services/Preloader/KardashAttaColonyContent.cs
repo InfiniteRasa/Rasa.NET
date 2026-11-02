@@ -56,11 +56,18 @@ namespace Rasa.Services.Preloader
         public const uint IntoTheHive = 1112, AttaControl = 1113, BugHunt = 1115, ADividedPeople = 1118, TaleOfTwoBrothers = 1119,
             UnexpectedGuests = 1120, JustToBeCertain = 1121, KeyInformation = 1122, SecurityThreat = 1125, BugHugger = 1939;
 
-        public static readonly uint[] Missions =
+        /// <summary>Reyko's Eloh artifact, put in later under this revision (KardashWaypointsAndMysteries).</summary>
+        public const uint UndergroundMysteries = 1186;
+
+        /// <summary>The ten this migration puts in.</summary>
+        public static readonly uint[] OwnMissions =
         {
             IntoTheHive, AttaControl, BugHunt, ADividedPeople, TaleOfTwoBrothers, UnexpectedGuests, JustToBeCertain, KeyInformation,
             SecurityThreat, BugHugger
         };
+
+        /// <summary>Every mission under the colony's revision: its own ten and Underground Mysteries.</summary>
+        public static readonly uint[] Missions = OwnMissions.Append(UndergroundMysteries).ToArray();
 
         /// <summary>The server event Atta Control is offered by radio on (KardashAttaColony).</summary>
         public const string AttaControlOfferKey = "kardash.atta-control";

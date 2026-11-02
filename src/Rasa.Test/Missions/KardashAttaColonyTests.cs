@@ -102,7 +102,8 @@ namespace Rasa.Test.Missions
 
             // Each marker is the client's own name or none, and is on the map it is on.
             var markers = world.Set<MissionIndicatorEntry>().AsNoTracking().Where(row => row.ContentRevision == K.Revision).ToList();
-            Assert.IsTrue(markers.All(row => row.IndicatorId == K.QueensChamberMarker || row.IndicatorId > MissionIndicator.UnnamedFrom));
+            Assert.IsTrue(markers.All(row => row.IndicatorId == K.QueensChamberMarker ||
+                row.IndicatorId == Rasa.Services.Preloader.KardashWaypointsAndMysteries.ElohChamberMarker || row.IndicatorId > MissionIndicator.UnnamedFrom));
             foreach (var row in markers)
                 Assert.IsTrue(harness.Manager.TryGetOperationalMission(row.MissionId, out _));
         }
@@ -148,7 +149,7 @@ namespace Rasa.Test.Missions
             var tralosBefore = database.Context.CreatureAppearanceEntries.AsNoTracking().Where(a => a.Id == K.Tralos).Select(a => new { a.SlotId, a.ClassId, a.Color }).ToList();
 
             migrator.Migrate(Migration);
-            Assert.AreEqual(K.Missions.Length, Count(database, $"SELECT COUNT(*) AS Value FROM mission_content_definition WHERE content_revision = '{K.Revision}' AND enabled = 1"));
+            Assert.AreEqual(K.OwnMissions.Length, Count(database, $"SELECT COUNT(*) AS Value FROM mission_content_definition WHERE content_revision = '{K.Revision}' AND enabled = 1"));
             var rows = Count(database, "SELECT COUNT(*) AS Value FROM creature WHERE id BETWEEN 781000 AND 781999");
             Assert.AreEqual(K.Creatures.Length, rows);
             Assert.AreEqual(K.Pools.Length, Count(database, "SELECT COUNT(*) AS Value FROM spawnpool WHERE id BETWEEN 781000 AND 781999"));
@@ -170,7 +171,7 @@ namespace Rasa.Test.Missions
                 database.Context.CreatureAppearanceEntries.AsNoTracking().Where(a => a.Id == K.Tralos).Select(a => new { a.SlotId, a.ClassId, a.Color }).ToList());
 
             migrator.Migrate(Migration);
-            Assert.AreEqual(K.Missions.Length, Count(database, $"SELECT COUNT(*) AS Value FROM mission_content_definition WHERE content_revision = '{K.Revision}' AND enabled = 1"));
+            Assert.AreEqual(K.OwnMissions.Length, Count(database, $"SELECT COUNT(*) AS Value FROM mission_content_definition WHERE content_revision = '{K.Revision}' AND enabled = 1"));
         }
 
         /// <summary>Reyko's Into the Hive reported from the console, by radio, and Atta Control offered next.</summary>
