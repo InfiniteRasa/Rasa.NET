@@ -690,10 +690,11 @@ namespace Rasa.Test.Missions.Wilderness
             // missions' names (1 "Bane Base", 3 "Possible Food Crate Location"). A Wilderness
             // indicator that is to carry a client name is keyed by that name's id, below UnnamedFrom.
             // The client has no names for the Plateau missions' indicators either. The Marshes' are keyed above
-            // UnnamedFrom but for What's that Gas?'s fern marker, keyed by the client's name 5 "Calla Ferns"
-            // (MarshesMissionTests).
+            // UnnamedFrom but for those keyed by the client's names: What's that Gas?'s fern marker 5 "Calla Ferns", the
+            // harvester fields' 106 "Bane Harvester" and Beware: Buried Gas Lines' 138 "Pipeline Supply Point"
+            // (MarshesMissionTests.NamedMarker).
             foreach (var row in wilderness.Concat(plateau).Concat(pools)
-                .Concat(marshes.Where(row => !(row.MissionId == 539 && row.ObjectiveId == 1))))
+                .Concat(marshes.Where(row => Rasa.Test.Missions.Marshes.MarshesMissionTests.NamedMarker(row.MissionId, row.ObjectiveId) == null)))
                 Assert.IsTrue(row.IndicatorId > Rasa.Structures.MissionIndicator.UnnamedFrom,
                     $"mission {row.MissionId} objective {row.ObjectiveId} indicator {row.IndicatorId}");
 

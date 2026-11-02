@@ -392,14 +392,14 @@ namespace Rasa.Test.Missions.Marshes
             WildernessRanjaGorgeTests.Held(harness, MarshesFixingTheFoodChainV1.FeedTemplate);
 
         /// <summary>The objectives of <paramref name="mission"/> that <paramref name="npc"/> offers to hear now (as PoolsRetreadChainTests).</summary>
-        private static uint[] Topics(WildernessRuntimeTestHarness harness, Creature npc, uint mission) =>
+        internal static uint[] Topics(WildernessRuntimeTestHarness harness, Creature npc, uint mission) =>
             Conversation(harness, npc).TryGetValue(ConversationType.ObjectiveComplete, out var value)
                 ? ((List<CompleteableObjectives>)value).Where(topic => topic.MissionId == mission)
                     .Select(topic => (uint)topic.ObjectiveId).ToArray()
                 : Array.Empty<uint>();
 
         /// <summary>A full bag and inbox: the turn-in pays nothing; one slot freed, the caller turns it in (as PoolsRetreadChainTests).</summary>
-        private static void FullBagWaits(WildernessRuntimeTestHarness harness, Creature receiver, uint mission, int? choice, uint filler)
+        internal static void FullBagWaits(WildernessRuntimeTestHarness harness, Creature receiver, uint mission, int? choice, uint filler)
         {
             WildernessAliaBranchesTests.FillCategory(harness, filler, 50);
             harness.FillInbox();
@@ -413,7 +413,7 @@ namespace Rasa.Test.Missions.Marshes
         }
 
         /// <summary>Completed Marshes missions in the character's history, as PlateauCampResistanceTests.SeedCompleted the Plateau's.</summary>
-        private static void SeedCompletedMarshes(WildernessRuntimeTestHarness harness, params uint[] completed)
+        internal static void SeedCompletedMarshes(WildernessRuntimeTestHarness harness, params uint[] completed)
         {
             using (var unit = harness.CreateChar())
                 unit.ExecuteTransaction(() =>
