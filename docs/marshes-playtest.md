@@ -70,6 +70,13 @@ Set 9, the escorts (migration `20271104000800_Marshes_escorts`).
 - [ ] 889 AWOL Andy (Valverde Marshes): MP Price offers it, no requirement, level 37. Price's package 386 moved to your own Lieutenant Bruncke (new, Morrison's look, level 37, 4000 HP) (user decision U1): Price no longer has that talk. Four search places (optional, 20 m, "Possible location of Private Bruncke"): west (-520, 217.5, 40), north-west (-450, 217.1, 120), south (-330, 215.1, -160), east (-200, 215.7, -100); Bruncke stands at the east one from the accept. Talk to him ("lead the way"): 1 done, 2 opens, he follows. Walk into 25 m of Price (-317.6, 218.5, -2.8): 2 done, Bruncke goes. His death fails it. Markers: the four places (1 and 4-7), Price (2). Turn in at Price: 130000 XP, 7200 credits, one of Bio Legs 120013, Graviton Legs 120014, Mech Helmet 120015, Stealth Helmet 120016. Are the four places where players searched (no source)? Does Price still say his other lines?
 - [ ] 1023 Rest and Recreation (Valverde Marshes): Sergeant Elway offers it, no requirement, level 33. Four groups of three of your own soldiers (new, the Pools Rifleman's class, level 33, 4000 HP each), at least one must arrive, the first group within 10 minutes (only it is timed): 1 from the Falcon Hold waypoint to Lieutenant Belfast (new, 110, 216.9, 405); talk to him (5): group 2 from him to Lieutenant Delaio (new, 100, 216.9, 530.4); talk (6): group 3 to Lieutenant Urqhart (new, 45.5, 216.9, 704); talk (7): group 4 back to Elway (20 m). All three dead (or group 1 past 10 minutes) fail the mission. Markers at each leg's officer and each report. Turn in at Elway: 70000 XP, 5550 credits, one of Weapon Module: Crit Hit Bonus [4] 123161, Armor Module: Body 122966, Mind 122976, Spirit Bonus [4] 122991. Are Delaio and Urqhart at the right watchtowers? Do three followers walk without blocking each other?
 
+Set 10, Retread City (migration `20271104000900_Marshes_retread_city`).
+
+- [ ] 914 Highway Robbery (Valverde Marshes): Retread Vincent offers it, no requirement, level 36. Two ways, one to take. Steal: your own AFS Supply Crate (class 11078, "AFS Supply Crate") by the Paludos med tent (-310, 218.5, 126) and one by the Falcon Hold med tent (-150, 219.3, 612); use either: AFS Medical Supplies (44929), 1 done, 2 fails, the crates go. Tell: talk to Commander Figgins (new, Falcon Hold -184, 219.6, 627, the client's package 1011, "Damn Retreads!"): 2 done, 1 fails, the crates go. Then report to Vincent (4): after the theft his "Bypass the red tape" (variant 131, he takes the supplies), after the telling his "Your AFS buddies were already here" (variant 130). Markers at both crates (1), Figgins (2), Vincent (4). Turn in at Vincent: 35000 XP, 3700 credits, one of 2 Advanced Med Pack VII, 2 Adrenaline Booster VII, 4 Incendiary Grenade VII, 4 EMP Grenade VII. Does the client draw the failed optional way? Does Vincent show the right answer text?
+- [ ] 916 Production Destruction (Vincent) (Valverde Marshes): Vincent offers it after 914 with the supplies stolen (flag 914001 = 1), level 35. Five of your own Production Kiosks (class 10159, 500 HP) round the Bane Repair Station (300..360, -500..-555); shoot them down (counter 5757). Kill Overseer Vesh 520035 (350, 217.5, -525) and Overseer Koorva 520033 (320, 218.1, -525), the public ones. Markers round the kiosks (40 m), at Vesh and Koorva (15 m). Turn in at Vincent: 150000 XP, 7600 credits, one of 119318-119321 (the client's block). Are the kiosks where they belong in the station?
+- [ ] 1033 Production Destruction (Holloway) (Valverde Marshes): Lieutenant Holloway (new, Retread City -285, 217.1, -753) offers it after 914 with the AFS told (flag 914001 = 2), level 35. At the accept your own AFS Mech Defender (new, 692103's class and stats, level 36) comes up beside Holloway and follows you; his death fails nothing. Kiosks and Overseers as 916's. He goes at the turn-in. Turn in at Holloway: 150000 XP, 7600 credits, one of 120009-120012 (the client's block). Does the mech fight with you? Does he keep up the 1700 m?
+- [ ] 1052 Trapped! (Valverde Marshes): Vincent offers it, no requirement, level 38. At the accept your own Retread Samuel (new stand-in, package 1120, 4000 HP) and three Retreads stand at the Bane Refueling Station (196.4, 219.7, -669.1); the public Samuel is hidden from you. Talk to Samuel ("We got turned around"): 1 done, 2 opens, the defence starts: Thrax waves of 3, 4 and 5 (531045 / 531046) 5 s, 75 s and 150 s later from the west, south-east and south, sent at the crew. Hold 4 minutes (TaRapedia): 2 done, the crew and the Thrax go, the public Samuel is back. Samuel's death fails it (the Retreads' deaths do not). Markers at Samuel (1) and round him (2, 30 m). Turn in at Vincent: 75000 XP, 5800 credits, one of 120097-120100 (the client's block). Are the waves too hard or too easy (no balance check now)? Do the Thrax go for the crew?
+
 ## Assumptions and choices (not from a source)
 
 Rules carried over from the Pools batch (`docs/pools-playtest.md`):
@@ -198,6 +205,20 @@ Per mission:
   the lowest of the four client blocks that match TaRapedia (120013-120016).
 - 1023: three soldiers a group (the triage), a leg fails only with all three dead; the next group stands at the officer who
   sends it. Delaio and Urqhart at the Corman watchtowers (the triage). The modules read as the [4] ones.
+- Set 10 NPCs (ids 760339-760343): Figgins a copy of Morrison's row and look (name 8623, the client's package 1011, the
+  triage's Q4) at Ten Ton Hammer's place; Holloway a copy of the Pools Holloway 510199 (name 8594, a server-only package,
+  Q6) at TaRapedia's; the mech a copy of the Pools AFS Mech Defender 692103 with its stats; Samuel's stand-in and the
+  Retread copies of Retread Samuel 510167 with the escort stats (levels 38 and 36; the Retread has no name).
+- 914: one personal crate by each med tent (the client map's tents), the client's name 3 "AFS Supply Crate"; choosing one
+  way fails the other and closes the crates; flag 914001 (1 stolen, 2 told) picks Vincent's answer and the follow-up (916
+  or 1033, the triage's Q16). The stacks the lowest Class VII templates.
+- 916 / 1033: five kiosks (client 5) round the server's Vesh and Koorva, 15-35 m apart; the Overseers are the public pools
+  (as 968), so anyone's kill of them counts. 1033's mech: an escort leg with no objective (his death fails nothing), gone at
+  the turn-in.
+- 1052: the stand-in at the DB Samuel's spot, not TaRapedia's "near (15, -535)" (the triage); 3 Retreads; waves 3/4/5 at
+  5/75/150 s, hold 240 s (TaRapedia "about 4 minutes"; the triage said 5 minutes); the wave places within 2 m of the probed
+  spots.
+
 
 ## Deviations (client/server limits)
 
@@ -246,6 +267,13 @@ Per mission:
 - 1023: abandoned, the mission fails (the server fails a timed mission at an abandon, as Daghda's Urn); the group waits
   until the failed mission is cleared from the log.
 - 497, 888, 889, 1023: a follower is never put back after a death; a failed escort must be cleared and taken again.
+- 1052: TaRapedia's "the mission fails if you leave the vicinity" is left out (no such fail in the scene); only Samuel's
+  death fails it. The defence is timed from the talk, not from the accept.
+- 916 / 1033: the Overseers are public creatures: a kill by another player counts for whoever has the mission (as 968).
+- 916 / 1033: the kiosks stand in the open round the Overseers; the client's objective is "Destroy the Production Matrix
+  in the Strider Bay" (underground, the triage's Q13).
+- 914: abandoned after the theft, the supplies go. The flag is set when a way is chosen; an abandon does not clear it.
+  916 and 1033 also need 914 completed, and either choice overwrites it, so a left-over flag offers nothing.
 
 ## Server data that differs from the sources (not changed)
 

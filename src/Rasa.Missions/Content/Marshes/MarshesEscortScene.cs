@@ -15,15 +15,21 @@ namespace Rasa.Missions.Content.Marshes
     ///
     /// The legs are read from the scene's names (no code per mission):
     ///  - <c>mission</c>: the mission id; <c>legs</c>: how many;
-    ///  - <c>leg.K.objective</c>: the objective leg K fails when its whole group is dead;
+    ///  - <c>leg.K.objective</c>: the objective leg K fails when its whole group is dead; 0: none (1033's mech: "if you
+    ///    let him bite the bullet you are on your own"), the scene goes on without the group;
     ///  - <c>leg.K.start</c>: the sequence (a mission scenario) that sets the group following; 0: at the scene's start;
-    ///  - <c>leg.K.arrived</c>: the sequence the arrival signals: the group stops and is taken away;
+    ///  - <c>leg.K.arrived</c>: the sequence the arrival signals: the group stops and is taken away (0: none, the group
+    ///    follows until the mission is turned in);
     ///  - <c>leg.K.stand</c> (optional): the group stands at its place from the scene's start until its start, and its
     ///    death before then fails this objective (889: Bruncke waits to be found).
     /// The group of leg K is the actors whose role starts with <c>leg-K-</c>. A death comes as the actor's defeat sequence
     /// (a follower is on no route) or as ActorDied. A leg fails only when none of its group is left (1023: "make sure at
     /// least one of them gets to Belfast"). An objective's deadline (MissionDeadlineService) fails it by itself; the
-    /// scene then takes the group away.
+    /// scene then takes the group away. At the turn-in the engine's reward retirement (SceneApplication.RetireRewardedScene)
+    /// ends the run and removes a group still following; the MissionRewarded branch below is kept as the Wilderness
+    /// scripts keep theirs (no engine code sends that observation now). Any other authored sequence (the scene's start,
+    /// sequence 0, a signal such as an object's destruction, or an authored timer's elapse) runs as data.sequence runs it,
+    /// so an escort can carry the mission's objects too.
     /// </summary>
     [MissionScript("marshes.escort", 1)]
     public sealed class MarshesEscortScene : ISceneScript
@@ -45,7 +51,7 @@ namespace Rasa.Missions.Content.Marshes
                 ? new Checkpoint("new", 1, Array.Empty<string>())
                 : JsonSerializer.Deserialize<Checkpoint>(context.Run.Checkpoint)
                     ?? throw new InvalidOperationException("Marshes escort checkpoint is missing.");
-            if (state.Phase is not ("new" or "standing" or "waiting" or "escorting" or "done" or "failed" or "cancelled") ||
+            if (state.Phase is not ("new" or "standing" or "waiting" or "escorting" or "lost" or "done" or "failed" or "cancelled") ||
                 state.Leg < 1 || state.Leg > legs || state.Dead == null)
                 throw new InvalidOperationException($"Marshes escort checkpoint has an invalid phase {state.Phase}.");
 
@@ -53,7 +59,7 @@ namespace Rasa.Missions.Content.Marshes
             uint Name(string key) => names.TryGetValue(key, out var value) ? value : 0;
 
             if (observation.Kind == SceneEventKind.Started && state.Phase == "new")
-                return Enter(context, state with { Phase = "waiting" }, state.Leg);
+                return WithAuthored(Enter(context, state with { Phase = "waiting" }, state.Leg), context, 0);
 
             if (observation.Kind == SceneEventKind.Recovered)
                 return state.Phase switch
@@ -68,6 +74,10 @@ namespace Rasa.Missions.Content.Marshes
 
             if (state.Phase is "done" or "failed" or "cancelled")
                 return Unchanged(context);
+
+            if (observation.Kind == SceneEventKind.MissionRewarded)
+                return Decide(state with { Phase = "done" }, state.Phase == "escorting" ? TakeAway(Living(group, state)) : null,
+                    status: SceneStatus.Ended);
 
             if (observation.Kind == SceneEventKind.ObjectiveDeadlineElapsed && state.Phase == "escorting")
                 return Decide(state with { Phase = "failed" }, TakeAway(Living(group, state)), status: SceneStatus.Ended);
@@ -85,11 +95,17 @@ namespace Rasa.Missions.Content.Marshes
                 if (group.Any(role => !dead.Contains(role)))
                     return Decide(state with { Dead = dead });
                 var objective = state.Phase == "standing" ? Name(Stand(state.Leg)) : Name(Objective(state.Leg));
+                if (objective == 0)
+                    return Decide(state with { Phase = "lost", Dead = dead });
                 return Decide(state with { Phase = "failed", Dead = dead }, character: new CharacterIntent[]
                 {
                     new ObjectiveIntent($"leg-{state.Leg}-lost", Name(Mission), objective, MissionObjectiveState.Failed)
                 }, status: SceneStatus.Ended);
             }
+
+            // An authored timer: its sequence runs as data.sequence runs it.
+            if (observation.Kind == SceneEventKind.TimerElapsed)
+                return observation.SequenceId != 0 ? WithAuthored(Unchanged(context), context, observation.SequenceId) : Unchanged(context);
 
             if (observation.Kind != SceneEventKind.Signal)
                 return Unchanged(context);
@@ -97,7 +113,7 @@ namespace Rasa.Missions.Content.Marshes
             if (state.Phase is "waiting" or "standing" && observation.SequenceId == Name(Start(state.Leg)) && observation.SequenceId != 0)
                 return Decide(state with { Phase = "escorting" }, Living(group, state).SelectMany(role => Follow(role, context)).ToArray());
 
-            if (state.Phase == "escorting" && observation.SequenceId == Name(Arrived(state.Leg)))
+            if (state.Phase == "escorting" && observation.SequenceId != 0 && observation.SequenceId == Name(Arrived(state.Leg)))
             {
                 var away = TakeAway(Living(group, state));
                 if (state.Leg == legs)
@@ -106,7 +122,21 @@ namespace Rasa.Missions.Content.Marshes
                 return new SceneDecision(next.Checkpoint, away.Concat(next.WorldIntents), status: next.Status);
             }
 
-            return Unchanged(context);
+            return observation.SequenceId != 0
+                ? WithAuthored(Unchanged(context), context, observation.SequenceId)
+                : Unchanged(context);
+        }
+
+        /// <summary>The decision with the authored sequence <paramref name="sequenceId"/>'s intents added, if the scene has one.</summary>
+        private static SceneDecision WithAuthored(SceneDecision decision, SceneContext context, uint sequenceId)
+        {
+            if (!context.Bindings.Sequences.TryGetValue(sequenceId, out var sequence))
+                return decision;
+            return new SceneDecision(decision.Checkpoint, decision.WorldIntents.Concat(sequence.WorldIntents),
+                decision.CharacterIntents.Concat(sequence.CharacterIntents), decision.Signals.Concat(sequence.Signals),
+                decision.Timers.Concat(sequence.Timers.Select(timer => new SceneTimerChange(timer.Name, timer.ClockPolicy,
+                    timer.Cancel ? null : context.UtcNow.AddMilliseconds(timer.Milliseconds), timer.SequenceId, timer.Cancel))),
+                decision.Status);
         }
 
         /// <summary>A leg comes up: following at once (start 0), standing (stand), or waiting for its start.</summary>

@@ -477,6 +477,38 @@ namespace Rasa.Test.Missions.Marshes
         }
 
         /// <summary>
+        /// The escort script runs an authored sequence as data.sequence does, on its signal and on its timer's elapse
+        /// (1033's kiosks ride on an escort scene); a timer or signal of no sequence changes nothing.
+        /// </summary>
+        [TestMethod]
+        public void TheEscortRunsAuthoredSequencesOnSignalsAndTimers()
+        {
+            const uint authored = 50;
+            var scene = MarshesEscortsNpcsV1.Scene(MarshesProductionDestructionV1.HollowayMissionId,
+                new MarshesEscortsNpcsV1.Leg(0, 0, 0, null, MarshesRetreadCityNpcsV1.Mech, new[] { MarshesProductionDestructionV1.MechAt }));
+            scene.Sequences[authored] = new Rasa.Missions.Content.SceneSequenceDefinition
+            {
+                World = { new EnsureActorIntent("authored-ensure", MarshesEscortScene.Role(1, 1)) }
+            };
+            var bindings = scene.Bindings(MarshesMissionDataV1.Revision);
+            var run = new SceneRun("run", MarshesMissionDataV1.Revision, "marshes.escort", 1, 1, 0,
+                System.Text.Json.JsonSerializer.Serialize(new MarshesEscortScene.Checkpoint("escorting", 1, System.Array.Empty<string>())),
+                SceneStatus.Running, 7, MarshesProductionDestructionV1.HollowayMissionId);
+            SceneDecision Handle(SceneEventKind kind, uint sequence) => new MarshesEscortScene().Handle(
+                new SceneContext(run, bindings, new System.DateTime(2026, 11, 2, 0, 0, 0, System.DateTimeKind.Utc)),
+                new SceneObservation(kind, 1, SequenceId: sequence));
+
+            foreach (var kind in new[] { SceneEventKind.Signal, SceneEventKind.TimerElapsed })
+            {
+                var decision = Handle(kind, authored);
+                CollectionAssert.AreEqual(new[] { "authored-ensure" }, decision.WorldIntents.Select(intent => intent.OperationKey).ToArray(), $"{kind}");
+                Assert.AreEqual(SceneStatus.Running, decision.Status, $"{kind}: the escort goes on");
+                Assert.IsEmpty(Handle(kind, 77).WorldIntents, $"{kind} of no sequence");
+            }
+            Assert.IsEmpty(Handle(SceneEventKind.TimerElapsed, 0).WorldIntents, "a timer of sequence 0 does not rerun the start");
+        }
+
+        /// <summary>
         /// A one-leg escort from <paramref name="giver"/> to <paramref name="receiver"/>: offer, accept, the follower at its
         /// place, a reload on the way, the walk, the arrival (packets once), the follower taken in, the turn-in checks.
         /// </summary>
@@ -528,7 +560,7 @@ namespace Rasa.Test.Missions.Marshes
         }
 
         /// <summary>Accepted at the NPC, its scene started.</summary>
-        private static void Begin(WildernessRuntimeTestHarness harness, MapChannel marshes, Creature giver, uint mission)
+        internal static void Begin(WildernessRuntimeTestHarness harness, MapChannel marshes, Creature giver, uint mission)
         {
             Accept(harness, giver, mission);
             harness.Manager.Scenes.Resume(harness.Client);
@@ -538,7 +570,7 @@ namespace Rasa.Test.Missions.Marshes
         }
 
         /// <summary>The mission state as the database holds it again, and the scene out and back in (a reconnect): Recovered.</summary>
-        private static void ReloadAndRecover(WildernessRuntimeTestHarness harness, MapChannel marshes)
+        internal static void ReloadAndRecover(WildernessRuntimeTestHarness harness, MapChannel marshes)
         {
             WildernessRanjaGorgeTests.Reload(harness);
             harness.Manager.Scenes.Detach(harness.Client, marshes);
@@ -553,7 +585,7 @@ namespace Rasa.Test.Missions.Marshes
         /// entered); the followers keep up. With <paramref name="arrival"/>, they are checked beside the player just before
         /// the area of that radius, and the walk may end short of <paramref name="to"/> but inside it.
         /// </summary>
-        private static void WalkTo(WildernessRuntimeTestHarness harness, MapChannel marshes, Vector3 to, List<PythonPacket> log,
+        internal static void WalkTo(WildernessRuntimeTestHarness harness, MapChannel marshes, Vector3 to, List<PythonPacket> log,
             IReadOnlyList<Creature> followers = null, double? arrival = null, float stopShort = 0)
         {
             var path = marshes.NavMesh.FindPath(harness.Client.Player.Position, to, out var complete);
@@ -575,7 +607,8 @@ namespace Rasa.Test.Missions.Marshes
                         CatchUp(harness, marshes, followers);
                         foreach (var follower in followers)
                             Assert.IsLessThan(10f, Vector3.Distance(follower.Position, harness.Client.Player.Position),
-                                $"{follower.SpawnPool?.SceneActorRole} beside the player at {harness.Client.Player.Position}, at {follower.Position}");
+                                $"{follower.SpawnPool?.SceneActorRole} beside the player at {harness.Client.Player.Position}, at {follower.Position}" +
+                                FollowState(marshes, follower));
                         checkedBeside = true;
                     }
                     harness.MoveTo(next);
@@ -590,28 +623,36 @@ namespace Rasa.Test.Missions.Marshes
                 CatchUp(harness, marshes, followers);
                 foreach (var follower in followers)
                     Assert.IsLessThan(10f, Vector3.Distance(follower.Position, harness.Client.Player.Position),
-                        $"{follower.SpawnPool?.SceneActorRole} beside the player at {harness.Client.Player.Position}, at {follower.Position}");
+                        $"{follower.SpawnPool?.SceneActorRole} beside the player at {harness.Client.Player.Position}, at {follower.Position}" +
+                        FollowState(marshes, follower));
             }
         }
 
         /// <summary>Up to 30 s for the followers to come up.</summary>
-        private static void CatchUp(WildernessRuntimeTestHarness harness, MapChannel marshes, IReadOnlyList<Creature> followers)
+        internal static void CatchUp(WildernessRuntimeTestHarness harness, MapChannel marshes, IReadOnlyList<Creature> followers)
         {
             for (var tick = 0; tick < 30 && followers.Any(follower => Vector3.Distance(follower.Position, harness.Client.Player.Position) > 8); tick++)
                 Tick(harness, marshes, 1000);
         }
 
         /// <summary>The follower of this run in <paramref name="role"/>: there, following the player.</summary>
-        private static Creature Follower(WildernessRuntimeTestHarness harness, MapChannel marshes, uint mission, string role)
+        internal static Creature Follower(WildernessRuntimeTestHarness harness, MapChannel marshes, uint mission, string role)
         {
             var creature = SceneCreature(harness, marshes, mission, role);
             Assert.IsNotNull(creature, $"{role} is there");
             Assert.AreEqual(harness.Client.Player.Id, creature.SpawnPool.FollowOwnerCharacterId, $"{role} follows the player");
+            Assert.AreEqual(harness.Client.Player.Id, creature.SpawnPool.ScenarioOwnerCharacterId, $"{role} is the player's own");
+            Assert.AreEqual(BehaviorManager.BehaviorActionFollow, creature.Controller.CurrentAction, $"{role} is on its follow action");
             return creature;
         }
 
+        /// <summary>What the follower's behaviour holds, for a failed "beside the player" (the 889 flake in long runs).</summary>
+        private static string FollowState(MapChannel marshes, Creature follower) =>
+            $"; action {follower.Controller.CurrentAction}, path {follower.Controller.Path.Count} nodes (at {follower.Controller.PathIndex}), " +
+            $"escort owner {CreatureManager.FindEscortOwner(marshes, follower)?.Player.Id.ToString() ?? "none"}";
+
         /// <summary>The creature dies (no killer) and the scene runs on; the packets of it.</summary>
-        private static List<PythonPacket> Die(WildernessRuntimeTestHarness harness, MapChannel marshes, Creature creature)
+        internal static List<PythonPacket> Die(WildernessRuntimeTestHarness harness, MapChannel marshes, Creature creature)
         {
             Assert.IsNotNull(creature);
             creature.Attributes[Attributes.Health].Current = 0;
@@ -622,7 +663,7 @@ namespace Rasa.Test.Missions.Marshes
             return packets;
         }
 
-        private static Creature SceneCreature(WildernessRuntimeTestHarness harness, MapChannel map, uint mission, string role)
+        internal static Creature SceneCreature(WildernessRuntimeTestHarness harness, MapChannel map, uint mission, string role)
         {
             using var unit = harness.CreateChar();
             var runs = unit.CharacterMissions.Runtime.Scenes(harness.Client.Player.Id, mission).Select(scene => scene.RunId).ToHashSet();
@@ -631,7 +672,7 @@ namespace Rasa.Test.Missions.Marshes
         }
 
         /// <summary>As PoolsRetreadCavesTests.Tick; the packets of it.</summary>
-        private static IReadOnlyList<PythonPacket> Tick(WildernessRuntimeTestHarness harness, MapChannel map, long milliseconds)
+        internal static IReadOnlyList<PythonPacket> Tick(WildernessRuntimeTestHarness harness, MapChannel map, long milliseconds)
         {
             harness.UtcNow = harness.UtcNow.AddMilliseconds(milliseconds);
             BehaviorManager.Instance.MapChannelThink(map, System.Math.Min(milliseconds, 1000));
@@ -639,6 +680,6 @@ namespace Rasa.Test.Missions.Marshes
             return harness.Drain();
         }
 
-        private static Vector3 ToVector(ScenePosition at) => new(at.X, at.Y, at.Z);
+        internal static Vector3 ToVector(ScenePosition at) => new(at.X, at.Y, at.Z);
     }
 }
