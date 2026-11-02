@@ -1876,13 +1876,15 @@ namespace Rasa.Test.Missions.Plateau
             AssertNow(true, true, "after the migrations");
             world.GetService<IMigrator>().Migrate(SelfPreservationCharges);
             AssertNow(true, false, "Coup's rolled back");
-            world.GetService<IMigrator>().Migrate(BeforeSelfPreservationCharges);
+            // The migration just before Self Preservation's charges, not a fixed name: a rollback past another
+            // branch's table change (Mission_indicator_maps) would leave the model's columns out of the database.
+            var migrations = world.GetService<IMigrationsAssembly>().Migrations.Keys.OrderBy(id => id, StringComparer.Ordinal).ToList();
+            world.GetService<IMigrator>().Migrate(migrations[migrations.IndexOf(SelfPreservationCharges) - 1]);
             AssertNow(false, false, "both rolled back");
             world.GetService<IMigrator>().Migrate(CoupAlteraRespawn);
             AssertNow(true, true, "both again");
         }
 
-        private const string BeforeSelfPreservationCharges = "20271006000000_Pools_turpis_refinery";
         private const string SelfPreservationCharges = "20271101000000_Plateau_self_preservation_charges";
         private const string CoupAlteraRespawn = "20271101000100_Plateau_coup_altera_respawn";
 
