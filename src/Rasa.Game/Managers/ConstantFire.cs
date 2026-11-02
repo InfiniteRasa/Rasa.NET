@@ -379,7 +379,7 @@ namespace Rasa.Managers
             foreach (var obj in hit)
             {
                 pulse.Add(new TickEntry { EntityId = obj.EntityId, Amount = damage, DamageType = damageType });
-                PracticeTargetManager.RecordHit(mapChannel, player, obj, session.ActionId, damage: damage);
+                PracticeTargetManager.RecordHit(mapChannel, player, obj, session.ActionId, damage: damage, damageType: damageType);
             }
         }
 

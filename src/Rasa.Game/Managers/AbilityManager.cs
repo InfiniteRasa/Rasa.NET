@@ -1668,7 +1668,7 @@ namespace Rasa.Managers
 
             foreach (var (obj, amount) in objectHits)
                 if (amount > 0)
-                    PracticeTargetManager.RecordHit(mapChannel, player, obj, action.ActionId, _missionManager, amount);
+                    PracticeTargetManager.RecordHit(mapChannel, player, obj, action.ActionId, _missionManager, amount, damageType);
         }
 
         /// <summary>

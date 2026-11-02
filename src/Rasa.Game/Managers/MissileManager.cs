@@ -1125,7 +1125,7 @@ namespace Rasa.Managers
                 if (damage <= 0)
                     continue;
 
-                PracticeTargetManager.RecordHit(mapChannel, shooter, obj, missile.ActionId, damage: damage);
+                PracticeTargetManager.RecordHit(mapChannel, shooter, obj, missile.ActionId, damage: damage, damageType: missile.DamageType);
                 missile.Args.HitEntities.Add(obj.EntityId);
                 missile.Args.HitData.Add(new HitData { EntityId = obj.EntityId, FinalAmt = damage });
             }
@@ -1574,7 +1574,7 @@ namespace Rasa.Managers
 
             if (targetType == EntityType.Object && missile.TargetObject != null && missile.DamageA > 0)
                 PracticeTargetManager.RecordHit(mapChannel, missile.Source, missile.TargetObject, missile.ActionId,
-                    damage: missile.DamageA);
+                    damage: missile.DamageA, damageType: missile.DamageType);
         }
     }
 }

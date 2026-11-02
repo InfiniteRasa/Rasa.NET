@@ -628,6 +628,10 @@ namespace Rasa.Managers
             if (TorcastraPrison.RefusalOf(client, live) is { } torcastra)
                 return torcastra;
 
+            // The Energy Weapon Center's charges, set at a fuel tank, stay set (EnergyWeaponCenter).
+            if (EnergyWeaponCenter.RefusalOf(client, live) is { } energyWeapon)
+                return energyWeapon;
+
             switch (live.Placement.Kind)
             {
                 case Kind.Dispenser:

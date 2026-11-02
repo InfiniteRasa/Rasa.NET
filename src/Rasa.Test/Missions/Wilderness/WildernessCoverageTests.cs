@@ -26,7 +26,8 @@ namespace Rasa.Test.Missions.Wilderness
             // fifteenth being the Wilderness missions' own 1449. And the Ojasa Atta Hive's five
             // (OjasaHiveContent), the Caves of Donn's six (CavesOfDonnContent), the Devil's Den's
             // eight (DevilsDenContent), Pravus Research's six (PravusResearchContent), Torcastra
-            // Prison's five (TorcastraMissionsV1) and Minos Caverns' four (MinosCavernsMissions), which are instances'. And the Plateau and Valverde Pools ones.
+            // Prison's five (TorcastraMissionsV1), Minos Caverns' four (MinosCavernsMissions), Crater Lake's ten
+            // (CraterLakeContent) and the Energy Weapon Center's five (EnergyWeaponCenterContent), which are instances'. And the Plateau and Valverde Pools ones.
             var battlefields = Rasa.Services.Preloader.TargetsOfOpportunitySeed.Zones.Select(zone => zone.MissionId)
                 .Concat(Plateau.PlateauMissionTests.MissionIds).Concat(Pools.PoolsMissionTests.MissionIds).ToArray();
             var ojasa = Rasa.Services.Preloader.OjasaHiveContent.Missions;
@@ -36,11 +37,12 @@ namespace Rasa.Test.Missions.Wilderness
                 .Concat(Rasa.Services.Preloader.Missions.Torcastra.TorcastraMissionsV1.Enabled).ToArray();
             var minos = Rasa.Services.Preloader.MinosCavernsMissions.Missions;
             var craterLake = Rasa.Services.Preloader.CraterLakeContent.Missions;
+            var ewc = Rasa.Services.Preloader.EnergyWeaponCenterContent.Missions;
             CollectionAssert.AreEquivalent(expected.Concat(WildernessMissionCases.ProtectedBootcampMissionIds)
-                    .Concat(battlefields).Concat(ojasa).Concat(donn).Concat(den).Concat(pravus).Concat(minos).Concat(craterLake).ToArray(),
+                    .Concat(battlefields).Concat(ojasa).Concat(donn).Concat(den).Concat(pravus).Concat(minos).Concat(craterLake).Concat(ewc).ToArray(),
                 enabled.Select(entry => entry.MissionId).ToArray());
-            Assert.AreEqual(69 + battlefields.Length + ojasa.Length + donn.Length + den.Length + pravus.Length + minos.Length + craterLake.Length,
-                enabled.Length);
+            Assert.AreEqual(69 + battlefields.Length + ojasa.Length + donn.Length + den.Length + pravus.Length + minos.Length + craterLake.Length +
+                ewc.Length, enabled.Length);
             Assert.IsTrue(expected.All(id => harness.Manager.LoadedMissions[id].IsOperational),
                 "An enabled but nonoperational definition is not outdoor coverage.");
         }

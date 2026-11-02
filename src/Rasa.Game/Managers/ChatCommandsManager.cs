@@ -291,6 +291,7 @@ namespace Rasa.Managers
             RegisterCommand(".destructible", GmLevel.GameMaster, DestructibleCommand, "action", "arg1", "arg2", "arg3", "arg4", "arg5");
             RegisterCommand(".worldusable", GmLevel.GameMaster, WorldUsableCommand, "action", "arg1", "arg2", "arg3", "arg4", "arg5", "arg6", "arg7", "arg8");
             RegisterCommand(".torcastra", GmLevel.GameMaster, TorcastraCommand, "alarm | strike | secure <n|all> | gate | unlock <n|all> | reset");
+            RegisterCommand(".ewc", GmLevel.GameMaster, EnergyWeaponCenterCommand, "generator | invert | tanks | casso");
             RegisterCommand(".squad", GmLevel.GameMaster, SquadCommand, "[types|paths|spawns|export] | type ... | path ... | point [pause] | spawn ...");
             RegisterCommand(".worldcontainer", GmLevel.GameMaster, WorldContainerCommand, "action", "arg1", "arg2", "arg3", "arg4", "arg5", "arg6");
             RegisterCommand(".removeobj", GmLevel.GameMaster, RemoveObjectCommand, "entityId");
@@ -989,6 +990,13 @@ namespace Rasa.Managers
         private void TorcastraCommand(string[] parts)
         {
             foreach (var line in TorcastraPrison.Command(_client.Player.MapChannel, _client.Player, parts))
+                CommunicatorManager.Instance.SystemMessage(_client, line);
+        }
+
+        /// <summary>.ewc: the Energy Weapon Center's reactors, coils, tanks and Casso in this copy (EnergyWeaponCenter.Command).</summary>
+        private void EnergyWeaponCenterCommand(string[] parts)
+        {
+            foreach (var line in EnergyWeaponCenter.Command(_client.Player.MapChannel, _client.Player, parts))
                 CommunicatorManager.Instance.SystemMessage(_client, line);
         }
 

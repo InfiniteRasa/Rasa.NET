@@ -239,9 +239,10 @@ namespace Rasa.Managers
             CellManager.Instance.CellCallMethod(map, source, new GameEffectDetachedPacket { EffectId = effectId });
         }
 
+        /// <param name="damageType">What the hit was, where an object takes one kind harder than another (EnergyWeaponCenter.Struck); 0 where the caller has none.</param>
         internal static void RecordHit(
             MapChannel map, Actor source, DynamicObject target, ActionId actionId,
-            MissionApplication missions = null, int damage = 1)
+            MissionApplication missions = null, int damage = 1, DamageType damageType = 0)
         {
             if (!CanHit(map, source, target))
                 return;
@@ -257,10 +258,11 @@ namespace Rasa.Managers
                 return;
             }
 
-            // One the server put down: the same, and a spawner's creatures.
+            // One the server put down: the same, and a spawner's creatures. The Energy Weapon
+            // Center's generator takes Lightning harder (EnergyWeaponCenter.Struck).
             if (PlacedDestructibles.IsOne(target))
             {
-                PlacedDestructibles.Hit(map, client.Player, target, damage);
+                PlacedDestructibles.Hit(map, client.Player, target, EnergyWeaponCenter.Struck(map, target, damage, damageType));
                 return;
             }
 

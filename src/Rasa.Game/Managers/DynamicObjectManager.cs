@@ -329,6 +329,12 @@ namespace Rasa.Managers
                 ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, craterLakeRefusal);
                 return;
             }
+            // The Energy Weapon Center's testing station, console and Engelsen's body (EnergyWeaponCenter).
+            if (EnergyWeaponCenter.Refusal(client, obj) is { } energyWeaponRefusal)
+            {
+                ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, energyWeaponRefusal);
+                return;
+            }
             if (obj.MissionUseAction != null &&
                 (!MissionUseAvailable(client, obj) ||
                  !(_missionManager ?? MissionApplication.Instance).Scenes.CanUseObject(client, obj, packet.ActionArgId)))
