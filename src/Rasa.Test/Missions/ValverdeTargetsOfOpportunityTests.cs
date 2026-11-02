@@ -47,8 +47,14 @@ namespace Rasa.Test.Missions
         private const uint PoolsMap = Valverde.PoolsMap;
 
         private const string Migration = "20271103000100_Valverde_targets_of_opportunity";
-        private const string WorldBefore = "20271006000000_Pools_turpis_refinery";
-        private const string CharBefore = "20270130000000_Item_default_color";
+
+        // The migration just before this one in each database, not a fixed name: other branches' migrations can sit
+        // between, and a rollback past their table changes would leave the model's columns out of the database.
+        private static string Before(DbContext context)
+        {
+            var migrations = context.GetService<IMigrationsAssembly>().Migrations.Keys.OrderBy(id => id, StringComparer.Ordinal).ToList();
+            return migrations[migrations.IndexOf(Migration) - 1];
+        }
 
         // The client's titles that are given elsewhere, for the same things the objectives count.
         private const uint PlateauPathfinder = 402, PlateauAssassin = 407, PlateauMentalist = 410;
@@ -193,7 +199,7 @@ namespace Rasa.Test.Missions
         {
             WithDatabase<SqliteWorldContext, int>(world =>
             {
-                world.GetService<IMigrator>().Migrate(WorldBefore);
+                world.GetService<IMigrator>().Migrate(Before(world));
                 var before = Dump(world);
 
                 Assert.AreEqual(Migration, world.Database.GetPendingMigrations().First());
@@ -249,7 +255,7 @@ namespace Rasa.Test.Missions
                 Assert.AreEqual((byte)Valverde.StriderMin, striders.Creature1MinCount);
                 Assert.AreEqual(Valverde.StriderRespawn, striders.RespawnTime);
 
-                world.GetService<IMigrator>().Migrate(WorldBefore);
+                world.GetService<IMigrator>().Migrate(Before(world));
 
                 CollectionAssert.AreEqual(before, Dump(world));
                 return 0;
@@ -262,8 +268,8 @@ namespace Rasa.Test.Missions
             using (var world = PersistenceIntegrationTests.CreateContext(typeof(MySqlWorldContext), "unused"))
             {
                 var migrator = world.GetService<IMigrator>();
-                var up = migrator.GenerateScript(WorldBefore, Migration);
-                var down = migrator.GenerateScript(Migration, WorldBefore);
+                var up = migrator.GenerateScript(Before(world), Migration);
+                var down = migrator.GenerateScript(Migration, Before(world));
 
                 foreach (var sql in Valverde.WorldUp)
                     StringAssert.Contains(up, sql);
@@ -275,8 +281,8 @@ namespace Rasa.Test.Missions
             using (var characters = PersistenceIntegrationTests.CreateContext(typeof(MySqlCharContext), "unused"))
             {
                 var migrator = characters.GetService<IMigrator>();
-                var up = migrator.GenerateScript(CharBefore, Migration);
-                var down = migrator.GenerateScript(Migration, CharBefore);
+                var up = migrator.GenerateScript(Before(characters), Migration);
+                var down = migrator.GenerateScript(Migration, Before(characters));
 
                 foreach (var sql in Valverde.CharUp)
                     StringAssert.Contains(up, sql);
@@ -294,7 +300,7 @@ namespace Rasa.Test.Missions
         {
             WithDatabase<SqliteCharContext, int>(characters =>
             {
-                characters.GetService<IMigrator>().Migrate(CharBefore);
+                characters.GetService<IMigrator>().Migrate(Before(characters));
 
                 // The account and character rows by hand, as OneOffTitlesTests has them.
                 characters.Database.ExecuteSqlRaw(
@@ -353,7 +359,7 @@ namespace Rasa.Test.Missions
                 }
 
                 // Back: the rows go, the counts stay.
-                characters.GetService<IMigrator>().Migrate(CharBefore);
+                characters.GetService<IMigrator>().Migrate(Before(characters));
 
                 Assert.AreEqual(3 + 4 + 2, characters.CharacterMissionObjectiveEntries.AsNoTracking().Count());
                 Assert.AreEqual(3 + 4 + 2, characters.CharacterMissionObjectiveCounterEntries.AsNoTracking().Count(row => row.CounterValue == 7));
