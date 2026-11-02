@@ -465,6 +465,9 @@ namespace Rasa.Managers
                     // The Ojasa Atta Hive's story, in each copy of it.
                     Guard("OjasaHive.Worker", mapChannel, () => OjasaHive.Worker(mapChannel));
 
+                    // The Kardash Atta Colony's console, transducers and Bane at the Queen, in each copy of it.
+                    Guard("KardashAttaColony.Worker", mapChannel, () => KardashAttaColony.Worker(mapChannel));
+
                     // The Caves of Donn's story, in each copy of them.
                     Guard("CavesOfDonn.Worker", mapChannel, () => CavesOfDonn.Worker(mapChannel));
 
