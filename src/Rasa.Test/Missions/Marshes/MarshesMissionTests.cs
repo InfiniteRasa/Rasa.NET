@@ -25,7 +25,9 @@ namespace Rasa.Test.Missions.Marshes
     /// stays on the Plateau revision with Retreads to Retreads before it (PlateauMissionTests pins it there)
     /// (Marshes_falcon_hold); set 3, the Harvesters, Researcher Vetter's Reaping the Harvest (881) and the three that follow
     /// it, Retread Kline's Hassling the Harvesters (890), Lieutenant Brazos's Beware: Buried Gas Lines (913) and Ranger
-    /// Taavik's A Butcher, a Baker, and a Caretaker (968), with Brazos (Marshes_harvesters).
+    /// Taavik's A Butcher, a Baker, and a Caretaker (968), with Brazos (Marshes_harvesters); set 4, the Regulator, Retread
+    /// McCormick's The Regulator: Part I (925) and Parts II-IV (1028, 1029, 1030), with Retread Wilson, Conscript Kaav and a
+    /// Strider pool (Marshes_regulator).
     /// </summary>
     [TestClass]
     [DoNotParallelize]
@@ -37,7 +39,8 @@ namespace Rasa.Test.Missions.Marshes
             MarshesWelcomeWagonV1.MissionId, MarshesCannisterCollectionV1.MissionId, MarshesWhatsThatGasV1.MissionId,
             MarshesDividedWeFallV1.MissionId, MarshesTastesLikeGrubberV1.MissionId, MarshesFixingTheFoodChainV1.MissionId,
             MarshesReapingTheHarvestV1.MissionId, MarshesHasslingTheHarvestersV1.MissionId, MarshesBuriedGasLinesV1.MissionId,
-            MarshesButcherBakerCaretakerV1.MissionId
+            MarshesButcherBakerCaretakerV1.MissionId, MarshesRegulatorPartOneV1.MissionId, MarshesRegulatorPartTwoV1.MissionId,
+            MarshesRegulatorPartThreeV1.MissionId, MarshesRegulatorPartFourV1.MissionId
         };
 
         /// <summary>It Lies in Ruins: a Marshes mission on the Plateau revision (in PlateauMissionTests.MissionIds).</summary>
@@ -51,13 +54,15 @@ namespace Rasa.Test.Missions.Marshes
         /// It Lies in Ruins' one, at Morrison, is counted with the Plateau revision's (PlateauMissionTests.Indicators).
         /// Reaping the Harvest's one and Hassling the Harvesters' one, the client's "Bane Harvester" round the harvester field;
         /// Beware: Buried Gas Lines' four, the client's "Pipeline Supply Point" on each joint; A Butcher, a Baker, and a
-        /// Caretaker's three, on the bosses' pools.
+        /// Caretaker's three, on the bosses' pools. The Regulator's four: Part I's at Wilson, Part II's at Kaav, Part III's on
+        /// the Strider pool, Part IV's the client's "Paludos Ruins" at the scrapper.
         /// </summary>
-        internal const int Indicators = 38;
+        internal const int Indicators = 42;
 
         private const string Paludos = "20271104000000_Marshes_paludos";
         private const string FalconHold = "20271104000100_Marshes_falcon_hold";
         private const string Harvesters = "20271104000200_Marshes_harvesters";
+        private const string Regulator = "20271104000300_Marshes_regulator";
 
         /// <summary>
         /// The migration directly before <paramref name="migration"/> (IMigrationsAssembly, ordinal order), the target that
@@ -79,7 +84,8 @@ namespace Rasa.Test.Missions.Marshes
             {
                 (541, 510160, 510160, 36), (498, 510171, 510171, 35), (539, 510172, 510172, 34), (917, 510160, 510160, 35),
                 (959, 760309, 760309, 33), (961, 760309, 760309, 37),
-                (881, 510165, 510165, 33), (890, 510166, 510166, 37), (913, 760312, 760312, 37), (968, 510164, 510164, 36)
+                (881, 510165, 510165, 33), (890, 510166, 510166, 37), (913, 760312, 760312, 37), (968, 510164, 510164, 36),
+                (925, 510201, 760313, 35), (1028, 760313, 760314, 37), (1029, 760314, 760313, 37), (1030, 760313, 510201, 35)
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             var enabled = harness.World.MissionContentDefinitionEntries.AsNoTracking()
@@ -142,6 +148,26 @@ namespace Rasa.Test.Missions.Marshes
             var brazosPool = harness.World.SpawnPoolEntries.AsNoTracking().Single(row => row.Id == 760312);
             Assert.AreEqual((1454U, 760312U), (brazosPool.MapContextId, brazosPool.Creature1Id), "Brazos's pool");
 
+            // Wilson: the client's name 8579 and package 969, McCormick's class, level and look (510201), in a pool of his own.
+            var wilson = harness.World.CreatureEntries.AsNoTracking().Single(row => row.Id == 760313);
+            Assert.AreEqual((8579U, 3846U, 10U, 1U), (wilson.NameId, wilson.ClassId, wilson.Level, wilson.Faction), "Wilson");
+            Assert.AreEqual(969U, harness.World.NpcPackageEntries.AsNoTracking().Single(row => row.Id == 760313).PackageId, "Wilson's package");
+            Assert.AreEqual(6, Slots(760313), "Wilson wears McCormick's six slots");
+            Assert.AreEqual(Slots(510201), Slots(760313));
+            // Kaav: the client's name 8580 and package 970, a neutral Thrax NPC of level 37 (Nakrinx's class 11320).
+            var kaav = harness.World.CreatureEntries.AsNoTracking().Single(row => row.Id == 760314);
+            Assert.AreEqual((8580U, 11320U, 37U, 3U, 8024U), (kaav.NameId, kaav.ClassId, kaav.Level, kaav.Faction, kaav.MaxHitPoints), "Kaav");
+            Assert.AreEqual(970U, harness.World.NpcPackageEntries.AsNoTracking().Single(row => row.Id == 760314).PackageId, "Kaav's package");
+            // The Strider: the Pools' Strider class 9804 and name 9099 at level 36 with 10406 hit points, a pool of one.
+            var strider = harness.World.CreatureEntries.AsNoTracking().Single(row => row.Id == 760315);
+            Assert.AreEqual((9099U, 9804U, 36U, 0U, 10406U), (strider.NameId, strider.ClassId, strider.Level, strider.Faction, strider.MaxHitPoints), "Strider");
+            foreach (var (pool, creature) in new (uint, uint)[] { (760313, 760313), (760314, 760314), (760315, 760315) })
+            {
+                var row = harness.World.SpawnPoolEntries.AsNoTracking().Single(entry => entry.Id == pool);
+                Assert.AreEqual((1454U, creature, (byte)1, (byte)1), (row.MapContextId, row.Creature1Id, row.Creature1MinCount,
+                    row.Creature1MaxCount), $"pool {pool}");
+            }
+
             // 539's six pools of three: two each of Swamp Grubber, Maw and Mox; 959's two Swamp Grubber pools; all on the Marshes.
             foreach (var (id, creature) in new (uint, uint)[]
             {
@@ -184,7 +210,11 @@ namespace Rasa.Test.Missions.Marshes
                 (890, marshes, 4672, new (uint, uint, uint, uint?)[] { (1, 4684, 9806, 4685) }),
                 (913, marshes, 4883, new (uint, uint, uint, uint?)[] { (1, 4956, 9334, 4957), (2, 9377, 9378, 9379), (3, 9380, 9381, 9382),
                     (4, 9383, 9384, 9385) }),
-                (968, marshes, 5285, new (uint, uint, uint, uint?)[] { (1, 5289, 9374, 5290), (2, 5291, 9375, 5292), (3, 5293, 9376, 5294) })
+                (968, marshes, 5285, new (uint, uint, uint, uint?)[] { (1, 5289, 9374, 5290), (2, 5291, 9375, 5292), (3, 5293, 9376, 5294) }),
+                (925, marshes, 4943, new (uint, uint, uint, uint?)[] { (1, 4947, 7331, null) }),
+                (1028, marshes, 5707, new (uint, uint, uint, uint?)[] { (1, 5711, 9821, null) }),
+                (1029, marshes, 5713, new (uint, uint, uint, uint?)[] { (1, 5717, 7834, null) }),
+                (1030, marshes, 5718, new (uint, uint, uint, uint?)[] { (1, 5722, 8070, null) })
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             foreach (var (mission, revision, title, objectives) in expected)
@@ -220,18 +250,29 @@ namespace Rasa.Test.Missions.Marshes
             // Set 3 has none (no objectiveconversation for 881, 890, 913, 968).
             foreach (var mission in new uint[] { 881, 890, 913, 968 })
                 Assert.IsEmpty(Talks(mission, marshes), $"{mission}");
+            // Set 4: 925's at Wilson's (objectiveconversation 925,1 package 969), 1028's at the Bane Traitor's (1028,1 package
+            // 970); 1029 and 1030 have none.
+            CollectionAssert.AreEqual(new (uint, uint?)[] { (1, 969) }, Talks(925, marshes));
+            CollectionAssert.AreEqual(new (uint, uint?)[] { (1, 970) }, Talks(1028, marshes));
+            Assert.IsEmpty(Talks(1029, marshes));
+            Assert.IsEmpty(Talks(1030, marshes));
         }
 
         /// <summary>
         /// Set 1 has no requirement (TaRapedia, TR MMO DB). Fixing the Food Chain follows Tastes Like Grubber, and It Lies in
         /// Ruins Retreads to Retreads (TaRapedia), on one revision each. Hassling the Harvesters, Beware: Buried Gas Lines and A
-        /// Butcher, a Baker, and a Caretaker follow Reaping the Harvest, which needs none (TaRapedia). None repeats.
+        /// Butcher, a Baker, and a Caretaker follow Reaping the Harvest, which needs none (TaRapedia). The Regulator's parts
+        /// follow each other, Part I needs none (TaRapedia). None repeats.
         /// </summary>
         [TestMethod]
         public void OnlyTheFollowUpsRequireAMission()
         {
             using var harness = WildernessRuntimeTestHarness.Create();
-            CollectionAssert.AreEquivalent(new[] { (961U, (uint?)959), (890U, (uint?)881), (913U, (uint?)881), (968U, (uint?)881) },
+            CollectionAssert.AreEquivalent(new[]
+                {
+                    (961U, (uint?)959), (890U, (uint?)881), (913U, (uint?)881), (968U, (uint?)881),
+                    (1028U, (uint?)925), (1029U, (uint?)1028), (1030U, (uint?)1029)
+                },
                 harness.World.MissionPrerequisiteEntries.AsNoTracking()
                 .Where(entry => entry.ContentRevision == MarshesMissionDataV1.Revision).AsEnumerable()
                 .Select(entry => (entry.MissionId, entry.RequiredMissionId)).ToArray());
@@ -292,7 +333,15 @@ namespace Rasa.Test.Missions.Marshes
                 (890, marshes, 65000, 5400, new (uint, uint)[] { (18750, 1), (23549, 1), (8855, 1), (10637, 1) }),
                 (913, marshes, 140000, 0, new (uint, uint)[] { (18750, 1), (23549, 1), (8855, 1), (10637, 1) }),
                 // Electric blade, Direct healing disc, Physical shotgun, Fire staff.
-                (968, marshes, 160000, 7800, new (uint, uint)[] { (15475, 1), (18367, 1), (14820, 1), (49496, 1) })
+                (968, marshes, 160000, 7800, new (uint, uint)[] { (15475, 1), (18367, 1), (14820, 1), (49496, 1) }),
+                // 2 Class VII Advanced Med Pack, 2 Power Charger, 4 Fragmentation, 4 Cryogenic Grenade.
+                (925, marshes, 35000, 3700, new (uint, uint)[] { (45062, 2), (118907, 2), (45446, 4), (111048, 4) }),
+                // 2 Class VII Advanced Med Pack, 2 Armor Charger, 4 Concussion, 4 Fragmentation Grenade.
+                (1028, marshes, 35500, 3700, new (uint, uint)[] { (45062, 2), (118898, 2), (111018, 4), (45446, 4) }),
+                // Incendiary Injector Gun 37-41, Electric Chaingun 38-42, Pulse Pistol 35-39, Pulse Cannon 34-38.
+                (1029, marshes, 32500, 5550, new (uint, uint)[] { (45777, 1), (15111, 1), (14569, 1), (15437, 1) }),
+                // Bio boots, Graviton boots, Mech helmet, Stealth vest (35-39), as 890.
+                (1030, marshes, 70000, 5550, new (uint, uint)[] { (18750, 1), (23549, 1), (8855, 1), (10637, 1) })
             })
             {
                 var reward = harness.World.Set<MissionRewardDefinitionEntry>().AsNoTracking()
@@ -307,8 +356,14 @@ namespace Rasa.Test.Missions.Marshes
                     .Where(entry => entry.MissionId == mission && entry.ContentRevision == revision &&
                         entry.Kind != MissionRewardItemKind.Selectable).AsEnumerable()
                     .Select(entry => (entry.Kind, entry.ItemTemplateId, entry.Quantity)).ToArray();
-                // 913: Motor Assist boots 33-37 with every choice (TaRapedia "one lvl 33 item plus one of four").
-                CollectionAssert.AreEqual(mission == 913 ? new[] { (MissionRewardItemKind.Fixed, 28614U, 1U) } : new (MissionRewardItemKind, uint, uint)[0],
+                // 913: Motor Assist boots 33-37 with every choice (TaRapedia "one lvl 33 item plus one of four"); 1030: the
+                // Nanoviral Regulator 42436 (class 21092, the client's turn-in text).
+                CollectionAssert.AreEqual(mission switch
+                    {
+                        913 => new[] { (MissionRewardItemKind.Fixed, 28614U, 1U) },
+                        1030 => new[] { (MissionRewardItemKind.Fixed, 42436U, 1U) },
+                        _ => new (MissionRewardItemKind, uint, uint)[0]
+                    },
                     fixedItems, $"{mission} fixed items");
             }
         }
@@ -316,7 +371,7 @@ namespace Rasa.Test.Missions.Marshes
         /// <summary>
         /// The indicators: all on the Marshes map, keyed above UnnamedFrom but those keyed by the client's own names
         /// (missionobjectiveindicatorlanguage): 539's fern marker 5 "Calla Ferns", 881's and 890's 106 "Bane Harvester", 913's
-        /// four 138 "Pipeline Supply Point". It Lies in Ruins' marker names the Marshes map too.
+        /// four 138 "Pipeline Supply Point", 1030's 146 "Paludos Ruins". It Lies in Ruins' marker names the Marshes map too.
         /// </summary>
         [TestMethod]
         public void IndicatorsAreOnTheMarshesAndOnlyTheClientsNamesAreBelowUnnamed()
@@ -348,6 +403,7 @@ namespace Rasa.Test.Missions.Marshes
             (539, 1) => 5U,                                 // Calla Ferns
             (881, 1) or (890, 1) => 106U,                   // Bane Harvester
             (913, >= 1 and <= 4) => 138U,                   // Pipeline Supply Point
+            (1030, 1) => 146U,                              // Paludos Ruins
             _ => null
         };
 
@@ -368,7 +424,7 @@ namespace Rasa.Test.Missions.Marshes
                 .ToHashSet();
             var objectives = world.MissionObjectiveDefinitionEntries.AsNoTracking().Where(entry => entry.ContentRevision == revision)
                 .Select(entry => new { entry.MissionId, entry.ObjectiveId }).ToList();
-            Assert.HasCount(22, objectives, "the objectives are read");
+            Assert.HasCount(26, objectives, "the objectives are read");
             Assert.IsTrue(hidden.Contains((881U, 2U)), "881's tally is hidden");
             var missing = objectives.Select(entry => (entry.MissionId, entry.ObjectiveId))
                 .Where(key => !marked.Contains(key) && !hidden.Contains(key)).OrderBy(key => key).ToArray();
@@ -398,7 +454,9 @@ namespace Rasa.Test.Missions.Marshes
                 (1673, 1, -142.7, 618, 8),                          // Morrison's pool 510162 (World DB)
                 (881, 1, 26, 646, 95), (890, 1, 26, 646, 95),       // round the harvester field east of Falcon Hold
                 (913, 1, 732, -276, 20), (913, 2, 734, -149, 20), (913, 3, 860, -68, 20), (913, 4, 700, 107, 20),   // pipeline ends
-                (968, 1, 459, 11, 15), (968, 2, 362, -168, 15), (968, 3, 490, 413, 15)   // Fik 520028, Sto 520030, Barzak 520029
+                (968, 1, 459, 11, 15), (968, 2, 362, -168, 15), (968, 3, 490, 413, 15),  // Fik 520028, Sto 520030, Barzak 520029
+                (925, 1, -138, -472, 8), (1028, 1, 440, -590, 8),   // Wilson, Kaav
+                (1029, 1, 300, -650, 20), (1030, 1, -2, 29, 15)     // the Strider pool 760315, the scrapper (TaRapedia /loc)
             };
             // 961's twelve: the map's Treeback Feeders (client map statics ArchForeanTreebackfeederV01).
             foreach (var (x, z) in new (double, double)[]
@@ -447,8 +505,8 @@ namespace Rasa.Test.Missions.Marshes
                 }
             }
             // Helka's corpse and pack, the twelve feed acceptors; 881's seven harvesters and their taps, 890's five harvesters,
-            // 913's eight receptacles.
-            Assert.AreEqual(14 + 14 + 5 + 8, objects);
+            // 913's eight receptacles; 1030's scrapper.
+            Assert.AreEqual(14 + 14 + 5 + 8 + 1, objects);
         }
 
         /// <summary>
@@ -462,6 +520,7 @@ namespace Rasa.Test.Missions.Marshes
             [11116] = 3,    // UsableItemDisp_item_crate_bane_v01CONVERT2TD (881 sample taps)
             [7334] = 1,     // UsableItemAccHumBombV01 (913 bomb receptacles)
             [21824] = 1,    // UsableItemAccForeanTreebackFood (961 feed acceptors)
+            [11114] = 3,    // UsableItemDisp_item_canister_hum_v01 (1030 viral scrapper; g_usabledata.dis:19364)
         };
 
         [TestMethod]
@@ -483,8 +542,8 @@ namespace Rasa.Test.Missions.Marshes
                         $"{binding.MissionId} {actor.Role}: class {actor.TemplateId} is used with the client's argument");
                 }
             }
-            // Helka's pack, the twelve feeders, the seven taps, the eight receptacles.
-            Assert.AreEqual(1 + 12 + 7 + 8, used);
+            // Helka's pack, the twelve feeders, the seven taps, the eight receptacles, the scrapper.
+            Assert.AreEqual(1 + 12 + 7 + 8 + 1, used);
         }
 
         /// <summary>
@@ -514,8 +573,9 @@ namespace Rasa.Test.Missions.Marshes
 
             Assert.IsTrue(MissionIds.All(Has));
             // Set 2 adds Horsh (his pool and six appearance slots), two pools and two scenes (959, 961); set 3 Brazos (his pool
-            // and six slots) and three scenes (881, 890, 913).
-            Assert.AreEqual((5, 12, 5, 15, 3, 4, 8), All(), "541 and 968 have no scene");
+            // and six slots) and three scenes (881, 890, 913); set 4 Wilson (his pool, package and six slots), Kaav (pool,
+            // package), the Strider and its pool, and four scenes (925, 1028, 1029, 1030).
+            Assert.AreEqual((8, 15, 7, 21, 3, 4, 12), All(), "541 and 968 have no scene");
             Assert.AreEqual(4, Upstream());
 
             world.GetService<IMigrator>().Migrate(Previous(world, Paludos));
@@ -615,6 +675,51 @@ namespace Rasa.Test.Missions.Marshes
             world.GetService<IMigrator>().Migrate(Harvesters);
             Assert.IsTrue(setThree.All(Has));
             Assert.AreEqual(full, SetThree());
+        }
+
+        /// <summary>
+        /// Marshes_regulator takes out the four parts of The Regulator, Wilson, Kaav and the Strider with their pools; sets 1-3
+        /// and the rows they copy or use (McCormick, the Pools' Strider, Daddy Long-Legs) stay. Up again, all are back.
+        /// </summary>
+        [TestMethod]
+        public void TheRegulatorRollsBackWithItsMigration()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            bool Has(uint mission) => world.MissionContentDefinitionEntries.AsNoTracking()
+                .Any(entry => entry.MissionId == mission && entry.ContentRevision == MarshesMissionDataV1.Revision);
+            int Count(string sql) => world.Database.SqlQueryRaw<int>(sql).AsEnumerable().Single();
+            (int, int, int, int, int, int, int) SetFour() => (
+                Count("SELECT COUNT(*) AS Value FROM creature WHERE id BETWEEN 760313 AND 760315") +
+                    Count("SELECT COUNT(*) AS Value FROM spawnpool WHERE id BETWEEN 760313 AND 760315"),
+                Count("SELECT COUNT(*) AS Value FROM npc_package WHERE id BETWEEN 760313 AND 760315") +
+                    Count("SELECT COUNT(*) AS Value FROM creature_appearance WHERE id BETWEEN 760313 AND 760315") +
+                    Count("SELECT COUNT(*) AS Value FROM creature_stat WHERE id BETWEEN 760313 AND 760315"),
+                Count("SELECT COUNT(*) AS Value FROM mission_indicator WHERE mission_id IN (925, 1028, 1029, 1030)"),
+                Count("SELECT COUNT(*) AS Value FROM mission_evidence WHERE mission_id IN (925, 1028, 1029, 1030)"),
+                Count("SELECT COUNT(*) AS Value FROM mission_scene_binding WHERE mission_id IN (925, 1028, 1029, 1030)"),
+                Count("SELECT COUNT(*) AS Value FROM mission_reward_item WHERE mission_id IN (925, 1028, 1029, 1030)"),
+                Count("SELECT COUNT(*) AS Value FROM mission_prerequisite WHERE mission_id IN (925, 1028, 1029, 1030)"));
+            int Kept() => Count("SELECT COUNT(*) AS Value FROM creature WHERE id IN (510201, 750100, 520031)");
+            var setFour = new uint[] { 925, 1028, 1029, 1030 };
+            var before = new uint[] { 541, 498, 539, 917, 959, 961, 881, 890, 913, 968 };
+            // 3 creatures and 3 pools; 2 packages, Wilson's 6 slots, 2 stats; 4 markers; 12 sources; 4 scenes; 4 x 4 items and
+            // the Regulator; 3 prerequisites.
+            var full = (6, 10, 4, 12, 4, 17, 3);
+
+            Assert.IsTrue(setFour.All(Has));
+            Assert.AreEqual(full, SetFour());
+            Assert.AreEqual(3, Kept());
+
+            world.GetService<IMigrator>().Migrate(Previous(world, Regulator));
+            Assert.IsFalse(setFour.Any(Has));
+            Assert.AreEqual((0, 0, 0, 0, 0, 0, 0), SetFour());
+            Assert.AreEqual(3, Kept(), "McCormick, the Pools' Strider and Daddy Long-Legs stay");
+            Assert.IsTrue(before.All(Has), "sets 1-3 stay");
+
+            world.GetService<IMigrator>().Migrate(Regulator);
+            Assert.IsTrue(setFour.All(Has));
+            Assert.AreEqual(full, SetFour());
         }
     }
 }

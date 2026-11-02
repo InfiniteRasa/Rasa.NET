@@ -27,6 +27,13 @@ Set 3, the Harvesters (migration `20271104000200_Marshes_harvesters`).
 - [ ] 913 Beware: Buried Gas Lines (Valverde Marshes): Lieutenant Brazos (new, by the Paludos med tent, -310, 218.5, 125) offers it after 881, level 37. Eight detonators at the accept (two free slots). Four pipeline joints in the far east (open world), two personal bomb receptacles each, one detonator each, once. A "Pipeline Supply Point" marker on each joint. Turn in at Brazos: 140000 XP, no credits, Motor Assist Boots 28614 with every choice and one of Bio Boots 18750, Graviton Boots 23549, Mech Helmet 8855, Stealth Vest 10637. Abandon: detonators and receptacles go.
 - [ ] 968 A Butcher, a Baker, and a Caretaker (Valverde Marshes): Ranger Taavik (Paludos) offers it after 881, level 36. Kill the public bosses Caretaker Fik, Commander Sto and Commander Barzak, any order; a marker on each pool. Turn in at Taavik: 160000 XP, 7800 credits, one of Electric Blade 15475, Healing Disc 18367, Shotgun 14820, Fire Staff 49496.
 
+Set 4, the Regulator (migration `20271104000300_Marshes_regulator`).
+
+- [ ] 925 The Regulator: Part I (Valverde Marshes): Retread McCormick (Retread City) offers it, no requirement, level 35. Talk to Retread Wilson (new, -138, 217.7, -472, northeast of Retread City; package 969, the client's line "Scrap? ... Here - take this."): one Retread Scrap Metal (needs a free slot). A marker at Wilson. Turn in at Wilson: 35000 XP, 3700 credits, one of 2 Advanced Med Pack VII, 2 Power Charger VII, 4 Fragmentation Grenade VII, 4 Cryogenic Grenade VII; Wilson keeps the scrap. Abandon: the scrap goes.
+- [ ] 1028 The Regulator: Part II (Valverde Marshes): Wilson offers it after 925, level 37. First check: does the real client open talk on a NEUTRAL creature (Kaav; the same open question as the Pools' Nakrinx)? Talk to Conscript Kaav, the Bane Traitor (new, neutral Thrax, 440, 223.7, -590, 13 m from the Bane Supply Depot door; package 970, "Quickly! Take this and go before they see you!"): the Bane Nanovirus (needs a free slot). A marker at Kaav. Turn in at Kaav: 35500 XP, 3700 credits, one of 2 Advanced Med Pack VII, 2 Armor Charger VII, 4 Concussion Grenade VII, 4 Fragmentation Grenade VII. Does the Thrax NPC look and talk right, and do the Bane nearby leave him alone? Abandon: the nanovirus goes.
+- [ ] 1029 The Regulator: Part III (Valverde Marshes): Kaav offers it after 1028, level 37. Kill a Bane Strider: the new pool of one by the Depot (300, 222, -650; level 36, 10406 HP) or the boss Daddy Long-Legs; the Strider Power Core drops always while it is open; pick it up from the corpse. A marker on the pool (radius 20). Turn in at Wilson: 32500 XP, 5550 credits, one of Incendiary Injector Gun 45777, Electric Chaingun 15111, Pulse Pistol 14569, Pulse Cannon 15437; he keeps the core. Is the Strider too strong alone (the client: "maybe with friends")?
+- [ ] 1030 The Regulator: Part IV (Valverde Marshes): Wilson offers it after 1029, level 35. A personal item giver (11114, a hum canister with the scrapper's model) at TaRapedia's /loc in the Paludos Ruins (-2, 217.2, 29); use it (10 s): the AFS Viral Scrapper (no room: the giver waits). A marker, the client name "Paludos Ruins", at the giver (radius 15). Turn in at McCormick: 70000 XP, 5550 credits, the Nanoviral Regulator with every choice and one of Bio Boots 18750, Graviton Boots 23549, Mech Helmet 8855, Stealth Vest 10637. Does the canister draw and show its name? Abandon: the scrapper and the giver go.
+
 ## Assumptions and choices (not from a source)
 
 Rules carried over from the Pools batch (`docs/pools-playtest.md`):
@@ -73,6 +80,20 @@ Per mission:
 - 968: the public bosses count for anyone who kills them, any order; their upstream pools stay. "Conical" healing disc =
   the Direct disc (the Pools read "Radial" as Area), "Incendiary" = Fire, the shotgun with no element the lowest of the
   band.
+- 925: Wilson a copy of Retread McCormick's row and look with the client name 8579 and package 969, 4 m from Ten Ton
+  Hammer's "-138, -468" (the nearest navmesh point walked to from Retread City); no hostile Thrax by him (no objective
+  needs them). One piece of scrap (the client gives no count). Credits and items TaRapedia's (Ten Ton Hammer's 1850 and
+  an EMP Bomb are older).
+- 925: 925's finishing text "So Wilson's got you running errands now, eh?" reads in McCormick's voice although TaRapedia makes Wilson the receiver; the client has no receiver data (kept as TaRapedia, ESTIMATE).
+- 1028: Kaav a neutral Thrax NPC (the Pools' Nakrinx: class 11320, his hit points and armour), level 37, outside the
+  Depot door (client "outside the Bane Supply Depot"; Ten Ton Hammer's "-20, -638" refueling station not used).
+- 1029: the Strider the Pools' Strider row (class 9804, its attacks) at level 36 with the Marshes level-36 hit points
+  (10406) and armour; one pool of one, 120 s respawn, between Kaav and Retread City. Core 100% (no source gives a rate),
+  also from Daddy Long-Legs. No crates (Ten Ton Hammer's crates lose to the client's "take down a Bane Strider").
+  "Incendiary" = Fire, "Pulse" = EMP, the Pulse Cannon the EMP rocket launcher; the band that starts at the named level.
+  Credits TaRapedia's 5550 (TR MMO DB 1800).
+- 1030: the giver class 11114 (same model as the scrapper item); rewards (no names on any source) as 890's; the
+  Regulator a fixed item. Credits TaRapedia's 5550 (TR MMO DB 1800).
 
 ## Deviations (client/server limits)
 
@@ -89,6 +110,9 @@ Per mission:
 - 890, 913: the harvesters and the bomb receptacles are personal objects placed by the mission (the client map has none).
 - 913: no explosion or pipeline wreck object; the nanovirus armour debuff in the marsh fog is left out (no area debuff on
   the server).
+- 925, 1028, 1029, 1030: the texts say to carry all the parts to McCormick; each part is taken at its own mission's
+  turn-in (Wilson, Kaav, Wilson, McCormick). The server binds a mission's issued items (AssignmentIssued: scrap, nanovirus) to that mission, so a later mission cannot take them. The core (a corpse drop, untagged) could be carried to McCormick (DevilsDenContent.cs:830-842 precedent), but a lost core would then block Part IV (1030 has no drop of its own), so each part goes in at its own turn-in.
+- 1030: the Nanoviral Regulator is a plain item: it does not block 913's armour debuff, which the server does not have.
 
 ## Server data that differs from the sources (not changed)
 
