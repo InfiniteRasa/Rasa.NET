@@ -77,6 +77,13 @@ Set 10, Retread City (migration `20271104000900_Marshes_retread_city`).
 - [ ] 1033 Production Destruction (Holloway) (Valverde Marshes): Lieutenant Holloway (new, Retread City -285, 217.1, -753) offers it after 914 with the AFS told (flag 914001 = 2), level 35. At the accept your own AFS Mech Defender (new, 692103's class and stats, level 36) comes up beside Holloway and follows you; his death fails nothing. Kiosks and Overseers as 916's. He goes at the turn-in. Turn in at Holloway: 150000 XP, 7600 credits, one of 120009-120012 (the client's block). Does the mech fight with you? Does he keep up the 1700 m?
 - [ ] 1052 Trapped! (Valverde Marshes): Vincent offers it, no requirement, level 38. At the accept your own Retread Samuel (new stand-in, package 1120, 4000 HP) and three Retreads stand at the Bane Refueling Station (196.4, 219.7, -669.1); the public Samuel is hidden from you. Talk to Samuel ("We got turned around"): 1 done, 2 opens, the defence starts: Thrax waves of 3, 4 and 5 (531045 / 531046) 5 s, 75 s and 150 s later from the west, south-east and south, sent at the crew. Hold 4 minutes (TaRapedia): 2 done, the crew and the Thrax go, the public Samuel is back. Samuel's death fails it (the Retreads' deaths do not). Markers at Samuel (1) and round him (2, 30 m). Turn in at Vincent: 75000 XP, 5800 credits, one of 120097-120100 (the client's block). Are the waves too hard or too easy (no balance check now)? Do the Thrax go for the crew?
 
+Set 11, the Retread Arena (migration `20271104001000_Marshes_retread_arena`).
+
+- [ ] 1085 Retread Arena: Beat Street (Valverde Marshes): Retread Karl (new, Retread City -219.9, 216.9, -807.1) offers it, no requirement, level 35. Talk to Retread Foster (new, the dome's south door -219.9, 216.9, -799.1, the client's package 1161) within 3 minutes ("let's get you in the arena then"): 2 done, you are taken onto the Thunderdome's floor (-219.9, 213.9, -746.1; it has no walk in or out) with your own Retread Withers and Ingram (new, level 38, 6000 HP, hostile). Beat both within 5 minutes (counter "Retread Withers Defeated:"): 1 done, you are set down by Foster (-219.9, 216.9, -803). The 5 minutes out fail it. Markers at Foster (2), round the arena (1). Turn in at Karl: 35000 XP, 3700 credits, one of 2 EMP Bomb VII, 2 Power Charger, 4 EMP Grenade VII, 4 Concussion Grenade VII. Does the client show the transfer into the dome right? Do the fighters attack at once?
+- [ ] 1087 Retread Arena: Smackdown (Valverde Marshes): Karl offers it after 1085, level 35. As 1085 with Retread King and Baker (level 39, 8000 HP). Turn in at Karl: 35000 XP, 3700 credits, one of 2 EMP Bomb, 2 Adrenaline Booster, 4 Concussion, 4 Frag Grenade VII.
+- [ ] 1088 Retread Arena: Legend or Fall (Valverde Marshes): Karl offers it after 1087, level 35. Foster's choice: "I'll take a fall" (flag 1088001 = 1, 1 and 3 open) or "A winner never quits" (flag 2, 1 only). Either way you fight Retread Toro (level 40, 15000 HP). Fight: beat him in 5 minutes or 1 fails. Fall: hold out 5 minutes with Toro standing: 1 and 3 done (beating him also completes 1). Turn in at Karl: 35000 XP, 3700 credits, one of 2 EMP Bomb, 2 Armor Charger, 2 Cryo, 2 Incendiary Grenade VII. Is "survive 5 minutes" a fair reading of a fall?
+- [ ] 1084 Calling all Parts (Valverde Marshes): Retread Vincent offers it after 1088, level 33. A Motherboard from any Stalker (540002, the pool -664.6, 217.6, -583), an AI Controller from any Caretaker (531048), a Brain Implant from a Forean Machina (new pool of 3, -650, 218.4, -620, level 36), each 100% while its objective is open. Note: a Machina's first death is a self revive; the part drops at its real death. Markers at the Stalker pool, the three Caretaker pools nearest Retread City and the Machina pool. Turn in at Vincent (he takes the parts): 70000 XP, 5550 credits, one of Virulent Injection Gun 15654, Sonic Rocket Launcher 49164, Electric Rifle 14734, Laser Machine Gun 48256.
+
 ## Assumptions and choices (not from a source)
 
 Rules carried over from the Pools batch (`docs/pools-playtest.md`):
@@ -205,6 +212,18 @@ Per mission:
   the lowest of the four client blocks that match TaRapedia (120013-120016).
 - 1023: three soldiers a group (the triage), a leg fails only with all three dead; the next group stands at the officer who
   sends it. Delaio and Urqhart at the Corman watchtowers (the triage). The modules read as the [4] ones.
+- Set 11 NPCs (ids 760344-760351): Karl and Foster copies of Vincent's row and look (names 8636, 8918; Foster the client's
+  package 1161, Karl a server-only one) at the dome's south door; the five fighters copies of the Pools AFS Rifleman 692101
+  (the triage's "AFS soldier look"; the Retread rows have no attack), hostile, levels 38/38/39/39/40 (Ten Ton Hammer), HP
+  6000/8000/15000 (the triage), Toro with the rifle (no propellant-gun creature action found); the Forean Machina a copy of
+  566012 at level 36 with the Treeback's stats, no name.
+- Arena: the Thunderdome's floor is a navmesh island, so Foster's talk transfers the player in and the round's end out
+  (by Foster). 3 minutes from the accept to Foster (the mission deadline), 5 minutes for the fight (the scene's timer).
+  The fighters are the player's own and come with the transfer.
+- 1088's fall (the triage's Q20): hold out 5 minutes with Toro standing; the player is not checked to be alive or to stop
+  fighting. 6201 (the client's "Baker" counter on Toro's objective) left out.
+- 1084: after 1088 (its opening "you took down Toro"), either 1088 ending; the rewards the lowest Uncommon templates of the
+  four kinds in the bands holding 33 (no client block matches); the part drops 100%.
 - Set 10 NPCs (ids 760339-760343): Figgins a copy of Morrison's row and look (name 8623, the client's package 1011, the
   triage's Q4) at Ten Ton Hammer's place; Holloway a copy of the Pools Holloway 510199 (name 8594, a server-only package,
   Q6) at TaRapedia's; the mech a copy of the Pools AFS Mech Defender 692103 with its stats; Samuel's stand-in and the
@@ -270,6 +289,16 @@ Per mission:
 - 1052: TaRapedia's "the mission fails if you leave the vicinity" is left out (no such fail in the scene); only Samuel's
   death fails it. The defence is timed from the talk, not from the accept.
 - 916 / 1033: the Overseers are public creatures: a kill by another player counts for whoever has the mission (as 968).
+- 1085 / 1087 / 1088: no teleporter object by Karl (Ten Ton Hammer): Foster's talk is the way in. A player who dies in the
+  dome respawns at a hospital; the fight timer still runs, and at its end the player is set down by Foster after the respawn
+  (from the hospital to the arena exit, a harmless surprise; not tested). The 1085/1087 count shows on counter 0 only (the
+  client also names counter 1).
+- 1085 / 1087 / 1088: the dome's floor is a navmesh island. A player left there with no scene (abandon, a server restart or
+  error) is not stranded: a one-way local teleporter on the dome's west floor (teleporter 905) takes them to a pad at the exit
+  (906). It is not retail. /suicide also gets them out. A player who uses the pad in a fight leaves it; the fight then runs out.
+- 1088: the fall is "survive 5 minutes with Toro standing"; the player is not checked to be alive (lenient: it completes after a
+  death too).
+- 1084: a Forean Machina's first death is a self revive (upstream CreatureSupport): kill it twice, its implant drops at the second.
 - 916 / 1033: the kiosks stand in the open round the Overseers; the client's objective is "Destroy the Production Matrix
   in the Strider Bay" (underground, the triage's Q13).
 - 914: abandoned after the theft, the supplies go. The flag is set when a way is chosen; an abandon does not clear it.
