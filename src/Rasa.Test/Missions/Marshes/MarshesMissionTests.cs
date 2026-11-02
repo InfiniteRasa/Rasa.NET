@@ -31,7 +31,10 @@ namespace Rasa.Test.Missions.Marshes
     /// Warrior Dikah's Under the Radar (1875) and Lt. Kiang's two versions of Under the Radar - Part II (1876, the control
     /// point one; 1877, Overseer Nelg's), with McDonald, Dikah, Kiang and Nelg (Marshes_sentry_tower); set 6, the sentry tower's
     /// second part, McDonald's The Core of the Matter (1878) and Data Disaster (1870), Kiang's This Calls For Destruction (1879)
-    /// and Archer Thoung's Need a Little Help Here (1873), with Thoung, Brady, Zui, Dahn and Nez (Marshes_sentry_tower_two).
+    /// and Archer Thoung's Need a Little Help Here (1873), with Thoung, Brady, Zui, Dahn and Nez (Marshes_sentry_tower_two); set 7,
+    /// Stalker Woods, Retread Jeska's Missing in Action (1863), Retread Dudley's Light the Fires (1864) and Now Can You Hear Me?
+    /// (1869), and Retread Duvall's Stop and Smell the Maw Flowers (1871), with Jeska, Dudley, Duvall and a Maw pool
+    /// (Marshes_stalker_woods).
     /// </summary>
     [TestClass]
     [DoNotParallelize]
@@ -47,7 +50,8 @@ namespace Rasa.Test.Missions.Marshes
             MarshesRegulatorPartThreeV1.MissionId, MarshesRegulatorPartFourV1.MissionId, MarshesMortarMadnessV1.MissionId,
             MarshesUnderTheRadarV1.MissionId, MarshesUnderTheRadarPartTwoV1.MissionId, MarshesUnderTheRadarNelgV1.MissionId,
             MarshesCoreOfTheMatterV1.MissionId, MarshesThisCallsForDestructionV1.MissionId, MarshesDataDisasterV1.MissionId,
-            MarshesNeedALittleHelpHereV1.MissionId
+            MarshesNeedALittleHelpHereV1.MissionId, MarshesMissingInActionV1.MissionId, MarshesLightTheFiresV1.MissionId,
+            MarshesNowCanYouHearMeV1.MissionId, MarshesMawFlowersV1.MissionId
         };
 
         /// <summary>It Lies in Ruins: a Marshes mission on the Plateau revision (in PlateauMissionTests.MissionIds).</summary>
@@ -66,9 +70,11 @@ namespace Rasa.Test.Missions.Marshes
         /// of the eastern wall line; Under the Radar's the client's "Downed Dropship" at the black box; Part II's the client's
         /// "Bane Terminal" at the computer (1876) and one at Nelg's post (1877). The Core of the Matter's one round the crates;
         /// This Calls For Destruction's two, round the consoles and at the generator; Data Disaster's one at the terminal; Need a
-        /// Little Help Here's five, round the crates and at each of the four soldiers.
+        /// Little Help Here's five, round the crates and at each of the four soldiers. Missing in Action's one at Koffman's body;
+        /// Light the Fires' five, one at each fire; Now Can You Hear Me?'s three, one at each spike spot; Stop and Smell the Maw
+        /// Flowers' one round the flowers.
         /// </summary>
-        internal const int Indicators = 62;
+        internal const int Indicators = 72;
 
         private const string Paludos = "20271104000000_Marshes_paludos";
         private const string FalconHold = "20271104000100_Marshes_falcon_hold";
@@ -76,6 +82,7 @@ namespace Rasa.Test.Missions.Marshes
         private const string Regulator = "20271104000300_Marshes_regulator";
         private const string SentryTower = "20271104000400_Marshes_sentry_tower";
         private const string SentryTowerTwo = "20271104000500_Marshes_sentry_tower_two";
+        private const string StalkerWoods = "20271104000600_Marshes_stalker_woods";
 
         /// <summary>
         /// The migration directly before <paramref name="migration"/> (IMigrationsAssembly, ordinal order), the target that
@@ -100,7 +107,8 @@ namespace Rasa.Test.Missions.Marshes
                 (881, 510165, 510165, 33), (890, 510166, 510166, 37), (913, 760312, 760312, 37), (968, 510164, 510164, 36),
                 (925, 510201, 760313, 35), (1028, 760313, 760314, 37), (1029, 760314, 760313, 37), (1030, 760313, 510201, 35),
                 (1874, 760316, 760316, 37), (1875, 760317, 760318, 37), (1876, 760318, 760318, 37), (1877, 760318, 760318, 37),
-                (1878, 760316, 760316, 37), (1879, 760318, 760318, 37), (1870, 760316, 760316, 37), (1873, 760320, 760320, 37)
+                (1878, 760316, 760316, 37), (1879, 760318, 760318, 37), (1870, 760316, 760316, 37), (1873, 760320, 760320, 37),
+                (1863, 760325, 760325, 36), (1864, 760326, 760326, 36), (1869, 760326, 760326, 36), (1871, 760327, 760327, 36)
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             var enabled = harness.World.MissionContentDefinitionEntries.AsNoTracking()
@@ -265,7 +273,14 @@ namespace Rasa.Test.Missions.Marshes
                 (1879, marshes, 19179, new (uint, uint, uint, uint?)[] { (1, 19558, 19559, 19560), (2, 19561, 19562, null) }),
                 (1870, marshes, 19134, new (uint, uint, uint, uint?)[] { (1, 19550, 19551, null) }),
                 (1873, marshes, 19149, new (uint, uint, uint, uint?)[] { (1, 19565, 19566, null), (2, 19567, 19568, null),
-                    (3, 19570, 19571, null), (4, 19573, 19574, null), (5, 19576, 19577, null), (6, 19565, 19566, null) })
+                    (3, 19570, 19571, null), (4, 19573, 19574, null), (5, 19576, 19577, null), (6, 19565, 19566, null) }),
+                (1863, marshes, 19099, new (uint, uint, uint, uint?)[] { (1, 19365, 19366, null) }),
+                (1864, marshes, 19104, new (uint, uint, uint, uint?)[] { (1, 19368, 19369, 19370), (2, 19371, 19372, 19373),
+                    (3, 19374, 19375, 19376), (4, 19377, 19378, 19379), (5, 19380, 19381, 19382) }),
+                (1869, marshes, 19129, new (uint, uint, uint, uint?)[] { (1, 19383, 19384, 19385), (2, 19386, 19387, 19388),
+                    (3, 19389, 19390, 19391) }),
+                // 1871's objective 2 is the server's hidden tally, under the client's objective 1 texts.
+                (1871, marshes, 19139, new (uint, uint, uint, uint?)[] { (1, 19446, 19447, null), (2, 19446, 19447, null) })
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             foreach (var (mission, revision, title, objectives) in expected)
@@ -316,6 +331,10 @@ namespace Rasa.Test.Missions.Marshes
             CollectionAssert.AreEqual(new (uint, uint?)[] { (2, 2375), (3, 2376), (4, 2377), (5, 2378) }, Talks(1873, marshes));
             Assert.IsEmpty(Talks(1878, marshes));
             Assert.IsEmpty(Talks(1879, marshes));
+            // Set 7: 1863's at Koffman's body (objectiveconversation 1863,1 package 2367); 1864, 1869 and 1871 have none.
+            CollectionAssert.AreEqual(new (uint, uint?)[] { (1, 2367) }, Talks(1863, marshes));
+            foreach (var mission in new uint[] { 1864, 1869, 1871 })
+                Assert.IsEmpty(Talks(mission, marshes), $"{mission}");
         }
 
         /// <summary>
@@ -429,7 +448,15 @@ namespace Rasa.Test.Missions.Marshes
                 (1870, marshes, 70000, 5550, new (uint, uint)[] { (121205, 1), (121206, 1), (121207, 1), (121208, 1) }),
                 // Weapon Module: Crit Hit Bonus, Armor Module: Armor Absorption, Tool Module: Threat Reduction, Weapon Module:
                 // Armor Piercing [4], as 932.
-                (1873, marshes, 70000, 5550, new (uint, uint)[] { (123161, 1), (122951, 1), (123141, 1), (123146, 1) })
+                (1873, marshes, 70000, 5550, new (uint, uint)[] { (123161, 1), (122951, 1), (123141, 1), (123146, 1) }),
+                // 2 Class VII Advanced Med Pack, 2 Armor Charger, 4 Cryogenic, 4 Fragmentation Grenade.
+                (1863, marshes, 65000, 5400, new (uint, uint)[] { (45062, 2), (118898, 2), (111048, 4), (45446, 4) }),
+                // 2 Class VII EMP Bomb, 2 Power Charger, 4 Concussion, 4 Fragmentation Grenade.
+                (1864, marshes, 32500, 3600, new (uint, uint)[] { (111232, 2), (118907, 2), (111018, 4), (45446, 4) }),
+                // Area healing disc 35-39, Ice staff 35-39, Sonic pistol 35-39, Ice blade 36-40.
+                (1869, marshes, 70000, 5550, new (uint, uint)[] { (121201, 1), (121202, 1), (121203, 1), (121204, 1) }),
+                // Area repair tool 35-39, Sonic torqueshell rifle 33-37, Rifle 36-40, Sonic propellant gun 37-41.
+                (1871, marshes, 65000, 5400, new (uint, uint)[] { (121225, 1), (121226, 1), (121227, 1), (121228, 1) })
             })
             {
                 var reward = harness.World.Set<MissionRewardDefinitionEntry>().AsNoTracking()
@@ -515,9 +542,10 @@ namespace Rasa.Test.Missions.Marshes
                 .ToHashSet();
             var objectives = world.MissionObjectiveDefinitionEntries.AsNoTracking().Where(entry => entry.ContentRevision == revision)
                 .Select(entry => new { entry.MissionId, entry.ObjectiveId }).ToList();
-            Assert.HasCount(41, objectives, "the objectives are read");
+            Assert.HasCount(52, objectives, "the objectives are read");
             Assert.IsTrue(hidden.Contains((881U, 2U)), "881's tally is hidden");
             Assert.IsTrue(hidden.Contains((1878U, 2U)) && hidden.Contains((1873U, 6U)), "1878's and 1873's tallies are hidden");
+            Assert.IsTrue(hidden.Contains((1871U, 2U)), "1871's tally is hidden");
             var missing = objectives.Select(entry => (entry.MissionId, entry.ObjectiveId))
                 .Where(key => !marked.Contains(key) && !hidden.Contains(key)).OrderBy(key => key).ToArray();
             Assert.IsEmpty(missing, string.Join(", ", missing));
@@ -555,7 +583,12 @@ namespace Rasa.Test.Missions.Marshes
                 (1879, 1, 420, -728, 20), (1879, 2, 400, -730, 10), // round the three consoles, the generator
                 (1870, 1, 178, 46, 10),                             // the CommLink terminal on the deck by Nelg's post
                 (1873, 1, 178, 43, 15),                             // round the four supply crates
-                (1873, 2, -110, -320, 8), (1873, 3, -110, -335, 8), (1873, 4, -125, -335, 8), (1873, 5, -132.11, -330.6, 8)   // the soldiers
+                (1873, 2, -110, -320, 8), (1873, 3, -110, -335, 8), (1873, 4, -125, -335, 8), (1873, 5, -132.11, -330.6, 8),  // the soldiers
+                (1863, 1, -700, -560, 10),                          // Koffman's body
+                (1864, 1, -740, -500, 8), (1864, 2, -420, -40, 8), (1864, 3, -430, 20, 8), (1864, 4, -410, 70, 8),
+                (1864, 5, -786.5, -522.9, 8),                       // the five fires
+                (1869, 1, -760, -508, 8), (1869, 2, -730, -490, 8), (1869, 3, -720, -550, 8),   // the spike spots
+                (1871, 1, -748, -516, 15)                           // round the five flowers
             };
             // 1874's eight: the Bane Mortar pools of the eastern wall line (World DB 592164-592171).
             foreach (var (x, z) in new (double, double)[]
@@ -612,8 +645,9 @@ namespace Rasa.Test.Missions.Marshes
             }
             // Helka's corpse and pack, the twelve feed acceptors; 881's seven harvesters and their taps, 890's five harvesters,
             // 913's eight receptacles; 1030's scrapper; 1875's black box, 1876's computer; 1878's three crates, 1879's three
-            // consoles, generator and charge, 1870's terminal, 1873's four crates.
-            Assert.AreEqual(14 + 14 + 5 + 8 + 1 + 2 + 3 + 5 + 1 + 4, objects);
+            // consoles, generator and charge, 1870's terminal, 1873's four crates; 1863's body, 1864's five fires, 1869's three
+            // spike spots, 1871's five flowers.
+            Assert.AreEqual(14 + 14 + 5 + 8 + 1 + 2 + 3 + 5 + 1 + 4 + 1 + 5 + 3 + 5, objects);
         }
 
         /// <summary>
@@ -632,6 +666,9 @@ namespace Rasa.Test.Missions.Marshes
             [20631] = 1,    // UsableStatelessBaneConsoleKeyboard (1876 Bane computer; lookup[0] None, the client sends 1)
             [7468] = 1,     // UsableTwoStateBaneConsoleSwitchV01 (1879 Bane computers; lookup[0] 1)
             [7870] = 1,     // UsableBombHumV01 (1879 generator charge; lookup[0] None, the client sends 1)
+            [6137] = 1,     // UsableTwoStateForeanFirePitV01 (1864 fires; lookup[0] None, the client sends 1)
+            [7847] = 3,     // UsableItemAccHumGpsBeacon (1869 spike spots; lookup[0] 3)
+            [22518] = 3, [22519] = 3, [22520] = 3, [22521] = 3, [22522] = 3,   // UsableItemDispMawflowerV01-V05 (1871 flowers; lookup[0] 3)
         };
 
         [TestMethod]
@@ -654,8 +691,9 @@ namespace Rasa.Test.Missions.Marshes
                 }
             }
             // Helka's pack, the twelve feeders, the seven taps, the eight receptacles, the scrapper, the black box, the computer;
-            // 1878's three crates, 1879's three consoles and the charge, 1873's four crates (1870's terminal talks).
-            Assert.AreEqual(1 + 12 + 7 + 8 + 1 + 2 + 3 + 4 + 4, used);
+            // 1878's three crates, 1879's three consoles and the charge, 1873's four crates (1870's terminal talks); 1864's five
+            // fires, 1869's three spots, 1871's five flowers (1863's body talks).
+            Assert.AreEqual(1 + 12 + 7 + 8 + 1 + 2 + 3 + 4 + 4 + 5 + 3 + 5, used);
         }
 
         /// <summary>
@@ -689,8 +727,9 @@ namespace Rasa.Test.Missions.Marshes
             // package), the Strider and its pool, and four scenes (925, 1028, 1029, 1030); set 5 McDonald, Dikah and Kiang (pool,
             // package, slots: six, the spear, six), Nelg, and three scenes (1875, 1876, 1877); set 6 Thoung, Brady, Zui, Dahn and
             // Nez (pool, package, slots: the bow, Remick's six, the bow, the spear, the staff) and four scenes (1878, 1879, 1870,
-            // 1873).
-            Assert.AreEqual((17, 23, 15, 44, 3, 4, 19), All(), "541, 968 and 1874 have no scene");
+            // 1873); set 7 Jeska, Dudley and Duvall (pool, package, Vincent's six slots), the Maw pool, and four scenes (1863,
+            // 1864, 1869, 1871).
+            Assert.AreEqual((20, 27, 18, 62, 3, 4, 23), All(), "541, 968 and 1874 have no scene");
             Assert.AreEqual(4, Upstream());
 
             world.GetService<IMigrator>().Migrate(Previous(world, Paludos));
@@ -928,6 +967,52 @@ namespace Rasa.Test.Missions.Marshes
             world.GetService<IMigrator>().Migrate(SentryTowerTwo);
             Assert.IsTrue(setSix.All(Has));
             Assert.AreEqual(full, SetSix());
+        }
+
+        /// <summary>
+        /// Marshes_stalker_woods takes out Missing in Action, Light the Fires, Now Can You Hear Me? and Stop and Smell the Maw
+        /// Flowers, Jeska, Dudley, Duvall and the Maw pool; sets 1-6 and the rows they copy or use (Vincent, the Marshes Maw)
+        /// stay. Up again, all are back.
+        /// </summary>
+        [TestMethod]
+        public void StalkerWoodsRollsBackWithItsMigration()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            bool Has(uint mission) => world.MissionContentDefinitionEntries.AsNoTracking()
+                .Any(entry => entry.MissionId == mission && entry.ContentRevision == MarshesMissionDataV1.Revision);
+            int Count(string sql) => world.Database.SqlQueryRaw<int>(sql).AsEnumerable().Single();
+            (int, int, int, int, int, int, int) SetSeven() => (
+                Count("SELECT COUNT(*) AS Value FROM creature WHERE id BETWEEN 760325 AND 760328") +
+                    Count("SELECT COUNT(*) AS Value FROM spawnpool WHERE id BETWEEN 760325 AND 760328"),
+                Count("SELECT COUNT(*) AS Value FROM npc_package WHERE id BETWEEN 760325 AND 760328") +
+                    Count("SELECT COUNT(*) AS Value FROM creature_appearance WHERE id BETWEEN 760325 AND 760328"),
+                Count("SELECT COUNT(*) AS Value FROM mission_indicator WHERE mission_id IN (1863, 1864, 1869, 1871)"),
+                Count("SELECT COUNT(*) AS Value FROM mission_evidence WHERE mission_id IN (1863, 1864, 1869, 1871)"),
+                Count("SELECT COUNT(*) AS Value FROM mission_scene_binding WHERE mission_id IN (1863, 1864, 1869, 1871)"),
+                Count("SELECT COUNT(*) AS Value FROM mission_reward_item WHERE mission_id IN (1863, 1864, 1869, 1871)"),
+                Count("SELECT COUNT(*) AS Value FROM mission_prerequisite WHERE mission_id IN (1863, 1864, 1869, 1871)"));
+            int Kept() => Count("SELECT COUNT(*) AS Value FROM creature WHERE id IN (510168, 531052)");
+            var setSeven = new uint[] { 1863, 1864, 1869, 1871 };
+            var before = new uint[] { 541, 498, 539, 917, 959, 961, 881, 890, 913, 968, 925, 1028, 1029, 1030, 1874, 1875, 1876, 1877,
+                1878, 1879, 1870, 1873 };
+            // 3 creatures and 4 pools; 3 packages, 3 x 6 slots; 1 + 5 + 3 + 1 markers; 12 sources; 4 scenes; 4 x 4 items; no
+            // prerequisite.
+            var full = (7, 21, 10, 12, 4, 16, 0);
+
+            Assert.IsTrue(setSeven.All(Has));
+            Assert.AreEqual(full, SetSeven());
+            Assert.AreEqual(2, Kept());
+
+            world.GetService<IMigrator>().Migrate(Previous(world, StalkerWoods));
+            Assert.IsFalse(setSeven.Any(Has));
+            Assert.AreEqual((0, 0, 0, 0, 0, 0, 0), SetSeven());
+            Assert.AreEqual(2, Kept(), "Vincent and the Marshes Maw stay");
+            Assert.IsTrue(before.All(Has), "sets 1-6 stay");
+
+            world.GetService<IMigrator>().Migrate(StalkerWoods);
+            Assert.IsTrue(setSeven.All(Has));
+            Assert.AreEqual(full, SetSeven());
         }
     }
 }

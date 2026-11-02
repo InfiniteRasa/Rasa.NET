@@ -48,6 +48,13 @@ Set 6, the sentry tower's second part (migration `20271104000500_Marshes_sentry_
 - [ ] 1870 Data Disaster (Valverde Marshes): McDonald offers it once Part II is done, level 37. A personal Bane CommLink terminal (10519, talks with package 2374) on the deck east of Nelg's post (178, 224.7, 46); talk to it and pick "AFS Troop placement info.": 1 done. A marker at the terminal. Turn in at McDonald: 70000 XP, 5550 credits, one of Reflective Legs 121205, Hazmat Legs 121206, Motor Assist Legs 121207, Mech Vest 121208. Ten Ton Hammer puts the terminal upstairs at (166, 232, 57): the roof of the post, a navmesh island. Can the player get up there? If so: move the terminal there. Abandon: the terminal goes.
 - [ ] 1873 Need a Little Help Here (Valverde Marshes): Archer Thoung (new Forean archer, -126.9, 221.1, -343.3, by the sentry tower) offers it, no requirement, level 37. Four personal Bane item crates (11116, argument 3) by Nelg's post: three on its east deck (176.8, 224.7, 41.2), (181.8, 224.7, 45.8), (183.2, 224.7, 42.8), one below it (170, 216.1, 40); a Medical Booster Pack each. The four open 2-5: talk to Pvt. Brady (-110, 217.6, -320), Archer Zui (-110, 216.9, -335), Warrior Dahn (-125, 221.1, -335) and Elder Nez (-132.1, 221.2, -330.6) (new, packages 2375-2378, the client's thank-you lines); each takes one pack. Markers at the crates and at each soldier. Turn in at Thoung: 70000 XP, 5550 credits, one of Weapon Module: Crit Hit Bonus [4] 123161, Armor Module: Armor Absorption [4] 122951, Tool Module: Threat Reduction [4] 123141, Weapon Module: Armor Piercing [4] 123146. Do the soldiers show the thank-you line? Abandon: the packs and the crates go.
 
+Set 7, Stalker Woods (migration `20271104000600_Marshes_stalker_woods`).
+
+- [ ] 1863 Missing in Action (Valverde Marshes): Retread Jeska (new, -777, 241.2, -552, High Point Retreat) offers it, no requirement, level 36. A personal talking corpse (24072, female human, package 2367) lies on the lowland east of the camp (-700, 217.4, -560); talk to it ("her dog tags clearly proclaiming that she is Lt. Koffman"): 1 done. A marker at the body. Turn in at Jeska: 65000 XP, 5400 credits, one of 2 Advanced Med Pack VII, 2 Armor Charger VII, 4 Cryogenic Grenade VII, 4 Fragmentation Grenade VII. Does the corpse draw and open its talk? The triage's spot (-720, 241, -548) is on a navmesh island: if the player can reach it, move the body there. Abandon: the body goes.
+- [ ] 1864 Light the Fires (Valverde Marshes): Retread Dudley (new, -784, 243.3, -523) offers it, no requirement, level 36. Five personal Forean fire pits (6137, argument 1, the client's states 55 -> 56), any order: NE of the camp (-740, 230.9, -500), west of Paludos (-420, 214.4, -40), (-430, 214.7, 20), (-410, 215.6, 70), at the camp (-786.5, 243.4, -522.9). A marker at each. Turn in at Dudley: 32500 XP, 3600 credits, one of 2 EMP Bomb VII, 2 Power Charger VII, 4 Concussion Grenade VII, 4 Fragmentation Grenade VII. Do the pits draw, and does state 56 show a fire? Fire 1's triage spot (-740, 243, -490) is on a navmesh island: if the player can reach it, move fire 1 there. Abandon: the fires go.
+- [ ] 1869 Now Can You Hear Me? (Valverde Marshes): Dudley offers it, level 36. Three AFS Communication Spikes at the accept (needs a free slot). Three personal spike spots (7847, argument 3, states 119 -> 121, named "AFS Communication Spike"): north (-760, 237.3, -508), north-east (-730, 227.3, -490), east (-720, 217.9, -550) of the waypoint; each takes one spike. A marker at each. Turn in at Dudley: 70000 XP, 5550 credits, one of Healing Disc 121201, Ice Staff 121202, Sonic Pistol 121203, Ice Blade 121204. Does a placed spot show the spike? The triage's N (-784, 243, -470) and NE (-740, 243, -480) are on a navmesh island: if the player can reach them, move the spots there. Abandon: the spikes left and the spots go.
+- [ ] 1871 Stop and Smell the Maw Flowers (Valverde Marshes): Retread Duvall (new, -593, 217, -438, the north road, the client's package 950) offers it, no requirement, level 36. Five personal shed flowers (22518-22522, argument 3) on the slope north-east of the camp around (-748, 232.5, -516), a Maw pool of two among them; take five Maw Flowers (no room: the flower waits). One marker round them (radius 15). Turn in at Duvall: 65000 XP, 5400 credits, one of Area Repair Tool 121225, Sonic Torqueshell Rifle 121226, Rifle 121227, Sonic Disperser 121228; he keeps the flowers. Do the flower givers (client classes marked DELETE) draw? North of the camp (-785, 243, -460) is a navmesh island: if the player can reach it, move the flowers and the Maw pool there. Abandon: the flowers and the givers go.
+
 ## Assumptions and choices (not from a source)
 
 Rules carried over from the Pools batch (`docs/pools-playtest.md`):
@@ -136,6 +143,17 @@ Per mission:
 - 1873: Thoung and Zui Forean archers, Dahn a spearman, Nez a shaman (the server's Forean elders), level 37; Brady a copy of
   Private Remick's row and look (class 3846, level 10). The four soldiers at the tower's foot (no source places them). No
   requirement (TaRapedia none). A hidden objective counts the four packs.
+- Set 7 rewards: 1869 and 1871 the client's per-mission blocks (121201-121204, 121225-121228, TaRapedia's kinds and levels
+  in order); 1863 and 1864 TaRapedia's Class VII stacks, the lowest template of each class (925's, 1028's, 961's).
+- Set 7 NPCs: Jeska, Dudley and Duvall copies of Retread Vincent's row and look with their client names (Jeska and
+  Dudley server-only packages, Duvall the client's 950 of 1867/1904), at TaRapedia's /loc (Jeska's height 270 is no ground: on the camp floor at 241.2). Duvall stands where 888 and
+  1867 will use him. Levels: 1863 and 1864 36 (TaRapedia), 1869 and 1871 36 (the camp's; no source).
+- 1863: Koffman a talking female human corpse (24072, the Bootcamp corpse's way); no name shows on it (objects take their
+  class name; the client's "Dead Retread Koffman" is a creature name).
+- 1864: any order (the fire pit's states 55 -> 56 are the client's, usableaugmentationstate[9]).
+- 1869: the spike spots are Mapping the Pools' beacon acceptor (7847) named by the client's 273; any order.
+- 1871: receiver Duvall (the triage's Q19; TaRapedia's Vincent); the flowers are the client's Mawflower item givers
+  (Medicinal Measures' way); a hidden objective counts five; one Maw pool of two (Marshes Maw 531052, 120 s) among them.
 
 ## Deviations (client/server limits)
 
@@ -166,6 +184,12 @@ Per mission:
   floor and roof are navmesh islands (no walk from the Bane Assertion Camp waypoint).
 - 1873: the supplies are in crates by Nelg's post (Ten Ton Hammer), not dropped by a "northbound patrol" (client text);
   three crates on the walked-to deck and one below, as the post's floor is a navmesh island.
+- 1863, 1864, 1869, 1871: the ground north of High Point Retreat (z above -500) and 60 m east of it is a navmesh island
+  (no walk from the waypoint, nor from Duvall, Plateau Point, Paludos or Research Point); the triage's places there move to
+  the nearest walked-to ground: Koffman to the lowland (-700, -560), fire 1 to (-740, -500), the north and north-east spikes
+  to (-760, -508) and (-730, -490), the flowers to the slope north-east of the camp. If players reach the northern ground in
+  the client, move them back.
+- 1864: fires 2-4 are walked to from High Point Retreat, not from the Paludos waypoint (Paludos's navmesh is cut off).
 
 ## Server data that differs from the sources (not changed)
 
