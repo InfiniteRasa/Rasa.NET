@@ -338,6 +338,9 @@ namespace Rasa.Test.Missions
                     {
                         new MissionIndicator
                         {
+                            // On the test world's map (WorldTestContext, 1220): a marker with no
+                            // map is shown on none (MissionMarkerProjection).
+                            MapContextId = 1220,
                             Position = new Vector3(1.25f, 2.5f, 3.75f),
                             Radius = 4.5,
                             IndicatorId = 7,
