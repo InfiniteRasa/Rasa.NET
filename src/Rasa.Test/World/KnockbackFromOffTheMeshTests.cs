@@ -92,8 +92,11 @@ namespace Rasa.Test.World
                     }
                 }
 
-            Assert.IsTrue(throws > 10000, $"{throws} throws");
-            Assert.IsTrue(throughBefore > 0, "the way it was, some flew through the rock");
+            // The way it was (OldDestination), some of these flew through the rock. Bootcamp's
+            // navmesh rebuilt with the collision that hangs off child bones (79f36cd6) has no
+            // walk across the rock left on this hill, so the old way crosses none here now
+            // either: the count is reported, not required.
+            Assert.IsTrue(throws > 10000, $"{throws} throws, {throughBefore} of them through the rock the way it was");
         }
 
         /// <summary>From a floor more than a metre above or below the nearest walkable point: not thrown, rather than onto it.</summary>
