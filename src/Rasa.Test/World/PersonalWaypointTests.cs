@@ -1001,13 +1001,14 @@ namespace Rasa.Test.World
 
                 migrator.Migrate();
 
-                // The vendors Alia_das_npcs, Wilderness_post_npcs, Bootcamp_fort_medic and Minos_caverns_content add
-                // later stock their own counters (Savage and Schramm the hospital stock, waypoints and all; the
-                // Minos medical vendor the Thoria Das one's).
+                // The vendors Alia_das_npcs, Wilderness_post_npcs, Bootcamp_fort_medic, Minos_caverns_content and
+                // Warnet_caverns add later stock their own counters (Savage and Schramm the hospital stock, waypoints
+                // and all; the Minos medical vendor the Thoria Das one's; Field Medic Grant the caverns' vendor's).
                 var later = string.Join(", ", Rasa.Services.Preloader.AliaDasNpcs.Vendors.Select(vendor => vendor.Creature)
                     .Concat(Rasa.Services.Preloader.WildernessPostNpcs.Vendors.Select(vendor => vendor.Creature))
                     .Append(Rasa.Services.Preloader.BootcampFortMedic.Schramm)
-                    .Append(Rasa.Services.Preloader.MinosCavernsContent.MedicalVendor));
+                    .Append(Rasa.Services.Preloader.MinosCavernsContent.MedicalVendor)
+                    .Append(Rasa.Services.Preloader.WarnetCavernsContent.Grant));
 
                 // Each of the three, once, at each medical vendor and nowhere else, after what it sold.
                 var stocked = Rows(context, $"select id, item_template_id from vendor_item where item_template_id in ({Items}) and id not in ({later}) order by id, item_template_id");

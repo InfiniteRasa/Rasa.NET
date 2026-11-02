@@ -636,6 +636,10 @@ namespace Rasa.Managers
             if (TimoraMines.RefusalOf(client, live) is { } timora)
                 return timora;
 
+            // Warnet Caverns' lure stand and metal container wait on their missions (WarnetCaverns).
+            if (WarnetCaverns.RefusalOf(client, live) is { } warnet)
+                return warnet;
+
             switch (live.Placement.Kind)
             {
                 case Kind.Dispenser:
@@ -666,9 +670,9 @@ namespace Rasa.Managers
         /// How many items of its class an acceptor takes: its row's count, or none for one whose
         /// place takes nothing (TorcastraPrison.TakesNothing: Torcastra's worm console and data
         /// terminals, whose mission consumes the worm itself, ConsumeMissionItem, once the upload
-        /// counts).
+        /// counts; WarnetCaverns.TakesNothing: the Queen Lure stand, whose lure stays with its mission).
         /// </summary>
-        private static uint ItemsTaken(Live live) => TorcastraPrison.TakesNothing(live) ? 0 : live.Placement.ItemCount;
+        private static uint ItemsTaken(Live live) => TorcastraPrison.TakesNothing(live) || WarnetCaverns.TakesNothing(live) ? 0 : live.Placement.ItemCount;
 
         /// <summary>
         /// An acceptor takes its items (ItemsTaken), of which the player has to hold that many. A
@@ -777,6 +781,9 @@ namespace Rasa.Managers
 
             // What it does in Timora Mines (TimoraMines).
             TimoraMines.Used(client, live, next);
+
+            // And in Warnet Caverns (WarnetCaverns): the Queen Lure placed.
+            WarnetCaverns.Used(client, live, next);
 
             return next;
         }

@@ -515,6 +515,9 @@ namespace Rasa.Managers
                     // Minos Caverns' captives, walked out by whoever freed them.
                     Guard("MinosCaverns.Worker", mapChannel, () => MinosCaverns.Worker(mapChannel));
 
+                    // Warnet Caverns' specialists, Brumley's walk, the Queen Lure and its attacks, the hives and Tozid.
+                    Guard("WarnetCaverns.Worker", mapChannel, () => WarnetCaverns.Worker(mapChannel));
+
                     // The lootable containers the server put down: openings due to reset closed again.
                     Guard("WorldContainers.Worker", mapChannel, () => WorldContainers.Worker(mapChannel));
 

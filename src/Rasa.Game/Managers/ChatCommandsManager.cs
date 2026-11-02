@@ -293,6 +293,7 @@ namespace Rasa.Managers
             RegisterCommand(".torcastra", GmLevel.GameMaster, TorcastraCommand, "alarm | strike | secure <n|all> | gate | unlock <n|all> | reset");
             RegisterCommand(".ewc", GmLevel.GameMaster, EnergyWeaponCenterCommand, "generator | invert | tanks | casso");
             RegisterCommand(".timora", GmLevel.GameMaster, TimoraCommand, "drills | pumps | security | disarm | burn | pump | reset");
+            RegisterCommand(".warnet", GmLevel.GameMaster, WarnetCommand, "way | camp | lure | station | reset");
             RegisterCommand(".squad", GmLevel.GameMaster, SquadCommand, "[types|paths|spawns|export] | type ... | path ... | point [pause] | spawn ...");
             RegisterCommand(".worldcontainer", GmLevel.GameMaster, WorldContainerCommand, "action", "arg1", "arg2", "arg3", "arg4", "arg5", "arg6");
             RegisterCommand(".removeobj", GmLevel.GameMaster, RemoveObjectCommand, "entityId");
@@ -1005,6 +1006,13 @@ namespace Rasa.Managers
         private void TimoraCommand(string[] parts)
         {
             foreach (var line in TimoraMines.Command(_client.Player.MapChannel, _client.Player, parts))
+                CommunicatorManager.Instance.SystemMessage(_client, line);
+        }
+
+        /// <summary>.warnet: Warnet Caverns' way, camp, specialists, Brumley, Queen and hives in this copy (WarnetCaverns.Command).</summary>
+        private void WarnetCommand(string[] parts)
+        {
+            foreach (var line in WarnetCaverns.Command(_client.Player.MapChannel, _client, parts))
                 CommunicatorManager.Instance.SystemMessage(_client, line);
         }
 
