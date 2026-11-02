@@ -36,7 +36,9 @@ namespace Rasa.Test.Missions.Marshes
     /// (1869), and Retread Duvall's Stop and Smell the Maw Flowers (1871), with Jeska, Dudley, Duvall and a Maw pool
     /// (Marshes_stalker_woods); set 8, Gun Control, Retread Lou's Gun Control (1865), Part II (1866) and Part III (1867, Retread
     /// Duvall's choice) and its two ends, Part IV for Lou (1868) and for Duvall (1904), with Lou, Shaman Masai and a
-    /// Lightbender pool (Marshes_gun_control).
+    /// Lightbender pool (Marshes_gun_control); set 9, the escorts, Shaman Masai's Forean Flu (497), Retread Duvall's Tread
+    /// Lightly (888), MP Price's AWOL Andy (889) and Sergeant Elway's Rest and Recreation (1023), with the escorted, Lieutenants
+    /// Belfast, Delaio and Urqhart, and Price's package 386 moved to Lieutenant Bruncke (Marshes_escorts).
     /// </summary>
     [TestClass]
     [DoNotParallelize]
@@ -55,7 +57,8 @@ namespace Rasa.Test.Missions.Marshes
             MarshesNeedALittleHelpHereV1.MissionId, MarshesMissingInActionV1.MissionId, MarshesLightTheFiresV1.MissionId,
             MarshesNowCanYouHearMeV1.MissionId, MarshesMawFlowersV1.MissionId, MarshesGunControlV1.MissionId,
             MarshesGunControlPartTwoV1.MissionId, MarshesGunControlPartThreeV1.MissionId, MarshesGunControlPartFourV1.LouMissionId,
-            MarshesGunControlPartFourV1.DuvallMissionId
+            MarshesGunControlPartFourV1.DuvallMissionId, MarshesForeanFluV1.MissionId, MarshesTreadLightlyV1.MissionId,
+            MarshesAwolAndyV1.MissionId, MarshesRestAndRecreationV1.MissionId
         };
 
         /// <summary>It Lies in Ruins: a Marshes mission on the Plateau revision (in PlateauMissionTests.MissionIds).</summary>
@@ -78,9 +81,11 @@ namespace Rasa.Test.Missions.Marshes
         /// Light the Fires' five, one at each fire; Now Can You Hear Me?'s three, one at each spike spot; Stop and Smell the Maw
         /// Flowers' one round the flowers. Gun Control's four, on the three technician pools nearest the camp and the
         /// Lightbenders; Part II's two, on the Mox pools; Part III's three, at Masai (1 and 3) and Duvall; each Part IV's one at
-        /// its receiver.
+        /// its receiver. Forean Flu's one at DuBois, Tread Lightly's at Vincent; AWOL Andy's nine: the client's "Possible location
+        /// of Private Bruncke" on each search place (4-7), one at each place for 1 and one at Price for 2; Rest and Recreation's
+        /// seven, at each leg's officer (Elway for 4) and at the officer each report goes to.
         /// </summary>
-        internal const int Indicators = 83;
+        internal const int Indicators = 101;
 
         private const string Paludos = "20271104000000_Marshes_paludos";
         private const string FalconHold = "20271104000100_Marshes_falcon_hold";
@@ -90,6 +95,7 @@ namespace Rasa.Test.Missions.Marshes
         private const string SentryTowerTwo = "20271104000500_Marshes_sentry_tower_two";
         private const string StalkerWoods = "20271104000600_Marshes_stalker_woods";
         private const string GunControl = "20271104000700_Marshes_gun_control";
+        private const string Escorts = "20271104000800_Marshes_escorts";
 
         /// <summary>
         /// The migration directly before <paramref name="migration"/> (IMigrationsAssembly, ordinal order), the target that
@@ -117,7 +123,8 @@ namespace Rasa.Test.Missions.Marshes
                 (1878, 760316, 760316, 37), (1879, 760318, 760318, 37), (1870, 760316, 760316, 37), (1873, 760320, 760320, 37),
                 (1863, 760325, 760325, 36), (1864, 760326, 760326, 36), (1869, 760326, 760326, 36), (1871, 760327, 760327, 36),
                 (1865, 760329, 760329, 36), (1866, 760329, 760329, 36), (1867, 760329, 760330, 36), (1868, 760330, 760329, 36),
-                (1904, null, 760327, 36)
+                (1904, null, 760327, 36),
+                (497, 760330, 510161, 33), (888, 760327, 510168, 35), (889, 510163, 510163, 37), (1023, 510169, 510169, 33)
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             var enabled = harness.World.MissionContentDefinitionEntries.AsNoTracking()
@@ -296,7 +303,15 @@ namespace Rasa.Test.Missions.Marshes
                 (1867, marshes, 19119, new (uint, uint, uint, uint?)[] { (1, 19441, 19442, null), (2, 19444, 19445, null),
                     (3, 19483, 19484, null), (4, 19546, 19547, null) }),
                 (1868, marshes, 19124, new (uint, uint, uint, uint?)[] { (1, 19486, 19487, null) }),
-                (1904, marshes, 19693, new (uint, uint, uint, uint?)[] { (1, 19698, 19699, null) })
+                (1904, marshes, 19693, new (uint, uint, uint, uint?)[] { (1, 19698, 19699, null) }),
+                (497, marshes, 1233, new (uint, uint, uint, uint?)[] { (1, 4942, 7166, null) }),
+                // 888's objective 2 (4655 "no desc") is not bound.
+                (888, marshes, 4646, new (uint, uint, uint, uint?)[] { (1, 4654, 7006, null) }),
+                // 889's objective 3 (4660, the older "back to Paludos") is not bound.
+                (889, marshes, 4650, new (uint, uint, uint, uint?)[] { (1, 4658, 7085, null), (2, 4659, 7086, null),
+                    (4, 4661, 7088, null), (5, 4662, 7089, null), (6, 4663, 7090, null), (7, 4664, 7091, null) }),
+                (1023, marshes, 5635, new (uint, uint, uint, uint?)[] { (1, 5639, 7213, null), (2, 5640, 7215, null),
+                    (3, 5641, 7217, null), (4, 5642, 7219, null), (5, 5723, 7214, null), (6, 5725, 7216, null), (7, 5726, 7218, null) })
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             foreach (var (mission, revision, title, objectives) in expected)
@@ -359,6 +374,12 @@ namespace Rasa.Test.Missions.Marshes
             CollectionAssert.AreEqual(new (uint, uint?)[] { (1, 950) }, Talks(1904, marshes));
             Assert.IsEmpty(Talks(1865, marshes));
             Assert.IsEmpty(Talks(1866, marshes));
+            // Set 9: 889's at Bruncke's (objectiveconversation 889,1 package 386), 1023's at Belfast's, Delaio's and Urqhart's
+            // (1023,5 package 1101; 1023,6 1102; 1023,7 1100); 497 and 888 have none.
+            CollectionAssert.AreEqual(new (uint, uint?)[] { (1, 386) }, Talks(889, marshes));
+            CollectionAssert.AreEqual(new (uint, uint?)[] { (5, 1101), (6, 1102), (7, 1100) }, Talks(1023, marshes));
+            Assert.IsEmpty(Talks(497, marshes));
+            Assert.IsEmpty(Talks(888, marshes));
         }
 
         /// <summary>
@@ -369,7 +390,7 @@ namespace Rasa.Test.Missions.Marshes
         /// Mortar Madness and Under the Radar need none (TaRapedia). The Core of the Matter follows Under the Radar (TaRapedia);
         /// This Calls For Destruction and Data Disaster follow either version of Part II, by its mission flag; Need a Little
         /// Help Here needs none. Set 7 needs none. Gun Control's parts follow each other; the two Part IVs also need Part III's
-        /// ending, by its mission flag (1867001: 1 the gun given, 1868; 2 sold, 1904). None repeats.
+        /// ending, by its mission flag (1867001: 1 the gun given, 1868; 2 sold, 1904). Set 9 needs none. None repeats.
         /// </summary>
         [TestMethod]
         public void OnlyTheFollowUpsRequireAMission()
@@ -495,7 +516,15 @@ namespace Rasa.Test.Missions.Marshes
                 // Rare EMP machine gun 33-37, Physical shotgun 37-41, Virulent injection gun 37-41, Sonic rocket launcher 34-38;
                 // both Part IVs (one page on TaRapedia).
                 (1868, marshes, 32500, 3600, new (uint, uint)[] { (121217, 1), (121218, 1), (121219, 1), (121220, 1) }),
-                (1904, marshes, 32500, 3600, new (uint, uint)[] { (121217, 1), (121218, 1), (121219, 1), (121220, 1) })
+                (1904, marshes, 32500, 3600, new (uint, uint)[] { (121217, 1), (121218, 1), (121219, 1), (121220, 1) }),
+                // Bio and Mech boots, Graviton helmet 35-39, Reflective legs 34-38.
+                (497, marshes, 60000, 5250, new (uint, uint)[] { (18750, 1), (32677, 1), (23808, 1), (36019, 1) }),
+                // 6 Class VII Fragmentation Grenade, 2 EMP Bomb, 6 Cryogenic Grenade, 8 Standard Med Pack.
+                (888, marshes, 65000, 5400, new (uint, uint)[] { (45446, 6), (111232, 2), (111048, 6), (45061, 8) }),
+                // The client's block: Bio legs, Graviton legs, Mech helmet, Stealth helmet V04 35-39.
+                (889, marshes, 130000, 7200, new (uint, uint)[] { (120013, 1), (120014, 1), (120015, 1), (120016, 1) }),
+                // Weapon Module: Crit Hit Bonus, Armor Module: Body, Mind, Spirit Bonus [4].
+                (1023, marshes, 70000, 5550, new (uint, uint)[] { (123161, 1), (122966, 1), (122976, 1), (122991, 1) })
             })
             {
                 var reward = harness.World.Set<MissionRewardDefinitionEntry>().AsNoTracking()
@@ -567,6 +596,7 @@ namespace Rasa.Test.Missions.Marshes
             (1030, 1) => 146U,                              // Paludos Ruins
             (1875, 1) => 28U,                               // Downed Dropship
             (1876, 1) => 71U,                               // Bane Terminal
+            (889, >= 4 and <= 7) => 140U,                   // Possible location of Private Bruncke
             _ => null
         };
 
@@ -587,7 +617,7 @@ namespace Rasa.Test.Missions.Marshes
                 .ToHashSet();
             var objectives = world.MissionObjectiveDefinitionEntries.AsNoTracking().Where(entry => entry.ContentRevision == revision)
                 .Select(entry => new { entry.MissionId, entry.ObjectiveId }).ToList();
-            Assert.HasCount(61, objectives, "the objectives are read");
+            Assert.HasCount(76, objectives, "the objectives are read");
             Assert.IsTrue(hidden.Contains((881U, 2U)), "881's tally is hidden");
             Assert.IsTrue(hidden.Contains((1878U, 2U)) && hidden.Contains((1873U, 6U)), "1878's and 1873's tallies are hidden");
             Assert.IsTrue(hidden.Contains((1871U, 2U)), "1871's tally is hidden");
@@ -639,8 +669,18 @@ namespace Rasa.Test.Missions.Marshes
                 (1865, 2, -680, -520, 25),                          // the Lightbender pool 760331
                 (1866, 1, -495.3, -257.7, 20), (1866, 1, -595.9, -166.8, 20),   // Mox pools 540038, 540039
                 (1867, 1, -735, 171, 8), (1867, 2, -593, -438, 8), (1867, 3, -735, 171, 8),   // Masai, Duvall, Masai
-                (1868, 1, -776, -542, 8), (1904, 1, -593, -438, 8)  // Lou, Duvall
+                (1868, 1, -776, -542, 8), (1904, 1, -593, -438, 8), // Lou, Duvall
+                (497, 1, -143.9, 614.2, 15), (888, 1, -276.8, -761, 15),    // DuBois, Vincent
+                (889, 2, -317.6, -2.8, 25),                         // Price
+                (1023, 1, 110, 405, 15), (1023, 2, 100, 530.4, 15), (1023, 3, 45.5, 704, 15), (1023, 4, -142.7, 609.2, 20),
+                (1023, 5, 110, 405, 8), (1023, 6, 100, 530.4, 8), (1023, 7, 45.5, 704, 8)  // Belfast, Delaio, Urqhart, Elway
             };
+            // 889's search places: the client's name on 4-7, and 1's marker at each.
+            foreach (var (objective, x, z) in new (uint, double, double)[] { (4, -520, 40), (5, -450, 120), (6, -330, -160), (7, -200, -100) })
+            {
+                expected.Add((889, objective, x, z, 20));
+                expected.Add((889, 1, x, z, 20));
+            }
             // 1874's eight: the Bane Mortar pools of the eastern wall line (World DB 592164-592171).
             foreach (var (x, z) in new (double, double)[]
             {
@@ -780,8 +820,10 @@ namespace Rasa.Test.Missions.Marshes
             // Nez (pool, package, slots: the bow, Remick's six, the bow, the spear, the staff) and four scenes (1878, 1879, 1870,
             // 1873); set 7 Jeska, Dudley and Duvall (pool, package, Vincent's six slots), the Maw pool, and four scenes (1863,
             // 1864, 1869, 1871); set 8 Lou and Masai (pool, package, slots: Vincent's six, Moawi's staff), the Lightbender and
-            // its pool, and three scenes (1865, 1866, 1867).
-            Assert.AreEqual((23, 30, 20, 69, 3, 4, 26), All(), "541, 968, 1874, 1868 and 1904 have no scene");
+            // its pool, and three scenes (1865, 1866, 1867); set 9 the warrior, Otto, Bruncke and the soldier (slots: the spear,
+            // Vincent's six, Morrison's six, the rifle; Bruncke's package), Belfast, Delaio and Urqhart (pool, package, Morrison's
+            // six slots), and four scenes (497, 888, 889, 1023).
+            Assert.AreEqual((30, 33, 24, 101, 3, 4, 30), All(), "541, 968, 1874, 1868 and 1904 have no scene");
             Assert.AreEqual(4, Upstream());
 
             world.GetService<IMigrator>().Migrate(Previous(world, Paludos));
@@ -1114,6 +1156,59 @@ namespace Rasa.Test.Missions.Marshes
             world.GetService<IMigrator>().Migrate(GunControl);
             Assert.IsTrue(setEight.All(Has));
             Assert.AreEqual(full, SetEight());
+        }
+
+        /// <summary>
+        /// Marshes_escorts takes out the four escorts, their creatures and the three lieutenants with their pools, and gives MP
+        /// Price his package 386 back; sets 1-8 and the rows they copy or use (the Holy Vengeance warrior, Vincent, Morrison, the
+        /// Alia Das Rifleman, Masai, Duvall, DuBois, Elway) stay. Up again, all are back.
+        /// </summary>
+        [TestMethod]
+        public void EscortsRollBackWithTheirMigration()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            bool Has(uint mission) => world.MissionContentDefinitionEntries.AsNoTracking()
+                .Any(entry => entry.MissionId == mission && entry.ContentRevision == MarshesMissionDataV1.Revision);
+            int Count(string sql) => world.Database.SqlQueryRaw<int>(sql).AsEnumerable().Single();
+            const string missions = "(497, 888, 889, 1023)";
+            (int, int, int, int, int, int, int) SetNine() => (
+                Count("SELECT COUNT(*) AS Value FROM creature WHERE id BETWEEN 760332 AND 760338") +
+                    Count("SELECT COUNT(*) AS Value FROM spawnpool WHERE id BETWEEN 760332 AND 760338"),
+                Count("SELECT COUNT(*) AS Value FROM npc_package WHERE id BETWEEN 760332 AND 760338") +
+                    Count("SELECT COUNT(*) AS Value FROM creature_appearance WHERE id BETWEEN 760332 AND 760338") +
+                    Count("SELECT COUNT(*) AS Value FROM creature_stat WHERE id BETWEEN 760332 AND 760338"),
+                Count($"SELECT COUNT(*) AS Value FROM mission_indicator WHERE mission_id IN {missions}"),
+                Count($"SELECT COUNT(*) AS Value FROM mission_evidence WHERE mission_id IN {missions}"),
+                Count($"SELECT COUNT(*) AS Value FROM mission_scene_binding WHERE mission_id IN {missions}"),
+                Count($"SELECT COUNT(*) AS Value FROM mission_reward_item WHERE mission_id IN {missions}"),
+                Count($"SELECT COUNT(*) AS Value FROM mission_prerequisite WHERE mission_id IN {missions}"));
+            int Kept() => Count("SELECT COUNT(*) AS Value FROM creature WHERE id IN (750110, 510168, 510162, 670003, 760330, 760327, 510161, 510169, 510163)");
+            uint PricePackage() => world.NpcPackageEntries.AsNoTracking().Single(row => row.Id == 510163).PackageId;
+            var setNine = new uint[] { 497, 888, 889, 1023 };
+            var before = new uint[] { 541, 498, 539, 917, 959, 961, 881, 890, 913, 968, 925, 1028, 1029, 1030, 1874, 1875, 1876, 1877,
+                1878, 1879, 1870, 1873, 1863, 1864, 1869, 1871, 1865, 1866, 1867, 1868, 1904 };
+            // 7 creatures and 3 pools; 4 packages, 1 + 6 + 6 + 1 + 3 x 6 slots, 4 stats; 1 + 1 + 9 + 7 markers; 12 sources;
+            // 4 scenes; 4 x 4 items; no prerequisite.
+            var full = (10, 40, 18, 12, 4, 16, 0);
+
+            Assert.IsTrue(setNine.All(Has));
+            Assert.AreEqual(full, SetNine());
+            Assert.AreEqual(9, Kept());
+            Assert.AreEqual(510163U, PricePackage(), "Price's own package");
+            Assert.AreEqual(386U, world.NpcPackageEntries.AsNoTracking().Single(row => row.Id == 760334).PackageId, "Bruncke's");
+
+            world.GetService<IMigrator>().Migrate(Previous(world, Escorts));
+            Assert.IsFalse(setNine.Any(Has));
+            Assert.AreEqual((0, 0, 0, 0, 0, 0, 0), SetNine());
+            Assert.AreEqual(9, Kept(), "the copied and used rows stay");
+            Assert.AreEqual(386U, PricePackage(), "Price has 386 again");
+            Assert.IsTrue(before.All(Has), "sets 1-8 stay");
+
+            world.GetService<IMigrator>().Migrate(Escorts);
+            Assert.IsTrue(setNine.All(Has));
+            Assert.AreEqual(full, SetNine());
+            Assert.AreEqual(510163U, PricePackage());
         }
     }
 }

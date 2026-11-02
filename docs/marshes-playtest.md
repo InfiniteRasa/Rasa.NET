@@ -63,6 +63,13 @@ Set 8, Gun Control (migration `20271104000700_Marshes_gun_control`).
 - [ ] 1868 Gun Control - Part IV (Lou) (Valverde Marshes): Masai offers it after 1867 with the gun given (flag 1867001 = 1), level 36. Talk to Lou ("never play poker with a Forean"): 1 done. A marker at Lou. Turn in at Lou: 32500 XP, 3600 credits, one of EMP Machine Gun 121217, Shotgun 121218, Virulent Injection Gun 121219, Sonic Rocket Launcher 121220 (Rare).
 - [ ] 1904 Gun Control - Part IV (Duvall) (Valverde Marshes): Duvall's radio call at 1867's turn-in with the gun sold (flag 1867001 = 2), again on arrival on the Marshes if abandoned, level 36. The call is not a window: it is the status bar's radio indicator (RadioMissionAvailable1904); click it for the offer. Talk to Duvall ("A deals a deal"): 1 done. A marker at Duvall. Turn in at Duvall: 32500 XP, 3600 credits, one of 121217-121220 (1868's). Does the radio offer show Duvall's text?
 
+Set 9, the escorts (migration `20271104000800_Marshes_escorts`).
+
+- [ ] 497 Forean Flu (Valverde Marshes): Shaman Masai offers it, no requirement, level 33. At the accept your own Forean Warrior (new, class 6043, level 35, 4000 HP) stands beside Masai (-733, 218, 173) and follows you. Walk into 15 m of Field Medic DuBois at Falcon Hold (-143.9, 219.3, 614.2; 655 m over the navmesh): 1 done, the warrior goes in. His death fails the mission. A marker at DuBois. Turn in at DuBois: 60000 XP, 5250 credits, one of Bio Boots 18750, Mech Boots 32677, Graviton Helmet 23808, Reflective Legs 36019. Does the warrior keep up and fight back when hit? Is the walk past Stalker Woods too hard alone?
+- [ ] 888 Tread Lightly (Valverde Marshes): Retread Duvall offers it, no requirement, level 35. Your own Retread Otto (new, Vincent's look, level 35, 4000 HP) beside Duvall (-591, 217, -436) follows you; walk into 15 m of Retread Vincent at the Retread Camp (-276.8, 217.5, -761; 587 m): 1 done, Otto goes in. His death fails it. A marker at Vincent. Turn in at Vincent: 65000 XP, 5400 credits, one of 6 Fragmentation Grenade VII, 2 EMP Bomb VII, 6 Cryogenic Grenade VII, 8 Standard Med Pack VII. Does Otto show his name?
+- [ ] 889 AWOL Andy (Valverde Marshes): MP Price offers it, no requirement, level 37. Price's package 386 moved to your own Lieutenant Bruncke (new, Morrison's look, level 37, 4000 HP) (user decision U1): Price no longer has that talk. Four search places (optional, 20 m, "Possible location of Private Bruncke"): west (-520, 217.5, 40), north-west (-450, 217.1, 120), south (-330, 215.1, -160), east (-200, 215.7, -100); Bruncke stands at the east one from the accept. Talk to him ("lead the way"): 1 done, 2 opens, he follows. Walk into 25 m of Price (-317.6, 218.5, -2.8): 2 done, Bruncke goes. His death fails it. Markers: the four places (1 and 4-7), Price (2). Turn in at Price: 130000 XP, 7200 credits, one of Bio Legs 120013, Graviton Legs 120014, Mech Helmet 120015, Stealth Helmet 120016. Are the four places where players searched (no source)? Does Price still say his other lines?
+- [ ] 1023 Rest and Recreation (Valverde Marshes): Sergeant Elway offers it, no requirement, level 33. Four groups of three of your own soldiers (new, the Pools Rifleman's class, level 33, 4000 HP each), at least one must arrive, the first group within 10 minutes (only it is timed): 1 from the Falcon Hold waypoint to Lieutenant Belfast (new, 110, 216.9, 405); talk to him (5): group 2 from him to Lieutenant Delaio (new, 100, 216.9, 530.4); talk (6): group 3 to Lieutenant Urqhart (new, 45.5, 216.9, 704); talk (7): group 4 back to Elway (20 m). All three dead (or group 1 past 10 minutes) fail the mission. Markers at each leg's officer and each report. Turn in at Elway: 70000 XP, 5550 credits, one of Weapon Module: Crit Hit Bonus [4] 123161, Armor Module: Body 122966, Mind 122976, Spirit Bonus [4] 122991. Are Delaio and Urqhart at the right watchtowers? Do three followers walk without blocking each other?
+
 ## Assumptions and choices (not from a source)
 
 Rules carried over from the Pools batch (`docs/pools-playtest.md`):
@@ -179,6 +186,19 @@ Per mission:
   table). 1904 by radio from Duvall (its offer text is his comm call; the triage had Masai); its reward 1868's (TaRapedia's
   one page; no other client block fits; 121237-121240 are 1875's).
 
+- Set 9 escorted: personal scene creatures that follow the player (FollowActorIntent, as Bootcamp's squad), 4000 HP and 300
+  armour (the server's escort stats), run 7 / walk 2 (These Old Bones). The warrior a copy of the Holy Vengeance escort
+  warrior 750110 (class 6043), Otto of Vincent's row and look, Bruncke of Morrison's, the soldiers of the Pools control
+  point Rifleman 692101; Belfast, Delaio and Urqhart of Morrison's (client names 8787-8789, packages 1101, 1102, 1100).
+  Arrival radius 15 m (Elway 20 m, Price 25 m). No route: the player picks the way.
+- 497: the rewards the lowest Uncommon templates of TaRapedia's kinds and bands (no client block fits).
+- 888: objective 2 (the client's "no desc", no text) left out; the stacks the lowest Class VII templates.
+- 889: Price's package 386 is Bruncke's (U1); Price takes a server-only package (his id). The four search places
+  (ESTIMATE, walked to from the road); Bruncke at the east one. Objective 3 (the older "back to Paludos") left out. Rewards
+  the lowest of the four client blocks that match TaRapedia (120013-120016).
+- 1023: three soldiers a group (the triage), a leg fails only with all three dead; the next group stands at the officer who
+  sends it. Delaio and Urqhart at the Corman watchtowers (the triage). The modules read as the [4] ones.
+
 ## Deviations (client/server limits)
 
 - 498: the drop has no area on the server, so Thrax anywhere on the Marshes drop the canister.
@@ -217,6 +237,15 @@ Per mission:
 - 1865: the drops have no area on the server, so Thrax Technicians anywhere on the Marshes drop the fragments.
 - 1867: delivered straight to Masai, objective 2 stays open (optional) and Duvall no longer asks (his choice needs the
   gun).
+- 889: Price's path from the road ends 15 m short of him (Paludos's navmesh is cut off), so 2 completes within 25 m.
+- 1023: only group 1 is timed (TaRapedia: 10 minutes per group): the server keeps one deadline per character and
+  mission (MissionDeadlineService, upstream). Abandoned, objective 1 shows Failed whatever the leg (upstream
+  TryPlanAuthoredAbandonment, cosmetic).
+- 497, 888, 889, 1023: a leg completes when the player walks in; where the followers are is not checked (as These Old
+  Bones), ESTIMATE.
+- 1023: abandoned, the mission fails (the server fails a timed mission at an abandon, as Daghda's Urn); the group waits
+  until the failed mission is cleared from the log.
+- 497, 888, 889, 1023: a follower is never put back after a death; a failed escort must be cleared and taken again.
 
 ## Server data that differs from the sources (not changed)
 
