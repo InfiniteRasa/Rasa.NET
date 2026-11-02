@@ -20,8 +20,6 @@ namespace Rasa.Migrations.MySqlWorld
     /// </summary>
     // ReSharper disable once InconsistentNaming
     [UsedImplicitly]
-    [DbContext(typeof(MySqlWorldContext))]
-    [Migration("20271103000100_Valverde_targets_of_opportunity")]
     public partial class Valverde_targets_of_opportunity : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
