@@ -38,6 +38,8 @@ namespace Rasa.Test.TestSupport
             [37531] = 21,       // Bane_Kael_Armored, on the Kael's skeleton (also the Plateau's Maligo Elite Guardmaster, class 25414)
             [47378] = 13999,    // the Plateau's Maligo Elite Guard (class 29059)
             [35823] = 14036,    // Redshirt_Forean_Gunner_Infected, the Plateau's Infected Forean
+            [17734] = 13975,    // Creature_Magmonix(_Boss), on the Treeback's skeleton (Magma Caverns' Magmonix and Ember)
+            [17409] = 13916,    // Creature_Atta_Queen_Boss (Queen Kardash)
         };
 
         /// <summary>Action animation families with no animation on any skeleton: the client's own gap, played by nothing.</summary>
@@ -131,6 +133,8 @@ namespace Rasa.Test.TestSupport
             [14000] = "622 650 651 734 924 1137 1138 1139 1140 1211 1272",
             [13927] = "622 650 651 940 958 959 1411 1412 1433",
             [13964] = "176 612 622 650 651 887 1055 1272 1493",
+            [13975] = "650 651 853 854 855 927 936 937",
+            [13916] = "176 612 622 650 651 875 1059 1272 1401 1402 1455",
         });
 
         private static IReadOnlyDictionary<uint, IReadOnlySet<uint>> Parse(Dictionary<uint, string> rows) =>

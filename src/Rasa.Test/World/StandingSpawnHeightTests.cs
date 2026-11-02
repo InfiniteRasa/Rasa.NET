@@ -146,8 +146,9 @@ namespace Rasa.Test.World
             // Alia Das NPCs moved or taken away by Alia_das_npcs, the Wilderness ones moved or
             // taken away by Wilderness_post_npcs, the two on tent roofs (Tent_floor_npcs), the Twin
             // Pillars ones moved or taken away by Twin_pillars_npcs, Airman Hamilton, moved to
-            // Torcastra Prison's research ward (Torcastra_prison), Ranger Porthus (Plateau_going_postal)
-            // and Peterson, Mauer and McLaughlin (Plateau_defiant_ones).
+            // Torcastra Prison's research ward (Torcastra_prison), Ranger Porthus (Plateau_going_postal),
+            // Peterson, Mauer and McLaughlin (Plateau_defiant_ones), and Lieutenant Donners and the
+            // others Kardash_atta_colony moves.
             void AssertCorrected(bool expected, params uint[] movedSince)
             {
                 harness.World.ChangeTracker.Clear();
@@ -181,7 +182,8 @@ namespace Rasa.Test.World
                 .Concat(Rasa.Services.Preloader.Missions.Plateau.PlateauPerduNpcsV1.Moves.Select(move => move.Pool))
                 .Concat(Rasa.Services.Preloader.Missions.Plateau.PlateauWedgeRockNpcsV1.Moves.Select(move => move.Pool))
                 .Concat(Rasa.Services.Preloader.Missions.Plateau.PlateauCidNpcsV1.Moves.Select(move => move.Pool))
-                .Append(Rasa.Services.Preloader.Missions.Plateau.PlateauBaileyNpcsV1.McCormick).ToArray());
+                .Append(Rasa.Services.Preloader.Missions.Plateau.PlateauBaileyNpcsV1.McCormick)
+                .Concat(KardashAttaColonyContent.Moved.Select(move => move.Pool)).ToArray());
 
             // The vendor of Torcastra Prison was 5.69 m over the floor of the hall; Private
             // Parsons a metre in the ground. General Beacham, in the sandbags beside Cimoch, has
