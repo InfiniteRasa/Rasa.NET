@@ -74,7 +74,9 @@ namespace Rasa.Test.Missions.Plateau
             PlateauFutureSacrificeV1.MissionId, PlateauFinalAssaultV1.MissionId, PlateauDeadlySilenceV1.MissionId,
             PlateauAncientMysteriesV1.MissionId, PlateauMountainSpringToxinsV1.MissionId, PlateauBetterHalfV1.MissionId,
             PlateauForeasBasePastV1.MissionId, PlateauSendAMessageV1.MissionId, PlateauTheseOldBonesV1.MissionId,
-            PlateauHolyVengeanceV1.MissionId, PlateauRetreadsToRetreadsV1.MissionId
+            PlateauHolyVengeanceV1.MissionId, PlateauRetreadsToRetreadsV1.MissionId,
+            // It Lies in Ruins, a Valverde Marshes mission on this revision: it follows Retreads to Retreads (MarshesItLiesInRuinsV1).
+            Rasa.Services.Preloader.Missions.Marshes.MarshesItLiesInRuinsV1.MissionId
         };
 
         /// <summary>
@@ -96,9 +98,10 @@ namespace Rasa.Test.Missions.Plateau
         /// their shrine, and The Order Of Velon one, at Hathen. Array Of Hope's one; Future Sacrifice's one (Hudson), The
         /// Final Assault's five, Foreas Base Past's seven, Send a Message's one. Deadly Silence's four, These Old Bones'
         /// four, Holy Vengeance's six, Ancient Mysteries' nine, Mountain Spring Toxins' six, The Better Half's four.
-        /// Retreads to Retreads' one (1751, at Vincent on Valverde Marshes).
+        /// Retreads to Retreads' one (1751, at Vincent on Valverde Marshes). It Lies in Ruins' one (1673, at Morrison on Valverde
+        /// Marshes, the Marshes set 2's: MarshesMissionTests).
         /// </summary>
-        internal const int Indicators = 206;
+        internal const int Indicators = 207;
 
         /// <summary>Visible objectives with no marker: none.</summary>
         internal static readonly (uint Mission, uint Objective)[] NoMarker = { };
@@ -429,7 +432,8 @@ namespace Rasa.Test.Missions.Plateau
             using var harness = WildernessRuntimeTestHarness.Create();
             var prerequisites = harness.World.MissionPrerequisiteEntries.AsNoTracking()
                 .Where(entry => entry.ContentRevision == PlateauMissionDataV1.Revision).ToArray();
-            Assert.HasCount(52, prerequisites);
+            // 53: It Lies in Ruins (1673, a Marshes mission on this revision) follows Retreads to Retreads.
+            Assert.HasCount(53, prerequisites);
             var incommunicado = prerequisites.Single(entry => entry.MissionId == PlateauIncommunicadoV1.MissionId);
             Assert.AreEqual(MissionPrerequisiteKind.MissionCompleted, incommunicado.Kind);
             Assert.AreEqual<uint?>(PlateauGiantKillerV1.MissionId, incommunicado.RequiredMissionId);
@@ -466,7 +470,7 @@ namespace Rasa.Test.Missions.Plateau
                 (stalkMarket.Kind, stalkMarket.RequiredMissionId));
             foreach (var mission in new uint[] { 933, 1981, 930, 1034, 1825, 557, 2007, 887, 934, 1983, 931, 970, 2016, 1659, 965, 876, 879 })
                 Assert.IsFalse(prerequisites.Any(entry => entry.MissionId == mission), $"{mission}");
-            foreach (var (mission, required) in new (uint, uint)[] { (713, 887), (954, 887), (855, 713), (1027, 954), (1044, 934), (905, 1983), (929, 905), (936, 929), (719, 936), (867, 970), (1014, 887), (895, 1014), (928, 895), (2017, 2016), (555, 867), (1047, 1044), (1048, 1044), (1049, 1044), (1051, 1044), (1057, 1044), (1982, 1981), (1171, 935), (1167, 1171), (1974, 1981), (1189, 1187), (1188, 1189), (1978, 1981), (1979, 1981), (1975, 1981), (878, 876), (877, 1046), (1068, 877), (1541, 877), (1178, 1167), (1181, 1178), (1190, 1188), (904, 1541), (1976, 1981), (1977, 1976), (1751, 904) })
+            foreach (var (mission, required) in new (uint, uint)[] { (713, 887), (954, 887), (855, 713), (1027, 954), (1044, 934), (905, 1983), (929, 905), (936, 929), (719, 936), (867, 970), (1014, 887), (895, 1014), (928, 895), (2017, 2016), (555, 867), (1047, 1044), (1048, 1044), (1049, 1044), (1051, 1044), (1057, 1044), (1982, 1981), (1171, 935), (1167, 1171), (1974, 1981), (1189, 1187), (1188, 1189), (1978, 1981), (1979, 1981), (1975, 1981), (878, 876), (877, 1046), (1068, 877), (1541, 877), (1178, 1167), (1181, 1178), (1190, 1188), (904, 1541), (1976, 1981), (1977, 1976), (1751, 904), (1673, 1751) })
             {
                 var prerequisite = prerequisites.Single(entry => entry.MissionId == mission);
                 Assert.AreEqual((MissionPrerequisiteKind.MissionCompleted, (uint?)required),

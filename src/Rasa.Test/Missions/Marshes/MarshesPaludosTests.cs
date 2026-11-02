@@ -573,20 +573,20 @@ namespace Rasa.Test.Missions.Marshes
             return (corpse, pack);
         }
 
-        private static void AssertOnGround(MapChannel map, Vector3 position, string what)
+        internal static void AssertOnGround(MapChannel map, Vector3 position, string what)
         {
             var ground = map.NavMesh.GroundHeight(position);
             Assert.IsNotNull(ground, $"navmesh under {what}");
             Assert.AreEqual(ground.Value, position.Y, 0.5f, $"{what} on the ground");
         }
 
-        private static Creature Npc(MapChannel map, uint pool)
+        internal static Creature Npc(MapChannel map, uint pool)
         {
             Spawn(map, pool);
             return RequireNpc(map, pool);
         }
 
-        private static void Accept(WildernessRuntimeTestHarness harness, Creature npc, uint mission)
+        internal static void Accept(WildernessRuntimeTestHarness harness, Creature npc, uint mission)
         {
             harness.MoveTo(npc.Position);
             harness.Drain();
@@ -595,7 +595,7 @@ namespace Rasa.Test.Missions.Marshes
         }
 
         /// <summary>The NPC hears the objective (only that one), and it is done.</summary>
-        private static void Talk(WildernessRuntimeTestHarness harness, Creature npc, uint mission, uint objective)
+        internal static void Talk(WildernessRuntimeTestHarness harness, Creature npc, uint mission, uint objective)
         {
             AssertHandInTopic(Conversation(harness, npc), mission, objective);
             harness.MoveTo(npc.Position);
@@ -607,7 +607,7 @@ namespace Rasa.Test.Missions.Marshes
         }
 
         /// <summary>A turn-in whose save fails pays nothing; the mission stays to be turned in (as PoolsSupplyChainTests).</summary>
-        private static void FailedTurnInPaysNothing(WildernessRuntimeTestHarness harness, Creature receiver, uint mission, int? choice)
+        internal static void FailedTurnInPaysNothing(WildernessRuntimeTestHarness harness, Creature receiver, uint mission, int? choice)
         {
             harness.MoveTo(receiver.Position);
             harness.Drain();
@@ -627,13 +627,13 @@ namespace Rasa.Test.Missions.Marshes
         }
 
         /// <summary>The Marshes' spawn pools that hold one of these creatures.</summary>
-        private static uint[] PoolsOf(WildernessRuntimeTestHarness harness, params uint[] creatures) =>
+        internal static uint[] PoolsOf(WildernessRuntimeTestHarness harness, params uint[] creatures) =>
             harness.World.SpawnPoolEntries.AsNoTracking().Where(row => row.MapContextId == MarshesMissionDataV1.MapContextId).AsEnumerable()
                 .Where(row => new[] { row.Creature1Id, row.Creature2Id, row.Creature3Id, row.Creature4Id, row.Creature5Id, row.Creature6Id }
                     .Any(creatures.Contains))
                 .Select(row => row.Id).ToArray();
 
-        private static LootDispenser Kill(WildernessRuntimeTestHarness harness, MapChannel map, uint kind)
+        internal static LootDispenser Kill(WildernessRuntimeTestHarness harness, MapChannel map, uint kind)
         {
             var creature = Alive(map).FirstOrDefault(candidate => candidate.DbId == kind && candidate.Npc == null);
             Assert.IsNotNull(creature, $"no living {kind} left");
@@ -648,7 +648,7 @@ namespace Rasa.Test.Missions.Marshes
         }
 
         /// <summary>These pools' dead come back: their respawn time and more has passed (as PoolsSnakePitTests).</summary>
-        private static void Respawn(MapChannel map, params uint[] pools)
+        internal static void Respawn(MapChannel map, params uint[] pools)
         {
             var all = map.SpawnPools.ToArray();
             try
@@ -666,13 +666,13 @@ namespace Rasa.Test.Missions.Marshes
         }
 
         /// <summary>The map's living creatures, the Maws still under the ground too (MawLurk).</summary>
-        private static IEnumerable<Creature> Alive(MapChannel map) => Living(map)
+        internal static IEnumerable<Creature> Alive(MapChannel map) => Living(map)
             .Concat(MawLurk.BuriedOn(map).Where(creature => creature.State != CharacterState.Dead));
 
-        private static bool Holds(LootDispenser loot, uint template) => loot.LootItems.Any(item => item.ItemTemplateId == template);
+        internal static bool Holds(LootDispenser loot, uint template) => loot.LootItems.Any(item => item.ItemTemplateId == template);
 
         /// <summary>A use of the object: the request, then its recovery if one is due (as PoolsSnakePitTests).</summary>
-        private static void Use(WildernessRuntimeTestHarness harness, MapChannel map, DynamicObject obj, uint argument, bool recovers)
+        internal static void Use(WildernessRuntimeTestHarness harness, MapChannel map, DynamicObject obj, uint argument, bool recovers)
         {
             var count = map.PerformRecovery.Count;
             harness.Objects.RequestUseObjectPacket(harness.Client, new RequestUseObjectPacket
@@ -687,7 +687,7 @@ namespace Rasa.Test.Missions.Marshes
             ActorActionManager.Instance.PerformRecovery(map, recovery);
         }
 
-        private static MissionObjectiveState Objective(WildernessRuntimeTestHarness harness, uint mission, uint objective) =>
+        internal static MissionObjectiveState Objective(WildernessRuntimeTestHarness harness, uint mission, uint objective) =>
             harness.Client.Player.Missions[mission].Objectives[objective].State;
     }
 }
