@@ -55,6 +55,14 @@ Set 7, Stalker Woods (migration `20271104000600_Marshes_stalker_woods`).
 - [ ] 1869 Now Can You Hear Me? (Valverde Marshes): Dudley offers it, level 36. Three AFS Communication Spikes at the accept (needs a free slot). Three personal spike spots (7847, argument 3, states 119 -> 121, named "AFS Communication Spike"): north (-760, 237.3, -508), north-east (-730, 227.3, -490), east (-720, 217.9, -550) of the waypoint; each takes one spike. A marker at each. Turn in at Dudley: 70000 XP, 5550 credits, one of Healing Disc 121201, Ice Staff 121202, Sonic Pistol 121203, Ice Blade 121204. Does a placed spot show the spike? The triage's N (-784, 243, -470) and NE (-740, 243, -480) are on a navmesh island: if the player can reach them, move the spots there. Abandon: the spikes left and the spots go.
 - [ ] 1871 Stop and Smell the Maw Flowers (Valverde Marshes): Retread Duvall (new, -593, 217, -438, the north road, the client's package 950) offers it, no requirement, level 36. Five personal shed flowers (22518-22522, argument 3) on the slope north-east of the camp around (-748, 232.5, -516), a Maw pool of two among them; take five Maw Flowers (no room: the flower waits). One marker round them (radius 15). Turn in at Duvall: 65000 XP, 5400 credits, one of Area Repair Tool 121225, Sonic Torqueshell Rifle 121226, Rifle 121227, Sonic Disperser 121228; he keeps the flowers. Do the flower givers (client classes marked DELETE) draw? North of the camp (-785, 243, -460) is a navmesh island: if the player can reach it, move the flowers and the Maw pool there. Abandon: the flowers and the givers go.
 
+Set 8, Gun Control (migration `20271104000700_Marshes_gun_control`).
+
+- [ ] 1865 Gun Control (Valverde Marshes): Retread Lou (new, -776, 241.5, -542, High Point Retreat, the client's package 2356) offers it, no requirement, level 36. Any Thrax Technician (531047) on the Marshes drops a Thrax Warrant Officer Armor Fragment at 60%, a Lightbender (new pool of 3, level 36, 10406 HP, 100 m east of the camp at -680, 218.2, -520) a Lightbender Rifle Power Core at 50%, while it is open; pick them up from the corpse. 10 fragments, 5 cores. Markers on the technician pools 531283, 531293, 531288 and on the Lightbenders. Turn in at Lou: 65000 XP, 5400 credits, one of Hazmat Gloves 121209, Motor Assist Gloves 121210, Bio Helmet 121211, Reflective Gloves 121212; he keeps the parts. Do the Lightbenders (class 7120, no name) show a name? Are 10 fragments from the scattered technicians too slow?
+- [ ] 1866 Gun Control - Part II (Valverde Marshes): Lou offers it after 1865, level 36. The Mox Electrical Discharge Container at the accept (needs a free slot). Kill 10 Mox (any Marshes Mox 540013): "Number of Mox Killed for Electrical Discharge" 0/10. Markers on the Mox pools 540038 (-495, 218.6, -258) and 540039 (-596, 217.5, -167) north of the camp's hill. Turn in at Lou: 65000 XP, 5400 credits, one of Mech Helmet 121213, Graviton Legs 121214, Stealth Helmet 121215, Bio Legs 121216; he takes the container. Abandon: the container goes.
+- [ ] 1867 Gun Control - Part III (Valverde Marshes): Lou offers it after 1866, level 36. The CGH 9000 Ultra Electric Chaingun at the accept (needs a free slot). 1 "Deliver ... to Shaman Masai" and 2 "You've been sidetracked - speak with Retread Duvall" open. Duvall (-593, 217, -438) offers a choice: "Not a chance" (2 done, nothing else) or "I could use the cash" (2 done, the gun goes, 1 fails, 3 "Return to Shaman Masai without the gun" opens). Shaman Masai (new Forean shaman, -735, 218, 171, Plateau Point, the client's package 991) takes the gun on 1 or hears 3. Markers at Masai (1, 3) and Duvall (2). Turn in at Masai: 65000 XP, 5400 credits, no item. Given: Masai offers 1868; sold: Duvall calls by radio with 1904. Does Duvall's choice window show the body and both answers? Does the failed 1 show as failed in the log? Abandon: the gun goes, no follow-up opens.
+- [ ] 1868 Gun Control - Part IV (Lou) (Valverde Marshes): Masai offers it after 1867 with the gun given (flag 1867001 = 1), level 36. Talk to Lou ("never play poker with a Forean"): 1 done. A marker at Lou. Turn in at Lou: 32500 XP, 3600 credits, one of EMP Machine Gun 121217, Shotgun 121218, Virulent Injection Gun 121219, Sonic Rocket Launcher 121220 (Rare).
+- [ ] 1904 Gun Control - Part IV (Duvall) (Valverde Marshes): Duvall's radio call at 1867's turn-in with the gun sold (flag 1867001 = 2), again on arrival on the Marshes if abandoned, level 36. The call is not a window: it is the status bar's radio indicator (RadioMissionAvailable1904); click it for the offer. Talk to Duvall ("A deals a deal"): 1 done. A marker at Duvall. Turn in at Duvall: 32500 XP, 3600 credits, one of 121217-121220 (1868's). Does the radio offer show Duvall's text?
+
 ## Assumptions and choices (not from a source)
 
 Rules carried over from the Pools batch (`docs/pools-playtest.md`):
@@ -155,6 +163,22 @@ Per mission:
 - 1871: receiver Duvall (the triage's Q19; TaRapedia's Vincent); the flowers are the client's Mawflower item givers
   (Medicinal Measures' way); a hidden objective counts five; one Maw pool of two (Marshes Maw 531052, 120 s) among them.
 
+- Set 8 NPCs: Lou a copy of Retread Vincent's row and look, Masai of Council Elder Moawi's (a Forean shaman with his
+  staff), with their client names and packages (2356, 991), at TaRapedia's /loc. The Lightbender a copy of the Caves of
+  Donn Lightbender 566016 (class 7120, no name) at level 36 with the Hunter Lieutenant's hit points and armour (531054).
+  Levels 36 (TaRapedia for 1866-1868; the camp's for 1865 and 1904).
+- 1865: the Warrant Officers are the Marshes Thrax Technicians (531047, the triage); fragments 60%, cores 50% (no source
+  gives a rate); the objective's 5 cores, not the reminder's 10. The Lightbender pool on the lowland 100 m east of the camp
+  (the log's "to the east"); the triage's north-east place is a navmesh island.
+- 1866: no new Mox pools: north of the camp is a hill the navmesh does not reach; the World DB pools 540038 and 540039 north
+  of it carry the markers. Any Mox counts; the container is not checked at the kill.
+- 1867: 1 and 2 open at the accept (the client gives no trigger for "sidetracked"); a sale fails 1 (optional) and opens 3;
+  hidden 4 completes with 1 or 3. The ending flag 1867001 (1 given, 2 sold) is set only when Masai hears 1 or 3, so an
+  abandon decides nothing. No 50,000 credits for the sale (the triage).
+- 1868 / 1904: exclusive by 1867001, read from 1867's hidden "add the flag" objective (the client has no prerequisite
+  table). 1904 by radio from Duvall (its offer text is his comm call; the triage had Masai); its reward 1868's (TaRapedia's
+  one page; no other client block fits; 121237-121240 are 1875's).
+
 ## Deviations (client/server limits)
 
 - 498: the drop has no area on the server, so Thrax anywhere on the Marshes drop the canister.
@@ -190,6 +214,9 @@ Per mission:
   to (-760, -508) and (-730, -490), the flowers to the slope north-east of the camp. If players reach the northern ground in
   the client, move them back.
 - 1864: fires 2-4 are walked to from High Point Retreat, not from the Paludos waypoint (Paludos's navmesh is cut off).
+- 1865: the drops have no area on the server, so Thrax Technicians anywhere on the Marshes drop the fragments.
+- 1867: delivered straight to Masai, objective 2 stays open (optional) and Duvall no longer asks (his choice needs the
+  gun).
 
 ## Server data that differs from the sources (not changed)
 
