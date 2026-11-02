@@ -35,10 +35,12 @@ namespace Rasa.Test.Missions.Wilderness
             var pravus = Rasa.Services.Preloader.PravusResearchContent.Missions
                 .Concat(Rasa.Services.Preloader.Missions.Torcastra.TorcastraMissionsV1.Enabled).ToArray();
             var minos = Rasa.Services.Preloader.MinosCavernsMissions.Missions;
+            var craterLake = Rasa.Services.Preloader.CraterLakeContent.Missions;
             CollectionAssert.AreEquivalent(expected.Concat(WildernessMissionCases.ProtectedBootcampMissionIds)
-                    .Concat(battlefields).Concat(ojasa).Concat(donn).Concat(den).Concat(pravus).Concat(minos).ToArray(),
+                    .Concat(battlefields).Concat(ojasa).Concat(donn).Concat(den).Concat(pravus).Concat(minos).Concat(craterLake).ToArray(),
                 enabled.Select(entry => entry.MissionId).ToArray());
-            Assert.AreEqual(69 + battlefields.Length + ojasa.Length + donn.Length + den.Length + pravus.Length + minos.Length, enabled.Length);
+            Assert.AreEqual(69 + battlefields.Length + ojasa.Length + donn.Length + den.Length + pravus.Length + minos.Length + craterLake.Length,
+                enabled.Length);
             Assert.IsTrue(expected.All(id => harness.Manager.LoadedMissions[id].IsOperational),
                 "An enabled but nonoperational definition is not outdoor coverage.");
         }

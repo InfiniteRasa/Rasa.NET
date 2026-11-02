@@ -323,6 +323,12 @@ namespace Rasa.Managers
                 ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, refusal);
                 return;
             }
+            // Crater Lake's beacon place wants the beacon, an emptied crate is empty (CraterLakeFacility).
+            if (CraterLakeFacility.Refusal(client, obj) is { } craterLakeRefusal)
+            {
+                ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, craterLakeRefusal);
+                return;
+            }
             if (obj.MissionUseAction != null &&
                 (!MissionUseAvailable(client, obj) ||
                  !(_missionManager ?? MissionApplication.Instance).Scenes.CanUseObject(client, obj, packet.ActionArgId)))

@@ -474,6 +474,9 @@ namespace Rasa.Managers
                     // Pravus Research Facility's story, in each copy of it.
                     Guard("PravusResearchFacility.Worker", mapChannel, () => PravusResearchFacility.Worker(mapChannel));
 
+                    // Crater Lake Research Facility's story, in each copy of it.
+                    Guard("CraterLakeFacility.Worker", mapChannel, () => CraterLakeFacility.Worker(mapChannel));
+
                     // Torcastra Prison's alarm, gate, consoles and Airman Hamilton, in each copy of it.
                     Guard("TorcastraPrison.Worker", mapChannel, () => TorcastraPrison.Worker(mapChannel));
                     Guard("NpcSquads.Worker", mapChannel, () => NpcSquads.Worker(mapChannel));

@@ -196,6 +196,13 @@ namespace Rasa.Managers
                         break;
                     }
 
+                    // One of Crater Lake's usables (CraterLakeFacility), whatever its arg.
+                    if (CraterLakeFacility.IsUseOf(mapChannel, action))
+                    {
+                        CraterLakeFacility.UseRecovery(mapChannel, action);
+                        break;
+                    }
+
                     // A usable of the client's .map (MapUsables), whatever its arg: no object of
                     // the server's has its id.
                     if (MapUsables.IsUseOf(action))
