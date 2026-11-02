@@ -34,6 +34,13 @@ Set 4, the Regulator (migration `20271104000300_Marshes_regulator`).
 - [ ] 1029 The Regulator: Part III (Valverde Marshes): Kaav offers it after 1028, level 37. Kill a Bane Strider: the new pool of one by the Depot (300, 222, -650; level 36, 10406 HP) or the boss Daddy Long-Legs; the Strider Power Core drops always while it is open; pick it up from the corpse. A marker on the pool (radius 20). Turn in at Wilson: 32500 XP, 5550 credits, one of Incendiary Injector Gun 45777, Electric Chaingun 15111, Pulse Pistol 14569, Pulse Cannon 15437; he keeps the core. Is the Strider too strong alone (the client: "maybe with friends")?
 - [ ] 1030 The Regulator: Part IV (Valverde Marshes): Wilson offers it after 1029, level 35. A personal item giver (11114, a hum canister with the scrapper's model) at TaRapedia's /loc in the Paludos Ruins (-2, 217.2, 29); use it (10 s): the AFS Viral Scrapper (no room: the giver waits). A marker, the client name "Paludos Ruins", at the giver (radius 15). Turn in at McCormick: 70000 XP, 5550 credits, the Nanoviral Regulator with every choice and one of Bio Boots 18750, Graviton Boots 23549, Mech Helmet 8855, Stealth Vest 10637. Does the canister draw and show its name? Abandon: the scrapper and the giver go.
 
+Set 5, the sentry tower of Far West Watch (migration `20271104000400_Marshes_sentry_tower`).
+
+- [ ] 1874 Mortar Madness (Valverde Marshes): Sergeant McDonald (new, -124, 224.1, -307.6, the higher tree platform by the AFS sentry tower between the two control points) offers it, no requirement, level 37. Kill 3 Bane Mortars (592006; any on the Marshes counts): eight markers on the mortars of the eastern wall line (177, -554 to 462, 79). Turn in at McDonald: 130000 XP, 7200 credits, one of Motor Assist Helmet 121221, Stealth Legs 121222, Hazmat Helmet 121223, Reflective Helmet 121224. Do mortar kills count in the real client? Several mortars stand on walls: can they be hit from the ground?
+- [ ] 1875 Under the Radar (Valverde Marshes): Warrior Dikah (new Forean spearman, -521, 222.1, -179, Far West Watch) offers it, level 37. A personal black box (22105 UsableItemDispBlackBox, argument 1) at the downed dropship (-51, 217.1, -366); use it: the AFS Dropship Black Box (no room: the box waits). A marker, the client name "Downed Dropship", at the box (radius 15). Turn in at Lt. Kiang (new, inside the sentry tower, -115, 230.9, -319.5, over the tower teleporter): 65000 XP, 5400 credits, one of Pulse Chaingun 121237, Shotgun 121238, Virulent Injector Gun 121239, Sonic Cannon 121240. Does the black box draw, open with a click and change state? Can the player reach Kiang in the tower? If not: move Kiang to the tower foot by teleporter 573 (-117.6, 217.3, -323.9). Abandon: the box and the giver go.
+- [ ] 1876 Under the Radar - Part II, control point version (Valverde Marshes): Kiang offers it after 1875 (with 1877), level 37. A personal Bane computer (20631, argument 1) right outside the Bane Assertion Camp control point (101, 226.1, -289, Ten Ton Hammer); use it: Bane Troop Data (no room: the computer waits). No capture needed. A marker, the client name "Bane Terminal", at the computer. Turn in at Kiang: 140000 XP, 7400 credits, one of Bio 121241, Graviton 121242, Stealth 121243, Mech Boots 121244; he keeps the data. Sets flag 1876001 ("Part II done") for 1870 and 1879. Abandon: the data and the computer go.
+- [ ] 1877 Under the Radar - Part II, Overseer Nelg version (Valverde Marshes): Kiang offers it after 1875 (with 1876), level 37. At the accept your own Overseer Nelg (new, level 38, 12000 HP) stands in his post east of Paludos (170, 224.7, 55, Ten Ton Hammer) and attacks; kill him and loot his corpse: Bane Troop Data (always, while the mission is open). A marker at his post. Turn in at Kiang: 140000 XP, 7400 credits, one of Bio 121245, Graviton 121246, Stealth 121247, Mech Boots 121248. Sets flag 1876001 too. Can the player reach the post (its floor is a navmesh part of its own)? If not: Nelg and his marker on the deck east of it (176.8, 224.68, 41.2). Is Nelg too strong alone? A corpse left to rot (120 s) leaves no data and no new Nelg comes, not after a relog or a server restart either: abandon and take it again.
+
 ## Assumptions and choices (not from a source)
 
 Rules carried over from the Pools batch (`docs/pools-playtest.md`):
@@ -94,6 +101,20 @@ Per mission:
   Credits TaRapedia's 5550 (TR MMO DB 1800).
 - 1030: the giver class 11114 (same model as the scrapper item); rewards (no names on any source) as 890's; the
   Regulator a fixed item. Credits TaRapedia's 5550 (TR MMO DB 1800).
+- Set 5 rewards: the client's item template list has a block of four Uncommon templates per mission whose kinds and levels
+  match TaRapedia's lists in order (121221-121224 for 1874, 121237-121240 for 1875, 121241-121244 and 121245-121248 for the
+  two versions of Part II, lower block for 1876). Set 5 uses these blocks, not the lowest-id rule of sets 1-4.
+- 1874: McDonald a copy of Sergeant Elway's row and look (class 3846, level 10) with the client name 10327 and a
+  server-only package; level 37 (no source). Any Bane Mortar on the Marshes counts; the eight markers are unnamed (the client
+  name 414 "Bane Mortar Position" can key only one marker per objective).
+- 1875: Dikah a Forean spearman with the spear (as Veska), level 37, a server-only package. Kiang a copy of Lieutenant
+  Morrison's row and look with the client name 10326 and a server-only package, on the tower floor at TaRapedia's /loc.
+  The black box giver at Ten Ton Hammer's point by the wreck, states 81 -> 82 (ESTIMATE: the other item givers'; the
+  client has no state entry for 22105).
+- 1876 and 1877: both offered after 1875, both can be done, either sets flag 1876001. 1876 needs no capture (the server's
+  control points drive no mission objective). The data of the computer is 1876's own and does not count for 1877.
+- 1877: Nelg a copy of Overseer Nivvik's row (class 10504, his attacks) at level 38 with 12000 HP (no source), armour 390,
+  set down by the mission at the accept (no dropship shown), in his post, not on the roof.
 
 ## Deviations (client/server limits)
 
@@ -113,6 +134,13 @@ Per mission:
 - 925, 1028, 1029, 1030: the texts say to carry all the parts to McCormick; each part is taken at its own mission's
   turn-in (Wilson, Kaav, Wilson, McCormick). The server binds a mission's issued items (AssignmentIssued: scrap, nanovirus) to that mission, so a later mission cannot take them. The core (a corpse drop, untagged) could be carried to McCormick (DevilsDenContent.cs:830-842 precedent), but a lost core would then block Part IV (1030 has no drop of its own), so each part goes in at its own turn-in.
 - 1030: the Nanoviral Regulator is a plain item: it does not block 913's armour debuff, which the server does not have.
+- 1876: "Engage control point to the east": no capture is needed; the computer stands outside the point (Ten Ton Hammer),
+  and the server's control points cannot complete an objective.
+- 1877: Nelg is not flown in by a dropship (the server's dropship arrivals are public); he stands in his post at the
+  accept. His data is in his corpse only: a corpse that rots before the pickup needs an abandon and a new accept (a
+  defeated scene actor is not set down again).
+- 1876 and 1877: both offered and both can be done (ESTIMATE). TaRapedia's history has the Nelg objective until 2008-04
+  and the control point one after, so retail likely had one version at a time.
 
 ## Server data that differs from the sources (not changed)
 
