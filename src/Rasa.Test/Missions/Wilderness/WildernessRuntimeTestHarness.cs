@@ -59,7 +59,8 @@ namespace Rasa.Test.Missions.Wilderness
             [1347] = ("adv_foreas_concordia_divide_minoscaverns", 293, new Vector3(-15.8f, 29.5f, 122.6f)),
             [1721] = ("adv_foreas_concordia_wilderness_clrf", 290, new Vector3(8.5096f, 140.14f, 158.2927f)),
             [2107] = ("adv_arieki_torden_mires_energyweaponcenter", 214, new Vector3(346.8038f, 97.781f, -0.0524f)),
-            [1348] = ("adv_foreas_concordia_divide_timoramines", 288, new Vector3(-120.049f, 205.74f, 546.935f))
+            [1348] = ("adv_foreas_concordia_divide_timoramines", 288, new Vector3(-120.049f, 205.74f, 546.935f)),
+            [1977] = ("adv_arieki_ligo_burningsteps_magmacaverns", 195, new Vector3(-368.1f, 206.6f, -441.9f))
         };
 
         private uint _mapContextId = 1220;

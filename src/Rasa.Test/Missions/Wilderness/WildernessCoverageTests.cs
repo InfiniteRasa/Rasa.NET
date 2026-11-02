@@ -38,7 +38,8 @@ namespace Rasa.Test.Missions.Wilderness
                 .Concat(Rasa.Services.Preloader.Missions.Torcastra.TorcastraMissionsV1.Enabled).ToArray();
             var minos = Rasa.Services.Preloader.MinosCavernsMissions.Missions
                 .Concat(Rasa.Services.Preloader.Missions.Timora.TimoraMinesMissionsV1.Enabled).ToArray();
-            var craterLake = Rasa.Services.Preloader.CraterLakeContent.Missions;
+            var craterLake = Rasa.Services.Preloader.CraterLakeContent.Missions
+                .Concat(Rasa.Services.Preloader.MagmaCavernsContent.Missions).ToArray();
             var ewc = Rasa.Services.Preloader.EnergyWeaponCenterContent.Missions;
             CollectionAssert.AreEquivalent(expected.Concat(WildernessMissionCases.ProtectedBootcampMissionIds)
                     .Concat(battlefields).Concat(ojasa).Concat(donn).Concat(den).Concat(pravus).Concat(minos).Concat(craterLake).Concat(ewc).ToArray(),

@@ -335,6 +335,12 @@ namespace Rasa.Managers
                 ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, energyWeaponRefusal);
                 return;
             }
+            // Magma Caverns' doors, wormholes, teleporters and the rest by the copy's side (MagmaCaverns).
+            if (MagmaCaverns.Refusal(client, obj) is { } magmaRefusal)
+            {
+                ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, magmaRefusal);
+                return;
+            }
             if (obj.MissionUseAction != null &&
                 (!MissionUseAvailable(client, obj) ||
                  !(_missionManager ?? MissionApplication.Instance).Scenes.CanUseObject(client, obj, packet.ActionArgId)))

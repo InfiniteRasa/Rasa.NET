@@ -274,10 +274,15 @@ namespace Rasa.Managers
             if (entrance != null)
             {
                 var named = Hospitals.Nearest(Hospitals.OnMap(mapContextId), entrance.Value.Position);
-
-                return named == null
+                var graveyards = named == null
                     ? new List<PlayerDeadPacket.Graveyard>()
                     : new List<PlayerDeadPacket.Graveyard> { new PlayerDeadPacket.Graveyard { Id = named.GraveyardId, Position = entrance.Value.Position, IsSafe = named.IsSafe } };
+
+                // A Magma Caverns copy's side has its own hospital besides (MagmaCaverns).
+                if (MagmaCaverns.SideHospital(mapChannel) is { } side && side.GraveyardId != named?.GraveyardId)
+                    graveyards.Add(new PlayerDeadPacket.Graveyard { Id = side.GraveyardId, Position = side.Position, IsSafe = side.IsSafe });
+
+                return graveyards;
             }
 
             return HospitalsFor(victim, mapContextId)
@@ -357,7 +362,14 @@ namespace Rasa.Managers
             var entrance = InstanceEntrances.Of(mapChannel, player);
             Hospitals.Hospital hospital = null;
 
-            if (entrance == null)
+            // A Magma Caverns copy's side hospital, asked for: there rather than the entrance (MagmaCaverns).
+            if (entrance != null && graveyardId.HasValue && MagmaCaverns.SideHospital(mapChannel) is { } side &&
+                side.GraveyardId == (uint)graveyardId.Value)
+            {
+                entrance = null;
+                hospital = side;
+            }
+            else if (entrance == null)
             {
                 var available = HospitalsFor(player, mapChannel.MapInfo.MapContextId);
 

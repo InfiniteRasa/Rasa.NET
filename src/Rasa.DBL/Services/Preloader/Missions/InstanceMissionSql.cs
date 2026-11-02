@@ -81,6 +81,22 @@ namespace Rasa.Services.Preloader.Missions
                 ("comment", $"Objective {objective} action {id}"));
         }
 
+        /// <summary>The transition's action that sets the player's mission flag <paramref name="flag"/> to <paramref name="value"/>.</summary>
+        public void SetFlag(uint objective, uint id, uint flag, uint value, uint transition = 1) =>
+            Insert("mission_action",
+                ("objective_id", objective), ("transition_id", transition), ("action_id", id),
+                ("kind", (byte)MissionActionKind.SetPlayerFlag), ("sequence", id),
+                ("player_flag_id", flag), ("player_flag_value", value),
+                ("comment", $"Objective {objective} action {id}: flag {flag} = {value}"));
+
+        /// <summary>Offered again as soon as it is turned in (mission_repeat_policy Immediate), as PoolsMissionDataV1.RepeatImmediately.</summary>
+        public void RepeatImmediately() =>
+            _sql.Add(Statement("mission_repeat_policy", new (string, object)[]
+            {
+                ("mission_id", _missionId), ("content_revision", _revision),
+                ("repeat_kind", (int)Rasa.Missions.Runtime.MissionRepeatKind.Immediate), ("cooldown_seconds", null), ("reset_second_utc", null)
+            }));
+
         public void RevealAndActivate(uint objective, uint next, uint firstAction = 1, uint transition = 1)
         {
             Action(objective, firstAction, MissionActionKind.RevealObjective, next, transition: transition);

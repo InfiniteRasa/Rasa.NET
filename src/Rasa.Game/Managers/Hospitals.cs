@@ -218,6 +218,10 @@ namespace Rasa.Managers
             var unlocked = KnownWaypointHospitals(player, mapContextId);
             var available = open.Where(h => h.IsFree || Knows(player, h.TeleporterId) || unlocked.Contains(h.TeleporterId)).ToList();
 
+            // Magma Caverns' camp and landing zone hospitals are their side's (MagmaCaverns).
+            available.RemoveAll(h => !MagmaCaverns.Allows(player.MapChannel, h));
+            open.RemoveAll(h => !MagmaCaverns.Allows(player.MapChannel, h));
+
             // The nearest of those the AFS hold - or of them all, should the Bane hold every one.
             if (available.Count == 0 && all.Count > 0)
                 available.Add(Nearest(open.Count > 0 ? open : all, player.Position));

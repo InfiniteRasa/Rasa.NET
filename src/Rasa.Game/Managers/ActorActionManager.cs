@@ -210,6 +210,13 @@ namespace Rasa.Managers
                         break;
                     }
 
+                    // One of Magma Caverns' usables (MagmaCaverns), whatever its arg.
+                    if (MagmaCaverns.IsUseOf(mapChannel, action))
+                    {
+                        MagmaCaverns.UseRecovery(mapChannel, action);
+                        break;
+                    }
+
                     // A usable of the client's .map (MapUsables), whatever its arg: no object of
                     // the server's has its id.
                     if (MapUsables.IsUseOf(action))

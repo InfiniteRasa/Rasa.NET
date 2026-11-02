@@ -480,6 +480,9 @@ namespace Rasa.Managers
                     // The Energy Weapon Center's reactors, generator, coils, tanks and Casso, in each copy of it.
                     Guard("EnergyWeaponCenter.Worker", mapChannel, () => EnergyWeaponCenter.Worker(mapChannel));
 
+                    // Magma Caverns' side and story, in each copy of it.
+                    Guard("MagmaCaverns.Worker", mapChannel, () => MagmaCaverns.Worker(mapChannel));
+
                     // Torcastra Prison's alarm, gate, consoles and Airman Hamilton, in each copy of it.
                     Guard("TorcastraPrison.Worker", mapChannel, () => TorcastraPrison.Worker(mapChannel));
 

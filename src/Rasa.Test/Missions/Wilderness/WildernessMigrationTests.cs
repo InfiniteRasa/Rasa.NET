@@ -45,12 +45,14 @@ namespace Rasa.Test.Missions.Wilderness
         /// (Caves_of_donn), the Devil's Den's eight (Devils_den), Pravus Research's six
         /// (Pravus_research), Torcastra Prison's five (Torcastra_prison), Minos Caverns' four
         /// (Minos_caverns_missions), Crater Lake's ten (Crater_lake), the Energy Weapon Center's
-        /// five (Energy_weapon_center) and Timora Mines' six and Stolen History (Timora_mines).
+        /// five (Energy_weapon_center), Timora Mines' six and Stolen History (Timora_mines) and
+        /// Magma Caverns' five (Magma_caverns).
         /// </summary>
         private static readonly uint[] LaterMissions = BattlefieldMissions.Concat(OjasaHiveContent.Missions)
             .Concat(CavesOfDonnContent.Missions).Concat(DevilsDenContent.Missions).Concat(PravusResearchContent.Missions)
             .Concat(Rasa.Services.Preloader.Missions.Torcastra.TorcastraMissionsV1.Enabled).Concat(MinosCavernsMissions.Missions)
-            .Concat(CraterLakeContent.Missions).Concat(EnergyWeaponCenterContent.Missions).Concat(Rasa.Services.Preloader.Missions.Timora.TimoraMinesMissionsV1.Enabled).ToArray();
+            .Concat(CraterLakeContent.Missions).Concat(EnergyWeaponCenterContent.Missions).Concat(Rasa.Services.Preloader.Missions.Timora.TimoraMinesMissionsV1.Enabled)
+            .Concat(MagmaCavernsContent.Missions).ToArray();
 
         [TestMethod]
         [DataRow(typeof(SqliteWorldContext))]
@@ -608,7 +610,7 @@ namespace Rasa.Test.Missions.Wilderness
         /// <summary>
         /// The evidence of Bootcamp and the Wilderness missions. The battlefields' missions, the
         /// Ojasa hive's, the Caves of Donn's, the Devil's Den's, Pravus Research's, Torcastra's,
-        /// Minos Caverns', Crater Lake's, the Energy Weapon Center's, Timora Mines' and the Plateau's have theirs from migrations dated after these, which come and go with a
+        /// Minos Caverns', Crater Lake's, the Energy Weapon Center's, Timora Mines', Magma Caverns' and the Plateau's have theirs from migrations dated after these, which come and go with a
         /// rollback to one of them.
         /// </summary>
         private static string[] EvidenceRows(WildernessRuntimeTestHarness harness) =>
@@ -620,6 +622,7 @@ namespace Rasa.Test.Missions.Wilderness
                     entry.ContentRevision != MinosCavernsMissions.Revision && entry.ContentRevision != CraterLakeContent.Revision &&
                     entry.ContentRevision != EnergyWeaponCenterContent.Revision &&
                     entry.ContentRevision != Rasa.Services.Preloader.Missions.Timora.TimoraMinesMissionsV1.Revision &&
+                    entry.ContentRevision != MagmaCavernsContent.Revision &&
                     entry.ContentRevision != PlateauMissionDataV1.Revision &&
                     entry.ContentRevision != Rasa.Services.Preloader.Missions.Pools.PoolsMissionDataV1.Revision)
                 // Wilderness_reward_consumables and Wilderness_reward_modules, dated after the
@@ -641,14 +644,16 @@ namespace Rasa.Test.Missions.Wilderness
             // Torcastra's are keyed by the client's ids where it has one (OjasaHiveTests,
             // CavesOfDonnTests, DevilsDenTests, PravusResearchTests, TorcastraPrisonTests). Minos
             // Caverns' too (MinosCavernsMissionsTests), Crater Lake's (CraterLakeTests), the Energy
-            // Weapon Center's (EnergyWeaponCenterTests) and Timora Mines' (TimoraMinesTests).
+            // Weapon Center's (EnergyWeaponCenterTests) Timora Mines' (TimoraMinesTests) and
+            // Magma Caverns' (MagmaCavernsTests).
             var rows = harness.World.MissionIndicatorEntries.AsNoTracking().AsEnumerable()
                 .Where(row => row.ContentRevision != OjasaHiveContent.Revision && row.ContentRevision != CavesOfDonnContent.Revision &&
                     row.ContentRevision != DevilsDenContent.Revision && row.ContentRevision != PravusResearchContent.Revision &&
                     row.ContentRevision != Rasa.Services.Preloader.Missions.Torcastra.TorcastraMissionsV1.Revision &&
                     row.ContentRevision != MinosCavernsMissions.Revision && row.ContentRevision != CraterLakeContent.Revision &&
                     row.ContentRevision != EnergyWeaponCenterContent.Revision &&
-                    row.ContentRevision != Rasa.Services.Preloader.Missions.Timora.TimoraMinesMissionsV1.Revision).ToArray();
+                    row.ContentRevision != Rasa.Services.Preloader.Missions.Timora.TimoraMinesMissionsV1.Revision &&
+                    row.ContentRevision != MagmaCavernsContent.Revision).ToArray();
             var bootcamp = rows.Where(row => row.ContentRevision == "deployment_11").ToArray();
             var wilderness = rows.Where(row => row.ContentRevision == WildernessMissionDataV1.Revision).ToArray();
             var plateau = rows.Where(row => row.ContentRevision == PlateauMissionDataV1.Revision).ToArray();
