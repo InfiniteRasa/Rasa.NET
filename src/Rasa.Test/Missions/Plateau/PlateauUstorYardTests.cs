@@ -3,6 +3,7 @@ extern alias RasaGame;
 using System.Linq;
 using System.Numerics;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Rasa.Data;
 using Rasa.Game;
@@ -12,6 +13,7 @@ using Rasa.Packets.MapChannel.Client;
 using Rasa.Packets.Mission.Server;
 using Rasa.Services.Preloader.Missions.Plateau;
 using Rasa.Structures;
+using Rasa.Structures.World;
 using Rasa.Test.Missions.Wilderness;
 
 namespace Rasa.Test.Missions.Plateau
@@ -97,10 +99,11 @@ namespace Rasa.Test.Missions.Plateau
                 },
                 markers.Where(row => row.MissionId == SilentButDeadly).Select(row => row.ObjectiveId).ToArray());
             var tunnel = PlateauSilentButDeadlyV1.TunnelAt;
-            At(SilentButDeadly, PlateauSilentButDeadlyV1.Detected, tunnel.X, tunnel.Z, PlateauSilentButDeadlyV1.TunnelRadius, "the tunnel");
+            var room = PlateauSilentButDeadlyV1.RoomAt;
+            At(SilentButDeadly, PlateauSilentButDeadlyV1.Detected, room.X, room.Z, PlateauSilentButDeadlyV1.RoomRadius, "the south-east room");
             At(SilentButDeadly, PlateauSilentButDeadlyV1.Patrol, tunnel.X, tunnel.Z, PlateauSilentButDeadlyV1.TunnelRadius, "the tunnel");
             At(SilentButDeadly, PlateauSilentButDeadlyV1.Generator, PlateauSilentButDeadlyV1.GeneratorAt.X, PlateauSilentButDeadlyV1.GeneratorAt.Z,
-                PlateauSilentButDeadlyV1.ObjectRadius, "the generator");
+                PlateauSilentButDeadlyV1.GeneratorRadius, "the generator");
             At(SilentButDeadly, PlateauSilentButDeadlyV1.Upload, PlateauSilentButDeadlyV1.ConsoleAt.X, PlateauSilentButDeadlyV1.ConsoleAt.Z,
                 PlateauSilentButDeadlyV1.ObjectRadius, "the console");
             At(SilentButDeadly, PlateauSilentButDeadlyV1.Computer, PlateauSilentButDeadlyV1.ComputerAt.X, PlateauSilentButDeadlyV1.ComputerAt.Z,
@@ -244,9 +247,9 @@ namespace Rasa.Test.Missions.Plateau
 
         /// <summary>
         /// Silent But Deadly, detected: a fight with a guard pool's Thrax before the generator gives nothing away (1 not open
-        /// yet); after it, one fails 1 and opens 5, the console is locked and the security detail comes up the tunnel. Their
-        /// four kills complete 5, the computer comes, its keyboard (7) completes 4 and the yard's fields go down; Rapp pays as
-        /// on the quiet way.
+        /// yet); after it, one fails 1 and opens 5, the console is locked and the security detail, Yvik and three security,
+        /// stands in the south-east room. Their four kills complete 5, the computer comes, its keyboard (7) completes 4 and
+        /// the yard's fields go down; Rapp pays as on the quiet way.
         /// </summary>
         [TestMethod]
         public void SilentButDeadlyDetectedFailsTheUploadAndTheSecurityDetailIsKilledInstead()
@@ -288,15 +291,18 @@ namespace Rasa.Test.Missions.Plateau
                 Tick(harness, copy, 250);
                 Assert.AreEqual(MissionObjectiveState.Failed, Objective(harness, SilentButDeadly, PlateauSilentButDeadlyV1.Upload), "a second detection");
                 Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, SilentButDeadly, PlateauSilentButDeadlyV1.Detected));
-                Assert.AreEqual(PlateauSilentButDeadlyV1.PatrolAt.Length, Here(copy).Count(creature =>
+                Assert.AreEqual(PlateauSilentButDeadlyV1.DetailAt.Length, Here(copy).Count(creature =>
                     creature.SpawnPool?.SceneActorRole?.StartsWith("security-detail-") == true), "one detail, not two");
 
-                var detail = Enumerable.Range(0, PlateauSilentButDeadlyV1.PatrolAt.Length)
+                var detail = Enumerable.Range(0, PlateauSilentButDeadlyV1.DetailAt.Length)
                     .Select(index => SceneCreature(copy, PlateauSilentButDeadlyV1.DetailRole(index))).ToArray();
                 for (var index = 0; index < detail.Length; index++)
                 {
                     Assert.IsNotNull(detail[index], $"detail {index + 1} comes");
-                    Assert.AreEqual(PlateauUstorYardV1.Security, detail[index].DbId);
+                    Assert.AreEqual(PlateauSilentButDeadlyV1.DetailCreature(index), detail[index].DbId);
+                    Assert.IsLessThan(PlateauSilentButDeadlyV1.RoomRadius, Vector2.Distance(
+                        new(detail[index].Position.X, detail[index].Position.Z),
+                        new((float)PlateauSilentButDeadlyV1.RoomAt.X, (float)PlateauSilentButDeadlyV1.RoomAt.Z)), "in the south-east room, in the marker");
                     Assert.AreEqual(TargetCategory.Hostile, detail[index].TargetCategory);
                     AssertStandsOnNavMesh(copy, detail[index].Position);
                     Assert.IsNull(FindSceneObject(copy, SilentButDeadly, PlateauSilentButDeadlyV1.ComputerRole), "no computer while the detail lives");
@@ -347,7 +353,7 @@ namespace Rasa.Test.Missions.Plateau
                 Detect(harness, Guard(copy, PlateauSilentButDeadlyV1.GuardPools[0]));
                 Assert.AreEqual(MissionObjectiveState.Failed, Objective(harness, SilentButDeadly, PlateauSilentButDeadlyV1.Upload), "detected");
                 Tick(harness, copy, 250);
-                for (var index = 0; index < PlateauSilentButDeadlyV1.PatrolAt.Length; index++)
+                for (var index = 0; index < PlateauSilentButDeadlyV1.DetailAt.Length; index++)
                     Kill(harness, copy, SceneCreature(copy, PlateauSilentButDeadlyV1.DetailRole(index)));
                 Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, SilentButDeadly, PlateauSilentButDeadlyV1.Detected));
                 Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, SilentButDeadly, PlateauSilentButDeadlyV1.Computer));
@@ -844,6 +850,113 @@ namespace Rasa.Test.Missions.Plateau
             {
                 ForgetFields(copy);
             }
+        }
+
+        /// <summary>
+        /// Silent But Deadly's door (PlateauSilentButDeadlyStationV1): a player's report, 2026-10-30, found nothing to do in
+        /// the security station, which was open before the generator. Each of the station's two service entrances now has
+        /// a sealed field across its corridor (every step along the corridor through it is stopped, the navmesh's width), up
+        /// until the charge blows the generator (6), then down for good in the player's copy; the yard's fields stay up.
+        /// </summary>
+        [TestMethod]
+        public void SilentButDeadlyStationDoorsStayShutUntilTheGeneratorBlows()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            EnterPlateau(harness);
+            var copy = IntoUstor(harness);
+            var rapp = Rapp(copy);
+            var doors = PlaceFields(harness, copy, PlateauSilentButDeadlyStationV1.Fields.Select(field => field.Id).ToArray());
+            var yard = PlateauSilentButDeadlyFieldsV1.Fields.Select(field => PlacedDestructibles.LiveOf(copy, field.Id)).ToArray();
+            // Steps along each corridor, outside to inside, at its middle and 1.5 m to each side (the navmesh's corridors:
+            // the east one x 222-240 at z -127..-122, the north one x 158-162 from z -130 south).
+            (Vector3 From, Vector3 To)[] steps =
+            {
+                (new(240, 167, -123), new(228, 166, -123)), (new(240, 167, -124.5f), new(228, 166, -124.5f)),
+                (new(240, 167, -126), new(228, 166, -126)),
+                (new(158.5f, 174.5f, -136), new(158.5f, 174, -152)), (new(160, 174.5f, -136), new(160, 174, -152)),
+                (new(161.5f, 174.5f, -136), new(161.5f, 174, -152)),
+            };
+            try
+            {
+                AssertFieldsUp(copy, doors);
+                foreach (var (from, to) in steps)
+                    Assert.IsTrue(ForceFields.StopsPlayer(copy, from, to), $"the station shut: {from} -> {to}");
+
+                Accept(harness, rapp, SilentButDeadly);
+                AssertFieldsUp(copy, doors);
+                Use(harness, copy, SceneObject(copy, SilentButDeadly, PlateauSilentButDeadlyV1.ChargeRole));
+                Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, SilentButDeadly, PlateauSilentButDeadlyV1.Generator));
+                AssertFieldsDown(copy, doors);
+                foreach (var (from, to) in steps)
+                    Assert.IsFalse(ForceFields.StopsPlayer(copy, from, to), $"the station open: {from} -> {to}");
+                Assert.IsTrue(yard.All(field => field != null && !field.IsDown), "the yard's fields wait for the computer");
+
+                // A copy made again: the player has been through 6, so the doors go down again as soon as they are in.
+                foreach (var row in PlateauSilentButDeadlyStationV1.Fields)
+                    Assert.IsTrue(PlacedDestructibles.HasTakenDown(harness.Client.Player, harness.Manager.LoadedMissions, row.Id),
+                        $"door {row.Id} down again for this player");
+
+                Assert.IsTrue(harness.Manager.TryAbandon(harness.Client, SilentButDeadly));
+                harness.Drain();
+            }
+            finally
+            {
+                ForgetFields(copy);
+            }
+        }
+
+        /// <summary>
+        /// The places of Silent But Deadly against the Ten Ton Hammer guide (2008): the generator and its marker at the
+        /// guide's mission marker (276, 164, -158), its charge inside that marker, the station's entrance north-west of it;
+        /// the computer and its marker on the station's west side (153, 157, -194); the detail, led by Taskmaster Yvik
+        /// (client name 9561), in the south-east room, inside objective 5's marker. Yvik's row: a Thrax as the Officer.
+        /// </summary>
+        [TestMethod]
+        public void SilentButDeadlyPlacesAreTheGuides()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            static float Flat((double X, double Z) a, (double X, double Z) b) =>
+                Vector2.Distance(new((float)a.X, (float)a.Z), new((float)b.X, (float)b.Z));
+            var generator = PlateauSilentButDeadlyV1.GeneratorAt;
+            var charge = PlateauSilentButDeadlyV1.ChargeAt;
+            var computer = PlateauSilentButDeadlyV1.ComputerAt;
+
+            Assert.IsLessThan(1f, Flat((generator.X, generator.Z), (276, -158)), "the generator at the guide's marker");
+            Assert.IsLessThan(PlateauSilentButDeadlyV1.GeneratorRadius, Flat((charge.X, charge.Z), (generator.X, generator.Z)), "the charge in the marker");
+            Assert.IsLessThan(164f, charge.Y, "the charge on the pool floor, not on the generator's rock (to-fix #51)");
+            Assert.IsGreaterThan(3f, Flat((charge.X, charge.Z), (generator.X, generator.Z)), "the charge clear of the generator");
+            Assert.IsTrue(232 < generator.X && -124 > generator.Z, "the east entrance (232, -124) is north-west of the generator");
+            Assert.IsLessThan(1f, Flat((computer.X, computer.Z), (153, -194)), "the computer at the guide's place, the west side");
+            foreach (var at in PlateauSilentButDeadlyV1.DetailAt)
+                Assert.IsLessThan(PlateauSilentButDeadlyV1.RoomRadius, Flat((at.X, at.Z), (PlateauSilentButDeadlyV1.RoomAt.X, PlateauSilentButDeadlyV1.RoomAt.Z)),
+                    $"the detail's {at} in the south-east room's marker");
+            Assert.AreEqual(PlateauSilentButDeadlyStationV1.Yvik, PlateauSilentButDeadlyV1.DetailCreature(0), "Yvik leads the detail");
+
+            var yvik = harness.World.CreatureEntries.AsNoTracking().Single(row => row.Id == PlateauSilentButDeadlyStationV1.Yvik);
+            Assert.AreEqual(PlateauSilentButDeadlyStationV1.YvikName, yvik.NameId, "Taskmaster Yvik");
+            Assert.AreEqual(PlateauUstorYardV1.ThraxClass, yvik.ClassId);
+            Assert.AreEqual(PlateauUstorYardV1.SecurityLevel, yvik.Level);
+            Assert.AreEqual(PlateauUstorYardV1.OfficerHitPoints, yvik.MaxHitPoints);
+        }
+
+        /// <summary>
+        /// The station migration rolled back: Yvik and the station's doors go, the mission stays (with the new places) and its
+        /// detail names no creature that is gone; the yard's fields and their take-downs stay.
+        /// </summary>
+        [TestMethod]
+        public void SilentButDeadlyStationRollsBackWithItsMigration()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            world.GetService<Microsoft.EntityFrameworkCore.Migrations.IMigrator>().Migrate("20271006000000_Pools_turpis_refinery");
+            Assert.IsFalse(world.CreatureEntries.AsNoTracking().Any(row => row.Id == PlateauSilentButDeadlyStationV1.Yvik), "Yvik gone");
+            var doors = PlateauSilentButDeadlyStationV1.Fields.Select(field => field.Id).ToArray();
+            Assert.IsFalse(world.WorldDestructibleEntries.AsNoTracking().Any(row => doors.Contains(row.Id)), "the doors gone");
+            Assert.AreEqual(PlateauSilentButDeadlyFieldsV1.Fields.Length, world.MissionActionEntries.AsNoTracking().Count(entry =>
+                entry.MissionId == SilentButDeadly && entry.Kind == MissionActionKind.TakeDownField), "only the yard's take-downs");
+            var binding = world.Set<MissionSceneBindingEntry>().AsNoTracking().Single(row => row.MissionId == SilentButDeadly);
+            Assert.DoesNotContain($"\"templateId\":{PlateauSilentButDeadlyStationV1.Yvik},", binding.Bindings, "no actor of a creature that is gone");
+            Assert.Contains($"\"templateId\":{PlateauUstorYardV1.Security},", binding.Bindings);
         }
 
         /// <summary>A living Thrax of the guard pool <paramref name="pool"/> in the copy, spawned if none stands.</summary>
