@@ -157,9 +157,13 @@ Per mission:
   objective). Rewards the lowest template of each client class in TaRapedia's stacks.
 - 881: seven harvesters 40-60 m apart in the swamp east of Falcon Hold (Ten Ton Hammer "the swamp to the east", "pick any
   five"), each a body (7908) with a Bane item crate (11116) as the tap 3 m east; a hidden objective counts five samples.
+  Since to-fix 20 (migration `20271104002600_Marshes_harvesters_dry_ground`) the seven places stand on dry ground at
+  the Northern Mud Pit (terrain above the pit's water at y 214.68, 1-11 m from the first places; ESTIMATE, the client
+  map has no harvester): in the water a player swam and could not fire.
   Vetter stays at his upstream spot (Ten Ton Hammer's is 15 m off). Rewards TaRapedia's armour kinds and slots in the band
   that holds 33 (Ten Ton Hammer's older weapon list not used).
-- 890: five destructible harvesters (7906) at 881's first five places, 500 hit points each. Rewards (no names on any
+- 890: five destructible harvesters (7906) at 881's first five places, 500 hit points each. A kill goes to the client
+  as the class's Use chain 110, 185, 186, 2 (its explosion, then its wreck mesh 23998), as upstream's DestroyableStates. Rewards (no names on any
   source): the lowest Uncommon template of the 35 band for Bio, Graviton, Mech and Stealth.
 - 913: open world (patch note under "Marshes"). Four joints of two receptacles (log 8, client 4 objectives), at the
   pipeline ends of the client map, one at TaRapedia's (734, 213, -149); any order. Eight detonators, the lower template

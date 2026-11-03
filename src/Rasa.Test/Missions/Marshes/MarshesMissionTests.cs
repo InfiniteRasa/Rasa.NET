@@ -150,6 +150,7 @@ namespace Rasa.Test.Missions.Marshes
         private const string CleaningHouseV3 = "20271104002300_Marshes_cleaning_house_v3";
         private const string QuestNpcsHold = "20271104002400_Marshes_quest_npcs_hold";
         private const string FoodChainTroughs = "20271104002500_Marshes_food_chain_troughs";
+        private const string HarvestersDryGround = "20271104002600_Marshes_harvesters_dry_ground";
 
         /// <summary>
         /// The migration directly before <paramref name="migration"/> (IMigrationsAssembly, ordinal order), the target that
@@ -1034,7 +1035,7 @@ namespace Rasa.Test.Missions.Marshes
             foreach (var (x, _, z) in MarshesPaludosNpcsV1.AliaBeat)
                 Assert.IsLessThan(MarshesPaludosNpcsV1.AliaBeatRadius, Vector2.Distance(new((float)x, (float)z), new(-387, 492.2f)), "the beat in her marker");
             // Every harvester inside the field's marker; both receptacles of each joint inside its joint's.
-            foreach (var at in MarshesHarvestersNpcsV1.Harvesters.Concat(MarshesReapingTheHarvestV1.Taps))
+            foreach (var at in MarshesHarvesterPlacesV2.Harvesters.Concat(MarshesHarvesterPlacesV2.Taps))
                 Assert.IsLessThan(MarshesHarvestersNpcsV1.FieldRadius - 5, Vector2.Distance(new(at.X, at.Z), new(26, 646)), "a harvester in the field marker");
             foreach (var (_, _, _, _, joint, receptacles) in MarshesBuriedGasLinesV1.JointRows)
                 foreach (var at in receptacles)
@@ -1919,7 +1920,7 @@ namespace Rasa.Test.Missions.Marshes
         }
 
         /// <summary>
-        /// The playtest-fix migrations (to-fix 10, 13-17 and 19, 894's notes) roll back one by one to the rows the live server had, and come
+        /// The playtest-fix migrations (to-fix 10, 13-17, 19 and 20, 894's notes) roll back one by one to the rows the live server had, and come
         /// back: Marshes_playtest_fixes writes 664, 548, 718, 920, 893 and 1078 as sets 12-16 applied them (664's hidden tally
         /// 2, 548's block C marker at 728, no 718 hidden 8, no 920 approach, no choice flag on 893's and 1078's offers; the
         /// elder's marker as Marshes_safe_ground moved it);
@@ -1962,6 +1963,13 @@ namespace Rasa.Test.Missions.Marshes
             int Troughs() => Count($"SELECT COUNT(*) AS Value FROM mission_scene_binding WHERE mission_id = 961 AND content_revision = '{revision}' AND bindings LIKE '%216.743%'") +
                 Count($"SELECT COUNT(*) AS Value FROM mission_indicator WHERE mission_id = 961 AND content_revision = '{revision}' AND pos_y < 217");
             Assert.AreEqual(13, Troughs(), "to-fix 19: the feeders at their troughs, the twelve markers with them");
+            int Dry() => Count($"SELECT COUNT(*) AS Value FROM mission_scene_binding WHERE mission_id IN (881, 890) AND content_revision = '{revision}' AND bindings LIKE '%217.14%'");
+            Assert.AreEqual(2, Dry(), "to-fix 20: 881's and 890's harvesters on dry ground");
+            migrator.Migrate(Previous(world, HarvestersDryGround));
+            Assert.AreEqual(0, Dry(), "881 and 890 as Marshes_harvesters applied them");
+            Assert.AreEqual(2, world.MissionContentDefinitionEntries.Count(entry => (entry.MissionId == 881 || entry.MissionId == 890) && entry.ContentRevision == revision), "881 and 890 stay");
+            Assert.AreEqual(1, Count($"SELECT COUNT(*) AS Value FROM mission_prerequisite WHERE mission_id = 890 AND content_revision = '{revision}'"), "890 still needs 881");
+            Assert.AreEqual(13, Troughs(), "to-fix 19 stays");
             migrator.Migrate(Previous(world, FoodChainTroughs));
             Assert.AreEqual(0, Troughs(), "961 as Marshes_falcon_hold applied it");
             Assert.IsTrue(world.MissionContentDefinitionEntries.Any(entry => entry.MissionId == 961 && entry.ContentRevision == revision), "961 stays");
@@ -2004,6 +2012,8 @@ namespace Rasa.Test.Missions.Marshes
             Assert.AreEqual((33, 33, 2), Hold(), "to-fix 17 back");
             migrator.Migrate(FoodChainTroughs);
             Assert.AreEqual(13, Troughs(), "to-fix 19 back");
+            migrator.Migrate(HarvestersDryGround);
+            Assert.AreEqual(2, Dry(), "to-fix 20 back");
         }
 
         /// <summary>

@@ -36,11 +36,11 @@ namespace Rasa.Test.Missions.Marshes
     [DoNotParallelize]
     public class MarshesHarvestersTests
     {
-        private const uint Reaping = MarshesReapingTheHarvestV1.MissionId;
-        private const uint Hassling = MarshesHasslingTheHarvestersV1.MissionId;
+        private const uint Reaping = MarshesReapingTheHarvestV2.MissionId;
+        private const uint Hassling = MarshesHasslingTheHarvestersV2.MissionId;
         private const uint GasLines = MarshesBuriedGasLinesV1.MissionId;
         private const uint Butcher = MarshesButcherBakerCaretakerV1.MissionId;
-        private const uint Vetter = MarshesReapingTheHarvestV1.Vetter, Kline = MarshesHasslingTheHarvestersV1.Kline;
+        private const uint Vetter = MarshesReapingTheHarvestV2.Vetter, Kline = MarshesHasslingTheHarvestersV2.Kline;
         private const uint Taavik = MarshesButcherBakerCaretakerV1.Taavik, Brazos = MarshesHarvestersNpcsV1.Brazos;
         private const uint Morrison = MarshesItLiesInRuinsV1.Morrison;
         private const uint MissionItemFiller = 11519;      // as PlateauCampResistanceTests
@@ -85,8 +85,8 @@ namespace Rasa.Test.Missions.Marshes
             var offer = WildernessRanjaGorgeTests.Offer(harness, vetter, Reaping);
             CollectionAssert.AreEqual(new[]
                 {
-                    MarshesReapingTheHarvestV1.BioVest, MarshesReapingTheHarvestV1.StealthBoots,
-                    MarshesReapingTheHarvestV1.HazmatLegs, MarshesReapingTheHarvestV1.ReflectiveGloves
+                    MarshesReapingTheHarvestV2.BioVest, MarshesReapingTheHarvestV2.StealthBoots,
+                    MarshesReapingTheHarvestV2.HazmatLegs, MarshesReapingTheHarvestV2.ReflectiveGloves
                 },
                 offer.SelectableReward.Select(item => item.ItemTemplateId).ToArray());
             Assert.IsFalse(PlateauRetreadCampTests.Offers(harness, morrison, Reaping), "not Morrison's to give");
@@ -96,16 +96,16 @@ namespace Rasa.Test.Missions.Marshes
             var (bodies, taps) = Harvesters(harness, marshes);
             var completed = 0;
             var completeable = 0;
-            for (var index = 0; index < MarshesReapingTheHarvestV1.Samples; index++)
+            for (var index = 0; index < MarshesReapingTheHarvestV2.Samples; index++)
             {
-                Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Reaping, MarshesReapingTheHarvestV1.Collect), $"open before tap {index + 1}");
+                Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Reaping, MarshesReapingTheHarvestV2.Collect), $"open before tap {index + 1}");
                 Tap(harness, marshes, taps[index], recovers: true);
-                Assert.AreEqual((UseObjectState)MarshesReapingTheHarvestV1.TakenState, taps[index].StateId, $"tap {index + 1} taken");
+                Assert.AreEqual((UseObjectState)MarshesReapingTheHarvestV2.TakenState, taps[index].StateId, $"tap {index + 1} taken");
                 Assert.IsFalse(taps[index].IsEnabled, $"tap {index + 1} closed");
                 Assert.AreEqual((uint)index + 1, Samples(harness), $"a sample from tap {index + 1}");
                 var drained = harness.Drain();
                 completed += drained.OfType<ObjectiveCompletedPacket>().Count(packet => packet.MissionId == Reaping &&
-                    packet.ObjectiveId == MarshesReapingTheHarvestV1.Collect);
+                    packet.ObjectiveId == MarshesReapingTheHarvestV2.Collect);
                 completeable += drained.OfType<MissionCompleteablePacket>().Count(packet => packet.MissionId == Reaping && packet.IsCompleteable);
                 if (index == 0)
                 {
@@ -116,28 +116,28 @@ namespace Rasa.Test.Missions.Marshes
                 {
                     WildernessRanjaGorgeTests.Reload(harness);
                     Assert.AreEqual(3U, Samples(harness), "kept at a reload");
-                    Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Reaping, MarshesReapingTheHarvestV1.Collect));
+                    Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Reaping, MarshesReapingTheHarvestV2.Collect));
                     harness.Drain();
                     (bodies, taps) = Harvesters(harness, marshes, taken: 3);
                 }
             }
-            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Reaping, MarshesReapingTheHarvestV1.Collect), "five sampled");
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Reaping, MarshesReapingTheHarvestV2.Collect), "five sampled");
             Assert.AreEqual((1, 1), (completed, completeable), "ObjectiveCompleted and MissionCompleteable once");
-            foreach (var spare in taps.Skip((int)MarshesReapingTheHarvestV1.Samples))
+            foreach (var spare in taps.Skip((int)MarshesReapingTheHarvestV2.Samples))
                 Tap(harness, marshes, spare, recovers: false);
-            Assert.AreEqual(MarshesReapingTheHarvestV1.Samples, Samples(harness), "the sixth and seventh give nothing");
+            Assert.AreEqual(MarshesReapingTheHarvestV2.Samples, Samples(harness), "the sixth and seventh give nothing");
             Assert.IsTrue(bodies.All(body => !body.IsEnabled), "the harvester bodies take no use");
 
             harness.MoveTo(morrison.Position);
             harness.Drain();
             Assert.IsFalse(harness.Manager.CompleteOfferedMission(harness.Client, morrison.EntityId, Reaping, 0), "not Morrison's to take");
-            FullBagWaits(harness, vetter, Reaping, 0, MarshesReapingTheHarvestV1.StealthBoots);
+            FullBagWaits(harness, vetter, Reaping, 0, MarshesReapingTheHarvestV2.StealthBoots);
             FailedTurnInPaysNothing(harness, vetter, Reaping, 0);
-            Assert.AreEqual(MarshesReapingTheHarvestV1.Samples, Samples(harness), "kept at the failed turn-in");
+            Assert.AreEqual(MarshesReapingTheHarvestV2.Samples, Samples(harness), "kept at the failed turn-in");
             WildernessRanjaGorgeTests.CompleteAndCheckReward(harness, vetter, Reaping, 0,
-                MarshesReapingTheHarvestV1.Experience, MarshesReapingTheHarvestV1.Credits);
+                MarshesReapingTheHarvestV2.Experience, MarshesReapingTheHarvestV2.Credits);
             Assert.AreEqual(1, harness.Drain().OfType<MissionRewardedPacket>().Count(packet => packet.MissionId == Reaping));
-            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, MarshesReapingTheHarvestV1.BioVest), "the selected vest");
+            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, MarshesReapingTheHarvestV2.BioVest), "the selected vest");
             Assert.AreEqual(0U, Samples(harness), "Vetter keeps them");
             Assert.IsFalse(PlateauRetreadCampTests.Offers(harness, vetter, Reaping), "done once");
         }
@@ -155,22 +155,22 @@ namespace Rasa.Test.Missions.Marshes
 
             harness.MoveTo(taps[0].Position + new Vector3(0, 0, 1));
             harness.Drain();
-            Use(harness, marshes, taps[0], MarshesReapingTheHarvestV1.UseArgument, recovers: true);
+            Use(harness, marshes, taps[0], MarshesReapingTheHarvestV2.UseArgument, recovers: true);
             Assert.AreEqual(0U, Samples(harness), "no room");
             Assert.IsTrue(taps[0].IsEnabled, "the tap waits");
-            Assert.AreEqual((UseObjectState)MarshesReapingTheHarvestV1.ReadyState, taps[0].StateId);
+            Assert.AreEqual((UseObjectState)MarshesReapingTheHarvestV2.ReadyState, taps[0].StateId);
             WildernessAliaBranchesTests.FreeOneSlot(harness, MissionItemFiller);
             Tap(harness, marshes, taps[0], recovers: true);
             Assert.AreEqual(1U, Samples(harness), "with room it gives");
             // The refused use did not count: the fifth sample, not the fourth, completes the objective.
-            for (var index = 1; index < MarshesReapingTheHarvestV1.Samples; index++)
+            for (var index = 1; index < MarshesReapingTheHarvestV2.Samples; index++)
             {
-                Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Reaping, MarshesReapingTheHarvestV1.Collect),
+                Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Reaping, MarshesReapingTheHarvestV2.Collect),
                     $"open before sample {index + 1}");
                 Tap(harness, marshes, taps[index], recovers: true);
                 Assert.AreEqual((uint)index + 1, Samples(harness), $"sample {index + 1}");
             }
-            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Reaping, MarshesReapingTheHarvestV1.Collect), "complete at the fifth");
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Reaping, MarshesReapingTheHarvestV2.Collect), "complete at the fifth");
 
             Assert.IsTrue(harness.Manager.TryAbandon(harness.Client, Reaping));
             harness.Drain();
@@ -178,8 +178,34 @@ namespace Rasa.Test.Missions.Marshes
             Assert.IsFalse(marshes.DynamicObjects.Any(obj => obj.SceneMissionId == Reaping && obj.IsInWorld), "the harvesters go with it");
             Assert.IsTrue(PlateauRetreadCampTests.Offers(harness, vetter, Reaping), "offered again after an abandon");
             Accept(harness, vetter, Reaping);
-            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Reaping, MarshesReapingTheHarvestV1.Collect), "the old samples do not count");
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Reaping, MarshesReapingTheHarvestV2.Collect), "the old samples do not count");
             Harvesters(harness, marshes);
+        }
+
+        /// <summary>
+        /// To-fix row 20: in the real client a harvester killed with one shot still stood whole. Why this test: the client's
+        /// class 7906 has the InertDestroyable states (augmentation 41: 110, 185, 186, 2; usabledata alternateMesh (7906, 2) the
+        /// wreck mesh 23998, specialFX (7906, 186, 2) the explosion), so the kill must reach the client as the Use chain
+        /// 110 to 185 to 186 to 2 (DestroyableStates), each a Use to the player, never a lone ForceState.
+        /// </summary>
+        [TestMethod]
+        public void AHarvesterKilledWithOneShotShowsItsExplosionAndWreck()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            SeedCompletedMarshes(harness, Reaping);
+            var marshes = EnterMarshes(harness);
+            Accept(harness, Npc(marshes, Kline), Hassling);
+            var target = Targets(harness, marshes)[0];
+            harness.MoveTo(target.Position + new Vector3(0, 0, 1));
+            harness.Drain();
+            var action = new ActionData(harness.Client.Player, ActionId.WeaponAttack, 133, 0) { TargetId = target.EntityId };
+            MissileManager.Instance.MissileLaunch(marshes, action, (int)target.CurrentHitPoints);
+            MissileManager.Instance.DoWork(marshes, 1000);
+            var sent = harness.Drain();
+            var states = sent.OfType<Rasa.Packets.MapChannel.Server.UsePacket>().Select(packet => packet.CurState).ToArray();
+            System.Console.WriteLine("890 kill packets: " + string.Join(", ", sent.Select(packet => packet.GetType().Name)) + " / use " + string.Join(", ", states));
+            CollectionAssert.AreEqual(new[] { UseObjectState.IdesState50pHealth, UseObjectState.IdesState25pHealth, UseObjectState.StateDestroyed }, states);
+            Assert.IsFalse(sent.OfType<Rasa.Packets.MapChannel.Server.ForceStatePacket>().Any(), "no lone ForceState");
         }
 
         [TestMethod]
@@ -197,8 +223,8 @@ namespace Rasa.Test.Missions.Marshes
             var offer = WildernessRanjaGorgeTests.Offer(harness, kline, Hassling);
             CollectionAssert.AreEqual(new[]
                 {
-                    MarshesHasslingTheHarvestersV1.BioBoots, MarshesHasslingTheHarvestersV1.GravitonBoots,
-                    MarshesHasslingTheHarvestersV1.MechHelmet, MarshesHasslingTheHarvestersV1.StealthVest
+                    MarshesHasslingTheHarvestersV2.BioBoots, MarshesHasslingTheHarvestersV2.GravitonBoots,
+                    MarshesHasslingTheHarvestersV2.MechHelmet, MarshesHasslingTheHarvestersV2.StealthVest
                 },
                 offer.SelectableReward.Select(item => item.ItemTemplateId).ToArray());
             Assert.IsFalse(PlateauRetreadCampTests.Offers(harness, vetter, Hassling), "not Vetter's to give");
@@ -206,43 +232,43 @@ namespace Rasa.Test.Missions.Marshes
             Assert.IsEmpty(Topics(harness, kline, Hassling), "Kline hears no objective");
 
             var targets = Targets(harness, marshes);
-            Shoot(harness, marshes, targets[0], (int)MarshesHasslingTheHarvestersV1.HarvesterHitPoints - 1);
+            Shoot(harness, marshes, targets[0], (int)MarshesHasslingTheHarvestersV2.HarvesterHitPoints - 1);
             Assert.AreEqual(1U, targets[0].CurrentHitPoints, "hit, not down");
-            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Hassling, MarshesHasslingTheHarvestersV1.Destroy));
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Hassling, MarshesHasslingTheHarvestersV2.Destroy));
             var completed = 0;
             var completeable = 0;
             for (var index = 0; index < targets.Length; index++)
             {
-                Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Hassling, MarshesHasslingTheHarvestersV1.Destroy), $"open before harvester {index + 1}");
+                Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Hassling, MarshesHasslingTheHarvestersV2.Destroy), $"open before harvester {index + 1}");
                 Shoot(harness, marshes, targets[index], (int)targets[index].CurrentHitPoints);
                 Assert.AreEqual(0U, targets[index].CurrentHitPoints, $"harvester {index + 1} down");
-                Assert.AreEqual((UseObjectState)MarshesHasslingTheHarvestersV1.DestroyedState, targets[index].StateId, $"harvester {index + 1} wrecked");
+                Assert.AreEqual((UseObjectState)MarshesHasslingTheHarvestersV2.DestroyedState, targets[index].StateId, $"harvester {index + 1} wrecked");
                 var drained = harness.Drain();
                 completed += drained.OfType<ObjectiveCompletedPacket>().Count(packet => packet.MissionId == Hassling);
                 completeable += drained.OfType<MissionCompleteablePacket>().Count(packet => packet.MissionId == Hassling && packet.IsCompleteable);
                 if (index == 1)
                 {
                     WildernessRanjaGorgeTests.Reload(harness);
-                    Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Hassling, MarshesHasslingTheHarvestersV1.Destroy), "kept at a reload");
+                    Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Hassling, MarshesHasslingTheHarvestersV2.Destroy), "kept at a reload");
                     harness.Drain();
                     targets = Targets(harness, marshes, down: 2);
                     Shoot(harness, marshes, targets[0], 100);
-                    Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Hassling, MarshesHasslingTheHarvestersV1.Destroy),
+                    Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Hassling, MarshesHasslingTheHarvestersV2.Destroy),
                         "a wreck does not count twice");
                 }
             }
-            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Hassling, MarshesHasslingTheHarvestersV1.Destroy), "five down");
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Hassling, MarshesHasslingTheHarvestersV2.Destroy), "five down");
             Assert.AreEqual((1, 1), (completed, completeable), "ObjectiveCompleted and MissionCompleteable once");
 
             harness.MoveTo(vetter.Position);
             harness.Drain();
             Assert.IsFalse(harness.Manager.CompleteOfferedMission(harness.Client, vetter.EntityId, Hassling, 1), "not Vetter's to take");
-            FullBagWaits(harness, kline, Hassling, 1, MarshesHasslingTheHarvestersV1.BioBoots);
+            FullBagWaits(harness, kline, Hassling, 1, MarshesHasslingTheHarvestersV2.BioBoots);
             FailedTurnInPaysNothing(harness, kline, Hassling, 1);
             WildernessRanjaGorgeTests.CompleteAndCheckReward(harness, kline, Hassling, 1,
-                MarshesHasslingTheHarvestersV1.Experience, MarshesHasslingTheHarvestersV1.Credits);
+                MarshesHasslingTheHarvestersV2.Experience, MarshesHasslingTheHarvestersV2.Credits);
             Assert.AreEqual(1, harness.Drain().OfType<MissionRewardedPacket>().Count(packet => packet.MissionId == Hassling));
-            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, MarshesHasslingTheHarvestersV1.GravitonBoots), "the selected boots");
+            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, MarshesHasslingTheHarvestersV2.GravitonBoots), "the selected boots");
             Assert.IsFalse(PlateauRetreadCampTests.Offers(harness, kline, Hassling), "done once");
         }
 
@@ -265,7 +291,7 @@ namespace Rasa.Test.Missions.Marshes
             Assert.IsFalse(marshes.DynamicObjects.Any(obj => obj.SceneMissionId == Hassling && obj.IsInWorld), "the harvesters go with it");
             Assert.IsTrue(PlateauRetreadCampTests.Offers(harness, kline, Hassling), "offered again after an abandon");
             Accept(harness, kline, Hassling);
-            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Hassling, MarshesHasslingTheHarvestersV1.Destroy));
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Hassling, MarshesHasslingTheHarvestersV2.Destroy));
             Targets(harness, marshes);
         }
 
@@ -488,27 +514,28 @@ namespace Rasa.Test.Missions.Marshes
         {
             DynamicObject Role(string role) => marshes.DynamicObjects.Single(obj => obj.SceneMissionId == Reaping &&
                 obj.SceneActorRole == role && obj.IsInWorld);
-            var count = MarshesReapingTheHarvestV1.Harvesters.Length;
-            var bodies = Enumerable.Range(0, count).Select(index => Role(MarshesReapingTheHarvestV1.BodyRole(index))).ToArray();
-            var taps = Enumerable.Range(0, count).Select(index => Role(MarshesReapingTheHarvestV1.TapRole(index))).ToArray();
+            var count = MarshesReapingTheHarvestV2.Harvesters.Length;
+            var bodies = Enumerable.Range(0, count).Select(index => Role(MarshesReapingTheHarvestV2.BodyRole(index))).ToArray();
+            var taps = Enumerable.Range(0, count).Select(index => Role(MarshesReapingTheHarvestV2.TapRole(index))).ToArray();
             for (var index = 0; index < count; index++)
             {
-                var at = MarshesReapingTheHarvestV1.Harvesters[index];
-                var tapAt = MarshesReapingTheHarvestV1.Taps[index];
-                Assert.AreEqual(MarshesReapingTheHarvestV1.BodyClass, (uint)bodies[index].EntityClassId, $"body {index + 1}");
-                Assert.AreEqual(MarshesReapingTheHarvestV1.TapClass, (uint)taps[index].EntityClassId, $"tap {index + 1}");
+                var at = MarshesReapingTheHarvestV2.Harvesters[index];
+                var tapAt = MarshesReapingTheHarvestV2.Taps[index];
+                Assert.AreEqual(MarshesReapingTheHarvestV2.BodyClass, (uint)bodies[index].EntityClassId, $"body {index + 1}");
+                Assert.AreEqual(MarshesReapingTheHarvestV2.TapClass, (uint)taps[index].EntityClassId, $"tap {index + 1}");
                 Assert.AreEqual(new Vector3(at.X, at.Y, at.Z), bodies[index].Position);
                 Assert.AreEqual(new Vector3(tapAt.X, tapAt.Y, tapAt.Z), taps[index].Position);
                 Assert.IsLessThan(4f, Vector3.Distance(bodies[index].Position, taps[index].Position), "the tap at the harvester's base");
                 Assert.AreEqual(harness.Client.Player.Id, bodies[index].SceneOwnerCharacterId, "the player's own");
                 Assert.AreEqual(harness.Client.Player.Id, taps[index].SceneOwnerCharacterId, "the player's own");
                 Assert.IsFalse(bodies[index].IsEnabled, $"body {index + 1} takes no use");
-                Assert.AreEqual(index < taken ? MarshesReapingTheHarvestV1.TakenState : MarshesReapingTheHarvestV1.ReadyState, (uint)taps[index].StateId,
+                Assert.AreEqual(index < taken ? MarshesReapingTheHarvestV2.TakenState : MarshesReapingTheHarvestV2.ReadyState, (uint)taps[index].StateId,
                     $"tap {index + 1} state");
                 Assert.AreEqual(index >= taken, taps[index].IsEnabled, $"tap {index + 1} open");
                 foreach (var obj in new[] { bodies[index], taps[index] })
                 {
                     AssertOnGround(marshes, obj.Position, $"harvester {index + 1}");
+                    AssertDry(obj.Position, $"harvester {index + 1}");
                     Assert.IsTrue(marshes.NavMesh.FindPath(FalconHoldWaypoint, obj.Position, out var complete) != null && complete,
                         $"harvester {index + 1} is walked to");
                 }
@@ -516,22 +543,30 @@ namespace Rasa.Test.Missions.Marshes
             return (bodies, taps);
         }
 
+        /// <summary>
+        /// To-fix row 20: the places stood in the Northern Mud Pit's water (the client map's swamp water tiles at y 214.68), where
+        /// a player swims and cannot fire. Why this check: each harvester and tap stands on ground well above that water.
+        /// </summary>
+        private static void AssertDry(Vector3 at, string what) =>
+            Assert.IsGreaterThan(MarshesHarvesterPlacesV2.WaterLevel + 1.5f, at.Y, $"{what} on dry ground, above the pit's water");
+
         /// <summary>890's five harvesters: the player's own destructibles at 881's first five places; all whole but the first <paramref name="down"/>.</summary>
         private static DynamicObject[] Targets(WildernessRuntimeTestHarness harness, MapChannel marshes, int down = 0)
         {
-            var targets = Enumerable.Range(0, (int)MarshesHasslingTheHarvestersV1.Count).Select(index => marshes.DynamicObjects.Single(obj =>
-                obj.SceneMissionId == Hassling && obj.SceneActorRole == MarshesHasslingTheHarvestersV1.HarvesterRole(index) && obj.IsInWorld)).ToArray();
+            var targets = Enumerable.Range(0, (int)MarshesHasslingTheHarvestersV2.Count).Select(index => marshes.DynamicObjects.Single(obj =>
+                obj.SceneMissionId == Hassling && obj.SceneActorRole == MarshesHasslingTheHarvestersV2.HarvesterRole(index) && obj.IsInWorld)).ToArray();
             for (var index = 0; index < targets.Length; index++)
             {
                 var target = targets[index];
-                var at = MarshesHarvestersNpcsV1.Harvesters[index];
-                Assert.AreEqual(MarshesHasslingTheHarvestersV1.HarvesterClass, (uint)target.EntityClassId, $"harvester {index + 1}");
+                var at = MarshesHarvesterPlacesV2.Harvesters[index];
+                Assert.AreEqual(MarshesHasslingTheHarvestersV2.HarvesterClass, (uint)target.EntityClassId, $"harvester {index + 1}");
                 Assert.AreEqual(new Vector3(at.X, at.Y, at.Z), target.Position);
                 Assert.AreEqual(harness.Client.Player.Id, target.SceneOwnerCharacterId, "the player's own");
-                Assert.AreEqual(index < down ? 0U : MarshesHasslingTheHarvestersV1.HarvesterHitPoints, target.CurrentHitPoints, $"harvester {index + 1} hit points");
-                Assert.AreEqual(index < down ? MarshesHasslingTheHarvestersV1.DestroyedState : MarshesHasslingTheHarvestersV1.IntactState,
+                Assert.AreEqual(index < down ? 0U : MarshesHasslingTheHarvestersV2.HarvesterHitPoints, target.CurrentHitPoints, $"harvester {index + 1} hit points");
+                Assert.AreEqual(index < down ? MarshesHasslingTheHarvestersV2.DestroyedState : MarshesHasslingTheHarvestersV2.IntactState,
                     (uint)target.StateId, $"harvester {index + 1} state");
                 AssertOnGround(marshes, target.Position, $"harvester {index + 1}");
+                AssertDry(target.Position, $"harvester {index + 1}");
                 Assert.IsTrue(marshes.NavMesh.FindPath(FalconHoldWaypoint, target.Position, out var complete) != null && complete,
                     $"harvester {index + 1} is walked to");
             }
@@ -571,7 +606,7 @@ namespace Rasa.Test.Missions.Marshes
         {
             harness.MoveTo(tap.Position + new Vector3(0, 0, 1));
             harness.Drain();
-            Use(harness, marshes, tap, MarshesReapingTheHarvestV1.UseArgument, recovers);
+            Use(harness, marshes, tap, MarshesReapingTheHarvestV2.UseArgument, recovers);
         }
 
         private static void Plant(WildernessRuntimeTestHarness harness, MapChannel marshes, DynamicObject receptacle, bool recovers)
@@ -592,7 +627,7 @@ namespace Rasa.Test.Missions.Marshes
         }
 
         private static uint Samples(WildernessRuntimeTestHarness harness) =>
-            WildernessRanjaGorgeTests.Held(harness, MarshesReapingTheHarvestV1.SampleTemplate);
+            WildernessRanjaGorgeTests.Held(harness, MarshesReapingTheHarvestV2.SampleTemplate);
 
         private static uint Detonators(WildernessRuntimeTestHarness harness) =>
             WildernessRanjaGorgeTests.Held(harness, MarshesBuriedGasLinesV1.DetonatorTemplate);
