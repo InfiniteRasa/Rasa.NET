@@ -966,12 +966,12 @@ namespace Rasa.Test.Missions.Marshes
                 (718, 5, 632, -200, 8), (718, 6, 608, -104, 8),                               // the dispenser, the teleporter
                 (1674, 1, -160, -902, 8), (1674, 1, -160, -868, 6),                           // Jumna, the lake's teleporter
                 (1076, 2, 755.08, 727.67, 10), (1076, 2, -107, -355, 15), (1076, 1, 181, -118, 8),   // the door, the travel point, the spot
-                (893, 1, 755.08, 727.67, 10), (893, 1, 130, -18, 10),                          // the door, the elder
+                (893, 1, 755.08, 727.67, 10), (893, 1, 127, -27, 10),  // the elder moved (to-fix 4)                          // the door, the elder
                 (1078, 1, 25, 270, 12), (1078, 2, -33, 390, 8), (1078, 3, -31, 396, 18),       // Myrquar, the Logos, the control room
                 (1078, 4, -320.8, -6.8, 8),                                                   // Toida
                 (1077, 1, -33, 390, 8), (1077, 2, -31, 396, 18), (1077, 3, -320.8, -6.8, 8),   // the Logos, the control room, Toida
-                (891, 1, 100.8, -236.8, 40), (891, 1, 106, -242, 8),                          // P'reo Das, Kirii
-                (892, 1, 97, -227, 25), (892, 1, 239.2, 0.4, 15), (892, 1, 90, -244, 8),      // the fallen, Rakla
+                (891, 1, 100.8, -236.8, 40), (891, 1, 132, -235, 8),                          // P'reo Das, Kirii
+                (892, 1, 97, -227, 25), (892, 1, 239.2, 0.4, 15), (892, 1, 75, -254, 8),      // the fallen, Rakla
                 (894, 1, 25, 315, 35), (894, 8, 10, 330, 8), (894, 9, 37.2, 330.75, 8),       // the pumps
                 (894, 10, -19.49, 300.31, 8), (894, 11, 69.81, 299.78, 8),
                 (894, 6, 250, 8, 15), (894, 6, 75, -122, 15), (894, 6, 145, 14, 15),          // the camps
@@ -1340,7 +1340,8 @@ namespace Rasa.Test.Missions.Marshes
             var full = (7, 17, 11, 12, 3, 16, 2, 2);
 
             Assert.IsTrue(setFive.All(Has));
-            Assert.AreEqual(full, SetFive());
+            // At the head Dikah has his stat row too (Marshes_safe_ground, to-fix 4); up to set 5 again he has none.
+            Assert.AreEqual((7, 18, 11, 12, 3, 16, 2, 2), SetFive());
             Assert.AreEqual(4, Kept());
 
             world.GetService<IMigrator>().Migrate(Previous(world, SentryTower));
