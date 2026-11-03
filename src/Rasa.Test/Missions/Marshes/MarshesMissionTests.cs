@@ -152,6 +152,7 @@ namespace Rasa.Test.Missions.Marshes
         private const string FoodChainTroughs = "20271104002500_Marshes_food_chain_troughs";
         private const string HarvestersDryGround = "20271104002600_Marshes_harvesters_dry_ground";
         private const string NpcsInTheOpen = "20271104002700_Marshes_npcs_in_the_open";
+        private const string FirePitsLit = "20271104002800_Marshes_fire_pits_lit";
 
         /// <summary>
         /// The migration directly before <paramref name="migration"/> (IMigrationsAssembly, ordinal order), the target that
@@ -1921,7 +1922,7 @@ namespace Rasa.Test.Missions.Marshes
         }
 
         /// <summary>
-        /// The playtest-fix migrations (to-fix 10, 13-17 and 19-22, 894's notes) roll back one by one to the rows the live server had, and come
+        /// The playtest-fix migrations (to-fix 10, 13-17 and 19-23, 894's notes) roll back one by one to the rows the live server had, and come
         /// back: Marshes_playtest_fixes writes 664, 548, 718, 920, 893 and 1078 as sets 12-16 applied them (664's hidden tally
         /// 2, 548's block C marker at 728, no 718 hidden 8, no 920 approach, no choice flag on 893's and 1078's offers; the
         /// elder's marker as Marshes_safe_ground moved it);
@@ -1971,6 +1972,12 @@ namespace Rasa.Test.Missions.Marshes
             Assert.AreEqual(2, Kaav(462), "to-fix 21: Kaav and his marker in the open");
             int Kiang(double y) => Count($"SELECT COUNT(*) AS Value FROM spawnpool WHERE id = {MarshesSentryTowerNpcsV1.Kiang} AND CAST(pos_y AS INTEGER) = {(int)y}");
             Assert.AreEqual(1, Kiang(216.88), "to-fix 22: Kiang at the tower's foot");
+            int ColdFires() => Count($"SELECT COUNT(*) AS Value FROM mission_scene_binding WHERE mission_id = 1864 AND content_revision = '{revision}' AND bindings LIKE '%\"initialObjectState\":56%'");
+            Assert.AreEqual(1, ColdFires(), "to-fix 23: the pits start cold (56)");
+            migrator.Migrate(Previous(world, FirePitsLit));
+            Assert.AreEqual(0, ColdFires(), "1864 as Marshes_stalker_woods applied it");
+            Assert.IsTrue(world.MissionContentDefinitionEntries.Any(entry => entry.MissionId == 1864 && entry.ContentRevision == revision), "1864 stays");
+            Assert.AreEqual(1, Kiang(216.88), "to-fix 22 stays");
             migrator.Migrate(Previous(world, NpcsInTheOpen));
             Assert.AreEqual(2, Kaav(440), "Kaav and his marker as Marshes_regulator put them");
             Assert.AreEqual(1, Kiang(230.88), "Kiang in the tower room as Marshes_sentry_tower put him");
@@ -2027,6 +2034,8 @@ namespace Rasa.Test.Missions.Marshes
             migrator.Migrate(NpcsInTheOpen);
             Assert.AreEqual(2, Kaav(462), "to-fix 21 back");
             Assert.AreEqual(1, Kiang(216.88), "to-fix 22 back");
+            migrator.Migrate(FirePitsLit);
+            Assert.AreEqual(1, ColdFires(), "to-fix 23 back");
         }
 
         /// <summary>

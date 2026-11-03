@@ -38,7 +38,7 @@ namespace Rasa.Test.Missions.Marshes
     public class MarshesStalkerWoodsTests
     {
         private const uint Missing = MarshesMissingInActionV1.MissionId;
-        private const uint Fires = MarshesLightTheFiresV1.MissionId;
+        private const uint Fires = MarshesLightTheFiresV2.MissionId;
         private const uint Spikes = MarshesNowCanYouHearMeV1.MissionId;
         private const uint Flowers = MarshesMawFlowersV1.MissionId;
         private const uint Jeska = MarshesStalkerWoodsNpcsV1.Jeska, Dudley = MarshesStalkerWoodsNpcsV1.Dudley;
@@ -168,10 +168,10 @@ namespace Rasa.Test.Missions.Marshes
             var offer = WildernessRanjaGorgeTests.Offer(harness, dudley, Fires);
             CollectionAssert.AreEqual(new[]
                 {
-                    (MarshesLightTheFiresV1.EmpBomb, MarshesLightTheFiresV1.EmpBombs),
-                    (MarshesLightTheFiresV1.PowerCharger, MarshesLightTheFiresV1.PowerChargers),
-                    (MarshesLightTheFiresV1.ConcussionGrenade, MarshesLightTheFiresV1.ConcussionGrenades),
-                    (MarshesLightTheFiresV1.FragGrenade, MarshesLightTheFiresV1.FragGrenades)
+                    (MarshesLightTheFiresV2.EmpBomb, MarshesLightTheFiresV2.EmpBombs),
+                    (MarshesLightTheFiresV2.PowerCharger, MarshesLightTheFiresV2.PowerChargers),
+                    (MarshesLightTheFiresV2.ConcussionGrenade, MarshesLightTheFiresV2.ConcussionGrenades),
+                    (MarshesLightTheFiresV2.FragGrenade, MarshesLightTheFiresV2.FragGrenades)
                 },
                 offer.SelectableReward.Select(item => (item.ItemTemplateId, item.Quantity)).ToArray());
             Assert.IsFalse(PlateauRetreadCampTests.Offers(harness, jeska, Fires), "not Jeska's to give");
@@ -184,11 +184,17 @@ namespace Rasa.Test.Missions.Marshes
             Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Fires, 5), "argument 3 is not the client's");
 
             // Counterclockwise: the camp's own fire first.
-            Take(harness, marshes, fires[4], MarshesLightTheFiresV1.UseArgument);
+            Take(harness, marshes, fires[4], MarshesLightTheFiresV2.UseArgument);
             var lit = harness.Drain();
             Assert.AreEqual(1, lit.OfType<ObjectiveCompletedPacket>().Count(packet => packet.MissionId == Fires && packet.ObjectiveId == 5),
                 "ObjectiveCompleted once");
-            Assert.AreEqual((UseObjectState)MarshesLightTheFiresV1.LitState, fires[4].StateId, "lit");
+            Assert.AreEqual((UseObjectState)MarshesLightTheFiresV2.LitState, fires[4].StateId, "lit");
+            // To-fix 23: the client shows 6137's fire in state 55 (usabledata specialFX and animation (6137, 55, 97)); the pit
+            // starts at 56 and the light is a Use to 55.
+            Assert.AreEqual((UseObjectState.TsState1, UseObjectState.TsState0),
+                ((UseObjectState)MarshesLightTheFiresV2.ColdState, (UseObjectState)MarshesLightTheFiresV2.LitState), "cold 56, lit 55");
+            Assert.IsTrue(lit.OfType<Rasa.Packets.MapChannel.Server.UsePacket>().Any(packet => packet.CurState == UseObjectState.TsState0),
+                "the client is told the fire's state");
             Assert.IsFalse(fires[4].IsEnabled, "done");
             Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Fires, 1), "the others wait");
             WildernessRanjaGorgeTests.Reload(harness);
@@ -198,12 +204,12 @@ namespace Rasa.Test.Missions.Marshes
 
             foreach (var index in new[] { 3, 2, 1 })
             {
-                Take(harness, marshes, fires[index], MarshesLightTheFiresV1.UseArgument);
+                Take(harness, marshes, fires[index], MarshesLightTheFiresV2.UseArgument);
                 harness.Drain();
                 Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Fires, (uint)index + 1));
             }
             Assert.IsFalse(harness.Client.Player.Missions[Fires].Completeable, "one fire left");
-            Take(harness, marshes, fires[0], MarshesLightTheFiresV1.UseArgument);
+            Take(harness, marshes, fires[0], MarshesLightTheFiresV2.UseArgument);
             var last = harness.Drain();
             Assert.AreEqual(1, last.OfType<MissionCompleteablePacket>().Count(packet => packet.MissionId == Fires && packet.IsCompleteable),
                 "MissionCompleteable once");
@@ -212,9 +218,9 @@ namespace Rasa.Test.Missions.Marshes
             FullBagWaits(harness, dudley, Fires, 1, ConsumableFiller);
             FailedTurnInPaysNothing(harness, dudley, Fires, 1);
             WildernessRanjaGorgeTests.CompleteAndCheckReward(harness, dudley, Fires, 1,
-                MarshesLightTheFiresV1.Experience, MarshesLightTheFiresV1.Credits);
+                MarshesLightTheFiresV2.Experience, MarshesLightTheFiresV2.Credits);
             Assert.AreEqual(1, harness.Drain().OfType<MissionRewardedPacket>().Count(packet => packet.MissionId == Fires), "MissionRewarded once");
-            Assert.AreEqual(MarshesLightTheFiresV1.PowerChargers, WildernessRanjaGorgeTests.Held(harness, MarshesLightTheFiresV1.PowerCharger),
+            Assert.AreEqual(MarshesLightTheFiresV2.PowerChargers, WildernessRanjaGorgeTests.Held(harness, MarshesLightTheFiresV2.PowerCharger),
                 "the selected chargers");
             Assert.IsFalse(PlateauRetreadCampTests.Offers(harness, dudley, Fires), "done once");
         }
@@ -227,7 +233,7 @@ namespace Rasa.Test.Missions.Marshes
             var marshes = EnterMarshes(harness);
             var dudley = Npc(marshes, Dudley);
             Accept(harness, dudley, Fires);
-            Take(harness, marshes, FirePits(harness, marshes)[4], MarshesLightTheFiresV1.UseArgument);
+            Take(harness, marshes, FirePits(harness, marshes)[4], MarshesLightTheFiresV2.UseArgument);
             harness.Drain();
             Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Fires, 5));
 
@@ -442,8 +448,8 @@ namespace Rasa.Test.Missions.Marshes
         private static DynamicObject[] FirePits(WildernessRuntimeTestHarness harness, MapChannel marshes, int lit = 0)
         {
             var fires = Placed(harness, marshes, Fires, "signal-fire-",
-                MarshesLightTheFiresV1.Fires.Select(fire => new Vector3(fire.At.X, fire.At.Y, fire.At.Z)).ToArray(), lit, "five fires");
-            Assert.IsTrue(fires.All(fire => (uint)fire.EntityClassId == MarshesLightTheFiresV1.FireClass));
+                MarshesLightTheFiresV2.Fires.Select(fire => new Vector3(fire.At.X, fire.At.Y, fire.At.Z)).ToArray(), lit, "five fires");
+            Assert.IsTrue(fires.All(fire => (uint)fire.EntityClassId == MarshesLightTheFiresV2.FireClass));
             return fires;
         }
 
