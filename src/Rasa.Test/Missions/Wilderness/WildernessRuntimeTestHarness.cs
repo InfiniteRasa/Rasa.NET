@@ -56,7 +56,14 @@ namespace Rasa.Test.Missions.Wilderness
             [1394] = ("adv_foreas_concordia_palisades_devilsden", 327, new Vector3(16.7733f, 122.6238f, -398.1859f)),
             [1430] = ("adv_foreas_concordia_wilderness_pravusresearch", 555, new Vector3(-193.5236f, 9.9638f, -257.405f)),
             [1349] = ("adv_foreas_concordia_divide_torcastraprison", 468, new Vector3(-262f, 13.7f, 310f)),
-            [1347] = ("adv_foreas_concordia_divide_minoscaverns", 293, new Vector3(-15.8f, 29.5f, 122.6f))
+            [1347] = ("adv_foreas_concordia_divide_minoscaverns", 293, new Vector3(-15.8f, 29.5f, 122.6f)),
+            [1721] = ("adv_foreas_concordia_wilderness_clrf", 290, new Vector3(8.5096f, 140.14f, 158.2927f)),
+            [2107] = ("adv_arieki_torden_mires_energyweaponcenter", 214, new Vector3(346.8038f, 97.781f, -0.0524f)),
+            [1348] = ("adv_foreas_concordia_divide_timoramines", 288, new Vector3(-120.049f, 205.74f, 546.935f)),
+            [1977] = ("adv_arieki_ligo_burningsteps_magmacaverns", 195, new Vector3(-368.1f, 206.6f, -441.9f)),
+            [1384] = ("adv_foreas_concordia_palisades_warnetcaverns", 203, new Vector3(-132.2f, 101.7f, 42.0f)),
+            [1773] = ("adv_arieki_torden_plains_attacolony", 274, new Vector3(-25.749f, 312.4597f, 184.0261f)),
+            [2034] = ("adv_arieki_torden_plains_penalresearch", 230, new Vector3(24.1922f, 0.5697f, -0.0818f))
         };
 
         private uint _mapContextId = 1220;

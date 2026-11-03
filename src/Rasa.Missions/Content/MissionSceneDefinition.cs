@@ -15,6 +15,9 @@ namespace Rasa.Missions.Content
         /// <summary>World effects are refused outside this map; zero leaves the scene unrestricted.</summary>
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         public uint MapContextId { get; set; }
+        /// <summary>Objective id -> indicator id -> map id, for markers outside the mission's default map.</summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public Dictionary<uint, Dictionary<uint, uint>> IndicatorMaps { get; set; }
         public MissionAudioDefinition Audio { get; set; }
         public Dictionary<string, SceneActorDefinition> Actors { get; set; } = new(StringComparer.Ordinal);
         public Dictionary<string, SceneRoute> Routes { get; set; } = new(StringComparer.Ordinal);

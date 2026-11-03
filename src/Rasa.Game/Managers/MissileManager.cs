@@ -673,6 +673,14 @@ namespace Rasa.Managers
                     continue;
                 }
 
+                // A creature dead or dying since it fired: the shot is dropped, its recovery with
+                // it, so its body is not seen firing after its death - the recovery is what plays
+                // the shot on the clients.
+                if (!missile.AfterWindup && missile.Source is Creature fallen
+                    && (fallen.State == CharacterState.Dead || fallen.State == CharacterState.Dying
+                        || !fallen.Attributes.TryGetValue(Attributes.Health, out var fallenHealth) || fallenHealth.Current <= 0))
+                    continue;
+
                 // A shot held for its flight (ShotFlight) whose shooter has left the map since -
                 // through a waypoint, or out of the game: it lands on nothing. The shooter's
                 // cell is where its recovery is sent, and that is on another map now.
@@ -946,7 +954,8 @@ namespace Rasa.Managers
                 missile.Missed = ToHit.Misses(missile);
 
                 if (missile.Missed == true && missile.HeldForFlight && missile.SplashRadius <= 0
-                    && (missile.ConeTargets == null || missile.ConeTargets.Count == 0))
+                    && (missile.ConeTargets == null || missile.ConeTargets.Count == 0)
+                    && (missile.ConeObjects == null || missile.ConeObjects.Count == 0))
                 {
                     missile.TriggerTime = 0;
                     missile.HeldForFlight = false;
@@ -1025,18 +1034,39 @@ namespace Rasa.Managers
         /// SplashRadius of where it landed takes SplashDamage as a hit of its own, and is added
         /// to the missile's hits so the one recovery shows them all. A creature's splashes
         /// whatever it may fight there, players and creatures (CreatureAreaAttacks.FoesAround).
+        /// A player's also splashes the objects there their weapon can damage, and lands as well
+        /// on an object as on a creature.
         /// </summary>
         private void SplashAround(MapChannel mapChannel, Missile missile)
         {
-            if (missile.SplashRadius <= 0 || missile.SplashDamage <= 0 || !(missile.Source is Actor shooter)
-                || missile.TargetActor == null || !IsOnMap(mapChannel, missile.TargetActor))
+            if (missile.SplashRadius <= 0 || missile.SplashDamage <= 0 || !(missile.Source is Actor shooter))
                 return;
 
-            var centre = missile.TargetActor.Position;
+            // Where it landed: on the creature or player it hit, or on the object (a fuel
+            // container, a placed or a .map destructible) - which used to splash nothing at all.
+            Vector3 centre, blast;
+
+            if (missile.TargetActor != null && IsOnMap(mapChannel, missile.TargetActor))
+            {
+                centre = missile.TargetActor.Position;
+
+                // The blast goes out from the middle of the target hit, and a wall or a force field
+                // between it and someone keeps it off them (InBlast): a grenade at a player in the
+                // open hit whoever was within five metres, the far side of a wall or a gate's field.
+                blast = Cover.Middle(missile.TargetActor);
+            }
+            else if (missile.TargetActor == null && missile.TargetObject != null)
+            {
+                centre = missile.TargetObject.Position;
+                blast = Cover.BlastFrom(centre);
+            }
+            else
+                return;
+
             var victims = shooter switch
             {
                 Manifestation player => AbilityManager.VictimsWithin(mapChannel, player, centre, missile.SplashRadius),
-                Creature creature when creature.State != CharacterState.Dead && IsOnMap(mapChannel, creature)
+                Creature creature when creature.State != CharacterState.Dead && IsOnMap(mapChannel, creature) && missile.TargetActor != null
                     => CreatureAreaAttacks.FoesAround(mapChannel, creature, centre, missile.SplashRadius, missile.TargetActor),
                 _ => new List<Actor>()
             };
@@ -1045,25 +1075,60 @@ namespace Rasa.Managers
             var damage = RangeFalloff.Scale(missile.SplashDamage, missile.OptimalRange, shooter.Position, centre);
 
             foreach (var victim in victims)
-                if (victim != missile.TargetActor)
+                if (victim != missile.TargetActor && InBlast(mapChannel, shooter, blast, victim))
                     ExtraHit(mapChannel, missile, shooter, victim, damage, false);
+
+            // And the objects around it a player's weapon can damage, the one it hit aside (its own
+            // hit is the missile's), each listed with the rest (PracticeTargetManager.Blast).
+            if (damage > 0)
+                foreach (var (obj, amount) in PracticeTargetManager.Blast(mapChannel, shooter, centre, missile.SplashRadius,
+                             () => damage, except: missile.TargetObject))
+                {
+                    missile.Args.HitEntities.Add(obj.EntityId);
+                    missile.Args.HitData.Add(new HitData { EntityId = obj.EntityId, FinalAmt = amount });
+                }
         }
+
+        /// <summary>
+        /// Whether a splash from <paramref name="blast"/> reaches the victim: any of its sample
+        /// points in the clear of the map's collision (Cover), and no intact force field that
+        /// stops the shooter in between (ForceFields.Blocks).
+        /// </summary>
+        internal static bool InBlast(MapChannel mapChannel, Actor shooter, Vector3 blast, Actor victim) =>
+            Cover.Reaches(mapChannel, shooter, blast, victim);
 
         /// <summary>
         /// A cone weapon's other victims (ConeWeapons): each creature that was in the cone when the
         /// shot was fired and is still there to be hit takes the shot's damage with its own crit
-        /// roll, and the hit carries what the shot carries - a shotgun's knockback chance.
+        /// roll, and the hit carries what the shot carries - a shotgun's knockback chance. Each
+        /// object that was in it and can still be hit takes the damage as a weapon's hit
+        /// (PracticeTargetManager.RecordHit), listed in the recovery with the rest.
         /// </summary>
         private void ConeHits(MapChannel mapChannel, Missile missile)
         {
-            if (missile.ConeTargets == null || missile.ConeDamage <= 0 || !(missile.Source is Manifestation shooter))
+            if (missile.ConeDamage <= 0 || !(missile.Source is Manifestation shooter))
                 return;
 
             // Each at its own distance (RangeFalloff).
-            foreach (var victim in missile.ConeTargets)
+            foreach (var victim in missile.ConeTargets ?? new List<Actor>())
                 if (victim != missile.TargetActor && IsOnMap(mapChannel, victim))
                     ExtraHit(mapChannel, missile, shooter, victim,
                         RangeFalloff.Scale(missile.ConeDamage, missile.OptimalRange, shooter.Position, victim.Position), true);
+
+            foreach (var obj in missile.ConeObjects ?? new List<DynamicObject>())
+            {
+                if (ReferenceEquals(obj, missile.TargetObject) || !PracticeTargetManager.CanHit(mapChannel, shooter, obj))
+                    continue;
+
+                var damage = RangeFalloff.Scale(missile.ConeDamage, missile.OptimalRange, shooter.Position, obj.Position);
+
+                if (damage <= 0)
+                    continue;
+
+                PracticeTargetManager.RecordHit(mapChannel, shooter, obj, missile.ActionId, damage: damage, damageType: missile.DamageType);
+                missile.Args.HitEntities.Add(obj.EntityId);
+                missile.Args.HitData.Add(new HitData { EntityId = obj.EntityId, FinalAmt = damage });
+            }
         }
 
         /// <summary>
@@ -1126,7 +1191,7 @@ namespace Rasa.Managers
         /// player's hit goes through in DoDamageToPlayer, knockback and stun included - and is
         /// added to the missile's hits so the one recovery shows them all.
         /// </summary>
-        private void CreatureAreaHits(MapChannel mapChannel, Missile missile)
+        private void CreatureAreaHits(MapChannel mapChannel, Missile missile, bool aroundTarget = true)
         {
             if (!(missile.Source is Creature attacker) || attacker.State == CharacterState.Dead || !IsOnMap(mapChannel, attacker))
                 return;
@@ -1143,7 +1208,7 @@ namespace Rasa.Managers
 
             var area = missile.AreaOverride ?? CreatureAreaAttacks.AreaOf(missile.ActionId, missile.ActionArgId);
 
-            if (!area.IsArea)
+            if (!area.IsArea || (!aroundTarget && area.AroundTarget > 0))
                 return;
 
             foreach (var player in CreatureAreaAttacks.PlayersCaught(mapChannel, attacker, area, missile.TargetActor, missile.AreaCentre))
@@ -1186,29 +1251,59 @@ namespace Rasa.Managers
 
         /// <summary>
         /// Aims a cone weapon (ConeWeapons) as it is fired: every hostile creature within its reach
-        /// and half-angle of the way the shooter faces. A cone weapon cannot lock a target ("you
-        /// will not be able to lock onto a target while this type of weapon is equipped"), so
-        /// whatever the shooter had selected plays no part: the missile flies at the nearest
-        /// creature in the cone, the rest are its other victims, and an empty cone is a shot at
-        /// nothing.
+        /// and half-angle of the way the shooter faces, and every object a weapon can damage there
+        /// (PracticeTargetManager.TargetsInCone). A cone weapon cannot lock a target ("you will not
+        /// be able to lock onto a target while this type of weapon is equipped"), so whatever the
+        /// shooter had selected plays no part: the missile flies at the nearest creature in the
+        /// cone - or, with none, the nearest object - the rest are its other victims, and an empty
+        /// cone is a shot at nothing. Objects were never looked for: a shotgun could not touch Cache
+        /// of the Day's fuel containers, which a rifle or a pistol, locked on, destroys.
         /// </summary>
         private static void AimCone(MapChannel mapChannel, Manifestation shooter, ActionData action, Missile missile, float halfAngle, int damage)
         {
             var range = ConeWeapons.RangeOf(action.ActionId, action.ActionArgId) + ConeWeapons.RangeSlack;
-            var inCone = AbilityManager.VictimsInCone(mapChannel, shooter, AbilityManager.FacingOf(shooter), range, halfAngle)
+            var aim = AbilityManager.FacingOf(shooter);
+            var inCone = AbilityManager.VictimsInCone(mapChannel, shooter, aim, range, halfAngle)
                 .Where(c => c.State != CharacterState.Dead && c.State != CharacterState.Dying)
                 .OrderBy(c => Vector3.DistanceSquared(c.Position, shooter.Position))
+                .ToList();
+            var objects = PracticeTargetManager.TargetsInCone(mapChannel, shooter, aim, range, halfAngle)
+                .OrderBy(obj => Vector3.DistanceSquared(obj.Position, shooter.Position))
                 .ToList();
 
             var primary = inCone.FirstOrDefault();
 
-            action.TargetId = primary?.EntityId ?? 0;
+            if (primary != null)
+            {
+                action.TargetId = primary.EntityId;
+                missile.ConeObjects = objects;
+            }
+            else
+            {
+                action.TargetId = objects.FirstOrDefault()?.EntityId ?? 0;
+                missile.ConeObjects = objects.Skip(1).ToList();
+            }
+
             missile.ConeTargets = inCone.Skip(1).ToList();
             missile.ConeDamage = damage;
         }
 
         public void MissileTrigger(MapChannel mapChannel, Missile missile)
         {
+            // A hospital revive keeps the same actor and map. A blow queued before death
+            // must not resolve against their newly restored health (or move its splash there).
+            if (missile.TargetActor is Manifestation revived && missile.TargetDeathGeneration != revived.DeathGeneration)
+            {
+                missile.DamageA = 0;
+                missile.Args.HitEntities.Clear();
+                missile.Args.HitData.Clear();
+                missile.Args.MisstEntities.Add(missile.TargetEntityId);
+                missile.Args.Missdata.Add(MissTypeMiss);
+                if (missile.Source != null)
+                    CellManager.Instance.CellCallMethod(mapChannel, missile.Source, CreatureAttacks.RecoveryFor(missile));
+                return;
+            }
+
             var targetType = EntityManager.Instance.GetEntityType(missile.TargetEntityId);
 
             // A destructible prop of the .map (WorldDestructibles) is an object, as it was at the launch.
@@ -1246,6 +1341,44 @@ namespace Rasa.Managers
                     missile.Args.Missdata.Add(MissTypeMiss);
                 }
                 Logger.WriteLog(LogType.Debug, $"Retired manual-combat missile from {manual.EntityId} was rejected.");
+                CellManager.Instance.CellCallMethod(mapChannel, missile.Source, CreatureAttacks.RecoveryFor(missile));
+                return;
+            }
+
+            // A standing force field between them takes the shot, whichever way it is going: in
+            // from outside or out from inside (ForceFields.Stopping) - before the sight check
+            // below, which would only have it go wide. It goes into the field - as
+            // damage, if its shooter is one the field stops and may hurt it (MayShoot) - and is a
+            // miss on what it was aimed at. A melee blow through the sheet is stopped as well.
+            if ((targetType == EntityType.Character || targetType == EntityType.Creature) && missile.Source != null
+                && ForceFields.Stopping(mapChannel, missile.Source, missile.TargetActor) is ForceFields.Field wall)
+            {
+                if (ForceFields.MayShoot(wall, missile.Source))
+                    ForceFields.Damage(wall, missile.DamageA, missile.Source.EntityId);
+
+                missile.DamageA = 0;
+                missile.Args.MisstEntities.Add(missile.TargetEntityId);
+                missile.Args.Missdata.Add(MissTypeMiss);
+
+                CellManager.Instance.CellCallMethod(mapChannel, missile.Source, CreatureAttacks.RecoveryFor(missile));
+                return;
+            }
+
+            // A creature's shot or ability lands only on a target its shooter can see as it lands
+            // (BehaviorManager.Sees): one who has gone behind something - a hill, a wall, a gate's
+            // field - since it was fired, or while it was wound up or charged, is not hit through
+            // it, and the shot goes wide. It used to land, cover taking all but a tenth of it
+            // (Cover.MinModifier) - a hit through the wall. Nothing goes off round a target it
+            // cannot reach; a cone or a ring round the creature itself still lands on the rest
+            // it reaches (CreatureAreaHits). Melee is not aimed by sight.
+            if ((targetType == EntityType.Character || targetType == EntityType.Creature) && !missile.IsMelee
+                && missile.Source is Creature firer && !BehaviorManager.Sees(mapChannel, firer, missile.TargetActor))
+            {
+                missile.Args.MisstEntities.Add(missile.TargetEntityId);
+                missile.Args.Missdata.Add(MissTypeMiss);
+
+                CreatureAreaHits(mapChannel, missile, aroundTarget: false);
+
                 CellManager.Instance.CellCallMethod(mapChannel, missile.Source, CreatureAttacks.RecoveryFor(missile));
                 return;
             }
@@ -1296,20 +1429,6 @@ namespace Rasa.Managers
                 missile.Args.Missdata.Add(MissTypeDodge);
 
                 CreatureAreaHits(mapChannel, missile);
-
-                CellManager.Instance.CellCallMethod(mapChannel, missile.Source, CreatureAttacks.RecoveryFor(missile));
-                return;
-            }
-
-            // A charged shot (CreatureWindups.IsChargedShot) was aimed at a target its shooter
-            // could see; one who has gone behind something - a hill, a wall - while it charged is
-            // not hit through it, and the shot goes wide.
-            if (targetType == EntityType.Character && missile.AfterWindup && missile.Source is Creature charger
-                && CreatureWindups.IsChargedShot(missile.ActionId, missile.ActionArgId)
-                && !BehaviorManager.Sees(mapChannel.Cover, charger, missile.TargetActor))
-            {
-                missile.Args.MisstEntities.Add(missile.TargetEntityId);
-                missile.Args.Missdata.Add(MissTypeMiss);
 
                 CellManager.Instance.CellCallMethod(mapChannel, missile.Source, CreatureAttacks.RecoveryFor(missile));
                 return;
@@ -1455,7 +1574,7 @@ namespace Rasa.Managers
 
             if (targetType == EntityType.Object && missile.TargetObject != null && missile.DamageA > 0)
                 PracticeTargetManager.RecordHit(mapChannel, missile.Source, missile.TargetObject, missile.ActionId,
-                    damage: missile.DamageA);
+                    damage: missile.DamageA, damageType: missile.DamageType);
         }
     }
 }

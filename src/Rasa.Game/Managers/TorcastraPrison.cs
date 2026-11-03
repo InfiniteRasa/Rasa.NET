@@ -550,6 +550,17 @@ namespace Rasa.Managers
             return null;
         }
 
+        /// <summary>
+        /// Whether one of the prison's usables takes no item for all its row names one
+        /// (PlacedUsables.ItemsTaken): the worm console and the two data terminals. Their rows name
+        /// the datapad class with a count of 0, which a placed usable reads as 1; the worm Ferme
+        /// gives is Information Sabotage's own item, which its mission consumes when the upload
+        /// counts, and the terminals come after it is gone.
+        /// </summary>
+        public static bool TakesNothing(PlacedUsables.Live live) =>
+            live?.Placement.MapContextId == T.Map &&
+            live.Placement.Id is T.WormConsole or T.PrimaryTerminal or T.SecondaryTerminal;
+
         /// <summary>A player has used one of the prison's usables (PlacedUsables.UseRecovery), to <paramref name="next"/>.</summary>
         public static void Used(Client client, PlacedUsables.Live live, UseObjectState next)
         {

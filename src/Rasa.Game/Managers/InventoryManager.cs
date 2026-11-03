@@ -3139,7 +3139,8 @@ namespace Rasa.Managers
         }
 
         /// <summary>How many items of the entity class the player carries in their personal inventory, all stacks together.</summary>
-        public uint CountItemsByClass(Client client, EntityClasses entityClass)
+        /// <param name="includeMissionItems">Mission items are left out unless this is set: only their mission may take them (MissionItemProtection).</param>
+        public uint CountItemsByClass(Client client, EntityClasses entityClass, bool includeMissionItems = false)
         {
             var total = 0u;
 
@@ -3150,7 +3151,7 @@ namespace Rasa.Managers
 
                 var item = EntityManager.Instance.GetItem(entityId);
 
-                if (item?.ItemTemplate != null && item.ItemTemplate.Class == entityClass && !IsProtected(item))
+                if (item?.ItemTemplate != null && item.ItemTemplate.Class == entityClass && (includeMissionItems || !IsProtected(item)))
                     total += item.StackSize;
             }
 

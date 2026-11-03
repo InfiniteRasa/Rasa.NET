@@ -60,6 +60,9 @@ namespace Rasa.Managers
     ///  - While the Bane hold a point its hospital is not offered to the dead, is not gained by
     ///    walking up to it, and its waypoint neither lists nor answers (WaypointInfo.Contested).
     ///    Nothing is taken from a player who had them: they are back when the point is.
+    ///  - A force field linked to a point (world_destructible) is its holder's: the AFS's, blue,
+    ///    which lets players through, and the Bane's, red, which players have to shoot down
+    ///    (<see cref="ApplyFields"/>).
     ///  - Killing one of a Bane garrison is worth <see cref="MinionPrestige"/> prestige, a boss
     ///    <see cref="BossPrestige"/>, to whoever has the kill and to every member of their squad
     ///    near enough to share in its loot (PartyManager.SharersOf) - the whole amount each,
@@ -201,6 +204,9 @@ namespace Rasa.Managers
             public HashSet<uint> Hospitals { get; } = new HashSet<uint>();
             public HashSet<uint> Waypoints { get; } = new HashSet<uint>();
             public HashSet<uint> Bosses { get; } = new HashSet<uint>();
+
+            /// <summary>The world_destructible rows of the force fields that are the holder's.</summary>
+            public HashSet<uint> Fields { get; } = new HashSet<uint>();
 
             /// <summary>The usable on its map's own channel, once the map has it.</summary>
             public DynamicObject Object { get; set; }
@@ -414,6 +420,10 @@ namespace Rasa.Managers
                         point.Bosses.Add(link.ObjectId);
                         break;
 
+                    case ControlPointLinkEntry.KindForceField:
+                        point.Fields.Add(link.ObjectId);
+                        break;
+
                     case ControlPointLinkEntry.KindClanLockbox:
                         if (!rows.TryGetValue(link.ObjectId, out var row) || row.MapContextId != point.MapContextId)
                         {
@@ -487,6 +497,7 @@ namespace Rasa.Managers
                 ShowOwner(point);
                 ApplyPools(mapChannel, point, takeOff: false);
                 ApplyTeleporters(point);
+                ApplyFields(mapChannel, point);
                 ShowLockbox(point);
             }
             RefreshServices(mapChannel);
@@ -691,6 +702,10 @@ namespace Rasa.Managers
                 if (point.Object == null)
                     continue;
 
+                // The fields are set down after the points (PlacedDestructibles.Init), and come
+                // and go with a private copy's channel: each pass puts them on the holder's side.
+                ApplyFields(mapChannel, point);
+
                 // Whatever of the other side's has arrived since the point changed hands: a
                 // dropship that was already on its way.
                 TakeOffLiving(mapChannel, PoolsOn(mapChannel, point.PoolsOf(point.HeldByAfs ? Bane : Afs)));
@@ -791,6 +806,18 @@ namespace Rasa.Managers
             Announce(mapChannel, PlayerMessage.PmControlpointClaiming, point, clanId != 0 ? ClanName(clanId) ?? FactionName(Afs) : FactionName(Afs));
         }
 
+        /// <summary>The claiming key the Bane are announced by, no clan's (<see cref="MayAnnounceClaim(Point, uint, long)"/>).</summary>
+        internal const uint BaneClaimant = uint.MaxValue;
+
+        /// <summary>A Bane assault has begun claiming the point (LandingZoneAssaults): "Bane claiming", to everyone on the map.</summary>
+        public void BaneClaiming(MapChannel mapChannel, Point point)
+        {
+            if (point == null || !MayAnnounceClaim(point, BaneClaimant, Now()))
+                return;
+
+            Announce(mapChannel, PlayerMessage.PmControlpointClaiming, point, FactionName(Bane));
+        }
+
         /// <summary>
         /// A player's use of a control point has run its time (DynamicObjectManager): the point
         /// is their clan's, or the AFS's if they are in none, unless it is not the Bane's any
@@ -863,6 +890,7 @@ namespace Rasa.Managers
             if (sideChanged)
             {
                 ApplyPools(mapChannel, point, takeOff: true);
+                ApplyFields(mapChannel, point);
                 RefreshServices(mapChannel);
                 if (point.HeldByAfs)
                     MissionApplication.Instance.Scenes.ServicesOpened(mapChannel, point);
@@ -1533,6 +1561,22 @@ namespace Rasa.Managers
             foreach (var id in point.Hospitals.Concat(point.Waypoints))
                 if (DynamicObjectManager.Instance.Teleporters.TryGetValue(id, out var teleporter) && teleporter.ObjectData is WaypointInfo info)
                     info.Contested = !point.HeldByAfs;
+        }
+
+        /// <summary>
+        /// The point's force fields on the holder's side: an AFS field (blue) while the AFS hold
+        /// it, a Bane field (red) while the Bane do. A field that is down stays down, and is back
+        /// on that side. Each is the one PlacedDestructibles set down for its row on the map.
+        /// </summary>
+        private static void ApplyFields(MapChannel mapChannel, Point point)
+        {
+            if (mapChannel == null || point.Fields.Count == 0)
+                return;
+
+            var side = point.HeldByAfs ? ForceFields.Side.A : ForceFields.Side.B;
+
+            foreach (var id in point.Fields)
+                PlacedDestructibles.SetSide(PlacedDestructibles.LiveOf(mapChannel, id), side);
         }
 
         private List<SpawnPool> PoolsOn(MapChannel mapChannel, HashSet<uint> ids)

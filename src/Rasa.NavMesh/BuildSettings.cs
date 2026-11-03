@@ -7,6 +7,8 @@ namespace Rasa.NavMesh
     /// </summary>
     public sealed class BuildSettings
     {
+        public const string VelonHollowProfileName = "velon-hollow-seams-v2";
+        public const string VelonHollowMapName = "adv_foreas_howlingmaw_deathburrow";
         public const string WildernessProfileName = "wilderness-horizontal-v1";
         public const string WildernessMapName = "adv_foreas_concordia_wilderness";
 
@@ -36,6 +38,18 @@ namespace Rasa.NavMesh
         public float TerrainMaxSlope = 60f;
 
         public int Threads = System.Environment.ProcessorCount;
+
+        /// <summary>Fine rasterization and height detail for seven Velon Hollow escort tiles, with the original physical agent.</summary>
+        public static BuildSettings VelonHollowSeams(int threads) => new()
+        {
+            CellSize = 0.2f, CellHeight = 0.2f,
+            AgentHeight = 2f, AgentRadius = 0.6f, AgentMaxClimb = 0.9f, AgentMaxSlope = 50f,
+            TileSize = 256, BorderSize = 10,
+            RegionMinSize = 16, RegionMergeSize = 40,
+            EdgeMaxLength = 2f, EdgeMaxError = 1.3f,
+            VertsPerPoly = 6, DetailSampleDistance = 6f, DetailSampleMaxError = .5f,
+            TerrainStep = 2, TerrainMaxSlope = 60f, Threads = threads
+        };
 
         /// <summary>Finer Wilderness grid with the baseline physical agent, tile, border and simplification thresholds.</summary>
         public static BuildSettings WildernessHorizontal(int threads) => new()

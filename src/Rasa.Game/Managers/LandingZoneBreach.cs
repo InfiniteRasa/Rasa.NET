@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using Rasa.Services.Preloader;
@@ -33,7 +34,14 @@ namespace Rasa.Managers
             ForceFields.OnMap(map).Where(f => Relevant(f, map, point))
                 .OrderBy(f => Vector3.DistanceSquared(f.Position, point.Position)).FirstOrDefault();
 
-        internal static bool Order(MapChannel map, ControlPoints.Point point, Creature attacker, Creature[] guards)
+        internal static bool Order(MapChannel map, ControlPoints.Point point, Creature attacker, Creature[] guards) =>
+            Order(map, point, attacker, guards, new System.Collections.Generic.Dictionary<ulong, int>());
+
+        /// <param name="load">How many troops are on each target: a troop picking one takes the
+        /// nearest counted as further off for every troop already on it (LandingZoneAssaults.Pick),
+        /// and is counted on it.</param>
+        internal static bool Order(MapChannel map, ControlPoints.Point point, Creature attacker, Creature[] guards,
+            System.Collections.Generic.Dictionary<ulong, int> load)
         {
             var priority = guards.Where(c => IsFrontline(c.SpawnPool) || c.SpawnPool?.IsControlPointReinforcement == true).ToArray();
             var field = FrontlineDown(map) ? StandingField(map, point) : null;
@@ -44,10 +52,9 @@ namespace Rasa.Managers
             if (priority.Length > 0)
             {
                 if (fighting && priority.Any(c => c.EntityId == current)) return true;
-                var target = priority.OrderBy(c => Vector3.DistanceSquared(c.Position, attacker.Position)).First();
                 attacker.Hate.Clear();
                 attacker.HomePos.Position = point.Position;
-                return BehaviorManager.Instance.TrySetActionFighting(attacker, target.EntityId);
+                return LandingZoneAssaults.Engage(attacker, priority, load);
             }
             if (field != null)
             {

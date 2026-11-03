@@ -101,8 +101,10 @@ namespace Rasa.Test.Missions.Wilderness
                 "The native council header must not become an invented third conversation.");
             CompleteAndCheckReward(harness, todae, 451, 1, 10000, 1500);
             Assert.AreEqual(1U, Held(harness, 97037));
+            // Casper's return quest is the Crater Lake Research Facility's (Crater_lake, CraterLakeTests):
+            // this independent hub does not install it.
             Assert.IsFalse(harness.Manager.LoadedMissions.TryGetValue(446, out var casperReturn) &&
-                casperReturn.IsOperational,
+                casperReturn.IsOperational && casperReturn.ContentRevision != Rasa.Services.Preloader.CraterLakeContent.Revision,
                 "This independent hub must not install Casper's instance-dependent return quest.");
         }
 

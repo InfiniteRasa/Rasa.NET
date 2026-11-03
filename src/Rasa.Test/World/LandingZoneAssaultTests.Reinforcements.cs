@@ -104,7 +104,7 @@ namespace Rasa.Test.World
             Assert.IsFalse(DynamicObjectManager.Instance.Dropships.Values.Any(s => pools.Contains(s.SpawnPool)));
         }
         [TestMethod]
-        public void RemainingReliefDefendersPreventBossCapture()
+        public void LivingReliefHoldsTheClaimBackUntilItIsDeadAndTheBossFightsIt()
         {
             WaveThree(); DeliverRelief();
             Assert.AreEqual(10, Relief.Length);
@@ -116,10 +116,18 @@ namespace Rasa.Test.World
             LandingZoneAssaults.Worker(_world.Map, Point);
             Assert.IsNull(Point.Object.UsedBy);
             Assert.IsTrue(Point.HeldByAfs);
-            Assert.AreEqual(BehaviorManager.BehaviorActionFighting, boss.Controller.CurrentAction);
+            Assert.AreEqual(BehaviorManager.BehaviorActionFighting, boss.Controller.CurrentAction, "the boss fights the relief as any troop does");
             boss.Controller.ActionFighting.Opened = true;
             LandingZoneAssaults.Worker(_world.Map, Point);
             Assert.IsTrue(boss.Controller.ActionFighting.Opened, "Living relief must keep the boss fighting rather than reset its combat for a claim.");
+
+            foreach (var soldier in Relief)
+            {
+                soldier.Attributes[Attributes.Health].Current = 0;
+                CreatureManager.Instance.HandleCreatureKill(_world.Map, soldier, null);
+            }
+            LandingZoneAssaults.Worker(_world.Map, Point);
+            Assert.AreSame(boss, Point.Object.UsedBy, "the last of them dead: the claim");
         }
     }
 }

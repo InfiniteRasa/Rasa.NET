@@ -137,7 +137,7 @@ namespace Rasa.Managers
             lines.Add($"- Its shots at you: damage x{Cover.Modifier(mapChannel, actor, player):0.00}{(player.IsCrouching ? " (you are crouched)" : "")}");
 
             if (actor is Creature creature)
-                lines.Add($"- It {(BehaviorManager.Sees(cover, creature, player) ? "sees you and will shoot" : "does not see you and will not shoot")}");
+                lines.Add($"- It {(BehaviorManager.Sees(mapChannel, creature, player) ? "sees you and will shoot" : "does not see you and will not shoot")}");
         }
 
         /// <summary>
@@ -180,7 +180,7 @@ namespace Rasa.Managers
         }
 
         /// <summary>An actor's middle: half its height, crouched or standing, above where it stands.</summary>
-        public static Vector3 Middle(Actor actor) => actor.Position + new Vector3(0f, Cover.HeightOf(actor) * 0.5f, 0f);
+        public static Vector3 Middle(Actor actor) => Cover.Middle(actor);
 
         /// <summary>
         /// Where the ray to an object ends: <see cref="ObjectAimHeight"/> above its origin, pulled

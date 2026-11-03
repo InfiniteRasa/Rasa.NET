@@ -90,7 +90,7 @@ namespace Rasa.Game.Missions.Persistence
                     publication.AddPublication(() =>
                     {
                         client.CallMethod(client.Player.EntityId,
-                            new Packets.MapChannel.Server.SkillsPacket(client.Player.Skills));
+                            GmAbilities.SkillsFor(client));
                         if (ability.Slot.HasValue)
                             client.CallMethod(client.Player.EntityId,
                                 new Packets.MapChannel.Server.AbilityDrawerPacket(client.Player.Abilities, client.Player));

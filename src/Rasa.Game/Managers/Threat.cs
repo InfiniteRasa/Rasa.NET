@@ -94,10 +94,12 @@ namespace Rasa.Managers
             if (victim.Controller?.CurrentAction == BehaviorManager.BehaviorActionScriptedMove && victim.Controller.ScriptedMove?.FightsBack == true)
                 victim.HomePos.Position = victim.Position;
 
-            if (victim.Controller != null
+            // One making for a control point to claim it keeps going (LandingZoneAssaults).
+            if (victim.Controller != null && !victim.OnClaimDuty
                 && (victim.Controller.CurrentAction == BehaviorManager.BehaviorActionWander
                     || victim.Controller.CurrentAction == BehaviorManager.BehaviorActionPatrol
                     || victim.Controller.CurrentAction == BehaviorManager.BehaviorActionFollowingPath
+                    || victim.Controller.CurrentAction == BehaviorManager.BehaviorActionSquad
                     || victim.Controller.CurrentAction == BehaviorManager.BehaviorActionScriptedMove && victim.Controller.ScriptedMove?.FightsBack == true))
                 BehaviorManager.Instance.SetActionFighting(victim, attacker.EntityId);
         }

@@ -354,6 +354,14 @@ namespace Rasa.Managers
         public const float UnstickClearance = 2f;
 
         /// <summary>
+        /// How much walkable floor a region of underground mesh joined to nothing over it may have
+        /// and still be a pocket inside a hill (<see cref="UnstickDestination"/>). Lower Eloh
+        /// Creek's is 113 m²; the Caves of Donn's tunnels, a map that is all cave under a shell of
+        /// terrain, 4,800 m² and more.
+        /// </summary>
+        public const float UnstickPocketArea = 1000f;
+
+        /// <summary>
         /// Where /stuck puts a player. Null when the map has no navmesh or nothing walkable is
         /// within reach.
         ///  - In a pocket of mesh inside a hill: the ground over them (SafetyFloor.TopOfColumn).
@@ -362,7 +370,11 @@ namespace Rasa.Managers
         ///    thrown into it is inside the hill, and its nearest walkable point is more of the
         ///    same, a step away: "unstuck from (343.52, 226, 194.99) to (343.54, 226.12, 194.64)
         ///    (0.4 m)". What tells it from a cave is that a cave's floor is joined to the ground
-        ///    over it (NavMeshQuery.Reachable), and a pocket's is not.
+        ///    over it (NavMeshQuery.Reachable), and a pocket's is not - and that a pocket is small
+        ///    (<see cref="UnstickPocketArea"/>). A map that is all caves has floors joined to no
+        ///    ground over them: the Caves of Donn's tunnels lie under the terrain that closes the
+        ///    map over them, and /stuck in one put the player on top of it, outside the map, to
+        ///    fall through it for good.
         ///  - Off the mesh: the nearest walkable point (<see cref="NearestWalkable"/>).
         ///  - On the mesh, a cave's floor included: clear ground on the same floor
         ///    <see cref="UnstickNearest"/> to <see cref="UnstickFarthest"/> away
@@ -384,7 +396,8 @@ namespace Rasa.Managers
                 var ground = SafetyFloor.TopOfColumn(mapChannel, position);
 
                 if (ground != null && ground.Value.Y > here.Value.Y && !navMesh.IsUnderground(ground.Value) &&
-                    navMesh.Reachable(here.Value, ground.Value) != true)
+                    navMesh.Reachable(here.Value, ground.Value) != true &&
+                    navMesh.RegionArea(here.Value) is float area && area < UnstickPocketArea)
                     return ground;
             }
 

@@ -11,6 +11,9 @@ namespace Rasa.Structures
         /// </summary>
         public const uint UnnamedFrom = 1_000_000_000;
 
+        /// <summary>Server-side map scope; the native marker tuple has no map-id field.</summary>
+        [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+        public uint MapContextId { get; init; }
         public Vector3 Position { get; init; }
         public double Radius { get; init; }
         public uint IndicatorId { get; init; }

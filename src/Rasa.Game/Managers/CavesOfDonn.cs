@@ -32,7 +32,11 @@ namespace Rasa.Managers
     ///  - The bombs: the Fallen Soldier gives one to a member on What Evil Lurks who has none,
     ///    Nekala two with The Reason Why. A cave-in is used with a bomb: one goes, the cave-in
     ///    comes down and is gone <see cref="CaveInClearMs"/> later. Spirit Cave's is What Evil
-    ///    Lurks' first objective.
+    ///    Lurks' first objective. Nekala has two more for a member on The Reason Why or Bugged
+    ///    to Death who comes to her with none while the Chantry's or the Fairway's cave-in still
+    ///    stands in the copy (<see cref="NekalaResupplyRadius"/>): the copy's cave-ins are back in
+    ///    a new copy and the bombs spent on the last one's are not, and a member who had none
+    ///    left could not get past the Fairway to the Vitiated Shrine at all.
     ///  - The Lost Foreans in Spirit Cave: found within <see cref="LostRadius"/>; when a member is
     ///    to escort them they follow the nearest such member to the extraction point, all of them
     ///    there is the objective, and one dying fails it - the rest go, and the party is back in
@@ -69,6 +73,18 @@ namespace Rasa.Managers
         public const int UseWindupMs = 3_000;
         public const int BrazierWindupMs = 1_000;
         public const uint NekalaBombs = 2;
+
+        /// <summary>
+        /// The copy's people, whose missions it is: Stone (Too Quiet), Napoli (Bugged to Death),
+        /// Nekala (The Reason Why) and the Dying Forean (What Evil Lurks). An ambush comes down on
+        /// Mar Fend, where Nekala stands, and they are Friendly, so they fought it: Nekala was
+        /// killed, came back two seconds later into the same fight, and nobody could take The
+        /// Reason Why from her while it lasted. They take no harm (<see cref="ProtectStoryNpcs"/>).
+        /// </summary>
+        public static readonly uint[] StoryNpcs = { D.Stone, D.Napoli, D.Nekala, D.DyingForean };
+
+        /// <summary>How near Elder Nekala a member has to come for her to hand them more bombs.</summary>
+        public const float NekalaResupplyRadius = 10f;
 
         /// <summary>Facing +X, toward the entrance, as Player.Rotation (0 faces -Z).</summary>
         public const float CorridorFacing = -MathF.PI / 2;
@@ -121,6 +137,9 @@ namespace Rasa.Managers
 
             public readonly HashSet<uint> EggsDestroyed = new();
 
+            /// <summary>By player: when Nekala may next try to hand them bombs, after a try their pack had no room for.</summary>
+            public readonly Dictionary<uint, long> ResupplyRetryAt = new();
+
             /// <summary>Events already given, by player, assignment and event: given once; one that changed nothing is tried again later.</summary>
             public readonly Dictionary<string, long> Given = new();
         }
@@ -148,6 +167,7 @@ namespace Rasa.Managers
                 SetUp(map, state);
 
             ClearCaveIns(map, state, now);
+            ProtectStoryNpcs(map);
 
             var members = Members(map);
 
@@ -160,6 +180,7 @@ namespace Rasa.Managers
             TooQuiet(map, state, members, now);
             MoveStone(map, state);
             MoveNekala(map, state, members);
+            NekalaResupplies(map, state, members, now);
             WhatEvilLurks(map, state, members, now);
             TheReasonWhy(map, state, members, now);
 
@@ -310,7 +331,9 @@ namespace Rasa.Managers
             switch (usable.Kind)
             {
                 case Kind.CaveIn when Bombs(client) == 0:
-                    CommunicatorManager.Instance.SystemMessage(client, "The cave-in is too much to dig through. A bomb would clear it.");
+                    CommunicatorManager.Instance.SystemMessage(client, NeedsBombs(client.Player)
+                        ? "The cave-in is too much to dig through. A bomb would clear it: Elder Nekala has more."
+                        : "The cave-in is too much to dig through. A bomb would clear it.");
                     return PlayerMessage.PmUseObjectNotUsable;
                 case Kind.Gate when !KnowsTheThree(client.Player):
                     return PlayerMessage.PmUseObjectUsableLocked;
@@ -477,6 +500,46 @@ namespace Rasa.Managers
             SetEnabled(map, obj, false);
 
             Logger.WriteLog(LogType.Debug, $"Caves of Donn {map.InstanceId}: {client.Player.FamilyName} blew the cave-in at {D.CaveIns[usable.Index].Comment}.");
+        }
+
+        /// <summary>Whether the player is on a mission past the Chantry's or the Fairway's cave-in: The Reason Why, Bugged to Death.</summary>
+        private static bool NeedsBombs(Manifestation player) =>
+            Active(player, D.TheReasonWhy) || Active(player, D.BuggedToDeath);
+
+        /// <summary>
+        /// Nekala's bombs again: two for a member on The Reason Why or Bugged to Death who comes to
+        /// her with none, while the Chantry's or the Fairway's cave-in stands in the copy.
+        /// </summary>
+        private static void NekalaResupplies(MapChannel map, State state, List<Client> members, long now)
+        {
+            if (state.Blown[1] && state.Blown[2])
+                return;
+
+            var nekala = Find(map, D.Nekala);
+
+            if (nekala == null)
+                return;
+
+            foreach (var client in members)
+            {
+                if (Vector3.Distance(client.Player.Position, nekala.Position) > NekalaResupplyRadius ||
+                    !NeedsBombs(client.Player) || Bombs(client) > 0 ||
+                    state.ResupplyRetryAt.TryGetValue(client.Player.Id, out var retryAt) && now < retryAt)
+                    continue;
+
+                GiveBombs(client, NekalaBombs);
+
+                if (Bombs(client) == 0)
+                {
+                    // No room for them: tried again a while later, not every pass.
+                    state.ResupplyRetryAt[client.Player.Id] = now + RetryMs;
+                    continue;
+                }
+
+                state.ResupplyRetryAt.Remove(client.Player.Id);
+                CommunicatorManager.Instance.SystemMessage(client, "Elder Nekala hands you two more bombs for the cave-ins.");
+                Logger.WriteLog(LogType.Debug, $"Caves of Donn {map.InstanceId}: Nekala gave {client.Player.FamilyName} two more bombs.");
+            }
         }
 
         /// <summary>A cave-in come down is taken away once its dust has settled.</summary>
@@ -658,13 +721,25 @@ namespace Rasa.Managers
 
         #endregion
 
+        /// <summary>The copy's people take no harm, each one as it comes into the world again.</summary>
+        private static void ProtectStoryNpcs(MapChannel map)
+        {
+            foreach (var creature in Creatures(map))
+                if (!creature.ImmuneToAllDamage && Array.IndexOf(StoryNpcs, creature.DbId) >= 0)
+                    creature.ImmuneToAllDamage = true;
+        }
+
         #region What Evil Lurks
 
         private static void WhatEvilLurks(MapChannel map, State state, List<Client> members, long now)
         {
-            if (state.Blown[0])
-                foreach (var client in members.Where(client => Wants(client.Player, D.WhatEvilLurks, 4)))
-                    Record(state, client, D.WhatEvilLurks, D.CaveOpened, now);
+            // The cave is open to a member once its cave-in is down - or once they are in it
+            // anyway, past it or by another way (the client map's tunnel down to the extraction
+            // point has no cave-in of ours): one who got in so found the Lost Foreans with the
+            // objective still on the cave-in, and nothing of the rest open to them.
+            foreach (var client in members.Where(client => Wants(client.Player, D.WhatEvilLurks, 4) &&
+                         (state.Blown[0] || Vector3.Distance(client.Player.Position, D.SpiritCave) <= LostRadius)))
+                Record(state, client, D.WhatEvilLurks, D.CaveOpened, now);
 
             var found = state.Extracted ? D.Extraction : D.SpiritCave;
 

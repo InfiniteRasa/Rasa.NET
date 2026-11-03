@@ -90,6 +90,13 @@ namespace Rasa.Structures
 
         /// <summary>Milliseconds before it looks to step off again, so a crowd settles (Spacing.SettleMs).</summary>
         public long SettleMs { get; set; }
+
+        /// <summary>
+        /// It is crowded and should step off, but no place round its target is clear for it: the
+        /// other of the pair steps off instead (Spacing.CrowdedBy). Cleared once it is no longer
+        /// crowded or finds a place.
+        /// </summary>
+        public bool NoRoom { get; set; }
     }
 
     /// <summary>

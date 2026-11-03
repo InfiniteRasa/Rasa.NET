@@ -116,16 +116,49 @@ namespace Rasa.Test.Database
         // the same table, but no row of one is a row of the other, and no column either. None
         // touches a table of another's at its timestamp but that pair, so the order EF runs them in
         // changes nothing.
+        // Upstream restamped Donn_fithik_abilities to 20270316000000 (it forgets its old
+        // 20270315000000 history row), so Add_creature_scale is alone at 20270315000000 again.
+        // So does the published 20270923000000 pair: Control_point_teleporter_links writes
+        // control_point_link rows; Daghdas_urn_building_regions changes three map_region rows'
+        // region ids. They share no table, and both are applied on development, so both ids stay.
+        // And the published 20270924000000 pair: Donn_known_logos swaps The Reason Why's
+        // mission_scene_binding; Landing_zone_gate_field writes a control_point_link row. The same.
+        // And the thirteen pairs the upstream merge of 2026-10-30 joins, each a migration of this fork's
+        // development and one of upstream's, both published and applied before they met, touching
+        // nothing of each other's: at 20270919000000 Afs_turret_bases (spawnpool positions) and
+        // Npc_squad_tether (an npc_squad_type column); at 20270921000000 Lightning_fields_wreck_turret
+        // (two spawnpool rows and their control_point_link rows) and World_destructible_sealed (a
+        // world_destructible column); at 20270922000000 Control_tower_teleporters (teleporter and
+        // local teleporter rows) and Plateau_giant_killer (its mission, squad, creature and pool rows);
+        // at 20270925000000 Gate_field_nooks (four world_destructible positions) and
+        // Npc_squad_leader_bystander (an npc_squad_type column); at 20270926000000
+        // Landing_zone_mech_missiles (the Landing Zone mechs' creature_action rows) and
+        // Plateau_retreads_to_retreads (its mission rows); at 20270927000000 Few_shaft_teleporter
+        // (teleporter rows) and Pools_snake_pit (its missions, NPCs and pools); at 20270928000000
+        // Minos_warnet_nests_hung (Minos Caverns' world_destructible rows) and Pools_death_patrol
+        // (its missions and pools); at 20270929000000 Foreas_hq_teleporters (teleporter rows) and
+        // Pools_snake_pit_contacts (its missions and NPCs); at 20270930000000
+        // Skeev_free_when_unreserved (mission 701's scene binding) and Pools_bane_chain (its
+        // missions, creatures and fields); at 20271001000000 Foreas_hq_logos_pads (teleporter rows)
+        // and Pools_retread_chain (its missions, NPCs and pools); at 20271002000000
+        // Fence_turret_bases (control point turret pools and their links) and Pools_supply_chain
+        // (its missions, NPCs and pools); at 20271003000000 Torcastra_keymaster_computer (one
+        // Torcastra mission's indicator and scene binding) and Pools_spy_chain (its missions and
+        // NPCs); at 20271004000000 Devils_den_teleporters (Devil's Den's local teleporter links)
+        // and Pools_lamna_armory (its missions and NPCs). EF runs a pending one whatever
+        // its id's place, so a World that has one of a pair gets the other, in either order.
         // A new pair is a mistake: EF runs both, ordered by the rest of the id, whatever was meant.
         [TestMethod]
         public void NoNewMigrationSharesATimestamp()
         {
             var known = new[] { "20260927000000", "20260930000000", "20261012000000", "20261104000000", "20261111000000", "20261203000000",
-                "20261230000000", "20261231000000", "20270109000000", "20270111000000", "20270114000000", "20270115000000", "20270116000000", "20270117000000", "20270120000000", "20270125000000" };
+                "20261230000000", "20261231000000", "20270109000000", "20270111000000", "20270114000000", "20270115000000", "20270116000000", "20270117000000", "20270120000000", "20270125000000", "20270923000000", "20270924000000",
+                "20270919000000", "20270921000000", "20270922000000", "20270925000000", "20270926000000", "20270927000000",
+                "20270928000000", "20270929000000", "20270930000000", "20271001000000", "20271002000000", "20271003000000", "20271004000000" };
 
             using var database = new OrdinaryLootTestDatabase();
-            var shared = database.Context.Database.GetMigrations()
-                .GroupBy(id => id.Substring(0, 14)).Where(stamp => stamp.Count() > 1).Select(stamp => stamp.Key).ToList();
+            var ids = database.Context.Database.GetMigrations().ToArray();
+            var shared = ids.GroupBy(id => id.Substring(0, 14)).Where(stamp => stamp.Count() > 1).Select(stamp => stamp.Key).ToList();
 
             CollectionAssert.AreEquivalent(known, shared, string.Join(", ", shared));
         }
@@ -144,7 +177,9 @@ namespace Rasa.Test.Database
             var known = new System.Collections.Generic.Dictionary<string, string[]>
             {
                 ["World"] = new[] { "20260927000000", "20260930000000", "20261012000000", "20261104000000", "20261111000000", "20261203000000",
-                    "20261230000000", "20261231000000", "20270109000000", "20270111000000", "20270114000000", "20270115000000", "20270116000000", "20270117000000", "20270120000000", "20270125000000" },
+                    "20261230000000", "20261231000000", "20270109000000", "20270111000000", "20270114000000", "20270115000000", "20270116000000", "20270117000000", "20270120000000", "20270125000000", "20270923000000", "20270924000000",
+                "20270919000000", "20270921000000", "20270922000000", "20270925000000", "20270926000000", "20270927000000",
+                "20270928000000", "20270929000000", "20270930000000", "20271001000000", "20271002000000", "20271003000000", "20271004000000" },
                 ["Char"] = new[] { "20261110000000", "20261215000000" },
                 ["Auth"] = new string[0]
             };

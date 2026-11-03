@@ -357,6 +357,52 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        [DataRow(true, 0)]
+        [DataRow(true, 2)]
+        [DataRow(false, 2)]
+        public void AShotBeyondAggroRangeStartsAFightAndTheOtherSquadMembersAssist(bool afsSquad, int victimIndex)
+        {
+            using var harness = Create();
+            Squad(harness, afsSquad ? AfsSoldier : ThraxSoldier, 0, 3,
+                S.Formation.Line, Road(harness), S.PathMode.Loop);
+            S.Types[1].EngageRange = 0.5f;
+            Step(harness, 250);
+            var squad = S.On(harness.Map)[1];
+            foreach (var member in squad.Members) member.Creature.AggroRange = 5;
+            var victim = squad.Members[victimIndex].Creature;
+            var shooter = harness.Creatures.CreateCreature(afsSquad ? ThraxSoldier : AfsSoldier, null);
+            var at = harness.Map.NavMesh.Nearest(squad.Leader.Creature.Position + new Vector3(25, 0, 0));
+            Assert.IsNotNull(at, "the shooter has reachable ground beside the marching squad");
+            CreatureManager.Instance.SetLocation(shooter, at.Value, 0, 1220);
+            shooter.AggroRange = 0.5f;
+            CellManager.Instance.AddToWorld(harness.Map, shooter);
+            foreach (var member in squad.Members)
+            {
+                var distance = Vector3.Distance(member.Creature.Position, shooter.Position);
+                Assert.IsTrue(distance > member.Creature.AggroRange && distance > S.EngageRange(member.Creature));
+                Assert.IsTrue(distance < S.AssistRange);
+                Assert.AreEqual(BehaviorManager.BehaviorActionSquad, member.Creature.Controller.CurrentAction);
+            }
+            var before = victim.Attributes[Attributes.Health].Current + victim.Attributes[Attributes.Armor].Current;
+            MissileManager.Instance.MissileTrigger(harness.Map, new Missile {
+                Source = shooter, TargetActor = victim, TargetEntityId = victim.EntityId,
+                ActionId = ActionId.WeaponAttack, ActionArgId = 1, DamageA = 10,
+                DamageType = DamageType.Physical, CritChance = 0
+            });
+            Assert.IsTrue(victim.Attributes[Attributes.Health].Current + victim.Attributes[Attributes.Armor].Current < before,
+                "a real nonlethal missile hit reached the squad member");
+            Assert.AreEqual(BehaviorManager.BehaviorActionFighting, victim.Controller.CurrentAction,
+                "damage must provoke retaliation without waiting for the short-range aggro scan");
+            Assert.AreEqual(shooter.EntityId, victim.Controller.ActionFighting.TargetEntityId);
+            Assert.IsTrue(victim.Hate.Contains(shooter.EntityId));
+            S.Worker(harness.Map);
+            Assert.AreEqual(S.Phase.Fighting, squad.Phase);
+            Assert.IsTrue(squad.Members.All(m => m.Creature.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting &&
+                m.Creature.Controller.ActionFighting.TargetEntityId == shooter.EntityId),
+                "the existing squad assist brings the rest into the fight");
+        }
+
+        [TestMethod]
         public void WhenOneOfThemFightsTheOthersJoinAndAfterwardsTheyGatherAndGoOn()
         {
             using var harness = Create();

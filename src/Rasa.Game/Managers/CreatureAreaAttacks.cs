@@ -103,8 +103,8 @@ namespace Rasa.Managers
 
         /// <summary>
         /// The players on the map, other than the one it aimed at, that an attack from attacker
-        /// covers and that it may fight: alive, on the map, and inside the area. centre, when
-        /// given, stands in for the target's position.
+        /// covers and that it may fight: alive, on the map, inside the area, and in the clear of
+        /// where the attack goes out from. centre, when given, stands in for the target's position.
         /// </summary>
         public static List<Manifestation> PlayersCaught(MapChannel mapChannel, Creature attacker, CreatureArea area, Actor aimedAt, Vector3? centre = null)
         {
@@ -115,6 +115,14 @@ namespace Rasa.Managers
 
             var facing = AbilityManager.FacingOf(attacker);
             var target = centre ?? aimedAt?.Position;
+
+            // Where the attack goes out from, for what stands in its way (Cover.Reaches): a cone
+            // from the creature's eyes, a ring round it from its middle, a ring round its target
+            // from that target's middle - or from a blast's height over the point it names.
+            var from = area.ConeHalfAngle > 0 ? Cover.EyeOf(attacker)
+                : area.AroundSource > 0 ? Cover.Middle(attacker)
+                : centre.HasValue || aimedAt == null ? Cover.BlastFrom(target ?? attacker.Position)
+                : Cover.Middle(aimedAt);
 
             foreach (var client in mapChannel.ClientList)
             {
@@ -130,6 +138,11 @@ namespace Rasa.Managers
                     continue;
 
                 if (!TargetCategories.MayFightPlayer(attacker.TargetCategory, player.CombatCategory))
+                    continue;
+
+                // Not through a wall, a hill or a gate's field: a Kael's smash or a Howler's
+                // sonic cone went through them to everyone in its area.
+                if (!Cover.Reaches(mapChannel, attacker, from, player))
                     continue;
 
                 caught.Add(player);

@@ -151,7 +151,7 @@ namespace Rasa.Managers
 
         /// <summary>
         /// A corpse's credits divided among those sharing them: an equal share each, the odd
-        /// credits one apiece from the first on (the looter who emptied the corpse is first).
+        /// credits one apiece from the first on (the killer at death, or an outstanding pot's looter).
         /// Nobody is left out of a share for being last; a pot smaller than the squad gives the
         /// first ones a credit each and the rest nothing.
         /// </summary>
@@ -429,6 +429,9 @@ namespace Rasa.Managers
                 CreateLoot(killer, owner, loot, (policy ?? Game.Missions.World.CreatureGameplayRules.Policy(creature)).Loot,
                     mapContextId, creatureId, partyId);
 
+                // A Filcher's corpse has what it stole on it too.
+                TakeOverCarried(creature, loot, owner, partyId);
+
                 lock (mapChannel.LootSyncRoot)
                 {
                     _beforeCorpsePublication?.Invoke(loot);
@@ -674,6 +677,12 @@ namespace Rasa.Managers
                 if (!shownTo.Contains(recipient))
                     shownTo.Add(recipient);
             }
+
+            // Money is the kill reward, independent of item ownership or pickup reach.
+            // Settle it before the initial dispenser publication so empty corpses start empty.
+            lock (loot.Map.LootSyncRoot)
+                if (loot.Credits > 0)
+                    Claim(client, loot, Array.Empty<LootItem>(), null, lootAll: true, quiet: true, killCredits: true);
 
             foreach (var looter in shownTo)
             {
@@ -1281,10 +1290,11 @@ namespace Rasa.Managers
         /// the client's auto-loot (quiet), which it sends again and again while the player stands
         /// in reach.
         ///
-        /// The credits go when the corpse's last item does, split among everyone sharing the kill
-        /// (CreditRecipients); a corpse that is one player's pays them on Loot All too, whether its
-        /// items fit or not. They, and the prestige a rare item is worth, are worked out from what
-        /// was taken, in the same write (Settle).
+        /// Creature credits normally pay at death through killCredits, split among the kill's
+        /// eligible recipients independently of items or pickup reach. A failed credit save leaves
+        /// the pot claimable through the ordinary pickup path. That path also serves containers
+        /// and pays outstanding squad credits when the last item is taken. Prestige remains tied
+        /// to actual item pickup. Both purses use this same atomic claim transaction.
         /// </summary>
         private void Claim(
             Client client,
@@ -1292,8 +1302,28 @@ namespace Rasa.Managers
             IReadOnlyList<LootItem> asked,
             uint? destSlot,
             bool lootAll,
-            bool quiet = false)
+            bool quiet = false,
+            bool killCredits = false)
         {
+            // Only the server's kill path may claim credits without corpse pickup reach or
+            // item ownership (Rotation can give the items to another squad member).
+            bool AdmissionIsCurrent()
+            {
+                if (!killCredits)
+                    return TryGetLoot(client, loot.EntityId, out var found) && ReferenceEquals(found, loot);
+                var player = client.Player;
+                var map = player.MapChannel;
+                var corpse = loot.Corpse;
+                return map != null && ReferenceEquals(map, loot.Map) && client.State == ClientState.Ingame &&
+                    client.PendingTransfer == null && player.MapContextId == map.MapInfo.MapContextId &&
+                    EntityManager.Instance.Players.TryGetValue(player.EntityId, out var registeredPlayer) && ReferenceEquals(player, registeredPlayer) &&
+                    map.LootDispensers.TryGetValue(loot.EntityId, out var current) && ReferenceEquals(current, loot) &&
+                    loot.IsLootable && !loot.FullyLooted && corpse != null &&
+                    corpse.State == CharacterState.Dead && corpse.CorpseLootEntityId == loot.EntityId &&
+                    corpse.DbId == loot.SourceCreatureDbId && loot.AttachedTo == corpse.EntityId &&
+                    MapInstanceScope.TryGetCreature(map, corpse.EntityId, out var registeredCorpse) && ReferenceEquals(corpse, registeredCorpse);
+            }
+
             var currentCredits = client.Player.Credits.GetValueOrDefault(CurencyType.Credits);
             var currentPrestige = client.Player.Credits.GetValueOrDefault(CurencyType.Prestige);
 
@@ -1318,9 +1348,9 @@ namespace Rasa.Managers
                     item.ReservedFor != client.Player.EntityId && loot.SquadMissionItemOwners.Contains(item.ReservedFor) &&
                     MissionLootPlanner.IsQualified(item));
                 includeCredits = loot.Credits > 0 &&
-                    ((lootAll && loot.CreditSharers.Count == 0) || emptiesItems) &&
-                    (!loot.MissionItemLooters.Contains(client.Player.EntityId) ||
-                     loot.CreditSharers.Contains(client.Player.EntityId));
+                    (killCredits || ((lootAll && loot.CreditSharers.Count == 0) || emptiesItems) &&
+                     (!loot.MissionItemLooters.Contains(client.Player.EntityId) ||
+                      loot.CreditSharers.Contains(client.Player.EntityId)));
 
                 var recipients = includeCredits ? CreditRecipients(client, loot) : new List<Client> { client };
                 var shares = includeCredits ? SplitCredits(loot.Credits, recipients.Count) : new List<int> { 0 };
@@ -1380,7 +1410,7 @@ namespace Rasa.Managers
                     }
 
                     // What fits the backpack is taken; the rest stays on the corpse.
-                    Settle(grant.PlanAndSave(client, asked, unitOfWork, destSlot));
+                    Settle(killCredits ? Array.Empty<LootItem>() : grant.PlanAndSave(client, asked, unitOfWork, destSlot));
                     if (items.Count == 0 && !creditsGranted && others.Count == 0)
                         throw new NothingFitsException();
 
@@ -1409,7 +1439,7 @@ namespace Rasa.Managers
                     }
 
                     MissionLootPlanner.ValidateClaim(client, loot, items, missionManager, unitOfWork,
-                        () => TryGetLoot(client, loot.EntityId, out var admittedLoot) && ReferenceEquals(admittedLoot, loot));
+                        AdmissionIsCurrent);
                     var events = items.GroupBy(item => item.ItemClassId)
                         .Select(group => MissionProgressEvent.ItemAcquired(
                             group.Key,
@@ -1449,10 +1479,13 @@ namespace Rasa.Managers
                         unitOfWork.Characters.UpdateCharacterCredits(other.Recipient.Player.Id, other.After);
                     }
 
-                    if (!TryGetLoot(client, loot.EntityId, out var current) ||
-                        !ReferenceEquals(current, loot))
-                        throw new GameplayRejectionException(
-                            "Corpse state changed during the claim.");
+                    if (!AdmissionIsCurrent())
+                        throw new GameplayRejectionException("Corpse state changed during the claim.");
+                    if (killCredits)
+                        TransactionValidation.AtCommitBoundary(unitOfWork, () => {
+                            if (!AdmissionIsCurrent())
+                                throw new GameplayRejectionException("Kill credit source changed before commit.");
+                        });
                 });
             }
             catch (NothingFitsException)
@@ -1544,21 +1577,24 @@ namespace Rasa.Managers
             if (!lootersHere.Contains(client))
                 lootersHere.Add(client);
 
-            foreach (var looter in lootersHere)
-            {
-                MissionApplication.TryPublish(
-                    () => looter.CallMethod(
-                        loot.EntityId,
-                        new TakenInfoPacket(
-                            client.Player.EntityId,
-                            Taken(loot))),
-                    $"corpse {loot.EntityId} taken state");
-
-                if (looter == client || !loot.HasLoot)
+            // A kill's initial dispenser publication follows this payout. No item was taken,
+            // and the killer may not be an item looter under Rotation.
+            if (!killCredits)
+                foreach (var looter in lootersHere)
+                {
                     MissionApplication.TryPublish(
-                        () => CanLootItems(looter, loot),
-                        $"corpse {loot.EntityId} lootability");
-            }
+                        () => looter.CallMethod(
+                            loot.EntityId,
+                            new TakenInfoPacket(
+                                client.Player.EntityId,
+                                Taken(loot))),
+                        $"corpse {loot.EntityId} taken state");
+
+                    if (looter == client || !loot.HasLoot)
+                        MissionApplication.TryPublish(
+                            () => CanLootItems(looter, loot),
+                            $"corpse {loot.EntityId} lootability");
+                }
 
             // What the take gave the looter - the items and their share - and each other sharer
             // their share; the rest of the squad hears what was taken and who got the credits.
@@ -1944,5 +1980,182 @@ namespace Rasa.Managers
 
         /// <summary>The rows TakenInfo should mark; the client keys off the ones it is sent.</summary>
         private static List<LootItem> Taken(LootDispenser loot) => loot.LootItems.FindAll(i => i.Taken);
+
+        #region Filchers
+
+        /// <summary>
+        /// What a Filcher takes off a corpse: what stacks - ammunition, med kits, the consumables -
+        /// that nobody has taken and nobody holds a claim to. Not a squad roll's winnings or a
+        /// mission's drop (ReservedFor), which are one player's, nor gear, which stays on the
+        /// corpse. The corpse's credits are the killer's at the kill (Loot), so none are left for it.
+        /// </summary>
+        internal static List<LootItem> Stealable(LootDispenser loot) =>
+            loot?.LootItems.FindAll(item => !item.Taken && item.ReservedFor == 0 && item.Item != null && IsStackable(item.Item))
+            ?? new List<LootItem>();
+
+        private static bool IsStackable(Item item) =>
+            item.ItemTemplate != null && EntityClassManager.Instance.GetClassInfo(item.ItemTemplate.Class)?.ItemClassInfo?.StackSize > 1;
+
+        /// <summary>
+        /// A Filcher takes what it may off a corpse (<see cref="Stealable"/>) and carries it
+        /// (Creature.CarriedLoot) until it dies, when it is on the Filcher's own corpse with what
+        /// it drops (<see cref="Create(Client, Creature, List{Client}, uint, ActorGameplayPolicy)"/>).
+        /// The items move whole, rows and all: they were deleted with the corpse's dispenser,
+        /// which is what a Filcher left of the loot before - nothing, on its corpse or anywhere.
+        ///
+        /// Those the corpse was shown to see its loot go: the corpse's window and sparkle lose it,
+        /// and the corpse goes as an empty one when nothing is left. They see it on the Filcher
+        /// instead: a dispenser attached to it, lootable to their clients so the sparkle shows
+        /// (LootDispenser._AttachLootSFX) and on no map's table, so a request to loot it - the
+        /// client's auto-loot as they come near - finds nothing. It used to sparkle once with the
+        /// take's own effect and go. False when there was nothing to take.
+        /// </summary>
+        internal bool Steal(MapChannel map, Creature corpse, Creature filcher)
+        {
+            if (map == null || corpse == null || filcher == null)
+                return false;
+
+            RetryPendingRetirements();
+            var notices = new List<RetirementNotice>();
+            List<Client> viewers;
+            List<Client> newViewers;
+            LootDispenser carried;
+
+            lock (map.LootSyncRoot)
+            {
+                if (corpse.CorpseLootEntityId == 0 || !map.LootDispensers.TryGetValue(corpse.CorpseLootEntityId, out var loot) ||
+                    !loot.IsLootable || loot.FullyLooted || loot.CurrentLooter != 0)
+                    return false;
+
+                var taken = Stealable(loot);
+
+                if (taken.Count == 0)
+                    return false;
+
+                viewers = LootersHere(map, loot);
+
+                if (loot.OwnerClient != null && !viewers.Contains(loot.OwnerClient) && map.ClientList.Contains(loot.OwnerClient))
+                    viewers.Add(loot.OwnerClient);
+
+                carried = filcher.CarriedLoot ??= new LootDispenser
+                {
+                    IsLootable = true,
+                    AttachedTo = filcher.EntityId,
+                    Map = map,
+                    UnitOfWorkFactory = loot.UnitOfWorkFactory ?? _gameUnitOfWorkFactory,
+                    LootQuality = LootQuality.Junk
+                };
+
+                foreach (var item in taken)
+                {
+                    loot.LootItems.Remove(item);
+                    carried.LootItems.Add(item);
+
+                    if (((LootQuality)item.Item.ItemTemplate.QualityId).Rank() > carried.LootQuality.Rank())
+                        carried.LootQuality = (LootQuality)item.Item.ItemTemplate.QualityId;
+                }
+
+                // The corpse's sparkle is of the best of what is left on it.
+                loot.LootQuality = LootQuality.Junk;
+
+                foreach (var item in loot.Remaining().Where(item => item.Item != null))
+                    if (((LootQuality)item.Item.ItemTemplate.QualityId).Rank() > loot.LootQuality.Rank())
+                        loot.LootQuality = (LootQuality)item.Item.ItemTemplate.QualityId;
+
+                newViewers = viewers.Where(viewer => carried.Looters.Add(viewer.Player.EntityId)).ToList();
+
+                if (!loot.HasLoot)
+                    notices.AddRange(Retire(map, loot, true));
+                else
+                    foreach (var viewer in viewers)
+                    {
+                        LootInfo(viewer, loot);
+                        OverallQuality(viewer, loot);
+                        CanLootItems(viewer, loot);
+                    }
+            }
+
+            Publish(notices);
+
+            foreach (var viewer in newViewers)
+                ShowCarried(viewer, carried);
+
+            // One shown it already sees the best of it now.
+            foreach (var viewer in viewers.Except(newViewers))
+                OverallQuality(viewer, carried);
+
+            return true;
+        }
+
+        /// <summary>The carried loot's sparkle on the Filcher, for one client: a dispenser it may not open, of nothing it may take.</summary>
+        private static void ShowCarried(Client client, LootDispenser carried)
+        {
+            if (client?.State != ClientState.Ingame)
+                return;
+
+            client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(carried.EntityId, carried.EntityClassId));
+            client.CallMethod(carried.EntityId, new AttachInfoPacket(carried.AttachedTo));
+            client.CallMethod(carried.EntityId, new LootInfoPacket(new List<LootItem>()));
+            client.CallMethod(carried.EntityId, new OverallQualityPacket(carried.LootQuality));
+            client.CallMethod(carried.EntityId, new CanLootItemsPacket(true, new List<LootItem>()));
+        }
+
+        /// <summary>The sparkle off the Filcher, for everyone it was shown to.</summary>
+        private static void HideCarried(MapChannel map, LootDispenser carried)
+        {
+            foreach (var client in map?.ClientList.ToArray() ?? Array.Empty<Client>())
+                if (client?.Player != null && carried.Looters.Contains(client.Player.EntityId) && client.State == ClientState.Ingame)
+                    client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(carried.EntityId));
+        }
+
+        /// <summary>
+        /// What the creature carried (<see cref="Steal"/>), onto the loot of its corpse: the
+        /// owner's, or the squad's, as the creature's own drops are.
+        /// </summary>
+        private static void TakeOverCarried(Creature creature, LootDispenser loot, Client owner, uint partyId)
+        {
+            var carried = creature?.CarriedLoot;
+
+            if (carried == null)
+                return;
+
+            creature.CarriedLoot = null;
+            HideCarried(carried.Map, carried);
+
+            foreach (var item in carried.LootItems.Where(item => !item.Taken && item.Item != null))
+            {
+                loot.LootItems.Add(new LootItem(item.Item, owner.Player.EntityId, partyId));
+
+                if (((LootQuality)item.Item.ItemTemplate.QualityId).Rank() > loot.LootQuality.Rank())
+                    loot.LootQuality = (LootQuality)item.Item.ItemTemplate.QualityId;
+            }
+
+            carried.LootItems.Clear();
+            EntityManager.Instance.FreeEntity(carried.EntityId);
+        }
+
+        /// <summary>
+        /// What the creature carried goes with it: a Filcher killed with no player behind the kill,
+        /// or leaving the world alive. Its items are deleted as a corpse's unclaimed loot is.
+        /// </summary>
+        internal void DiscardCarried(MapChannel map, Creature creature)
+        {
+            var carried = creature?.CarriedLoot;
+
+            if (carried == null)
+                return;
+
+            creature.CarriedLoot = null;
+            map ??= carried.Map;
+            HideCarried(map, carried);
+
+            if (map == null)
+                return;
+
+            lock (map.LootSyncRoot)
+                Retire(map, carried, false, failedCreation: true);
+        }
+
+        #endregion
     }
 }

@@ -11,6 +11,7 @@ using Rasa.Data;
 using Rasa.Managers;
 using Rasa.Missions.Content;
 using Rasa.Packets.MapChannel.Client;
+using Rasa.Packets.Game.Server;
 using Rasa.Packets.MapChannel.Server;
 using Rasa.Services.Preloader;
 using Rasa.Structures;
@@ -217,6 +218,68 @@ namespace Rasa.Test.Missions
             Assert.IsTrue(harness.Client.Player.Missions[D.WhatEvilLurks].Completeable);
         }
 
+        /// <summary>
+        /// Into Spirit Cave with its cave-in still standing - past it, or by the tunnel it does not
+        /// stand in: the cave counts as open, and the Lost Foreans are found and spoken to. It used
+        /// to wait on the cave-in, and nothing past it could be done.
+        /// </summary>
+        [TestMethod]
+        public void InSpiritCaveWithItsCaveInStandingTheCaveCountsAsOpen()
+        {
+            using var harness = Create();
+            var dying = Put(harness, D.DyingForean, D.DyingForeanSpot);
+            WildernessTwinPillarsTests.Accept(harness, dying, D.WhatEvilLurks);
+
+            harness.MoveTo(D.FallenSoldier);
+            Work(harness);
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, D.WhatEvilLurks, 4), "outside, with the cave-in up");
+
+            harness.MoveTo(D.SpiritCave + new Vector3(4, 0, 4));
+            Work(harness);
+            Assert.IsFalse(CavesOfDonn.IsBlown(harness.Map, 0));
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, D.WhatEvilLurks, 4));
+            Work(harness);
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, D.WhatEvilLurks, 3), "the Lost Foreans found");
+
+            var survivors = CavesOfDonn.Survivors(harness.Map);
+            WildernessTwinPillarsTests.Talk(harness, survivors[0], D.WhatEvilLurks, 5);
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, D.WhatEvilLurks, 5));
+        }
+
+        /// <summary>
+        /// The ambush comes down on Mar Fend where Nekala stands: she, Stone, Napoli and the Dying
+        /// Forean take no harm from it, so none of their missions is out of reach while it lasts -
+        /// one of them again from the pool too. The Lost Foreans can still die: that is the escort.
+        /// </summary>
+        [TestMethod]
+        public void TheCopysPeopleTakeNoHarm()
+        {
+            using var harness = Create();
+            var nekala = Put(harness, D.Nekala, D.NekalaAtMarFend);
+            var stone = Put(harness, D.Stone, D.StoneAtEntrance);
+            var dying = Put(harness, D.DyingForean, D.DyingForeanSpot);
+            var bane = Put(harness, D.MachinaChampion, D.MarFend);
+            Work(harness);
+
+            foreach (var npc in new[] { nekala, stone, dying })
+            {
+                var health = npc.Attributes[Attributes.Health].Current;
+                Assert.AreEqual(0, ActorManager.Instance.Damage(harness.Map, npc, health + 1000, bane), $"{npc.DbId}");
+                Assert.AreEqual(health, npc.Attributes[Attributes.Health].Current);
+                Assert.AreNotEqual(CharacterState.Dead, npc.State);
+            }
+
+            var again = Put(harness, D.Nekala, D.NekalaAtMarFend);
+            Work(harness);
+            Assert.IsTrue(DamageImmunity.IsImmune(again, DamageType.Physical), "a new one, as her pool puts one down");
+
+            WildernessTwinPillarsTests.Accept(harness, dying, D.WhatEvilLurks);
+            harness.MoveTo(D.SpiritCave + new Vector3(4, 0, 4));
+            Work(harness);
+            Work(harness);
+            Assert.IsTrue(CavesOfDonn.Survivors(harness.Map).All(survivor => !survivor.ImmuneToAllDamage));
+        }
+
         [TestMethod]
         public void ALostForeanDyingOnTheWayOutFailsTheEscort()
         {
@@ -276,6 +339,54 @@ namespace Rasa.Test.Missions
 
             Learn(harness, D.TrapLogos);
             Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, D.TheReasonWhy, 11));
+        }
+
+        [TestMethod]
+        public void LogosKnownBeforeTheReasonWhyIsTakenCountForIt()
+        {
+            using var harness = Create();
+            Know(harness, D.TrapLogos, D.FeelingLogos, D.HealLogos);
+
+            WildernessTwinPillarsTests.Accept(harness, Put(harness, D.Nekala, D.NekalaAtMarFend), D.TheReasonWhy);
+
+            foreach (var objective in DonnKnownLogos.LogosObjectives)
+                Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, D.TheReasonWhy, objective), $"objective {objective}");
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, D.TheReasonWhy, 1), "the ruins are still to be visited");
+        }
+
+        /// <summary>
+        /// Taken before the fix, by a player who had the Logos already: no shrine teaches them
+        /// again, so the objective waited for good. It counts when they next come into the world.
+        /// </summary>
+        [TestMethod]
+        public void AnOpenReasonWhyCountsAKnownLogosWhenThePlayerComesIn()
+        {
+            using var harness = Create();
+            WildernessTwinPillarsTests.Accept(harness, Put(harness, D.Nekala, D.NekalaAtMarFend), D.TheReasonWhy);
+            Know(harness, D.FeelingLogos);
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, D.TheReasonWhy, 12), "known, with nothing to tell the mission so");
+
+            harness.Manager.PublishInitialState(harness.Client);
+            harness.Drain();
+
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, D.TheReasonWhy, 12), "Feeling");
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, D.TheReasonWhy, 11), "not Trap, which they do not know");
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, D.TheReasonWhy, 13), "nor Heal");
+        }
+
+        /// <summary>Each brazier on the walkable floor it is lit from, with none over it: the Eloh Chantry's front right stood in the cave floor under its shrine.</summary>
+        [TestMethod]
+        public void NoBrazierStandsUnderTheFloor()
+        {
+            using var harness = Create();
+
+            foreach (var test in D.Tests)
+                foreach (var brazier in test.Braziers)
+                {
+                    var from = harness.Map.NavMesh.GroundHeight(brazier + new Vector3(0, 2.5f, 0));
+                    Assert.IsNotNull(from, $"{test.Name} {brazier}");
+                    Assert.IsTrue(Math.Abs(from.Value - brazier.Y) < 0.5f, $"{test.Name} {brazier}: the floor over it is at {from}");
+                }
         }
 
         [TestMethod]
@@ -348,6 +459,97 @@ namespace Rasa.Test.Missions
 
             Work(harness);
             Assert.IsTrue(Vector3.Distance(nekala.Position, D.NekalaAtEntrance) < 1, $"Nekala waits by the entrance, at {nekala.Position}");
+        }
+
+        /// <summary>
+        /// The gate and the cave-ins are classes the client does not make targetable, put down by
+        /// the copy itself with no scene run: they were sent untargetable, and the use key never
+        /// picked them out. They are targetable while in service, and the gate is not once open.
+        /// </summary>
+        [TestMethod]
+        public void TheGateAndTheCaveInsCanBePickedOut()
+        {
+            using var harness = Create();
+            Work(harness);
+            var gate = Object(harness, D.GateClass);
+            var caveIns = Enumerable.Range(0, D.CaveIns.Length).Select(i => CaveIn(harness, i)).ToList();
+
+            foreach (var obj in caveIns.Append(gate))
+            {
+                Assert.IsFalse(EntityClassManager.Instance.GetClassInfo(obj.EntityClassId).TargetFlag, $"{obj.EntityClassId}: no target flag of its own");
+                Assert.IsTrue(DynamicObjectManager.IsTargetableFor(harness.Client, obj), obj.ScenarioKey);
+            }
+
+            harness.Drain();
+            DynamicObjectManager.Instance.CreateDynamicObjectOnClient(harness.Client, gate);
+            var made = harness.Drain().OfType<CreatePhysicalEntityPacket>().Single(packet => packet.EntityId == gate.EntityId);
+            Assert.IsTrue(made.EntityData.OfType<IsTargetablePacket>().Single().IsTargetable, "sent so");
+
+            Know(harness, D.TrapLogos, D.FeelingLogos, D.HealLogos);
+            WildernessTwinPillarsTests.Accept(harness, Put(harness, D.Nekala, D.NekalaAtMarFend), D.TheReasonWhy);
+            harness.MoveTo(gate.Position + new Vector3(1, 0, 0));
+            harness.Drain();
+            harness.Objects.RequestUseObjectPacket(harness.Client, new RequestUseObjectPacket
+            {
+                EntityId = gate.EntityId,
+                ActionId = ActionId.UseObject,
+                ActionArgId = DynamicObjectManager.FootlockerUseArgId
+            });
+            ActorActionManager.Instance.DoWork(harness.Map, 10000);
+            var sent = harness.Drain();
+
+            Assert.IsTrue(CavesOfDonn.IsGateOpen(harness.Map));
+            Assert.IsFalse(DynamicObjectManager.IsTargetableFor(harness.Client, gate), "open, out of service");
+            Assert.IsTrue(sent.OfType<IsTargetablePacket>().Any(packet => !packet.IsTargetable), "and the client told");
+        }
+
+        /// <summary>
+        /// Nekala's bombs are given once, with The Reason Why, and a copy's cave-ins are back in a
+        /// new copy: one with none left could not get past the Fairway to the Vitiated Shrine. She
+        /// has two more for a member on it who comes to her with none, while a cave-in it needs stands.
+        /// </summary>
+        [TestMethod]
+        public void NekalaHasMoreBombsForOneOnTheReasonWhyWhoHasNone()
+        {
+            using var harness = Create();
+            var nekala = Put(harness, D.Nekala, D.NekalaAtMarFend);
+            var bombs = (Rasa.Data.EntityClasses)29777;
+
+            // Not on it: nothing.
+            harness.MoveTo(D.NekalaAtMarFend + new Vector3(3, 0, 0));
+            Work(harness);
+            Assert.AreEqual(0, WildernessTwinPillarsTests.Held(harness, D.BombTemplate), "nobody on the mission");
+
+            WildernessTwinPillarsTests.Accept(harness, nekala, D.TheReasonWhy);
+            Assert.AreEqual(CavesOfDonn.NekalaBombs, (uint)WildernessTwinPillarsTests.Held(harness, D.BombTemplate));
+
+            // Spent: on another copy's cave-ins, say.
+            InventoryManager.Instance.RemoveItemsByClass(harness.Client, bombs, CavesOfDonn.NekalaBombs);
+            harness.Drain();
+
+            // At the Fairway's cave-in with none: refused, and she has more.
+            var fairway = CaveIn(harness, 2);
+            Use(harness, fairway);
+            Assert.IsFalse(CavesOfDonn.IsBlown(harness.Map, 2));
+            Work(harness);
+            Assert.AreEqual(0, WildernessTwinPillarsTests.Held(harness, D.BombTemplate), "far from Nekala");
+
+            harness.MoveTo(nekala.Position + new Vector3(4, 0, 0));
+            Work(harness);
+            Assert.AreEqual(CavesOfDonn.NekalaBombs, (uint)WildernessTwinPillarsTests.Held(harness, D.BombTemplate), "two more from Nekala");
+            Work(harness);
+            Assert.AreEqual(CavesOfDonn.NekalaBombs, (uint)WildernessTwinPillarsTests.Held(harness, D.BombTemplate), "not more while they have them");
+
+            Use(harness, fairway);
+            Assert.IsTrue(CavesOfDonn.IsBlown(harness.Map, 2), "the way to the Vitiated Shrine is open");
+            Use(harness, CaveIn(harness, 1));
+            Assert.IsTrue(CavesOfDonn.IsBlown(harness.Map, 1));
+            Assert.AreEqual(0, WildernessTwinPillarsTests.Held(harness, D.BombTemplate));
+
+            // Both down: none needed.
+            harness.MoveTo(nekala.Position + new Vector3(4, 0, 0));
+            Work(harness);
+            Assert.AreEqual(0, WildernessTwinPillarsTests.Held(harness, D.BombTemplate), "no cave-in left for them");
         }
 
         [TestMethod]
@@ -505,6 +707,20 @@ namespace Rasa.Test.Missions
             var lethal = creature.Attributes[Attributes.Health].Current + Math.Max(0, creature.Attributes[Attributes.Armor].Current);
             ActorManager.Instance.Damage(harness.Map, creature, lethal, harness.Client.Player);
             harness.Drain();
+        }
+
+        /// <summary>Logos the character has had since before: in the database and on the player, with nothing learned now.</summary>
+        private static void Know(WildernessRuntimeTestHarness harness, params uint[] logoses)
+        {
+            using (var context = harness.Context.Open())
+            {
+                foreach (var logos in logoses)
+                    context.CharacterLogosEntries.Add(new CharacterLogosEntry(harness.Client.Player.Id, logos));
+                context.SaveChanges();
+            }
+
+            foreach (var logos in logoses)
+                harness.Client.Player.Logos.Add(logos);
         }
 
         /// <summary>A Logos learned, as a shrine teaches it.</summary>

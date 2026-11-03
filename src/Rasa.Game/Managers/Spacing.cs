@@ -24,7 +24,8 @@ namespace Rasa.Managers
     ///    or is making for, turned round the target until it is clear; and one that has reached
     ///    its target, or holds its ground to shoot, with another of its side closer than
     ///    <see cref="Crowded"/> steps off to such a spot - the one of the two with the greater
-    ///    entity id, so the pair do not both move (BehaviorManager);
+    ///    entity id, so the pair do not both move, or the other when that one has no clear
+    ///    place to go (BehaviorManager.Spread);
     ///  - following, each escort takes its own place round its owner rather than the owner's
     ///    spot (BehaviorManager.AdvanceEscort).
     ///
@@ -55,6 +56,9 @@ namespace Rasa.Managers
 
         /// <summary>How many places round a point are tried before the preferred one is taken anyway.</summary>
         private const int Turns = 12;
+
+        /// <summary>How far round its circle, across the ground, each place tried after the spacing-wide turns is from the last.</summary>
+        private const double FineStep = 0.5;
 
         /// <summary>How near to the place asked for the navmesh's nearest point must be to stand in for it.</summary>
         private const float OnMesh = 1.5f;
@@ -91,7 +95,11 @@ namespace Rasa.Managers
             return spots;
         }
 
-        /// <summary>The nearest living creature of its side closer than <see cref="Crowded"/> that it should step off from: one with a smaller entity id.</summary>
+        /// <summary>
+        /// The nearest living creature of its side closer than <see cref="Crowded"/> that it should
+        /// step off from: one with a smaller entity id, or one with a greater that should step off
+        /// itself but has no clear place to go (<see cref="ActionFighting.NoRoom"/>).
+        /// </summary>
         internal static Creature CrowdedBy(MapChannel map, Creature creature)
         {
             Creature nearest = null;
@@ -100,7 +108,7 @@ namespace Rasa.Managers
             foreach (var other in Around(map, creature.Position))
             {
                 if (other == creature || other.TargetCategory != creature.TargetCategory || !Standing(other)
-                    || other.EntityId > creature.EntityId)
+                    || (other.EntityId > creature.EntityId && other.Controller?.ActionFighting?.NoRoom != true))
                     continue;
 
                 var gap = AcrossGround(other.Position, creature.Position);
@@ -128,8 +136,8 @@ namespace Rasa.Managers
         /// <summary>
         /// The place nearest <paramref name="preferred"/> on its circle round <paramref name="centre"/>
         /// that is clear of <paramref name="taken"/>: the preferred place itself, then turned a
-        /// spacing at a time each way round. On the navmesh when the map has one. Null when none
-        /// of them is clear.
+        /// spacing at a time each way round, then half a metre at a time. On the navmesh when the
+        /// map has one. Null when none of them is clear.
         /// </summary>
         internal static Vector3? AroundClear(MapChannel map, Vector3 centre, Vector3 preferred, IReadOnlyList<Vector3> taken)
         {
@@ -162,14 +170,29 @@ namespace Rasa.Managers
                 if (Math.Abs(k * step) > Math.PI)
                     break;
 
-                var angle = start + k * step;
-                var probe = new Vector3(centre.X + (float)(Math.Cos(angle) * radius), preferred.Y, centre.Z + (float)(Math.Sin(angle) * radius));
-
-                if (Placed(map, probe) is Vector3 spot && IsClear(spot, taken))
+                if (Probe(map, centre, preferred, radius, start + k * step, taken) is Vector3 spot)
                     return spot;
             }
 
+            // A gap narrower than a spacing's turn falls between those places: three round one
+            // target, two of them close in, left the third none of them clear when there was room
+            // between them. Round again a little at a time, nearest the preferred place first.
+            var fine = Math.Min(step, FineStep / radius);
+
+            for (var n = 1; n * fine <= Math.PI; n++)
+                foreach (var side in new[] { 1, -1 })
+                    if (Probe(map, centre, preferred, radius, start + side * n * fine, taken) is Vector3 spot)
+                        return spot;
+
             return null;
+        }
+
+        /// <summary>The place at <paramref name="angle"/> on the circle round the centre, on the navmesh, when it is clear of <paramref name="taken"/>.</summary>
+        private static Vector3? Probe(MapChannel map, Vector3 centre, Vector3 preferred, float radius, double angle, IReadOnlyList<Vector3> taken)
+        {
+            var probe = new Vector3(centre.X + (float)(Math.Cos(angle) * radius), preferred.Y, centre.Z + (float)(Math.Sin(angle) * radius));
+
+            return Placed(map, probe) is Vector3 spot && IsClear(spot, taken) ? spot : null;
         }
 
         /// <summary>

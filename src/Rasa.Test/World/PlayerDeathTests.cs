@@ -12,6 +12,7 @@ namespace Rasa.Test.World
     using Rasa.Managers;
     using Rasa.Packets.ClientMethod.Server;
     using Rasa.Packets.MapChannel.Server;
+    using Rasa.Packets.MapChannel.Server.PerformRecovery;
     using Rasa.Structures;
     using Rasa.Structures.Char;
     using Rasa.Test.Missions;
@@ -453,6 +454,99 @@ namespace Rasa.Test.World
             Assert.AreEqual(500, mate.Player.Attributes[Attributes.Health].Current, "ATTRIBUTE_MAX_CHANGE 50%");
         }
 
+        /// <summary>
+        /// Cure's Resuscitate (P3), as its tooltip has it: "Target resurrected at 50% Health and
+        /// Armor | No Death Penalties | Summons target to user".
+        /// </summary>
+        [TestMethod]
+        public void ResuscitateBringsThemUpBesideTheMedicWithHalfTheirArmourAndNoPenalties()
+        {
+            using var world = new WorldTestContext();
+            var dead = Player(world, 20, 0);
+            var medic = Player(world, 30, 4);
+            dead.Player.Level = medic.Player.Level = 20;
+            dead.Player.Attributes[Attributes.Armor] = new ActorAttributes(Attributes.Armor, 400, 400, 400, 0, 0);
+
+            AtZero(world, dead);
+            dead.Player.Attributes[Attributes.Armor].Current = 0;
+            WorldTestContext.Drain(dead);
+
+            Cure(world, medic, level: 3, radius: 0, target: dead);
+
+            var offer = MissionTestContext.Drain(dead).OfType<ReviveRequestInfoPacket>().Single();
+            Assert.AreEqual(medic.Player.Position, offer.Location, "the window is told where they will get up");
+
+            // The medic has walked on before it is taken: up where the medic is now.
+            medic.Player.PlaceAt(new Vector3(34, 0, 6));
+            PlayerDeath.RequestRevive(dead, medic.Player.EntityId);
+
+            Assert.AreNotEqual(CharacterState.Dead, dead.Player.State);
+            Assert.AreEqual(500, dead.Player.Attributes[Attributes.Health].Current, "50% health");
+            Assert.AreEqual(200, dead.Player.Attributes[Attributes.Armor].Current, "50% armour");
+            Assert.AreEqual(new Vector3(34, 0, 6), dead.Player.Position, "summoned to the medic");
+            Assert.IsFalse(dead.Player.ActiveEffects.Values.Any(e => e.TypeId == PlayerDeath.RezSicknessTypeId), "no Rez Trauma");
+            Assert.IsFalse(GameEffectManager.HealingBlocked(dead.Player), "no REZ_SICKNESS_NO_HEAL");
+            var sent = MissionTestContext.Drain(dead);
+            Assert.AreEqual(200, sent.OfType<UpdateArmorPacket>().Single().Armor.Current, "the client is told the armour");
+        }
+
+        /// <summary>Group Resuscitate (P5) brings the squad's dead up beside the medic the same way.</summary>
+        [TestMethod]
+        public void GroupResuscitateSummonsTheSquadWithNoPenalties()
+        {
+            using var world = new WorldTestContext();
+            var medic = Player(world, 0, 0);
+            var mate = Player(world, 10, 0);
+            medic.Player.PartyId = mate.Player.PartyId = 31;
+            mate.Player.Level = 20;
+
+            AtZero(world, mate);
+            Cure(world, medic, level: 5, radius: 25, target: null);
+            PlayerDeath.RequestRevive(mate, medic.Player.EntityId);
+
+            Assert.AreEqual(medic.Player.Position, mate.Player.Position);
+            Assert.IsFalse(mate.Player.ActiveEffects.Values.Any(e => e.TypeId == PlayerDeath.RezSicknessTypeId));
+        }
+
+        /// <summary>A medic who has died, or gone, since: up where they lay, the rest as offered.</summary>
+        [TestMethod]
+        public void AResuscitateFromAMedicWhoHasSinceDiedIsTakenWhereTheyLay()
+        {
+            using var world = new WorldTestContext();
+            var dead = Player(world, 20, 0);
+            var medic = Player(world, 30, 4);
+            dead.Player.Level = 20;
+
+            AtZero(world, dead);
+            Cure(world, medic, level: 3, radius: 0, target: dead);
+            AtZero(world, medic);
+
+            PlayerDeath.RequestRevive(dead, medic.Player.EntityId);
+
+            Assert.AreNotEqual(CharacterState.Dead, dead.Player.State);
+            Assert.AreEqual(20f, dead.Player.Position.X, 0.01f, "where they lay");
+            Assert.IsFalse(dead.Player.ActiveEffects.Values.Any(e => e.TypeId == PlayerDeath.RezSicknessTypeId));
+        }
+
+        /// <summary>Any other revive keeps its terms: a healing disc's still costs the penalties and leaves them where they lay.</summary>
+        [TestMethod]
+        public void AnotherMedicsReviveStillCostsTheDeathsPenalties()
+        {
+            using var world = new WorldTestContext();
+            var dead = Player(world, 20, 0);
+            var medic = Player(world, 30, 4);
+            dead.Player.Level = 20;
+
+            AtZero(world, dead);
+            Assert.IsTrue(PlayerDeath.OfferRevive(world.Map, medic.Player, dead.Player, 300));
+            PlayerDeath.RequestRevive(dead, medic.Player.EntityId);
+
+            Assert.AreEqual(20f, dead.Player.Position.X, 0.01f);
+            Assert.AreEqual(0, dead.Player.Attributes[Attributes.Armor].Current);
+            Assert.IsTrue(dead.Player.ActiveEffects.Values.Any(e => e.TypeId == PlayerDeath.RezSicknessTypeId));
+            Assert.IsTrue(GameEffectManager.HealingBlocked(dead.Player));
+        }
+
         [TestMethod]
         public void ARefusedOrLapsedReviveIsNotTaken()
         {
@@ -501,7 +595,84 @@ namespace Rasa.Test.World
             Assert.IsTrue(MissionTestContext.Drain(client).OfType<AnnounceMapDamagePacket>().Single().DeathBlow);
         }
 
+        [TestMethod]
+        [DataRow(1, true)]
+        [DataRow(4, true)]
+        [DataRow(1, false)]
+        [DataRow(4, false)]
+        public void AttacksQueuedBeforeDeathCannotHitTheRevivedPlayer(int count, bool hospital)
+        {
+            using var world = new WorldTestContext();
+            var client = Player(world, 0, 0);
+            var attacker = Monster(world, 10);
+            var observer = Player(world, 10, 0);
+            var bystander = Player(world, hospital ? -299 : 1, 0);
+            try
+            {
+                for (var i = 0; i < count; i++)
+                    world.Map.QueuedMissiles.Add(new Missile {
+                        Source = attacker, TargetActor = client.Player, TargetEntityId = client.Player.EntityId,
+                        ActionId = ActionId.WeaponAttack, ActionArgId = 1,
+                        DamageA = 1500, TriggerTime = 100, IsMelee = true,
+                        SplashRadius = 5, SplashDamage = 1500
+                    });
+                AtZero(world, client);
+                if (hospital)
+                    PlayerDeath.ReviveMe(client, 6);
+                else
+                    Assert.IsTrue(PlayerDeath.ReviveInPlace(client));
+                Assert.AreNotEqual(CharacterState.Dead, client.Player.State);
+                Assert.AreEqual(hospital ? -300f : 0f, client.Player.Position.X, 0.01f);
+                MissionTestContext.Drain(client);
+                MissionTestContext.Drain(observer);
+
+                MissileManager.Instance.DoWork(world.Map, 100);
+
+                Assert.AreEqual(1000, client.Player.Attributes[Attributes.Health].Current,
+                    "An attack queued against the previous life must not kill them again after revival.");
+                Assert.AreNotEqual(CharacterState.Dead, client.Player.State);
+                Assert.IsEmpty(world.Map.QueuedMissiles);
+                Assert.IsFalse(MissionTestContext.Drain(client).Any(p => p is PlayerDeadPacket or ActorKilledPacket));
+                Assert.AreEqual(1000, bystander.Player.Attributes[Attributes.Health].Current,
+                    "An old target-following splash must not move to the hospital either.");
+                var recoveries = MissionTestContext.Drain(observer).OfType<WeaponAttackRecovery>().ToArray();
+                Assert.HasCount(count, recoveries);
+                foreach (var recovery in recoveries)
+                {
+                    Assert.IsEmpty(recovery.Missile.Args.HitData, "No delayed damage or death blow may reach the client.");
+                    CollectionAssert.Contains(recovery.Missile.Args.MisstEntities, client.Player.EntityId);
+                    Assert.AreEqual(0, recovery.Missile.DamageA);
+                }
+
+                // A fresh attack after revival still works; this is not a blanket immunity period.
+                var fresh = new Missile {
+                    Source = attacker, TargetActor = client.Player, TargetEntityId = client.Player.EntityId,
+                    ActionId = ActionId.WeaponAttack, ActionArgId = 1, DamageA = 100, IsMelee = true
+                };
+                MissileManager.Instance.MissileTrigger(world.Map, fresh);
+                Assert.AreEqual(900, client.Player.Attributes[Attributes.Health].Current);
+            }
+            finally { Unregister(world, attacker); }
+        }
+
         private static uint[] Ids(IEnumerable<Hospitals.Hospital> hospitals) => hospitals.Select(h => h.TeleporterId).OrderBy(id => id).ToArray();
+
+        /// <summary>Cure at a pump, as its recovery performs it.</summary>
+        private static void Cure(WorldTestContext world, Client medic, uint level, int radius, Client target)
+        {
+            var info = new ActionLevelInfo { ActionId = ActionId.AaRecruitLightning, Level = level };
+            if (radius > 0)
+                info.Properties[AbilityProperty.RadiusAroundSource] = radius;
+            info.Properties[AbilityProperty.AttributeMaxChange] = 50;
+            var abilities = (AbilityManager)typeof(AbilityManager)
+                .GetConstructor(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic, null,
+                    new[] { typeof(Rasa.Repositories.UnitOfWork.IGameUnitOfWorkFactory), typeof(MissionApplication) }, null)!
+                .Invoke(new object[] { null, null });
+
+            typeof(AbilityManager).GetMethod("Cure", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                .Invoke(abilities, new object[] { world.Map, medic.Player,
+                    new ActionData(medic.Player, ActionId.AaRecruitLightning, level, target?.Player.EntityId ?? 0, 0), info });
+        }
 
         private static void AtZero(WorldTestContext world, Client client)
         {

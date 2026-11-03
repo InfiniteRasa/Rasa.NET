@@ -28,7 +28,11 @@ namespace Rasa.Managers
     ///  - P4 Blindness, CALLED_SHOT_EYE 293: "Ranged attack damage reduced by %(damageMod)s%%" -
     ///    DAMAGE_MODIFIER_PERCENT (-50), 20 s, on the creature's ranged attacks.
     ///  - P5 Head Shot, CALLED_SHOT_HEAD 295: damage received +DAMAGE_MODIFIER_PERCENT (50 %) for
-    ///    5 s, as a vulnerability of -50 resistance to everything.
+    ///    5 s, as a vulnerability of -50 resistance to everything. The hit that sets it off is a
+    ///    head shot too: the aim carries the same vulnerability, so that hit is worked out with
+    ///    it before the aim comes off and the wound takes over. The aim waits DURATION (20 s) and
+    ///    the wound lasts EFFECT_DURATION_MS (5000); pump 5 is the only pump where those differ,
+    ///    and the pump's tooltip shows only the first ("Duration: 20s").
     ///
     /// Which pump is which is read off the data rather than the level, the way every other ability
     /// here does it: the movement modifier is the leg, the effect modifier the arm, an interval
@@ -43,11 +47,21 @@ namespace Rasa.Managers
         private const int CalledShotChestTypeId = 294;      // CALLED_SHOT_CHEST
         private const int CalledShotHeadTypeId = 295;       // CALLED_SHOT_HEAD
 
-        private void ArmCalledShot(MapChannel mapChannel, Client client, Manifestation player, Actor target, ActionLevelInfo info)
+        internal void ArmCalledShot(MapChannel mapChannel, Client client, Manifestation player, Actor target, ActionLevelInfo info)
         {
             var aim = NewEffect(mapChannel, player, info, CalledShotAimTypeId, info.Get(AbilityProperty.Duration, 20));
 
             aim.IsBuff = false;
+
+            // P5: the shot that sets it off hits harder too. Every hit's resistance is worked out
+            // before it lands, and it is landing that takes the aim off, so the vulnerability on
+            // the aim counts for that one hit and the wound's for the hits after it. Called again
+            // while a wound is still on, the two are one group and count once: +50%, never +100%.
+            if (IsHeadShot(info))
+            {
+                aim.ResistModifier = -info.Get(AbilityProperty.DamageModifierPercent);
+                aim.ResistGroup = CalledShotHeadTypeId;
+            }
 
             // The bleed is a share of the weapon that called the shot, so the weapon is read now
             // rather than whenever the wound opens.
@@ -133,9 +147,18 @@ namespace Rasa.Managers
             var head = CalledShotEffect(mapChannel, player, info, CalledShotHeadTypeId, durationMs);
 
             head.ResistModifier = -damageMod;
+            head.ResistGroup = CalledShotHeadTypeId;
 
             GameEffectManager.Instance.Attach(mapChannel, target, head);
         }
+
+        /// <summary>
+        /// Whether a pump's data is the head's: none of the leg's, arm's or chest's properties, and
+        /// a damage modifier that adds rather than takes away (the eye's is negative).
+        /// </summary>
+        internal static bool IsHeadShot(ActionLevelInfo info) =>
+            !info.Has(AbilityProperty.EffectMovementModifier) && !info.Has(AbilityProperty.EffectModifier)
+            && !info.Has(AbilityProperty.Interval) && info.Get(AbilityProperty.DamageModifierPercent) > 0;
 
         /// <summary>
         /// One of the wounds. It arrives long after the ability's recovery did, so unlike the

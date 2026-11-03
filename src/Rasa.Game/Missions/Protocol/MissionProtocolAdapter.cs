@@ -153,7 +153,7 @@ namespace Rasa.Managers
                 }
             }
 
-            return IssuedItemProgress.Apply(player, definition, runtimeMission, HerbalRemedyProgress.Apply(player, definition, runtimeMission, WithRewardInfo(definition, definition.CreateInfo(
+            var info = IssuedItemProgress.Apply(player, definition, runtimeMission, HerbalRemedyProgress.Apply(player, definition, runtimeMission, WithRewardInfo(definition, definition.CreateInfo(
                 runtimeMission.State,
                 runtimeMission.Completeable,
                 runtimeMission.Objectives,
@@ -161,6 +161,7 @@ namespace Rasa.Managers
                     objectiveId == activeDeadlineObjectiveId
                         ? timeRemaining
                         : null))));
+            return MissionMarkerProjection.Apply(player, definition.MissionId, info, _catalog);
         }
 
         internal MissionInfo BuildOfferInfo(Mission definition, MissionState state = MissionState.NotAssigned)

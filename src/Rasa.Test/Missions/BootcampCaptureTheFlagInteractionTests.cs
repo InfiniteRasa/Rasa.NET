@@ -1,3 +1,5 @@
+extern alias RasaGame;
+
 using System;
 using System.Linq;
 using System.Numerics;
@@ -295,6 +297,154 @@ namespace Rasa.Test.Missions
             foreach (var forean in foreans)
                 Assert.IsTrue(Vector3.Distance(forean.Position, destination) < 10,
                     $"Escort {forean.NameId} stopped at {forean.Position}; route complete={complete}, route={string.Join("; ", route)}.");
+        }
+
+        [TestMethod]
+        public void LogoutCleanupRestoresLivingEscortsOnFreshLogin()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true);
+            ReachTizzik(harness);
+            var saved = new Vector3(100, 109.65f, 135);
+            harness.MovePlayerTo(saved);
+            CellManager.Instance.UpdateVisibility(harness.Client);
+            using (var unit = harness.Context.CreateChar())
+                unit.ExecuteTransaction(() => unit.Characters.SaveCharacter(harness.Client.Player));
+
+            harness.Maps.RemovePlayer(harness.Client, false);
+            harness.ReconnectFresh();
+
+            var escorts = Actors(harness).Where(actor => EscortIds.Contains(actor.DbId)).ToArray();
+            Assert.AreEqual(3, escorts.Length);
+            Assert.IsTrue(escorts.All(actor => actor.State != CharacterState.Dead &&
+                actor.SpawnPool.FollowOwnerCharacterId == harness.Client.Player.Id));
+            Assert.IsTrue(escorts.All(actor => Vector3.Distance(actor.Position, saved) < 8));
+        }
+
+        [TestMethod]
+        [DataRow(0, false)]
+        [DataRow(1, false)]
+        [DataRow(3, false)]
+        [DataRow(3, true)]
+        public void MedicalTentRestoresAllThreeEscortsIncludingTheFallenWithoutResettingObjectives(int killedEscorts, bool bossKilled)
+        {
+            using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true);
+            ReachTizzik(harness);
+            if (bossKilled)
+                KillWithPlayerMissile(harness, Actors(harness).Single(actor => actor.DbId == BootcampRuntimeTestHarness.TizzikGiCreatureId));
+            foreach (var fallen in Actors(harness).Where(actor => EscortIds.Contains(actor.DbId)).Take(killedEscorts).ToArray())
+                KillWithPlayerMissile(harness, fallen);
+            var objectives = harness.Client.Player.Missions[1994].Objectives
+                .ToDictionary(pair => pair.Key, pair => pair.Value.State);
+            var previousSource = Hospitals.Source;
+            var previousSafe = Hospitals.IsSafeZone;
+            var previousOpen = Hospitals.IsOpen;
+            var tent = harness.BootcampMap.NavMesh.Nearest(new Vector3(380, 120, 158)).Value;
+            try
+            {
+                Hospitals.Source = () => new[] { (90001u, 1985u, tent, "Hospital: Bootcamp") };
+                Hospitals.IsSafeZone = _ => true;
+                Hospitals.IsOpen = _ => true;
+                Hospitals.Reset();
+                harness.MovePlayerTo(new Vector3(100, 109.65f, 135));
+                harness.Client.Player.StateBeforeDeath = CharacterState.Idle;
+                harness.Client.Player.State = CharacterState.Dead;
+                harness.Client.Player.Attributes[Attributes.Health].Current = 0;
+
+                PlayerDeath.ReviveMe(harness.Client, null);
+
+                Assert.IsTrue(Vector3.Distance(harness.Client.Player.Position, tent) < 2);
+                var escorts = Actors(harness).Where(actor => EscortIds.Contains(actor.DbId) && actor.State != CharacterState.Dead).ToArray();
+                CollectionAssert.AreEquivalent(EscortIds, escorts.Select(actor => actor.DbId).ToArray());
+                foreach (var escort in escorts)
+                {
+                    Assert.IsTrue(Vector3.Distance(escort.Position, tent) < 8, $"Escort {escort.DbId} was left at {escort.Position}");
+                    Assert.AreEqual(harness.Client.Player.Id, escort.SpawnPool.FollowOwnerCharacterId);
+                    AssertGrounded(harness, escort);
+                }
+                foreach (var objective in objectives)
+                    Assert.AreEqual(objective.Value, harness.Client.Player.Missions[1994].Objectives[objective.Key].State);
+                if (bossKilled)
+                    Assert.IsFalse(Actors(harness).Any(actor => actor.DbId == BootcampRuntimeTestHarness.TizzikGiCreatureId && actor.State != CharacterState.Dead));
+
+                // A new death must be recorded after recovery, then cleared by the next recovery.
+                KillWithPlayerMissile(harness, escorts[0]);
+                harness.Client.Player.State = CharacterState.Dead;
+                harness.Client.Player.Attributes[Attributes.Health].Current = 0;
+                PlayerDeath.ReviveMe(harness.Client, null);
+                Assert.AreEqual(3, Actors(harness).Count(actor => EscortIds.Contains(actor.DbId) && actor.State != CharacterState.Dead));
+                using (var unit = harness.Context.CreateChar())
+                    unit.ExecuteTransaction(() => unit.Characters.SaveCharacter(harness.Client.Player));
+                harness.Maps.RemovePlayer(harness.Client, false);
+                harness.ReconnectFresh();
+                var restored = Actors(harness).Where(actor => EscortIds.Contains(actor.DbId)).ToArray();
+                Assert.AreEqual(3, restored.Length, "recovery must survive the next logout");
+                Assert.IsTrue(restored.All(actor => actor.State != CharacterState.Dead &&
+                    actor.SpawnPool.FollowOwnerCharacterId == harness.Client.Player.Id &&
+                    Vector3.Distance(actor.Position, tent) < 8));
+                foreach (var objective in objectives)
+                    Assert.AreEqual(objective.Value, harness.Client.Player.Missions[1994].Objectives[objective.Key].State);
+            }
+            finally
+            {
+                Hospitals.Source = previousSource;
+                Hospitals.IsSafeZone = previousSafe;
+                Hospitals.IsOpen = previousOpen;
+                Hospitals.Reset();
+            }
+        }
+
+        [TestMethod]
+        public void CharacterSelectionRestoresEscortsWithoutRebuildingThePrivateMap()
+        {
+            using var harness = BootcampRuntimeTestHarness.CreateFromPendingSelection(useWorldContent: true);
+            ReachTizzik(harness);
+            var originalMap = harness.BootcampMap;
+            var slot = harness.Client.AccountEntry.SelectedSlot;
+            var saved = new Vector3(100, 109.65f, 135);
+            harness.MovePlayerTo(saved);
+            CellManager.Instance.UpdateVisibility(harness.Client);
+            using (var unit = harness.Context.CreateChar())
+                unit.ExecuteTransaction(() => unit.Characters.SaveCharacter(harness.Client.Player));
+
+            harness.Maps.RequestLogout(harness.Client);
+            harness.Client.Player.LogoutRequestedTick = Environment.TickCount64 - 60000;
+            harness.Maps.CharacterLogout(harness.Client);
+            harness.Maps.RemovePlayer(harness.Client, false);
+            // The harness omits account-option UI data; enter the pod state directly, then
+            // use the production character-selection handler on this same connection and map.
+            harness.Client.State = RasaGame::Rasa.Data.ClientState.CharacterSelection;
+            var characters = new CharacterManager(harness.Context, harness.Manager);
+            Assert.AreEqual("CharacterSelection", harness.Client.State.ToString());
+            characters.RequestSwitchToCharacterInSlot(harness.Client,
+                new Rasa.Packets.Game.Client.RequestSwitchToCharacterInSlotPacket { SlotNum = slot });
+            harness.RouteMapLoaded();
+            Assert.AreEqual("Ingame", harness.Client.State.ToString());
+            Assert.AreEqual(MissionState.Active, harness.Client.Player.Missions[1994].State);
+
+            Assert.AreSame(originalMap, harness.BootcampMap, "the socket's private map is still present");
+            var escorts = Actors(harness).Where(actor => EscortIds.Contains(actor.DbId)).ToArray();
+            Assert.AreEqual(3, escorts.Length);
+            Assert.IsTrue(escorts.All(actor => actor.State != CharacterState.Dead &&
+                actor.SpawnPool.FollowOwnerCharacterId == harness.Client.Player.Id));
+        }
+
+        [TestMethod]
+        public void MedicalTentDoesNotRecruitEscortsBeforeCaptureTheFlagIsAccepted()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true);
+            SpawnPoolManager.Instance.SpawnPoolWorker(harness.BootcampMap, 0);
+            var before = Actors(harness).Where(actor => EscortIds.Contains(actor.DbId))
+                .Select(actor => actor.EntityId).ToArray();
+            Assert.AreEqual(3, before.Length);
+            harness.Client.Player.StateBeforeDeath = CharacterState.Idle;
+            harness.Client.Player.State = CharacterState.Dead;
+            harness.Client.Player.Attributes[Attributes.Health].Current = 0;
+
+            PlayerDeath.ReviveMe(harness.Client, null);
+
+            var after = Actors(harness).Where(actor => EscortIds.Contains(actor.DbId)).ToArray();
+            CollectionAssert.AreEquivalent(before, after.Select(actor => actor.EntityId).ToArray());
+            Assert.IsTrue(after.All(actor => actor.SpawnPool.FollowOwnerCharacterId == 0));
         }
 
         private static void AcceptCapture(BootcampRuntimeTestHarness.Harness harness)

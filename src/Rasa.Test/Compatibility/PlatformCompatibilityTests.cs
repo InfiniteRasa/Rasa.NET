@@ -18,7 +18,7 @@ namespace Rasa.Test.Compatibility
             using var document = JsonDocument.Parse(File.ReadAllText(Path.Combine(repositoryRoot, "global.json")));
             var sdk = document.RootElement.GetProperty("sdk");
 
-            Assert.AreEqual("10.0.401", sdk.GetProperty("version").GetString());
+            Assert.AreEqual("10.0.403", sdk.GetProperty("version").GetString());
             Assert.AreEqual("disable", sdk.GetProperty("rollForward").GetString());
             Assert.IsFalse(sdk.GetProperty("allowPrerelease").GetBoolean());
         }

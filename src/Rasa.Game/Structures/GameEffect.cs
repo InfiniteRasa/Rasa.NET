@@ -160,6 +160,12 @@ namespace Rasa.Structures
         /// <summary>The one damage type ResistModifier applies to (Polarity Field); 0 for all of them.</summary>
         public DamageType ResistDamageType { get; set; }
 
+        /// <summary>
+        /// Effects of one group give their ResistModifier once between them, the strongest of
+        /// them (Called Shot: Head's aim and wound); 0, the rest, each give their own.
+        /// </summary>
+        public int ResistGroup { get; set; }
+
         /// <summary>The holder cannot be healed while it is on (Disease P5, "All Healing: Disabled").</summary>
         public bool BlocksHealing { get; set; }
 

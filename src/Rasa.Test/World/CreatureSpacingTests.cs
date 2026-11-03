@@ -121,6 +121,74 @@ namespace Rasa.Test.World
             AssertApart(pack, Spacing.Crowded);
         }
 
+        /// <summary>
+        /// Three left close round the player as a chase of three left them about once in fifty, the
+        /// first of them in front: the one that was to step off found none of the few places it
+        /// tried round the player clear, and the pair stood 1.7 to 2.1 m apart for good.
+        /// </summary>
+        [DataTestMethod]
+        [DataRow(636.22f, 288.10f, 430.35f, 636.73f, 288.54f, 428.71f, 639.54f, 288.63f, 429.82f)]
+        [DataRow(636.28f, 288.14f, 430.20f, 639.33f, 288.73f, 429.35f, 637.09f, 287.94f, 431.70f)]
+        public void ThreeLeftCloseRoundTheirTargetStepOffToTheirOwnPlaces(float x1, float y1, float z1, float x2, float y2, float z2, float x3, float y3, float z3)
+        {
+            using var harness = ThreeOnThePlayer(out var pack, out var player,
+                new Vector3(x1, y1, z1), new Vector3(x2, y2, z2), new Vector3(x3, y3, z3));
+            Assert.IsTrue(pack.Any(creature => Spacing.CrowdedBy(harness.Map, creature) != null), "a crowd to start with");
+
+            for (var tick = 0; tick < 40; tick++)
+            {
+                harness.MoveTo(player);
+                harness.Client.Player.Attributes[Attributes.Health].Current = 1_000_000;
+                BehaviorManager.Instance.MapChannelThink(harness.Map, 250);
+            }
+
+            foreach (var creature in pack)
+                Assert.IsTrue(Spacing.AcrossGround(creature.Position, player) < 6f,
+                    $"{creature.EntityId} by the player: {Spacing.AcrossGround(creature.Position, player):F1} m");
+            AssertApart(pack, Spacing.Crowded);
+        }
+
+        [TestMethod]
+        public void OneWithNoRoomToStepOffHasTheOtherOfThePairStepOffInstead()
+        {
+            using var harness = ThreeOnThePlayer(out var pack, out _,
+                new Vector3(636.22f, 288.10f, 430.35f), new Vector3(636.73f, 288.54f, 428.71f), new Vector3(639.54f, 288.63f, 429.82f));
+
+            Assert.AreSame(pack[0], Spacing.CrowdedBy(harness.Map, pack[1]), "the one with the greater id steps off");
+            Assert.IsNull(Spacing.CrowdedBy(harness.Map, pack[0]), "and the other stays");
+
+            pack[1].Controller.ActionFighting.NoRoom = true;
+            Assert.AreSame(pack[1], Spacing.CrowdedBy(harness.Map, pack[0]), "with nowhere to go, the other steps off instead");
+            Assert.AreSame(pack[0], Spacing.CrowdedBy(harness.Map, pack[1]));
+            Assert.IsNull(Spacing.CrowdedBy(harness.Map, pack[2]), "one with nobody close stays");
+        }
+
+        /// <summary>The pack, three of them, fighting the player and stood where they are put, the one with the smallest entity id first.</summary>
+        private static WildernessRuntimeTestHarness ThreeOnThePlayer(out List<Creature> pack, out Vector3 player, params Vector3[] places)
+        {
+            var harness = WildernessRuntimeTestHarness.Create();
+            var pool = harness.Map.SpawnPools.Single(p => p.DbId == Pack);
+            foreach (var slot in pool.SpawnSlot)
+                slot.CountMin = slot.CountMax = 3;
+            harness.SpawnWorld(Pack);
+            pack = Of(harness, Pack).OrderBy(creature => creature.EntityId).ToList();
+            Assert.HasCount(3, pack);
+
+            var start = harness.Map.NavMesh.Nearest(pool.Position).Value;
+            player = harness.Map.NavMesh.Nearest(start + new Vector3(14, 0, 0)).Value;
+            harness.MoveTo(player);
+            harness.Client.Player.Attributes[Attributes.Health] = new ActorAttributes(Attributes.Health, 1_000_000, 1_000_000, 1_000_000, 0, 0);
+
+            for (var i = 0; i < 3; i++)
+            {
+                pack[i].Actions.RemoveAll(KaelRushingBlow.Is);
+                Place(harness, pack[i], harness.Map.NavMesh.Nearest(places[i]).Value);
+                Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(pack[i], harness.Client.Player.EntityId));
+            }
+
+            return harness;
+        }
+
         [TestMethod]
         public void EscortsComingTogetherTakeTheirOwnPlacesRoundTheirOwner()
         {
@@ -172,6 +240,24 @@ namespace Rasa.Test.World
                 placed.Add(Spacing.OnRings(null, centre, placed).Value);
             AssertApart(placed, Spacing.Distance);
             Assert.IsNull(Spacing.OnRings(null, centre, placed), "the rings are full");
+        }
+
+        [TestMethod]
+        public void AroundClearFindsAGapNarrowerThanASpacingsTurn()
+        {
+            // Five standing out at 5.5 m, each where the circle's spacing-wide turns look: every one
+            // of those places is under a spacing from one of them, and the places half way
+            // between are clear.
+            var centre = new Vector3(0, 0, 0);
+            var step = 2 * System.Math.Asin(Spacing.Distance * 1.05 / (2 * 3.0));
+            var taken = new[] { 0, 1, -1, 2, -2 }.Select(k => new Vector3((float)(5.5 * System.Math.Cos(k * step)), 0, (float)(5.5 * System.Math.Sin(k * step)))).ToList();
+
+            var spot = Spacing.AroundClear(null, centre, new Vector3(3, 0, 0), taken);
+
+            Assert.IsNotNull(spot, "a place between the turns");
+            Assert.AreEqual(3f, Spacing.AcrossGround(spot.Value, centre), 0.01f);
+            Assert.IsTrue(Spacing.IsClear(spot.Value, taken));
+            Assert.IsLessThan(step, System.Math.Abs(System.Math.Atan2(spot.Value.Z, spot.Value.X)), "the nearest such place to the one asked for");
         }
 
         private static void AssertApart(IReadOnlyList<Creature> creatures, float least) =>

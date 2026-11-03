@@ -183,7 +183,10 @@ namespace Rasa.Managers
             int Roll() => Random.Shared.Next(min, max + 1);
 
             // Around the holder first, while it is still there to be the centre.
-            var others = CreatureAreaAttacks.FoesAround(mapChannel, attacker, holder.Position, AbilityManager.LightningStormRadius, holder);
+            // An arc from the holder does not go through a wall to whoever is the far side of it.
+            var others = CreatureAreaAttacks.FoesAround(mapChannel, attacker, holder.Position, AbilityManager.LightningStormRadius, holder)
+                .Where(other => Cover.Reaches(mapChannel, attacker, Cover.Middle(holder), other))
+                .ToList();
             var tick = new GameEffectTickPacket(storm.EffectId, GameEffectTickPacket.TickKind.Storm);
 
             tick.Entries.Add(Deal(mapChannel, attacker, holder, Roll(), storm.TickDamageType));
@@ -194,14 +197,20 @@ namespace Rasa.Managers
             CellManager.Instance.CellCallMethod(mapChannel, holder, tick);
         }
 
-        /// <summary>Up to ArcTargets players other than the target within radius of it that the creature may fight, nearest first.</summary>
+        /// <summary>
+        /// Up to ArcTargets players other than the target within radius of it that the creature
+        /// may fight and the arc reaches from it (Cover.Reaches), nearest first.
+        /// </summary>
         public static List<Manifestation> ArcTo(MapChannel mapChannel, Creature attacker, Actor target, float radius)
         {
+            var from = Cover.Middle(target);
+
             return mapChannel.ClientList
                 .Select(c => c?.Player)
                 .Where(p => p != null && p != target && Alive(p) && p.MapContextId == mapChannel.MapInfo.MapContextId
                     && Vector3.DistanceSquared(p.Position, target.Position) <= radius * radius
-                    && TargetCategories.MayFightPlayer(attacker.TargetCategory, p.CombatCategory))
+                    && TargetCategories.MayFightPlayer(attacker.TargetCategory, p.CombatCategory)
+                    && Cover.Reaches(mapChannel, attacker, from, p))
                 .OrderBy(p => Vector3.DistanceSquared(p.Position, target.Position))
                 .Take(ArcTargets)
                 .ToList();

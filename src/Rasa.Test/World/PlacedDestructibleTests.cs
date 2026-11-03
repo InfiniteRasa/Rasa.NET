@@ -581,10 +581,15 @@ namespace Rasa.Test.World
             ForceFields.Damage(bane.Field, ForceFields.DefaultHealth, 0);
             Assert.IsTrue(bane.IsDown);
 
+            // A field stays down longer than a barrel: FieldRespawnMs, not the 45 to 60 s roll.
             PlacedDestructibles.Worker(world.Map);
-            Assert.AreEqual(_now + 50_000, bane.RespawnAt);
+            Assert.AreEqual(_now + PlacedDestructibles.FieldRespawnMs, bane.RespawnAt);
 
-            _now += 50_000;
+            _now += PlacedDestructibles.FieldRespawnMs - 1;
+            PlacedDestructibles.Worker(world.Map);
+            Assert.IsTrue(bane.IsDown);
+
+            _now += 1;
             PlacedDestructibles.Worker(world.Map);
             Assert.IsFalse(bane.IsDown);
             Assert.AreEqual(ForceFields.DefaultHealth, bane.Field.Health);

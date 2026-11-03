@@ -225,6 +225,75 @@ namespace Rasa.Game.Missions
             _resumed[(client.Player.Id, map)] = client;
         }
 
+        /// <summary>
+        /// Capture the Flag's three Forean recruits regroup after their owner returns to the
+        /// medical tent, including recruits killed on the previous attempt. Restore only their
+        /// existing follow commands; the assignment, boss defeats and scene timers stay intact.
+        /// </summary>
+        internal void RecoverBootcampEscorts(Client client)
+        {
+            var map = client?.Player?.MapChannel;
+            if (map?.MapInfo.MapContextId != global::Rasa.Missions.Content.Bootcamp.BootcampEntryDefinition.BootcampPrivateMapContextId ||
+                !IsOwnPrivateMap(client.Player.Id, map) || client.State != Data.ClientState.Ingame ||
+                client.PendingTransfer != null || !client.Player.Missions.TryGetValue(1994, out var assignment) ||
+                assignment.State != Data.MissionState.Active)
+                return;
+            var resident = _runs.Values.SingleOrDefault(run => run.Map == map &&
+                ReferenceEquals(run.Owner, client) && run.Run.ScriptKey == "bootcamp.experience" && !run.Suspended &&
+                run.Run.Status is SceneStatus.Running or SceneStatus.Waiting);
+            if (resident == null)
+                return;
+
+            using var unit = _factory.CreateChar();
+            var store = unit.CharacterMissions.Runtime;
+            var scene = store.Scene(resident.Run.Id);
+            RequireCurrentAssignment(unit, scene);
+            var desired = DesiredEffects(store.Effects(resident.Run.Id)
+                    .Where(effect => effect.Generation == resident.Run.Generation && effect.Status != "Cancelled" &&
+                        HasCurrentEffectSource(unit, scene, effect))
+                    .OrderBy(effect => effect.Version))
+                .Select(effect => JsonSerializer.Deserialize<WorldIntent>(effect.Payload)).ToArray();
+            var followers = desired.OfType<FollowActorIntent>().Where(follow => follow.Enabled &&
+                resident.Bindings.Actors.TryGetValue(follow.Role, out var actor) &&
+                actor.TemplateId is 510213 or 510214 or 510215 && actor.SharedKey != null).ToArray();
+            var restores = followers.Select(follow =>
+            {
+                var actor = resident.Bindings.Actors[follow.Role];
+                var offset = actor.FollowOffset ?? new ScenePosition(0, 0, 0);
+                var position = NavMeshManager.NearestWalkable(map, client.Player.Position +
+                    new System.Numerics.Vector3(offset.X, offset.Y, offset.Z))
+                    ?? throw new GameplayRejectionException("The bootcamp medical tent has no grounded escort position.");
+                var ensure = desired.OfType<EnsureActorIntent>().Single(intent => intent.Role == follow.Role);
+                return (Actor: actor, Follow: follow,
+                    Ensure: ensure with { RestorePosition = new ScenePosition(position.X, position.Y, position.Z) });
+            }).ToArray();
+            var shared = restores.Select(restore => restore.Actor.SharedKey).ToHashSet(StringComparer.Ordinal);
+
+            // The experience and mission share these actors. Remove only their current defeat
+            // records, so a later login restores the recruits and a later death can be recorded.
+            unit.ExecuteTransaction(() =>
+            {
+                foreach (var related in _runs.Values.Where(run => run.Map == map &&
+                    run.Run.OwnerCharacterId == client.Player.Id))
+                    foreach (var state in store.ActorStates(related.Run.Id).Where(state =>
+                        state.Generation == related.Run.Generation && shared.Contains(state.SharedKey)))
+                        store.Remove(state);
+            });
+            foreach (var restore in restores)
+            {
+                foreach (var command in new WorldIntent[]
+                {
+                    new RemoveActorIntent(restore.Ensure.OperationKey, restore.Actor.Role),
+                    restore.Ensure, restore.Follow
+                })
+                {
+                    var result = _world.Apply(resident.Run, command);
+                    if (result.State != WorldEffectState.Applied)
+                        throw new GameplayRejectionException($"Bootcamp escort recovery failed: {result.Failure ?? result.State.ToString()}");
+                }
+            }
+        }
+
         private void NotifyRecovered(Resident resident)
         {
             var runId = resident.Run.Id;

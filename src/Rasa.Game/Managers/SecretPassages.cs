@@ -68,10 +68,12 @@ namespace Rasa.Managers
     ///    way back to the obelisks: lit, with that passage before it.
     ///  - Concordia Wilderness, a 16 m corridor off the cave that also holds the Earth logos
     ///    chamber (-837, 141, -684): cave, door jamb, corridor and nothing, as at Alia Caverns.
+    ///    That cave is the bottom of Enigma Cavern, which players drop into and cannot climb
+    ///    out of, so its alcove is lit and is the way out, to the mouth of the cavern.
     ///  - Howling Maw, 32 m of corridor behind the room of the Few logos (-482, 123, -557).
     ///  - Caves of Donn, both maps of it, 16 m of corridor behind a door locked by three
     ///    logos (-328, 25, -359).
-    /// Nothing says where the last three led: no shrine without a way in is left over on
+    /// Nothing says where the last two led: no shrine without a way in is left over on
     /// their maps. Their alcoves stand unlit (the state with no effect) and take nobody
     /// anywhere, which closes the corridor without inventing a destination.
     /// </summary>
@@ -79,7 +81,8 @@ namespace Rasa.Managers
     {
         public sealed class Passage
         {
-            public Passage(string name, uint mapContextId, Vector3 min, Vector3 max, Vector3 destination, float rotation, bool withEffect = false)
+            public Passage(string name, uint mapContextId, Vector3 min, Vector3 max, Vector3 destination, float rotation, bool withEffect = false,
+                float boxYaw = 0f, Vector3 boxOrigin = default)
             {
                 Name = name;
                 MapContextId = mapContextId;
@@ -88,14 +91,34 @@ namespace Rasa.Managers
                 Destination = destination;
                 Rotation = rotation;
                 WithEffect = withEffect;
+                BoxYaw = boxYaw;
+                BoxOrigin = boxOrigin;
+                _unturn = Quaternion.CreateFromYawPitchRoll(-boxYaw, 0f, 0f);
             }
 
             public string Name { get; }
             public uint MapContextId { get; }
 
-            /// <summary>The box that triggers it, world axes, Y up.</summary>
+            /// <summary>
+            /// The box that triggers it, Y up: on the world's axes, or - for a box turned with
+            /// <see cref="BoxYaw"/> - as it would be before the turn about <see cref="BoxOrigin"/>.
+            /// </summary>
             public Vector3 Min { get; }
             public Vector3 Max { get; }
+
+            /// <summary>
+            /// The box's turn about the vertical through <see cref="BoxOrigin"/>, as a Doorway's Yaw:
+            /// an alcove whose corridor does not run along an axis has the box before it turned
+            /// with it. 0 for a box on the world's axes.
+            /// </summary>
+            public float BoxYaw { get; }
+            public Vector3 BoxOrigin { get; }
+
+            private readonly Quaternion _unturn;
+
+            /// <summary>A point in the box's own frame: turned back about its origin.</summary>
+            private Vector3 Local(Vector3 p) =>
+                BoxYaw == 0f ? p : BoxOrigin + Vector3.Transform(p - BoxOrigin, _unturn);
 
             public Vector3 Destination { get; }
 
@@ -109,12 +132,18 @@ namespace Rasa.Managers
             /// </summary>
             public bool WithEffect { get; }
 
-            public bool Contains(Vector3 p) =>
-                p.X >= Min.X && p.X <= Max.X && p.Y >= Min.Y && p.Y <= Max.Y && p.Z >= Min.Z && p.Z <= Max.Z;
+            public bool Contains(Vector3 point)
+            {
+                var p = Local(point);
+
+                return p.X >= Min.X && p.X <= Max.X && p.Y >= Min.Y && p.Y <= Max.Y && p.Z >= Min.Z && p.Z <= Max.Z;
+            }
 
             /// <summary>Whether the step from one point to another touches the box anywhere along it (a slab test).</summary>
-            public bool Touches(Vector3 from, Vector3 to)
+            public bool Touches(Vector3 start, Vector3 end)
             {
+                var from = Local(start);
+                var to = Local(end);
                 var tMin = 0f;
                 var tMax = 1f;
                 var d = to - from;
@@ -198,7 +227,24 @@ namespace Rasa.Managers
             new Vector3(832f - AlcoveHalfWidth, 154f, 920f - AlcoveDepth), new Vector3(832f + AlcoveHalfWidth, 170f, 920f + AlcoveReach),
             new Vector3(835f, 286.3f, 733f), 0f, withEffect: true);
 
-        public static readonly Passage[] All = { JumpAndBelieve, GrowthHallEnd, AliaCavernsDoor, EnhanceShrineExit };
+        /// <summary>
+        /// Before the alcove at the end of the corridor off the Earth logos cave (-837.03, 141,
+        /// -684.48, turned as its corridor is; floor y 141.0): out of the cave. The Earth logos is
+        /// at the bottom of Enigma Cavern, which is reached by dropping down its falls, and nothing
+        /// walks back up - the cave floors are each their own on the navmesh, and the Eloh
+        /// corridor, the logos room and the cave about them a closed one - so a player who took
+        /// the logos had /stuck and nothing else. This takes them to the mouth of the cavern,
+        /// eight metres inside its entrance (-854, 177, -577) on the floor that runs out to the
+        /// falls and the rest of the Wilderness, facing the way out.
+        /// </summary>
+        public static readonly Passage EarthCaveExit = new Passage(
+            "Concordia Wilderness: the alcove at the end of the corridor off the Earth logos cave, out to the mouth of Enigma Cavern",
+            ConcordiaWilderness,
+            new Vector3(-837.03f - AlcoveHalfWidth, 135f, -684.48f - AlcoveReach), new Vector3(-837.03f + AlcoveHalfWidth, 151f, -684.48f + AlcoveDepth),
+            new Vector3(-876.63f, 172.5f, -599.63f), -3f * MathF.PI / 4f, withEffect: true,
+            boxYaw: MathF.PI / 4f, boxOrigin: new Vector3(-837.03f, 141f, -684.48f));
+
+        public static readonly Passage[] All = { JumpAndBelieve, GrowthHallEnd, AliaCavernsDoor, EnhanceShrineExit, EarthCaveExit };
 
         /// <summary>The piece that closes the open end of a corridor a passage is at, so that it does not open on nothing.</summary>
         public sealed class Doorway
@@ -270,11 +316,12 @@ namespace Rasa.Managers
 
         /// <summary>
         /// At the open end of the corridor off the Earth logos cave (its straight's origin; the
-        /// straight runs south-west from it to a door jamb at -848.3, 141, -695.8). Unlit.
+        /// straight runs south-west from it to a door jamb at -848.3, 141, -695.8): lit, the way
+        /// out of the cave (<see cref="EarthCaveExit"/>).
         /// </summary>
         public static readonly Doorway EarthCaveDoorway = new Doorway(
             "Concordia Wilderness: the alcove at the end of the corridor off the Earth logos cave",
-            ConcordiaWilderness, null, ElohAlcove, UseObjectState.TsState0,
+            ConcordiaWilderness, EarthCaveExit, ElohAlcove, UseObjectState.TsState1,
             new Vector3(-837.03f, 141f, -684.48f), MathF.PI / 4f,
             new Vector3(-848.34f, 141f, -695.79f));
 

@@ -200,6 +200,11 @@ namespace Rasa.Structures
         public Vector3? ArrivalPosition { get; set; }
         public uint ArrivalMapContextId { get; set; }
 
+        /// <summary>Where Managers.SafetyFloor last put the player back after a fall out of the world, on which map, and when; null once they have walked off it.</summary>
+        public Vector3? RescuedTo { get; set; }
+        public uint RescuedToMapContextId { get; set; }
+        public long RescuedAtTick { get; set; }
+
         /// <summary>The descent under way, if any, for falling damage (Managers.FallDamage).</summary>
         public FallTracker Fall { get; } = new FallTracker();
 
@@ -470,6 +475,8 @@ namespace Rasa.Structures
 
         /// <summary>The state the player was in when they died, to go back to when revived.</summary>
         public CharacterState StateBeforeDeath { get; set; }
+        /// <summary>Changes on death so queued attacks cannot follow this actor into a new life.</summary>
+        internal uint DeathGeneration { get; set; }
 
         /// <summary>The camera script the player's client is running, 0 for none (CameraScripts).</summary>
         public uint CameraScriptId { get; set; }

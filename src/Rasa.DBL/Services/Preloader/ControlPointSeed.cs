@@ -20,7 +20,9 @@ namespace Rasa.Services.Preloader
     ///    each to the nearest point within 130 m;
     ///  - the AFS's garrison (kind 2): the pools of friendly creatures named for the point or
     ///    labelled "(Control Point)" within 130 m, and any other friendly pool within 60 m;
-    ///  - its hospital and waypoint (kinds 3 and 4): the teleporter rows found the same way;
+    ///  - its hospital and waypoint (kinds 3 and 4): the teleporter rows found the same way -
+    ///    three it missed, the Landing Zone's waypoint among them, are linked by
+    ///    Control_point_teleporter_links (ControlPointTeleporterLinks);
     ///  - its bosses (kind 5): the Thrax Commander of a garrison that has one.
     ///
     /// The Bane start with the six points the client names for them - Bane Comm Center, Bane

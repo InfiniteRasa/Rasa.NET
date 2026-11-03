@@ -249,6 +249,9 @@ namespace Rasa.Managers
                 if (!Game.Missions.World.CreatureGameplayRules.CanParticipateInCombat(tCreature))
                     continue;
 
+                if (tCreature.KeptFromCreatures && creature.MasterEntityId == 0)
+                    continue;
+
                 if (tCreature == creature)
                     continue;
 
@@ -532,10 +535,17 @@ namespace Rasa.Managers
                             var tCreatureX = tCreature.Position.X - difX;
                             var tCreatureY = tCreature.Position.Y - difY;
                             var tCreatureZ = tCreature.Position.Z - difZ;
+                            var pushed = new Vector3(creatureX, creatureY, creatureZ);
+                            var tPushed = new Vector3(tCreatureX, tCreatureY, tCreatureZ);
 
-                            // push
-                            creature.Position = new Vector3(creatureX, creatureY, creatureZ);
-                            tCreature.Position = new Vector3(tCreatureX, tCreatureY, tCreatureZ);
+                            // push - but not through a force field either of them may not pass
+                            // (ForceFields): a crowd held at a gate pushed its own through it.
+                            if (!ForceFields.Stops(mapChannel, creature, creature.Position, pushed) &&
+                                !ForceFields.Stops(mapChannel, tCreature, tCreature.Position, tPushed))
+                            {
+                                creature.Position = pushed;
+                                tCreature.Position = tPushed;
+                            }
                         }
                     }
                 }
@@ -1087,6 +1097,16 @@ namespace Rasa.Managers
                         continue;
                     }
 
+                    // Its last attack still playing on the clients (CreatureActing): none starts
+                    // until it has - the client plays one action at a time and queues what comes
+                    // meanwhile - and it holds where it is, as for an attack cooling down.
+                    if (CreatureActing.IsActing(creature))
+                    {
+                        needToMove = false;
+                        MadeProgress(creature);
+                        break;
+                    }
+
                     if (action.CooldownTimer > 0)
                     {
                         // An attack cooling down holds its creature at this range only if there
@@ -1139,6 +1159,8 @@ namespace Rasa.Managers
                         UpdateEntityMovement(targetDistX, targetDistY, targetDistZ, creature, mapChannel, 0.0f, false, delta);
 
                         action.CooldownTimer = NextCooldown(creature, action);
+
+                        CreatureActing.Began(creature, action);
                         MadeProgress(creature);
                         break;
                     }
@@ -1171,6 +1193,8 @@ namespace Rasa.Managers
                         AmoeboidVomit.Perform(mapChannel, creature, action);
 
                         action.CooldownTimer = NextCooldown(creature, action);
+
+                        CreatureActing.Began(creature, action);
                         MadeProgress(creature);
                         break;
                     }
@@ -1185,6 +1209,8 @@ namespace Rasa.Managers
                         AbilityManager.OnCreatureActed(mapChannel, creature, true);
 
                         action.CooldownTimer = NextCooldown(creature, action);
+
+                        CreatureActing.Began(creature, action);
                         MadeProgress(creature);
                         break;
                     }
@@ -1211,6 +1237,7 @@ namespace Rasa.Managers
 
                     // set cooldown, lengthened by whatever slows its attacks (Called Shot: Arm)
                     action.CooldownTimer = NextCooldown(creature, action);
+                    CreatureActing.Began(creature, action);
                     MadeProgress(creature);
 
                     // creature used action, break loop
@@ -1388,7 +1415,10 @@ namespace Rasa.Managers
         /// its target, at the distance it stands from it, that is Spacing.Distance clear of the
         /// others of its side and where they are making for (Spacing.AroundClear). True while it
         /// is walking there: it neither attacks nor chases meanwhile. Once there, or with nowhere
-        /// clear to go, it is left be for Spacing.SettleMs. One that cannot walk, an emplacement
+        /// clear to go, it is left be for Spacing.SettleMs. With nowhere clear to go it says so
+        /// (ActionFighting.NoRoom), and the other of the pair steps off instead (Spacing.CrowdedBy):
+        /// otherwise the one hemmed in tried again every SettleMs and never moved, the other was
+        /// never asked to, and the pair stood 2 m apart for good. One that cannot walk, an emplacement
         /// on its mount, a Shield Drone holding its ground, one on the move, and one that does not
         /// keep apart (a friendly that is no escort, Spacing.Keeps) are never moved.
         /// </summary>
@@ -1419,8 +1449,14 @@ namespace Rasa.Managers
             }
 
             if (!Spacing.Keeps(creature) || NeverMoves(creature) || Emplacements.Is(creature) || ShieldDrone.HoldsGround(creature)
-                || creature.Controller.LastMovement is { Velocity: > 0 } || Spacing.CrowdedBy(mapChannel, creature) == null)
+                || creature.Controller.LastMovement is { Velocity: > 0 })
                 return false;
+
+            if (Spacing.CrowdedBy(mapChannel, creature) == null)
+            {
+                fighting.NoRoom = false;
+                return false;
+            }
 
             // At the distance it stands from its target, or - right up against it, where there is
             // no room round it for a spacing - out at the edge of its reach (NearEnoughFor).
@@ -1436,7 +1472,10 @@ namespace Rasa.Managers
             fighting.SettleMs = Spacing.SettleMs;
 
             if (spot == null || Spacing.AcrossGround(spot.Value, creature.Position) < 0.5f)
+            {
+                fighting.NoRoom = true;
                 return false;
+            }
 
             creature.Controller.Path.Clear();
             creature.Controller.PathIndex = 0;
@@ -1445,9 +1484,11 @@ namespace Rasa.Managers
             {
                 creature.Controller.Path.Clear();
                 creature.Controller.PathIndex = 0;
+                fighting.NoRoom = true;
                 return false;
             }
 
+            fighting.NoRoom = false;
             fighting.SpreadingTo = spot;
             fighting.SettleMs = 0;
             FollowPath(mapChannel, creature, creature.WalkSpeed >= 0.01f ? creature.WalkSpeed : creature.RunSpeed, delta);
@@ -2875,6 +2916,7 @@ namespace Rasa.Managers
             creature.Controller.ActionFighting.RouteIncomplete = false;
             creature.Controller.ActionFighting.SpreadingTo = null;
             creature.Controller.ActionFighting.SettleMs = 0;
+            creature.Controller.ActionFighting.NoRoom = false;
             creature.LastAgression = 0;
 
             // Whatever brought it here - the scan, a hit, an assist - the target is on its table.
@@ -2933,6 +2975,10 @@ namespace Rasa.Managers
             if (EntityManager.Instance.Creatures.TryGetValue(entityId, out var other))
             {
                 if (other == creature || LandingZoneAssaultTargeting.IsServiceTarget(creature, other) || !Game.Missions.World.CreatureGameplayRules.CanParticipateInCombat(other))
+                    return false;
+
+                // A negotiator left free is the players' to fight, not the creatures' round him.
+                if (other.KeptFromCreatures && creature.MasterEntityId == 0)
                     return false;
 
                 if (pump == AbilityManager.MindControlConfusion)
@@ -3290,7 +3336,15 @@ namespace Rasa.Managers
                 // StopMoving, which records the stop: with the run's last step still on record it
                 // went on counting as moving (ToHit.IsMoving), and the next StopIfMoving sent it
                 // another stop.
-                creature.Position = NavMeshManager.SnapToGround(mapChannel, home);
+                //
+                // Not across a force field that stops it, though: it stands where it is. A Bane
+                // whose home is the outpost it is assaulting (a control point's attacker) was held
+                // at the gate's field on its way back there, and put inside when its time ran out.
+                var to = NavMeshManager.SnapToGround(mapChannel, home);
+
+                if (!ForceFields.Stops(mapChannel, creature, creature.Position, to))
+                    creature.Position = to;
+
                 StopMoving(creature);
                 arrived = true;
             }
@@ -3347,7 +3401,7 @@ namespace Rasa.Managers
         /// </summary>
         private static bool HasLineOfSight(MapChannel mapChannel, Creature creature, Actor target)
         {
-            if (target == null || mapChannel?.Cover == null)
+            if (target == null || mapChannel == null)
                 return true;
 
             var fighting = creature.Controller.ActionFighting;
@@ -3357,7 +3411,7 @@ namespace Rasa.Managers
 
             fighting.SightTargetId = target.EntityId;
             fighting.SightRecheckIn = SightRecheckMs;
-            fighting.SightClear = Sees(mapChannel.Cover, creature, target);
+            fighting.SightClear = Sees(mapChannel, creature, target);
 
             return fighting.SightClear;
         }
@@ -3368,7 +3422,25 @@ namespace Rasa.Managers
             if (cover == null)
                 return true;
 
-            return Cover.Visible(cover, Cover.EyeOf(creature), Cover.SamplePoints(target, creature.Position)) > 0;
+            var eye = Cover.EyeOf(creature);
+
+            return Cover.Visible(cover, eye, Cover.SamplePoints(target, eye)) > 0;
+        }
+
+        /// <summary>
+        /// The same, on the map: and not through an intact force field (ForceFields.Blocks), which
+        /// stops fire both ways. Every sample point is behind the field or none is, so the middle
+        /// of the target is enough to ask about.
+        /// </summary>
+        public static bool Sees(MapChannel mapChannel, Creature creature, Actor target)
+        {
+            if (target == null)
+                return true;
+
+            if (ForceFields.Blocks(mapChannel, creature, Cover.EyeOf(creature), Cover.Middle(target)))
+                return false;
+
+            return Sees(mapChannel?.Cover, creature, target);
         }
 
         #endregion
@@ -3511,7 +3583,7 @@ namespace Rasa.Managers
         /// </summary>
         private static bool ScansForEnemies(Creature creature)
         {
-            if (creature.ScriptedCombatGate != null)
+            if (creature.ScriptedCombatGate != null || creature.OnClaimDuty)
                 return false;
 
             var pump = AbilityManager.MindControlPumpOf(creature);
@@ -3532,6 +3604,10 @@ namespace Rasa.Managers
             // update cooldown timer of all actions
             foreach (var action in creature.Actions)
                 action.CooldownTimer -= delta;
+
+            // and the time its last attack has left to play on the clients (CreatureActing)
+            if (creature.ActingMs > 0)
+                creature.ActingMs = Math.Max(0, creature.ActingMs - delta);
         }
         
         /// <summary>

@@ -144,6 +144,8 @@ namespace Rasa.Test.Database
                     ? "wilderness_v1_thrax_10_14_boss" : ThraxRegular, binding.ProfileKey);
             }
             var catalog = OrdinaryLootCatalog.Load(world);
+            foreach (var creature in LandingZoneOccupationCreatures)
+                Assert.IsTrue(catalog.Resolve(1220, creature).Groups.Count > 0);
             Assert.IsNull(catalog.Resolve(1148, 3));
             foreach (var binding in content.Bindings)
                 Assert.IsTrue(catalog.Resolve(binding.MapContextId, binding.CreatureId).Groups.Count > 0);

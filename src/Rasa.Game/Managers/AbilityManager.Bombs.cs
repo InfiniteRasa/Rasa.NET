@@ -106,6 +106,11 @@ namespace Rasa.Managers
                         CritEffects.OnCritical(mapChannel, victim, player, bomb.TickDamageType, amount);
             }
 
+            // And the objects in it a weapon can damage (PracticeTargetManager.Blast), listed with the rest.
+            blast.Hits.AddRange(PracticeTargetManager.Entries(PracticeTargetManager.Blast(mapChannel, player, target.Position, bomb.TickRadius,
+                () => GameEffectManager.ApplyDamageDealt(player, Scale(bomb.SourceLevel, BombRandom.Next(bomb.TickDamageMin, bomb.TickDamageMax + 1), bomb.TickScaleType)),
+                missions: _missionManager), bomb.TickDamageType));
+
             // Sent on the holder, which may just have died in its own blast: the client still has it.
             CellManager.Instance.CellCallMethod(mapChannel, target, blast);
 

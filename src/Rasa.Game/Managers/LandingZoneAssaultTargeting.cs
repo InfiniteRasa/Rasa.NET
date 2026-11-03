@@ -40,16 +40,49 @@ namespace Rasa.Managers
                         var distance = Vector3.Distance(at, target.Position);
                         if (!attacks.Any(a => distance > a.RangeMin + .5 && distance < a.RangeMax - .5)) continue;
                         var eye = at + new Vector3(0, Cover.HeightOf(creature) * Cover.EyeFactor, 0);
-                        if (Cover.Visible(map.Cover, eye, Cover.SamplePoints(target, at)) <= 0) continue;
+                        if (Cover.Visible(map, eye, Cover.SamplePoints(target, at)) <= 0) continue;
                         if (!candidates.Contains(at)) candidates.Add(at);
                     }
-            foreach (var at in candidates.OrderBy(p => Vector3.DistanceSquared(p, creature.Position)))
+            // Not where another of the assault stands or is going to: each spot costs CrowdPenalty
+            // metres more for every one within CrowdRadius of it, so a group takes its target from
+            // around it rather than from one spot, one behind the other.
+            var others = Others(map, creature);
+            foreach (var at in candidates.OrderBy(p => Vector3.Distance(p, creature.Position) +
+                CrowdPenalty * others.Count(o => Vector3.DistanceSquared(o, p) < CrowdRadius * CrowdRadius)))
             {
                 // A partial route to a disconnected roof is not a firing position.
                 var path = NavMeshManager.FindPathBounded(map, creature.Position, at, out var complete);
-                if (complete && path?.Count > 0) return at;
+                if (complete && path?.Count > 0)
+                {
+                    lock (Taken) Taken[creature.EntityId] = (creature, at);
+                    return at;
+                }
             }
             return null;
+        }
+
+        private static MapChannel MapOf(Creature creature) => creature.RuntimeMapChannel ?? creature.SpawnPool?.RuntimeMapChannel;
+
+        /// <summary>How near another of the assault a firing position counts as crowded, and what each such one costs, in metres.</summary>
+        internal const float CrowdRadius = 3f, CrowdPenalty = 10f;
+
+        /// <summary>The firing position each of the assault last took, by entity id.</summary>
+        private static readonly System.Collections.Generic.Dictionary<ulong, (Creature Creature, Vector3 At)> Taken = new();
+
+        /// <summary>Where the rest of the assault on the map stand, and the firing positions the living of them took.</summary>
+        private static System.Collections.Generic.List<Vector3> Others(MapChannel map, Creature creature)
+        {
+            var others = new System.Collections.Generic.List<Vector3>();
+            foreach (var other in EntityManager.Instance.Creatures.Values)
+                if (other != creature && IsAssault(other) && CreatureManager.IsLivingOnMap(map, other))
+                    others.Add(other.Position);
+            lock (Taken)
+            {
+                foreach (var id in Taken.Where(t => !CreatureManager.IsLivingOnMap(map, t.Value.Creature) && MapOf(t.Value.Creature) == map).Select(t => t.Key).ToList())
+                    Taken.Remove(id);
+                others.AddRange(Taken.Where(t => t.Key != creature.EntityId && MapOf(t.Value.Creature) == map).Select(t => t.Value.At));
+            }
+            return others;
         }
     }
 }

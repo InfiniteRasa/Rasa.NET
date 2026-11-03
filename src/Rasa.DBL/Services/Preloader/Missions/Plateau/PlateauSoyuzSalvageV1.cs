@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Rasa.Data;
 using Rasa.Missions.Content;
@@ -15,7 +16,10 @@ namespace Rasa.Services.Preloader.Missions.Plateau
     /// objective 1 "Salvage the Soyuz Debris" 21604/21605, no counter (missionobjective). Debris: classes
     /// 29783 and 29784 "Soyuz Orbital Module Debris", item dispensers (augmentation 34: states 81, 82); the
     /// salvaged piece is class 29785 (template 122851); class 29436 "Soyuz ISS Model Rocket" (template
-    /// 122834). The client's Plateau map places no debris. Grissom is creature 510180.
+    /// 122834). The client's Plateau map places no debris. Grissom is creature 510180. The debris classes'
+    /// use argument is 1 (usabledata.lookup[29783] and [29784]: (1, None, None, None, None)), not the 3 of
+    /// the other item dispensers; this migration wrote 3 (<see cref="SeededUseArgument"/>), so every use was
+    /// refused until Plateau_soyuz_debris_use (<see cref="RepairUseUp"/>).
     ///
     /// Sourced: TaRapedia Soyuz Salvage: Plateau: giver and receiver Grissom, level 30 (no confirmed lower
     /// bound), reward "Soyuz ISS Model Rocket", no XP or credits given. Patch notes (play.tr.eu, rgtr):
@@ -35,7 +39,10 @@ namespace Rasa.Services.Preloader.Missions.Plateau
         public const uint Grissom = 510180;
         public const uint DebrisTemplate = 122851, DebrisClass = 29785;
         public const uint ModelRocket = 122834;         // AccountReward_SoyuzModelRocket_Default
-        public const uint UseArgument = 3, ReadyState = 81, TakenState = 82;
+        public const uint UseArgument = 1, ReadyState = 81, TakenState = 82;
+
+        /// <summary>The use argument Plateau_soyuz_salvage gave the pieces: the other dispensers' 3, which the client never sends for them.</summary>
+        public const uint SeededUseArgument = 3;
         public const string DebrisKey = "soyuz-debris";
 
         /// <summary>(role, class, place): north-west of the tower ruins, by the chasm's east part, by the Septic Bog.</summary>
@@ -77,7 +84,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
                 var sequence = (uint)index + 1;
                 mission.Indicator(1, sequence, piece.At.X, piece.At.Y, piece.At.Z, 40);
                 scene.Actors[piece.Role] = new SceneActorDefinition(piece.Role, SceneActorKind.Object, piece.Class, piece.At,
-                    InitialObjectState: ReadyState, UseAction: new SceneObjectAction(MissionId, 1, sequence, UseArgument));
+                    InitialObjectState: ReadyState, UseAction: new SceneObjectAction(MissionId, 1, sequence, SeededUseArgument));
                 scene.Sequences[0].World.Add(new EnsureActorIntent($"create-{piece.Role}", piece.Role));
                 var salvage = new SceneSequenceDefinition
                 {
@@ -104,5 +111,30 @@ namespace Rasa.Services.Preloader.Missions.Plateau
         }
 
         public static void Down(MigrationBuilder migration) => PlateauMissionDataV1.Remove(migration, MissionId);
+
+        /// <summary>
+        /// Plateau_soyuz_debris_use: each piece's use action takes the client's argument for its class, 1. A
+        /// piece whose use action is not the seeded one (another revision, or edited) is left as it is.
+        /// </summary>
+        public static IEnumerable<string> RepairUseUp() => SetUseArgument(SeededUseArgument, UseArgument);
+
+        /// <summary>Back to the seeded argument, for the pieces Up changed.</summary>
+        public static IEnumerable<string> RepairUseDown() => SetUseArgument(UseArgument, SeededUseArgument);
+
+        private static IEnumerable<string> SetUseArgument(uint from, uint to)
+        {
+            for (var sequence = 1; sequence <= Pieces.Length; sequence++)
+            {
+                var before = UseActionJson(sequence, from);
+                var after = UseActionJson(sequence, to);
+                yield return $"UPDATE mission_scene_binding SET bindings = REPLACE(bindings, '{before}', '{after}') " +
+                    $"WHERE mission_id = {MissionId} AND content_revision = '{PlateauMissionDataV1.Revision}' " +
+                    $"AND script_key = 'data.sequence' AND bindings LIKE '%{before}%';";
+            }
+        }
+
+        /// <summary>A piece's use action as the scene codec writes it into mission_scene_binding.bindings.</summary>
+        public static string UseActionJson(int sequence, uint argument) =>
+            $"\"useAction\":{{\"missionId\":{MissionId},\"objectiveId\":1,\"sequenceId\":{sequence},\"actionArgId\":{argument}}}";
     }
 }

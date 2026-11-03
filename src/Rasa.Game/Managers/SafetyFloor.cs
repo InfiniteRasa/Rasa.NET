@@ -31,6 +31,14 @@ namespace Rasa.Managers
     ///   3. the highest walkable surface above the point they fell through.
     /// Putting them there ends the fall (Manifestation.PlaceAt), so it costs no falling damage.
     ///
+    /// A player who falls out again from where they were just put back - within
+    /// <see cref="RescueSpotRadius"/> of it, and within <see cref="RescueRepeatMs"/> - goes where a
+    /// dead player would revive instead (<see cref="WayBack"/>): their instance's entrance, or
+    /// their nearest hospital. A place the navmesh has walkable surface on is not always one the
+    /// client has ground at - the top of the terrain closing the Caves of Donn over its tunnels,
+    /// where /stuck once put a player - and putting them back there only started the same fall,
+    /// over and over, for as long as they cared to watch.
+    ///
     /// Checked on every accepted Move after the secret passages (SecretPassages), so a pane that
     /// catches a jumper on purpose - the Torden Abyss leap - always wins over the floor, which is
     /// hundreds of metres below it; and on entering the world, for a character saved below it.
@@ -45,6 +53,15 @@ namespace Rasa.Managers
 
         /// <summary>How often a player's last safe position is refreshed. A player walking sends ten Moves a second.</summary>
         public const long NoteIntervalMs = 250;
+
+        /// <summary>How near where the last rescue put them a player who falls out again has to be put back for that place to count as no ground.</summary>
+        public const float RescueSpotRadius = 2.5f;
+
+        /// <summary>How soon after a rescue a fall out of the world counts as the same one again.</summary>
+        public const long RescueRepeatMs = 60_000;
+
+        /// <summary>The clock; a test's to replace.</summary>
+        public static Func<long> Now { get; set; } = () => Environment.TickCount64;
 
         /// <summary>The floor under a map with this navmesh height range.</summary>
         public static float FloorFor(float lowest) => lowest - Margin;
@@ -97,6 +114,11 @@ namespace Rasa.Managers
 
             if (IsBelow(mapChannel, position) || !IsStanding(mapChannel, position))
                 return;
+
+            // Walked off where a rescue put them: it held them.
+            if (player.RescuedTo is Vector3 rescued &&
+                (player.RescuedToMapContextId != player.MapContextId || Across(rescued, position) > RescueSpotRadius))
+                player.RescuedTo = null;
 
             player.LastSafePosition = position;
             player.LastSafeMapContextId = player.MapContextId;
@@ -184,6 +206,27 @@ namespace Rasa.Managers
             return NavMeshManager.NearestInColumn(mapChannel, column, top.Value - floor.Value + 2f);
         }
 
+        private const string EntranceWhere = "at their instance's entrance";
+
+        /// <summary>
+        /// Where a dead player would revive (PlayerDeath.ReviveMe): the entrance of the squad
+        /// instance they are in, or the nearest hospital of theirs on the map. Null with neither.
+        /// </summary>
+        public static (Vector3 Position, string Where)? WayBack(MapChannel mapChannel, Manifestation player)
+        {
+            if (InstanceEntrances.Of(mapChannel, player) is { } entrance)
+                return (entrance.Position, EntranceWhere);
+
+            if (mapChannel?.MapInfo == null)
+                return null;
+
+            var hospital = Hospitals.Nearest(Hospitals.AvailableTo(player, mapChannel.MapInfo.MapContextId), player.Position);
+
+            return hospital == null ? null : (hospital.Position + new Vector3(0f, GmMapCommands.PadHeight, 0f), "at their nearest hospital");
+        }
+
+        private static float Across(Vector3 a, Vector3 b) => Vector2.Distance(new Vector2(a.X, a.Z), new Vector2(b.X, b.Z));
+
         /// <summary>Puts a player who has fallen out of the world back. False when there is nowhere to put them.</summary>
         public static bool Rescue(Client client, string what)
         {
@@ -197,6 +240,15 @@ namespace Rasa.Managers
                 return false;
             }
 
+            var now = Now();
+
+            // Out again from where the last rescue put them, a moment ago: their client has no
+            // ground there, whatever the navmesh says. Where a dead player would go, instead.
+            if (player.RescuedTo is Vector3 last && player.RescuedToMapContextId == player.MapContextId &&
+                now - player.RescuedAtTick < RescueRepeatMs && Across(last, destination.Value.Position) <= RescueSpotRadius &&
+                WayBack(player.MapChannel, player) is { } back)
+                destination = back;
+
             var (to, where) = destination.Value;
             var view = client.Movement?.ViewDirection ?? new Vector2((float)player.Rotation, 0f);
             var movement = new Movement(to, view);
@@ -205,6 +257,14 @@ namespace Rasa.Managers
 
             player.PlaceAt(to);
             client.Movement = movement;
+
+            player.RescuedTo = to;
+            player.RescuedToMapContextId = player.MapContextId;
+            player.RescuedAtTick = now;
+
+            // The entrance is inside the way out: they stand in it as one who has just arrived does.
+            if (where == EntranceWhere)
+                InstanceEntrances.StandIn(player.MapChannel, player, to);
 
             client.MoveObject(player.EntityId, movement);
 

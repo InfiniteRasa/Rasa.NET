@@ -485,7 +485,7 @@ namespace Rasa.Managers
                 target = ResolveTarget(mapChannel, packet.Target.EntityId);
 
                 if (target == null)
-                    practiceTarget = ResolvePracticeTarget(mapChannel, player, info, packet.Target.EntityId);
+                    practiceTarget = ResolvePracticeTarget(mapChannel, player, action.Module, info, packet.Target.EntityId);
 
                 if (practiceTarget != null)
                 {
@@ -671,10 +671,10 @@ namespace Rasa.Managers
             // 70 m/s, with the performer carried to the target through it.
             var windupMs = (long)info.WindupMs;
 
-            if (action.Module == RushingBlowModule && target != null)
+            if (action.Module == RushingBlowModule && (target != null || practiceTarget != null))
             {
-                windupMs = ChargeWindupMs(Vector3.Distance(player.Position, target.Position));
-                StartCharge(mapChannel, client, player, target, actionId, windupMs);
+                windupMs = ChargeWindupMs(Vector3.Distance(player.Position, target?.Position ?? practiceTarget.Position));
+                StartCharge(mapChannel, client, player, target, actionId, windupMs, practiceTarget);
             }
 
             mapChannel.PerformRecovery.Add(new ActionData(player, actionId, level, targetId, windupMs)
@@ -887,20 +887,27 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// The object an ability can hit from here: for the recruit's lightning, the Bootcamp
-        /// practice target or a mission prop; for a grenade, any of the objects a weapon can
-        /// damage (PracticeTargetManager) - the client lets a grenade be thrown at an object
-        /// that CanTakeDamage (GrenadeAbility.CheckAction), and it was refused here as no target.
+        /// The object an ability can hit from here. One a weapon destroys - a mission's
+        /// destructible (Cache of the Day's fuel containers), one the server put down, or the
+        /// .map's (PracticeTargetManager) - any damage ability may be aimed at: the client lets
+        /// one be aimed at an object that canBeDamaged (DamageBase.CheckAction, GrenadeAbility's
+        /// CanTakeDamage), and only the recruit's lightning and a grenade were let through here,
+        /// every other ability refused as having no target. A plain practice target
+        /// (PracticeTargetManager.IsDummy) counts what was aimed at it, and is still the recruit's
+        /// first lightning's and a grenade's alone.
         /// </summary>
         private static DynamicObject ResolvePracticeTarget(
-            MapChannel map, Manifestation player, ActionLevelInfo info, ulong entityId)
+            MapChannel map, Manifestation player, string module, ActionLevelInfo info, ulong entityId)
         {
-            if (info.ActionId != ActionId.AaRecruitLightning && info.ActionId != ActionId.ConsumableGrenade ||
-                !PracticeTargetManager.TryGetTarget(map, entityId, out var target) ||
-                !PracticeTargetManager.CanHit(map, player, target) ||
-                info.ActionId == ActionId.AaRecruitLightning && target.MissionDestruction == null && info.Level != 1)
+            if (!PracticeTargetManager.TryGetTarget(map, entityId, out var target) ||
+                !PracticeTargetManager.CanHit(map, player, target))
                 return null;
-            return target;
+
+            if (info.ActionId == ActionId.ConsumableGrenade || info.ActionId == ActionId.AaRecruitLightning && info.Level == 1)
+                return target;
+
+            return !PracticeTargetManager.IsDummy(target) && module != null &&
+                DirectDamageModules.Contains(module) && info.Has(AbilityProperty.DamageAmountMin) ? target : null;
         }
 
         private static bool IsOnMap(MapChannel mapChannel, Actor actor)
@@ -1329,7 +1336,7 @@ namespace Rasa.Managers
             // A practice target still has to be the one it was aimed at, and still hittable.
             if (action.TargetObject != null)
             {
-                var practiceTarget = ResolvePracticeTarget(mapChannel, player, info, action.TargetId);
+                var practiceTarget = ResolvePracticeTarget(mapChannel, player, landing?.Module, info, action.TargetId);
 
                 if (!ReferenceEquals(practiceTarget, action.TargetObject))
                     return PlayerMessage.PmActionFailedNoTarget;
@@ -1428,44 +1435,31 @@ namespace Rasa.Managers
             var min = info.Get(AbilityProperty.DamageAmountMin);
             var max = Math.Max(min, info.Get(AbilityProperty.DamageAmountMax, min));
 
-            // The recruit's lightning at a Bootcamp practice target: a hit on the target, nothing
-            // else. A grenade thrown at an object goes off there like one thrown at a creature.
+            // An object it was aimed at (ResolvePracticeTarget) - the Bootcamp's practice target,
+            // a fuel container - takes the hit as a creature would, and the ability's area goes
+            // out from it. One gone or destroyed since, nothing. A grenade thrown at an object
+            // goes off there all the same (GrenadeSplash).
+            DynamicObject struckObject = null;
+
             if (action.TargetObject != null && actionInfo.Module != GrenadeModule)
             {
-                var practiceTarget = ResolvePracticeTarget(mapChannel, player, info, action.TargetId);
+                struckObject = ResolvePracticeTarget(mapChannel, player, actionInfo.Module, info, action.TargetId);
 
-                if (practiceTarget == null || !ReferenceEquals(practiceTarget, action.TargetObject))
+                if (struckObject == null || !ReferenceEquals(struckObject, action.TargetObject))
                     return;
-
-                var practiceAmount = GameEffectManager.ApplyDamageDealt(
-                    player, Scale(player.Level, _random.Next(min, max + 1), scaleType));
-                var practice = new AbilityRecoveryPacket(
-                    action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.Damage)
-                {
-                    ArcData = true
-                };
-                practice.Hits.Add(new AbilityHit
-                {
-                    EntityId = practiceTarget.EntityId,
-                    Amount = practiceAmount,
-                    DamageType = damageType
-                });
-                ManifestationManager.Instance.EnterCombat(client);
-                CellManager.Instance.CellCallMethod(mapChannel, player, practice);
-                if (practiceAmount > 0)
-                    PracticeTargetManager.RecordHit(
-                        mapChannel, player, practiceTarget, action.ActionId, _missionManager, practiceAmount);
-                return;
             }
 
             // Creatures a player may attack, and enemy players across a wargame (Pvp).
             var targets = new List<Actor>();
-            var aimed = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) : null;
+            var aimed = action.TargetId != 0 && struckObject == null ? ResolveTarget(mapChannel, action.TargetId) : null;
             var primary = aimed != null && IsAttackable(player, aimed) ? aimed : null;
+
+            // And the objects a weapon can damage that the area catches (PracticeTargetManager).
+            var areaObjects = new List<DynamicObject>();
+            var areaFrom = player.Position;
 
             // Where a grenade went off, and on what (ResolveGrenade).
             var landedOn = 0UL;
-            DynamicObject struckObject = null;
 
             // Lightning's bolt strikes its target alone; what else it reaches is its arc and its
             // storm (ResolveLightningExtras), not an area around the target.
@@ -1476,7 +1470,13 @@ namespace Rasa.Managers
             }
             else if (actionInfo.Module == GrenadeModule)
             {
-                targets.AddRange(GrenadeSplash(mapChannel, player, info, action, aimed, primary, out landedOn, out struckObject));
+                targets.AddRange(GrenadeSplash(mapChannel, player, info, action, aimed, primary, out landedOn, out struckObject, out var blastAt));
+
+                if (blastAt.HasValue)
+                {
+                    areaFrom = blastAt.Value;
+                    areaObjects.AddRange(PracticeTargetManager.TargetsWithin(mapChannel, player, blastAt.Value, info.Get(AbilityProperty.EffectRadius)));
+                }
             }
             else if (info.Has(AbilityProperty.ConeRadius))
             {
@@ -1489,17 +1489,22 @@ namespace Rasa.Managers
 
                 targets.AddRange(HostilesInCone(mapChannel, player, aim, range, info.Get(AbilityProperty.ConeRadius)));
                 targets.AddRange(Pvp.EnemiesInCone(mapChannel, player, aim, range, info.Get(AbilityProperty.ConeRadius)));
+                areaObjects.AddRange(PracticeTargetManager.TargetsInCone(mapChannel, player, aim, range, info.Get(AbilityProperty.ConeRadius))
+                    .Where(obj => !PracticeTargetManager.IsDummy(obj)));
             }
             else if (info.Has(AbilityProperty.RadiusAroundSource))
             {
                 targets.AddRange(HostilesWithin(mapChannel, player, player.Position, info.Get(AbilityProperty.RadiusAroundSource)));
                 targets.AddRange(Pvp.EnemiesWithin(mapChannel, player, player.Position, info.Get(AbilityProperty.RadiusAroundSource)));
+                areaObjects.AddRange(PracticeTargetManager.TargetsWithin(mapChannel, player, player.Position, info.Get(AbilityProperty.RadiusAroundSource)));
             }
             else if (info.Has(AbilityProperty.RadiusAroundTarget))
             {
-                var centre = primary?.Position ?? action.TargetLocation ?? player.Position;
+                var centre = primary?.Position ?? struckObject?.Position ?? action.TargetLocation ?? player.Position;
+                areaFrom = centre;
                 targets.AddRange(HostilesWithin(mapChannel, player, centre, info.Get(AbilityProperty.RadiusAroundTarget)));
                 targets.AddRange(Pvp.EnemiesWithin(mapChannel, player, centre, info.Get(AbilityProperty.RadiusAroundTarget)));
+                areaObjects.AddRange(PracticeTargetManager.TargetsWithin(mapChannel, player, centre, info.Get(AbilityProperty.RadiusAroundTarget)));
 
                 if (primary != null && !targets.Contains(primary))
                     targets.Add(primary);
@@ -1508,6 +1513,9 @@ namespace Rasa.Managers
             {
                 targets.Add(primary);
             }
+
+            // The one it was aimed at takes its own hit, below.
+            areaObjects.RemoveAll(obj => ReferenceEquals(obj, struckObject));
 
             // A creature attack's client class wants each hit's rawInfo as it is (KaelSmashAbility and
             // the rest); the players' abilities, DamageBase's (rawInfo, onHitData).
@@ -1520,11 +1528,15 @@ namespace Rasa.Managers
                 SplashOn = landedOn
             };
 
-            if (targets.Count > 0 || struckObject != null)
+            if (targets.Count > 0 || struckObject != null || areaObjects.Count > 0)
                 ManifestationManager.Instance.EnterCombat(client);
 
             var critChance = CriticalHits.AttackerChance(player, false);
             var stun = Stuns.OfAbility(actionInfo.Module, info);
+
+            // The objects hit - those lightning arcs to on the way, then those aimed at or caught -
+            // landed once the recovery is out.
+            var objectHits = new List<(DynamicObject Target, int Damage)>();
             var knockback = info.Get(AbilityProperty.KnockbackDistance);
 
             foreach (var target in targets)
@@ -1585,7 +1597,7 @@ namespace Rasa.Managers
 
                     // Lightning's arc, extra sonic damage and storm.
                     if (recovery.ArcData)
-                        ResolveLightningExtras(mapChannel, player, info, enemy, rolled, hit);
+                        ResolveLightningExtras(mapChannel, player, info, enemy, rolled, hit, objectHits);
 
                     continue;
                 }
@@ -1616,22 +1628,47 @@ namespace Rasa.Managers
 
                 // Lightning's arc, extra sonic damage and storm (AbilityManager.Lightning.cs).
                 if (recovery.ArcData)
-                    ResolveLightningExtras(mapChannel, player, info, creature, rolled, hit);
+                    ResolveLightningExtras(mapChannel, player, info, creature, rolled, hit, objectHits);
             }
 
-            // The object a grenade was thrown at takes the blast as a weapon's shot would.
-            var objectAmount = 0;
+            // The object it was aimed at, and those the area caught, take the hit as a weapon's
+            // shot would: each its own roll, no crit or resistance, those being an actor's
+            // (ConstantFire.PulseAtObject, MissileManager). The client announces a hit on an
+            // object as on a creature (DamageBase.DoAbility, Usable.AnnounceDamage); Vortex's
+            // flail and a creature attack's rawInfo are an actor's, so theirs are announced on
+            // their own (PracticeTargetManager.Announce).
+            var listObjects = actionInfo.Module != VortexModule && !RawInfoModules.Contains(actionInfo.Module);
 
-            if (struckObject != null)
+            foreach (var obj in (struckObject != null ? new[] { struckObject } : Array.Empty<DynamicObject>()).Concat(areaObjects))
             {
-                objectAmount = GameEffectManager.ApplyDamageDealt(player, Scale(player.Level, _random.Next(min, max + 1), scaleType));
-                recovery.Hits.Insert(0, new AbilityHit { EntityId = struckObject.EntityId, Amount = objectAmount, DamageType = damageType });
+                // A force field between the area and the object keeps it off, as off a creature.
+                if (!ReferenceEquals(obj, struckObject) && ForceFields.Blocks(mapChannel, player,
+                        Managers.Cover.BlastFrom(areaFrom), obj.Position + new Vector3(0f, Managers.Cover.BlastHeight, 0f)))
+                    continue;
+
+                var amount = GameEffectManager.ApplyDamageDealt(player, Scale(player.Level, _random.Next(min, max + 1), scaleType));
+                objectHits.Add((obj, amount));
+
+                if (!listObjects)
+                    continue;
+
+                var objectHit = new AbilityHit { EntityId = obj.EntityId, Amount = amount, DamageType = damageType };
+
+                // Lightning's arc jumps from the object to the nearest hostile or object, as from a creature.
+                if (recovery.ArcData && ReferenceEquals(obj, struckObject))
+                    ResolveLightningArc(mapChannel, player, info, obj.Position, null, obj, objectHit, objectHits);
+
+                recovery.Hits.Insert(ReferenceEquals(obj, struckObject) ? 0 : recovery.Hits.Count, objectHit);
             }
 
             CellManager.Instance.CellCallMethod(mapChannel, player, recovery);
 
-            if (struckObject != null && objectAmount > 0)
-                PracticeTargetManager.RecordHit(mapChannel, player, struckObject, action.ActionId, _missionManager, objectAmount);
+            if (!listObjects)
+                PracticeTargetManager.Announce(mapChannel, player, objectHits, damageType);
+
+            foreach (var (obj, amount) in objectHits)
+                if (amount > 0)
+                    PracticeTargetManager.RecordHit(mapChannel, player, obj, action.ActionId, _missionManager, amount, damageType);
         }
 
         /// <summary>
@@ -1645,20 +1682,22 @@ namespace Rasa.Managers
         /// A target that died during the throw, or an object destroyed during it, is still where
         /// the grenade lands, and it goes off there; one gone from the map leaves nowhere to land,
         /// and it hits nothing. landedOn is what the client draws the blast on, 0 for nothing;
-        /// struck, the object that takes the blast, when it was thrown at one that still can.
+        /// struck, the object that takes the blast, when it was thrown at one that still can;
+        /// blastAt, where it went off, for the objects around (PracticeTargetManager.TargetsWithin).
         /// </summary>
         private static List<Actor> GrenadeSplash(MapChannel mapChannel, Manifestation player, ActionLevelInfo info, ActionData action,
-            Actor aimed, Actor primary, out ulong landedOn, out DynamicObject struck)
+            Actor aimed, Actor primary, out ulong landedOn, out DynamicObject struck, out Vector3? blastAt)
         {
             var hit = new List<Actor>();
             Vector3 centre;
 
             landedOn = 0;
             struck = null;
+            blastAt = null;
 
             if (action.TargetObject != null)
             {
-                var still = ResolvePracticeTarget(mapChannel, player, info, action.TargetId);
+                var still = ResolvePracticeTarget(mapChannel, player, GrenadeModule, info, action.TargetId);
 
                 if (ReferenceEquals(still, action.TargetObject))
                     struck = still;
@@ -1677,6 +1716,7 @@ namespace Rasa.Managers
             if (primary != null)
                 hit.Add(primary);
 
+            blastAt = centre;
             var radius = info.Get(AbilityProperty.EffectRadius);
 
             foreach (var creature in HostilesWithin(mapChannel, player, centre, radius))

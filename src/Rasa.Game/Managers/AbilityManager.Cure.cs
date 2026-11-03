@@ -53,7 +53,10 @@ namespace Rasa.Managers
 
         /// <summary>
         /// Offers each dead player it reaches - the one targeted (P3), or the squad within
-        /// RADIUS_AROUND_SOURCE (P5) - a revive with ATTRIBUTE_MAX_CHANGE percent of their health.
+        /// RADIUS_AROUND_SOURCE (P5) - the revive the pumps' tooltips give: "Target resurrected at
+        /// ATTRIBUTE_MAX_CHANGE% Health and Armor | No Death Penalties | Summons target to user".
+        /// It used to give the health alone: they got up where they lay, with the armour they died
+        /// with, and paid Rez Trauma, the no-healing and the wear as for a hospital.
         /// </summary>
         private static void Resuscitate(MapChannel mapChannel, Manifestation player, ActionData action, ActionLevelInfo info, int radius, AbilityRecoveryPacket recovery)
         {
@@ -69,7 +72,8 @@ namespace Rasa.Managers
             {
                 var max = fallen.Attributes.TryGetValue(Attributes.Health, out var health) ? health.CurrentMax : 1;
 
-                if (PlayerDeath.OfferRevive(mapChannel, player, fallen, Math.Max(1, max * percent / 100)))
+                if (PlayerDeath.OfferRevive(mapChannel, player, fallen, Math.Max(1, max * percent / 100),
+                        armorPercent: percent, penalties: false, toReviver: true))
                     Hit(recovery, fallen);
             }
         }

@@ -20,6 +20,92 @@ namespace Rasa.Test.Gameplay
     public class OrdinaryCorpseLootTests
     {
         [TestMethod]
+        [DataRow(false)]
+        [DataRow(true)]
+        public void KillPaysCreditsAtRangeBeforeAnyCorpseInteraction(bool empty)
+        {
+            using var fixture = new Fixture(content => {
+                if (empty) { content.Groups.Clear(); content.Items.Clear(); }
+            }, next: (minimum, maximum) => maximum == 10 ? 7 : minimum);
+            var client = fixture.Context.Client;
+            client.Player.Position = fixture.Corpse.Position + new System.Numerics.Vector3(30, 0, 0);
+            fixture.Context.Drain();
+
+            fixture.Manager.Loot(client, fixture.Corpse);
+
+            var loot = fixture.Context.Map.LootDispensers[fixture.Corpse.CorpseLootEntityId];
+            Assert.AreEqual(107, client.Player.Credits[CurencyType.Credits], "Pay at death, before approaching or looting.");
+            Assert.AreEqual(0, loot.Credits);
+            using (var verify = fixture.Context.Open())
+                Assert.AreEqual(107, verify.CharacterEntries.Single(row => row.Id == client.Player.Id).Credit);
+            var notices = fixture.Context.Drain();
+            var got = notices.OfType<Rasa.Packets.ClientMethod.Server.GotLootPacket>().Single();
+            Assert.AreEqual(7, got.Credits);
+            Assert.AreEqual(0, got.Entries.Count, "Death awards money without taking item drops.");
+            Assert.IsFalse(notices.OfType<Rasa.Packets.LootDispenser.Server.LootCorpsePacket>().Any());
+            Assert.AreEqual(empty, loot.FullyLooted);
+            Assert.IsTrue(loot.LootItems.All(item => !item.Taken));
+
+            client.Player.Position = fixture.Corpse.Position;
+            fixture.Manager.RequestLootAllFromCorpse(client, new RequestLootAllFromCorpsePacket { EntityId = loot.EntityId });
+            fixture.Manager.RequestLootAllFromCorpse(client, new RequestLootAllFromCorpsePacket { EntityId = loot.EntityId });
+            Assert.AreEqual(107, client.Player.Credits[CurencyType.Credits]);
+            Assert.IsFalse(fixture.Context.Drain().OfType<Rasa.Packets.ClientMethod.Server.GotLootPacket>().Any(p => p.Credits > 0));
+        }
+
+        [TestMethod]
+        [DataRow(PartyLootMethod.FreeForAll)]
+        [DataRow(PartyLootMethod.Rotation)]
+        [DataRow(PartyLootMethod.DiceRoll)]
+        public void KillCreditsAreSharedImmediatelyRegardlessOfItemAllocation(PartyLootMethod method)
+        {
+            using var fixture = new Fixture(next: (minimum, maximum) => maximum == 10 ? 7 : minimum);
+            var member = fixture.Context.CreateAdditionalClient(2);
+            member.Player.Attributes[Attributes.Health] = new(Attributes.Health, 100, 100, 100, 0, 0);
+            using var party = new PartyScope(method, fixture.Context.Client, member);
+            party.Party.LootRotation = 1;
+            fixture.Context.Drain(); MissionTestContext.Drain(member);
+            fixture.Manager.Loot(fixture.Context.Client, fixture.Corpse);
+            Assert.AreEqual(104, fixture.Context.Client.Player.Credits[CurencyType.Credits]);
+            Assert.AreEqual(103, member.Player.Credits[CurencyType.Credits]);
+            using var verify = fixture.Context.Open();
+            Assert.AreEqual(104, verify.CharacterEntries.Single(row => row.Id == fixture.Context.Client.Player.Id).Credit);
+            Assert.AreEqual(103, verify.CharacterEntries.Single(row => row.Id == member.Player.Id).Credit);
+            Assert.AreEqual(4, fixture.Context.Drain().OfType<Rasa.Packets.ClientMethod.Server.GotLootPacket>().Single().Credits);
+            Assert.AreEqual(3, MissionTestContext.Drain(member).OfType<Rasa.Packets.ClientMethod.Server.GotLootPacket>().Single().Credits);
+        }
+
+        [TestMethod]
+        [DataRow(false)]
+        [DataRow(true)]
+        public void FailedKillCreditSavePaysNobodyAndLeavesCreditsClaimable(bool shared)
+        {
+            using var fixture = new Fixture(next: (minimum, maximum) => maximum == 10 ? 7 : minimum);
+            var member = shared ? fixture.Context.CreateAdditionalClient(2) : null;
+            if (member != null) member.Player.Attributes[Attributes.Health] = new(Attributes.Health, 100, 100, 100, 0, 0);
+            using var party = shared ? new PartyScope(PartyLootMethod.FreeForAll, fixture.Context.Client, member) : null;
+            var saves = 0;
+            fixture.Context.BeforeSave = _ => {
+                if (++saves == 2) throw new DbUpdateException("kill credit save failure");
+            };
+            fixture.Context.Drain();
+            fixture.Manager.Loot(fixture.Context.Client, fixture.Corpse);
+            var loot = fixture.Context.Map.LootDispensers[fixture.Corpse.CorpseLootEntityId];
+            Assert.AreEqual(100, fixture.Context.Client.Player.Credits[CurencyType.Credits]);
+            Assert.AreEqual(7, loot.Credits);
+            using (var verify = fixture.Context.Open())
+                Assert.IsTrue(verify.CharacterEntries.All(row => row.Credit == 100));
+            Assert.IsFalse(fixture.Context.Drain().OfType<Rasa.Packets.ClientMethod.Server.GotLootPacket>().Any());
+            if (member != null) Assert.AreEqual(100, member.Player.Credits[CurencyType.Credits]);
+            fixture.Context.BeforeSave = null;
+            fixture.Manager.RequestLootAllFromCorpse(fixture.Context.Client,
+                new RequestLootAllFromCorpsePacket { EntityId = loot.EntityId });
+            Assert.AreEqual(shared ? 104 : 107, fixture.Context.Client.Player.Credits[CurencyType.Credits]);
+            if (member != null) Assert.AreEqual(103, member.Player.Credits[CurencyType.Credits]);
+            Assert.AreEqual(0, loot.Credits);
+        }
+
+        [TestMethod]
         public void PublishedOrdinaryBindingMaterializesWithoutAnActiveMissionOrPerKillReads()
         {
             using var fixture = new Fixture();
@@ -280,8 +366,8 @@ namespace Rasa.Test.Gameplay
             Assert.IsTrue(loot.FullyLooted);
             Assert.IsTrue(drop.Taken);
             Assert.AreEqual(1, member.Player.Inventory.PersonalInventory.Count(id => id == drop.EntityId));
-            Assert.AreEqual(104, fixture.Context.Client.Player.Credits[CurencyType.Credits]);
-            Assert.AreEqual(105, member.Player.Credits[CurencyType.Credits]);
+            Assert.AreEqual(105, fixture.Context.Client.Player.Credits[CurencyType.Credits]);
+            Assert.AreEqual(104, member.Player.Credits[CurencyType.Credits]);
             using var verify = fixture.Context.Open();
             Assert.AreEqual(1, verify.ItemEntries.Count());
             Assert.AreEqual(member.Player.Id, verify.CharacterInventoryEntries.Single().CharacterId);

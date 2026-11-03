@@ -160,13 +160,15 @@ namespace Rasa.Game.Missions.World
                 var actors = Actors(map, binding.SpawnId).ToArray();
                 if (map.IsPrivateInstance || _reservations.ContainsKey((map, binding.SpawnId)) ||
                     _recovery.ContainsKey((map, binding.SpawnId)) ||
-                    actors.Length != 1 || !actors[0].IsInteractable || actors[0].State == CharacterState.Dead)
+                    actors.Length != 1 || !actors[0].IsInteractable || actors[0].State == CharacterState.Dead ||
+                    binding.FreeWhenUnreserved && actors[0].Controller.CurrentAction == BehaviorManager.BehaviorActionFighting)
                 {
-                    failure = $"Public actor spawn {binding.SpawnId} is unavailable or reserved.";
+                    failure = $"Public actor spawn {binding.SpawnId} is unavailable, reserved or in a fight.";
                     return false;
                 }
                 reservation = new Reservation(this, map, actors[0], binding, client.Player.Id, revision);
                 _reservations.Add((map, binding.SpawnId), reservation);
+                BindCombatGate(actors[0], actors[0].SpawnPool);
                 return true;
             }
         }
@@ -213,6 +215,12 @@ namespace Rasa.Game.Missions.World
             }
         }
 
+        /// <summary>
+        /// Holds a ManualCombat encounter's public actor out of combat until its run says so. One
+        /// bound FreeWhenUnreserved is held only while a run has it reserved: until then, and once
+        /// the run lets it go, it has no gate and is an ordinary creature (Overseer Skeev, a
+        /// Bane mini-boss who was otherwise immune to everyone not on Orders from High Command).
+        /// </summary>
         internal void BindCombatGate(Creature actor, SpawnPool pool)
         {
             var map = pool?.RuntimeMapChannel;
@@ -220,8 +228,26 @@ namespace Rasa.Game.Missions.World
                 return;
             lock (_gate)
             {
-                if (!_bindings.Values.Any(binding => binding.ManualCombat && binding.SpawnId == pool.DbId))
+                var held = _bindings.Values.Where(entry => entry.ManualCombat && entry.SpawnId == pool.DbId).ToList();
+                if (held.Count == 0)
                     return;
+                // Free between runs only when every encounter staged on him says so.
+                var free = held.All(entry => entry.FreeWhenUnreserved);
+                // He waits to be challenged: no aggro of his own, held or free, so he stands his
+                // parley and does not pick fights with whoever comes to talk to him; and the AFS
+                // round him leave him to the players.
+                if (free)
+                {
+                    actor.AggroRange = 0;
+                    actor.KeptFromCreatures = true;
+                }
+                if (free && !_reservations.ContainsKey((map, pool.DbId)) &&
+                    !_recovery.ContainsKey((map, pool.DbId)))
+                {
+                    actor.ScriptedCombatGate = null;
+                    actor.ScriptedCombatAuthorization = null;
+                    return;
+                }
                 actor.ScriptedCombatGate = () =>
                 {
                     lock (_gate)
@@ -492,6 +518,7 @@ namespace Rasa.Game.Missions.World
                                 Committed = true
                             });
                             actor.IsInteractable = false;
+                            BindCombatGate(actor, actor.SpawnPool);
                         }
                     }
                     BeginReset(map, entry.Value.Run, "ServerRestart");
@@ -555,7 +582,11 @@ namespace Rasa.Game.Missions.World
             run.Actor.Rotation = run.Orientation;
             PublishInteraction(run, true);
             lock (_gate)
+            {
                 _reservations.Remove((run.Map, run.Binding.SpawnId));
+                if (run.Actor.SpawnPool != null)
+                    BindCombatGate(run.Actor, run.Actor.SpawnPool);
+            }
         }
 
         private void PublishInteraction(Reservation run, bool enabled)
@@ -677,7 +708,11 @@ namespace Rasa.Game.Missions.World
                     return;
                 lock (_service._gate)
                     if (_service._reservations.GetValueOrDefault((Map, Binding.SpawnId)) == this)
+                    {
                         _service._reservations.Remove((Map, Binding.SpawnId));
+                        if (Actor.SpawnPool != null)
+                            _service.BindCombatGate(Actor, Actor.SpawnPool);
+                    }
             }
         }
     }

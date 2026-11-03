@@ -460,6 +460,8 @@ namespace Rasa.Test.Missions
             ordinary.PartyId = party.Party.Id;
             loot.Looters.Add(member.Player.EntityId);
             loot.CreditSharers.AddRange(new[] { context.Client.Player.EntityId, member.Player.EntityId });
+            // Spawn already paid its one-credit personal kill reward. This separate staged
+            // pot exercises the fallback shared claim alongside assignment-owned items.
             loot.Credits = 7;
             var request = new RequestLootAllFromCorpsePacket { EntityId = loot.EntityId };
             if (failFirstClaim)
@@ -503,17 +505,17 @@ namespace Rasa.Test.Missions
             Assert.IsTrue(loot.FullyLooted);
             Assert.AreEqual(1U, fixture.HeldQuantity);
             Assert.AreEqual(1U, fixture.Counter);
-            Assert.AreEqual(104, context.Client.Player.Credits[CurencyType.Credits]);
+            Assert.AreEqual(105, context.Client.Player.Credits[CurencyType.Credits]);
             Assert.AreEqual(103, member.Player.Credits[CurencyType.Credits]);
             using (var verify = context.CreateChar())
             {
-                Assert.AreEqual(104, verify.Characters.Find(context.Client.Player.Id).Credit);
+                Assert.AreEqual(105, verify.Characters.Find(context.Client.Player.Id).Credit);
                 Assert.AreEqual(103, verify.Characters.Find(member.Player.Id).Credit);
             }
             fixture.Take(loot);
             fixture.Manager.RequestLootAllFromCorpse(member, request);
             Assert.AreEqual(1U, fixture.Counter);
-            Assert.AreEqual(104, context.Client.Player.Credits[CurencyType.Credits]);
+            Assert.AreEqual(105, context.Client.Player.Credits[CurencyType.Credits]);
             Assert.AreEqual(103, member.Player.Credits[CurencyType.Credits]);
         }
 

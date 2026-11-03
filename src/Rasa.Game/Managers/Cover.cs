@@ -92,6 +92,9 @@ namespace Rasa.Managers
 
         public static Vector3 EyeOf(Actor actor) => actor.Position + new Vector3(0f, HeightOf(actor) * EyeFactor, 0f);
 
+        /// <summary>Half the actor's height above its feet: where a blast goes out from, or a single ray is cast to.</summary>
+        public static Vector3 Middle(Actor actor) => actor.Position + new Vector3(0f, HeightOf(actor) * 0.5f, 0f);
+
         /// <summary>The points on the target the rays are cast to, facing the attacker at <paramref name="from"/>.</summary>
         public static Vector3[] SamplePoints(Actor target, Vector3 from)
         {
@@ -108,6 +111,34 @@ namespace Rasa.Managers
             return points;
         }
 
+        /// <summary>
+        /// How far above a point on the ground a blast, a ring or a shriek there goes out from:
+        /// cast from the ground itself, the rays to anyone on a slope clip the terrain under them.
+        /// </summary>
+        public const float BlastHeight = 1f;
+
+        /// <summary>Where a blast on the ground at <paramref name="ground"/> goes out from.</summary>
+        public static Vector3 BlastFrom(Vector3 ground) => ground + new Vector3(0f, BlastHeight, 0f);
+
+        /// <summary>
+        /// Whether what goes out from <paramref name="from"/> - a blast, a ring, a cone, an arc -
+        /// reaches the victim: any of its sample points in the clear of the map's collision and
+        /// terrain, and no intact force field that stops the source in between
+        /// (ForceFields.Blocks). With no cover file for the map only a field stops it.
+        /// </summary>
+        public static bool Reaches(MapChannel mapChannel, Actor source, Vector3 from, Actor victim)
+        {
+            if (victim == null)
+                return false;
+
+            if (ForceFields.Blocks(mapChannel, source, from, Middle(victim)))
+                return false;
+
+            var cover = mapChannel?.Cover;
+
+            return cover == null || Visible(cover, from, SamplePoints(victim, from)) > 0;
+        }
+
         /// <summary>The share of the points in the clear, before the floor and Target Painting.</summary>
         public static double Visible(Navigation.CoverMesh cover, Vector3 eye, Vector3[] points)
         {
@@ -118,6 +149,28 @@ namespace Rasa.Managers
 
             foreach (var point in points)
                 if (!cover.Blocked(eye, point))
+                    clear++;
+
+            return clear / (double)points.Length;
+        }
+
+        /// <summary>
+        /// The share of the points in the clear of the map's collision and of its standing force
+        /// fields (ForceFields.Between), which stop a shot as a wall does.
+        /// </summary>
+        public static double Visible(MapChannel mapChannel, Vector3 eye, Vector3[] points)
+        {
+            if (!ForceFields.AnyStanding(mapChannel))
+                return Visible(mapChannel?.Cover, eye, points);
+
+            if (points.Length == 0)
+                return 1.0;
+
+            var cover = mapChannel.Cover;
+            var clear = 0;
+
+            foreach (var point in points)
+                if ((cover == null || !cover.Blocked(eye, point)) && ForceFields.Between(mapChannel, eye, point) == null)
                     clear++;
 
             return clear / (double)points.Length;

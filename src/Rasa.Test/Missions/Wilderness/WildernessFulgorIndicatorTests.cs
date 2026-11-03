@@ -26,6 +26,62 @@ namespace Rasa.Test.Missions.Wilderness
         private const string Migration = "20270126000000_Wilderness_fulgor_indicator";
 
         [TestMethod]
+        public void EveryMigratedActiveMissionMarkerHasAnUnambiguousMapScope()
+        {
+            using var harness = CreateHarness();
+            var catalog = new MissionContentCatalog(harness, new System.Collections.Generic.Dictionary<uint, Mission>(), null);
+            catalog.Load();
+            var missing = new System.Collections.Generic.List<string>();
+            foreach (var mission in catalog.Missions.Values.Where(m => m.IsOperational))
+                foreach (var objective in mission.Objectives.Values)
+                    foreach (var pin in objective.Indicators)
+                    {
+                        var map = MissionMarkerProjection.ResolveMap(catalog, mission.MissionId, objective.ObjectiveId, pin);
+                        if (map == 0) missing.Add($"{mission.MissionId}.{objective.ObjectiveId}/{pin.IndicatorId}: {mission.Name}, NPC {mission.MissionGiver}/{mission.MissionReciver}");
+                    }
+            Assert.IsEmpty(missing, "Markers need authored map overrides: " + string.Join(", ", missing));
+        }
+
+        [TestMethod]
+        public void WildernessMarkersDisappearOnOtherMapsAndReturnWithoutLosingTheMission()
+        {
+            using var harness = CreateHarness();
+            harness.SpawnWorld(210, 180, 580010);
+            SeedCompletedHistory(harness, 1407, 1069, 479);
+            var npcs = new NpcManager(harness, harness.Manager);
+            Accept(harness, npcs, 210, 427);
+            CompleteObjective(harness, npcs, 180, 427, 1);
+            var player = harness.Client.Player;
+            var originalMap = player.MapChannel;
+            var assignment = player.Missions[427];
+            try
+            {
+                Assert.HasCount(1, harness.Manager.BuildStatusSnapshot(player)[427].ObjectivesList
+                    .Single(o => o.ObjectiveId == 6).IndicatorList);
+                foreach (var map in new[] { 2136U, 1148U }) // Velon Hollow and another outdoor map
+                {
+                    player.MapContextId = map;
+                    player.MapChannel = new MapChannel { MapInfo = new MapInfo(map, "marker travel test", 1, 0) };
+                    harness.Drain();
+                    harness.Manager.PublishInitialState(harness.Client);
+                    var info = harness.Drain().OfType<Rasa.Packets.Mission.Server.MissionStatusInfoPacket>()
+                        .Single().MissionStatusDict[427];
+                    Assert.IsTrue(info.ObjectivesList.All(o => o.IndicatorList.Count == 0),
+                        "An active Wilderness mission must not publish its coordinates on another map.");
+                    Assert.AreSame(assignment, player.Missions[427]);
+                    Assert.AreEqual(MissionState.Active, info.MissionState);
+                }
+                player.MapContextId = 1220;
+                player.MapChannel = originalMap;
+                var returned = harness.Manager.BuildStatusSnapshot(player)[427].ObjectivesList.Single(o => o.ObjectiveId == 6);
+                Assert.HasCount(1, returned.IndicatorList, "The authored marker returns when the player returns.");
+                Assert.AreEqual(1220U, returned.IndicatorList.Single().MapContextId);
+                Assert.AreEqual(MissionObjectiveState.Incomplete, returned.State);
+            }
+            finally { player.MapContextId = 1220; player.MapChannel = originalMap; }
+        }
+
+        [TestMethod]
         public void OnceOliverSendsThePlayerAfterFulgorTheObjectiveHasAPinOnHim()
         {
             using var harness = CreateHarness();

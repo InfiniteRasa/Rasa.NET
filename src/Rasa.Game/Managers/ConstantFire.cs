@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -156,6 +156,28 @@ namespace Rasa.Managers
 
 
         /// <summary>
+        /// The shots a leech gun's burst is: "One click will fire a 2 ammunition burst which deals
+        /// double the damage listed on the weapon" (the community wiki's Leech Gun page). Holding
+        /// the trigger goes on from there at a shot a pulse.
+        /// </summary>
+        public const int LeechBurstShots = 2;
+
+        /// <summary>
+        /// How many shots the first pulse of a fire is: a leech gun's burst, as many of its shots
+        /// as the clip holds rounds for, and one for every other weapon.
+        /// </summary>
+        public static int BurstShotsOf(ActionId actionId, uint currentAmmo, uint ammoPerShot)
+        {
+            if (actionId != ActionId.WeaponDensitygun)
+                return 1;
+
+            if (ammoPerShot == 0)
+                return LeechBurstShots;
+
+            return (int)Math.Clamp(currentAmmo / ammoPerShot, 1, LeechBurstShots);
+        }
+
+        /// <summary>
         /// A polarity charge after one more beam hit of amount on targetId: the same target adds
         /// to it up to MaxChargePulses pulses, another target starts it again.
         /// </summary>
@@ -173,10 +195,15 @@ namespace Rasa.Managers
         /// <summary>What a polarity charge discharges for.</summary>
         public static int ReleaseOf(int charge) => charge <= 0 ? 0 : charge * ReleasePercent / 100;
 
+        /// <summary>
+        /// Whether this client's fire is running: the next pulse goes on with it rather than
+        /// starting one, as Begin decides it.
+        /// </summary>
         public static bool IsFiring(Client client)
         {
             lock (SessionsLock)
-                return Sessions.ContainsKey(client);
+                return Sessions.TryGetValue(client, out var running)
+                       && client.Player != null && client.Player.ActiveEffects.ContainsKey(running.Effect.EffectId);
         }
 
         /// <summary>How a leech's healing splits for one person: health up to what they are missing, the rest to armour.</summary>
@@ -301,7 +328,7 @@ namespace Rasa.Managers
                         AddCharge(session.ChargeTargetId, session.Charge, session.ChargePulses, target.EntityId, rolled);
             }
 
-            PulseAtObject(mapChannel, player, session, damage, damageType, pulse);
+            PulseAtObject(mapChannel, player, weapon, session, damage, damageType, pulse);
 
             if (pool != null)
                 PropellantPools.OnPulse(mapChannel, player, damage, damageType, poolReach, pool);
@@ -316,26 +343,44 @@ namespace Rasa.Managers
         /// constant-fire weapon did nothing to an object a pistol's missile could destroy. The
         /// pulse lands as the missile does (MissileManager.MissileTrigger): the object is listed
         /// in the tick and the damage goes to RecordHit as it is. No critical hit, range falloff,
-        /// resistance, leech or polarity charge: those are an actor's, there as here.
+        /// resistance, leech or polarity charge: those are an actor's, there as here. A propellant
+        /// gun's pulse lands as well on every object in its cone (PracticeTargetManager.TargetsInCone).
         /// </summary>
-        private static void PulseAtObject(MapChannel mapChannel, Manifestation player, Session session,
+        private static void PulseAtObject(MapChannel mapChannel, Manifestation player, Item weapon, Session session,
             int damage, DamageType damageType, List<TickEntry> pulse)
         {
-            if (damage <= 0 || player.Target == 0 ||
-                !PracticeTargetManager.TryGetTarget(mapChannel, player.Target, out var target) ||
-                !PracticeTargetManager.CanHit(mapChannel, player, target))
+            if (damage <= 0)
                 return;
 
-            var distance = System.Numerics.Vector3.Distance(target.Position, player.Position);
-            var reach = session.ActionId == ActionId.WeaponFlamethrower
+            var flamethrower = session.ActionId == ActionId.WeaponFlamethrower;
+            var reach = flamethrower
                 ? ConeWeapons.RangeOf(session.ActionId, session.ActionArgId) + ConeWeapons.RangeSlack
                 : MissileManager.MaxTargetDistance;
+            var hit = new List<DynamicObject>();
 
-            if (!float.IsFinite(distance) || distance > reach)
-                return;
+            if (player.Target != 0 &&
+                PracticeTargetManager.TryGetTarget(mapChannel, player.Target, out var target) &&
+                PracticeTargetManager.CanHit(mapChannel, player, target))
+            {
+                var distance = System.Numerics.Vector3.Distance(target.Position, player.Position);
 
-            pulse.Add(new TickEntry { EntityId = target.EntityId, Amount = damage, DamageType = damageType });
-            PracticeTargetManager.RecordHit(mapChannel, player, target, session.ActionId, damage: damage);
+                if (float.IsFinite(distance) && distance <= reach)
+                    hit.Add(target);
+            }
+
+            // A propellant gun's cone takes the objects in it as it takes the creatures: a fuel
+            // container in the flames burnt only if it was the one locked on to.
+            if (flamethrower)
+                foreach (var obj in PracticeTargetManager.TargetsInCone(mapChannel, player, AbilityManager.FacingOf(player), reach,
+                             ConeWeapons.HalfAngleOf(weapon.ItemTemplate.WeaponInfo)))
+                    if (!hit.Contains(obj))
+                        hit.Add(obj);
+
+            foreach (var obj in hit)
+            {
+                pulse.Add(new TickEntry { EntityId = obj.EntityId, Amount = damage, DamageType = damageType });
+                PracticeTargetManager.RecordHit(mapChannel, player, obj, session.ActionId, damage: damage, damageType: damageType);
+            }
         }
 
         /// <summary>
@@ -425,8 +470,8 @@ namespace Rasa.Managers
         private static Session Begin(MapChannel mapChannel, Client client, Item weapon, ActionData action, DamageType damageType)
         {
             lock (SessionsLock)
-                if (Sessions.TryGetValue(client, out var running) && client.Player.ActiveEffects.ContainsKey(running.Effect.EffectId))
-                    return running;
+                if (IsFiring(client))
+                    return Sessions[client];
 
             var player = client.Player;
             var info = weapon.ItemTemplate.WeaponInfo;

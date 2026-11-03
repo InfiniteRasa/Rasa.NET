@@ -357,7 +357,10 @@ namespace Rasa.Managers
         {
             var victims = AbilityManager.VictimsWithin(pool.MapChannel, pool.Shooter, pool.Proxy.Position, Radius);
 
-            if (victims.Count == 0)
+            // And the objects in it a weapon can damage (PracticeTargetManager.Blast), listed with the rest.
+            var objects = PracticeTargetManager.Blast(pool.MapChannel, pool.Shooter, pool.Proxy.Position, Radius, () => pool.TickDamage);
+
+            if (victims.Count == 0 && objects.Count == 0)
                 return;
 
             var tick = new GameEffectTickPacket(pool.EffectId, GameEffectTickPacket.TickKind.Damage);
@@ -379,6 +382,7 @@ namespace Rasa.Managers
                 });
             }
 
+            tick.Entries.AddRange(PracticeTargetManager.Entries(objects, pool.DamageType));
             CellManager.Instance.CellCallMethod(pool.MapChannel, pool.Proxy, tick);
         }
 

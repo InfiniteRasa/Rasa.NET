@@ -6,8 +6,8 @@ namespace Rasa.Structures.World
     /// <summary>
     /// Something that belongs to a control point (ControlPointEntry): a spawn pool of one side's
     /// garrison, the hospital or waypoint the AFS have there while they hold it, a creature
-    /// that is a boss of its garrison, or the clan lockbox that stands there while a clan holds
-    /// it. The key is all three columns.
+    /// that is a boss of its garrison, the clan lockbox that stands there while a clan holds
+    /// it, or a force field that is the holder's. The key is all three columns.
     /// </summary>
     [Table(TableName)]
     public class ControlPointLinkEntry
@@ -38,6 +38,13 @@ namespace Rasa.Structures.World
 
         /// <summary>object_id is an AFS service NPC spawn pool. Overrides proximity and never counts as a capture defender.</summary>
         public const byte KindServicePool = 7;
+
+        /// <summary>
+        /// <see cref="Kind"/>: object_id is the world_destructible row of a force field at the
+        /// point, which is the holder's: the AFS's (blue) while they hold it, the Bane's (red)
+        /// while the Bane do.
+        /// </summary>
+        public const byte KindForceField = 8;
 
         [Column("control_point_id")]
         [Required]

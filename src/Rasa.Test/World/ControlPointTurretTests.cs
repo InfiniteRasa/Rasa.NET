@@ -84,12 +84,24 @@ namespace Rasa.Test.World
             var actions = world.CreatureActionEntries.AsNoTracking().ToDictionary(row => row.Id);
             var points = world.ControlPointEntries.AsNoTracking().ToDictionary(row => row.Id);
 
-            Assert.HasCount(ControlPointTurrets.Spots.Length * 2, pools);
-            Assert.HasCount(ControlPointTurrets.Spots.Length * 2, links);
+            // Lightning_fields_wreck_turret takes the spot on the platform the map stands a wreck on.
+            var wreckGone = world.Database.GetAppliedMigrations().Contains("20270921000000_Lightning_fields_wreck_turret");
+            // Fence_turret_bases takes off the turrets with no base to stand on and gives the empty bases theirs.
+            var fenceBases = world.Database.GetAppliedMigrations().Contains("20271002000000_Fence_turret_bases");
+            var removed = fenceBases ? FenceTurretBases.Removed.Select(t => t.AfsPool).ToHashSet() : new HashSet<uint>();
+            var added = fenceBases ? FenceTurretBases.Added : Array.Empty<FenceTurretBases.Turret>();
+            var spots = ControlPointTurrets.Spots.Where(spot => (!wreckGone || spot.AfsPool != LightningFieldsWreckTurret.AfsPool) && !removed.Contains(spot.AfsPool)).ToArray();
+
+            Assert.HasCount((spots.Length + added.Length) * 2, pools);
+            Assert.HasCount((spots.Length + added.Length) * 2, links);
             CollectionAssert.AreEquivalent(SpotsByPoint.ToList(),
                 ControlPointTurrets.Spots.GroupBy(spot => spot.Point).ToDictionary(group => group.Key, group => group.Count()).ToList());
 
-            foreach (var spot in ControlPointTurrets.Spots)
+            var applied = world.Database.GetAppliedMigrations().ToHashSet();
+            var raised = applied.Contains("20270914000000_Afs_turret_mount_heights");
+            var onBases = applied.Contains("20270919000000_Afs_turret_bases");
+
+            foreach (var spot in spots)
             {
                 var afs = pools[spot.AfsPool];
                 var bane = pools[spot.BanePool];
@@ -97,7 +109,9 @@ namespace Rasa.Test.World
 
                 Assert.AreEqual(point.MapContextId, afs.MapContextId, $"pool {afs.Id} on its point's map");
                 Assert.AreEqual((afs.PosX, afs.PosZ, afs.Rotation, afs.MapContextId), (bane.PosX, bane.PosZ, bane.Rotation, bane.MapContextId), $"pools {afs.Id} and {bane.Id} on one mount");
-                var heightOffset = world.Database.GetAppliedMigrations().Contains("20270914000000_Afs_turret_mount_heights") && AfsTurretMountHeights.Mounts.Any(m => m.Pool == afs.Id) ? 2.56 : 0;
+                var onBase = AfsTurretBases.Bases.Any(b => b.AfsPool == afs.Id) || fenceBases && FenceTurretBases.Moves.Any(m => m.AfsPool == afs.Id);
+                var heightOffset = onBases ? (onBase ? -AfsTurretBases.BaneOverBase : 0)
+                    : raised && AfsTurretMountHeights.Mounts.Any(m => m.Pool == afs.Id) ? AfsTurretBases.RaisedBy : 0;
                 Assert.AreEqual(bane.PosY + heightOffset, afs.PosY, 0.001, "Each model uses its own mount origin.");
                 Assert.IsLessThan(200.0, Math.Sqrt(Math.Pow(afs.PosX - point.PosX, 2) + Math.Pow(afs.PosZ - point.PosZ, 2)), $"pool {afs.Id} at its point");
 
@@ -113,6 +127,22 @@ namespace Rasa.Test.World
 
                 Assert.AreEqual(4064u, creatures[spot.AfsTurret].ClassId, "Emplacement_AFS_Turret_Standard");
                 Assert.AreEqual(ControlPointTurrets.BaneTurretClass, creatures[spot.BaneTurret].ClassId);
+            }
+
+            foreach (var turret in added)
+            {
+                var afs = pools[turret.AfsPool];
+                var bane = pools[turret.BanePool];
+
+                Assert.AreEqual(points[turret.Point].MapContextId, afs.MapContextId, $"pool {afs.Id} on its point's map");
+                Assert.AreEqual((afs.PosX, afs.PosZ, afs.Rotation), (bane.PosX, bane.PosZ, bane.Rotation), $"pools {afs.Id} and {bane.Id} on one base");
+                Assert.AreEqual(afs.PosY + AfsTurretBases.BaneOverBase, bane.PosY, 0.001, "the Bane turret on the AFS turret's base");
+                Assert.AreEqual((byte)SpawnPoolManager.ModeAutomatic, afs.Mode);
+                Assert.AreEqual((byte)SpawnPoolManager.ModeControlPoint, bane.Mode);
+                Assert.AreEqual(4064u, creatures[afs.Creature1Id].ClassId, "Emplacement_AFS_Turret_Standard");
+                Assert.AreEqual(ControlPointTurrets.BaneTurretClass, creatures[bane.Creature1Id].ClassId);
+                Assert.AreEqual(1, links.Count(link => link.ControlPointId == turret.Point && link.Kind == ControlPointLinkEntry.KindAfsPool && link.ObjectId == afs.Id));
+                Assert.AreEqual(1, links.Count(link => link.ControlPointId == turret.Point && link.Kind == ControlPointLinkEntry.KindBanePool && link.ObjectId == bane.Id));
             }
 
             foreach (var zone in ControlPointTurrets.Zones)

@@ -188,6 +188,11 @@ namespace Rasa.Managers
                         CritEffects.OnCritical(mapChannel, victim, player, burning.DamageType, amount);
             }
 
+            // And the objects in it a weapon can damage (PracticeTargetManager.Blast), listed with the rest.
+            blast.Hits.AddRange(PracticeTargetManager.Entries(PracticeTargetManager.Blast(mapChannel, player, corpse.Position, burning.Radius,
+                () => GameEffectManager.ApplyDamageDealt(player, Scale(player.Level, BombRandom.Next(burning.DamageMin, burning.DamageMax + 1), burning.ScaleType))),
+                burning.DamageType));
+
             CellManager.Instance.CellCallMethod(mapChannel, corpse, blast);
 
             // The clients have taken a creature's body away with the blast (a player's they leave,

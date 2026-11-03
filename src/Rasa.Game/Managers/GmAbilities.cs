@@ -7,6 +7,7 @@ namespace Rasa.Managers
     using Game;
     using Packets.MapChannel.Client;
     using Packets.MapChannel.Server;
+    using Structures;
 
     /// <summary>
     /// The client's own GM abilities (named GM_ and
@@ -54,6 +55,60 @@ namespace Rasa.Managers
                     packet.Extra.Add(((int)actionId, 1));
 
             return packet;
+        }
+
+        /// <summary>
+        /// The skills a player's own client is told they have: their own, and for a GM with Equip
+        /// Anything on, every skill an item asks for besides, at the highest level any item asks.
+        ///
+        /// The client decides for itself what can be equipped. equipable.py's CanActorEquip
+        /// holds the item's skill (itemclass.itemTemplateSkillRequirement) against the levels it
+        /// was last sent, and on a no it will not take the item on an equipment slot, will not
+        /// send it to the weapon drawer (PM_CANNOT_EQUIP_ITEM), will not arm the drawer slot,
+        /// and fights with fists from a weapon it holds. ValidateItemEquip let a GM past the
+        /// skill, but the client never asked: a Soldier could not put on a Specialist's leech
+        /// gun or hazmat armour by any means but a right-click on the armour, and not the gun
+        /// at all.
+        ///
+        /// Only the client is told. Player.Skills - saved, trained against, and what the skills'
+        /// bonuses and abilities come from - stays as it is.
+        /// </summary>
+        public static SkillsPacket SkillsFor(Client client)
+        {
+            var player = client.Player;
+
+            if (!player.GmEquipAnything || !IsGm(client))
+                return new SkillsPacket(player.Skills);
+
+            var shown = new Dictionary<SkillId, SkillsData>(player.Skills);
+
+            foreach (var (skillId, level) in EquipmentSkills())
+                if (!shown.TryGetValue(skillId, out var held) || held.SkillLevel < level)
+                    shown[skillId] = new SkillsData(skillId, held?.AbilityId ?? -1, level);
+
+            return new SkillsPacket(shown);
+        }
+
+        /// <summary>Every skill an item template asks for, with the highest level any asks.</summary>
+        public static Dictionary<SkillId, int> EquipmentSkills()
+        {
+            var skills = new Dictionary<SkillId, int>();
+
+            foreach (var entityClass in EntityClassManager.Instance.LoadedEntityClasses.Values)
+                foreach (var template in entityClass.ItemTemplates.Values)
+                {
+                    var equipable = template.EquipableInfo;
+
+                    if (equipable == null || equipable.SkillId <= 0)
+                        continue;
+
+                    var skillId = (SkillId)equipable.SkillId;
+
+                    if (!skills.TryGetValue(skillId, out var level) || level < equipable.SkillLevel)
+                        skills[skillId] = equipable.SkillLevel;
+                }
+
+            return skills;
         }
 
         /// <summary>
@@ -120,8 +175,13 @@ namespace Rasa.Managers
         {
             var player = client.Player;
             player.GmEquipAnything = !player.GmEquipAnything;
+
+            // The client's own check has to say yes as well (SkillsFor), and stops saying it.
+            client.CallMethod(player.EntityId, SkillsFor(client));
+
             Say(client, player.GmEquipAnything
-                ? "Equip Anything: on. Level, race and skill requirements no longer stop you equipping (the client may still grey items out)."
+                ? "Equip Anything: on. Skill requirements no longer stop you equipping, and your skills window shows every equipment skill as trained until you turn it off. "
+                  + "Your client still checks level and race itself: armour past those goes on with a right-click, weapons do not."
                 : "Equip Anything: off.");
         }
 

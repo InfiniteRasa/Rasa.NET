@@ -467,6 +467,11 @@ namespace Rasa.Managers
                         CritEffects.OnCritical(mapChannel, victim, owner, trap.StrikeType, amount);
             }
 
+            // And the objects in it a weapon can damage (PracticeTargetManager.Blast), listed with the rest.
+            strike.Hits.AddRange(PracticeTargetManager.Entries(PracticeTargetManager.Blast(mapChannel, owner, killedBy.Position, trap.StrikeRadius,
+                () => GameEffectManager.ApplyDamageDealt(owner, Scale(owner.Level, BombRandom.Next(trap.StrikeMin, trap.StrikeMax + 1), trap.StrikeScale)),
+                missions: _missionManager), trap.StrikeType));
+
             if (strike.Hits.Count > 0)
                 CellManager.Instance.CellCallMethod(turret, strike);
         }

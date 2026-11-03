@@ -196,6 +196,34 @@ namespace Rasa.Managers
                         break;
                     }
 
+                    // One of Crater Lake's usables (CraterLakeFacility), whatever its arg.
+                    if (CraterLakeFacility.IsUseOf(mapChannel, action))
+                    {
+                        CraterLakeFacility.UseRecovery(mapChannel, action);
+                        break;
+                    }
+
+                    // One of the Energy Weapon Center's usables (EnergyWeaponCenter), whatever its arg.
+                    if (EnergyWeaponCenter.IsUseOf(mapChannel, action))
+                    {
+                        EnergyWeaponCenter.UseRecovery(mapChannel, action);
+                        break;
+                    }
+
+                    // One of Magma Caverns' usables (MagmaCaverns), whatever its arg.
+                    if (MagmaCaverns.IsUseOf(mapChannel, action))
+                    {
+                        MagmaCaverns.UseRecovery(mapChannel, action);
+                        break;
+                    }
+
+                    // One of the Phanin Research Facility's usables (PhaninResearch), whatever its arg.
+                    if (PhaninResearch.IsUseOf(mapChannel, action))
+                    {
+                        PhaninResearch.UseRecovery(mapChannel, action);
+                        break;
+                    }
+
                     // A usable of the client's .map (MapUsables), whatever its arg: no object of
                     // the server's has its id.
                     if (MapUsables.IsUseOf(action))

@@ -263,6 +263,7 @@ namespace Rasa.Structures
         private static MissionIndicator CloneIndicator(MissionIndicator indicator) =>
             new()
             {
+                MapContextId = indicator.MapContextId,
                 Position = indicator.Position,
                 Radius = indicator.Radius,
                 IndicatorId = indicator.IndicatorId,

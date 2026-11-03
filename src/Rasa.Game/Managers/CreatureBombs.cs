@@ -706,16 +706,24 @@ namespace Rasa.Managers
             }
         }
 
-        /// <summary>The players a blast around a point reaches: alive, on the map, within radius, and ones the creature may fight.</summary>
+        /// <summary>
+        /// The players a blast around a point reaches: alive, on the map, within radius, ones the
+        /// creature may fight, and in the clear of the blast (Cover.Reaches, from
+        /// Cover.BlastFrom the point) - a bomb, a self-destruct, a Miasma's cloud or a Howler's
+        /// shriek does not go through a wall, a hill or a gate's field.
+        /// </summary>
         public static List<Manifestation> Caught(MapChannel mapChannel, Creature source, Vector3 centre, float radius)
         {
+            var from = Cover.BlastFrom(centre);
+
             return mapChannel.ClientList
                 .Select(c => c?.Player)
                 .Where(p => p != null && p.State != CharacterState.Dead && p.State != CharacterState.Dying
                     && p.MapContextId == mapChannel.MapInfo.MapContextId
                     && p.Attributes.TryGetValue(Attributes.Health, out var health) && health.Current > 0
                     && Vector3.DistanceSquared(p.Position, centre) <= radius * radius
-                    && TargetCategories.MayFightPlayer(source.TargetCategory, p.CombatCategory))
+                    && TargetCategories.MayFightPlayer(source.TargetCategory, p.CombatCategory)
+                    && Cover.Reaches(mapChannel, source, from, p))
                 .ToList();
         }
 

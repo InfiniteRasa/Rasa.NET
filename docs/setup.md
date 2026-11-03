@@ -10,7 +10,7 @@ This guide will help you install and setup the required tools to run Rasa.NET. T
 ## Download, install, and setup the required tooling
 The following tools are required to setup, build, and run Rasa.NET:
 
-- .NET SDK 10.0.401 (pinned in the repository's `global.json`)
+- .NET SDK 10.0.403 (pinned in the repository's `global.json`)
 - Optional: a Visual Studio release that supports this .NET 10 SDK
 - Database System, either:
   - MySQL Server and Workbench or
@@ -30,8 +30,8 @@ All solution projects target .NET 10, including `Rasa.Missions`.
 Install the exact SDK selected by `global.json`; SDK
 roll-forward is disabled so local builds, CI and Docker use the same version.
 
-- [Download the .NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) and install version **10.0.401**. The SDK includes the runtime.
-- From the repository root, run `dotnet --version` and verify `10.0.401`.
+- [Download the .NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) and install version **10.0.403**. The SDK includes the runtime.
+- From the repository root, run `dotnet --version` and verify `10.0.403`.
 
 The supported portable deployment identifiers are `win-x64`, `osx-x64` and `linux-x64`. These preserve the Windows, macOS and Linux x64 deployment families, not support for the obsolete operating-system versions named by the old .NET 5 identifiers. Use an operating system supported by .NET 10.
 

@@ -43,11 +43,12 @@ namespace Rasa.Managers
         /// <summary>
         /// The arcs and extra damage of one bolt that hit <paramref name="target"/> for
         /// <paramref name="boltDamage"/> (before resistance), added to the hit's Arcs; and the
-        /// storm, attached to the target.
+        /// storm, attached to the target. An arc to an object goes on <paramref name="objectHits"/>,
+        /// for the caller to land once the recovery is out.
         /// </summary>
-        private void ResolveLightningExtras(MapChannel mapChannel, Manifestation player, ActionLevelInfo info, Actor target, int boltDamage, AbilityHit hit)
+        private void ResolveLightningExtras(MapChannel mapChannel, Manifestation player, ActionLevelInfo info, Actor target, int boltDamage, AbilityHit hit,
+            List<(DynamicObject Target, int Damage)> objectHits)
         {
-            var scaleType = info.Get(AbilityProperty.DamageScaleType);
             var targetAlive = target.State != CharacterState.Dead && target.State != CharacterState.Dying && target.Attributes[Attributes.Health].Current > 0;
 
             // P3+: a share of the bolt again, as its own type.
@@ -60,25 +61,67 @@ namespace Rasa.Managers
             }
 
             // P2+: the arc from the target to the nearest other hostile.
-            if (info.Has(AbilityProperty.ArcRadius) && info.Get(AbilityProperty.ArcDamage) > 0 && Stuns.Roll(info.Get(AbilityProperty.PercentageChance, 100)))
-            {
-                var arcDamage = GameEffectManager.ApplyDamageDealt(player, Scale(player.Level, info.Get(AbilityProperty.ArcDamage), scaleType));
-
-                foreach (var other in NearestHostiles(mapChannel, player, target, info.Get(AbilityProperty.ArcRadius), LightningArcTargets))
-                    hit.Arcs.Add(DealDamage(mapChannel, player, other, arcDamage, DamageType.Electrical));
-            }
+            ResolveLightningArc(mapChannel, player, info, target.Position, target, null, hit, objectHits);
 
             // P5 / P7: the storm on the target.
             if (targetAlive && target.State != CharacterState.Dying && info.Has(AbilityProperty.EffectDurationMs) && info.Get(AbilityProperty.EffectDamageMax) > 0)
                 AttachLightningStorm(mapChannel, player, info, target);
         }
 
-        /// <summary>Up to <paramref name="count"/> hostile creatures or enemy players (Pvp) other than <paramref name="from"/> within radius of it, nearest first.</summary>
-        internal static List<Actor> NearestHostiles(MapChannel mapChannel, Manifestation player, Actor from, float radius, int count)
+        /// <summary>
+        /// P2+: the arc from where the bolt struck - a creature, an enemy player, or an object
+        /// (a fuel container) - to whatever is nearest of the other hostiles and the objects a
+        /// weapon can damage (PracticeTargetManager.TargetsWithin), added to the hit's Arcs. The
+        /// client floats and draws each arc on its entity (ArcEffect, ClientDamageOthersEffect:
+        /// AnnounceDamage, which an object has as a creature does). An object takes the arc's
+        /// damage as it is - no resistance, as no weapon's hit has on one - once the caller has
+        /// sent the recovery (<paramref name="objectHits"/>).
+        /// </summary>
+        private void ResolveLightningArc(MapChannel mapChannel, Manifestation player, ActionLevelInfo info, Vector3 from,
+            Actor struckActor, DynamicObject struckObject, AbilityHit hit, List<(DynamicObject Target, int Damage)> objectHits)
         {
-            return VictimsWithin(mapChannel, player, from.Position, radius)
-                .Where(c => c != from)
-                .OrderBy(c => Vector3.DistanceSquared(c.Position, from.Position))
+            if (!info.Has(AbilityProperty.ArcRadius) || info.Get(AbilityProperty.ArcDamage) <= 0 || !Stuns.Roll(info.Get(AbilityProperty.PercentageChance, 100)))
+                return;
+
+            var arcDamage = GameEffectManager.ApplyDamageDealt(player, Scale(player.Level, info.Get(AbilityProperty.ArcDamage), info.Get(AbilityProperty.DamageScaleType)));
+            var radius = info.Get(AbilityProperty.ArcRadius);
+
+            var actors = NearestHostiles(mapChannel, player, from, struckActor, radius, LightningArcTargets)
+                .Select(actor => (Position: actor.Position, EntityId: actor.EntityId, Actor: actor, Object: (DynamicObject)null));
+            var objects = PracticeTargetManager.TargetsWithin(mapChannel, player, from, radius)
+                .Where(obj => !ReferenceEquals(obj, struckObject) && !objectHits.Any(pending => ReferenceEquals(pending.Target, obj)))
+                .Select(obj => (Position: obj.Position, EntityId: obj.EntityId, Actor: (Actor)null, Object: obj));
+
+            foreach (var arc in actors.Concat(objects)
+                         .OrderBy(candidate => Vector3.DistanceSquared(candidate.Position, from))
+                         .ThenBy(candidate => candidate.EntityId)
+                         .Take(LightningArcTargets)
+                         .ToList())
+            {
+                if (arc.Actor != null)
+                {
+                    hit.Arcs.Add(DealDamage(mapChannel, player, arc.Actor, arcDamage, DamageType.Electrical));
+                    continue;
+                }
+
+                if (arcDamage <= 0)
+                    continue;
+
+                hit.Arcs.Add(new TickEntry { EntityId = arc.EntityId, Amount = arcDamage, DamageType = DamageType.Electrical });
+                objectHits.Add((arc.Object, arcDamage));
+            }
+        }
+
+        /// <summary>Up to <paramref name="count"/> hostile creatures or enemy players (Pvp) other than <paramref name="from"/> within radius of it, nearest first.</summary>
+        internal static List<Actor> NearestHostiles(MapChannel mapChannel, Manifestation player, Actor from, float radius, int count) =>
+            NearestHostiles(mapChannel, player, from.Position, from, radius, count);
+
+        /// <summary>Up to <paramref name="count"/> hostile creatures or enemy players (Pvp) but <paramref name="except"/> within radius of a point, nearest first.</summary>
+        internal static List<Actor> NearestHostiles(MapChannel mapChannel, Manifestation player, Vector3 from, Actor except, float radius, int count)
+        {
+            return VictimsWithin(mapChannel, player, from, radius)
+                .Where(c => c != except)
+                .OrderBy(c => Vector3.DistanceSquared(c.Position, from))
                 .ThenBy(c => c.EntityId)
                 .Take(count)
                 .ToList();
@@ -146,6 +189,12 @@ namespace Rasa.Managers
 
             foreach (var other in others)
                 tick.ArcEntries.Add(DealDamage(mapChannel, player, other, Roll(), storm.TickDamageType));
+
+            // And the objects around it a weapon can damage, arced to as the others are: the
+            // client floats and draws each arc entry on its entity (StormEffect.OnTick, ArcEffect).
+            tick.ArcEntries.AddRange(PracticeTargetManager.Entries(
+                PracticeTargetManager.Blast(mapChannel, player, target.Position, LightningStormRadius, Roll, missions: _missionManager),
+                storm.TickDamageType));
 
             CellManager.Instance.CellCallMethod(mapChannel, target, tick);
         }

@@ -304,7 +304,7 @@ namespace Rasa.Test.World
                     var repository = new CreatureRepository(context);
                     var rows = repository.GetNpcGreetings().ToDictionary(row => row.Id, row => row.GreetingId);
 
-                    Assert.AreEqual(84 + AliaDasNpcs.Greetings.Count(g => g.Was == null) + VanValkenbergLine + TwinPillarsLines, rows.Count, "one added, two changed");
+                    Assert.AreEqual(84 + AliaDasNpcs.Greetings.Count(g => g.Was == null) + VanValkenbergLine + TwinPillarsLines + WarnetLine, rows.Count, "one added, two changed");
                     Assert.AreEqual(146u, rows[101]);
                     Assert.AreEqual(19u, rows[100]);
                     Assert.AreEqual(466u, rows[99]);
@@ -702,7 +702,7 @@ namespace Rasa.Test.World
             stopped.World.Initialize();
 
             CollectionAssert.AreEquivalent(new[] { (Beacham, 488u, true) }.Concat(TwinPillarsMarked).ToList(), Lines().Where(row => row.Item3).ToList());
-            Assert.AreEqual(83 + AliaDasNpcs.Greetings.Count(g => g.Was == null) + VanValkenbergLine + TwinPillarsLines, Lines().Count);
+            Assert.AreEqual(83 + AliaDasNpcs.Greetings.Count(g => g.Was == null) + VanValkenbergLine + TwinPillarsLines + WarnetLine, Lines().Count);
 
             // And over another line a game master gave him: it is left as it is, not marked.
             Down();
@@ -711,15 +711,18 @@ namespace Rasa.Test.World
 
             Assert.AreEqual((Beacham, 1620u, false), Lines().Single(row => row.Item1 == Beacham));
             CollectionAssert.AreEquivalent(TwinPillarsMarked.ToList(), Lines().Where(row => row.Item3).ToList(), "Twin_pillars_npcs' own marks only");
-            Assert.AreEqual(83 + AliaDasNpcs.Greetings.Count(g => g.Was == null) + VanValkenbergLine + TwinPillarsLines, Lines().Count);
+            Assert.AreEqual(83 + AliaDasNpcs.Greetings.Count(g => g.Was == null) + VanValkenbergLine + TwinPillarsLines + WarnetLine, Lines().Count);
         }
 
         /// <summary>Corporal Van Valkenberg's line (Bootcamp_van_valkenberg), in a world migrated to the end.</summary>
         private const int VanValkenbergLine = 1;
 
+        /// <summary>Warnet_caverns' line: Captain LaFontaine's.</summary>
+        private const int WarnetLine = 1;
+
         /// <summary>
         /// The seeded lines as the migrated world has them: Alia_das_npcs gives Rogers another and two more NPCs one,
-        /// and Bootcamp_van_valkenberg gives Corporal Van Valkenberg his.
+        /// Bootcamp_van_valkenberg gives Corporal Van Valkenberg his, and Warnet_caverns Captain LaFontaine his.
         /// </summary>
         private static IEnumerable<(uint, uint)> Migrated(IEnumerable<(uint Creature, uint Greeting)> rows) =>
             Migrated(rows.Select(row => (row.Creature, row.Greeting, false))).Select(row => (row.Item1, row.Item2));
@@ -730,7 +733,8 @@ namespace Rasa.Test.World
                     : (row.Creature, row.Greeting, row.Important))
                 .Concat(AliaDasNpcs.Greetings.Where(g => g.Was == null).Select(g => (g.Creature, g.Is, false)))
                 .Append((BootcampVanValkenberg.VanValkenberg, BootcampVanValkenberg.Greeting, false))
-                .Concat(TwinPillarsNpcs.Lines.Select(line => (line.Creature, line.GreetingId, line.Important)));
+                .Concat(TwinPillarsNpcs.Lines.Select(line => (line.Creature, line.GreetingId, line.Important)))
+                .Append((WarnetCavernsContent.LaFontaine, WarnetCavernsContent.LaFontaineGreeting, false));
 
         /// <summary>The lines Twin_pillars_npcs gives, and the ones of them it marks.</summary>
         private static int TwinPillarsLines => TwinPillarsNpcs.Lines.Length;

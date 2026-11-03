@@ -24,6 +24,7 @@
       <Aliases>global,RasaGame</Aliases>
     </ProjectReference>
     <ProjectReference Include="..\Rasa.DBL\Rasa.DBL.csproj" />
+    <ProjectReference Include="..\Rasa.ClientData\Rasa.ClientData.csproj" />
   </ItemGroup>
 
 </Project>

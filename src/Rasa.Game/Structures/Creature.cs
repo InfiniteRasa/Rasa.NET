@@ -135,6 +135,13 @@ namespace Rasa.Structures
         /// in the world; this is the dispenser holding what is actually on it.
         /// </summary>
         public ulong CorpseLootEntityId { get; internal set; }
+
+        /// <summary>
+        /// What a Filcher has taken off corpses and carries until it dies (LootDispenserManager.Steal):
+        /// a dispenser of the items, shown on the Filcher to those whose corpse it robbed and on no
+        /// map's table, so nobody loots a living Filcher. Null when it carries nothing.
+        /// </summary>
+        public LootDispenser CarriedLoot { get; internal set; }
         // creature actions
         public List<CreatureAction> Actions = new List<CreatureAction>();
 
@@ -143,6 +150,19 @@ namespace Rasa.Structures
         public long LastRestTime { get; internal set; }
         public bool IsInteractable { get; set; } = true;
         internal Func<bool> ScriptedCombatGate { get; set; }
+
+        /// <summary>
+        /// Players and their summons may fight it, but no other creature seeks it out or turns on
+        /// it: a public encounter's negotiator left free between runs (Overseer Skeev beside
+        /// Burke), who would otherwise be shot down by the AFS standing round him.
+        /// </summary>
+        internal bool KeptFromCreatures { get; set; }
+
+        /// <summary>
+        /// Making for a control point to claim it (LandingZoneAssaults): it looks for no fight and
+        /// turns on nobody who hits it - the harm breaks its claim off instead. Not copied from a template.
+        /// </summary>
+        internal bool OnClaimDuty { get; set; }
         internal Game.Missions.World.ScriptedCombatAuthorization ScriptedCombatAuthorization { get; set; }
 
         /// <summary>
@@ -166,6 +186,9 @@ namespace Rasa.Structures
 
         /// <summary>Whether it has its weapon out (CreatureWeaponDraw): TOOL_READY on the clients.</summary>
         public bool WeaponDrawn { get; set; }
+
+        /// <summary>How long the last attack it started has left to play on the clients, in ms (CreatureActing); counted down with its cooldowns.</summary>
+        public long ActingMs { get; set; }
 
         /// <summary>
         /// The beat it walks when it has nothing else to do (Patrols): its pool's, given as the

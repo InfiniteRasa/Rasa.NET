@@ -281,6 +281,109 @@ namespace Rasa.Test.World
             }
         }
 
+        /// <summary>
+        /// The bottom of Enigma Cavern - the Earth logos room, its Eloh corridor and the cave about
+        /// them - is dropped into and has no floor back up: a player there had /stuck alone. The
+        /// alcove at the end of the corridor takes them to the cavern's mouth, on the floor that
+        /// runs out to the rest of the Wilderness, facing the entrance.
+        /// </summary>
+        [TestMethod]
+        public void TheEarthCaveExitEndsAtTheCavernMouthOnFloorThatLeadsOut()
+        {
+            var nav = WildernessNavMesh();
+            var exit = SecretPassages.EarthCaveExit;
+            var doorway = SecretPassages.EarthCaveDoorway;
+            var logos = new Vector3(-830f, 141.5f, -736f);
+            var landingZone = new Vector3(156f, 163.5f, -112f);
+            var entrance = new Vector3(-854f, 170.1f, -577f);
+
+            Assert.IsTrue(nav.IsOnMesh(exit.Destination), "off the floor");
+            Assert.AreEqual(nav.GroundHeight(exit.Destination).Value, exit.Destination.Y, 0.35f);
+            Assert.IsTrue(nav.DistanceToWall(exit.Destination, 6f) > 1.5f, "against a wall");
+
+            // From the logos to the front of the alcove on foot, and from there nowhere but the cave.
+            var before = doorway.Position + doorway.Out * 3.5f + new Vector3(0f, 0.2f, 0f);
+            Assert.IsTrue(nav.Reachable(logos, before) == true, "no floor from the logos to the alcove");
+            Assert.IsTrue(nav.Reachable(logos, landingZone) == false, "the bottom of the cavern is joined to the surface on foot");
+
+            // Where it ends: out to the surface and the rest of the map.
+            Assert.IsTrue(nav.Reachable(exit.Destination, entrance) == true, "no floor from the arrival to the cavern's entrance");
+            Assert.IsTrue(nav.Reachable(exit.Destination, landingZone) == true, "no floor from the arrival to the Landing Zone");
+
+            // Facing the entrance (0 faces -Z).
+            var facing = new Vector3(-MathF.Sin(exit.Rotation), 0f, -MathF.Cos(exit.Rotation));
+            var toEntrance = Vector3.Normalize(new Vector3(entrance.X - exit.Destination.X, 0f, entrance.Z - exit.Destination.Z));
+            Assert.IsTrue(Vector3.Dot(facing, toEntrance) > 0.99f, $"facing {facing}, the entrance is {toEntrance}");
+        }
+
+        [TestMethod]
+        public void WalkingUpToTheEarthCaveAlcoveTakesThePlayerOutOfTheCave()
+        {
+            using var world = new WorldTestContext();
+
+            world.Map.NavMesh = WildernessNavMesh();
+
+            var now = 1000L;
+            var manager = Travel(world, clock: () => now);
+            var client = world.CreateClient();
+            var player = client.Player;
+            var doorway = SecretPassages.EarthCaveDoorway;
+            var head = new Vector3(0f, 0.2f, 0f);
+
+            CellManager.Instance.AddToWorld(client);
+            player.PlaceAt(doorway.Position + doorway.Out * 8f + head);
+            player.MoveBudget = 60;
+            WorldTestContext.Drain(client);
+
+            // Down the corridor towards it: ordinary steps, to the edge of the disc.
+            foreach (var outward in new[] { 6f, 4.5f, 3f })
+            {
+                Assert.IsTrue(client.HandleMovement(new Movement(doorway.Position + doorway.Out * outward + head, Vector2.Zero)));
+                Assert.IsNull(client.PendingTransfer, $"taken {outward} m out");
+            }
+
+            // Into the niche: the teleport-out effect, then out to the cavern's mouth.
+            Assert.IsTrue(client.HandleMovement(new Movement(doorway.Position + doorway.Out * 1.5f + head, Vector2.Zero)));
+            Assert.IsNotNull(client.PendingTransfer, "not taken at the niche");
+            Assert.IsTrue(Methods(client).Any(packet => packet is PreTeleportPacket), "no teleport effect where they stood");
+
+            now += DynamicObjectManager.PassageHoldMs;
+            manager.PassagesWorker(world.Map);
+
+            Assert.AreEqual(SecretPassages.EarthCaveExit.Destination, player.Position);
+            Assert.AreEqual(SecretPassages.EarthCaveExit.Rotation, (float)player.Rotation, 1e-4f);
+            Assert.AreEqual(SecretPassages.EarthCaveExit.Destination, Methods(client).OfType<TeleportPacket>().Single().Position);
+        }
+
+        /// <summary>A box turned with its alcove is the same box in the alcove's frame; one on the world's axes is unchanged.</summary>
+        [TestMethod]
+        public void ATurnedPassageBoxIsTheUnturnedBoxTurnedAboutItsOrigin()
+        {
+            var origin = new Vector3(10f, 0f, 20f);
+            var flat = new SecretPassages.Passage("flat", 1, origin + new Vector3(-3f, -1f, -2.5f), origin + new Vector3(3f, 9f, 2f), Vector3.Zero, 0f);
+            var turned = new SecretPassages.Passage("turned", 1, origin + new Vector3(-3f, -1f, -2.5f), origin + new Vector3(3f, 9f, 2f), Vector3.Zero, 0f,
+                boxYaw: MathF.PI / 4f, boxOrigin: origin);
+            var turn = Quaternion.CreateFromYawPitchRoll(MathF.PI / 4f, 0f, 0f);
+
+            // Off the box's edges (x = -3, 3; z = -2.5, 2), where turning back can round either way.
+            for (var x = -4.85f; x <= 5f; x += 0.5f)
+                for (var z = -4.85f; z <= 5f; z += 0.5f)
+                {
+                    var local = new Vector3(x, 1f, z);
+                    var world = origin + Vector3.Transform(local, turn);
+
+                    Assert.AreEqual(flat.Contains(origin + local), turned.Contains(world), $"{local}");
+                    var step = new Vector3(1.1f, 0f, 0.7f);
+                    Assert.AreEqual(flat.Touches(origin + local, origin + local + step),
+                        turned.Touches(world, origin + Vector3.Transform(local + step, turn)), $"step from {local}");
+                }
+
+            // Out of a 45-degree corridor along its middle: taken at 2.5 m, as a flat one is, and not at 3.
+            var down = Vector3.Transform(new Vector3(0f, 0f, -1f), turn);
+            Assert.IsTrue(turned.Contains(origin + down * 2.4f + Vector3.UnitY));
+            Assert.IsFalse(turned.Contains(origin + down * 2.6f + Vector3.UnitY));
+        }
+
         [TestMethod]
         public void WalkingUpToTheAliaCavernsAlcoveTeleportsThePlayerIntoTheShrineAndBackAgain()
         {
@@ -628,6 +731,7 @@ namespace Rasa.Test.World
             Assert.AreSame(SecretPassages.AliaCavernsDoor, SecretPassages.AliaCavernsDoorway.Passage);
             Assert.AreSame(SecretPassages.EnhanceShrineExit, SecretPassages.EnhanceShrineDoorway.Passage);
             Assert.AreSame(SecretPassages.GrowthHallEnd, SecretPassages.GrowthHallDoorway.Passage);
+            Assert.AreSame(SecretPassages.EarthCaveExit, SecretPassages.EarthCaveDoorway.Passage);
         }
 
         private static MapChannel Channel(uint mapContextId, string name) => new MapChannel
@@ -799,7 +903,7 @@ namespace Rasa.Test.World
                 Assert.AreEqual(UseObjectState.TsState1, ((UsableInfoPacket)made.EntityData[2]).CurState);
                 Assert.IsTrue(seen.OfType<DestroyPhysicalEntityPacket>().Any(packet => packet.EntityId == cave.EntityId), "the cave alcove was left on the client");
 
-                // The alcove off the Earth logos cave: shown unlit, and from the cave's junction before its corridor.
+                // The alcove off the Earth logos cave: shown lit, the way out, and from the cave's junction before its corridor.
                 var earth = SecretPassages.DoorwayObject(world.Map, SecretPassages.EarthCaveDoorway);
                 var other = world.CreateClient();
 
@@ -811,7 +915,7 @@ namespace Rasa.Test.World
                 Assert.AreEqual(3, made.EntityData.Count);
                 Assert.AreEqual(new Vector3(-837.03f, 141f, -684.48f), ((WorldLocationDescriptorPacket)made.EntityData[1]).Position);
                 Assert.IsFalse(((UsableInfoPacket)made.EntityData[2]).Enabled);
-                Assert.AreEqual(UseObjectState.TsState0, ((UsableInfoPacket)made.EntityData[2]).CurState, "the Earth cave alcove is lit");
+                Assert.AreEqual(UseObjectState.TsState1, ((UsableInfoPacket)made.EntityData[2]).CurState, "the Earth cave alcove is unlit");
             }
             finally
             {

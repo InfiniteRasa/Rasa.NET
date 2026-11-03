@@ -96,6 +96,9 @@ namespace Rasa.Managers
             public ulong ReviverId;
             public long ExpiresAt;
             public int Health;
+            public int ArmorPercent;
+            public bool Penalties = true;
+            public bool ToReviver;
         }
 
         private static readonly Dictionary<ulong, Dictionary<ulong, Offer>> Offers = new Dictionary<ulong, Dictionary<ulong, Offer>>();
@@ -165,6 +168,7 @@ namespace Rasa.Managers
 
         private static void Kill(MapChannel mapChannel, Client client, Manifestation victim, Actor source, bool pvp)
         {
+            unchecked { victim.DeathGeneration++; }
             victim.StateBeforeDeath = victim.State;
             victim.State = CharacterState.Dead;
             victim.DiedInPvp = pvp;
@@ -270,10 +274,15 @@ namespace Rasa.Managers
             if (entrance != null)
             {
                 var named = Hospitals.Nearest(Hospitals.OnMap(mapContextId), entrance.Value.Position);
-
-                return named == null
+                var graveyards = named == null
                     ? new List<PlayerDeadPacket.Graveyard>()
                     : new List<PlayerDeadPacket.Graveyard> { new PlayerDeadPacket.Graveyard { Id = named.GraveyardId, Position = entrance.Value.Position, IsSafe = named.IsSafe } };
+
+                // A Magma Caverns copy's side has its own hospital besides (MagmaCaverns).
+                if (MagmaCaverns.SideHospital(mapChannel) is { } side && side.GraveyardId != named?.GraveyardId)
+                    graveyards.Add(new PlayerDeadPacket.Graveyard { Id = side.GraveyardId, Position = side.Position, IsSafe = side.IsSafe });
+
+                return graveyards;
             }
 
             return HospitalsFor(victim, mapContextId)
@@ -353,7 +362,14 @@ namespace Rasa.Managers
             var entrance = InstanceEntrances.Of(mapChannel, player);
             Hospitals.Hospital hospital = null;
 
-            if (entrance == null)
+            // A Magma Caverns copy's side hospital, asked for: there rather than the entrance (MagmaCaverns).
+            if (entrance != null && graveyardId.HasValue && MagmaCaverns.SideHospital(mapChannel) is { } side &&
+                side.GraveyardId == (uint)graveyardId.Value)
+            {
+                entrance = null;
+                hospital = side;
+            }
+            else if (entrance == null)
             {
                 var available = HospitalsFor(player, mapChannel.MapInfo.MapContextId);
 
@@ -398,10 +414,11 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// Back to life: penalties on (unless a GM said otherwise), then health (and at a hospital, full armour and the move
-        /// there), and everyone told.
+        /// Back to life: penalties on (unless a GM or the revive said otherwise), then health (and
+        /// at a hospital, full armour and the move there; for a revive that gives some armour back,
+        /// armorPercent of it), and everyone told.
         /// </summary>
-        private static void Revive(MapChannel mapChannel, Client client, Vector3 at, int health, Actor reviver, bool atHospital, bool penalties = true)
+        private static void Revive(MapChannel mapChannel, Client client, Vector3 at, int health, Actor reviver, bool atHospital, bool penalties = true, int armorPercent = 0)
         {
             var player = client.Player;
 
@@ -448,9 +465,11 @@ namespace Rasa.Managers
                 CellManager.Instance.CellCallMethod(mapChannel, player, new UpdateHealthPacket(healthAttribute, 0));
             }
 
-            if (atHospital && player.Attributes.TryGetValue(Attributes.Armor, out var armor))
+            if ((atHospital || armorPercent > 0) && player.Attributes.TryGetValue(Attributes.Armor, out var armor))
             {
-                armor.Current = armor.CurrentMax;
+                armor.Current = atHospital
+                    ? armor.CurrentMax
+                    : Math.Max(armor.Current, Math.Min(armor.CurrentMax, armor.CurrentMax * Math.Min(armorPercent, 100) / 100));
                 CellManager.Instance.CellCallMethod(mapChannel, player, new UpdateArmorPacket(armor, 0));
             }
 
@@ -487,6 +506,17 @@ namespace Rasa.Managers
 
             // The padlock of a locked wagered item went with the rest of their effects.
             InventoryManager.SyncWagerLock(player);
+
+            if (atHospital && mapChannel.MapInfo.MapContextId ==
+                global::Rasa.Missions.Content.Bootcamp.BootcampEntryDefinition.BootcampPrivateMapContextId)
+                try
+                {
+                    MissionApplication.Instance.Scenes.RecoverBootcampEscorts(client);
+                }
+                catch (Exception error) when (GameplayRejectionException.IsExpected(error))
+                {
+                    Logger.WriteLog(LogType.Error, $"Bootcamp escort recovery after revival failed: {error.Message}");
+                }
 
             Logger.WriteLog(LogType.Debug, $"{player.FamilyName} ({player.Id}) is back{(atHospital ? " at a hospital" : $", revived by {reviver?.EntityId}")}.");
         }
@@ -611,8 +641,16 @@ namespace Rasa.Managers
         /// client's revive window, for REVIVE_REQUEST_DURATION. False when there is nobody to
         /// offer it to - alive, gone, an enemy of the reviver, or in a wargame closed to the
         /// reviver (Pvp.MayHelp).
+        ///
+        /// What else it brings is the reviver's to say: armorPercent of their armour back,
+        /// penalties (Rez Trauma, the no-healing and the wear; on unless said otherwise), and
+        /// toReviver - up beside the reviver rather than where they lay, if the reviver is still
+        /// alive on the map when it is taken (the window is told the reviver's spot). Cure's
+        /// Resuscitate: "Target resurrected at 50% Health and Armor | No Death Penalties | Summons
+        /// target to user". A healing disc's and a Polymorph's revives take the defaults.
         /// </summary>
-        public static bool OfferRevive(MapChannel mapChannel, Manifestation reviver, Manifestation dead, int health)
+        public static bool OfferRevive(MapChannel mapChannel, Manifestation reviver, Manifestation dead, int health,
+            int armorPercent = 0, bool penalties = true, bool toReviver = false)
         {
             if (reviver == null || dead == null || dead.State != CharacterState.Dead || Pvp.AreEnemies(reviver, dead)
                 || !Pvp.MayHelp(reviver, dead))
@@ -632,12 +670,16 @@ namespace Rasa.Managers
                 {
                     ReviverId = reviver.EntityId,
                     ExpiresAt = Now() + ReviveRequestSeconds * 1000L,
-                    Health = Math.Max(1, health)
+                    Health = Math.Max(1, health),
+                    ArmorPercent = Math.Max(0, armorPercent),
+                    Penalties = penalties,
+                    ToReviver = toReviver
                 };
             }
 
             client.CallMethod(SysEntity.ClientMethodId,
-                new ReviveRequestInfoPacket(reviver.EntityId, $"{reviver.Name} {reviver.FamilyName}".Trim(), 0, ReviveRequestSeconds, dead.Position));
+                new ReviveRequestInfoPacket(reviver.EntityId, $"{reviver.Name} {reviver.FamilyName}".Trim(), 0, ReviveRequestSeconds,
+                    toReviver ? reviver.Position : dead.Position));
 
             return true;
         }
@@ -666,7 +708,14 @@ namespace Rasa.Managers
 
             EntityManager.Instance.Actors.TryGetValue(reviverId, out var reviver);
 
-            Revive(mapChannel, client, player.Position, offer.Health, reviver ?? player, atHospital: false);
+            // Summoned: up beside the reviver where they stand now - unless they are dead or gone
+            // from this map, when it is where they lay.
+            var at = offer.ToReviver && reviver is Manifestation summoner && summoner.State != CharacterState.Dead &&
+                ReferenceEquals(summoner.MapChannel, mapChannel) && mapChannel.ClientList.Any(c => c?.Player == summoner)
+                ? summoner.Position
+                : player.Position;
+
+            Revive(mapChannel, client, at, offer.Health, reviver ?? player, atHospital: false, penalties: offer.Penalties, armorPercent: offer.ArmorPercent);
         }
 
         /// <summary>RefuseRevive(reviverId): the offer dropped.</summary>

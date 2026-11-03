@@ -353,7 +353,8 @@ namespace Rasa.Managers
         /// pump costs the same share of the bar at every level. This takes the same. It ends when
         /// the duration is up, the bar is empty, the player right-clicks the buff away (a detach
         /// request), or the player presses sprint again - AbilityManager turns a second request
-        /// into ending the first. There is no cost to start or stop it; the drain is the cost.
+        /// into ending the first. There is no cost to start or stop it; the drain is the cost, and
+        /// the owner's client is told so for the press that stops it (WaiveCostWhileOn).
         /// </summary>
         public GameEffect AttachSprint(MapChannel mapChannel, Actor actor, ActionLevelInfo level)
         {
@@ -383,7 +384,53 @@ namespace Rasa.Managers
 
             Attach(mapChannel, actor, effect, beadModifier);
 
+            if (actor.ActiveEffects.ContainsKey(effect.EffectId))
+                WaiveCostWhileOn(mapChannel, actor, effect);
+
             return effect;
+        }
+
+        /// <summary>MODULE_POWER_COST_MOD: ModulePowerCostMod, the client's per-action cost change.</summary>
+        public const int PowerCostModTypeId = 407;
+
+        /// <summary>
+        /// While sprint is on, its press costs nothing on the player's own client. SprintAction is
+        /// no isToggle ability, so the client judges the press that would end it as one that
+        /// starts it - BaseActorAbility.CheckConsumables against the action_cost row (30 adrenaline
+        /// at P1) - and once the drain had taken the bar below that it refused the press itself:
+        /// "not enough adrenaline", no request, and sprint ran on until the bar was empty. A
+        /// MODULE_POWER_COST_MOD for the action is what CheckConsumables and the drawer
+        /// (gameuiutil.CanUseAbility) take off the cost: amount -1 makes it nothing
+        /// (cost *= 1 + amount), the press goes through, and RequestPerformAbility turns it into
+        /// ending sprint. Told to the holder's client alone, with no icon (gameeffectdata.icon
+        /// has none for it) and nothing of its own to show; it comes off with sprint.
+        /// </summary>
+        private void WaiveCostWhileOn(MapChannel mapChannel, Actor actor, GameEffect sustained)
+        {
+            if (!(actor is Manifestation))
+                return;
+
+            var waiver = new GameEffect
+            {
+                TypeId = PowerCostModTypeId,
+                EffectId = NextEffectId(mapChannel),
+                EffectLevel = 1,
+                SourceId = actor.EntityId,
+                Source = actor,
+                ExpiresTick = long.MaxValue,
+                IsBuff = true,
+                OwnerOnly = true
+            };
+
+            // ModulePowerCostMod.OnAnnounceAttach(effectTarget, amount, actionId, actionArgId):
+            // every pump of the action (actionArgId None).
+            Attach(mapChannel, actor, waiver, -1.0, (int)sustained.ActionId, null);
+
+            sustained.OnDetached = (map, holder, _) =>
+            {
+                if (map != null && holder != null)
+                    DettachEffect(map, holder, waiver);
+            };
         }
 
         /// <summary>
@@ -923,6 +970,13 @@ namespace Rasa.Managers
                 });
             }
 
+            // A player's Scourge reaches the objects around them a weapon can damage too
+            // (PracticeTargetManager.Blast), listed with the rest.
+            if (effect.TickRadius > 0 && actor is Manifestation scourged)
+                hits.AddRange(PracticeTargetManager.Entries(PracticeTargetManager.Blast(mapChannel, scourged, actor.Position, effect.TickRadius,
+                    () => AbilityManager.Scale(effect.SourceLevel, _random.Next(effect.TickDamageMin, effect.TickDamageMax + 1), effect.TickScaleType)),
+                    effect.TickDamageType));
+
             if (effect.TickRadius > 0 && !effect.TickRadiusAsTick)
             {
                 // The holder is not the one hurt, so the effect announces the damage on their
@@ -995,6 +1049,7 @@ namespace Rasa.Managers
                     AllowDetach = effect.AllowDetach,
                     DamageDealtPercent = effect.DamageDealtPercent,
                     ResistModifier = effect.ResistModifier,
+                    ResistGroup = effect.ResistGroup,
                     RegenPercent = effect.RegenPercent,
                     ArmorRegenPercent = effect.ArmorRegenPercent,
                     HealthRegenPercent = effect.HealthRegenPercent,
@@ -1032,13 +1087,32 @@ namespace Rasa.Managers
         }
 
         /// <param name="damageType">The hit's type; an effect limited to one type (Polarity Field) counts only against that type, and not against an untyped hit.</param>
+        /// <remarks>Effects that share a ResistGroup count once, the strongest of them.</remarks>
         public static int ResistModifierOf(Actor actor, DamageType damageType = 0)
         {
             var total = 0;
+            Dictionary<int, int> groups = null;
 
             foreach (var effect in actor.ActiveEffects.Values)
-                if (effect.ResistDamageType == 0 || effect.ResistDamageType == damageType)
+            {
+                if (effect.ResistDamageType != 0 && effect.ResistDamageType != damageType)
+                    continue;
+
+                if (effect.ResistGroup == 0)
+                {
                     total += effect.ResistModifier;
+                    continue;
+                }
+
+                groups ??= new Dictionary<int, int>();
+
+                if (!groups.TryGetValue(effect.ResistGroup, out var strongest) || Math.Abs(effect.ResistModifier) > Math.Abs(strongest))
+                    groups[effect.ResistGroup] = effect.ResistModifier;
+            }
+
+            if (groups != null)
+                foreach (var strongest in groups.Values)
+                    total += strongest;
 
             return total;
         }
@@ -1407,11 +1481,13 @@ namespace Rasa.Managers
             if (client == null)
                 return;
 
+            // Their own client too while they are still arriving on a map: Graviton, Bio and the
+            // rest go back on then (TellAround).
             if (actor.Attributes.TryGetValue(Attributes.Health, out var health))
-                CellManager.Instance.CellCallMethod(mapChannel, actor, new UpdateHealthPacket(WithRegen(actor, health), 0));
+                TellAround(mapChannel, actor, new UpdateHealthPacket(WithRegen(actor, health), 0));
 
             if (actor.Attributes.TryGetValue(Attributes.Armor, out var armor))
-                CellManager.Instance.CellCallMethod(mapChannel, actor, new UpdateArmorPacket(WithRegen(actor, armor), 0));
+                TellAround(mapChannel, actor, new UpdateArmorPacket(WithRegen(actor, armor), 0));
 
             if (actor.Attributes.TryGetValue(Attributes.Power, out var power))
                 client.CallMethod(actor.EntityId, new UpdatePowerPacket(WithRegen(actor, power), 0));
@@ -1567,8 +1643,30 @@ namespace Rasa.Managers
             // to a player's own client each time they arrive on a map - so it has to say the same
             // thing as the change everyone present is told about now.
             actor.MovementSpeed = movementMod;
-            CellManager.Instance.CellCallMethod(mapChannel, actor, new MovementModChangePacket(movementMod));
+            TellAround(mapChannel, actor, new MovementModChangePacket(movementMod));
         }
+
+        /// <summary>
+        /// Tells the clients round the actor, and a player's own client as well where they are not
+        /// among them. On a map change the standing effects go back on (ManifestationManager.
+        /// SyncSkillPassives, from AssignPlayer) while the client is still Teleporting, and a cell
+        /// broadcast only reaches clients in the game: the Motor Assist effect was put back and
+        /// shown, its speed never reached the player, and they ran at base speed until something
+        /// changed it again - a sprint, an armour piece off and on.
+        /// </summary>
+        internal static void TellAround(MapChannel mapChannel, Actor actor, PythonPacket packet)
+        {
+            CellManager.Instance.CellCallMethod(mapChannel, actor, packet);
+
+            if (actor is Manifestation && ClientOf(mapChannel, actor) is { } own && own.Player?.Disconected == false &&
+                !InCellBroadcast(mapChannel, actor, own))
+                own.CallMethod(actor.EntityId, packet);
+        }
+
+        /// <summary>Whether a cell broadcast round the actor reaches this client (CellManager.CollectClients).</summary>
+        private static bool InCellBroadcast(MapChannel mapChannel, Actor actor, Client client) =>
+            client.State == ClientState.Ingame && client.Player?.MapChannel == mapChannel &&
+            CellManager.CellsIn(mapChannel, actor.Cells).Any(cell => cell.ClientList.Contains(client));
 
         #endregion
     }

@@ -182,8 +182,12 @@ namespace Rasa.Test.World
 
             ForceFields.Damage(field.Field, field.Field.Health, shooter.EntityId);
             PlacedDestructibles.Worker(copies.A.Map);
-            Assert.AreEqual(_now + 50_000, field.RespawnAt);
-            _now += 50_000;
+            // A field is down for FieldRespawnMs, not a barrel's roll: these copies have no squad state of their own.
+            Assert.AreEqual(_now + PlacedDestructibles.FieldRespawnMs, field.RespawnAt);
+            _now += PlacedDestructibles.FieldRespawnMs - 1;
+            PlacedDestructibles.Worker(copies.A.Map);
+            Assert.IsTrue(field.IsDown, "not yet");
+            _now += 1;
             PlacedDestructibles.Worker(copies.A.Map);
             Assert.IsFalse(field.IsDown, "back");
             Assert.IsFalse(field.Field.Sealed);

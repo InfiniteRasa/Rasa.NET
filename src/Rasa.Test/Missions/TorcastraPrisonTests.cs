@@ -20,6 +20,7 @@ namespace Rasa.Test.Missions
     using T = Rasa.Services.Preloader.TorcastraPrisonContent;
     using M = Rasa.Services.Preloader.Missions.Torcastra.TorcastraMissionsV1;
     using P = Rasa.Managers.TorcastraPrison;
+    using K = Rasa.Services.Preloader.TorcastraKeymasterComputer;
 
     /// <summary>
     /// Torcastra Prison as the wiki's walkthrough tells it (Torcastra_prison: TorcastraPrisonContent,
@@ -127,7 +128,8 @@ namespace Rasa.Test.Missions
                 Assert.AreEqual(M.Category, mission.CategoryId);
             }
 
-            Assert.IsFalse(harness.Manager.TryGetOperationalMission(M.StolenHistory, out _), "Stolen History waits for Minos Caverns and Timora Mines");
+            // Stolen History is switched on by Timora_mines, with its last piece (TimoraMinesTests).
+            Assert.IsTrue(harness.Manager.TryGetOperationalMission(M.StolenHistory, out _), "Stolen History, once Timora Mines is in");
 
             // Each marker is the client's own name for it, or none and named by its objective.
             var markers = harness.World.MissionIndicatorEntries.AsNoTracking().Where(row => row.ContentRevision == M.Revision).ToList();
@@ -331,6 +333,85 @@ namespace Rasa.Test.Missions
             WildernessTwinPillarsTests.Reward(harness, ferme, M.InTerror, 0, 13197, 17000, 2550);
         }
 
+        [TestMethod]
+        public void TheGatekeepersKeyAsTheMissionDropsItOpensTheGateAndStaysWithItsMission()
+        {
+            using var harness = Create();
+            var state = Enter(harness);
+            var slot = PlacedUsables.LiveOf(harness.Map, T.GateKeySlot);
+
+            // Securing Torcastra's drop: the mission's item, which nothing but its mission takes.
+            var key = ItemManager.Instance.CreateFromTemplateId(T.GateKeyTemplate, 1);
+            Assert.IsNotNull(InventoryManager.Instance.GrantItemToInventory(harness.Client, key));
+            key.MissionOwnership = new MissionItemOwnership(harness.Client.Player.Id, M.Securing, "assignment", 1, "torcastra-gate-key");
+            harness.Drain();
+
+            var refusals = UseAndHearRefusals(harness, slot.Object);
+
+            CollectionAssert.DoesNotContain(refusals, PlayerMessage.PmMissingReqItem, "it was refused for want of the key it holds");
+            Assert.IsTrue(state.GateOpen);
+            Assert.AreEqual(1L, WildernessTwinPillarsTests.Held(harness, T.GateKeyTemplate), "the mission's key stays with the mission");
+        }
+
+        /// <summary>
+        /// Information Sabotage's worm console, and then its two terminals. The report: the console
+        /// could be used but said "You are missing the required item(s) for that action". The
+        /// console's row takes 0 items and was read as 1, of the datapad class - and the worm Ferme
+        /// gives is the mission's item, which an acceptor did not count. The terminals were the same.
+        /// </summary>
+        [TestMethod]
+        public void TheWormIsUploadedOnceTheStorageIsDownAndTheTerminalsAreReadAfterFerme()
+        {
+            using var harness = Create();
+            var state = Enter(harness);
+            var ferme = Spawn(harness, T.FermePool, T.Ferme);
+
+            WildernessTwinPillarsTests.Accept(harness, ferme, M.Sabotage);
+            Assert.AreEqual(1L, WildernessTwinPillarsTests.Held(harness, T.DatapadTemplate), "Ferme's worm");
+
+            var console = PlacedUsables.LiveOf(harness.Map, T.WormConsole);
+            UseAndHearRefusals(harness, console.Object);
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, M.Sabotage, 3), "not before the storage is down");
+
+            foreach (var id in new[] { T.StorageUnitA, T.StorageUnitB, T.StoragePanelA, T.StoragePanelB })
+                Assert.IsTrue(PlacedDestructibles.Destroy(PlacedDestructibles.LiveOf(harness.Map, id), harness.Client.Player));
+            PlacedDestructibles.Worker(harness.Map);
+            Work(harness, 1100);
+            Work(harness, 1100);
+            Assert.IsTrue(state.Storage.All(down => down));
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, M.Sabotage, 2));
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, M.Sabotage, 9));
+
+            var refusals = UseAndHearRefusals(harness, console.Object);
+            Assert.IsEmpty(refusals, string.Join(", ", refusals));
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, M.Sabotage, 3), "the worm uploaded");
+            Assert.AreEqual(0L, WildernessTwinPillarsTests.Held(harness, T.DatapadTemplate), "the mission took its worm");
+
+            WildernessTwinPillarsTests.Talk(harness, ferme, M.Sabotage, 8);
+
+            foreach (var (terminal, objective) in new[] { (T.PrimaryTerminal, 6u), (T.SecondaryTerminal, 7u) })
+            {
+                refusals = UseAndHearRefusals(harness, PlacedUsables.LiveOf(harness.Map, terminal).Object);
+                Assert.IsEmpty(refusals, $"terminal {terminal}: {string.Join(", ", refusals)}");
+                Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, M.Sabotage, objective), $"terminal {terminal} read");
+            }
+        }
+
+        /// <summary>A use, as Use makes it, and the messages it was refused with.</summary>
+        private static List<PlayerMessage> UseAndHearRefusals(WildernessRuntimeTestHarness harness, DynamicObject obj)
+        {
+            harness.MoveTo(obj.Position + new Vector3(1, 0, 0));
+            harness.Drain();
+            harness.Objects.RequestUseObjectPacket(harness.Client, new RequestUseObjectPacket
+            {
+                EntityId = obj.EntityId,
+                ActionId = ActionId.UseObject,
+                ActionArgId = DynamicObjectManager.FootlockerUseArgId
+            });
+            ActorActionManager.Instance.DoWork(harness.Map, 10000);
+            return harness.Drain().OfType<Rasa.Packets.MapChannel.Server.UserActionFailedPacket>().Where(failed => failed.MsgId.HasValue).Select(failed => failed.MsgId.Value).ToList();
+        }
+
         #endregion
 
         #region The cell blocks and Prison Riot
@@ -460,6 +541,39 @@ namespace Rasa.Test.Missions
 
             WildernessTwinPillarsTests.Talk(harness, cisco, M.Keymaster, 9);
             Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, M.Keymaster, 13));
+        }
+
+        /// <summary>
+        /// The computer banks stand in the alcove of the service room's west wall, in front of the
+        /// pipe across its back, on the floor a player walks to from the room - not on the Bane
+        /// console behind the pipe (Torcastra_keymaster_computer). Their marker is with them.
+        /// </summary>
+        [TestMethod]
+        public void TheComputerBanksStandInFrontOfThePipe()
+        {
+            using var harness = Create();
+            Enter(harness);
+            Completed(harness, M.Securing);
+            Pool(harness, T.CiscoGatePool).Woken = true;
+            WildernessTwinPillarsTests.Accept(harness, Spawn(harness, T.CiscoGatePool, T.CiscoAtGate), M.Keymaster);
+
+            var banks = harness.Map.DynamicObjects.Single(obj => obj.SceneMissionId == M.Keymaster && obj.SceneActorRole == "computer-banks");
+            var at = new Vector3(K.Now.X, K.Now.Y, K.Now.Z);
+            Assert.IsLessThan(0.01f, Vector3.Distance(at, banks.Position), $"at {banks.Position}");
+
+            // Over the alcove's floor, a metre up, and that floor is the room's.
+            var nav = harness.Map.NavMesh;
+            var floor = nav.Nearest(at - new Vector3(0, 1f, 0)).Value;
+            Assert.IsLessThan(0.5f, Vector2.Distance(new Vector2(at.X, at.Z), new Vector2(floor.X, floor.Z)), $"floor under them: {floor}");
+            Assert.IsTrue(at.Y - floor.Y is > 0.5f and < 1.5f, $"{at.Y - floor.Y} m over it");
+            Assert.AreEqual(true, nav.Reachable(floor, new Vector3(-120f, 101.2f, -456f)), "the alcove's floor is the service room's");
+            Assert.IsGreaterThan(3f, Vector3.Distance(at, new Vector3(-129.94f, 100.2f, -455.97f)), "off the Bane console behind the pipe");
+
+            var marker = harness.World.MissionIndicatorEntries.AsNoTracking()
+                .Single(row => row.MissionId == M.Keymaster && row.ContentRevision == M.Revision && row.ObjectiveId == 4);
+            Assert.AreEqual(at.X, marker.PosX, 0.01);
+            Assert.AreEqual(at.Y, marker.PosY, 0.01);
+            Assert.AreEqual(at.Z, marker.PosZ, 0.01);
         }
 
         /// <summary>Securing Torcastra done, Keymaster taken from Cisco at the gate, the computer banks read and Hamilton released.</summary>

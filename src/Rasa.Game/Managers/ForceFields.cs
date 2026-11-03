@@ -58,7 +58,16 @@ namespace Rasa.Managers
         {
             Faction,    // FORCEFIELD 62
             Clan,       // CLANFORCEFIELD 79
-            Ownable     // OWNABLEFORCEFIELD 84
+            Ownable,    // OWNABLEFORCEFIELD 84
+
+            /// <summary>
+            /// DOOR (10) held shut by the server: a sealed door of a facility's, which stops
+            /// everyone - players and creatures of any side - and every shot until something opens
+            /// it for good (the Phanin Research Facility's, PhaninResearch). Shut is
+            /// USE_DOOR_STATE_CLOSED, open USE_DOOR_STATE_OPEN; the client's door takes its
+            /// collision from its state (door.py), and has no hit points or block info to be told.
+            /// </summary>
+            Door
         }
 
         public enum Side
@@ -103,7 +112,11 @@ namespace Rasa.Managers
 
             // Two the client marks for deletion, each on another's mesh: humbase's (21637) and banemajor's (22127).
             new FieldClass("humbaseold", 9473, Kind.Faction, new Vector3(-9.17f, 4.1f, -0.17f), new Vector3(9.17f, 12.34f, 0.17f), "UsableForceFieldDELETEV01, on the human base gate's mesh"),
-            new FieldClass("banemajorold", 9747, Kind.Faction, new Vector3(-16.48f, 0.21f, -0.29f), new Vector3(16.48f, 20.38f, 0.31f), "UsableForceFieldDELETEDELETEDUPE, on the Bane major entrance's mesh")
+            new FieldClass("banemajorold", 9747, Kind.Faction, new Vector3(-16.48f, 0.21f, -0.29f), new Vector3(16.48f, 20.38f, 0.31f), "UsableForceFieldDELETEDELETEDUPE, on the Bane major entrance's mesh"),
+
+            // A door, not a field: arch_brann_corridor_door_01_4m_v01.geo's collision box (mesh01.glm),
+            // for the Brann corridor jambs (ArchBrannCorridorJamb014mV01).
+            new FieldClass("branndoor", 10749, Kind.Door, new Vector3(-3.52f, 0.42f, -0.55f), new Vector3(3.52f, 6.12f, 0.55f), "Brann corridor door (UsableDoorBrannCorridor04mV01)")
         };
 
         /// <summary>The ownable field's hue for each side, 0-255 red, green, blue, alpha: ours.</summary>
@@ -164,11 +177,28 @@ namespace Rasa.Managers
                 return Fields.Where(f => f.MapChannel == mapChannel).ToList();
         }
 
+        /// <summary>
+        /// A map channel going away (MapChannelManager.CleanupPrivateMapChannel): the fields still
+        /// on it out of the list - those an instance put down itself rather than through
+        /// PlacedDestructibles, which takes its own away first. Returns how many went.
+        /// </summary>
+        public static int Forget(MapChannel mapChannel)
+        {
+            if (mapChannel == null)
+                return 0;
+
+            lock (FieldsLock)
+                return Fields.RemoveAll(f => f.MapChannel == mapChannel);
+        }
+
         #region States
 
         /// <summary>The usable state a field of this kind, side and health is in.</summary>
         public static UseObjectState StateOf(Kind kind, Side side, int health, int maxHealth)
         {
+            if (kind == Kind.Door)
+                return health <= 0 ? UseObjectState.DoorStateOpen : UseObjectState.DoorStateClosed;
+
             if (kind == Kind.Clan)
                 return health <= 0 ? UseObjectState.StateDestroyed : side == Side.A ? UseObjectState.CffStateAfsOwns : UseObjectState.CffStateBaneOwns;
 
@@ -256,6 +286,10 @@ namespace Rasa.Managers
         public static bool StopsCategory(Side side, TargetCategory category) =>
             side == Side.A ? category == TargetCategory.Hostile : category == TargetCategory.Friendly;
 
+        /// <summary>Whether an intact field stops a creature of this category: a shut door stops every one.</summary>
+        public static bool StopsCreature(Field field, TargetCategory category) =>
+            !field.IsDestroyed && (field.Class.Kind == Kind.Door || StopsCategory(field.Side, category));
+
         public static bool StopsPlayer(Field field) => !field.IsDestroyed && StopsPlayers(field.Side);
 
         #endregion
@@ -332,6 +366,10 @@ namespace Rasa.Managers
             if (!(obj.ObjectData is Field field) || client?.Player == null)
                 return;
 
+            // A door has neither: its state, sent with its creation, is its collision.
+            if (field.Class.Kind == Kind.Door)
+                return;
+
             client.CallMethod(obj.EntityId, new UsableDamageInfoPacket(true, false, field.MaxHealth, field.Health));
             client.CallMethod(obj.EntityId, new BlockInfoPacket(client.Player.EntityId, StopsPlayer(field)));
 
@@ -347,6 +385,9 @@ namespace Rasa.Managers
         /// <summary>Everyone who can see the field, each told whether it blocks them now.</summary>
         private static void SendBlockInfo(Field field)
         {
+            if (field.Class.Kind == Kind.Door)
+                return;
+
             foreach (var client in ClientsAround(field))
                 if (client.Player != null)
                     client.CallMethod(field.Object.EntityId, new BlockInfoPacket(client.Player.EntityId, StopsPlayer(field)));
@@ -392,7 +433,8 @@ namespace Rasa.Managers
 
             field.Health -= taken;
 
-            CellManager.Instance.CellCallMethod(field.Object, new UpdateHitPointsPacket(field.Health));
+            if (field.Class.Kind != Kind.Door)
+                CellManager.Instance.CellCallMethod(field.Object, new UpdateHitPointsPacket(field.Health));
             UpdateState(field, before, byEntityId);
 
             return taken;
@@ -472,6 +514,65 @@ namespace Rasa.Managers
 
         #endregion
 
+        #region Blocking shots
+
+        /// <summary>
+        /// The intact field a shot from one point to the other goes through, or null: any side's,
+        /// for a field stops fire both ways - in from outside and out from inside - whoever it
+        /// lets walk through it. The sheet as its mesh has it, down to <see cref="BelowSheet"/>
+        /// under it, so a shot cannot be slipped under its lower edge (<see cref="CrossesShot"/>).
+        /// <paramref name="except"/> is a field the shot is aimed at, which it reaches.
+        /// </summary>
+        public static Field Between(MapChannel mapChannel, Vector3 from, Vector3 to, ulong except = 0)
+        {
+            if (mapChannel == null)
+                return null;
+
+            foreach (var field in OnMap(mapChannel))
+                if (!field.IsDestroyed && field.Object.EntityId != except && CrossesShot(field.Class, field.Position, field.Yaw, from, to))
+                    return field;
+
+            return null;
+        }
+
+        /// <summary>Whether the map channel has a field standing at all: the cheap test before the line tests.</summary>
+        public static bool AnyStanding(MapChannel mapChannel)
+        {
+            if (mapChannel == null)
+                return false;
+
+            lock (FieldsLock)
+                return Fields.Any(f => f.MapChannel == mapChannel && !f.IsDestroyed);
+        }
+
+        /// <summary>
+        /// The field a shot from the attacker at the target goes into, or null: one standing
+        /// between the attacker's eyes and every point of the target a shot is judged by
+        /// (Cover.SamplePoints). A target only partly behind the edge of a field is still hit.
+        /// </summary>
+        public static Field Stopping(MapChannel mapChannel, Actor attacker, Actor target)
+        {
+            if (attacker == null || target == null || !AnyStanding(mapChannel))
+                return null;
+
+            var eye = Cover.EyeOf(attacker);
+            Field first = null;
+
+            foreach (var point in Cover.SamplePoints(target, eye))
+            {
+                var field = Between(mapChannel, eye, point);
+
+                if (field == null)
+                    return null;
+
+                first ??= field;
+            }
+
+            return first;
+        }
+
+        #endregion
+
         #region Blocking creatures
 
         /// <summary>
@@ -496,8 +597,7 @@ namespace Rasa.Managers
                 return false;
 
             foreach (var field in OnMap(mapChannel))
-                if (!field.IsDestroyed && StopsCategory(field.Side, creature.TargetCategory)
-                    && Crosses(field.Class, field.Position, field.Yaw, from, to))
+                if (StopsCreature(field, creature.TargetCategory) && Crosses(field.Class, field.Position, field.Yaw, from, to))
                     return true;
 
             return false;
@@ -506,8 +606,13 @@ namespace Rasa.Managers
         /// <summary>
         /// Whether the step from one point to the next passes through the field's sheet: the
         /// segment, taken into the field's own frame, against its box grown by
-        /// <see cref="CreatureRadius"/> across and <see cref="BelowSheet"/> under it. A step that
-        /// starts inside it already is let out.
+        /// <see cref="CreatureRadius"/> across and <see cref="BelowSheet"/> under it.
+        ///
+        /// A step that starts inside the box already is let out, but only back the way it came:
+        /// one that would carry it over the middle of the sheet to the other side is stopped.
+        /// Letting out every step from inside let a creature that had been put within half a
+        /// metre of the sheet - by the crowd pushing it, a knockback's last step - walk on
+        /// through it: Bane at an AFS gate leaked into the outpost behind it.
         /// </summary>
         public static bool Crosses(FieldClass fieldClass, Vector3 position, float yaw, Vector3 from, Vector3 to)
         {
@@ -519,9 +624,49 @@ namespace Rasa.Managers
             var max = fieldClass.Max + new Vector3(CreatureRadius, 0f, CreatureRadius);
 
             if (Inside(a, min, max))
-                return false;
+                return CrossesMiddle(a, b, (fieldClass.Min.Z + fieldClass.Max.Z) / 2f, min, max);
 
             return SegmentHitsBox(a, b, min, max);
+        }
+
+        /// <summary>Whether a step (in the field's frame) goes over the sheet's middle, within its extent across and up.</summary>
+        private static bool CrossesMiddle(Vector3 a, Vector3 b, float middle, Vector3 min, Vector3 max)
+        {
+            var before = a.Z - middle;
+            var after = b.Z - middle;
+
+            if (before == 0f ? after == 0f : before * after > 0f)
+                return false;
+
+            var t = Math.Abs(b.Z - a.Z) < 1e-6f ? 0f : (middle - a.Z) / (b.Z - a.Z);
+            var at = a + (b - a) * t;
+
+            return at.X >= min.X && at.X <= max.X && at.Y >= min.Y && at.Y <= max.Y;
+        }
+
+        /// <summary>
+        /// Whether an intact field stands between two points: a line of fire. Any side's field
+        /// stops fire both ways - the Bane's in at an AFS outpost and its defenders' out of it,
+        /// and the same at a Bane field - whoever it lets walk through it (<see cref="Between"/>).
+        /// <paramref name="shooter"/> is who fires, for the callers' sake; it does not change
+        /// what the field stops.
+        /// </summary>
+        public static bool Blocks(MapChannel mapChannel, Actor shooter, Vector3 from, Vector3 to) =>
+            shooter != null && Between(mapChannel, from, to) != null;
+
+        /// <summary>
+        /// Whether a shot from one point to the next passes through the field's sheet: its box,
+        /// a few centimetres thick, and <see cref="BelowSheet"/> under it - not grown across as
+        /// it is for a creature's body, nor let out from inside it, so a shooter pressed against
+        /// the sheet does not shoot through it.
+        /// </summary>
+        public static bool CrossesShot(FieldClass fieldClass, Vector3 position, float yaw, Vector3 from, Vector3 to)
+        {
+            var inverse = Quaternion.Inverse(Quaternion.CreateFromYawPitchRoll(yaw, 0f, 0f));
+            var a = Vector3.Transform(from - position, inverse);
+            var b = Vector3.Transform(to - position, inverse);
+
+            return SegmentHitsBox(a, b, fieldClass.Min - new Vector3(0f, BelowSheet, 0f), fieldClass.Max);
         }
 
         private static bool Inside(Vector3 p, Vector3 min, Vector3 max) =>

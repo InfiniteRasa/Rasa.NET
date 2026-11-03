@@ -17,10 +17,11 @@ namespace Rasa.Managers
     ///  - Filcher loot (FilcherLootAbility, CR_FILCHER_LOOT 434): Filchers "fly over battlefields
     ///    and look for loot to steal" - "There is absolutely no reason to let them loot the Bane
     ///    soldiers and deprive the AFS of necessary bounty". An idle Filcher that sees a corpse
-    ///    with loot on it that nobody has open, within SightRange, flies to it and takes the loot:
-    ///    the dispenser is gone. It takes it when its windup is done (0.8 s, the client's
-    ///    animation), not as it starts: a player who opens the corpse, or kills or stuns the
-    ///    Filcher, before then keeps the loot.
+    ///    with stackable loot on it (ammo, med kits) that nobody has open, within SightRange, flies
+    ///    to it and takes that loot (LootDispenserManager.Steal): it carries it, sparkling as a
+    ///    corpse with loot does, until it dies, and it is on the Filcher's corpse with its own. It
+    ///    takes it when its windup is done (0.8 s, the client's animation), not as it starts: a
+    ///    player who opens the corpse, or kills or stuns the Filcher, before then keeps the loot.
     ///  - Xanx devour (XanxDevourAbility, CR_XANX_DEVOUR 438): Xanx "eat dead Xanx to regain HP".
     ///    A hurt idle Xanx that sees a Xanx corpse within SightRange goes and eats it; one in a
     ///    fight below DevourInFightPercent of its health eats one it is standing by. It regains
@@ -139,7 +140,7 @@ namespace Rasa.Managers
             return corpse.CorpseLootEntityId != 0 && mapChannel.LootDispensers.TryGetValue(corpse.CorpseLootEntityId, out var loot) ? loot : null;
         }
 
-        /// <summary>A corpse a Filcher would steal from: loot on it, and nobody with it open.</summary>
+        /// <summary>A corpse a Filcher would steal from: stackable loot on it it may take (LootDispenserManager.Stealable), and nobody with it open.</summary>
         public static bool IsWorthStealing(MapChannel mapChannel, Creature corpse)
         {
             if (corpse == null || corpse.State != CharacterState.Dead)
@@ -147,7 +148,7 @@ namespace Rasa.Managers
 
             var loot = LootOn(mapChannel, corpse);
 
-            return loot != null && loot.HasLoot && loot.CurrentLooter == 0;
+            return loot != null && loot.HasLoot && loot.CurrentLooter == 0 && LootDispenserManager.Stealable(loot).Count > 0;
         }
 
         /// <summary>A corpse a Xanx would eat: a Xanx, dead within EdibleWindowMs, with no loot waiting for a player.</summary>
@@ -313,10 +314,8 @@ namespace Rasa.Managers
         /// <summary>The Filcher's windup is done: the loot, if nobody has opened the corpse or cleared it meanwhile, and the recovery either way.</summary>
         private static void TakeLoot(MapChannel mapChannel, Creature filcher, CreatureAction habit, Creature corpse)
         {
-            var taken = corpse.MapContextId == filcher.MapContextId && IsWorthStealing(mapChannel, corpse);
-
-            if (taken)
-                LootDispenserManager.Instance.RemoveForCreature(mapChannel, corpse);
+            var taken = corpse.MapContextId == filcher.MapContextId && IsWorthStealing(mapChannel, corpse) &&
+                LootDispenserManager.Instance.Steal(mapChannel, corpse, filcher);
 
             var recovery = new AbilityRecoveryPacket(habit.ActionId, habit.ActionArgId, AbilityRecoveryPacket.HitDataKind.None);
 

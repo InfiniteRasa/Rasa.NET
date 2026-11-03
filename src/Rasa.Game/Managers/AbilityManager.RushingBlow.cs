@@ -65,6 +65,12 @@ namespace Rasa.Managers
             public Client Client;
             public Manifestation Player;
             public Actor Target;
+
+            /// <summary>Or the object it was aimed at (a fuel container: ResolvePracticeTarget).</summary>
+            public DynamicObject TargetObject;
+
+            public Vector3 TargetAt => Target?.Position ?? TargetObject.Position;
+
             public ActionId ActionId;
             public Vector3 From;
             public long StartTick;
@@ -145,7 +151,8 @@ namespace Rasa.Managers
         /// Starts the charge: the player's client and everyone in range are sent the run to where
         /// it ends, there as the windup ends, and the server carries them along it meanwhile.
         /// </summary>
-        internal static void StartCharge(MapChannel mapChannel, Client client, Manifestation player, Actor target, ActionId actionId, long windupMs)
+        internal static void StartCharge(MapChannel mapChannel, Client client, Manifestation player, Actor target, ActionId actionId, long windupMs,
+            DynamicObject targetObject = null)
         {
             var now = Environment.TickCount64;
             var charge = new Charge
@@ -154,6 +161,7 @@ namespace Rasa.Managers
                 Client = client,
                 Player = player,
                 Target = target,
+                TargetObject = target == null ? targetObject : null,
                 ActionId = actionId,
                 From = player.Position,
                 StartTick = now,
@@ -180,7 +188,7 @@ namespace Rasa.Managers
         /// </summary>
         private static Vector3 ChargeEnd(Charge charge)
         {
-            var stop = ChargeStop(charge.From, charge.Target.Position);
+            var stop = ChargeStop(charge.From, charge.TargetAt);
 
             if (Vector3.DistanceSquared(stop, charge.From) > 0.01f)
                 stop = NavMeshManager.NearestWalkable(charge.MapChannel, stop, ChargeWalkableRadius) ?? stop;
@@ -213,14 +221,15 @@ namespace Rasa.Managers
                 // A performer no longer on this map is not carried on it: ended here as well as
                 // in PlayerLeaving, so the list cannot keep one whatever route they left by.
                 if (!pending || charge.Player.State == CharacterState.Dead || charge.Player.MapChannel != mapChannel
-                    || charge.Target.MapContextId != charge.Player.MapContextId)
+                    || (charge.Target != null ? charge.Target.MapContextId != charge.Player.MapContextId
+                        : !ReferenceEquals(charge.TargetObject?.RuntimeMapChannel, mapChannel)))
                 {
                     CutShort(charge);
                     EndCharge(charge);
                     continue;
                 }
 
-                var stop = ChargeStop(charge.From, charge.Target.Position);
+                var stop = ChargeStop(charge.From, charge.TargetAt);
                 var at = Vector3.Lerp(charge.From, stop, ChargeProgress(charge.StartTick, charge.ArriveTick, now));
 
                 CarryTo(charge, at);
@@ -287,7 +296,7 @@ namespace Rasa.Managers
         {
             var player = charge.Player;
             var client = charge.Client;
-            var yaw = YawTowards(at, charge.Target.Position);
+            var yaw = YawTowards(at, charge.TargetAt);
             var pitch = client.Movement?.ViewDirection.Y ?? 0f;
 
             player.PlaceAt(at);
@@ -307,7 +316,7 @@ namespace Rasa.Managers
 
             speed = Math.Clamp(speed, 1f, Movement.MaxVelocity);
 
-            var movement = Movement.Rush(to, speed, new Vector2(YawTowards(to, charge.Target.Position), pitch));
+            var movement = Movement.Rush(to, speed, new Vector2(YawTowards(to, charge.TargetAt), pitch));
 
             charge.SentTo = to;
             charge.Speed = speed;

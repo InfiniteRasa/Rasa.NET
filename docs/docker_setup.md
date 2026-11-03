@@ -4,7 +4,7 @@ This provides an alternative to building and using the project directly on your 
 
 The published Docker image contains both the Auth and Game servers. An entrypoint selects which server to start for each Compose service. The applications are installed at stable `/app/auth` and `/app/game` paths so the Compose configuration does not depend on a specific .NET output directory such as `net10.0`.
 
-The Dockerfile builds all .NET 10 projects with SDK **10.0.401**, matching `global.json` and CI.
+The Dockerfile builds all .NET 10 projects with SDK **10.0.403**, matching `global.json` and CI.
 
 The Game build copies `kb-articles.json` alongside `Rasa.Game.dll`, and the Dockerfile includes the repository's 77 checked-in `.nav` files in the Game `navmesh` directory. These locations match the default relative `GameDataConfig.NavMeshPath` and `KnowledgeBaseFile` values.
 

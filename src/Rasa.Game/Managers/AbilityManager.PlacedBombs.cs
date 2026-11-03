@@ -237,7 +237,13 @@ namespace Rasa.Managers
                         CritEffects.OnCritical(mapChannel, victim, player, placed.DamageType, amount);
             }
 
-            if (client != null && blast.Hits.Count > 0)
+            // And the objects in it a weapon can damage (PracticeTargetManager.Blast), listed with the rest.
+            var objects = PracticeTargetManager.Blast(mapChannel, player, placed.Bomb.Position, placed.Radius,
+                () => GameEffectManager.ApplyDamageDealt(player, Scale(player.Level, BombRandom.Next(placed.DamageMin, placed.DamageMax + 1), placed.ScaleType)),
+                missions: _missionManager);
+            blast.Hits.AddRange(PracticeTargetManager.Entries(objects, placed.DamageType));
+
+            if (client != null && (blast.Hits.Count > 0 || objects.Count > 0))
                 ManifestationManager.Instance.EnterCombat(client);
 
             CellManager.Instance.CellCallMethod(placed.Bomb, blast);

@@ -139,17 +139,38 @@ namespace Rasa.Test.World
             { pool.Suspended |= pool.IsControlPointReinforcement; pool.HasSpawned = true; pool.AliveCreatures = 0; pool.QueuedCreatures = 0; pool.DropshipQueue = 0; }
         }
         [TestMethod]
-        public void BossMustReachPointAndCaptureOnlyAfterAllDefendersFall()
+        public void TheBossClaimsOnlyOnceTheWholeGarrisonIsDeadAndAHitBreaksTheClaimOff()
         {
             WaveThree();
             var boss = Troops.Single(c => c.DbId == LandingZoneAssaultContent.Boss);
             boss.Position = NavMeshManager.NearestWalkable(_world.Map, Point.Position).Value;
+            _world.MoveTo(boss.Position + new System.Numerics.Vector3(0, 0, 8));
             LandingZoneAssaults.Worker(_world.Map, Point);
-            Assert.IsNull(Point.Object.UsedBy, "unspawned defenders are still expected");
+            Assert.AreEqual(ControlPoints.Garrison.Standing, ControlPoints.Instance.GarrisonOf(_world.Map, Point, ControlPoints.Afs));
+            Assert.IsNull(Point.Object.UsedBy, "no claim while any of the garrison stands, even at the point");
+            Assert.IsFalse(boss.OnClaimDuty);
+
             ClearGarrison();
+            _world.Drain();
             ControlPoints.Instance.Worker(_world.Map);
-            Assert.IsTrue(Point.HeldByAfs, "ordinary garrison loss cannot bypass the boss");
-            Assert.AreSame(boss, Point.Object.UsedBy);
+            Assert.IsTrue(Point.HeldByAfs, "ordinary garrison loss cannot bypass the claim");
+            Assert.AreSame(boss, Point.Object.UsedBy, "the garrison dead: the claim");
+            Assert.IsTrue(boss.OnClaimDuty);
+            Assert.IsTrue(_world.Drain().OfType<Rasa.Packets.MapChannel.Server.UseInterruptiblePacket>().Any(), "the clients see the claim");
+
+            // A hit - a player's - breaks it off, and the next waits ClaimRetryMs.
+            boss.Attributes[Attributes.Health].Current -= 10;
+            _now += 1000;
+            LandingZoneAssaults.Worker(_world.Map, Point);
+            Assert.IsNull(Point.Object.UsedBy);
+            _now += LandingZoneAssaults.ClaimRetryMs - 1;
+            LandingZoneAssaults.Worker(_world.Map, Point);
+            Assert.IsNull(Point.Object.UsedBy, "not again at once");
+            _now += 1;
+            LandingZoneAssaults.Worker(_world.Map, Point);
+            Assert.AreSame(boss, Point.Object.UsedBy, "and again after");
+
+            // Left alone for the capture time, it takes the point.
             _now += 9999;
             LandingZoneAssaults.Worker(_world.Map, Point);
             Assert.IsTrue(Point.HeldByAfs);
@@ -157,6 +178,51 @@ namespace Rasa.Test.World
             LandingZoneAssaults.Worker(_world.Map, Point);
             Assert.AreEqual(ControlPoints.Bane, Point.Owner);
             Assert.AreEqual(0, Pools.Length);
+        }
+        [TestMethod]
+        public void AGarrisonPoolOnItsWayBackBreaksAClaimOff()
+        {
+            WaveThree(); ClearGarrison();
+            var boss = Troops.Single(c => c.DbId == LandingZoneAssaultContent.Boss);
+            boss.Position = NavMeshManager.NearestWalkable(_world.Map, Point.Position).Value;
+            LandingZoneAssaults.Worker(_world.Map, Point);
+            Assert.AreSame(boss, Point.Object.UsedBy);
+            var pool = _world.Map.SpawnPools.Single(p => p.DbId == LandingZoneGarrisonContent.InfantryA);
+            pool.QueuedCreatures = 2;
+            LandingZoneAssaults.Worker(_world.Map, Point);
+            Assert.IsNull(Point.Object.UsedBy, "defenders on their way down: the garrison stands again");
+            Assert.IsFalse(boss.OnClaimDuty);
+            pool.QueuedCreatures = 0;
+        }
+        [TestMethod]
+        public void BeforeTheBossTheHighestRankedThraxMakesForThePointAndClaimsIt()
+        {
+            Assert.IsTrue(LandingZoneAssaults.TryStart(_world.Map, Point));
+            Deliver();
+            LandingZoneAssaults.Worker(_world.Map, Point);
+            Assert.IsFalse(Troops.Any(c => c.OnClaimDuty), "nobody makes for the point while the garrison stands");
+            ClearGarrison();
+            LandingZoneAssaults.Worker(_world.Map, Point);
+            var claimant = Troops.Where(c => c.OnClaimDuty).ToArray();
+            Assert.AreEqual(1, claimant.Length, "one of the first wave makes for the point");
+            Assert.AreEqual(LandingZoneAssaultContent.Private, claimant[0].DbId, "the first wave's highest rank");
+            Assert.IsTrue(Troops.Where(c => c != claimant[0]).All(c => !c.OnClaimDuty));
+            Assert.AreEqual(BehaviorManager.BehaviorActionWander, claimant[0].Controller.CurrentAction);
+            Assert.IsTrue(claimant[0].Controller.ActionWander.Arriving);
+            Assert.IsTrue(System.Numerics.Vector3.Distance(claimant[0].Controller.ActionWander.WanderDestination, NavMeshManager.NearestWalkable(_world.Map, Point.Position).Value) < 0.5f);
+
+            claimant[0].Position = NavMeshManager.NearestWalkable(_world.Map, Point.Position).Value;
+            _world.Drain();
+            LandingZoneAssaults.Worker(_world.Map, Point);
+            Assert.AreSame(claimant[0], Point.Object.UsedBy);
+
+            // Shot down at it, the next of rank takes up the claim.
+            claimant[0].Attributes[Attributes.Health].Current = 0;
+            CreatureManager.Instance.HandleCreatureKill(_world.Map, claimant[0], null);
+            LandingZoneAssaults.Worker(_world.Map, Point);
+            Assert.IsNull(Point.Object.UsedBy);
+            var next = Troops.Single(c => c.OnClaimDuty);
+            Assert.AreNotSame(claimant[0], next);
         }
         [TestMethod]
         public void DamageInterruptsCaptureAndABossKilledDuringCaptureCannotTakeThePoint()

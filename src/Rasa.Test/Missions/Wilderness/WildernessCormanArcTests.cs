@@ -829,6 +829,79 @@ namespace Rasa.Test.Missions.Wilderness
             }
         }
 
+        /// <summary>
+        /// Overseer Skeev with no Orders from High Command run holding him is an ordinary
+        /// mini-boss: he can be hurt and killed by anyone, fights back when he is, and still picks
+        /// no fight of his own with Burke and the people round him.
+        /// </summary>
+        [TestMethod]
+        [TestCategory("WildernessG2")]
+        public void AFreeSkeevCanBeFoughtAndKilledByAnyone()
+        {
+            using var harness = CreateIntegratedHub();
+            harness.SpawnWorld(173, 171);
+            var skeev = SpawnSkeev(harness);
+            ManifestationManager.Instance.UpdateStatsValues(harness.Client, true);
+            harness.MoveTo(harness.Npc(171).Position);
+
+            for (var tick = 0; tick < 20; tick++)
+                CombatTick(harness);
+            harness.Tick(3500);
+            Assert.AreNotEqual(BehaviorManager.BehaviorActionFighting, skeev.Controller.CurrentAction, "no fight of his own");
+            Assert.AreNotEqual(BehaviorManager.BehaviorActionFighting, harness.Npc(171).Controller.CurrentAction,
+                "Burke leaves him to the players");
+            Assert.AreEqual(skeev.Attributes[Attributes.Health].CurrentMax, skeev.Attributes[Attributes.Health].Current,
+                "and none with the AFS beside him");
+
+            Assert.IsFalse(Rasa.Game.Missions.World.CreatureGameplayRules.IsInvulnerable(skeev), "free: not immune");
+            var health = Toughness(skeev);
+            ActorManager.Instance.Damage(harness.Map, skeev, 100, harness.Client.Player);
+            Assert.IsTrue(Toughness(skeev) < health, "he takes the hit");
+
+            for (var tick = 0; tick < 20 && skeev.Controller.CurrentAction != BehaviorManager.BehaviorActionFighting; tick++)
+                CombatTick(harness);
+            Assert.AreEqual(BehaviorManager.BehaviorActionFighting, skeev.Controller.CurrentAction, "and fights back");
+
+            ActorManager.Instance.Damage(harness.Map, skeev, (int)Toughness(skeev) + 1000, harness.Client.Player);
+            Assert.AreEqual(CharacterState.Dead, skeev.State, "and dies");
+        }
+
+        /// <summary>
+        /// Taking Orders from High Command reserves him, and from then he is the finale's: no one
+        /// hurts him until the ultimatum fails. He cannot be reserved in the middle of a fight.
+        /// </summary>
+        [TestMethod]
+        [TestCategory("WildernessG2")]
+        public void OrdersFromHighCommandHoldsSkeevOnlyOnceTaken()
+        {
+            using var harness = CreateIntegratedHub();
+            harness.SpawnWorld(173, 171);
+            var skeev = SpawnSkeev(harness);
+            SeedHistory(harness, 698);
+            Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, harness.Npc(173).EntityId, 700));
+            harness.Tick();
+
+            // In a fight: the run cannot have him.
+            ActorManager.Instance.Damage(harness.Map, skeev, 10, harness.Client.Player);
+            for (var tick = 0; tick < 20 && skeev.Controller.CurrentAction != BehaviorManager.BehaviorActionFighting; tick++)
+                CombatTick(harness);
+            Assert.AreEqual(BehaviorManager.BehaviorActionFighting, skeev.Controller.CurrentAction);
+            Assert.IsFalse(harness.Manager.PublicActors.IsReserved(harness.Map, WildernessDaghdasUrnV1.SkeevSpawnId));
+            BehaviorManager.Instance.GiveUp(skeev);
+
+            AcceptRadio(harness.Client, 701);
+            harness.Tick();
+            Assert.IsTrue(harness.Manager.PublicActors.IsReserved(harness.Map, WildernessDaghdasUrnV1.SkeevSpawnId), "taken: reserved");
+            Assert.IsTrue(Rasa.Game.Missions.World.CreatureGameplayRules.IsInvulnerable(skeev), "and held out of combat");
+            var health = Toughness(skeev);
+            ActorManager.Instance.Damage(harness.Map, skeev, 100, harness.Client.Player);
+            Assert.AreEqual(health, Toughness(skeev), "no one hurts him before the ultimatum");
+        }
+
+        /// <summary>What a hit has to get through: health and armour.</summary>
+        private static double Toughness(Creature creature) =>
+            creature.Attributes[Attributes.Health].Current + Math.Max(0, creature.Attributes[Attributes.Armor].Current);
+
         private static Creature SpawnSkeev(WildernessRuntimeTestHarness harness)
         {
             var template = harness.World.Set<CreatureEntry>().SingleOrDefault(entry => entry.ClassId == 28589 && entry.NameId == 6734);

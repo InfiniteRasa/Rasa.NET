@@ -294,6 +294,7 @@ namespace Rasa.Managers
                 return false;
 
             LootDispenserManager.Instance.RemoveForCreature(mapChannel, creature);
+            LootDispenserManager.Instance.DiscardCarried(mapChannel, creature);
 
             // Its entries in the per-creature tables keyed by entity id, before the id is freed
             // for the next creature.

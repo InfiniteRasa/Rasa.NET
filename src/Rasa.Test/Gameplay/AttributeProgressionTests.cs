@@ -14,7 +14,7 @@ namespace Rasa.Test.Gameplay
     public class AttributeProgressionTests
     {
         [TestMethod]
-        public void LevelTwentySixRetainsFractionalChiAndRegeneration()
+        public void LevelTwentySixRetainsFractionalRegeneration()
         {
             using var context = new ProgressionTestContext();
             var client = context.CreateClient(26);
@@ -22,7 +22,7 @@ namespace Rasa.Test.Gameplay
 
             ManifestationManager.Instance.UpdateStatsValues(client, true);
 
-            Assert.AreEqual(178, client.Player.Attributes[Attributes.Chi].Current);
+            Assert.AreEqual(ManifestationManager.AdrenalineBarMax, client.Player.Attributes[Attributes.Chi].Current);
             Assert.AreEqual(152, client.Player.Attributes[Attributes.Regen].CurrentMax);
             Assert.AreEqual(3, client.Player.HealthRegenRate);
             Assert.AreEqual(250, client.Player.Attributes[Attributes.Health].RefreshAmount);
@@ -31,15 +31,15 @@ namespace Rasa.Test.Gameplay
         }
 
         [TestMethod]
-        [DataRow((byte)1, Race.Human, 10, 10, 10, 286, 103, 102)]
-        [DataRow((byte)20, Race.Human, 48, 48, 48, 1486, 160, 140)]
-        [DataRow((byte)26, Race.Human, 60, 60, 60, 2500, 178, 152)]
-        [DataRow((byte)50, Race.Human, 108, 108, 108, 20000, 250, 200)]
-        [DataRow((byte)20, Race.Forean, 29, 67, 48, 1094, 181, 158)]
-        [DataRow((byte)20, Race.Brann, 29, 29, 86, 1486, 96, 195)]
-        [DataRow((byte)20, Race.Thrax, 67, 29, 48, 1878, 138, 121)]
+        [DataRow((byte)1, Race.Human, 10, 10, 10, 286, 102)]
+        [DataRow((byte)20, Race.Human, 48, 48, 48, 1486, 140)]
+        [DataRow((byte)26, Race.Human, 60, 60, 60, 2500, 152)]
+        [DataRow((byte)50, Race.Human, 108, 108, 108, 20000, 200)]
+        [DataRow((byte)20, Race.Forean, 29, 67, 48, 1094, 158)]
+        [DataRow((byte)20, Race.Brann, 29, 29, 86, 1486, 195)]
+        [DataRow((byte)20, Race.Thrax, 67, 29, 48, 1878, 121)]
         public void RecalculationPreservesRaceBaselinesAndHealthTable(byte level, Race race,
-            int body, int mind, int spirit, int health, int chi, int regen)
+            int body, int mind, int spirit, int health, int regen)
         {
             using var context = new ProgressionTestContext();
             var client = context.CreateClient(level, race);
@@ -50,7 +50,7 @@ namespace Rasa.Test.Gameplay
             Assert.AreEqual(mind, client.Player.Attributes[Attributes.Mind].Current);
             Assert.AreEqual(spirit, client.Player.Attributes[Attributes.Spirit].Current);
             Assert.AreEqual(health, client.Player.Attributes[Attributes.Health].Current);
-            Assert.AreEqual(chi, client.Player.Attributes[Attributes.Chi].Current);
+            Assert.AreEqual(ManifestationManager.AdrenalineBarMax, client.Player.Attributes[Attributes.Chi].Current, "the same bar for every race and level");
             Assert.AreEqual(regen, client.Player.Attributes[Attributes.Regen].CurrentMax);
             Assert.AreEqual(regen, client.Player.Attributes[Attributes.Regen].Current, "what the attributes window prints");
         }
@@ -85,7 +85,7 @@ namespace Rasa.Test.Gameplay
 
             ManifestationManager.Instance.UpdateStatsValues(client, true);
 
-            Assert.AreEqual(103, client.Player.Attributes[Attributes.Chi].Current);
+            Assert.AreEqual(ManifestationManager.AdrenalineBarMax, client.Player.Attributes[Attributes.Chi].Current);
             Assert.AreEqual(0, client.Player.Attributes[Attributes.Armor].Current);
         }
 
@@ -130,17 +130,17 @@ namespace Rasa.Test.Gameplay
 
                 client.Player.Attributes[Attributes.Armor].Current = 1000;
                 client.Player.Attributes[Attributes.Health].Current = 1000;
-                client.Player.Attributes[Attributes.Chi].Current = 1000;
+                client.Player.Attributes[Attributes.Chi].Current = 5000;
                 client.Player.Attributes[Attributes.Power].Current = 1000;
                 ManifestationManager.Instance.UpdateStatsValues(client, false);
                 Assert.AreEqual(107, client.Player.Attributes[Attributes.Armor].Current);
                 Assert.AreEqual(286, client.Player.Attributes[Attributes.Health].Current);
-                Assert.AreEqual(103, client.Player.Attributes[Attributes.Chi].Current);
+                Assert.AreEqual(ManifestationManager.AdrenalineBarMax, client.Player.Attributes[Attributes.Chi].Current);
                 Assert.AreEqual(100, client.Player.Attributes[Attributes.Power].Current);
                 ManifestationManager.Instance.UpdateStatsValues(client, true);
                 Assert.AreEqual(107, client.Player.Attributes[Attributes.Armor].Current);
                 Assert.AreEqual(286, client.Player.Attributes[Attributes.Health].Current);
-                Assert.AreEqual(103, client.Player.Attributes[Attributes.Chi].Current);
+                Assert.AreEqual(ManifestationManager.AdrenalineBarMax, client.Player.Attributes[Attributes.Chi].Current);
                 Assert.AreEqual(100, client.Player.Attributes[Attributes.Power].Current);
             }
             finally

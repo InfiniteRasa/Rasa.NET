@@ -29,6 +29,8 @@ namespace Rasa.Managers
         internal Dictionary<uint, IReadOnlyDictionary<uint, MissionScenarioDefinition>> Scenarios { get; } = new();
         internal Dictionary<uint, MissionSceneDefinition> SceneBindings { get; } = new();
         internal List<MissionExperienceDefinition> Experiences { get; } = new();
+        internal Dictionary<uint, uint> IndicatorMapDefaults { get; } = new();
+        internal Dictionary<uint, LogosEntry> LogosShrines { get; } = new();
         internal MissionRuntime Runtime { get; private set; }
         internal MissionValidationReport Report { get; private set; } =
             new(Array.Empty<MissionValidationDiagnostic>(), Array.Empty<uint>());
@@ -51,7 +53,7 @@ namespace Rasa.Managers
             using var unit = _factory.CreateWorld();
             Missions.Clear(); Rewards.Clear(); RewardPackages.Clear(); Abandonment.Clear();
             Prerequisites.Clear(); Areas.Clear(); SpawnGroups.Clear(); Scenarios.Clear();
-            SceneBindings.Clear(); Experiences.Clear();
+            SceneBindings.Clear(); Experiences.Clear(); IndicatorMapDefaults.Clear(); LogosShrines.Clear();
             if (unit.MissionContent == null)
             {
                 foreach (var row in unit.NpcMissions.Get())
@@ -97,9 +99,10 @@ namespace Rasa.Managers
                 }
                 if (unit.MissionContent is IMigratedMissionContentRepository content)
                 {
-                    var publicSpawnIds = (unit.Spawnpools
+                    var publicSpawns = (unit.Spawnpools
                         ?? throw new InvalidOperationException("Migrated mission validation requires the World spawn repository."))
-                        .Get().Select(entry => entry.Id).ToHashSet();
+                        .Get();
+                    var publicSpawnIds = publicSpawns.Select(entry => entry.Id).ToHashSet();
                     var npcPackages = unit.NpcPackages?.Get() ?? new List<NpcPackageEntry>();
                     var npcPackageIds = npcPackages
                         .Select(entry => entry.PackageId).ToHashSet();
@@ -123,6 +126,7 @@ namespace Rasa.Managers
                                 .Any(transition => transition.ProgressRule == null ||
                                     !MissionProgressRule.IsShared(transition.ProgressRule.Kind)))
                                 throw new MissionRuleException($"Mission {binding.MissionId}: objective {credit.Key} cannot share personal actions.");
+                        MissionMarkerProjection.Validate(Missions[binding.MissionId], document);
                         SceneBindings.Add(binding.MissionId, document);
                         Missions[binding.MissionId] = Missions[binding.MissionId].WithPolicies(document.Credit, document.Requirement,
                             document.TurnInRequirement, document.ObjectiveRequirements);
@@ -199,6 +203,8 @@ namespace Rasa.Managers
                                 throw new MissionRuleException($"Scene {scene.Script}: radio offer {offer.MissionId} has no authorized target source.");
                     MissionSceneValidation.ValidateSharedActors(scenes);
                     ValidateActorPolicies(references);
+                    MissionMarkerProjection.LoadDefaults(this, publicSpawns);
+                    MissionMarkerProjection.LoadShrines(this, unit.Logoses?.GetLogos());
                 }
             }
             Runtime = new MissionRuntime(Missions.Values);

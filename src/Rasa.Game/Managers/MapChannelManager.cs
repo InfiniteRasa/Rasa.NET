@@ -465,6 +465,12 @@ namespace Rasa.Managers
                     // The Ojasa Atta Hive's story, in each copy of it.
                     Guard("OjasaHive.Worker", mapChannel, () => OjasaHive.Worker(mapChannel));
 
+                    // The Kardash Atta Colony's console, transducers and Bane at the Queen, in each copy of it.
+                    Guard("KardashAttaColony.Worker", mapChannel, () => KardashAttaColony.Worker(mapChannel));
+
+                    // The Phanin Research Facility's mainframes, doors, consoles, crates and caged Atta, in each copy of it.
+                    Guard("PhaninResearch.Worker", mapChannel, () => PhaninResearch.Worker(mapChannel));
+
                     // The Caves of Donn's story, in each copy of them.
                     Guard("CavesOfDonn.Worker", mapChannel, () => CavesOfDonn.Worker(mapChannel));
 
@@ -474,8 +480,20 @@ namespace Rasa.Managers
                     // Pravus Research Facility's story, in each copy of it.
                     Guard("PravusResearchFacility.Worker", mapChannel, () => PravusResearchFacility.Worker(mapChannel));
 
+                    // Crater Lake Research Facility's story, in each copy of it.
+                    Guard("CraterLakeFacility.Worker", mapChannel, () => CraterLakeFacility.Worker(mapChannel));
+
+                    // The Energy Weapon Center's reactors, generator, coils, tanks and Casso, in each copy of it.
+                    Guard("EnergyWeaponCenter.Worker", mapChannel, () => EnergyWeaponCenter.Worker(mapChannel));
+
+                    // Magma Caverns' side and story, in each copy of it.
+                    Guard("MagmaCaverns.Worker", mapChannel, () => MagmaCaverns.Worker(mapChannel));
+
                     // Torcastra Prison's alarm, gate, consoles and Airman Hamilton, in each copy of it.
                     Guard("TorcastraPrison.Worker", mapChannel, () => TorcastraPrison.Worker(mapChannel));
+
+                    // Timora Mines' drills, fuel lakes, security, escort and ambush, in each copy of it.
+                    Guard("TimoraMines.Worker", mapChannel, () => TimoraMines.Worker(mapChannel));
                     Guard("NpcSquads.Worker", mapChannel, () => NpcSquads.Worker(mapChannel));
 
                     // Players held in a corner the client's collision will not let them out of are taken out.
@@ -502,6 +520,9 @@ namespace Rasa.Managers
 
                     // Minos Caverns' captives, walked out by whoever freed them.
                     Guard("MinosCaverns.Worker", mapChannel, () => MinosCaverns.Worker(mapChannel));
+
+                    // Warnet Caverns' specialists, Brumley's walk, the Queen Lure and its attacks, the hives and Tozid.
+                    Guard("WarnetCaverns.Worker", mapChannel, () => WarnetCaverns.Worker(mapChannel));
 
                     // The lootable containers the server put down: openings due to reset closed again.
                     Guard("WorldContainers.Worker", mapChannel, () => WorldContainers.Worker(mapChannel));
@@ -905,11 +926,8 @@ namespace Rasa.Managers
             // offer a feature, and an empty set means the feature is simply missing.
             ServerFlagManager.Instance.SendFlags(client);
 
-            // Whatever is broken about the map they have just walked into, if they are someone
-            // who can do anything about it. The dialog is modal and always visible, so a player
-            // would be stuck reading about server data they cannot fix.
-            if (client.AccountEntry != null && client.AccountEntry.Level >= (byte)GmLevel.Observer)
-                MapErrorManager.Instance.SendTo(client);
+            // Map diagnostics are available on demand through .maperrors and the server log.
+            // Intentional world-combat overlaps must not interrupt login or zoning with a modal dialog.
 
             // A GM's client gets its developer commands, once per connection: see
             // EnableDevCommandsPacket for what a client needs to do anything with it.
@@ -1688,6 +1706,7 @@ namespace Rasa.Managers
 
             // What was placed on it (PlacedDestructibles), its force fields out of ForceFields' list too.
             PlacedDestructibles.Forget(map);
+            ForceFields.Forget(map);
             PlacedUsables.Forget(map);
             WorldContainers.Forget(map);
 

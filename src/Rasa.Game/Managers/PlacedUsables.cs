@@ -628,6 +628,18 @@ namespace Rasa.Managers
             if (TorcastraPrison.RefusalOf(client, live) is { } torcastra)
                 return torcastra;
 
+            // The Energy Weapon Center's charges, set at a fuel tank, stay set (EnergyWeaponCenter).
+            if (EnergyWeaponCenter.RefusalOf(client, live) is { } energyWeapon)
+                return energyWeapon;
+
+            // Timora Mines' consoles and charges, and Stolen History's crates (TimoraMines).
+            if (TimoraMines.RefusalOf(client, live) is { } timora)
+                return timora;
+
+            // Warnet Caverns' lure stand and metal container wait on their missions (WarnetCaverns).
+            if (WarnetCaverns.RefusalOf(client, live) is { } warnet)
+                return warnet;
+
             switch (live.Placement.Kind)
             {
                 case Kind.Dispenser:
@@ -638,7 +650,7 @@ namespace Rasa.Managers
                 case Kind.Acceptor:
                     if (live.State != UseObjectState.IaStateActive || live.Placement.ItemClassId == 0)
                         return PlayerMessage.PmUseObjectNotUsable;
-                    if (InventoryManager.Instance.CountItemsByClass(client, (EntityClasses)live.Placement.ItemClassId) < live.Placement.ItemCount)
+                    if (InventoryManager.Instance.CountItemsByClass(client, (EntityClasses)live.Placement.ItemClassId, includeMissionItems: true) < ItemsTaken(live))
                         return PlayerMessage.PmMissingReqItem;
                     break;
 
@@ -652,6 +664,40 @@ namespace Rasa.Managers
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// How many items of its class an acceptor takes: its row's count, or none for one whose
+        /// place takes nothing (TorcastraPrison.TakesNothing: Torcastra's worm console and data
+        /// terminals, whose mission consumes the worm itself, ConsumeMissionItem, once the upload
+        /// counts; WarnetCaverns.TakesNothing: the Queen Lure stand, whose lure stays with its mission).
+        /// </summary>
+        private static uint ItemsTaken(Live live) => TorcastraPrison.TakesNothing(live) || WarnetCaverns.TakesNothing(live) ? 0 : live.Placement.ItemCount;
+
+        /// <summary>
+        /// An acceptor takes its items (ItemsTaken), of which the player has to hold that many. A
+        /// mission's item of the class counts - the Gatekeeper's key at Torcastra's gate is the
+        /// Securing mission's drop - but stays where it is, since only its mission may take it
+        /// (MissionItemProtection): the acceptor takes what ordinary items there are, and the
+        /// mission's items make up the rest. Both used to be counted as none, so an acceptor
+        /// refused the player holding the very item it wanted ("You are missing the required
+        /// item(s) for that action").
+        /// </summary>
+        private static bool Accept(Client client, Live live)
+        {
+            var count = ItemsTaken(live);
+
+            if (count == 0)
+                return true;
+
+            var itemClass = (EntityClasses)live.Placement.ItemClassId;
+
+            if (InventoryManager.Instance.CountItemsByClass(client, itemClass, includeMissionItems: true) < count)
+                return false;
+
+            var take = Math.Min(count, InventoryManager.Instance.CountItemsByClass(client, itemClass));
+
+            return take == 0 || InventoryManager.Instance.RemoveItemsByClass(client, itemClass, take) == 0;
         }
 
         /// <summary>Whether a use-object action is a use of one of these.</summary>
@@ -692,7 +738,7 @@ namespace Rasa.Managers
                     break;
 
                 case Kind.Acceptor:
-                    if (InventoryManager.Instance.RemoveItemsByClass(client, (EntityClasses)placement.ItemClassId, placement.ItemCount) != 0)
+                    if (!Accept(client, live))
                         return null;
 
                     next = UseObjectState.IaStateAccepted;
@@ -732,6 +778,12 @@ namespace Rasa.Managers
 
             // What it does in Torcastra Prison (TorcastraPrison).
             TorcastraPrison.Used(client, live, next);
+
+            // What it does in Timora Mines (TimoraMines).
+            TimoraMines.Used(client, live, next);
+
+            // And in Warnet Caverns (WarnetCaverns): the Queen Lure placed.
+            WarnetCaverns.Used(client, live, next);
 
             return next;
         }

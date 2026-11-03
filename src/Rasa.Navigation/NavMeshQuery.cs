@@ -38,6 +38,9 @@ namespace Rasa.Navigation
         /// <summary>The walkable regions of each mesh (<see cref="Regions"/>), worked out once and shared by every query on it.</summary>
         private static readonly ConditionalWeakTable<DtNavMesh, int[][]> RegionsOf = new();
 
+        /// <summary>The walkable area of each region of a mesh (<see cref="RegionArea"/>), indexed by region number, worked out once.</summary>
+        private static readonly ConditionalWeakTable<DtNavMesh, float[]> AreasOf = new();
+
         private readonly DtNavMesh _navMesh;
         private readonly DtNavMeshQuery _query;
         private readonly IDtQueryFilter _filter = new DtQueryDefaultFilter();
@@ -215,6 +218,66 @@ namespace Rasa.Navigation
                 return null;
 
             return RegionOf(startRef) == RegionOf(endRef);
+        }
+
+        /// <summary>
+        /// The walkable area, in square metres over the ground, of the region of the mesh the point
+        /// is on: every polygon a route can reach from it (<see cref="Reachable"/>). Null off the
+        /// mesh. What tells a pocket of mesh built inside a hill - a few square metres joined to
+        /// nothing - from a floor someone is meant to walk.
+        /// </summary>
+        public float? RegionArea(Vector3 position)
+        {
+            var poly = FindPoly(position, out _);
+
+            if (poly == 0)
+                return null;
+
+            var region = RegionOf(poly);
+            var areas = AreasOf.GetValue(_navMesh, mesh => Areas(mesh, Regions));
+
+            return region > 0 && region < areas.Length ? areas[region] : (float?)null;
+        }
+
+        private static float[] Areas(DtNavMesh navMesh, int[][] regions)
+        {
+            var count = 0;
+
+            foreach (var tile in regions)
+                if (tile != null)
+                    foreach (var region in tile)
+                        count = Math.Max(count, region);
+
+            var areas = new float[count + 1];
+
+            for (var i = 0; i < regions.Length; i++)
+            {
+                var data = navMesh.GetTile(i)?.data;
+
+                if (regions[i] == null || data == null)
+                    continue;
+
+                for (var j = 0; j < regions[i].Length; j++)
+                {
+                    if (regions[i][j] <= 0)
+                        continue;
+
+                    var poly = data.polys[j];
+                    var area = 0f;
+
+                    // Shoelace over the polygon's corners, across the ground (x and z).
+                    for (var k = 0; k < poly.vertCount; k++)
+                    {
+                        var a = poly.verts[k] * 3;
+                        var b = poly.verts[(k + 1) % poly.vertCount] * 3;
+                        area += data.verts[a] * data.verts[b + 2] - data.verts[b] * data.verts[a + 2];
+                    }
+
+                    areas[regions[i][j]] += Math.Abs(area) / 2f;
+                }
+            }
+
+            return areas;
         }
 
         private void Searched()

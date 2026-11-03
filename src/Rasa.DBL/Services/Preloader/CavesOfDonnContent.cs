@@ -182,7 +182,9 @@ namespace Rasa.Services.Preloader
             new("the Eloh Chantry", FeelingLogos, SecondRuin, new Vector3(-160.24f, 36.1f, -325.6f), new[]
             {
                 new Vector3(-163.7f, 29.75f, -296.8f), new Vector3(-165.4f, 32.42f, -309.6f),
-                new Vector3(-156.72f, 25.49f, -297.76f), new Vector3(-156.8f, 32.76f, -309.9f)
+                // On the front right shrine, as its mirror (-163.7, -296.8) is on the left: it stood at
+                // (-156.72, 25.49, -297.76), in the cave floor under the shrine, out of reach.
+                new Vector3(-156.3f, 29.84f, -296.8f), new Vector3(-156.8f, 32.76f, -309.9f)
             }),
             new("Undone Fairway", HealLogos, FinalRuin, new Vector3(7.64f, 22.2f, -232.33f), new[]
             {

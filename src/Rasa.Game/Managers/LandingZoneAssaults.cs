@@ -22,9 +22,22 @@ namespace Rasa.Managers
             internal readonly List<SpawnPool> Pools = new();
             internal readonly List<SpawnPool> Reinforcements = new();
             internal Creature Boss;
+            /// <summary>Who is holding the point's use now, while a claim runs; null between claims.</summary>
+            internal Creature Claimant;
             internal long? Claim;
             internal int Vitality;
+            /// <summary>When a claim broken off may be begun again.</summary>
+            internal long NextClaimAt;
         }
+
+        /// <summary>How long a claimant waits after a claim is broken off before it begins another.</summary>
+        internal const long ClaimRetryMs = 5000;
+
+        /// <summary>How near the point's object, across the ground and at most, a claimant claims from.</summary>
+        internal const float ClaimReach = 6f;
+
+        /// <summary>A troop not yet fighting gets a target this many metres further off rather than one already taken by as many troops (<see cref="Pick"/>).</summary>
+        internal const float LoadPenalty = 12f;
         private static readonly ConditionalWeakTable<MapChannel, Assault> States = new();
         internal static Func<long> Now = () => Environment.TickCount64;
         internal static bool ControlsCapture(MapChannel map, ControlPoints.Point point) =>
@@ -72,20 +85,137 @@ namespace Rasa.Managers
                 Clear(map, point, state);
                 return;
             }
-            if (state.Boss != null && !CreatureManager.IsLivingOnMap(map, state.Boss)) Cancel(point, state);
+            if (state.Claimant != null && !CreatureManager.IsLivingOnMap(map, state.Claimant)) Cancel(point, state);
             var guards = EntityManager.Instance.Creatures.Values.Where(c => c.SpawnPool != null && point.AfsPools.Contains(c.SpawnPool.DbId) &&
                 ControlPoints.Instance.ServicePointOf(map, c.SpawnPool) == null && CreatureManager.IsLivingOnMap(map, c)).Concat(Reinforcements(map, state)).ToArray();
-            foreach (var creature in EntityManager.Instance.Creatures.Values.Where(c => state.Pools.Contains(c.SpawnPool) && CreatureManager.IsLivingOnMap(map, c)).ToArray())
+            var troops = EntityManager.Instance.Creatures.Values.Where(c => state.Pools.Contains(c.SpawnPool) && CreatureManager.IsLivingOnMap(map, c)).ToArray();
+            // How many troops are on each target already: a new one is spread over the defenders
+            // rather than every troop of a wave going for the nearest one, all down one path in file.
+            var load = new Dictionary<ulong, int>();
+            foreach (var troop in troops)
+                if (troop.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting && troop.Controller.ActionFighting.TargetEntityId != 0)
+                    load[troop.Controller.ActionFighting.TargetEntityId] = load.GetValueOrDefault(troop.Controller.ActionFighting.TargetEntityId) + 1;
+            var claimant = ClaimantOf(map, point, state, troops);
+            // The point is claimed only when nothing of the AFS garrison is left to stop it: the
+            // gate's field down and every defender of it dead, the relief with them. Until then
+            // the claimant fights as the rest do, and a claim under way when one comes back is
+            // broken off.
+            var mayClaim = LandingZoneBreach.StandingField(map, point) == null && GarrisonDown(map, point, guards);
+            if (!mayClaim) Cancel(point, state);
+            foreach (var creature in troops)
             {
-                if (creature == state.Boss && PrepareClaim(map, point, creature, state) && Claim(map, point, state, now)) { if (!point.HeldByAfs) return; continue; }
-                if (LandingZoneBreach.Order(map, point, creature, guards)) continue;
+                creature.OnClaimDuty = creature == claimant && mayClaim;
+                if (creature.OnClaimDuty && ClaimDuty(map, point, creature, state, now)) { if (!point.HeldByAfs) return; continue; }
+                if (LandingZoneBreach.Order(map, point, creature, guards, load)) continue;
                 if (creature.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting) continue;
-                var guard = guards
-                    .OrderBy(c => Vector3.DistanceSquared(creature.Position, c.Position)).FirstOrDefault();
-                if (guard == null || !BehaviorManager.Instance.TrySetActionFighting(creature, guard.EntityId))
-                    BehaviorManager.Instance.WalkIn(creature, Destination(map, point));
+                // Not fighting while any of the garrison lives: on to the next of them it can
+                // take on, the nearest first, as the load spreads them.
+                if (!Engage(creature, guards, load))
+                    Approach(creature, Destination(map, point, creature));
             }
         }
+
+        /// <summary>
+        /// Whether the AFS garrison is all dead: none of its defenders alive (<paramref name="guards"/>,
+        /// the relief that has landed among them), and none of its pools standing
+        /// (ControlPoints.GarrisonOf) - none with a dropship or teleport of defenders due, nor
+        /// one that has yet to set anyone down. A pool whose respawn has yet to come round is dead.
+        /// </summary>
+        private static bool GarrisonDown(MapChannel map, ControlPoints.Point point, IReadOnlyCollection<Creature> guards) =>
+            guards.Count == 0 && ControlPoints.Instance.GarrisonOf(map, point, ControlPoints.Afs) != ControlPoints.Garrison.Standing;
+
+        /// <summary>
+        /// The troop set on one of <paramref name="targets"/>: the first it can take on, in the
+        /// order <see cref="Pick"/> ranks them. False when none will do.
+        /// </summary>
+        internal static bool Engage(Creature troop, IEnumerable<Creature> targets, Dictionary<ulong, int> load)
+        {
+            foreach (var target in Ranked(troop, targets, load))
+                if (BehaviorManager.Instance.TrySetActionFighting(troop, target.EntityId))
+                {
+                    load[target.EntityId] = load.GetValueOrDefault(target.EntityId) + 1;
+                    return true;
+                }
+            return false;
+        }
+
+        private static IEnumerable<Creature> Ranked(Creature troop, IEnumerable<Creature> targets, IReadOnlyDictionary<ulong, int> load) =>
+            targets.OrderBy(c => Vector3.Distance(troop.Position, c.Position) + LoadPenalty * load.GetValueOrDefault(c.EntityId));
+
+        /// <summary>
+        /// The target a troop takes from <paramref name="targets"/>: the nearest, counting each
+        /// troop already on one as <see cref="LoadPenalty"/> metres more, so a wave spreads over
+        /// the defenders it finds.
+        /// </summary>
+        internal static Creature Pick(Creature troop, IEnumerable<Creature> targets, IReadOnlyDictionary<ulong, int> load) =>
+            Ranked(troop, targets, load).FirstOrDefault();
+
+        /// <summary>Walks the troop to <paramref name="destination"/>, unless it is already on its way there.</summary>
+        private static void Approach(Creature troop, Vector3 destination)
+        {
+            var wander = troop.Controller.ActionWander;
+            if (troop.Controller.CurrentAction == BehaviorManager.BehaviorActionWander && wander.Arriving &&
+                Vector3.DistanceSquared(wander.WanderDestination, destination) < 1f)
+                return;
+            BehaviorManager.Instance.WalkIn(troop, destination);
+        }
+
+        /// <summary>
+        /// Who of the assault tries for the point: the boss of the third wave while it lives, and
+        /// otherwise the highest in rank of the Thrax infantry still standing - a sergeant, a
+        /// private, a trainee - the nearest of them to the point. The one claiming keeps at it.
+        /// </summary>
+        private static Creature ClaimantOf(MapChannel map, ControlPoints.Point point, Assault state, IReadOnlyCollection<Creature> troops)
+        {
+            if (state.Claimant != null && troops.Contains(state.Claimant)) return state.Claimant;
+            if (state.Boss != null && troops.Contains(state.Boss)) return state.Boss;
+            foreach (var rank in new[] { LandingZoneAssaultContent.Sergeant, LandingZoneAssaultContent.Private, LandingZoneAssaultContent.Trainee })
+            {
+                var best = troops.Where(c => c.DbId == rank).OrderBy(c => Vector3.DistanceSquared(c.Position, point.Position)).FirstOrDefault();
+                if (best != null) return best;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// The claimant's part, once the gate's field is down and the whole AFS garrison is dead
+        /// (<see cref="GarrisonDown"/>; Creature.OnClaimDuty): to the point, fighting nobody on
+        /// the way, and a claim begun there. A player's harm, or a stun, breaks it off.
+        /// </summary>
+        private static bool ClaimDuty(MapChannel map, ControlPoints.Point point, Creature claimant, Assault state, long now)
+        {
+            if (claimant.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting)
+                BehaviorManager.Instance.GiveUp(claimant);
+            var destination = Destination(map, point);
+            if (Flat(claimant.Position, destination) > ClaimReach)
+            {
+                Cancel(point, state, retry: now);
+                Approach(claimant, destination);
+                return true;
+            }
+            if (now < state.NextClaimAt)
+            {
+                if (claimant.Controller.CurrentAction != BehaviorManager.BehaviorActionFighting)
+                    BehaviorManager.Instance.SetActionAnchor(claimant, claimant.Position);
+                return true;
+            }
+            Claim(map, point, claimant, state, now);
+            return true;
+        }
+
+        private static float Flat(Vector3 a, Vector3 b) => new Vector2(a.X - b.X, a.Z - b.Z).Length();
+
+        /// <summary>
+        /// Whether a force field taken down is held down: an assault is on at Landing Zone and the
+        /// field is one of the point's (PlacedDestructibles waits on it before it puts it back).
+        /// </summary>
+        internal static bool HoldsDown(MapChannel map, ForceFields.Field field)
+        {
+            if (map == null || field == null || !States.TryGetValue(map, out var state) || state.Waves == 0) return false;
+            var point = ControlPoints.Instance.ById(LandingZoneAssaultContent.PointId);
+            return point != null && Vector3.DistanceSquared(field.Position, point.Position) <= 10000;
+        }
+
         internal static bool TryStart(MapChannel map, ControlPoints.Point point)
         {
             if (!ControlsCapture(map, point) || !point.HeldByAfs) return false;
@@ -96,21 +226,22 @@ namespace Rasa.Managers
             Worker(map, point, warn: false);
             return true;
         }
-        private static bool PrepareClaim(MapChannel map, ControlPoints.Point point, Creature boss, Assault state)
-        {
-            if (LandingZoneBreach.StandingField(map, point) != null ||
-                ControlPoints.Instance.GarrisonOf(map, point, ControlPoints.Afs) == ControlPoints.Garrison.Standing ||
-                Reinforcements(map, state).Any())
-                return true;
-            // A defending player can interrupt a claim; a service NPC cannot hold the boss in combat.
-            if (boss.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting &&
-                EntityManager.Instance.Players.ContainsKey(boss.Controller.ActionFighting.TargetEntityId)) return true;
-            if (boss.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting)
-                BehaviorManager.Instance.GiveUp(boss);
-            return true;
-        }
         private static Vector3 Destination(MapChannel map, ControlPoints.Point point) =>
             NavMeshManager.NearestWalkable(map, point.Position) ?? point.Position;
+
+        /// <summary>
+        /// Where a troop with nobody to fight makes for: a place of its own about the point, 4 to
+        /// 13 m off on a bearing its entity id picks, where it can walk to - so a wave spreads
+        /// over the courtyard rather than every troop of it filing to the one spot.
+        /// </summary>
+        private static Vector3 Destination(MapChannel map, ControlPoints.Point point, Creature troop)
+        {
+            var centre = Destination(map, point);
+            var angle = (troop.EntityId * 2.399963) % (2 * Math.PI);
+            var radius = 4 + (float)(troop.EntityId % 4) * 3;
+            var raw = centre + new Vector3((float)Math.Cos(angle) * radius, 0, (float)Math.Sin(angle) * radius);
+            return map.NavMesh?.WalkTo(centre, raw) ?? centre;
+        }
 
         private static void Launch(MapChannel map, ControlPoints.Point point, Assault state, int wave)
         {
@@ -132,7 +263,7 @@ namespace Rasa.Managers
                     foreach (var creature in creatures)
                     {
                         if (creature.DbId == LandingZoneAssaultContent.Boss) state.Boss = creature;
-                        BehaviorManager.Instance.WalkIn(creature, Destination(map, point));
+                        BehaviorManager.Instance.WalkIn(creature, Destination(map, point, creature));
                     }
                 };
                 state.Pools.Add(pool);
@@ -148,50 +279,60 @@ namespace Rasa.Managers
         private static int Vitality(Creature boss) =>
             (int)boss.Attributes[Attributes.Health].Current + (int)boss.Attributes[Attributes.Armor].Current;
 
-        private static bool Claim(MapChannel map, ControlPoints.Point point, Assault state, long now)
+        /// <summary>
+        /// A claim by the claimant standing at the point: begun - the point's use locked to it,
+        /// "Bane claiming" across the screen - and held for the capture time, the point the Bane's
+        /// at the end of it. Broken off by any harm done to it, a stun, or its moving off, and
+        /// begun again <see cref="ClaimRetryMs"/> later.
+        /// </summary>
+        private static void Claim(MapChannel map, ControlPoints.Point point, Creature claimant, Assault state, long now)
         {
-            var boss = state.Boss;
-            var ready = LandingZoneBreach.StandingField(map, point) == null &&
-                CreatureManager.IsLivingOnMap(map, boss) &&
-                ControlPoints.Instance.GarrisonOf(map, point, ControlPoints.Afs) != ControlPoints.Garrison.Standing &&
-                !Reinforcements(map, state).Any() &&
-                Vector3.DistanceSquared(boss.Position, Destination(map, point)) <= 36 &&
-                boss.Controller.CurrentAction != BehaviorManager.BehaviorActionFighting &&
-                !boss.ActiveEffects.Values.Any(e => e.IsStun && !e.IsExpired);
-            if (!ready || (state.Claim.HasValue && Vitality(boss) < state.Vitality))
+            var ready = CreatureManager.IsLivingOnMap(map, claimant) &&
+                Flat(claimant.Position, Destination(map, point)) <= ClaimReach &&
+                !claimant.ActiveEffects.Values.Any(e => e.IsStun && !e.IsExpired);
+            if (!ready || (state.Claim.HasValue && (state.Claimant != claimant || Vitality(claimant) < state.Vitality)))
             {
-                Cancel(point, state);
-                return false;
+                Cancel(point, state, retry: now);
+                return;
             }
-            if (point.Object == null || (point.Object.UsedBy != null && point.Object.UsedBy != boss)) return false;
+            if (point.Object == null || (point.Object.UsedBy != null && point.Object.UsedBy != claimant)) return;
             if (!state.Claim.HasValue)
             {
+                if (claimant.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting)
+                    BehaviorManager.Instance.GiveUp(claimant);
                 state.Claim = now;
-                point.Object.UsedBy = boss;
-                CellManager.Instance.CellCallMethod(point.Object, new LockToActorPacket(boss.EntityId));
-                CellManager.Instance.CellCallMethod(point.Object, new UseInterruptiblePacket(boss.EntityId));
-                BehaviorManager.Instance.SetActionAnchor(boss, boss.Position);
+                state.Claimant = claimant;
+                point.Object.UsedBy = claimant;
+                CellManager.Instance.CellCallMethod(point.Object, new LockToActorPacket(claimant.EntityId));
+                CellManager.Instance.CellCallMethod(point.Object, new UseInterruptiblePacket(claimant.EntityId));
+                BehaviorManager.Instance.SetActionAnchor(claimant, claimant.Position);
+                ControlPoints.Instance.BaneClaiming(map, point);
             }
-            state.Vitality = Vitality(boss);
+            state.Vitality = Vitality(claimant);
             if (now - state.Claim.Value >= Math.Max(1, ControlPoints.Instance.Config.LandingZoneAssaultCaptureSeconds) * 1000L)
             {
                 Cancel(point, state);
                 ControlPoints.Instance.SetOwner(point, ControlPoints.Bane, null);
                 Clear(map, point, state);
             }
-            return true;
         }
         internal static bool IsCapturing(MapChannel map, Actor actor, DynamicObject obj) =>
-            map != null && States.TryGetValue(map, out var state) && state.Claim.HasValue && state.Boss == actor && obj.UsedBy == actor;
-        private static void Cancel(ControlPoints.Point point, Assault state)
+            map != null && States.TryGetValue(map, out var state) && state.Claim.HasValue && state.Claimant == actor && obj.UsedBy == actor;
+        /// <summary>The claim broken off, if one runs; with <paramref name="retry"/>, the next not before ClaimRetryMs on.</summary>
+        private static void Cancel(ControlPoints.Point point, Assault state, long? retry = null)
         {
-            if (state.Claim.HasValue && point?.Object?.UsedBy == state.Boss)
+            if (!state.Claim.HasValue)
+                return;
+            if (point?.Object != null && point.Object.UsedBy == state.Claimant && state.Claimant != null)
             {
-                CellManager.Instance.CellCallMethod(point.Object, new UseInterruptedPacket(state.Boss.EntityId));
+                CellManager.Instance.CellCallMethod(point.Object, new UseInterruptedPacket(state.Claimant.EntityId));
                 CellManager.Instance.CellCallMethod(point.Object, new LockToActorPacket(0));
                 point.Object.UsedBy = null;
             }
             state.Claim = null;
+            state.Claimant = null;
+            if (retry.HasValue)
+                state.NextClaimAt = retry.Value + ClaimRetryMs;
         }
         private static void Clear(MapChannel map, ControlPoints.Point point, Assault state)
         {
@@ -212,6 +353,8 @@ namespace Rasa.Managers
             state.Pools.Clear();
             state.Reinforcements.Clear();
             state.Boss = null;
+            state.Claimant = null;
+            state.NextClaimAt = 0;
             state.Waves = 0;
         }
     }
