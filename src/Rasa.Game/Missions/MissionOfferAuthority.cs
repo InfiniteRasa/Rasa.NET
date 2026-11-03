@@ -15,6 +15,12 @@ namespace Rasa.Game.Missions
     public sealed class MissionOfferAuthority
     {
         public static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(5);
+        /// <summary>
+        /// An offer that is not forced waits in the client as a pending radio icon until the map
+        /// changes (statusupdaterwindow.OnContextChanged), so it must not run out before: its
+        /// session ends it first (a map change or a logout).
+        /// </summary>
+        public static readonly TimeSpan PendingCallLifetime = TimeSpan.FromHours(24);
         public const int PendingCapacity = 30;
         private readonly IGameUnitOfWorkFactory _factory;
         private readonly MissionApplication _missions;
@@ -120,7 +126,8 @@ namespace Rasa.Game.Missions
             row.PriorHistoryId = unit.CharacterMissions.Runtime.LatestTerminal(session.CharacterId, missionId)?.AssignmentId;
             // MySQL datetime(6) persists microseconds, not DateTime's 100-nanosecond ticks.
             row.CreatedAtUtc = new DateTime(now.Ticks - now.Ticks % 10, DateTimeKind.Utc);
-            row.ExpiresAtUtc = row.CreatedAtUtc.Add(Lifetime);
+            row.ExpiresAtUtc = row.CreatedAtUtc.Add(forceDialog || source.Kind == MissionOfferSourceKind.Party
+                ? Lifetime : PendingCallLifetime);
             row.State = MissionOfferState.Pending;
             row.ConsumedAssignmentId = null;
             row.ConsumedAssignmentGeneration = 0;
@@ -246,7 +253,7 @@ namespace Rasa.Game.Missions
         private bool IdentityIsCurrent(Client client, Mission definition, Authorization offer, ICharUnitOfWork unit, bool persisted) =>
             offer != null && offer.Session.IsCurrent(client) && offer.Revision == definition.ContentRevision &&
             _missions.TryGetOperationalMission(offer.MissionId, out var current) && ReferenceEquals(current, definition) &&
-            offer.ExpiresAtUtc - offer.CreatedAtUtc == Lifetime &&
+            (offer.ExpiresAtUtc - offer.CreatedAtUtc == Lifetime || offer.ExpiresAtUtc - offer.CreatedAtUtc == PendingCallLifetime) &&
             unit.MissionOffers.IsOwnedBy(offer.Session.CharacterId, offer.Session.AccountId) &&
             SourceIdentityIsCurrent(client, definition, offer.Source, unit, persisted) &&
             offer.Session.IsCurrent(client) && UtcNow() < offer.ExpiresAtUtc;

@@ -484,7 +484,7 @@ namespace Rasa.Test.Missions
 
             var offered = harness.Drain().OfType<DispenseRadioMissionPacket>().Single();
             Assert.AreEqual(Plateau, offered.MissionId);
-            Assert.IsTrue(offered.ForceDialog);
+            Assert.IsFalse(offered.ForceDialog, "a forced offer cannot be declined, and the client accepts it when its window closes");
 
             Assert.IsTrue(harness.Manager.TryAcceptRadioMission(harness.Client, Plateau));
 
