@@ -90,8 +90,8 @@ namespace Rasa.Test.Missions.Marshes
             var offer = WildernessRanjaGorgeTests.Offer(harness, vincent, Ruins);
             CollectionAssert.AreEqual(new[]
                 {
-                    MarshesItLiesInRuinsV1.HazmatVest, MarshesItLiesInRuinsV1.MechVest,
-                    MarshesItLiesInRuinsV1.MotorAssistVest, MarshesItLiesInRuinsV1.ReflectiveVest
+                    MarshesRewardBlocksV1.Current(MarshesItLiesInRuinsV1.MissionId, MarshesItLiesInRuinsV1.HazmatVest), MarshesRewardBlocksV1.Current(MarshesItLiesInRuinsV1.MissionId, MarshesItLiesInRuinsV1.MechVest),
+                    MarshesRewardBlocksV1.Current(MarshesItLiesInRuinsV1.MissionId, MarshesItLiesInRuinsV1.MotorAssistVest), MarshesRewardBlocksV1.Current(MarshesItLiesInRuinsV1.MissionId, MarshesItLiesInRuinsV1.ReflectiveVest)
                 },
                 offer.SelectableReward.Select(item => item.ItemTemplateId).ToArray());
             Assert.IsFalse(PlateauRetreadCampTests.Offers(harness, morrison, Ruins), "not Morrison's to give");
@@ -114,12 +114,12 @@ namespace Rasa.Test.Missions.Marshes
             Assert.IsEmpty(Topics(harness, morrison, Ruins), "heard once");
             Assert.IsFalse(harness.Manager.CompleteOfferedMission(harness.Client, vincent.EntityId, Ruins, 1), "not Vincent's to take");
 
-            FullBagWaits(harness, morrison, Ruins, 1, MarshesItLiesInRuinsV1.HazmatVest);
+            FullBagWaits(harness, morrison, Ruins, 1, MarshesRewardBlocksV1.Current(MarshesItLiesInRuinsV1.MissionId, MarshesItLiesInRuinsV1.HazmatVest));
             FailedTurnInPaysNothing(harness, morrison, Ruins, 1);
             WildernessRanjaGorgeTests.CompleteAndCheckReward(harness, morrison, Ruins, 1,
                 MarshesItLiesInRuinsV1.Experience, MarshesItLiesInRuinsV1.Credits);
             Assert.AreEqual(1, harness.Drain().OfType<MissionRewardedPacket>().Count(packet => packet.MissionId == Ruins));
-            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, MarshesItLiesInRuinsV1.MechVest), "the selected vest");
+            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, MarshesRewardBlocksV1.Current(MarshesItLiesInRuinsV1.MissionId, MarshesItLiesInRuinsV1.MechVest)), "the selected vest");
             Assert.IsFalse(PlateauRetreadCampTests.Offers(harness, vincent, Ruins), "done once");
         }
 

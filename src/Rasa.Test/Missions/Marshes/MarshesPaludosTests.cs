@@ -118,8 +118,8 @@ namespace Rasa.Test.Missions.Marshes
             var offer = WildernessRanjaGorgeTests.Offer(harness, toida, WelcomeWagon);
             CollectionAssert.AreEqual(new[]
                 {
-                    MarshesWelcomeWagonV1.LaserChaingun, MarshesWelcomeWagonV1.IncendiaryNetGun,
-                    MarshesWelcomeWagonV1.ExothermicPolarityGun, MarshesWelcomeWagonV1.SonicShotgun
+                    MarshesRewardBlocksV1.Current(MarshesWelcomeWagonV1.MissionId, MarshesWelcomeWagonV1.LaserChaingun), MarshesRewardBlocksV1.Current(MarshesWelcomeWagonV1.MissionId, MarshesWelcomeWagonV1.IncendiaryNetGun),
+                    MarshesRewardBlocksV1.Current(MarshesWelcomeWagonV1.MissionId, MarshesWelcomeWagonV1.ExothermicPolarityGun), MarshesRewardBlocksV1.Current(MarshesWelcomeWagonV1.MissionId, MarshesWelcomeWagonV1.SonicShotgun)
                 },
                 offer.SelectableReward.Select(item => item.ItemTemplateId).ToArray());
             Assert.IsFalse(PlateauRetreadCampTests.Offers(harness, starling, WelcomeWagon), "not Starling's to give");
@@ -140,7 +140,7 @@ namespace Rasa.Test.Missions.Marshes
             WildernessRanjaGorgeTests.CompleteAndCheckReward(harness, toida, WelcomeWagon, 1,
                 MarshesWelcomeWagonV1.Experience, MarshesWelcomeWagonV1.Credits);
             Assert.AreEqual(1, harness.Drain().OfType<MissionRewardedPacket>().Count(packet => packet.MissionId == WelcomeWagon));
-            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, MarshesWelcomeWagonV1.IncendiaryNetGun), "the selected net gun");
+            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, MarshesRewardBlocksV1.Current(MarshesWelcomeWagonV1.MissionId, MarshesWelcomeWagonV1.IncendiaryNetGun)), "the selected net gun");
             Assert.IsFalse(PlateauRetreadCampTests.Offers(harness, toida, WelcomeWagon), "done once");
         }
 
@@ -182,8 +182,8 @@ namespace Rasa.Test.Missions.Marshes
             var offer = WildernessRanjaGorgeTests.Offer(harness, starling, Cannister);
             CollectionAssert.AreEqual(new[]
                 {
-                    MarshesCannisterCollectionV1.CryogenicInjectorGun, MarshesCannisterCollectionV1.PulseChaingun,
-                    MarshesCannisterCollectionV1.ElectricRifle, MarshesCannisterCollectionV1.RocketLauncher
+                    MarshesRewardBlocksV1.Current(MarshesCannisterCollectionV1.MissionId, MarshesCannisterCollectionV1.CryogenicInjectorGun), MarshesRewardBlocksV1.Current(MarshesCannisterCollectionV1.MissionId, MarshesCannisterCollectionV1.PulseChaingun),
+                    MarshesRewardBlocksV1.Current(MarshesCannisterCollectionV1.MissionId, MarshesCannisterCollectionV1.ElectricRifle), MarshesRewardBlocksV1.Current(MarshesCannisterCollectionV1.MissionId, MarshesCannisterCollectionV1.RocketLauncher)
                 },
                 offer.SelectableReward.Select(item => item.ItemTemplateId).ToArray());
             Assert.IsFalse(Holds(Kill(harness, marshes, MarshesCannisterCollectionV1.ThraxSoldier), MarshesCannisterCollectionV1.CanisterTemplate),
@@ -220,7 +220,7 @@ namespace Rasa.Test.Missions.Marshes
             WildernessRanjaGorgeTests.CompleteAndCheckReward(harness, starling, Cannister, 2,
                 MarshesCannisterCollectionV1.Experience, MarshesCannisterCollectionV1.Credits);
             Assert.AreEqual(1, harness.Drain().OfType<MissionRewardedPacket>().Count(packet => packet.MissionId == Cannister));
-            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, MarshesCannisterCollectionV1.ElectricRifle), "the selected rifle");
+            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, MarshesRewardBlocksV1.Current(MarshesCannisterCollectionV1.MissionId, MarshesCannisterCollectionV1.ElectricRifle)), "the selected rifle");
             Assert.AreEqual(0U, WildernessRanjaGorgeTests.Held(harness, MarshesCannisterCollectionV1.CanisterTemplate), "Starling keeps it");
         }
 
@@ -280,8 +280,8 @@ namespace Rasa.Test.Missions.Marshes
             var offer = WildernessRanjaGorgeTests.Offer(harness, geli, Gas);
             CollectionAssert.AreEqual(new[]
                 {
-                    MarshesWhatsThatGasV1.CryogenicLauncher, MarshesWhatsThatGasV1.IncendiaryLeechGun,
-                    MarshesWhatsThatGasV1.ElectricNetGun, MarshesWhatsThatGasV1.Pistol
+                    MarshesRewardBlocksV1.Current(MarshesWhatsThatGasV1.MissionId, MarshesWhatsThatGasV1.CryogenicLauncher), MarshesRewardBlocksV1.Current(MarshesWhatsThatGasV1.MissionId, MarshesWhatsThatGasV1.IncendiaryLeechGun),
+                    MarshesRewardBlocksV1.Current(MarshesWhatsThatGasV1.MissionId, MarshesWhatsThatGasV1.ElectricNetGun), MarshesRewardBlocksV1.Current(MarshesWhatsThatGasV1.MissionId, MarshesWhatsThatGasV1.Pistol)
                 },
                 offer.SelectableReward.Select(item => item.ItemTemplateId).ToArray());
             Assert.IsFalse(Holds(Kill(harness, marshes, MarshesWhatsThatGasV1.SwampGrubber), MarshesWhatsThatGasV1.HideTemplate),
@@ -345,7 +345,7 @@ namespace Rasa.Test.Missions.Marshes
             WildernessRanjaGorgeTests.CompleteAndCheckReward(harness, geli, Gas, 3,
                 MarshesWhatsThatGasV1.Experience, MarshesWhatsThatGasV1.Credits);
             Assert.AreEqual(1, harness.Drain().OfType<MissionRewardedPacket>().Count(packet => packet.MissionId == Gas));
-            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, MarshesWhatsThatGasV1.Pistol), "the selected pistol");
+            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, MarshesRewardBlocksV1.Current(MarshesWhatsThatGasV1.MissionId, MarshesWhatsThatGasV1.Pistol)), "the selected pistol");
             foreach (var template in new[] { MarshesWhatsThatGasV1.FernTemplate, MarshesWhatsThatGasV1.GlandTemplate, MarshesWhatsThatGasV1.HeartTemplate })
                 Assert.AreEqual(0U, WildernessRanjaGorgeTests.Held(harness, template), $"Geli keeps {template}");
         }
@@ -415,8 +415,8 @@ namespace Rasa.Test.Missions.Marshes
             var offer = WildernessRanjaGorgeTests.Offer(harness, toida, Divided);
             CollectionAssert.AreEqual(new[]
                 {
-                    MarshesDividedWeFallV1.HazmatBoots, MarshesDividedWeFallV1.MotorAssistBoots,
-                    MarshesDividedWeFallV1.ReflectiveBoots, MarshesDividedWeFallV1.StealthLegs
+                    MarshesRewardBlocksV1.Current(MarshesDividedWeFallV1.MissionId, MarshesDividedWeFallV1.HazmatBoots), MarshesRewardBlocksV1.Current(MarshesDividedWeFallV1.MissionId, MarshesDividedWeFallV1.MotorAssistBoots),
+                    MarshesRewardBlocksV1.Current(MarshesDividedWeFallV1.MissionId, MarshesDividedWeFallV1.ReflectiveBoots), MarshesRewardBlocksV1.Current(MarshesDividedWeFallV1.MissionId, MarshesDividedWeFallV1.StealthLegs)
                 },
                 offer.SelectableReward.Select(item => item.ItemTemplateId).ToArray());
             Accept(harness, toida, Divided);
@@ -454,7 +454,7 @@ namespace Rasa.Test.Missions.Marshes
             WildernessRanjaGorgeTests.CompleteAndCheckReward(harness, toida, Divided, 0,
                 MarshesDividedWeFallV1.Experience, MarshesDividedWeFallV1.Credits);
             Assert.AreEqual(1, harness.Drain().OfType<MissionRewardedPacket>().Count(packet => packet.MissionId == Divided));
-            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, MarshesDividedWeFallV1.HazmatBoots), "the selected boots");
+            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, MarshesRewardBlocksV1.Current(MarshesDividedWeFallV1.MissionId, MarshesDividedWeFallV1.HazmatBoots)), "the selected boots");
         }
 
         /// <summary>The packets of a run: MissionGained once, ObjectiveCompleted once each, MissionCompleteable once.</summary>

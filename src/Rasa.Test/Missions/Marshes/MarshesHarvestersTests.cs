@@ -413,8 +413,8 @@ namespace Rasa.Test.Missions.Marshes
             var offer = WildernessRanjaGorgeTests.Offer(harness, taavik, Butcher);
             CollectionAssert.AreEqual(new[]
                 {
-                    MarshesButcherBakerCaretakerV1.ElectricBlade, MarshesButcherBakerCaretakerV1.HealingDisc,
-                    MarshesButcherBakerCaretakerV1.Shotgun, MarshesButcherBakerCaretakerV1.IncendiaryStaff
+                    MarshesRewardBlocksV1.Current(MarshesButcherBakerCaretakerV1.MissionId, MarshesButcherBakerCaretakerV1.ElectricBlade), MarshesRewardBlocksV1.Current(MarshesButcherBakerCaretakerV1.MissionId, MarshesButcherBakerCaretakerV1.HealingDisc),
+                    MarshesRewardBlocksV1.Current(MarshesButcherBakerCaretakerV1.MissionId, MarshesButcherBakerCaretakerV1.Shotgun), MarshesRewardBlocksV1.Current(MarshesButcherBakerCaretakerV1.MissionId, MarshesButcherBakerCaretakerV1.IncendiaryStaff)
                 },
                 offer.SelectableReward.Select(item => item.ItemTemplateId).ToArray());
             Assert.IsFalse(PlateauRetreadCampTests.Offers(harness, kline, Butcher), "not Kline's to give");
@@ -449,12 +449,12 @@ namespace Rasa.Test.Missions.Marshes
             Assert.IsTrue(harness.Client.Player.Missions[Butcher].Completeable);
 
             Assert.IsFalse(harness.Manager.CompleteOfferedMission(harness.Client, kline.EntityId, Butcher, 3), "not Kline's to take");
-            FullBagWaits(harness, taavik, Butcher, 3, MarshesButcherBakerCaretakerV1.ElectricBlade);
+            FullBagWaits(harness, taavik, Butcher, 3, MarshesRewardBlocksV1.Current(MarshesButcherBakerCaretakerV1.MissionId, MarshesButcherBakerCaretakerV1.ElectricBlade));
             FailedTurnInPaysNothing(harness, taavik, Butcher, 3);
             WildernessRanjaGorgeTests.CompleteAndCheckReward(harness, taavik, Butcher, 3,
                 MarshesButcherBakerCaretakerV1.Experience, MarshesButcherBakerCaretakerV1.Credits);
             Assert.AreEqual(1, harness.Drain().OfType<MissionRewardedPacket>().Count(packet => packet.MissionId == Butcher));
-            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, MarshesButcherBakerCaretakerV1.IncendiaryStaff), "the selected staff");
+            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, MarshesRewardBlocksV1.Current(MarshesButcherBakerCaretakerV1.MissionId, MarshesButcherBakerCaretakerV1.IncendiaryStaff)), "the selected staff");
             Assert.IsFalse(PlateauRetreadCampTests.Offers(harness, taavik, Butcher), "done once");
         }
 

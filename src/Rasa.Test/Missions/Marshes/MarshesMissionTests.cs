@@ -140,6 +140,7 @@ namespace Rasa.Test.Missions.Marshes
         private const string PreoDas = "20271104001300_Marshes_preo_das";
         private const string PreoDasVillage = "20271104001400_Marshes_preo_das_village";
         private const string BaneSupplyDepot = "20271104001500_Marshes_bane_supply_depot";
+        private const string RewardBlocks = "20271104001600_Marshes_reward_blocks";
 
         /// <summary>
         /// The migration directly before <paramref name="migration"/> (IMigrationsAssembly, ordinal order), the target that
@@ -616,29 +617,30 @@ namespace Rasa.Test.Missions.Marshes
             var marshes = MarshesMissionDataV1.Revision;
             foreach (var (mission, revision, experience, credits, items) in new (uint, string, uint, uint, (uint, uint)[])[]
             {
-                (541, marshes, 75000, 5700, new (uint, uint)[] { (45762, 1), (45812, 1), (48680, 1), (14937, 1) }),
-                (498, marshes, 65000, 5400, new (uint, uint)[] { (48108, 1), (15150, 1), (14738, 1), (49136, 1) }),
-                (539, marshes, 65000, 5400, new (uint, uint)[] { (47944, 1), (47728, 1), (15513, 1), (14404, 1) }),
-                (917, marshes, 65000, 5400, new (uint, uint)[] { (20335, 1), (28614, 1), (35571, 1), (39191, 1) }),
+                // Sets 1-4: the client's per-mission blocks where one exists (Marshes_reward_blocks, MarshesRewardBlocksV1).
+                (541, marshes, 75000, 5700, new (uint, uint)[] { (120105, 1), (120106, 1), (120107, 1), (120108, 1) }),
+                (498, marshes, 65000, 5400, new (uint, uint)[] { (120041, 1), (120042, 1), (120043, 1), (120044, 1) }),
+                (539, marshes, 65000, 5400, new (uint, uint)[] { (120133, 1), (120134, 1), (120135, 1), (120136, 1) }),
+                (917, marshes, 65000, 5400, new (uint, uint)[] { (120049, 1), (120050, 1), (120051, 1), (120052, 1) }),
                 // Armor Module: Resist Electric, Fire, Ice, Virulent [4].
                 (959, marshes, 65000, 5400, new (uint, uint)[] { (123016, 1), (123026, 1), (123031, 1), (123071, 1) }),
                 // 2 Class VII EMP Bomb, 2 Class VII Adrenaline Booster, 4 Class VII Fragmentation, 4 Class VII Cryogenic Grenade.
                 (961, marshes, 32500, 3600, new (uint, uint)[] { (111232, 2), (118814, 2), (45446, 4), (111048, 4) }),
                 // Hazmat, Mech, Motor Assist, Reflective vests.
-                (1673, PlateauMissionDataV1.Revision, 75000, 3800, new (uint, uint)[] { (20951, 1), (33193, 1), (29247, 1), (36188, 1) }),
+                (1673, PlateauMissionDataV1.Revision, 75000, 3800, new (uint, uint)[] { (120101, 1), (120102, 1), (120103, 1), (120104, 1) }),
                 // Bio vest, Stealth boots, Hazmat legs, Reflective gloves (30-34 / 29-33).
                 (881, marshes, 65000, 5400, new (uint, uint)[] { (19246, 1), (38783, 1), (20762, 1), (35700, 1) }),
                 // Bio boots, Graviton boots, Mech helmet, Stealth vest (35-39).
                 (890, marshes, 65000, 5400, new (uint, uint)[] { (18750, 1), (23549, 1), (8855, 1), (10637, 1) }),
                 (913, marshes, 140000, 0, new (uint, uint)[] { (18750, 1), (23549, 1), (8855, 1), (10637, 1) }),
-                // Electric blade, Direct healing disc, Physical shotgun, Fire staff.
-                (968, marshes, 160000, 7800, new (uint, uint)[] { (15475, 1), (18367, 1), (14820, 1), (49496, 1) }),
+                // The client's block: Electric blade 36-40, Area healing disc 40-44, Fire staff 40-44, Physical shotgun 37-41.
+                (968, marshes, 160000, 7800, new (uint, uint)[] { (120033, 1), (120034, 1), (120035, 1), (120036, 1) }),
                 // 2 Class VII Advanced Med Pack, 2 Power Charger, 4 Fragmentation, 4 Cryogenic Grenade.
                 (925, marshes, 35000, 3700, new (uint, uint)[] { (45062, 2), (118907, 2), (45446, 4), (111048, 4) }),
                 // 2 Class VII Advanced Med Pack, 2 Armor Charger, 4 Concussion, 4 Fragmentation Grenade.
                 (1028, marshes, 35500, 3700, new (uint, uint)[] { (45062, 2), (118898, 2), (111018, 4), (45446, 4) }),
-                // Incendiary Injector Gun 37-41, Electric Chaingun 38-42, Pulse Pistol 35-39, Pulse Cannon 34-38.
-                (1029, marshes, 32500, 5550, new (uint, uint)[] { (45777, 1), (15111, 1), (14569, 1), (15437, 1) }),
+                // The client's block: Incendiary Injector Gun 37-41, Electric Chaingun 38-42, Pulse Pistol 35-39, Pulse Cannon 34-38.
+                (1029, marshes, 32500, 5550, new (uint, uint)[] { (120089, 1), (120090, 1), (120091, 1), (120092, 1) }),
                 // Bio boots, Graviton boots, Mech helmet, Stealth vest (35-39), as 890.
                 (1030, marshes, 70000, 5550, new (uint, uint)[] { (18750, 1), (23549, 1), (8855, 1), (10637, 1) }),
                 // The client's mission blocks: Motor Assist helmet 33-37, Stealth legs 35-39, Hazmat and Reflective helmets 34-38.
@@ -1890,6 +1892,38 @@ namespace Rasa.Test.Missions.Marshes
             world.GetService<IMigrator>().Migrate(BaneSupplyDepot);
             Assert.IsTrue(setSixteen.All(Has));
             Assert.AreEqual(full, SetSixteen());
+        }
+
+        /// <summary>
+        /// Marshes_reward_blocks moves seven missions' four rewards to the client's blocks and nothing else; down, the former
+        /// templates are back (the other missions' rewards untouched both ways). Up again, the blocks.
+        /// </summary>
+        [TestMethod]
+        public void RewardBlocksRollBackWithTheirMigration()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            uint[] Items(uint mission, string revision) => world.MissionRewardItemEntries.AsNoTracking()
+                .Where(entry => entry.MissionId == mission && entry.ContentRevision == revision)
+                .OrderBy(entry => entry.ItemId).AsEnumerable().Select(entry => entry.ItemTemplateId).ToArray();
+            int Others() => world.MissionRewardItemEntries.AsNoTracking().Count(entry =>
+                entry.ContentRevision == MarshesMissionDataV1.Revision && !new uint[] { 541, 498, 539, 917, 968, 1029 }.Contains(entry.MissionId));
+            var others = Others();
+            Assert.HasCount(7, MarshesRewardBlocksV1.Moves);
+            foreach (var move in MarshesRewardBlocksV1.Moves)
+                CollectionAssert.AreEqual(Enumerable.Range(0, 4).Select(index => move.Block + (uint)index).ToArray(),
+                    Items(move.Mission, move.Revision), $"{move.Mission} on its block");
+
+            world.GetService<IMigrator>().Migrate(Previous(world, RewardBlocks));
+            foreach (var move in MarshesRewardBlocksV1.Moves)
+                CollectionAssert.AreEqual(move.Before, Items(move.Mission, move.Revision), $"{move.Mission} as before");
+            Assert.AreEqual(others, Others(), "the other rewards untouched");
+
+            world.GetService<IMigrator>().Migrate(RewardBlocks);
+            foreach (var move in MarshesRewardBlocksV1.Moves)
+                CollectionAssert.AreEqual(Enumerable.Range(0, 4).Select(index => move.Block + (uint)index).ToArray(),
+                    Items(move.Mission, move.Revision), $"{move.Mission} on its block again");
+            Assert.AreEqual(others, Others());
         }
     }
 }

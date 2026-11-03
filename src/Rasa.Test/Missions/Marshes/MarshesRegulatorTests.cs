@@ -278,8 +278,8 @@ namespace Rasa.Test.Missions.Marshes
             var offer = WildernessRanjaGorgeTests.Offer(harness, kaav, PartThree);
             CollectionAssert.AreEqual(new[]
                 {
-                    MarshesRegulatorPartThreeV1.IncendiaryInjectorGun, MarshesRegulatorPartThreeV1.ElectricChaingun,
-                    MarshesRegulatorPartThreeV1.PulsePistol, MarshesRegulatorPartThreeV1.PulseCannon
+                    MarshesRewardBlocksV1.Current(MarshesRegulatorPartThreeV1.MissionId, MarshesRegulatorPartThreeV1.IncendiaryInjectorGun), MarshesRewardBlocksV1.Current(MarshesRegulatorPartThreeV1.MissionId, MarshesRegulatorPartThreeV1.ElectricChaingun),
+                    MarshesRewardBlocksV1.Current(MarshesRegulatorPartThreeV1.MissionId, MarshesRegulatorPartThreeV1.PulsePistol), MarshesRewardBlocksV1.Current(MarshesRegulatorPartThreeV1.MissionId, MarshesRegulatorPartThreeV1.PulseCannon)
                 },
                 offer.SelectableReward.Select(item => item.ItemTemplateId).ToArray());
             Assert.IsFalse(PlateauRetreadCampTests.Offers(harness, wilson, PartThree), "not Wilson's to give");
@@ -323,13 +323,13 @@ namespace Rasa.Test.Missions.Marshes
             harness.MoveTo(kaav.Position);
             harness.Drain();
             Assert.IsFalse(harness.Manager.CompleteOfferedMission(harness.Client, kaav.EntityId, PartThree, 3), "not Kaav's to take");
-            FullBagWaits(harness, wilson, PartThree, 3, MarshesRegulatorPartThreeV1.ElectricChaingun);
+            FullBagWaits(harness, wilson, PartThree, 3, MarshesRewardBlocksV1.Current(MarshesRegulatorPartThreeV1.MissionId, MarshesRegulatorPartThreeV1.ElectricChaingun));
             FailedTurnInPaysNothing(harness, wilson, PartThree, 3);
             Assert.AreEqual(1U, Core(harness), "kept at the failed turn-in");
             WildernessRanjaGorgeTests.CompleteAndCheckReward(harness, wilson, PartThree, 3,
                 MarshesRegulatorPartThreeV1.Experience, MarshesRegulatorPartThreeV1.Credits);
             Assert.AreEqual(1, harness.Drain().OfType<MissionRewardedPacket>().Count(packet => packet.MissionId == PartThree), "MissionRewarded once");
-            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, MarshesRegulatorPartThreeV1.PulseCannon), "the selected Pulse Cannon");
+            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, MarshesRewardBlocksV1.Current(MarshesRegulatorPartThreeV1.MissionId, MarshesRegulatorPartThreeV1.PulseCannon)), "the selected Pulse Cannon");
             Assert.AreEqual(0U, Core(harness), "Wilson keeps the core");
             Assert.IsFalse(PlateauRetreadCampTests.Offers(harness, kaav, PartThree), "done once");
             Assert.IsTrue(PlateauRetreadCampTests.Offers(harness, wilson, PartFour), "Part IV follows at Wilson");
