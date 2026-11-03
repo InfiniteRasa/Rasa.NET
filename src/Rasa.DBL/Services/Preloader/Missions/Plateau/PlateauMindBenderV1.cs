@@ -145,13 +145,23 @@ namespace Rasa.Services.Preloader.Missions.Plateau
                 mission.ObjectiveState(soldier.Extract, soldier.Find, MissionObjectiveState.Completed);
         }
 
-        /// <summary>Back to <see cref="Up"/>'s second talk.</summary>
+        /// <summary>
+        /// Back to <see cref="Up"/>'s second talk: the rows PlateauMissionDataV1.Conversation wrote, in plain SQL.
+        /// A Down runs on the model of the migration before it, and Attacks_on_their_models, the one before
+        /// Plateau_mind_bender_extract_on_find, has none, so an EF InsertData finds no mission_trigger there.
+        /// </summary>
         public static void ExtractByTalk(MigrationBuilder migration)
         {
             DeleteExtractTriggers(migration, MissionTriggerKind.ObjectiveState);
-            var mission = PlateauMissionDataV1.Existing(migration, MissionId);
             for (var index = 0; index < Soldiers.Length; index++)
-                mission.Conversation(Soldiers[index].Extract, PlateauPerduNpcsV1.Implanted[index].Package);
+            {
+                var objective = Soldiers[index].Extract;
+                migration.Sql("INSERT INTO mission_trigger (mission_id, content_revision, requirement, objective_id, " +
+                    "transition_id, trigger_id, kind, sequence, comment, npc_package_id, player_flag_id) VALUES " +
+                    $"({MissionId}, '{PlateauMissionDataV1.Revision}', {(byte)MissionContentRequirement.Required}, {objective}, " +
+                    $"1, 1, {(byte)MissionTriggerKind.Conversation}, 1, 'Objective {objective} trigger 1', " +
+                    $"{PlateauPerduNpcsV1.Implanted[index].Package}, 1);");
+            }
         }
 
         private static void DeleteExtractTriggers(MigrationBuilder migration, MissionTriggerKind kind) =>
