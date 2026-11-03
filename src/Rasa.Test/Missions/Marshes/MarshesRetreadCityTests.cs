@@ -82,7 +82,7 @@ namespace Rasa.Test.Missions.Marshes
             Assert.IsTrue(PlateauRetreadCampTests.Offers(harness, vincent, Robbery), "Highway Robbery needs nothing");
             Assert.IsTrue(PlateauRetreadCampTests.Offers(harness, vincent, Trapped), "Trapped! needs nothing");
             Assert.IsFalse(PlateauRetreadCampTests.Offers(harness, vincent, ForVincent), "916 waits for 914");
-            foreach (var at in MarshesProductionDestructionV1.Kiosks.Append(MarshesTrappedV1.SamuelAt).Concat(MarshesTrappedV1.RetreadsAt)
+            foreach (var at in MarshesProductionDestructionV1.Kiosks.Append(MarshesTrappedV1.SamuelAt).Concat(MarshesTrappedV2.RetreadsAt)
                 .Concat(MarshesHighwayRobberyV1.Crates))
                 AssertOnGround(marshes, ToVector(at), $"{at}");
         }
@@ -376,15 +376,24 @@ namespace Rasa.Test.Missions.Marshes
             CollectionAssert.AreEqual(MarshesTrappedV1.Rewards, offer.SelectableReward.Select(item => item.ItemTemplateId).ToArray());
             Begin(harness, marshes, vincent, Trapped);
             Assert.AreEqual(MissionObjectiveState.Inactive, Objective(harness, Trapped, MarshesTrappedV1.Defend), "2 hidden");
+            // To-fix 10: no crew while no player is near (nothing at the station can kill it), the public Samuel there.
+            for (var second = 0; second < 120; second++)
+                Tick(harness, marshes, 1000);
+            Assert.IsNull(SceneCreature(harness, marshes, Trapped, MarshesDefenceScene.Leader), "no stand-in before the player comes near");
+            Assert.IsNull(SceneCreature(harness, marshes, Trapped, MarshesDefenceScene.Ward(2)), "no Retread before");
+            Assert.IsFalse(HiddenCreatures.IsHiddenFrom(publicSamuel, harness.Client), "the public Samuel until then");
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Trapped, MarshesTrappedV1.Locate), "1 still open");
+            Approach(harness, marshes);
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Trapped, MarshesTrappedV2.Near), "the hidden approach");
 
             var samuel = SceneCreature(harness, marshes, Trapped, MarshesDefenceScene.Leader);
-            Assert.IsNotNull(samuel, "the stand-in stands from the accept");
+            Assert.IsNotNull(samuel, "the stand-in stands once the player is near");
             Assert.AreEqual((MarshesRetreadCityNpcsV1.SamuelStandIn, MarshesRetreadCityNpcsV1.SamuelName, MarshesRetreadCityNpcsV1.SamuelPackage),
                 (samuel.DbId, samuel.NameId, samuel.Npc?.NpcPackageId));
             Assert.IsLessThan(0.5f, Vector3.Distance(samuel.Position, ToVector(MarshesTrappedV1.SamuelAt)), "at Samuel's place");
             Assert.IsTrue(marshes.NavMesh.FindPath(BaneAssertionCampWaypoint, samuel.Position, out var walked) != null && walked, "walked to");
             Assert.IsTrue(HiddenCreatures.IsHiddenFrom(publicSamuel, harness.Client), "the public Samuel hidden");
-            var crew = Enumerable.Range(2, MarshesTrappedV1.RetreadsAt.Length)
+            var crew = Enumerable.Range(2, MarshesTrappedV2.RetreadsAt.Length)
                 .Select(member => SceneCreature(harness, marshes, Trapped, MarshesDefenceScene.Ward(member))).ToArray();
             foreach (var retread in crew)
             {
@@ -462,10 +471,11 @@ namespace Rasa.Test.Missions.Marshes
             var marshes = EnterMarshes(harness);
             var vincent = Npc(marshes, Vincent);
             Begin(harness, marshes, vincent, Trapped);
+            Approach(harness, marshes);
             var samuel = SceneCreature(harness, marshes, Trapped, MarshesDefenceScene.Leader);
             Assert.AreEqual((int)MarshesRetreadCityNpcsV1.SamuelHealth, (int)samuel.Attributes[Attributes.Health].NormalMax, "Samuel's hit points");
             Assert.AreEqual(12000U, MarshesRetreadCityNpcsV1.SamuelHealth);
-            var crew = Enumerable.Range(2, MarshesTrappedV1.RetreadsAt.Length)
+            var crew = Enumerable.Range(2, MarshesTrappedV2.RetreadsAt.Length)
                 .Select(member => SceneCreature(harness, marshes, Trapped, MarshesDefenceScene.Ward(member))).ToArray();
             Talk(harness, samuel, Trapped, MarshesTrappedV1.Locate);
             Tick(harness, marshes, 250);
@@ -502,6 +512,7 @@ namespace Rasa.Test.Missions.Marshes
             var vincent = Npc(marshes, Vincent);
             var publicSamuel = Npc(marshes, MarshesTrappedV1.PublicSamuelPool);
             Begin(harness, marshes, vincent, Trapped);
+            Approach(harness, marshes);
             var failed = Die(harness, marshes, SceneCreature(harness, marshes, Trapped, MarshesDefenceScene.Leader));
             Assert.AreEqual(MissionObjectiveState.Failed, Objective(harness, Trapped, MarshesTrappedV1.Locate), "lost before he is found");
             Assert.AreEqual(MissionState.Failed, harness.Client.Player.Missions[Trapped].State);
@@ -511,6 +522,7 @@ namespace Rasa.Test.Missions.Marshes
             Assert.IsTrue(harness.Manager.TryClear(harness.Client, Trapped), "the failed mission cleared");
             Tick(harness, marshes, 250);
             Begin(harness, marshes, vincent, Trapped);
+            Approach(harness, marshes);
             Talk(harness, SceneCreature(harness, marshes, Trapped, MarshesDefenceScene.Leader), Trapped, MarshesTrappedV1.Locate);
             var log = new List<PythonPacket>();
             AdvanceTo(harness, marshes, MarshesTrappedV1.Waves[0].After + 1000, log);
@@ -525,6 +537,7 @@ namespace Rasa.Test.Missions.Marshes
             Assert.IsTrue(harness.Manager.TryClear(harness.Client, Trapped), "the failed mission cleared");
             Tick(harness, marshes, 250);
             Begin(harness, marshes, vincent, Trapped);
+            Approach(harness, marshes);
             Assert.IsTrue(harness.Manager.TryAbandon(harness.Client, Trapped), "abandoned with the crew waiting");
             harness.Drain();
             Tick(harness, marshes, 250);
@@ -532,6 +545,14 @@ namespace Rasa.Test.Missions.Marshes
             Assert.IsNull(SceneCreature(harness, marshes, Trapped, MarshesDefenceScene.Leader), "the crew goes");
             Assert.IsFalse(HiddenCreatures.IsHiddenFrom(publicSamuel, harness.Client), "the public Samuel is back");
             Assert.IsTrue(PlateauRetreadCampTests.Offers(harness, vincent, Trapped), "offered again");
+        }
+
+        /// <summary>The player 30 m west of Samuel, inside 1052's approach (40 m): the crew stands.</summary>
+        private static void Approach(WildernessRuntimeTestHarness harness, MapChannel marshes)
+        {
+            MarshesPreoDasTests.Enter(harness, ToVector(MarshesTrappedV1.SamuelAt) + new Vector3(-30, 0, 0));
+            Tick(harness, marshes, 250);
+            Tick(harness, marshes, 250);
         }
 
         /// <summary>914 done with this ending (history and flag), as PartTwoIsDone sets Under the Radar's.</summary>

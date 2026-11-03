@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Rasa.Data;
 using Rasa.Managers;
@@ -44,6 +45,42 @@ namespace Rasa.Test.Missions.Marshes
                 }
             var found = SpawnPoolManager.Instance.PoolsTooClose(new List<(uint, Vector3, string)>()).Select(entry => entry.Message).ToList();
             Assert.IsFalse(found.Any(message => message.Contains("of pool 7603")), string.Join("\n", found));
+        }
+
+        /// <summary>
+        /// To-fix row 10: the defence scenes' wards (Trapped! 1052, Head East 920) are personal scene creatures, which the
+        /// start-up check does not see. Why this test: each ward stands SafeClearance outside every hostile automatic pool's
+        /// circle on its map, as the friendly pools must.
+        /// </summary>
+        [TestMethod]
+        public void TheDefenceWardsStandClearOfEveryHostilePool()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var pools = SpawnPoolManager.Instance.LoadedSpawnPools.Values.ToList();
+            bool Side(uint creature, TargetCategory side) =>
+                CreatureManager.Instance.LoadedCreatures.TryGetValue(creature, out var c) && c.TargetCategory == side;
+            var revision = MarshesMissionDataV1.Revision;
+            var scenes = harness.World.Set<Rasa.Structures.World.MissionSceneBindingEntry>().AsNoTracking()
+                .Where(entry => entry.ContentRevision == revision).ToList()
+                .Select(entry => (entry.MissionId, Scene: System.Text.Json.JsonSerializer.Deserialize<Rasa.Missions.Content.MissionSceneDefinition>(
+                    entry.Bindings, Rasa.Missions.Content.MissionContentCodec.Options)))
+                .Where(entry => entry.Scene.Script == "marshes.defence").ToList();
+            CollectionAssert.AreEquivalent(new[] { MarshesTrappedV1.MissionId, MarshesHeadEastV1.MissionId },
+                scenes.Select(entry => entry.MissionId).ToArray(), "the defence scenes");
+            var checkedWards = 0;
+            foreach (var (mission, scene) in scenes)
+                foreach (var ward in scene.Actors.Values.Where(actor => actor.Role.StartsWith("ward-") && actor.Position != null))
+                {
+                    checkedWards++;
+                    foreach (var hostile in pools.Where(pool => pool.MapContextId == scene.MapContextId && pool.Mode == 0 &&
+                                 pool.SpawnSlot.Exists(slot => slot.CountMax > 0) &&
+                                 pool.SpawnSlot.TrueForAll(slot => Side(slot.CreatureId, TargetCategory.Hostile))))
+                    {
+                        var gap = Vector2.Distance(new(ward.Position.X, ward.Position.Z), new(hostile.Position.X, hostile.Position.Z)) - hostile.Radius;
+                        Assert.IsGreaterThanOrEqualTo(SpawnPoolManager.SafeClearance, gap, $"{mission} {ward.Role} and hostile pool {hostile.DbId}");
+                    }
+                }
+            Assert.IsGreaterThan(4, checkedWards, "the wards are read");
         }
 
         /// <summary>Dikah: Ranger Anjuhi's stats (4500 hit points, armour 300), at his new place on the walked-to ground.</summary>

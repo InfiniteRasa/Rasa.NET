@@ -369,7 +369,8 @@ namespace Rasa.Test.Missions.Marshes
                     (3, 5744, 6409, null), (4, 5745, 6410, null) }),
                 (916, marshes, 4895, new (uint, uint, uint, uint?)[] { (1, 5756, 6979, 5757), (2, 5758, 6980, 5759), (3, 5760, 6981, 5761) }),
                 (1033, marshes, 5762, new (uint, uint, uint, uint?)[] { (1, 5766, 6416, 5767), (2, 5768, 6417, 5769), (3, 5770, 6418, 5771) }),
-                (1052, marshes, 5912, new (uint, uint, uint, uint?)[] { (1, 6082, 7014, null), (2, 6083, 7015, null) }),
+                // 1052's 3 and 920's 4: server-only hidden approaches (to-fix 10), each with its 1's texts.
+                (1052, marshes, 5912, new (uint, uint, uint, uint?)[] { (1, 6082, 7014, null), (2, 6083, 7015, null), (3, 6082, 7014, null) }),
                 // The arena's 1: counter 0 and 1 the client's two fighters (1085, 1087); 1088's 6201 ("Baker") is not bound.
                 (1085, marshes, 6152, new (uint, uint, uint, uint?)[] { (1, 6156, 7196, 6157), (2, 6163, 7195, null) }),
                 (1087, marshes, 6170, new (uint, uint, uint, uint?)[] { (1, 6176, 7273, 6179), (2, 6174, 7272, null) }),
@@ -377,7 +378,8 @@ namespace Rasa.Test.Missions.Marshes
                 (1084, marshes, 6145, new (uint, uint, uint, uint?)[] { (1, 6149, 8455, null), (2, 6150, 8456, null), (3, 6151, 8457, null) }),
                 (542, marshes, 1458, new (uint, uint, uint, uint?)[] { (1, 1528, 7555, 1529) }),
                 (864, marshes, 4510, new (uint, uint, uint, uint?)[] { (1, 4532, 9372, 4533), (2, 4731, 9371, null) }),
-                (920, marshes, 4911, new (uint, uint, uint, uint?)[] { (1, 5041, 7312, null), (2, 5043, 7313, null), (3, 5044, 7314, null) }),
+                (920, marshes, 4911, new (uint, uint, uint, uint?)[] { (1, 5041, 7312, null), (2, 5043, 7313, null), (3, 5044, 7314, null),
+                    (4, 5041, 7312, null) }),
                 (2009, marshes, 21589, new (uint, uint, uint, uint?)[] { (1, 21608, 21609, null) }),
                 (546, marshes, 1474, new (uint, uint, uint, uint?)[] { (5, 6244, 7156, null), (1, 3423, 7157, null),
                     (2, 4706, 7158, null), (3, 4707, 7159, null), (4, 4708, 7160, null) }),
@@ -872,7 +874,7 @@ namespace Rasa.Test.Missions.Marshes
                 .ToHashSet();
             var objectives = world.MissionObjectiveDefinitionEntries.AsNoTracking().Where(entry => entry.ContentRevision == revision)
                 .Select(entry => new { entry.MissionId, entry.ObjectiveId }).ToList();
-            Assert.HasCount(173, objectives, "the objectives are read");
+            Assert.HasCount(175, objectives, "the objectives are read");
             Assert.IsTrue(hidden.Contains((1078U, 5U)) && hidden.Contains((1077U, 4U)), "1078's and 1077's lab tallies are hidden");
             Assert.IsTrue(hidden.Contains((891U, 2U)) && hidden.Contains((891U, 3U)) && hidden.Contains((892U, 2U)),
                 "891's arrival and kill tally and 892's tally are hidden");
@@ -882,6 +884,7 @@ namespace Rasa.Test.Missions.Marshes
             Assert.IsTrue(hidden.Contains((550U, 8U)) && hidden.Contains((718U, 7U)) && hidden.Contains((718U, 8U)),
                 "550's failed escape, 718's alarm and its quiet end are hidden");
             Assert.IsTrue(hidden.Contains((881U, 2U)), "881's tally is hidden");
+            Assert.IsTrue(hidden.Contains((1052U, 3U)) && hidden.Contains((920U, 4U)), "1052's and 920's approaches are hidden");
             Assert.IsTrue(hidden.Contains((1878U, 2U)) && hidden.Contains((1873U, 6U)), "1878's and 1873's tallies are hidden");
             Assert.IsTrue(hidden.Contains((1871U, 2U)), "1871's tally is hidden");
             Assert.IsTrue(hidden.Contains((1867U, 4U)), "1867's outcome is hidden");

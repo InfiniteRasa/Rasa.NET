@@ -20,7 +20,13 @@ namespace Rasa.Missions.Content.Marshes
     ///  - <c>waves</c>: how many; <c>wave.K.after</c>: milliseconds from the start to wave K;
     ///  - <c>hold</c>: milliseconds from the start to the end of the defence; <c>outcome</c> and <c>step</c>: the mission
     ///    signal sent then (a scenario and its event);
-    ///  - <c>hide</c> (optional): a public spawn pool the leader stands in for, hidden from the owner while he stands.
+    ///  - <c>hide</c> (optional): a public spawn pool the leader stands in for, hidden from the owner while he stands;
+    ///  - <c>approach</c> (optional, to-fix 10): a sequence (a mission scenario, the player's coming near) before which no
+    ///    ward stands: the scene waits (phase "waiting") and the wards stand only then, so nothing at the spot can kill them
+    ///    while no player is near. Without it the wards stand from the scene's start;
+    ///  - <c>spare</c> (optional, to-fix 29): nonzero, the waves go for the other wards first and for the leader only when
+    ///    none of them lives; a ward's death sends the waves' living members at the wards left. Without it the waves'
+    ///    members go for the wards in turn, the leader first.
     /// The wards are the actors <c>ward-M</c> (<c>ward-1</c> the leader), wave K's are <c>wave-K-M</c>. A death comes as the
     /// actor's defeat sequence or as ActorDied; only the leader's matters. The other wards' deaths, and the waves', change
     /// nothing.
@@ -33,7 +39,7 @@ namespace Rasa.Missions.Content.Marshes
     public sealed class MarshesDefenceScene : ISceneScript
     {
         public const string Mission = "mission", Locate = "locate", Defend = "defend", Start = "start", Waves = "waves",
-            Hold = "hold", Outcome = "outcome", Step = "step", Hide = "hide", Spare = "spare";
+            Hold = "hold", Outcome = "outcome", Step = "step", Hide = "hide", Approach = "approach", Spare = "spare";
         public const string Leader = "ward-1";
         public const uint HoldTimerSequence = 999;
         public static string After(int wave) => $"wave.{wave}.after";
@@ -50,18 +56,36 @@ namespace Rasa.Missions.Content.Marshes
                 ? new Checkpoint("new", 0, Array.Empty<string>())
                 : JsonSerializer.Deserialize<Checkpoint>(context.Run.Checkpoint)
                     ?? throw new InvalidOperationException("Marshes defence checkpoint is missing.");
-            if (state.Phase is not ("new" or "standing" or "defending" or "after" or "done" or "failed" or "cancelled") || state.Dead == null)
+            if (state.Phase is not ("new" or "waiting" or "standing" or "defending" or "after" or "done" or "failed" or "cancelled") || state.Dead == null)
                 throw new InvalidOperationException($"Marshes defence checkpoint has an invalid phase {state.Phase}.");
             var wards = Roles(context, "ward-");
 
             if (observation.Kind == SceneEventKind.Started && state.Phase == "new")
-                return Decide(state with { Phase = "standing" }, Stand(context, wards));
+                return Name(Approach) != 0
+                    ? Decide(state with { Phase = "waiting" })
+                    : Decide(state with { Phase = "standing" }, Stand(context, wards));
 
             if (observation.Kind == SceneEventKind.Cancelled)
                 return Decide(state with { Phase = state.Phase is "done" or "failed" ? state.Phase : "cancelled" }, status: SceneStatus.Ended);
 
             if (state.Phase is "done" or "failed" or "cancelled" or "new")
                 return Unchanged(context);
+
+            if (state.Phase == "waiting")
+            {
+                if (observation.Kind != SceneEventKind.Signal || observation.SequenceId == 0)
+                    return Unchanged(context);
+                if (observation.SequenceId == Name(Approach))
+                    return Decide(state with { Phase = "standing" }, Stand(context, wards));
+                if (observation.SequenceId != Name(Start))
+                    return Unchanged(context);
+                // The defence started with no approach heard (it cannot be, as the leader stands only after it): the wards
+                // stand now, so the defence still has its wards.
+                state = state with { Phase = "standing" };
+                var started = Handle(context with { Run = context.Run with { Checkpoint = JsonSerializer.Serialize(state) } }, observation);
+                return new SceneDecision(started.Checkpoint, Stand(context, wards).Concat(started.WorldIntents ?? Array.Empty<WorldIntent>()),
+                    started.CharacterIntents, started.Signals, started.Timers, status: started.Status);
+            }
 
             if (state.Phase == "after")
             {

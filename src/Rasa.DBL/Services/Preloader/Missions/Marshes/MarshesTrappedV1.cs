@@ -65,7 +65,13 @@ namespace Rasa.Services.Preloader.Missions.Marshes
         public const uint Credits = 5800;
         public static readonly uint[] Rewards = { 120097, 120098, 120099, 120100 };
 
-        public static void Up(MigrationBuilder migration)
+        public static void Up(MigrationBuilder migration) => Write(migration, RetreadsAt, approach: false);
+
+        /// <summary>
+        /// The mission's rows; with <paramref name="approach"/> (MarshesTrappedV2, to-fix 10) the crew stands only once the
+        /// player comes near.
+        /// </summary>
+        internal static void Write(MigrationBuilder migration, ScenePosition[] retreadsAt, bool approach)
         {
             var mission = new MarshesMissionDataV1(migration, MissionId, "Trapped!", 5912, Vincent, Vincent, Level);
             mission.Reward(Experience, Credits, Rewards);
@@ -74,6 +80,16 @@ namespace Rasa.Services.Preloader.Missions.Marshes
 
             mission.Objective(Locate, 6082, 7014, 0, MissionObjectiveState.Incomplete);
             mission.Objective(Defend, 6083, 7015, 1, MissionObjectiveState.Inactive);
+            if (approach)
+            {
+                mission.Scenario(MarshesTrappedV2.Approach, "The player near the station: the crew stands", 0);
+                mission.Area(MarshesTrappedV2.ApproachArea, MarshesMissionDataV1.MapContextId, SamuelAt.X, SamuelAt.Y, SamuelAt.Z,
+                    MarshesTrappedV2.ApproachRadius, 20);
+                mission.Objective(MarshesTrappedV2.Near, 6082, 7014, 2, MissionObjectiveState.Incomplete, required: false);   // hidden, server only
+                mission.Transition(MarshesTrappedV2.Near);
+                mission.EnterArea(MarshesTrappedV2.Near, MarshesTrappedV2.ApproachArea);
+                mission.Action(MarshesTrappedV2.Near, 1, MissionActionKind.StartScenario, scenario: MarshesTrappedV2.Approach);
+            }
 
             mission.Transition(Locate);
             mission.Conversation(Locate, SamuelPackage);
@@ -129,8 +145,14 @@ namespace Rasa.Services.Preloader.Missions.Marshes
                 scene.Sequences[defeat] = new SceneSequenceDefinition();
             }
             Add(MarshesDefenceScene.Leader, MarshesRetreadCityNpcsV1.SamuelStandIn, SamuelAt, true);
-            for (var member = 0; member < RetreadsAt.Length; member++)
-                Add(MarshesDefenceScene.Ward(member + 2), MarshesRetreadCityNpcsV1.Retread, RetreadsAt[member], false);
+            for (var member = 0; member < retreadsAt.Length; member++)
+                Add(MarshesDefenceScene.Ward(member + 2), MarshesRetreadCityNpcsV1.Retread, retreadsAt[member], false);
+            if (approach)
+            {
+                scene.Names[MarshesDefenceScene.Approach] = MarshesTrappedV2.Approach;
+                scene.Sequences[MarshesTrappedV2.Approach] = new SceneSequenceDefinition();
+                scene.HiddenObjectiveIds = new() { MarshesTrappedV2.Near };
+            }
             for (var wave = 1; wave <= Waves.Length; wave++)
             {
                 scene.Names[MarshesDefenceScene.After(wave)] = Waves[wave - 1].After;

@@ -31,8 +31,9 @@ namespace Rasa.Services.Preloader.Missions.Marshes
     /// Reflective Legs 34: TaRapedia's four in order). World DB: the Marshes Thrax Soldier 531045 and Grenadier 531046.
     ///
     /// Reconstructed (ESTIMATE, MarshesDefenceScene as Trapped! 1052):
-    ///  - Shaw's stand-in (package 1012) and two AFS soldiers stand at the guard station from the accept, the public Shaw
-    ///    hidden from the player meanwhile; Shaw's talk (1) starts the defence.
+    ///  - Shaw's stand-in (package 1012) and two AFS soldiers stand at the guard station once the player comes within 40 m of
+    ///    Shaw (server-only hidden 4, its area, the scene's "approach"; to-fix 10: as Trapped!, nothing at the station can kill
+    ///    them while no player is near), the public Shaw hidden from the player meanwhile; Shaw's talk (1) starts the defence.
     ///  - Two waves of the Marshes Thrax, 10 s and 90 s after the talk, from the swamp east of the station: 2 soldiers and 2
     ///    grenadiers, then 2 and 2 with a Stalker (MarshesEastAndNorthNpcsV1's own row). They come on foot: no Bane dropship
     ///    brings them (the Marshes dropships are on their own branch, and no scene spawns by dropship).
@@ -49,8 +50,10 @@ namespace Rasa.Services.Preloader.Missions.Marshes
         public const uint Level = 33;
         public const uint Figgins = MarshesRetreadCityNpcsV1.Figgins;
         public const uint Meeko = MarshesEastAndNorthNpcsV1.Meeko;
-        public const uint Report = 1, Defend = 2, Speak = 3;
-        public const uint DefenceStarts = 1, Held = 2;   // scenarios: the start (its sequence), the outcome (its step 1)
+        public const uint Report = 1, Defend = 2, Speak = 3, Near = 4;
+        public const uint DefenceStarts = 1, Held = 2, Approach = 3;   // scenarios: the start (its sequence), the outcome (its step 1), the approach
+        public const uint ApproachArea = 1;
+        public const double ApproachRadius = 40;
         public const uint ShawPackage = MarshesEastAndNorthNpcsV1.ShawPackage, MeekoPackage = MarshesEastAndNorthNpcsV1.MeekoPackage;
         public const uint PublicShawPool = MarshesEastAndNorthNpcsV1.Shaw;
         public const uint Soldier = 531045, Grenadier = 531046, Stalker = MarshesEastAndNorthNpcsV1.Stalker;
@@ -83,10 +86,16 @@ namespace Rasa.Services.Preloader.Missions.Marshes
             mission.Reward(Experience, Credits, Rewards);
             mission.Scenario(DefenceStarts, "Shaw reported to: the Bane attack", 0);
             mission.Scenario(Held, "The guard station held", 1);
+            mission.Scenario(Approach, "The player near the station: Shaw's men stand", 0);
+            mission.Area(ApproachArea, MarshesMissionDataV1.MapContextId, ShawAt.X, ShawAt.Y, ShawAt.Z, ApproachRadius, 20);
 
             mission.Objective(Report, 5041, 7312, 0, MissionObjectiveState.Incomplete);
             mission.Objective(Defend, 5043, 7313, 1, MissionObjectiveState.Inactive);
             mission.Objective(Speak, 5044, 7314, 2, MissionObjectiveState.Inactive);
+            mission.Objective(Near, 5041, 7312, 3, MissionObjectiveState.Incomplete, required: false);   // hidden, server only
+            mission.Transition(Near);
+            mission.EnterArea(Near, ApproachArea);
+            mission.Action(Near, 1, MissionActionKind.StartScenario, scenario: Approach);
 
             mission.Transition(Report);
             mission.Conversation(Report, ShawPackage);
@@ -140,9 +149,12 @@ namespace Rasa.Services.Preloader.Missions.Marshes
                     [MarshesDefenceScene.Hold] = HoldMilliseconds,
                     [MarshesDefenceScene.Outcome] = Held,
                     [MarshesDefenceScene.Step] = 1,
-                    [MarshesDefenceScene.Hide] = PublicShawPool
-                }
+                    [MarshesDefenceScene.Hide] = PublicShawPool,
+                    [MarshesDefenceScene.Approach] = Approach
+                },
+                HiddenObjectiveIds = new() { Near }
             };
+            scene.Sequences[Approach] = new SceneSequenceDefinition();
             scene.Sequences[0] = new SceneSequenceDefinition();
             scene.Sequences[DefenceStarts] = new SceneSequenceDefinition();
             scene.Sequences[MarshesDefenceScene.HoldTimerSequence] = new SceneSequenceDefinition();

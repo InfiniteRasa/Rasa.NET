@@ -281,9 +281,16 @@ namespace Rasa.Test.Missions.Marshes
             Begin(harness, marshes, figgins, HeadEast);
             Assert.AreEqual(MissionObjectiveState.Inactive, Objective(harness, HeadEast, MarshesHeadEastV1.Defend), "2 hidden");
             Assert.AreEqual(MissionObjectiveState.Inactive, Objective(harness, HeadEast, MarshesHeadEastV1.Speak), "3 hidden");
+            // To-fix 10: no station men while no player is near, the public Shaw there.
+            for (var second = 0; second < 60; second++)
+                Tick(harness, marshes, 1000);
+            Assert.IsNull(SceneCreature(harness, marshes, HeadEast, MarshesDefenceScene.Leader), "no stand-in before the player comes near");
+            Assert.IsFalse(HiddenCreatures.IsHiddenFrom(publicShaw, harness.Client), "the public Shaw until then");
+            Approach(harness, marshes);
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, HeadEast, MarshesHeadEastV1.Near), "the hidden approach");
 
             var shaw = SceneCreature(harness, marshes, HeadEast, MarshesDefenceScene.Leader);
-            Assert.IsNotNull(shaw, "the stand-in stands from the accept");
+            Assert.IsNotNull(shaw, "the stand-in stands once the player is near");
             Assert.AreEqual((MarshesEastAndNorthNpcsV1.ShawStandIn, MarshesEastAndNorthNpcsV1.ShawName, MarshesEastAndNorthNpcsV1.ShawPackage),
                 (shaw.DbId, shaw.NameId, shaw.Npc?.NpcPackageId));
             Assert.IsLessThan(0.5f, Vector3.Distance(shaw.Position, ToVector(MarshesHeadEastV1.ShawAt)), "at Shaw's place");
@@ -377,6 +384,20 @@ namespace Rasa.Test.Missions.Marshes
                 System.Text.Json.JsonSerializer.Deserialize<MarshesDefenceScene.Checkpoint>(decision.Checkpoint).Phase;
             var meeko = $"ensure-{MarshesDefenceScene.AfterRole(1)}";
 
+            // To-fix 10: with an approach the scene waits; the approach stands the men; a start heard first stands them too.
+            var waiting = Handle("new", SceneEventKind.Started);
+            Assert.AreEqual("waiting", Phase(waiting));
+            Assert.IsEmpty(waiting.WorldIntents, "nobody stands before the approach");
+            Assert.IsEmpty(Handle("waiting", SceneEventKind.Recovered).WorldIntents, "nor at a recovery");
+            var near = Handle("waiting", SceneEventKind.Signal, MarshesHeadEastV1.Approach);
+            Assert.AreEqual("standing", Phase(near));
+            Assert.IsTrue(near.WorldIntents.Any(intent => intent is EnsureActorIntent { Role: MarshesDefenceScene.Leader }), "Shaw's stand-in stands");
+            Assert.IsTrue(near.WorldIntents.Any(intent => intent is HideSpawnPoolsIntent), "the public Shaw hidden");
+            var early = Handle("waiting", SceneEventKind.Signal, MarshesHeadEastV1.DefenceStarts);
+            Assert.AreEqual("defending", Phase(early));
+            Assert.IsTrue(early.WorldIntents.Any(intent => intent is EnsureActorIntent { Role: MarshesDefenceScene.Leader }), "the men stand at the start");
+            Assert.IsNotEmpty(early.Timers, "the waves are timed");
+
             var held = Handle("defending", SceneEventKind.TimerElapsed, MarshesDefenceScene.HoldTimerSequence);
             Assert.AreEqual(("after", SceneStatus.Running), (Phase(held), held.Status), "the scene runs on");
             Assert.AreEqual(1, held.WorldIntents.Count(intent => intent.OperationKey == meeko), "Meeko comes");
@@ -411,6 +432,14 @@ namespace Rasa.Test.Missions.Marshes
             Assert.AreEqual(("done", SceneStatus.Ended), (Phase(trapped), trapped.Status), "no after-actors: the scene ends (Trapped!)");
         }
 
+        /// <summary>The player 30 m west of Shaw, inside 920's approach (40 m): the station's men stand.</summary>
+        private static void Approach(WildernessRuntimeTestHarness harness, MapChannel marshes)
+        {
+            MarshesPreoDasTests.Enter(harness, ToVector(MarshesHeadEastV1.ShawAt) + new Vector3(-30, 0, 0));
+            Tick(harness, marshes, 250);
+            Tick(harness, marshes, 250);
+        }
+
         /// <summary>Shaw killed before his talk fails 1; abandoned, the station's men go and the public Shaw is back.</summary>
         [TestMethod]
         public void HeadEastFailsWithShawDeadAndCanBeAbandoned()
@@ -420,6 +449,7 @@ namespace Rasa.Test.Missions.Marshes
             var figgins = Npc(marshes, Figgins);
             var publicShaw = Npc(marshes, MarshesHeadEastV1.PublicShawPool);
             Begin(harness, marshes, figgins, HeadEast);
+            Approach(harness, marshes);
             var failed = Die(harness, marshes, SceneCreature(harness, marshes, HeadEast, MarshesDefenceScene.Leader));
             Assert.AreEqual(MissionObjectiveState.Failed, Objective(harness, HeadEast, MarshesHeadEastV1.Report), "lost before the report");
             Assert.AreEqual(MissionState.Failed, harness.Client.Player.Missions[HeadEast].State);
@@ -429,6 +459,7 @@ namespace Rasa.Test.Missions.Marshes
             Assert.IsTrue(harness.Manager.TryClear(harness.Client, HeadEast), "the failed mission cleared");
             Tick(harness, marshes, 250);
             Begin(harness, marshes, figgins, HeadEast);
+            Approach(harness, marshes);
             Assert.IsTrue(harness.Manager.TryAbandon(harness.Client, HeadEast), "abandoned with Shaw waiting");
             harness.Drain();
             Tick(harness, marshes, 250);
