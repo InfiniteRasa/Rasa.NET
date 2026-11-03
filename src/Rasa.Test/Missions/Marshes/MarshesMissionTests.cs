@@ -148,6 +148,7 @@ namespace Rasa.Test.Missions.Marshes
         private const string CoreOfTheMatterV2 = "20271104002100_Marshes_core_of_the_matter_v2";
         private const string NpcsStandStill = "20271104002200_Marshes_npcs_stand_still";
         private const string CleaningHouseV3 = "20271104002300_Marshes_cleaning_house_v3";
+        private const string QuestNpcsHold = "20271104002400_Marshes_quest_npcs_hold";
 
         /// <summary>
         /// The migration directly before <paramref name="migration"/> (IMigrationsAssembly, ordinal order), the target that
@@ -980,7 +981,7 @@ namespace Rasa.Test.Missions.Marshes
                 (1078, 1, 25, 270, 12), (1078, 2, -33, 390, 8), (1078, 3, -31, 396, 18),       // Myrquar, the Logos, the control room
                 (1078, 4, -320.8, -6.8, 8),                                                   // Toida
                 (1077, 1, -33, 390, 8), (1077, 2, -31, 396, 18), (1077, 3, -320.8, -6.8, 8),   // the Logos, the control room, Toida
-                (891, 1, 100.8, -236.8, 40), (891, 1, 138, -224.6, 8),                        // P'reo Das, Kirii
+                (891, 1, 100.8, -236.8, 40), (891, 1, 165, -228, 8),                          // P'reo Das, Kirii (to-fix 17)
                 (892, 1, 97, -227, 25), (892, 1, 239.2, 0.4, 15), (892, 1, 67, -254, 8),      // the fallen, Rakla
                 (894, 1, 25.2, 315.3, 50), (894, 8, 10, 330, 8), (894, 9, 37.2, 330.75, 8),       // the pumps
                 (894, 10, -19.49, 300.31, 8), (894, 11, 69.81, 299.78, 8),
@@ -1304,7 +1305,8 @@ namespace Rasa.Test.Missions.Marshes
             var full = (6, 10, 4, 12, 4, 17, 3);
 
             Assert.IsTrue(setFour.All(Has));
-            Assert.AreEqual(full, SetFour());
+            // At the head the quest NPCs have their stat rows too (Marshes_quest_npcs_hold, to-fix 17); up to the set again they have none.
+            Assert.AreEqual((6, 11, 4, 12, 4, 17, 3), SetFour());
             Assert.AreEqual(3, Kept());
 
             world.GetService<IMigrator>().Migrate(Previous(world, Regulator));
@@ -1351,8 +1353,8 @@ namespace Rasa.Test.Missions.Marshes
             var full = (7, 17, 11, 12, 3, 16, 2, 2);
 
             Assert.IsTrue(setFive.All(Has));
-            // At the head Dikah has his stat row too (Marshes_safe_ground, to-fix 4); up to set 5 again he has none.
-            Assert.AreEqual((7, 18, 11, 12, 3, 16, 2, 2), SetFive());
+            // At the head Dikah has his stat row too (Marshes_safe_ground, to-fix 4), and McDonald and Kiang theirs (Marshes_quest_npcs_hold, to-fix 17); up to set 5 again he has none.
+            Assert.AreEqual((7, 20, 11, 12, 3, 16, 2, 2), SetFive());
             Assert.AreEqual(4, Kept());
 
             world.GetService<IMigrator>().Migrate(Previous(world, SentryTower));
@@ -1493,7 +1495,8 @@ namespace Rasa.Test.Missions.Marshes
             var full = (6, 10, 11, 15, 4, 16, 6);
 
             Assert.IsTrue(setEight.All(Has));
-            Assert.AreEqual(full, SetEight());
+            // At the head the quest NPCs have their stat rows too (Marshes_quest_npcs_hold, to-fix 17); up to the set again they have none.
+            Assert.AreEqual((6, 12, 11, 15, 4, 16, 6), SetEight());
             Assert.AreEqual(6, Kept());
 
             world.GetService<IMigrator>().Migrate(Previous(world, GunControl));
@@ -1542,7 +1545,8 @@ namespace Rasa.Test.Missions.Marshes
             var full = (10, 40, 18, 12, 4, 16, 0);
 
             Assert.IsTrue(setNine.All(Has));
-            Assert.AreEqual(full, SetNine());
+            // At the head the quest NPCs have their stat rows too (Marshes_quest_npcs_hold, to-fix 17); up to the set again they have none.
+            Assert.AreEqual((10, 43, 18, 12, 4, 16, 0), SetNine());
             Assert.AreEqual(9, Kept());
             Assert.AreEqual(510163U, PricePackage(), "Price's own package");
             Assert.AreEqual(386U, world.NpcPackageEntries.AsNoTracking().Single(row => row.Id == 760334).PackageId, "Bruncke's");
@@ -1594,7 +1598,8 @@ namespace Rasa.Test.Missions.Marshes
             var full = (7, 30, 12, 12, 4, 16, 4);
 
             Assert.IsTrue(setTen.All(Has));
-            Assert.AreEqual(full, SetTen());
+            // At the head the quest NPCs have their stat rows too (Marshes_quest_npcs_hold, to-fix 17); up to the set again they have none.
+            Assert.AreEqual((7, 32, 12, 12, 4, 16, 4), SetTen());
             Assert.AreEqual(10, Kept());
 
             world.GetService<IMigrator>().Migrate(Previous(world, RetreadCity));
@@ -1643,7 +1648,8 @@ namespace Rasa.Test.Missions.Marshes
             var full = (11, 25, 12, 12, 4, 16, 3);
 
             Assert.IsTrue(setEleven.All(Has));
-            Assert.AreEqual(full, SetEleven());
+            // At the head the quest NPCs have their stat rows too (Marshes_quest_npcs_hold, to-fix 17); up to the set again they have none.
+            Assert.AreEqual((11, 27, 12, 12, 4, 16, 3), SetEleven());
             Assert.AreEqual((2, 1), Pads(), "the dome's pad, the exit's and the way out");
             Assert.AreEqual(5, Kept());
 
@@ -1701,7 +1707,8 @@ namespace Rasa.Test.Missions.Marshes
             var full = (12, 23, 17, 14, 12, 3, 13, 0);
 
             Assert.IsTrue(setTwelve.All(Has));
-            Assert.AreEqual(full, SetTwelve());
+            // At the head the quest NPCs have their stat rows too (Marshes_quest_npcs_hold, to-fix 17); up to the set again they have none.
+            Assert.AreEqual((12, 25, 17, 14, 12, 3, 13, 0), SetTwelve());
             Assert.AreEqual(10, Kept());
 
             world.GetService<IMigrator>().Migrate(Previous(world, EastAndNorth));
@@ -1752,7 +1759,8 @@ namespace Rasa.Test.Missions.Marshes
             var full = (14, 47, 4, 27, 15, 4, 19, 4);
 
             Assert.IsTrue(setThirteen.All(Has));
-            Assert.AreEqual(full, SetThirteen());
+            // At the head the quest NPCs have their stat rows too (Marshes_quest_npcs_hold, to-fix 17); up to the set again they have none.
+            Assert.AreEqual((14, 48, 4, 27, 15, 4, 19, 4), SetThirteen());
             Assert.AreEqual(10, Kept());
 
             world.GetService<IMigrator>().Migrate(Previous(world, LogosResearch));
@@ -1800,7 +1808,8 @@ namespace Rasa.Test.Missions.Marshes
             var full = (5, 5, 3, 12, 12, 4, 11, 2);
 
             Assert.IsTrue(setFourteen.All(Has));
-            Assert.AreEqual(full, SetFourteen());
+            // At the head the quest NPCs have their stat rows too (Marshes_quest_npcs_hold, to-fix 17); up to the set again they have none.
+            Assert.AreEqual((5, 7, 3, 12, 12, 4, 11, 2), SetFourteen());
             Assert.AreEqual(4, Kept());
 
             world.GetService<IMigrator>().Migrate(Previous(world, PreoDas));
@@ -1909,7 +1918,7 @@ namespace Rasa.Test.Missions.Marshes
         }
 
         /// <summary>
-        /// The playtest-fix migrations (to-fix 10, 13, 14, 15 and 16, 894's notes) roll back one by one to the rows the live server had, and come
+        /// The playtest-fix migrations (to-fix 10, 13, 14, 15, 16 and 17, 894's notes) roll back one by one to the rows the live server had, and come
         /// back: Marshes_playtest_fixes writes 664, 548, 718, 920, 893 and 1078 as sets 12-16 applied them (664's hidden tally
         /// 2, 548's block C marker at 728, no 718 hidden 8, no 920 approach, no choice flag on 893's and 1078's offers; the
         /// elder's marker as Marshes_safe_ground moved it);
@@ -1943,6 +1952,17 @@ namespace Rasa.Test.Missions.Marshes
                 Count($"SELECT COUNT(*) AS Value FROM npc_package WHERE id IN ({survivors})"),
                 Count($"SELECT COUNT(*) AS Value FROM mission_scene_binding WHERE mission_id = 894 AND content_revision = '{revision}' AND bindings LIKE '%760383%'"));
             Assert.AreEqual((3, 3, 1), Survivors(), "to-fix 16");
+            var hold = string.Join(", ", MarshesQuestNpcsHoldV1.Hold.Select(npc => npc.Creature));
+            int Kirii(double x) => Count($"SELECT COUNT(*) AS Value FROM spawnpool WHERE id = {MarshesPreoDasVillageNpcsV1.Kirii} AND CAST(pos_x AS INTEGER) = {(int)x}") +
+                Count($"SELECT COUNT(*) AS Value FROM mission_indicator WHERE mission_id = 891 AND objective_id = 1 AND content_revision = '{revision}' AND CAST(pos_x AS INTEGER) = {(int)x}");
+            (int, int, int) Hold() => (Count($"SELECT COUNT(*) AS Value FROM creature_stat WHERE id IN ({hold}) AND health = 4500 AND armor = 300"),
+                Count($"SELECT COUNT(*) AS Value FROM creature WHERE id IN ({hold}) AND max_hp = 4500"), Kirii(MarshesQuestNpcsHoldV1.KiriiAt.X));
+            Assert.AreEqual((33, 33, 2), Hold(), "to-fix 17");
+            migrator.Migrate(Previous(world, QuestNpcsHold));
+            Assert.AreEqual((0, 0, 0), Hold(), "no stat rows, Kirii at the 2200 place as applied");
+            Assert.AreEqual(2, Kirii(MarshesQuestNpcsHoldV1.KiriiBefore.X), "Kirii and his marker at the 2200 place");
+            Assert.AreEqual(1, Count($"SELECT COUNT(*) AS Value FROM creature WHERE id = {MarshesGunControlNpcsV1.Masai} AND max_hp = 400"), "Masai's own max_hp back");
+            Assert.AreEqual((3, 3, 1), Survivors(), "to-fix 16 stays");
             migrator.Migrate(Previous(world, CleaningHouseV3));
             Assert.AreEqual((0, 0, 0), Survivors(), "894's survivors on the prisoners' rows as applied");
             Assert.AreEqual((50, 1), (PumpsRadius(), FollowTimers()), "894 V2 under V3");
@@ -1972,6 +1992,8 @@ namespace Rasa.Test.Missions.Marshes
             migrator.Migrate(CleaningHouseV3);
             Assert.AreEqual((3, 3, 1), Survivors(), "to-fix 16 back");
             Assert.AreEqual((50, 1), (PumpsRadius(), FollowTimers()), "894 V3 back");
+            migrator.Migrate(QuestNpcsHold);
+            Assert.AreEqual((33, 33, 2), Hold(), "to-fix 17 back");
         }
 
         /// <summary>

@@ -110,7 +110,7 @@ Marshes at 755.1, 215.6, 727.7, arrival -138.5, 63, -360); its missions are boun
 
 Set 15, P'reo Das (part 2) (migration `20271104001400_Marshes_preo_das_village`), in the same squad instance 1743.
 
-- [ ] 891 Never Surrender (Valverde Marshes): Forean Warrior Tola (new, by the arrival -115.2, 61.1, -352) offers it, no requirement, level 35. Walk into P'reo Das (30 m round 100.8, 57.8, -236.8): the Bane attack, your own Thrax from the village's north edge, 4 at once, 5 after 40 s, 6 after 80 s, each attacking you. Kill all 15: 1 done. No fail. Markers round P'reo Das and at Kirii. Turn in at Forean Elder Kirii (new, P'reo Das 132, 57.8, -235, clear of the Grubber pool, to-fix 4): 130000 XP, 7000 credits, one of 3 Class VII Standard Med Pack, 2 Advanced Med Pack, 3 Incendiary Grenade, 3 EMP Grenade. Do the waves find you from the north edge? Do they come down into the village?
+- [ ] 891 Never Surrender (Valverde Marshes): Forean Warrior Tola (new, by the arrival -115.2, 61.1, -352) offers it, no requirement, level 35. Walk into P'reo Das (30 m round 100.8, 57.8, -236.8): the Bane attack, your own Thrax from the village's north edge, 4 at once, 5 after 40 s, 6 after 80 s, each attacking you. Kill all 15: 1 done. No fail. Markers round P'reo Das and at Kirii. Turn in at Forean Elder Kirii (new, P'reo Das 165, 55.2, -228, clear of the Grubber pool and 22 m from the waves' spawns and ways, to-fix 4, 15, 17): 130000 XP, 7000 credits, one of 3 Class VII Standard Med Pack, 2 Advanced Med Pack, 3 Incendiary Grenade, 3 EMP Grenade. Do the waves find you from the north edge? Do they come down into the village?
 - [ ] 892 Picking Up the Pieces (Valverde Marshes): Forean Shaman Rakla (new, P'reo Das 75, 59, -254, clear of the Grubber pool, to-fix 4) offers it, no requirement, level 35. Six of your own Forean Warrior Corpses (21478), each with a Knapsack (11096, argument 3): four in P'reo Das (84/-223, 120/-224, 80/-244, 105/-215), two in Ra'a Das (231/-8, 247/9). Each knapsack gives one Forean Relic (111319) once; objective 1 shows the relics held (n/6); six: 1 done. Turn in at Rakla: she takes the relics; 60000 XP, 5250 credits, one of the client's block 96333-96336 (Propellant Gun Fire, Staff Ice, Net Gun Ice, Leech Gun Virulent, Rare). Does the knapsack show on the corpse? Does the n/6 counter show?
 - [ ] 894 Cleaning House (Valverde Marshes): Kirii offers it after 891, level 35, and gives you 4 Forean Explosive Devices (45450). A freed prisoner sets off 3 s after his talk (ESTIMATE), and 1's marker (r50) holds all four pumps. Four of your own Toxic Waste Pumps (21007) on the ground before Central Operations (10/330, 37.2/330.8, -19.5/300.3, 69.8/299.8), each with a Detonation Device (7334, argument 1) beside it: a use takes one explosive and blows its pump (8-11; 1 counts "Pumps Destroyed" 4). At Ra'a Das (245, 56.3, 0), E'bae Das (60, 55.8, -120) and He'kal Das (140, 66.1, 12) a Forean Prisoner (new, the client's packages 1158, 1159, 1160) and two of your own Thrax guards; a little apart one more prisoner of the same package (the optional survivor, his own row: 256.8/19.2, 90/-125, 151.2/15.6); each offers only his own talk. A prisoner's talk ("I will come with you"): his camp done (2, 3, 13), he follows you; 6 counts "Forean Camps Freed" 3. A survivor's talk: 14-16 (optional), he follows too. The three camps open 12: walk into the arrival (15 m round Tola): 12 done. Turn in at Tola: the followers go; 130000 XP, 7000 credits, one of Sonic Torqueshell Rifle 49652, Laser Pistol 14487, Electric Chaingun 15105, Sonic Rocket Launcher 49168. Can the acceptor be targeted beside the pump (TaRapedia's 2007 bug)? Does the pump show as blown? Do the prisoners keep up?
 
@@ -278,6 +278,11 @@ Per mission:
   givers) and at least 20 m (an 18 m aggro range and 2 m) outside every hostile pool's circle. Moved: Dikah (-514, -153),
   Qunle (82, -204), the Forean Elder (127, -35), Kirii (138, -224.6), Rakla (67, -254), and 1052's crew 8 m west and 4 m
   south (Samuel's stand-in at 188.4, -673.1) (ESTIMATE places, navmesh probe).
+- Quest NPCs' hit points (to-fix 17, migration `20271104002400_Marshes_quest_npcs_hold`): 891's own Grenadier killed Kirii
+  (100 hit points) with an area attack. Each friendly or neutral Marshes pool NPC of ours without a creature_stat row (33)
+  now has Dikah's (4500 hit points, armour 300; ESTIMATE, the retail values are not known). Kirii moved to (165, -228),
+  at least 22 m from every 891 wave spawn and from each spawn's way to the village's centre (navmesh probe). Still in a
+  fight's path, with the hit points only: Qunle (891), Delaio and Shaw (920), Karl and Foster (the arena), Ortega (664).
 - 1052 and 920 (to-fix 10): the crew stands only when the player comes within 40 m (a server-only hidden objective and
   its area), so nothing at the spot kills it while no player is near (the engine cannot change an actor's policy to
   invulnerable until the talk); one 1052 Retread moved to (198, -678), 19 m outside Thrax pool 531291's circle.
@@ -342,8 +347,8 @@ Per mission:
   public quest giver alive, so Dikah (1875), Qunle, the Forean Elder, Kirii and Rakla moved to the nearest walked-to spot
   at least 16 m outside every hostile pool's circle (navmesh probe 2026-11-03; ESTIMATE places, markers moved with them).
   Dikah has upstream Ranger Anjuhi's stats (4500 hit points, armour 300): without a creature_stat row the server gives an
-  NPC 100 hit points (the creature row's max_hp is not read). The other Marshes NPCs copied from upstream rows without
-  stats keep 100 hit points, as the upstream givers.
+  NPC 100 hit points (the creature row's max_hp is not read). Since to-fix 17 all our Marshes pool NPCs have a stat row;
+  the upstream givers keep 100 hit points.
 - Sets 1-4 rewards (migration `20271104001600_Marshes_reward_blocks`): 541, 498, 539, 917, 1673, 968 and 1029 take the
   client's per-mission template block whose four kinds and levels are the mission's (as sets 5+); 968's block has the staff
   before the shotgun and the Area healing disc (TaRapedia's "Conical"). No block: 881 (no block holds its four kinds), 890,

@@ -136,8 +136,9 @@ namespace Rasa.Test.Missions.Marshes
         {
             using var harness = WildernessRuntimeTestHarness.Create();
             var ruins = MarshesPreoDasTests.IntoRuins(harness);
-            foreach (var (pool, before, now) in MarshesNpcsStandStillV1.Moves.Where(move => move.Pool != MarshesSentryTowerNpcsV1.Dikah))
+            foreach (var (pool, before, standStill) in MarshesNpcsStandStillV1.Moves.Where(move => move.Pool != MarshesSentryTowerNpcsV1.Dikah))
             {
+                var now = Now(pool);
                 // The pool's place (the squad copy outlives a test: its NPC may have been walked by an earlier one).
                 var place = SpawnPoolManager.Instance.LoadedSpawnPools[pool].Position;
                 Assert.IsLessThan(0.1f, Vector3.Distance(MarshesPreoDasTests.ToVector(now), place), $"{pool}'s pool at {place}");
@@ -149,9 +150,71 @@ namespace Rasa.Test.Missions.Marshes
             {
                 var row = harness.World.MissionIndicatorEntries.Single(entry => entry.MissionId == marker.Mission &&
                     entry.ObjectiveId == marker.Objective && entry.IndicatorId == marker.Indicator);
-                var at = MarshesNpcsStandStillV1.At(marker.Pool);
+                var at = Now(marker.Pool);
                 Assert.AreEqual((at.X, at.Z), (row.PosX, row.PosZ), $"{marker.Mission}'s marker at its NPC");
             }
+        }
+
+        /// <summary>Where a moved Village Ruins NPC stands now: Kirii at the to-fix 17 place, the others at the to-fix 15 one.</summary>
+        private static (double X, double Y, double Z) Now(uint pool) => pool == MarshesPreoDasVillageNpcsV1.Kirii
+            ? MarshesQuestNpcsHoldV1.KiriiAt : MarshesNpcsStandStillV1.At(pool);
+
+        /// <summary>
+        /// To-fix row 17: an area attack of 891's own Grenadier killed Kirii (100 hit points). Why this test: every friendly or
+        /// neutral Marshes pool NPC (760300-760399) has a creature_stat row, so none plays with the server's default 100 hit
+        /// points; the ones this fix gave one have 4500 and armour 300 (Dikah's, row 4).
+        /// </summary>
+        [TestMethod]
+        public void EveryMarshesQuestNpcHasItsOwnHitPoints()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var stats = harness.World.Database.SqlQueryRaw<StatRow>("SELECT id AS Id, health AS Health, armor AS Armor FROM creature_stat WHERE id BETWEEN 760300 AND 760399")
+                .AsEnumerable().ToDictionary(row => (uint)row.Id);
+            var npcs = SpawnPoolManager.Instance.LoadedSpawnPools.Values.Where(pool => pool.DbId is >= 760300 and <= 760399)
+                .SelectMany(pool => pool.SpawnSlot).Select(slot => slot.CreatureId).Distinct()
+                .Where(creature => CreatureManager.Instance.LoadedCreatures.TryGetValue(creature, out var c) && c.TargetCategory != TargetCategory.Hostile)
+                .ToList();
+            Assert.IsGreaterThan(30, npcs.Count, "the Marshes pool NPCs are read");
+            foreach (var npc in npcs)
+                Assert.IsTrue(stats.ContainsKey(npc), $"{npc} has a creature_stat row");
+            foreach (var (creature, _) in MarshesQuestNpcsHoldV1.Hold)
+                Assert.AreEqual(((int)MarshesQuestNpcsHoldV1.HitPoints, (int)MarshesQuestNpcsHoldV1.Armor), (stats[creature].Health, stats[creature].Armor), $"{creature}");
+        }
+
+        private sealed class StatRow
+        {
+            public int Id { get; set; }
+            public int Health { get; set; }
+            public int Armor { get; set; }
+        }
+
+        /// <summary>
+        /// To-fix row 17: Kirii stood 18 m from a wave spawn and 12-14 m from the waves' way into P'reo Das. Why this test: 891's
+        /// receiver stands FightClearance (22 m) from every wave's spawn and from each spawn's straight way to the village's
+        /// centre, and plays with 4500 hit points in the squad's copy.
+        /// </summary>
+        [TestMethod]
+        public void KiriiStandsClearOfNeverSurrendersWavesAndHolds()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var ruins = MarshesPreoDasTests.IntoRuins(harness);
+            var place = SpawnPoolManager.Instance.LoadedSpawnPools[MarshesPreoDasVillageNpcsV1.Kirii].Position;
+            var kirii = new Vector2(place.X, place.Z);
+            var village = new Vector2((float)MarshesNeverSurrenderV1.VillageAt.X, (float)MarshesNeverSurrenderV1.VillageAt.Z);
+            foreach (var (_, members) in MarshesNeverSurrenderV1.Waves)
+                foreach (var (_, at) in members)
+                {
+                    var spawn = new Vector2(at.X, at.Z);
+                    Assert.IsGreaterThanOrEqualTo(MarshesQuestNpcsHoldV1.FightClearance, Vector2.Distance(kirii, spawn), $"spawn {spawn}");
+                    var way = village - spawn;
+                    var t = System.Math.Clamp(Vector2.Dot(kirii - spawn, way) / way.LengthSquared(), 0f, 1f);
+                    Assert.IsGreaterThanOrEqualTo(MarshesQuestNpcsHoldV1.FightClearance, Vector2.Distance(kirii, spawn + t * way), $"the way from {spawn}");
+                }
+            for (var second = 0; second < 5; second++)
+                SpawnPoolManager.Instance.SpawnPoolWorker(ruins, 1000);
+            var npc = Npc(ruins, MarshesPreoDasVillageNpcsV1.Kirii);
+            Assert.IsNotNull(npc, "Kirii stands");
+            Assert.AreEqual((int)MarshesQuestNpcsHoldV1.HitPoints, npc.Attributes[Attributes.Health].NormalMax, "max hit points in play");
         }
     }
 }
