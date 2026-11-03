@@ -23,7 +23,8 @@ namespace Rasa.Managers
     ///    The Predator's class names the effect as its targetGameEffect on TARGET_SELF, so a
     ///    recovery listing the Predator itself announces it; the Howler's names none, so its
     ///    effect is announced as it attaches. HowlerDeathEffect has removeTarget: the client takes
-    ///    the Howler away when it goes off - there is no corpse to loot.
+    ///    the Howler away when it goes off - there is no corpse to loot, so the server gives the
+    ///    body up on its next think and its loot is left on a gibblet at once (Explode).
     ///  - Self-destruct (FithikSelfDestructAbility 180): a Fithik brought down to
     ///    SelfDestructHealthPercent of its health stops, winds up (4.3 s, the client's own
     ///    animation), and blows up: a recovery of the action with every player within
@@ -787,6 +788,12 @@ namespace Rasa.Managers
 
             CellManager.Instance.CellCallMethod(mapChannel, holder, blast);
             GameEffectManager.Instance.DettachEffect(mapChannel, holder, bomb.Effect);
+
+            // HowlerDeathEffect has removeTarget: the clients take the Howler away with the blast.
+            // The server gives the body up too, on the deletion path that leaves its loot on a
+            // gibblet (BehaviorManager.CreatureThink, LootDispenserManager.LeaveGibblet).
+            if (bomb.Effect.TypeId == HowlerDeathTypeId && holder is Creature body && body.Controller != null)
+                body.Controller.DeadTime = long.MaxValue / 2;
         }
 
         /// <summary>A death blast: the action's recovery on the dead creature, a hit on everyone around it.</summary>

@@ -36,6 +36,7 @@ namespace Rasa.Test.World
 
                 Kill(world, howler);
                 Assert.IsTrue(howler.ActiveEffects.Values.Any(CreatureBombs.IsDeathBomb), "the bomb on the body");
+                Assert.IsTrue(howler.Controller.DeadTime < long.MaxValue / 2, "the body still there before the blast");
 
                 // The effect worker's pass comes before the bombs' this tick.
                 GameEffectManager.Instance.DoWork(world.Map, 500);
@@ -43,6 +44,12 @@ namespace Rasa.Test.World
 
                 Assert.IsTrue(victim.Player.Attributes[Attributes.Health].Current < 1000, "the blast landed");
                 Assert.IsFalse(howler.ActiveEffects.Values.Any(CreatureBombs.IsDeathBomb), "and the bomb is spent");
+                Assert.IsTrue(howler.Controller.DeadTime >= long.MaxValue / 2, "the clients took the body away with it (removeTarget): the server gives it up too");
+
+                // On its next think the corpse is gone, by the path that leaves its loot on a
+                // gibblet (GibbletTests.ACorpseWhoseTimeIsUpLeavesAGibbletAsItGoes).
+                BehaviorManager.Instance.MapChannelThink(world.Map, 250);
+                Assert.IsFalse(world.Map.MapCellInfo.Cells.Values.Any(cell => cell.CreatureList.Contains(howler)), "the body given up");
             }
         }
 
@@ -74,6 +81,7 @@ namespace Rasa.Test.World
                 GameEffectManager.Instance.DoWork(world.Map, 1000);
 
                 Assert.AreEqual(0, predator.ActiveEffects.Count);
+                Assert.IsTrue(predator.Controller.DeadTime < long.MaxValue / 2, "a Predator's wreck stays");
             }
         }
 
