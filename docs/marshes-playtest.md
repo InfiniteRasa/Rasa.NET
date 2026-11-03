@@ -108,6 +108,12 @@ Marshes at 755.1, 215.6, 727.7, arrival -138.5, 63, -360); its missions are boun
 - [ ] 1078 The Choices We Make (Valverde Marshes): Headquarters offers it by radio after 1076 (as 893), not once 893 is done, level 33. Your own Operation Master Myrquar (new, level 38, 12375 HP) and four Thrax Soldiers south of the landing pads (25, 59.7, 270); kill him within 25 minutes of the accept: 1 done, the Level 1 Security Clearance Pass (45453; it opens nothing); a held 893 fails (the choice is made at his death). After 25 minutes he and his guards go, 1 and the mission fail. Take the Disperse Logos in the control room (-33, 65.5, 390; one you have counts): 2 done; three pieces of Bane lab equipment (20595, 100 HP) and a Bane crate (11116, argument 3) stand round it: destroy the three and take the Concentrated Toxin Sample (117028) from the crate, any order: 3 done. Talk to Elder Toida (Paludos): she takes the sample, 4 done. Markers at Myrquar, the Logos, the client's "Bane Equipment" round the control room (18 m), Toida. Turn in at Toida: 65000 XP (ESTIMATE), 7000 credits, one of Electric Torqueshell Rifle 49572, Photonic Blade 47668, Pulse Cannon 17681, Cryogenic Leech Gun 47764. Is Myrquar in reach of the landing pads' approach? Is the Logos usable on its console?
 - [ ] 1077 Dirty Secrets (Valverde Marshes): Forean Elder Qunle (new, at P'reo Das 95, 58.1, -230) offers it, no requirement, level 35, and gives you the Level 1 Security Clearance Pass. The Disperse Logos (1; one you have counts at once) and your own lab in the control room (2: three pieces of equipment at -22/386, -40/386, -34/412 and the crate at -28, 64, 412, apart from 1078's), any order; 2 opens 3: Toida takes the sample. Markers at the Logos, "Bane Equipment", Toida. Turn in at Toida: 35000 XP (ESTIMATE), 1750 credits, no item. With 1078 held too, do both labs read apart?
 
+Set 15, P'reo Das (part 2) (migration `20271104001400_Marshes_preo_das_village`), in the same squad instance 1743.
+
+- [ ] 891 Never Surrender (Valverde Marshes): Forean Warrior Tola (new, by the arrival -115.2, 61.1, -352) offers it, no requirement, level 35. Walk into P'reo Das (30 m round 100.8, 57.8, -236.8): the Bane attack, your own Thrax from the village's north edge, 4 at once, 5 after 40 s, 6 after 80 s, each attacking you. Kill all 15: 1 done. No fail. Markers round P'reo Das and at Kirii. Turn in at Forean Elder Kirii (new, P'reo Das 106, 58.9, -242): 130000 XP, 7000 credits, one of 3 Class VII Standard Med Pack, 2 Advanced Med Pack, 3 Incendiary Grenade, 3 EMP Grenade. Do the waves find you from the north edge? Do they come down into the village?
+- [ ] 892 Picking Up the Pieces (Valverde Marshes): Forean Shaman Rakla (new, P'reo Das 90, 57.2, -244) offers it, no requirement, level 35. Six of your own Forean Warrior Corpses (21478), each with a Knapsack (11096, argument 3): four in P'reo Das (84/-223, 120/-224, 80/-244, 105/-215), two in Ra'a Das (231/-8, 247/9). Each knapsack gives one Forean Relic (111319) once; objective 1 shows the relics held (n/6); six: 1 done. Turn in at Rakla: she takes the relics; 60000 XP, 5250 credits, one of the client's block 96333-96336 (Propellant Gun Fire, Staff Ice, Net Gun Ice, Leech Gun Virulent, Rare). Does the knapsack show on the corpse? Does the n/6 counter show?
+- [ ] 894 Cleaning House (Valverde Marshes): Kirii offers it after 891, level 35, and gives you 4 Forean Explosive Devices (45450). Four of your own Toxic Waste Pumps (21007) on the ground before Central Operations (10/330, 37.2/330.8, -19.5/300.3, 69.8/299.8), each with a Detonation Device (7334, argument 1) beside it: a use takes one explosive and blows its pump (8-11; 1 counts "Pumps Destroyed" 4). At Ra'a Das (245, 56.3, 0), E'bae Das (60, 55.8, -120) and He'kal Das (140, 66.1, 12) a Forean Prisoner (new, the client's packages 1158, 1159, 1160) and two of your own Thrax guards; a little apart one more prisoner of the same package (the optional survivor: 256.8/19.2, 90/-125, 151.2/15.6). A prisoner's talk ("I will come with you"): his camp done (2, 3, 13), he follows you; 6 counts "Forean Camps Freed" 3. A survivor's talk: 14-16 (optional), he follows too. The three camps open 12: walk into the arrival (15 m round Tola): 12 done. Turn in at Tola: the followers go; 130000 XP, 7000 credits, one of Sonic Torqueshell Rifle 49652, Laser Pistol 14487, Electric Chaingun 15105, Sonic Rocket Launcher 49168. Can the acceptor be targeted beside the pump (TaRapedia's 2007 bug)? Does the pump show as blown? Do the prisoners keep up?
+
 ## Assumptions and choices (not from a source)
 
 Rules carried over from the Pools batch (`docs/pools-playtest.md`):
@@ -303,6 +309,21 @@ Per mission:
 - 1077: Qunle's key at the accept (the client's offer text; TaRapedia's bug note says he does not give it: the triage's
   conflict 7); the receiver Toida in Paludos (the client's objective; TaRapedia says P'reo Das: conflict 6); 1078's lab at
   other places; XP 35000, no item (TaRapedia gives credits only).
+- Set 15 NPCs (ids 760376-760381): Tola a copy of Veska's row and look (the spear), Kirii of Toida's, Rakla of Siva's
+  (the staff), level 35, friendly, server-only packages (their ids), public in the Village Ruins: Tola on the walked-to
+  ground by the arrival, Kirii and Rakla at P'reo Das beside Qunle. The three Forean Prisoners copies of the Torcastra
+  prisoner's row (no weapon, no attack: the patch notes' unarmed prisoners) at level 35, neutral (as 542's prisoner
+  leader), one row a camp with the client's package; scene actors only. No teleporter. Next free id 760382, next free
+  teleporter id 909.
+- 891: the attack starts on walking into P'reo Das (30 m); three waves of 4, 5 and 6 (the triage's sizes) at 0, 40 and
+  80 s from the village's north edge (the walkthrough's "north"); the Marshes Thrax Soldier and Grenadier; no fail.
+- 892: six corpses (TaRapedia's "at least 4" and "at least 2"), one relic each, six to finish (the triage's Q12/14); the
+  knapsack on the corpse as 917's Helka; the item block 96333-96336 (the client's block of TaRapedia's four, in order).
+- 894: the "something that should aid you" the instance's own bomb item, Forean Explosive Device, four; the pumps the
+  client's Toxic Waste Pump with 913's Detonation Device beside each (TaRapedia's "detonator acceptors"); their places
+  before Central Operations' entrance (the triage's "round Central Operations": the building's other sides are off the
+  navmesh); the camps' places by their huts; two guards a camp; the E'bae Das camp at the hut and platforms round
+  (60, -120) (no map_region row names it); the weapons the band rule for level 35 (no client block holds the four).
 - 546: six room Thrax, waves of 4 at 10/50/90 s, a 120 s hack (no source gives counts or times); the item block 120017-120020
   (the client block nearest TaRapedia's four, ESTIMATE).
 - 548: the keypass is given at the Commander's death (TR MMO DB "from a boss in the control room"), not a loot drop; two
@@ -426,6 +447,13 @@ Per mission:
   (a failed 1078 takes Myrquar's key from 1077) is not built: 1077's key is Qunle's.
 - 1078: Myrquar's leaving is a scene timer of the deadline's length beside the objective's own deadline (the deadline's
   failure does not take the scene's actors away; 893's signal starts 1078's ShipsOut sequence, which does).
+- 894: each camp's prisoner and survivor share the client's package (objectiveconversation 894,2 and 14 are both 1158, and
+  so on), so either one offers both of the camp's talks; each talk sets its own NPC following. 12 checks the player at the
+  arrival, not the prisoners (as Pools 1136's return); a prisoner's death fails nothing. The prisoners follow until the
+  turn-in, which takes them away. The client's older "0/4" rescue count (TaRapedia history) is not built: the client
+  1.16.5 counter is "Forean Camps Freed" over three camps.
+- 891: the waves come on timers, not when the previous one is dead; the Thrax attack the player, not Tola's village or
+  Kirii (no village NPC fights).
 - Client use not seen in game (ESTIMATE): the bomb crate 21568 with argument 3, the dispenser 11116 in the facility, the
   extraction drone 11255's states 110 and 2.
   916 and 1033 also need 914 completed, and either choice overwrites it, so a left-over flag offers nothing.
