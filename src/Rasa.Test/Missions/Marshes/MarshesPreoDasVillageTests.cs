@@ -19,7 +19,7 @@ namespace Rasa.Test.Missions.Marshes
     using N = MarshesPreoDasVillageNpcsV1;
     using S = MarshesNeverSurrenderV1;
     using P = MarshesPickingUpThePiecesV1;
-    using H = MarshesCleaningHouseV1;
+    using H = MarshesCleaningHouseV2;
 
     /// <summary>
     /// Marshes set 15, P'reo Das (part 2) in the Village Ruins (squad instance 1743), played through as a player plays it:
@@ -385,6 +385,13 @@ namespace Rasa.Test.Missions.Marshes
             Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Cleaning, objective));
             Assert.IsFalse(harness.Manager.CompleteOfferedObjective(harness.Client, npc.EntityId, Cleaning, objective, 1), "and only once");
             harness.Drain();
+            // Playtest note (b): he sets off a moment after the talk, so the talk window (closed by the client beyond about
+            // 5 m) stays open while the player reads.
+            Tick(harness, copy, 1000);
+            Assert.AreNotEqual(harness.Client.Player.Id, npc.SpawnPool.FollowOwnerCharacterId, $"894.{objective}: not yet following");
+            Assert.IsLessThan(5f, Vector3.Distance(npc.Position, harness.Client.Player.Position), $"894.{objective}: within talk reach");
+            for (var second = 0; second < H.FollowDelayMilliseconds / 1000 + 1; second++)
+                Tick(harness, copy, 1000);
         }
 
         /// <summary>A player's weapon hit on the NPC does no damage (an invulnerable scene actor).</summary>

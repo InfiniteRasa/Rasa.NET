@@ -71,7 +71,7 @@ namespace Rasa.Test.Missions.Marshes
             MarshesFreedomsJustAnotherWordV2.MissionId, MarshesLeggoMyLogosV1.MissionId, MarshesSlayOnTargetV2.MissionId,
             MarshesSubterraneanChamberV1.MissionId, MarshesTheLostOnesV1.MissionId, MarshesNeedleInABaneCampV2.MissionId,
             MarshesTheChoicesWeMakeV2.MissionId, MarshesDirtySecretsV1.MissionId, MarshesNeverSurrenderV1.MissionId,
-            MarshesPickingUpThePiecesV1.MissionId, MarshesCleaningHouseV1.MissionId, MarshesSurvivorsV2.MissionId,
+            MarshesPickingUpThePiecesV1.MissionId, MarshesCleaningHouseV2.MissionId, MarshesSurvivorsV2.MissionId,
             MarshesBeinvenidosDelVoroV1.MissionId, MarshesInsertionPointV1.MissionId
         };
 
@@ -144,6 +144,7 @@ namespace Rasa.Test.Missions.Marshes
         private const string SafeGround = "20271104001700_Marshes_safe_ground";
         private const string TrappedApproach = "20271104001800_Marshes_trapped_approach";
         private const string PlaytestFixes = "20271104001900_Marshes_playtest_fixes";
+        private const string CleaningHouseV2 = "20271104002000_Marshes_cleaning_house_v2";
 
         /// <summary>
         /// The migration directly before <paramref name="migration"/> (IMigrationsAssembly, ordinal order), the target that
@@ -978,7 +979,7 @@ namespace Rasa.Test.Missions.Marshes
                 (1077, 1, -33, 390, 8), (1077, 2, -31, 396, 18), (1077, 3, -320.8, -6.8, 8),   // the Logos, the control room, Toida
                 (891, 1, 100.8, -236.8, 40), (891, 1, 132, -235, 8),                          // P'reo Das, Kirii
                 (892, 1, 97, -227, 25), (892, 1, 239.2, 0.4, 15), (892, 1, 75, -254, 8),      // the fallen, Rakla
-                (894, 1, 25, 315, 35), (894, 8, 10, 330, 8), (894, 9, 37.2, 330.75, 8),       // the pumps
+                (894, 1, 25.2, 315.3, 50), (894, 8, 10, 330, 8), (894, 9, 37.2, 330.75, 8),       // the pumps
                 (894, 10, -19.49, 300.31, 8), (894, 11, 69.81, 299.78, 8),
                 (894, 6, 250, 8, 15), (894, 6, 75, -122, 15), (894, 6, 145, 14, 15),          // the camps
                 (894, 2, 245, 0, 8), (894, 14, 256.8, 19.15, 8), (894, 3, 60, -120, 8),       // the prisoners and survivors
@@ -1904,7 +1905,7 @@ namespace Rasa.Test.Missions.Marshes
         }
 
         /// <summary>
-        /// The playtest-fix migrations (to-fix 10 and 13) roll back one by one to the rows the live server had, and come
+        /// The playtest-fix migrations (to-fix 10 and 13, 894's notes) roll back one by one to the rows the live server had, and come
         /// back: Marshes_playtest_fixes writes 664, 548, 718, 920, 893 and 1078 as sets 12-16 applied them (664's hidden tally
         /// 2, 548's block C marker at 728, no 718 hidden 8, no 920 approach, no choice flag on 893's and 1078's offers; the
         /// elder's marker as Marshes_safe_ground moved it);
@@ -1925,7 +1926,13 @@ namespace Rasa.Test.Missions.Marshes
                 Objective(920, 4), ChoiceFlag(), ElderMarkerX());
             var migrator = world.GetService<IMigrator>();
 
+            int PumpsRadius() => Count($"SELECT CAST(radius AS INTEGER) AS Value FROM mission_indicator WHERE mission_id = 894 AND objective_id = 1 AND content_revision = '{revision}'");
+            int FollowTimers() => Count($"SELECT COUNT(*) AS Value FROM mission_scene_binding WHERE mission_id = 894 AND content_revision = '{revision}' AND bindings LIKE '%sets-off%'");
             Assert.AreEqual((0, 744, 1, 1, 1, 2, 127), Fixes(), "head");
+            Assert.AreEqual((50, 1), (PumpsRadius(), FollowTimers()), "894 V2");
+            migrator.Migrate(Previous(world, CleaningHouseV2));
+            Assert.AreEqual((35, 0), (PumpsRadius(), FollowTimers()), "894 as applied");
+            Assert.AreEqual((0, 744, 1, 1, 1, 2, 127), Fixes());
             migrator.Migrate(Previous(world, PlaytestFixes));
             Assert.AreEqual((1, 728, 0, 1, 0, 0, 127), Fixes(), "664, 548, 718, 920, 893 and 1078 as applied (the elder's marker moved)");
             migrator.Migrate(Previous(world, TrappedApproach));
@@ -1933,8 +1940,9 @@ namespace Rasa.Test.Missions.Marshes
             Assert.AreEqual(1, Count($"SELECT COUNT(*) AS Value FROM mission_scene_binding WHERE mission_id = 1052 AND content_revision = '{revision}' AND bindings LIKE '%-672%'"),
                 "the Retread at its first place");
 
-            migrator.Migrate(PlaytestFixes);
+            migrator.Migrate(CleaningHouseV2);
             Assert.AreEqual((0, 744, 1, 1, 1, 2, 127), Fixes(), "all back");
+            Assert.AreEqual((50, 1), (PumpsRadius(), FollowTimers()), "894 V2 back");
         }
 
         /// <summary>

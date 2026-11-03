@@ -3,9 +3,9 @@ using System.Linq;
 using System.Numerics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Rasa.Missions.Content;
 using Rasa.Data;
 using Rasa.Managers;
-using Rasa.Missions.Content;
 using Rasa.Missions.Scenes;
 using Rasa.Services.Preloader.Missions.Marshes;
 using Rasa.Structures.World;
@@ -28,12 +28,15 @@ namespace Rasa.Test.Missions.Marshes
     {
         /// <summary>
         /// The exceptions, written out: 917 1, Ranger Alia walks a beat (a squad patrol, no pool and no scene actor): her
-        /// marker covers the beat (MarshesMissionTests.TheMarkersStandAtTheirObjectivesTargets).
+        /// marker covers the beat (MarshesMissionTests.TheMarkersStandAtTheirObjectivesTargets); 664 5, the waves.
         /// </summary>
         private static readonly (uint Mission, uint Objective, string Kind)[] Exceptions =
         {
             (MarshesDividedWeFallV1.MissionId, 1, "talk"),
-            // 663 3 (stealth): a front guard's defeat sounds the alarm, which fails 3; 3's markers are the
+            // 664 5: the waves' Thrax come from the camp's south and west and run at the player in the camp (r20 marker):
+            // they are killed where they reach him, not where they stand up.
+            (MarshesSurvivorsV2.MissionId, 5, "signal"),
+            // 663 3 (stealth): a front guard's defeat sounds the alarm (to-fix 36), which fails 3; 3's markers are the
             // door and the lower entrance, where it is done, not the front guards, where it is lost.
             (MarshesInsertionPointV1.MissionId, 3, "signal")
         };
@@ -124,6 +127,39 @@ namespace Rasa.Test.Missions.Marshes
                     if (!Inside(mission, actor.UseAction.ObjectiveId, new[] { (new Vector2(actor.Position.X, actor.Position.Z), SceneMap(scene)) }))
                         misses.Add((mission, actor.UseAction.ObjectiveId, "use"));
                 }
+
+            // To-fix 894 (a): an objective counted by scene signals (a pump blown, a boss killed) has its markers over the actors
+            // whose use, destruction or defeat sends the signal: the use target's own objective was checked above, but the
+            // objective its signal counts for (894's 1, "round the pumps") was not.
+            foreach (var (mission, scene) in scenes)
+            {
+                var sources = new List<(SceneActorDefinition Actor, uint Sequence)>();
+                foreach (var actor in scene.Actors.Values.Where(actor => actor.Position != null))
+                {
+                    if (actor.UseAction is { } use)
+                        sources.Add((actor, use.SequenceId));
+                    if (actor.Destruction is { } destruction)
+                        sources.Add((actor, destruction.SequenceId));
+                    if (scene.DefeatSequences != null && scene.DefeatSequences.TryGetValue(actor.Role, out var defeat))
+                        sources.Add((actor, defeat));
+                }
+                foreach (var (actor, sequence) in sources)
+                {
+                    if (!scene.Sequences.TryGetValue(sequence, out var run))
+                        continue;
+                    foreach (var signal in run.Signals.Where(signal => signal.MissionId == mission))
+                        foreach (var objective in triggers.Where(entry => entry.MissionId == mission && entry.Kind == MissionTriggerKind.ProgressEvent &&
+                                     entry.EventKind == (byte)MissionProgressEventKind.ScenarioEvent && entry.CounterId == signal.SequenceId &&
+                                     entry.SubjectId == signal.EventId).Select(entry => entry.ObjectiveId).Distinct())
+                        {
+                            if (scene.HiddenObjectiveIds?.Contains(objective) == true)
+                                continue;
+                            checkedTargets++;
+                            if (!Inside(mission, objective, new[] { (new Vector2(actor.Position.X, actor.Position.Z), SceneMap(scene)) }))
+                                misses.Add((mission, objective, "signal"));
+                        }
+                }
+            }
 
             Assert.IsGreaterThan(100, checkedTargets, "the targets are read");
             CollectionAssert.AreEquivalent(Exceptions, misses.Distinct().ToArray(),
