@@ -442,7 +442,7 @@ namespace Rasa.Voice
                         if (session.State != SessionState.Connected)
                             session.State = SessionState.KeyAccepted;
 
-                        SendRaw(from, Talkback.FlagAck, ReadOnlySpan<byte>.Empty);
+                        SendRaw(from, Talkback.FlagAck, Talkback.KeyAckPayload);
                         return;
 
                     case Talkback.FlagPong:

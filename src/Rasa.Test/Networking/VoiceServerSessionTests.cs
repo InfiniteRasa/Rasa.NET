@@ -105,6 +105,22 @@ namespace Rasa.Test.Networking
         }
 
         [TestMethod]
+        public void TheKeyAcknowledgementCarriesAPayload()
+        {
+            // The client takes the acknowledgement of its key only when something follows the
+            // eight-byte header; an empty one is ignored and the connection never finishes.
+            using var voice = new Fixture();
+            using var client = voice.Client();
+
+            voice.Server.Received(client.EndPoint, Hello);
+            voice.Server.Received(client.EndPoint, Talkback.Datagram(Talkback.FlagClientKey, new byte[8]));
+
+            var acks = client.Received().Where(d => d.Flags == Talkback.FlagAck).ToList();
+            Assert.AreEqual(1, acks.Count);
+            Assert.IsTrue(acks[0].Payload.Length > 0);
+        }
+
+        [TestMethod]
         public void AConnectionThatNeverLogsInIsClosed()
         {
             using var voice = new Fixture();

@@ -48,6 +48,13 @@ namespace Rasa.Voice
         public const byte FlagClose = 0x08;
         public const byte FlagCloseAck = 0x09;
 
+        /// <summary>
+        /// The payload of the acknowledgement of the client's key. The client, waiting for that
+        /// acknowledgement, only looks at a datagram with something after the header: an empty one is
+        /// ignored, the key sent again, and the connection never finishes. The bytes are not read.
+        /// </summary>
+        public static ReadOnlySpan<byte> KeyAckPayload => new byte[] { 0, 0, 0, 0 };
+
         #endregion
 
         #region Message types
