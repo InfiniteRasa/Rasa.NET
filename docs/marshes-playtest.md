@@ -91,6 +91,15 @@ Set 12, east and north (migration `20271104001100_Marshes_east_and_north`).
 - [ ] 920 Head East, Young Man (Valverde Marshes): Commander Figgins (Falcon Hold) offers it, no requirement, level 33. At the accept your own Lieutenant Shaw (new stand-in, package 1012) and two AFS soldiers stand at the eastern guard station (90.4, 216.9, 535); the public Shaw is hidden from you. Talk to Shaw ("I hear their ships approaching now!"): 1 done, the defence starts: 2 Thrax soldiers and 2 grenadiers at 10 s from the north-east, 2 and 2 with a Stalker at 90 s from the south-east, on foot. Hold 3 minutes: 2 done, the station's men and the Thrax go, the public Shaw is back and your own Ranger Meeko (new, package 1013) stands by Shaw. Talk to Meeko (3); turn in at Meeko: 70000 XP, 5550 credits, one of 120069-120072 (the client's block). Shaw's death fails it. Markers: the client's "Guard Station" at Shaw (1), round the station (2, 40 m), at Meeko (3). Do the waves go for the station? Does Meeko show the turn-in?
 - [ ] 2009 Soyuz Salvage: Marshes (Valverde Marshes): Sergeant Starling (Paludos) offers it, no requirement, level 37. Five of your own Soyuz debris pieces (classes 29783/29784) at (-560, 217.5, 350), (-550, 217.1, -150), (250, 214.1, 600), (200, 214.3, 150), (300, 214.1, -100); use one (argument 1): the Soyuz Orbital Module piece (122851), all five close. Markers at each piece (40 m). Turn in at Starling (he keeps the piece): 65000 XP, 5400 credits and the Soyuz ISS Model Rocket 122834. Are the pieces on open ground?
 
+Set 13, the Logos Research Facility and the Eloh chamber (migration `20271104001200_Marshes_logos_research`). The facility is
+the squad instance 1700 (door on the Marshes at -318.4, 285.7, -497.8); its missions are bound to it.
+
+- [ ] 546 A Taste of Their Own Medicine (Valverde Marshes): Sergeant Fitz (Temple of Paludos) offers it, no requirement, level 33. In the facility talk to Specialist Hax (new, by the hospital 814, 321.8, -110, the client's package 960): six Thrax (531045/531046) come into the Security Checkpoint (760, 320, -136); kill them: 1 done. Your own Hax and a Field Medic (new) come to the room's west side (748, 319.8, -130); the hack runs 120 s, waves of 4 Thrax at 10, 50 and 90 s from the north and south tunnels attack Hax and the medic. Hack done: 2 done, the waves and the medic go. Hax's death in the hack fails 2 and the mission. Markers at Hax (in the facility and at its door), round the checkpoint (1, 25 m), at Hax in the room (2). Turn in at Hax: 70000 XP, 5550 credits, one of 120017-120020. Do the waves go for Hax? Is Hax's hack readable without a text?
+- [ ] 548 Freedom's Just Another Word (Valverde Marshes): Hax offers it after 546, level 35. Your own Thrax Commander (new, level 38, 12375 HP) and two Thrax in Specimen Control (728.5, 297.8, -176); his death gives the Keycard Level 3 (42430): 1 done, 2/4/5 open and three Bane terminals (20631, argument 1) stand at the cell blocks A (728, 289.9, -222), B (728, 289.9, -246) and C (744, 289.8, -262). A terminal frees its block's two prisoners (new, invulnerable) and completes its block. Your own Captain Sakai (new) is held in block C (716, 290, -264). Markers at the Commander (1) and the client's "Cellblock A/B/C" (2, 4, 5). Turn in at Sakai (he takes the keycard): 75000 XP, 5700 credits, one of 96268-96271. Do the prisoners read as freed (they vanish)?
+- [ ] 550 Leggo My Logos (Valverde Marshes): Captain Sakai (new, by the hospital 814, 321.8, -100) offers it after 548, level 35. A bomb crate (21568, argument 3) by the south bio lab (580, 257.8, -190): 2 Detonators (2511), 3 done. An Explosive Charge (7870) at the primary tank (an extraction drone 11255, 608, 257.8, -212): one detonator, the tank blown, a Logos Receptive DNA sample (117042), 1 done ("Primary Tank Destroyed" 1/1); the same at the secondary tank (608, 257.8, -44), 5 done. The forcefield console (20631) at the analysis lab's door (604, 257.8, -296): 9 done. The analyzer's keyboard (608, 248.2, -340): the Logos element taken (analyzer 7241 to state 56), 2 done; 4 and 6 open, 5 minutes. Reach the entrance hall (868, 353.8, -120, 12 m) in time: 4 and 6 done, Special Ops Officer Brock (new, package 2203) comes; talk: he takes the two samples, 10 done. Late: 4 and 6 fail, Lieutenant Russell (new, package 284) comes and you are set down by him in the entrance hall; talk to him: the samples go, 7 done and 10 with it. Markers at each object and NPC, round the hall (4, 6). Turn in at Fitz (Paludos): 80000 XP (ESTIMATE), 7600 credits, one of Sonic Torqueshell Rifle 49652, Cryogenic Blade 47648, Pulse Cannon 15437, Virulent Leech Gun 15295. Does the client show the drone blown (state 2)? Is 5 minutes enough from the analysis lab to the hall?
+- [ ] 718 Slay on Target (Valverde Marshes): Hax offers it after 546, level 35. Your own Coroner Larvax (776, 289, -104), Dissector Xynnr (688, 289, -24) and Overseer Mesgel (648, 289, -200) (new, level 38, 10000/12500/15000 HP), two pieces of lab equipment (20595, 100 HP) in each room, a DNA dispenser (11116, argument 3) at the third room's shelves (632, 288.2, -200): a DNA Sample Jar (2506), 5 done. Mesgel's first hit: the hidden alarm, 6 opens, a Bane teleporter (10603, 600 HP) in the Test Chamber (608, 248.3, -104) sends 4 Thrax at once and 4 more every 30 s (6 waves at most) until it is shot down (6 done). Kill the three (1-3) and the six pieces (4). Markers at each boss (1-3), round each room (4), at the dispenser (5) and the teleporter (6). Radio turn-in: 75000 XP, 5700 credits, one of 2 EMP Bomb VII, 4 Cryogenic Grenade VII, 2 Standard Med Pack VII. Does the dispenser open with the client's argument 3? Is the teleporter targetable?
+- [ ] 1674 To a Subterranean Chamber (Valverde Marshes): Retread Vincent (Retread City) offers it after 550, level 38. Walk to the rock under the lily glows in the lake (-160, 213.7, -868): a local teleporter (new, 907) takes you to the Eloh chamber's plates (-160, 112.4, -808; 908 takes you back). Talk to Jumna (new, the hologram Eloh's look, level 45, -160, 112.1, -902, the client's package 2036): 1 done. Markers: the client's "Eloh Chamber" at Jumna, one at the lake's pad. Turn in at Jumna: 40000 XP, 3900 credits, one of 2 Advanced Med Pack VII, 2 Armor Charger VII, 4 EMP Grenade VII, 4 Concussion Grenade VII. Is the pad on the rock reachable by swimming? Does Jumna's model show?
+
 ## Assumptions and choices (not from a source)
 
 Rules carried over from the Pools batch (`docs/pools-playtest.md`):
@@ -263,6 +272,26 @@ Per mission:
   (the triage's Q40 3 minutes); Meeko comes 6 m from Shaw at the hold's end (Q23) and is the receiver.
 - 2009: Starling the giver and receiver (Q21); five pieces, one per map region and one in the middle east (the triage); XP
   and credits Starling's 498's; the model rocket fixed.
+- Set 13 NPCs (ids 760362-760372): Hax a copy of Fitz's row and look, Sakai of Bosley's, both public in the facility by the
+  hospital and their missions' scene actors, the escort stats; Sakai's package a server-only one (his id). The newbie
+  medic a copy of DuBois'. The Thrax Commander the Marshes one at level 38 with the Plains level 38 one's hit points;
+  Larvax, Xynnr and Mesgel copies of the Marshes Caretaker at level 38 with 10000, 12500 and 15000 HP. The prisoner a
+  friendly copy of the Maligo Base Prisoner, no attack. Russell a copy of Holloway, Brock of Perdu, scene actors only.
+  Jumna a copy of Veryin (the hologram Eloh: the client has no other Eloh NPC with a body) at level 45. Teleporters 907
+  (the lake) and 908 (the chamber), linked both ways, public. Next free id 760373, next free teleporter id 909.
+- 546: six room Thrax, waves of 4 at 10/50/90 s, a 120 s hack (no source gives counts or times); the item block 120017-120020
+  (the client block nearest TaRapedia's four, ESTIMATE).
+- 548: the keypass is given at the Commander's death (TR MMO DB "from a boss in the control room"), not a loot drop; two
+  prisoners a block; Sakai held in block C; the item block 96268-96271 (ESTIMATE).
+- 550: the bomb crate by the south bio lab, the tanks extraction drones in the two bio labs, the console at the analysis
+  lab's door (no forcefield object), the element taken at the analyzer's keyboard (not the facility's Logos shrine:
+  the triage's conflict 20); 5 minutes (TaRapedia's "escape timer" was raised after 2007-07, no value); XP 80000 (no source).
+- 718: the bosses one a room in the three labs at y 289, 2 pieces of equipment a room, the dispenser 881's crate class; the
+  alarm at Mesgel's first hit, the teleporter in the Test Chamber, 4 Thrax every 30 s, 6 waves at most; stacks 2/4/2.
+- 718: Mesgel dead before the alarm (no player-side hit, for example a GM kill): no teleporter, so a server-only hidden 8
+  completes 6 at once; after the alarm the teleporter must still be destroyed (to-fix 9).
+- 1674: the receiver Jumna (the client's texts and objective; TaRapedia's infobox says Vincent); the pads have no mission
+  gate (the client has none).
 
 
 ## Deviations (client/server limits)
@@ -341,6 +370,17 @@ Per mission:
 - 916 / 1033: the kiosks stand in the open round the Overseers; the client's objective is "Destroy the Production Matrix
   in the Strider Bay" (underground, the triage's Q13).
 - 914: abandoned after the theft, the supplies go. The flag is set when a way is chosen; an abandon does not clear it.
+- 546: Hax and Sakai are scene actors only their owner sees (OwnerOnly): squad mates see the public Hax by the hospital, not
+  the one in the hack or Sakai in his cell.
+- 548: the keypass is given at the Commander's death, not dropped as loot; the prisoners vanish when freed (no walk out).
+- 550: no forcefield object (the client has none to place): the console stands at the lab's door. The element is taken
+  at the analyzer's keyboard, not at the facility's Logos shrine. A death after the element is no escape: the player gets up at the door inside the entrance hall, but only a walk into the hall counts (a revive or a step inside it does not, tested); a player who then walks out of the hall and back in (about 12 m) escapes in time (lenient: the server has no mission event for the owner's death, so a death cannot fail the escape; no engine change). The self destruct is a set-down by Russell,
+  not a knock-out.
+- 718: the bosses drop no keycards (TaRapedia names keycards 1-3: no objective takes them). The teleporter stands in the
+  Test Chamber, about 100 m from Mesgel's room; at most 6 waves.
+- 1674: the lake's teleporter is public, not gated by the mission (the client has no gate on it).
+- Client use not seen in game (ESTIMATE): the bomb crate 21568 with argument 3, the dispenser 11116 in the facility, the
+  extraction drone 11255's states 110 and 2.
   916 and 1033 also need 914 completed, and either choice overwrites it, so a left-over flag offers nothing.
 
 ## Server data that differs from the sources (not changed)

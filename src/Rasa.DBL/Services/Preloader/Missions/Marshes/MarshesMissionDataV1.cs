@@ -192,6 +192,10 @@ namespace Rasa.Services.Preloader.Missions.Marshes
         public void ObjectiveState(uint objective, uint related, MissionObjectiveState state) =>
             Trigger(objective, MissionTriggerKind.ObjectiveState, ("related_objective_id", related), ("related_state", (byte)state));
 
+        /// <summary>The trigger of <paramref name="objective"/>'s transition <paramref name="transition"/>: objective <paramref name="related"/> reaches <paramref name="state"/>.</summary>
+        public void ObjectiveState(uint objective, uint transition, uint related, MissionObjectiveState state) =>
+            Trigger(objective, transition, MissionTriggerKind.ObjectiveState, 1, ("related_objective_id", related), ("related_state", (byte)state));
+
         public void Conversation(uint objective, uint package, uint flag = 1) =>
             Trigger(objective, MissionTriggerKind.Conversation, ("npc_package_id", package), ("player_flag_id", flag));
 
