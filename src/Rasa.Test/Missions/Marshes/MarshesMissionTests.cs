@@ -149,6 +149,7 @@ namespace Rasa.Test.Missions.Marshes
         private const string NpcsStandStill = "20271104002200_Marshes_npcs_stand_still";
         private const string CleaningHouseV3 = "20271104002300_Marshes_cleaning_house_v3";
         private const string QuestNpcsHold = "20271104002400_Marshes_quest_npcs_hold";
+        private const string FoodChainTroughs = "20271104002500_Marshes_food_chain_troughs";
 
         /// <summary>
         /// The migration directly before <paramref name="migration"/> (IMigrationsAssembly, ordinal order), the target that
@@ -1918,7 +1919,7 @@ namespace Rasa.Test.Missions.Marshes
         }
 
         /// <summary>
-        /// The playtest-fix migrations (to-fix 10, 13, 14, 15, 16 and 17, 894's notes) roll back one by one to the rows the live server had, and come
+        /// The playtest-fix migrations (to-fix 10, 13-17 and 19, 894's notes) roll back one by one to the rows the live server had, and come
         /// back: Marshes_playtest_fixes writes 664, 548, 718, 920, 893 and 1078 as sets 12-16 applied them (664's hidden tally
         /// 2, 548's block C marker at 728, no 718 hidden 8, no 920 approach, no choice flag on 893's and 1078's offers; the
         /// elder's marker as Marshes_safe_ground moved it);
@@ -1958,6 +1959,13 @@ namespace Rasa.Test.Missions.Marshes
             (int, int, int) Hold() => (Count($"SELECT COUNT(*) AS Value FROM creature_stat WHERE id IN ({hold}) AND health = 4500 AND armor = 300"),
                 Count($"SELECT COUNT(*) AS Value FROM creature WHERE id IN ({hold}) AND max_hp = 4500"), Kirii(MarshesQuestNpcsHoldV1.KiriiAt.X));
             Assert.AreEqual((33, 33, 2), Hold(), "to-fix 17");
+            int Troughs() => Count($"SELECT COUNT(*) AS Value FROM mission_scene_binding WHERE mission_id = 961 AND content_revision = '{revision}' AND bindings LIKE '%216.743%'") +
+                Count($"SELECT COUNT(*) AS Value FROM mission_indicator WHERE mission_id = 961 AND content_revision = '{revision}' AND pos_y < 217");
+            Assert.AreEqual(13, Troughs(), "to-fix 19: the feeders at their troughs, the twelve markers with them");
+            migrator.Migrate(Previous(world, FoodChainTroughs));
+            Assert.AreEqual(0, Troughs(), "961 as Marshes_falcon_hold applied it");
+            Assert.IsTrue(world.MissionContentDefinitionEntries.Any(entry => entry.MissionId == 961 && entry.ContentRevision == revision), "961 stays");
+            Assert.AreEqual((33, 33, 2), Hold(), "to-fix 17 stays");
             migrator.Migrate(Previous(world, QuestNpcsHold));
             Assert.AreEqual((0, 0, 0), Hold(), "no stat rows, Kirii at the 2200 place as applied");
             Assert.AreEqual(2, Kirii(MarshesQuestNpcsHoldV1.KiriiBefore.X), "Kirii and his marker at the 2200 place");
@@ -1994,6 +2002,8 @@ namespace Rasa.Test.Missions.Marshes
             Assert.AreEqual((50, 1), (PumpsRadius(), FollowTimers()), "894 V3 back");
             migrator.Migrate(QuestNpcsHold);
             Assert.AreEqual((33, 33, 2), Hold(), "to-fix 17 back");
+            migrator.Migrate(FoodChainTroughs);
+            Assert.AreEqual(13, Troughs(), "to-fix 19 back");
         }
 
         /// <summary>

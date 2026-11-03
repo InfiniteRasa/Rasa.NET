@@ -37,7 +37,7 @@ namespace Rasa.Test.Missions.Marshes
     {
         private const uint Ruins = MarshesItLiesInRuinsV1.MissionId;
         private const uint Grubber = MarshesTastesLikeGrubberV1.MissionId;
-        private const uint FoodChain = MarshesFixingTheFoodChainV1.MissionId;
+        private const uint FoodChain = MarshesFixingTheFoodChainV2.MissionId;
         private const uint Vincent = MarshesItLiesInRuinsV1.Vincent, Morrison = MarshesItLiesInRuinsV1.Morrison;
         private const uint Horsh = MarshesFalconHoldNpcsV1.Horsh;
         private const uint Mox = MarshesPaludosNpcsV1.Mox;
@@ -264,10 +264,10 @@ namespace Rasa.Test.Missions.Marshes
             var offer = WildernessRanjaGorgeTests.Offer(harness, horsh, FoodChain);
             CollectionAssert.AreEqual(new[]
                 {
-                    (MarshesFixingTheFoodChainV1.EmpBomb, MarshesFixingTheFoodChainV1.EmpBombs),
-                    (MarshesFixingTheFoodChainV1.AdrenalineBooster, MarshesFixingTheFoodChainV1.AdrenalineBoosters),
-                    (MarshesFixingTheFoodChainV1.FragGrenade, MarshesFixingTheFoodChainV1.FragGrenades),
-                    (MarshesFixingTheFoodChainV1.CryoGrenade, MarshesFixingTheFoodChainV1.CryoGrenades)
+                    (MarshesFixingTheFoodChainV2.EmpBomb, MarshesFixingTheFoodChainV2.EmpBombs),
+                    (MarshesFixingTheFoodChainV2.AdrenalineBooster, MarshesFixingTheFoodChainV2.AdrenalineBoosters),
+                    (MarshesFixingTheFoodChainV2.FragGrenade, MarshesFixingTheFoodChainV2.FragGrenades),
+                    (MarshesFixingTheFoodChainV2.CryoGrenade, MarshesFixingTheFoodChainV2.CryoGrenades)
                 },
                 offer.SelectableReward.Select(item => (item.ItemTemplateId, item.Quantity)).ToArray());
             Assert.IsFalse(PlateauRetreadCampTests.Offers(harness, morrison, FoodChain), "not Morrison's to give");
@@ -281,40 +281,40 @@ namespace Rasa.Test.Missions.Marshes
             Assert.AreEqual(0U, Bags(harness));
             WildernessAliaBranchesTests.FreeOneSlot(harness, MissionItemFiller);
             Accept(harness, horsh, FoodChain);
-            Assert.AreEqual(MarshesFixingTheFoodChainV1.Bags, Bags(harness), "ten bags");
+            Assert.AreEqual(MarshesFixingTheFoodChainV2.Bags, Bags(harness), "ten bags");
             Assert.IsEmpty(Topics(harness, horsh, FoodChain), "Horsh hears no objective");
 
             var feeders = Feeders(harness, marshes);
             var completed = 0;
             var completeable = 0;
-            for (var index = 0; index < MarshesFixingTheFoodChainV1.Bags; index++)
+            for (var index = 0; index < MarshesFixingTheFoodChainV2.Bags; index++)
             {
-                Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, FoodChain, MarshesFixingTheFoodChainV1.Deliver), $"open before feeder {index + 1}");
+                Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, FoodChain, MarshesFixingTheFoodChainV2.Deliver), $"open before feeder {index + 1}");
                 Feed(harness, marshes, feeders[index], recovers: true);
-                Assert.AreEqual((UseObjectState)MarshesFixingTheFoodChainV1.FedState, feeders[index].StateId, $"feeder {index + 1} fed");
+                Assert.AreEqual((UseObjectState)MarshesFixingTheFoodChainV2.FedState, feeders[index].StateId, $"feeder {index + 1} fed");
                 Assert.IsFalse(feeders[index].IsEnabled, $"feeder {index + 1} closed");
-                Assert.AreEqual(MarshesFixingTheFoodChainV1.Bags - 1 - (uint)index, Bags(harness), $"a bag for feeder {index + 1}");
+                Assert.AreEqual(MarshesFixingTheFoodChainV2.Bags - 1 - (uint)index, Bags(harness), $"a bag for feeder {index + 1}");
                 var drained = harness.Drain();
                 completed += drained.OfType<ObjectiveCompletedPacket>().Count(packet => packet.MissionId == FoodChain);
                 completeable += drained.OfType<MissionCompleteablePacket>().Count(packet => packet.MissionId == FoodChain && packet.IsCompleteable);
                 if (index == 0)
                 {
                     Feed(harness, marshes, feeders[0], recovers: false);
-                    Assert.AreEqual(MarshesFixingTheFoodChainV1.Bags - 1, Bags(harness), "a fed feeder takes no second bag");
+                    Assert.AreEqual(MarshesFixingTheFoodChainV2.Bags - 1, Bags(harness), "a fed feeder takes no second bag");
                 }
                 if (index == 4)
                 {
                     WildernessRanjaGorgeTests.Reload(harness);
                     Assert.AreEqual(5U, Bags(harness), "kept at a reload");
-                    Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, FoodChain, MarshesFixingTheFoodChainV1.Deliver));
+                    Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, FoodChain, MarshesFixingTheFoodChainV2.Deliver));
                     harness.Drain();
                     feeders = Feeders(harness, marshes, fed: 5);
                 }
             }
-            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, FoodChain, MarshesFixingTheFoodChainV1.Deliver), "ten fed");
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, FoodChain, MarshesFixingTheFoodChainV2.Deliver), "ten fed");
             Assert.AreEqual((1, 1), (completed, completeable), "ObjectiveCompleted and MissionCompleteable once");
             Assert.AreEqual(0U, Bags(harness));
-            foreach (var spare in feeders.Skip((int)MarshesFixingTheFoodChainV1.Bags))
+            foreach (var spare in feeders.Skip((int)MarshesFixingTheFoodChainV2.Bags))
                 Feed(harness, marshes, spare, recovers: false);
             harness.MoveTo(morrison.Position);
             harness.Drain();
@@ -322,9 +322,9 @@ namespace Rasa.Test.Missions.Marshes
 
             FailedTurnInPaysNothing(harness, horsh, FoodChain, 3);
             WildernessRanjaGorgeTests.CompleteAndCheckReward(harness, horsh, FoodChain, 3,
-                MarshesFixingTheFoodChainV1.Experience, MarshesFixingTheFoodChainV1.Credits);
+                MarshesFixingTheFoodChainV2.Experience, MarshesFixingTheFoodChainV2.Credits);
             Assert.AreEqual(1, harness.Drain().OfType<MissionRewardedPacket>().Count(packet => packet.MissionId == FoodChain));
-            Assert.AreEqual(MarshesFixingTheFoodChainV1.CryoGrenades, WildernessRanjaGorgeTests.Held(harness, MarshesFixingTheFoodChainV1.CryoGrenade),
+            Assert.AreEqual(MarshesFixingTheFoodChainV2.CryoGrenades, WildernessRanjaGorgeTests.Held(harness, MarshesFixingTheFoodChainV2.CryoGrenade),
                 "the selected four Cryogenic Grenades");
             Assert.IsFalse(PlateauRetreadCampTests.Offers(harness, horsh, FoodChain), "done once");
         }
@@ -341,7 +341,7 @@ namespace Rasa.Test.Missions.Marshes
             var feeders = Feeders(harness, marshes);
             Feed(harness, marshes, feeders[0], recovers: true);
             Feed(harness, marshes, feeders[1], recovers: true);
-            Assert.AreEqual(MarshesFixingTheFoodChainV1.Bags - 2, Bags(harness));
+            Assert.AreEqual(MarshesFixingTheFoodChainV2.Bags - 2, Bags(harness));
 
             Assert.IsTrue(harness.Manager.TryAbandon(harness.Client, FoodChain));
             harness.Drain();
@@ -350,32 +350,65 @@ namespace Rasa.Test.Missions.Marshes
             Assert.IsTrue(PlateauRetreadCampTests.Offers(harness, horsh, FoodChain), "offered again after an abandon");
 
             Accept(harness, horsh, FoodChain);
-            Assert.AreEqual(MarshesFixingTheFoodChainV1.Bags, Bags(harness), "ten new bags");
-            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, FoodChain, MarshesFixingTheFoodChainV1.Deliver));
+            Assert.AreEqual(MarshesFixingTheFoodChainV2.Bags, Bags(harness), "ten new bags");
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, FoodChain, MarshesFixingTheFoodChainV2.Deliver));
             Feeders(harness, marshes);
         }
 
         /// <summary>
-        /// The twelve feeders: the player's own acceptors, named "Mox Feeders", on the map's Treeback Feeders, on the
-        /// navmesh and walked to from Falcon Hold; all ready but <paramref name="fed"/> (the first, fed and closed).
+        /// The twelve feeders: the player's own acceptors, named "Mox Feeders", at the map's Treeback Feeders' origins and
+        /// turns (to-fix 19), walked to from Falcon Hold; all ready but <paramref name="fed"/> (the first, fed and closed).
         /// </summary>
+        /// <summary>
+        /// To-fix row 19: the food mesh floated about 1.1 m over its trough. Why this test: each feeder stands at the client
+        /// map's ArchForeanTreebackfeederV01 static (class 24979, adv_foreas_valverde_marshes.map read by
+        /// tools/mission-crossref/mapfile.py on 2026-11-03: position and rotation; the yaw 2 atan2(qy, qw)), the origin its food
+        /// mesh shares, and nothing else in 961 moved (the markers stay on them, within 0.1 m of V1's x and z).
+        /// </summary>
+        [TestMethod]
+        public void TheFoodChainFeedersStandAtTheirTroughs()
+        {
+            var troughs = new (float X, float Y, float Z, float Qy, float Qw)[]
+            {
+                (-148.085f, 216.743f, 751.467f, 0f, 1f), (134.203f, 216.841f, 297.739f, 0f, 1f), (243.742f, 216.764f, 427.162f, 0f, 1f),
+                (139.42f, 216.848f, 667.99f, 0.4513f, 0.8924f), (-1.555f, 216.838f, 778.228f, 0f, 1f), (-264.19f, 216.733f, 663.226f, 0.303f, 0.953f),
+                (-422.163f, 216.92f, 553.75f, 0.843f, 0.5379f), (-329.471f, 216.887f, 448.892f, -0.1068f, 0.9943f), (-230.289f, 216.834f, 425.301f, 0.9942f, 0.1079f),
+                (-142.384f, 216.765f, 461.821f, 0f, 1f), (-78.898f, 216.746f, 407.304f, 0.8534f, 0.5212f), (-155.599f, 216.846f, 321.474f, 0f, 1f)
+            };
+            Assert.HasCount(troughs.Length, MarshesFixingTheFoodChainV2.Feeders);
+            for (var index = 0; index < troughs.Length; index++)
+            {
+                var (x, y, z, qy, qw) = troughs[index];
+                var at = MarshesFixingTheFoodChainV2.Feeders[index];
+                Assert.AreEqual((x, y, z), (at.X, at.Y, at.Z), $"feeder {index + 1} at its trough");
+                Assert.AreEqual(2 * System.Math.Atan2(qy, qw), MarshesFixingTheFoodChainV2.FeederYaws[index], 0.001, $"feeder {index + 1} turned as its trough");
+                var old = MarshesFixingTheFoodChainV1.Feeders[index];
+                Assert.IsLessThan(0.1f, Vector2.Distance(new(old.X, old.Z), new(at.X, at.Z)), $"feeder {index + 1} is V1's trough");
+            }
+        }
+
         private static DynamicObject[] Feeders(WildernessRuntimeTestHarness harness, MapChannel marshes, int fed = 0)
         {
-            var feeders = Enumerable.Range(0, MarshesFixingTheFoodChainV1.Feeders.Length).Select(index => marshes.DynamicObjects.Single(obj =>
-                obj.SceneMissionId == FoodChain && obj.SceneActorRole == MarshesFixingTheFoodChainV1.FeederRole(index) && obj.IsInWorld)).ToArray();
+            var feeders = Enumerable.Range(0, MarshesFixingTheFoodChainV2.Feeders.Length).Select(index => marshes.DynamicObjects.Single(obj =>
+                obj.SceneMissionId == FoodChain && obj.SceneActorRole == MarshesFixingTheFoodChainV2.FeederRole(index) && obj.IsInWorld)).ToArray();
             for (var index = 0; index < feeders.Length; index++)
             {
                 var feeder = feeders[index];
-                var at = MarshesFixingTheFoodChainV1.Feeders[index];
-                Assert.AreEqual((MarshesFixingTheFoodChainV1.FeederClass, MarshesFixingTheFoodChainV1.FeederName),
+                var at = MarshesFixingTheFoodChainV2.Feeders[index];
+                Assert.AreEqual((MarshesFixingTheFoodChainV2.FeederClass, MarshesFixingTheFoodChainV2.FeederName),
                     ((uint)feeder.EntityClassId, feeder.NameOverrideId), $"feeder {index + 1}");
                 Assert.AreEqual(new Vector3(at.X, at.Y, at.Z), feeder.Position);
+                Assert.AreEqual(MarshesFixingTheFoodChainV2.FeederYaws[index], feeder.Rotation, 1e-6, $"feeder {index + 1} turned as its trough");
                 Assert.AreEqual(harness.Client.Player.Id, feeder.SceneOwnerCharacterId, "the player's own");
-                Assert.AreEqual(index < fed ? MarshesFixingTheFoodChainV1.FedState : MarshesFixingTheFoodChainV1.ReadyState, (uint)feeder.StateId,
+                Assert.AreEqual(index < fed ? MarshesFixingTheFoodChainV2.FedState : MarshesFixingTheFoodChainV2.ReadyState, (uint)feeder.StateId,
                     $"feeder {index + 1} state");
                 Assert.AreEqual(index >= fed, feeder.IsEnabled, $"feeder {index + 1} open");
-                AssertOnGround(marshes, feeder.Position, $"feeder {index + 1}");
-                Assert.IsTrue(marshes.NavMesh.FindPath(FalconHoldWaypoint, feeder.Position, out var complete) != null && complete,
+                // At the trough's origin (to-fix 19): its rim, the walked-on top, 0.76 m above (the trough mesh's basin box).
+                var ground = marshes.NavMesh.GroundHeight(feeder.Position + new Vector3(0, 2, 0));
+                Assert.IsNotNull(ground, $"navmesh over feeder {index + 1}");
+                Assert.IsTrue(ground.Value - feeder.Position.Y is > 0.5f and < 1.5f, $"feeder {index + 1}: the trough's top {ground} over its origin {feeder.Position.Y}");
+                var top = new Vector3(feeder.Position.X, ground.Value, feeder.Position.Z);
+                Assert.IsTrue(marshes.NavMesh.FindPath(FalconHoldWaypoint, top, out var complete) != null && complete,
                     $"feeder {index + 1} is walked to");
             }
             return feeders;
@@ -385,11 +418,11 @@ namespace Rasa.Test.Missions.Marshes
         {
             harness.MoveTo(feeder.Position + new Vector3(0, 0, 1));
             harness.Drain();
-            Use(harness, marshes, feeder, MarshesFixingTheFoodChainV1.UseArgument, recovers);
+            Use(harness, marshes, feeder, MarshesFixingTheFoodChainV2.UseArgument, recovers);
         }
 
         private static uint Bags(WildernessRuntimeTestHarness harness) =>
-            WildernessRanjaGorgeTests.Held(harness, MarshesFixingTheFoodChainV1.FeedTemplate);
+            WildernessRanjaGorgeTests.Held(harness, MarshesFixingTheFoodChainV2.FeedTemplate);
 
         /// <summary>The objectives of <paramref name="mission"/> that <paramref name="npc"/> offers to hear now (as PoolsRetreadChainTests).</summary>
         internal static uint[] Topics(WildernessRuntimeTestHarness harness, Creature npc, uint mission) =>

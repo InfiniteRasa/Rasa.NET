@@ -151,8 +151,9 @@ Per mission:
   package; steak drop 60% (no source gives a rate); two mission pools west of Falcon Hold (client log "western marshes").
   Level TR MMO DB's 33 (TaRapedia has none). "Modification" = the grade [4] Armor Modules (Ten Ton Hammer "Armor
   Modification").
-- 961: the acceptor class 21824 UsableItemAccForeanTreebackFood (client name override 168 "Mox Feeders") on top of each of
-  the 12 map Treeback Feeders; any 10. Markers unnamed (the client name 64 "Treeback Feeder" can key only one marker per
+- 961: the acceptor class 21824 UsableItemAccForeanTreebackFood (client name override 168 "Mox Feeders") at the origin
+  and turn of each of the 12 map Treeback Feeders (the client map's ArchForeanTreebackfeederV01 statics; its food mesh is
+  the trough's basin fill, to-fix 19: on the navmesh top it floated about 1.1 m over the trough); any 10. Markers unnamed (the client name 64 "Treeback Feeder" can key only one marker per
   objective). Rewards the lowest template of each client class in TaRapedia's stacks.
 - 881: seven harvesters 40-60 m apart in the swamp east of Falcon Hold (Ten Ton Hammer "the swamp to the east", "pick any
   five"), each a body (7908) with a Bane item crate (11116) as the tap 3 m east; a hidden objective counts five samples.
