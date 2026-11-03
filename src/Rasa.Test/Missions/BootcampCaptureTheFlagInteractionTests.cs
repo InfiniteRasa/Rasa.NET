@@ -514,14 +514,8 @@ namespace Rasa.Test.Missions
         {
             var ground = harness.BootcampMap.NavMesh.Nearest(creature.Position);
             Assert.IsTrue(ground.HasValue, $"No walkable surface for {creature.DbId} at {creature.Position}.");
-            // Sideways it may be up to the agent radius and an edge's error off the mesh, standing
-            // against the sandbags the mesh is eroded from (MissionGroundTests.StandHorizontal); its
-            // height is the floor's.
-            var off = ground.Value - creature.Position;
-            Assert.IsLessThan(Content.MissionGroundTests.StandHorizontal, new Vector2(off.X, off.Z).Length(),
+            Assert.IsTrue(Vector3.Distance(ground.Value, creature.Position) < 0.5f,
                 $"Creature {creature.DbId} at {creature.Position} must stand on {ground.Value}.");
-            Assert.IsLessThan(0.5f, Math.Abs(off.Y),
-                $"Creature {creature.DbId} at {creature.Position} must stand at the height of {ground.Value}.");
         }
     }
 }
