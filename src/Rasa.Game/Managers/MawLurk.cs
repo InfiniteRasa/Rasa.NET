@@ -175,7 +175,7 @@ namespace Rasa.Managers
             }
 
             creature.Cells = CellsAt(mapChannel, creature);
-            mapChannel.MapCellInfo.Cells[creature.Cells[2, 2]].CreatureList.Add(creature);
+            mapChannel.MapCellInfo.Cells[CellManager.Centre(creature.Cells)].CreatureList.Add(creature);
             CreatureManager.Instance.CellIntroduceCreatureToClients(mapChannel, creature,
                 CellManager.Instance.GetClientsInCells(mapChannel, creature.Cells));
 

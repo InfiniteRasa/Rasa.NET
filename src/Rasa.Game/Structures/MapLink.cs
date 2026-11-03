@@ -10,7 +10,7 @@ namespace Rasa.Structures
     /// The live form of a <see cref="MapLinkEntry"/>: a trigger radius on one map that sends
     /// whoever walks into it to a position on another map. Registered in the source map's cell
     /// like a <see cref="MapTrigger"/>, so the per-second worker only has to look at the links
-    /// in the player's own 5x5 cell matrix.
+    /// in the player's own cell matrix (CellManager.ViewRange).
     /// </summary>
     public class MapLink : IHasPosition
     {

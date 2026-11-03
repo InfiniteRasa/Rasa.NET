@@ -103,7 +103,7 @@ namespace Rasa.Managers
             if (player.Cells == null || creature.Cells == null)
                 return false;
 
-            var cell = creature.Cells[2, 2];
+            var cell = CellManager.Centre(creature.Cells);
 
             foreach (var seen in player.Cells)
                 if (seen == cell)
