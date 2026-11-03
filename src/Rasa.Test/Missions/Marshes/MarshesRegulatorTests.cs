@@ -64,7 +64,7 @@ namespace Rasa.Test.Missions.Marshes
             foreach (var (pool, name, package, at) in new[]
             {
                 (Wilson, MarshesRegulatorNpcsV1.WilsonName, MarshesRegulatorNpcsV1.WilsonPackage, MarshesRegulatorNpcsV1.WilsonAt),
-                (Kaav, MarshesRegulatorNpcsV1.KaavName, MarshesRegulatorNpcsV1.KaavPackage, MarshesRegulatorNpcsV1.KaavAt)
+                (Kaav, MarshesRegulatorNpcsV1.KaavName, MarshesRegulatorNpcsV1.KaavPackage, MarshesNpcsInTheOpenV1.KaavAt)
             })
             {
                 var npc = Npc(marshes, pool);
@@ -73,6 +73,10 @@ namespace Rasa.Test.Missions.Marshes
                 Assert.AreNotEqual(TargetCategory.Hostile, npc.TargetCategory, $"{pool} is no foe");
                 Assert.IsLessThan(0.1f, Vector2.Distance(new((float)at.X, (float)at.Z), new(npc.Position.X, npc.Position.Z)), $"{pool} at his place");
                 AssertOnGround(marshes, npc.Position, $"{pool}");
+                // To-fix 21: Kaav stood on a lower navmesh layer under the depot's floor, half in a pipe. Nothing walkable over him.
+                var over = marshes.NavMesh.GroundHeight(npc.Position + new Vector3(0, 2.5f, 0));
+                Assert.IsNotNull(over);
+                Assert.IsLessThan(0.5f, over.Value - npc.Position.Y, $"{pool}: no floor over his head");
                 Assert.IsTrue(marshes.NavMesh.FindPath(RetreadCityWaypoint, npc.Position, out var reached) != null && reached, $"{pool} is walked to");
             }
             var kaav = RequireNpc(marshes, Kaav);

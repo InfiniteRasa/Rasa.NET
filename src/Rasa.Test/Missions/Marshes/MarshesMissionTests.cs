@@ -151,6 +151,7 @@ namespace Rasa.Test.Missions.Marshes
         private const string QuestNpcsHold = "20271104002400_Marshes_quest_npcs_hold";
         private const string FoodChainTroughs = "20271104002500_Marshes_food_chain_troughs";
         private const string HarvestersDryGround = "20271104002600_Marshes_harvesters_dry_ground";
+        private const string NpcsInTheOpen = "20271104002700_Marshes_npcs_in_the_open";
 
         /// <summary>
         /// The migration directly before <paramref name="migration"/> (IMigrationsAssembly, ordinal order), the target that
@@ -928,7 +929,7 @@ namespace Rasa.Test.Missions.Marshes
                 (881, 1, 26, 646, 95), (890, 1, 26, 646, 95),       // round the harvester field east of Falcon Hold
                 (913, 1, 732, -276, 20), (913, 2, 734, -149, 20), (913, 3, 860, -68, 20), (913, 4, 700, 107, 20),   // pipeline ends
                 (968, 1, 459, 11, 15), (968, 2, 362, -168, 15), (968, 3, 490, 413, 15),  // Fik 520028, Sto 520030, Barzak 520029
-                (925, 1, -138, -472, 8), (1028, 1, 440, -590, 8),   // Wilson, Kaav
+                (925, 1, -138, -472, 8), (1028, 1, 462, -592, 8),   // Wilson, Kaav (to-fix 21)
                 (1029, 1, 300, -650, 20), (1030, 1, -2, 29, 15),    // the Strider pool 760315, the scrapper (TaRapedia /loc)
                 (1875, 1, -51, -366, 15), (1876, 1, 101, -289, 8),  // the black box, the computer (Ten Ton Hammer)
                 (1877, 1, 170, 55, 15),                             // Nelg's post (Ten Ton Hammer)
@@ -1920,7 +1921,7 @@ namespace Rasa.Test.Missions.Marshes
         }
 
         /// <summary>
-        /// The playtest-fix migrations (to-fix 10, 13-17, 19 and 20, 894's notes) roll back one by one to the rows the live server had, and come
+        /// The playtest-fix migrations (to-fix 10, 13-17 and 19-22, 894's notes) roll back one by one to the rows the live server had, and come
         /// back: Marshes_playtest_fixes writes 664, 548, 718, 920, 893 and 1078 as sets 12-16 applied them (664's hidden tally
         /// 2, 548's block C marker at 728, no 718 hidden 8, no 920 approach, no choice flag on 893's and 1078's offers; the
         /// elder's marker as Marshes_safe_ground moved it);
@@ -1965,6 +1966,15 @@ namespace Rasa.Test.Missions.Marshes
             Assert.AreEqual(13, Troughs(), "to-fix 19: the feeders at their troughs, the twelve markers with them");
             int Dry() => Count($"SELECT COUNT(*) AS Value FROM mission_scene_binding WHERE mission_id IN (881, 890) AND content_revision = '{revision}' AND bindings LIKE '%217.14%'");
             Assert.AreEqual(2, Dry(), "to-fix 20: 881's and 890's harvesters on dry ground");
+            int Kaav(int x) => Count($"SELECT COUNT(*) AS Value FROM spawnpool WHERE id = {MarshesRegulatorNpcsV1.Kaav} AND CAST(pos_x AS INTEGER) = {x}") +
+                Count($"SELECT COUNT(*) AS Value FROM mission_indicator WHERE mission_id = 1028 AND content_revision = '{revision}' AND CAST(pos_x AS INTEGER) = {x}");
+            Assert.AreEqual(2, Kaav(462), "to-fix 21: Kaav and his marker in the open");
+            int Kiang(double y) => Count($"SELECT COUNT(*) AS Value FROM spawnpool WHERE id = {MarshesSentryTowerNpcsV1.Kiang} AND CAST(pos_y AS INTEGER) = {(int)y}");
+            Assert.AreEqual(1, Kiang(216.88), "to-fix 22: Kiang at the tower's foot");
+            migrator.Migrate(Previous(world, NpcsInTheOpen));
+            Assert.AreEqual(2, Kaav(440), "Kaav and his marker as Marshes_regulator put them");
+            Assert.AreEqual(1, Kiang(230.88), "Kiang in the tower room as Marshes_sentry_tower put him");
+            Assert.AreEqual(2, Dry(), "to-fix 20 stays");
             migrator.Migrate(Previous(world, HarvestersDryGround));
             Assert.AreEqual(0, Dry(), "881 and 890 as Marshes_harvesters applied them");
             Assert.AreEqual(2, world.MissionContentDefinitionEntries.Count(entry => (entry.MissionId == 881 || entry.MissionId == 890) && entry.ContentRevision == revision), "881 and 890 stay");
@@ -2014,6 +2024,9 @@ namespace Rasa.Test.Missions.Marshes
             Assert.AreEqual(13, Troughs(), "to-fix 19 back");
             migrator.Migrate(HarvestersDryGround);
             Assert.AreEqual(2, Dry(), "to-fix 20 back");
+            migrator.Migrate(NpcsInTheOpen);
+            Assert.AreEqual(2, Kaav(462), "to-fix 21 back");
+            Assert.AreEqual(1, Kiang(216.88), "to-fix 22 back");
         }
 
         /// <summary>

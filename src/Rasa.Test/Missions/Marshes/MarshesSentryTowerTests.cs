@@ -71,7 +71,7 @@ namespace Rasa.Test.Missions.Marshes
             {
                 (McDonald, MarshesSentryTowerNpcsV1.McDonaldName, MarshesSentryTowerNpcsV1.McDonaldPackage, MarshesSentryTowerNpcsV1.McDonaldAt),
                 (Dikah, MarshesSentryTowerNpcsV1.DikahName, MarshesSentryTowerNpcsV1.DikahPackage, MarshesNpcsStandStillV1.At(Dikah)),   // to-fix 4
-                (Kiang, MarshesSentryTowerNpcsV1.KiangName, MarshesSentryTowerNpcsV1.KiangPackage, MarshesSentryTowerNpcsV1.KiangAt)
+                (Kiang, MarshesSentryTowerNpcsV1.KiangName, MarshesSentryTowerNpcsV1.KiangPackage, MarshesNpcsInTheOpenV1.KiangAt)   // to-fix 22
             })
             {
                 var npc = Npc(marshes, pool);
@@ -81,14 +81,19 @@ namespace Rasa.Test.Missions.Marshes
                 Assert.IsLessThan(0.1f, Vector2.Distance(new((float)at.X, (float)at.Z), new(npc.Position.X, npc.Position.Z)), $"{pool} at his place");
                 AssertOnGround(marshes, npc.Position, $"{pool}");
             }
-            // McDonald and Dikah are walked to; Kiang's tower floor is a navmesh part of its own above the tower teleporter.
-            foreach (var pool in new[] { McDonald, Dikah })
+            // All three are walked to (to-fix 22: Kiang at the tower's foot; its room is a navmesh island with no way up).
+            foreach (var pool in new[] { McDonald, Dikah, Kiang })
                 Assert.IsTrue(marshes.NavMesh.FindPath(ResearchPointWaypoint, RequireNpc(marshes, pool).Position, out var reached) != null && reached,
                     $"{pool} is walked to");
             var kiang = RequireNpc(marshes, Kiang);
-            Assert.IsLessThan(15f, Vector3.Distance(TowerTeleporter, kiang.Position), "Kiang in the tower over its teleporter");
-            Assert.IsGreaterThan(10f, kiang.Position.Y - TowerTeleporter.Y, "up in the tower");
-            Assert.IsLessThan(5f, Vector2.Distance(new(-116, -319), new(kiang.Position.X, kiang.Position.Z)), "Kiang by Ten Ton Hammer's point");
+            Assert.IsTrue(marshes.NavMesh.FindPath(BaneAssertionCampWaypoint, kiang.Position, out var fromCamp) != null && fromCamp, "Kiang from the camp");
+            Assert.IsGreaterThan(7f, Vector2.Distance(new(TowerTeleporter.X, TowerTeleporter.Z), new(kiang.Position.X, kiang.Position.Z)),
+                "Kiang 5 m clear of the tower pad's 2 m");
+            Assert.IsLessThan(2f, kiang.Position.Y - TowerTeleporter.Y, "at the tower's foot");
+            var over = marshes.NavMesh.GroundHeight(kiang.Position + new Vector3(0, 2.5f, 0));
+            Assert.IsNotNull(over);
+            Assert.IsLessThan(0.5f, over.Value - kiang.Position.Y, "no floor over Kiang");
+            Assert.IsLessThan(10f, Vector2.Distance(new(-116, -319), new(kiang.Position.X, kiang.Position.Z)), "Kiang under Ten Ton Hammer's point");
             Assert.IsLessThan(5f, Vector2.Distance(new(-125, -311), new(RequireNpc(marshes, McDonald).Position.X, RequireNpc(marshes, McDonald).Position.Z)),
                 "McDonald by Ten Ton Hammer's point");
         }

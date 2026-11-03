@@ -160,6 +160,28 @@ namespace Rasa.Test.Missions.Marshes
             ? MarshesQuestNpcsHoldV1.KiriiAt : MarshesNpcsStandStillV1.At(pool);
 
         /// <summary>
+        /// To-fix row 21: Conscript Kaav stood on a lower navmesh layer under the depot's floor, half inside a pipe, and could not
+        /// be talked to. Why this test: no friendly Marshes pool NPC on the Marshes map has a walkable floor within 2.5 m over
+        /// its head.
+        /// </summary>
+        [TestMethod]
+        public void NoMarshesNpcStandsUnderAFloor()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var marshes = EnterMarshes(harness);
+            bool Friendly(uint creature) => CreatureManager.Instance.LoadedCreatures.TryGetValue(creature, out var c) && c.TargetCategory != TargetCategory.Hostile;
+            var npcs = SpawnPoolManager.Instance.LoadedSpawnPools.Values.Where(pool => pool.DbId is >= 760300 and <= 760399 &&
+                pool.MapContextId == MarshesMissionDataV1.MapContextId && pool.SpawnSlot.Count > 0 && pool.SpawnSlot.TrueForAll(slot => Friendly(slot.CreatureId))).ToList();
+            Assert.IsGreaterThan(20, npcs.Count, "the Marshes NPCs are read");
+            foreach (var npc in npcs)
+            {
+                var over = marshes.NavMesh.GroundHeight(npc.Position + new Vector3(0, 2.5f, 0));
+                Assert.IsNotNull(over, $"navmesh at {npc.DbId}");
+                Assert.IsLessThan(0.5f, over.Value - npc.Position.Y, $"{npc.DbId} at {npc.Position}: no floor over its head ({over})");
+            }
+        }
+
+        /// <summary>
         /// To-fix row 17: an area attack of 891's own Grenadier killed Kirii (100 hit points). Why this test: every friendly or
         /// neutral Marshes pool NPC (760300-760399) has a creature_stat row, so none plays with the server's default 100 hit
         /// points; the ones this fix gave one have 4500 and armour 300 (Dikah's, row 4).
