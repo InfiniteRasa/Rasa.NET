@@ -1774,7 +1774,8 @@ namespace Rasa.Test.Missions.Plateau
 
         /// <summary>
         /// To-fix #16 (PlateauContactsOutOfAggroV1, in Plateau_maligo_base): Rapp, the Downed Prisoner and Altera and the
-        /// markers on Rapp and Altera stand at PlateauContactsOutOfAggroV1's places.
+        /// markers on Rapp and Altera stand at PlateauContactsOutOfAggroV1's places; Altera and her markers at
+        /// PlateauCoupAlteraRespawnV1's since to-fix #55.
         /// </summary>
         [TestMethod]
         public void TheContactsStandOutOfTheBanesAggroRange()
@@ -1809,7 +1810,7 @@ namespace Rasa.Test.Missions.Plateau
                     AssertAt(altera, Marker(mission, indicator), $"{mission} marker {indicator} on Altera");
             }
 
-            AssertPlaces(PlateauContactsOutOfAggroV1.RappAt, PlateauContactsOutOfAggroV1.DownedPrisonerAt, PlateauContactsOutOfAggroV1.AlteraAt);
+            AssertPlaces(PlateauContactsOutOfAggroV1.RappAt, PlateauContactsOutOfAggroV1.DownedPrisonerAt, PlateauCoupAlteraRespawnV1.AlteraAt);
         }
 
         /// <summary>
@@ -1835,6 +1836,59 @@ namespace Rasa.Test.Missions.Plateau
             CollectionAssert.AreEqual(new uint[] { 600, 600 }, Respawns());
             CollectionAssert.AreEqual(new[] { true, true }, Named());
         }
+
+        /// <summary>
+        /// To-fix #54 and #55: Self Preservation's CPUs blown by a charge in each room (Plateau_self_preservation_charges,
+        /// PlateauSelfPreservationV2) and Coup's scene naming Altera's pool, with her place and markers on the room's floor
+        /// (Plateau_coup_altera_respawn, PlateauCoupAlteraRespawnV1). Each rolls back to the mission as before, its fields and their take-downs kept,
+        /// and goes up again.
+        /// </summary>
+        [TestMethod]
+        public void SelfPreservationChargesAndAlterasRespawnRollBack()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            int Count(string sql) => world.Database.SqlQueryRaw<int>(sql).AsEnumerable().Single();
+            string Scene(uint mission) => world.Database.SqlQueryRaw<string>(
+                $"SELECT bindings AS Value FROM mission_scene_binding WHERE mission_id = {mission} AND content_revision = '{PlateauMissionDataV1.Revision}'").Single();
+            var fields = $"SELECT COUNT(*) AS Value FROM world_destructible WHERE id IN ({string.Join(", ", PlateauSelfPreservationFieldsV1.Fields.Select(field => field.Id))})";
+            var takeDowns = $"SELECT COUNT(*) AS Value FROM mission_action WHERE mission_id = {PlateauSelfPreservationV1.MissionId} " +
+                $"AND content_revision = '{PlateauMissionDataV1.Revision}' AND objective_id IN (2, 3, 4)";
+            var charge = $"\"{PlateauSelfPreservationV2.ChargeRole(1)}\"";
+            var altera = $"\"{PlateauCoupAlteraRespawnV1.AlteraRole}\"";
+            void AssertNow(bool charges, bool named, string when)
+            {
+                Assert.AreEqual(charges, Scene(PlateauSelfPreservationV1.MissionId).Contains(charge), $"879's charges, {when}");
+                Assert.AreEqual(!charges, Scene(PlateauSelfPreservationV1.MissionId).Contains("\"expose-security-cpu-1\""), $"879's shot CPUs, {when}");
+                Assert.AreEqual(named, Scene(PlateauCoupV1.MissionId).Contains(altera), $"878 names Altera, {when}");
+                var place = named ? PlateauCoupAlteraRespawnV1.AlteraAt : PlateauContactsOutOfAggroV1.AlteraAt;
+                var pool = world.SpawnPoolEntries.AsNoTracking().Single(entry => entry.Id == PlateauMaligoBaseV1.Altera);
+                Assert.AreEqual(place.X, pool.PosX, 0.01, $"Altera's x, {when}");
+                Assert.AreEqual(place.Y, pool.PosY, 0.01, $"Altera's y, {when}");
+                Assert.AreEqual(place.Z, pool.PosZ, 0.01, $"Altera's z, {when}");
+                Assert.AreEqual(2, world.MissionIndicatorEntries.AsNoTracking().AsEnumerable().Count(entry => entry.MissionId == PlateauCoupV1.MissionId &&
+                    entry.ContentRevision == PlateauMissionDataV1.Revision && Math.Abs(entry.PosX - place.X) < 0.01 && Math.Abs(entry.PosY - place.Y) < 0.01 && Math.Abs(entry.PosZ - place.Z) < 0.01),
+                    $"878's markers on Altera, {when}");
+                Assert.AreEqual(3, Count(fields), $"879's fields, {when}");
+                Assert.AreEqual(3, Count(takeDowns), $"879's fields' take-downs, {when}");
+                Assert.AreEqual(1, world.MissionContentDefinitionEntries.AsNoTracking().Count(entry =>
+                    entry.MissionId == PlateauSelfPreservationV1.MissionId && entry.ContentRevision == PlateauMissionDataV1.Revision), $"879 once, {when}");
+            }
+
+            AssertNow(true, true, "after the migrations");
+            world.GetService<IMigrator>().Migrate(SelfPreservationCharges);
+            AssertNow(true, false, "Coup's rolled back");
+            // The migration just before Self Preservation's charges, not a fixed name: a rollback past another
+            // branch's table change (Mission_indicator_maps) would leave the model's columns out of the database.
+            var migrations = world.GetService<IMigrationsAssembly>().Migrations.Keys.OrderBy(id => id, StringComparer.Ordinal).ToList();
+            world.GetService<IMigrator>().Migrate(migrations[migrations.IndexOf(SelfPreservationCharges) - 1]);
+            AssertNow(false, false, "both rolled back");
+            world.GetService<IMigrator>().Migrate(CoupAlteraRespawn);
+            AssertNow(true, true, "both again");
+        }
+
+        private const string SelfPreservationCharges = "20271101000000_Plateau_self_preservation_charges";
+        private const string CoupAlteraRespawn = "20271101000100_Plateau_coup_altera_respawn";
 
         /// <summary>
         /// To-fix #23: each Plateau hostile pool's respawn is its data class's seconds in spawnpool.respown_time's tenths

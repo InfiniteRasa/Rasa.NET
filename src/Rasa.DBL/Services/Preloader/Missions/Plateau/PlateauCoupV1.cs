@@ -138,6 +138,26 @@ namespace Rasa.Services.Preloader.Missions.Plateau
             mission.Indicator(Regroup, 9, altera.X, altera.Y, altera.Z, NpcRadius);
             mission.Indicator(Release, 10, ConsoleAt.X, ConsoleAt.Y, ConsoleAt.Z, ConsoleRadius);
 
+            mission.Evidence(1, MissionEvidenceSourceKind.Client, "native:missionobjective/878",
+                "Native1 Altera 4826/9545, 2 supplies 4828/9546 counter19816 'HiddenCount', 4 control room 4832/9548 counter6168, 5 " +
+                "regroup 6086/9547, 6 Neuman 19817/19818; objectiveconversation 878,1,980 text4827, 878,6,981 text19819, 878,5,980 " +
+                "text6166. Texts 4599-4602, 9544. MaligoAmmoCrate class21437/template42442, MaligoSupplyCrate 21438/42443.");
+            mission.Evidence(2, MissionEvidenceSourceKind.Documentation, "https://tabularasa.fandom.com/wiki/Coup",
+                "Giver Downed Prisoner, reward from Squad Leader Alter; requires Showdown; 50000XP, 1000 credits. TR MMO DB level30. " +
+                "Ten Ton Hammer guide-to-maligo-base-upper-level: ammo from corpses, supplies from storage rooms, to Neuman; a Bane " +
+                "wave; a terminal opens the cells.");
+            mission.Evidence(3, MissionEvidenceSourceKind.Reconstruction, "repository:PlateauCoupV1",
+                "Level30. Order 1, 6, 2, 5, 4. Six personal crates21568 (3 supplies, 3 ammunition) each give an item once; on 5 four " +
+                "security650062 attack; console7468 in the West control room opens the cells. No item reward. Places are estimates. " +
+                "Indicators at Altera, Neuman, the crates and the console.", 0.3);
+
+            mission.Enable(Scene());
+        }
+
+        /// <summary>The scene the mission is enabled with (PlateauCoupAlteraRespawnV1 names Altera in it).</summary>
+        public static MissionSceneDefinition Scene()
+        {
+            var crates = (uint)(SuppliesAt.Length + AmmoAt.Length);
             var scene = new MissionSceneDefinition
             {
                 Script = "data.sequence",
@@ -197,21 +217,7 @@ namespace Rasa.Services.Preloader.Missions.Plateau
                 },
                 Signals = { new SceneMissionSignal(MissionId, ConsoleUsed, 1) }
             };
-
-            mission.Evidence(1, MissionEvidenceSourceKind.Client, "native:missionobjective/878",
-                "Native1 Altera 4826/9545, 2 supplies 4828/9546 counter19816 'HiddenCount', 4 control room 4832/9548 counter6168, 5 " +
-                "regroup 6086/9547, 6 Neuman 19817/19818; objectiveconversation 878,1,980 text4827, 878,6,981 text19819, 878,5,980 " +
-                "text6166. Texts 4599-4602, 9544. MaligoAmmoCrate class21437/template42442, MaligoSupplyCrate 21438/42443.");
-            mission.Evidence(2, MissionEvidenceSourceKind.Documentation, "https://tabularasa.fandom.com/wiki/Coup",
-                "Giver Downed Prisoner, reward from Squad Leader Alter; requires Showdown; 50000XP, 1000 credits. TR MMO DB level30. " +
-                "Ten Ton Hammer guide-to-maligo-base-upper-level: ammo from corpses, supplies from storage rooms, to Neuman; a Bane " +
-                "wave; a terminal opens the cells.");
-            mission.Evidence(3, MissionEvidenceSourceKind.Reconstruction, "repository:PlateauCoupV1",
-                "Level30. Order 1, 6, 2, 5, 4. Six personal crates21568 (3 supplies, 3 ammunition) each give an item once; on 5 four " +
-                "security650062 attack; console7468 in the West control room opens the cells. No item reward. Places are estimates. " +
-                "Indicators at Altera, Neuman, the crates and the console.", 0.3);
-
-            mission.Enable(scene);
+            return scene;
         }
 
         public static void Down(MigrationBuilder migration) => PlateauMissionDataV1.Remove(migration, MissionId);

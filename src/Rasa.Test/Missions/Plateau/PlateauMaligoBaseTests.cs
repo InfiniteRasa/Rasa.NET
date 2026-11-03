@@ -235,7 +235,8 @@ namespace Rasa.Test.Missions.Plateau
 
         /// <summary>
         /// Self Preservation comes by radio on arrival with Showdown; the three Security CPUs in the north of Level 1 are
-        /// shot down one by one (the counter), and it ends by radio.
+        /// blown one by one by the Explosive Charge in each room, usable once the room's switch is used (the counter; the
+        /// CPUs are not shot: to-fix #54), and it ends by radio.
         /// </summary>
         [TestMethod]
         public void SelfPreservationIsCalledInOnArrivalAndEndsWithTheThreeCpusDown()
@@ -270,6 +271,9 @@ namespace Rasa.Test.Missions.Plateau
             }
             var switches = Enumerable.Range(0, PlateauSelfPreservationV1.Switches.Length)
                 .Select(index => SceneObject(harness, copy, SelfPreservation, PlateauSelfPreservationV1.SwitchRole(index))).ToArray();
+            // The navmesh runs past the turn's curved wall: at (-27, 331.3) the yellow switch stood outside it, with no
+            // client floor and no line of sight (to-fix #54 retest). On the turn's floor (piece 4167, stuckprobe column).
+            Assert.IsLessThan(0.01f, Vector3.Distance(new Vector3(-27, -130.88f, 328.5f), switches[1].Position), "the yellow switch on the turn's floor");
             for (var index = 0; index < switches.Length; index++)
             {
                 Assert.AreEqual(PlateauSelfPreservationV1.SwitchClass, (uint)switches[index].EntityClassId);
@@ -290,9 +294,31 @@ namespace Rasa.Test.Missions.Plateau
                 Assert.IsTrue(markers.Any(row => Vector2.Distance(new((float)row.PosX, (float)row.PosZ), new(obj.Position.X, obj.Position.Z)) < 0.5f),
                     $"a marker at {obj.SceneActorRole}");
 
-            // A CPU shot before its switch: no target, nothing counted.
+            // Each CPU's Explosive Charge (to-fix #54: the real client does not shoot the CPUs): in the room, behind the
+            // field, about 5 m from its CPU, on the ground, walked to from the switch once the field is down, and inside
+            // the CPU's marker.
+            var charges = cpus.Select(cpu => SceneObject(harness, copy, SelfPreservation, PlateauSelfPreservationV2.ChargeRole(cpu.cpu.Sequence))).ToArray();
+            for (var index = 0; index < charges.Length; index++)
+            {
+                Assert.AreEqual(PlateauSelfPreservationV2.ChargeClass, (uint)charges[index].EntityClassId);
+                AssertStandsOnNavMesh(copy, charges[index].Position, 0.5f);
+                AssertConnected(copy, switches[index].Position, charges[index].Position, $"charge {index + 1} from its switch");
+                AssertConnected(copy, arrival, charges[index].Position, $"charge {index + 1}");
+                Assert.AreEqual(5f, Vector3.Distance(charges[index].Position, cpus[index].obj.Position), 0.5f, $"charge {index + 1} beside its CPU");
+                Assert.IsTrue(ForceFields.StopsPlayer(copy, switches[index].Position + new Vector3(0, 1, 0), charges[index].Position + new Vector3(0, 1, 0)),
+                    $"field {index + 1} between its switch and its charge");
+                AssertMarker(harness, SelfPreservation, PlateauSelfPreservationV1.Destroy, charges[index].Position,
+                    (float)PlateauSelfPreservationV1.CpuRadius, $"charge {index + 1}");
+                Assert.IsFalse(charges[index].IsEnabled, $"charge {index + 1} not usable before its switch");
+            }
+
+            // A CPU shot or a charge used before its switch: nothing happens, nothing counted.
             Damage(harness, copy, cpus[0].obj, (int)PlateauSelfPreservationV1.CpuHitPoints);
             Assert.AreEqual(PlateauSelfPreservationV1.IntactState, (uint)cpus[0].obj.StateId, "not shot through the field");
+            Use(harness, copy, charges[0], PlateauSelfPreservationV2.ChargeUseArgument);
+            Tick(harness, copy, 250);
+            Assert.AreEqual(PlateauSelfPreservationV1.IntactState, (uint)cpus[0].obj.StateId, "the charge not set before the switch");
+            Assert.AreEqual(0, Counter(harness, SelfPreservation, PlateauSelfPreservationV1.Destroy));
 
             for (var index = 0; index < cpus.Length; index++)
             {
@@ -303,10 +329,24 @@ namespace Rasa.Test.Missions.Plateau
                     Objective(harness, SelfPreservation, PlateauSelfPreservationV1.Switches[index].Objective), $"switch {index + 1}'s objective");
                 PlateauUstorYardTests.AssertFieldsDown(copy, new[] { fields[index] });
                 PlateauUstorYardTests.AssertFieldsUp(copy, fields.Skip(index + 1).ToArray());
-                Assert.IsTrue(cpus[index].obj.IsEnabled, $"CPU {index + 1} open to fire");
-                Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, SelfPreservation, PlateauSelfPreservationV1.Destroy), $"before CPU {index + 1}");
+                Assert.IsTrue(charges[index].IsEnabled, $"charge {index + 1} usable after its switch");
+                Assert.IsFalse(cpus[index].obj.IsEnabled, $"CPU {index + 1} still no target");
+                Assert.IsTrue(charges.Skip(index + 1).All(charge => !charge.IsEnabled), "the other rooms' charges still not usable");
+
+                // Shots still do nothing; the charge blows it.
                 Damage(harness, copy, cpus[index].obj, (int)PlateauSelfPreservationV1.CpuHitPoints);
-                Assert.AreEqual(PlateauSelfPreservationV1.DestroyedState, (uint)cpus[index].obj.StateId, $"CPU {index + 1} down");
+                Assert.AreEqual(PlateauSelfPreservationV1.IntactState, (uint)cpus[index].obj.StateId, $"CPU {index + 1} not shot down");
+                Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, SelfPreservation, PlateauSelfPreservationV1.Destroy), $"before CPU {index + 1}");
+                Use(harness, copy, charges[index], PlateauSelfPreservationV2.ChargeUseArgument);
+                Tick(harness, copy, 250);
+                Assert.AreEqual(PlateauSelfPreservationV1.DestroyedState, (uint)cpus[index].obj.StateId, $"CPU {index + 1} blown");
+                Assert.IsFalse(charges[index].IsEnabled, $"charge {index + 1} used up");
+                Assert.AreEqual(index + 1, Counter(harness, SelfPreservation, PlateauSelfPreservationV1.Destroy),
+                    $"{index + 1} of 3");
+                Use(harness, copy, charges[index], PlateauSelfPreservationV2.ChargeUseArgument);
+                Tick(harness, copy, 250);
+                Assert.AreEqual(index + 1, Counter(harness, SelfPreservation, PlateauSelfPreservationV1.Destroy),
+                    $"a second use of charge {index + 1} counts nothing");
             }
             Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, SelfPreservation, PlateauSelfPreservationV1.Destroy));
             Assert.IsTrue(harness.Client.Player.Missions[SelfPreservation].Completeable);
@@ -769,6 +809,51 @@ namespace Rasa.Test.Missions.Plateau
         }
 
         /// <summary>
+        /// To-fix #55: Squad Leader Altera killed in the squad's copy comes back on her pool's own respawn time (20
+        /// tenths, 2 s), not after the copy's 45 minutes: Coup's scene names her pool as a public spawn
+        /// (PlateauCoupAlteraRespawnV1). Coup is then done with her as before (objective 1's talk).
+        /// </summary>
+        [TestMethod]
+        public void CoupsAlteraKilledInTheSquadCopyComesBackOnHerOwnTime()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            EnterPlateau(harness);
+            var copy = IntoMaligo(harness);
+            Assert.IsNotNull(copy.SquadState, "a squad's copy");
+            Assert.IsTrue(SpawnPoolManager.Instance.IsNamedPublicSpawn(PlateauMaligoBaseV1.Altera), "Coup's scene names her pool");
+            var prisoner = Npc(copy, PlateauMaligoBaseV1.DownedPrisoner);
+            Kill(harness, copy, Npc(copy, PlateauMaligoBaseV1.Altera));
+            Assert.IsFalse(Here(copy).Any(creature => creature.SpawnPool?.DbId == PlateauMaligoBaseV1.Altera && creature.State != CharacterState.Dead),
+                "Altera down");
+
+            Creature Standing() => Here(copy).FirstOrDefault(creature => creature.SpawnPool?.DbId == PlateauMaligoBaseV1.Altera &&
+                creature.State != CharacterState.Dead && creature.Npc != null);
+            var all = copy.SpawnPools.ToArray();
+            try
+            {
+                copy.SpawnPools.Clear();
+                copy.SpawnPools.Add(all.Single(candidate => candidate.DbId == PlateauMaligoBaseV1.Altera));
+                for (var second = 1; second <= 10; second++)
+                {
+                    harness.UtcNow = harness.UtcNow.AddSeconds(1);
+                    SpawnPoolManager.Instance.SpawnPoolWorker(copy, 1000);
+                }
+            }
+            finally
+            {
+                copy.SpawnPools.Clear();
+                copy.SpawnPools.AddRange(all);
+            }
+            harness.Drain();
+            var altera = Standing();
+            Assert.IsNotNull(altera, "Altera back in the squad's copy on her own respawn time");
+
+            SeedCompleted(harness, Showdown);
+            Accept(harness, prisoner, Coup);
+            Talk(harness, altera, Coup, PlateauCoupV1.MeetAltera);
+        }
+
+        /// <summary>
         /// The officer's pool, run on its own a second at a time (the copy's other pools left out, as Spawn does): not back
         /// after 50 s, back by 70 s (its respawn is 60 s, PlateauMaligoOfficerSquadRespawnV1).
         /// </summary>
@@ -1043,6 +1128,10 @@ namespace Rasa.Test.Missions.Plateau
 
         private static MissionObjectiveState Objective(WildernessRuntimeTestHarness harness, uint mission, uint objective) =>
             harness.Client.Player.Missions[mission].Objectives[objective].State;
+
+        /// <summary>The objective's count (an objective of one counter: its one slot; none yet is 0).</summary>
+        private static int Counter(WildernessRuntimeTestHarness harness, uint mission, uint objective) =>
+            harness.Client.Player.Missions[mission].Objectives[objective].Counters.Values.Sum(value => (int)value);
 
         private static DynamicObject SceneObject(WildernessRuntimeTestHarness harness, MapChannel map, uint mission, string role)
         {
