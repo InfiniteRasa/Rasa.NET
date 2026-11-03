@@ -114,6 +114,13 @@ Set 15, P'reo Das (part 2) (migration `20271104001400_Marshes_preo_das_village`)
 - [ ] 892 Picking Up the Pieces (Valverde Marshes): Forean Shaman Rakla (new, P'reo Das 90, 57.2, -244) offers it, no requirement, level 35. Six of your own Forean Warrior Corpses (21478), each with a Knapsack (11096, argument 3): four in P'reo Das (84/-223, 120/-224, 80/-244, 105/-215), two in Ra'a Das (231/-8, 247/9). Each knapsack gives one Forean Relic (111319) once; objective 1 shows the relics held (n/6); six: 1 done. Turn in at Rakla: she takes the relics; 60000 XP, 5250 credits, one of the client's block 96333-96336 (Propellant Gun Fire, Staff Ice, Net Gun Ice, Leech Gun Virulent, Rare). Does the knapsack show on the corpse? Does the n/6 counter show?
 - [ ] 894 Cleaning House (Valverde Marshes): Kirii offers it after 891, level 35, and gives you 4 Forean Explosive Devices (45450). Four of your own Toxic Waste Pumps (21007) on the ground before Central Operations (10/330, 37.2/330.8, -19.5/300.3, 69.8/299.8), each with a Detonation Device (7334, argument 1) beside it: a use takes one explosive and blows its pump (8-11; 1 counts "Pumps Destroyed" 4). At Ra'a Das (245, 56.3, 0), E'bae Das (60, 55.8, -120) and He'kal Das (140, 66.1, 12) a Forean Prisoner (new, the client's packages 1158, 1159, 1160) and two of your own Thrax guards; a little apart one more prisoner of the same package (the optional survivor: 256.8/19.2, 90/-125, 151.2/15.6). A prisoner's talk ("I will come with you"): his camp done (2, 3, 13), he follows you; 6 counts "Forean Camps Freed" 3. A survivor's talk: 14-16 (optional), he follows too. The three camps open 12: walk into the arrival (15 m round Tola): 12 done. Turn in at Tola: the followers go; 130000 XP, 7000 credits, one of Sonic Torqueshell Rifle 49652, Laser Pistol 14487, Electric Chaingun 15105, Sonic Rocket Launcher 49168. Can the acceptor be targeted beside the pump (TaRapedia's 2007 bug)? Does the pump show as blown? Do the prisoners keep up?
 
+Set 16, the Bane Supply Depot (migration `20271104001500_Marshes_bane_supply_depot`). The depot is the squad instance 1451
+(door on the Marshes at 451.6, 223.6, -581.9, arrival -370.5, 149.8, 3.1); its missions are bound to it.
+
+- [ ] 664 Survivors (Valverde Marshes): Headquarters offers it by radio on arrival in the depot, no requirement, level 35. Walk into the Survivor's Camp (20 m round the hospital 129.9, 125.7, 312.9) within 10 minutes of the accept, else 1 and the mission fail: 1 done, the Bane attack, your own Thrax, 4 at once, 4 after 30 s, 4 after 60 s, from the camp's south and west, each attacking you. The camp reached opens 5 "Eliminate the surrounding Bane attacking the Survivors Camp" with the client's counter "Bane Remaining" (n/12, counting up). Kill all 12: 5 done, 3 opens, a C6801 Supply Crate and a C6801 Medical Crate (11078, argument 3) stand by the wreck (128/340, 140/340). Each gives its item once (2310, 2311): 3 done. Markers at the Marshes door and the camp (1), the camp (5), the crates and C-6801 Copilot Ortega (new, 125, 127, 318) (3). Turn in at Ortega: he takes the crates; 80000 XP, 6000 credits, one of 12 Basic Med Pack, 6 Fragmentation Grenade, 2 EMP Bomb, 9 Cryogenic Grenade (Class VIII). Do the waves reach the camp? Does the radio offer come in the instance?
+- [ ] 919 Beinvenidos del Voro (Valverde Marshes): Headquarters offers it by radio on arrival in the depot, no requirement, level 35. Three of your own Bane computers (20631, argument 1) beside the depot's remote terminals (-80.4/198.9, 1.2/92.8, 1.6/171.9): each gives one Bane Datablade (45458) once; 1 shows the blades held (n/3); three: 1 done. Markers: the client's "Bane Terminal" at the first computer, the other two, the Marshes door, Fitz. Turn in at Sergeant Fitz (Paludos): he takes the blades; 75000 XP, 5750 credits, one of Bio Armor Helmet 19008, Stealth Armor Gloves 38932, Graviton Armor Legs 23937, Motor Assist Armor Legs 29073 (ESTIMATE templates). Is each computer reachable from the camp? Does the n/3 counter show?
+- [ ] 663 Insertion Point (Valverde Marshes): Elder Toida (Paludos) offers it from level 37. In the depot four of your own Thrax guard the front entrance (-284, 149.6, 36). Your first hit on one sounds the alarm: 4 (by force) done, 3 (by stealth) failed (both optional). Walking into the lower entrance (12 m round 68, 97.6, 120) before the alarm: 3 done. Either completes the hidden 5 (a way in is needed to finish). 6 counts from the accept: kill the depot's 13 Bane Mortars (592006; the Marshes' own do not count) or use your own Bane computer (20631, argument 1) at the mortar terminal (-88.2, 80, -160.4): 6 done. Markers: the Marshes door and the front (4), the door and the lower entrance (3), the client's "Bane Terminal" at the terminal and one at each mortar (6). Radio turn-in: 170000 XP, 6000 credits, one of 6 Advanced Med Pack, 9 EMP Grenade, 3 Res Trauma Kit, 9 Concussion Grenade (Class VIII). Is the lower entrance reachable from the arrival? Is the terminal reachable?
+
 ## Assumptions and choices (not from a source)
 
 Rules carried over from the Pools batch (`docs/pools-playtest.md`):
@@ -324,6 +331,24 @@ Per mission:
   before Central Operations' entrance (the triage's "round Central Operations": the building's other sides are off the
   navmesh); the camps' places by their huts; two guards a camp; the E'bae Das camp at the hut and platforms round
   (60, -120) (no map_region row names it); the weapons the band rule for level 35 (no client block holds the four).
+- Set 16 NPC (id 760382): C-6801 Copilot Ortega a copy of Lieutenant Morrison's row and six appearance slots (the AFS
+  officers' look), the client's name 6483 and package 542, level 35, friendly, public in the depot, 7 m from the camp's
+  hospital on the walked-to ground. Resnik and Raven are not added (no objective names them). No teleporter. Next free id
+  760383, next free teleporter id 909.
+- 664 and 919: offered by radio on arrival in the depot (TaRapedia's "Radio, at Bane Supply Depot"; the triage's Q10/Q11).
+- 664: the camp 20 m round the hospital; 10 minutes (the 2008-01-17 patch notes' timer) to reach it; three waves of four (the
+  triage's 12) at 0, 30 and 60 s from the camp's south and west; 5 the fight, opened by 1, with the client's counter 6254 "Bane
+  Remaining" (to-fix 5); the crates by the wreck, one item each (the patch notes' "once per player"); Ortega's talk is the
+  turn-in (the client's objective talks 664,5 and 664,3 at package 542 are not used).
+- 919: three consoles, one blade each (no source gives a count): the player's own Bane computer beside each of the first
+  three remote terminals of the client map; the command-console cluster (205-211, 96, -148) is not reachable from the
+  camp's navmesh.
+- 663: the level-37 requirement (TaRapedia); the alarm a first hit on four front guards (Slay on Target's
+  DamagedSequences), not a camera; the lower entrance the client map's second industrial entrance; 6 by the 13 depot
+  mortars (World DB pools 592144-592156) or one terminal use; both ways optional, hidden 5 (required) on either; 6 open
+  from the accept.
+- 919: the four armor pieces are TaRapedia's cached names; the templates are the Uncommon base templates (lowest version)
+  of those kinds and slots in the level-35 bands (19008, 38932, 23937, 29073), as 894's weapons.
 - 546: six room Thrax, waves of 4 at 10/50/90 s, a 120 s hack (no source gives counts or times); the item block 120017-120020
   (the client block nearest TaRapedia's four, ESTIMATE).
 - 548: the keypass is given at the Commander's death (TR MMO DB "from a boss in the control room"), not a loot drop; two
@@ -454,6 +479,19 @@ Per mission:
   1.16.5 counter is "Forean Camps Freed" over three camps.
 - 891: the waves come on timers, not when the previous one is dead; the Thrax attack the player, not Tola's village or
   Kirii (no village NPC fights).
+- 663: no camera or alarm detection (NOTES-missing-mechanics.md "Detection (stealth)"): the alarm is a first hit on one of
+  four scene guards at the front entrance. A player who never hits them and walks to the lower entrance completes 3; a
+  fight elsewhere in the depot does not sound the alarm. A hit after 3 is done completes 4 too (both optional).
+- 664: the waves come on timers, not when the previous one is dead; the Thrax attack the player, not Ortega.
+- 664: "Bane Remaining" counts up (n/12): the server's counters count up only (upstream Pravus' "Bane Remaining" ambush
+  does the same).
+- 664: after a fail it can be taken again once the player clears it (retail: one take until the instance reset).
+- 919: the reward templates are ESTIMATE (the names only are sourced).
+- 663: the mortars (and the terminal) count before a way in (retail after its 2008-10 fix); the mission still needs a way in.
+- 663: the front guards are hostile, so they fight a player who comes near: the stealth way means not shooting back.
+- Set 16 navmesh (probe 2026-11-03): the depot's arrival and front entrance (x <= -284) are a navmesh part of their own,
+  apart from the main part with the camp, the consoles, the terminal and the lower entrance. Creatures do not path from one
+  to the other; the front guards stand on the arrival's part.
 - Client use not seen in game (ESTIMATE): the bomb crate 21568 with argument 3, the dispenser 11116 in the facility, the
   extraction drone 11255's states 110 and 2.
   916 and 1033 also need 914 completed, and either choice overwrites it, so a left-over flag offers nothing.

@@ -32,7 +32,10 @@ namespace Rasa.Test.Missions.Marshes
         /// </summary>
         private static readonly (uint Mission, uint Objective, string Kind)[] Exceptions =
         {
-            (MarshesDividedWeFallV1.MissionId, 1, "talk")
+            (MarshesDividedWeFallV1.MissionId, 1, "talk"),
+            // 663 3 (stealth): a front guard's defeat sounds the alarm, which fails 3; 3's markers are the
+            // door and the lower entrance, where it is done, not the front guards, where it is lost.
+            (MarshesInsertionPointV1.MissionId, 3, "signal")
         };
 
         [TestMethod]

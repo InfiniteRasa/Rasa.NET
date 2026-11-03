@@ -153,6 +153,14 @@ namespace Rasa.Services.Preloader.Missions.Marshes
                 ("required_level", null), ("player_flag_id", null), ("player_flag_value", null),
                 ("comment", $"Requires completed mission {mission}"));
 
+        /// <summary>Offered only to a player of level <paramref name="level"/> or above (TaRapedia's "requires level").</summary>
+        public void LevelPrerequisite(uint level, uint id = 1) =>
+            Insert("mission_prerequisite",
+                ("prerequisite_id", id), ("kind", (byte)MissionPrerequisiteKind.PlayerLevelAtLeast),
+                ("required_mission_id", null), ("required_mission_state", null),
+                ("required_level", level), ("player_flag_id", null), ("player_flag_value", null),
+                ("comment", $"Requires level {level}"));
+
         /// <summary>Offered only to a player whose mission flag <paramref name="flag"/> holds <paramref name="value"/>.</summary>
         public void FlagPrerequisite(uint flag, uint value, string comment, uint id = 1) =>
             Insert("mission_prerequisite",
