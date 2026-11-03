@@ -67,11 +67,11 @@ namespace Rasa.Test.Missions.Marshes
             MarshesProductionDestructionV1.VincentMissionId, MarshesProductionDestructionV1.HollowayMissionId, MarshesTrappedV1.MissionId,
             MarshesRetreadArenaV1.BeatStreet, MarshesRetreadArenaV1.Smackdown, MarshesRetreadArenaV1.LegendOrFall,
             MarshesCallingAllPartsV1.MissionId, MarshesBringDownTheKaelV1.MissionId, MarshesBringingTheSpiritHomeV1.MissionId,
-            MarshesHeadEastV1.MissionId, MarshesSoyuzSalvageV1.MissionId, MarshesTasteOfTheirOwnMedicineV1.MissionId,
-            MarshesFreedomsJustAnotherWordV1.MissionId, MarshesLeggoMyLogosV1.MissionId, MarshesSlayOnTargetV1.MissionId,
-            MarshesSubterraneanChamberV1.MissionId, MarshesTheLostOnesV1.MissionId, MarshesNeedleInABaneCampV1.MissionId,
-            MarshesTheChoicesWeMakeV1.MissionId, MarshesDirtySecretsV1.MissionId, MarshesNeverSurrenderV1.MissionId,
-            MarshesPickingUpThePiecesV1.MissionId, MarshesCleaningHouseV1.MissionId, MarshesSurvivorsV1.MissionId,
+            MarshesHeadEastV2.MissionId, MarshesSoyuzSalvageV1.MissionId, MarshesTasteOfTheirOwnMedicineV1.MissionId,
+            MarshesFreedomsJustAnotherWordV2.MissionId, MarshesLeggoMyLogosV1.MissionId, MarshesSlayOnTargetV2.MissionId,
+            MarshesSubterraneanChamberV1.MissionId, MarshesTheLostOnesV1.MissionId, MarshesNeedleInABaneCampV2.MissionId,
+            MarshesTheChoicesWeMakeV2.MissionId, MarshesDirtySecretsV1.MissionId, MarshesNeverSurrenderV1.MissionId,
+            MarshesPickingUpThePiecesV1.MissionId, MarshesCleaningHouseV1.MissionId, MarshesSurvivorsV2.MissionId,
             MarshesBeinvenidosDelVoroV1.MissionId, MarshesInsertionPointV1.MissionId
         };
 
@@ -141,6 +141,9 @@ namespace Rasa.Test.Missions.Marshes
         private const string PreoDasVillage = "20271104001400_Marshes_preo_das_village";
         private const string BaneSupplyDepot = "20271104001500_Marshes_bane_supply_depot";
         private const string RewardBlocks = "20271104001600_Marshes_reward_blocks";
+        private const string SafeGround = "20271104001700_Marshes_safe_ground";
+        private const string TrappedApproach = "20271104001800_Marshes_trapped_approach";
+        private const string PlaytestFixes = "20271104001900_Marshes_playtest_fixes";
 
         /// <summary>
         /// The migration directly before <paramref name="migration"/> (IMigrationsAssembly, ordinal order), the target that
@@ -1895,7 +1898,43 @@ namespace Rasa.Test.Missions.Marshes
 
             world.GetService<IMigrator>().Migrate(BaneSupplyDepot);
             Assert.IsTrue(setSixteen.All(Has));
-            Assert.AreEqual(full, SetSixteen());
+            // Set 16 as applied: 664 with its hidden kill tally and the camp's marker on 5 still (Marshes_playtest_fixes
+            // writes it again, to-fix 13).
+            Assert.AreEqual((2, 7, 11, 28, 9, 3, 12, 1), SetSixteen());
+        }
+
+        /// <summary>
+        /// The playtest-fix migrations (to-fix 10 and 13) roll back one by one to the rows the live server had, and come
+        /// back: Marshes_playtest_fixes writes 664, 548, 718, 920, 893 and 1078 as sets 12-16 applied them (664's hidden tally
+        /// 2, 548's block C marker at 728, no 718 hidden 8, no 920 approach, no choice flag on 893's and 1078's offers; the
+        /// elder's marker as Marshes_safe_ground moved it);
+        /// Marshes_trapped_approach writes 1052 without its approach (no objective 3, the Retread at 202, -672).
+        /// </summary>
+        [TestMethod]
+        public void ThePlaytestFixesRollBackWithTheirMigrations()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            int Count(string sql) => world.Database.SqlQueryRaw<int>(sql).AsEnumerable().Single();
+            var revision = MarshesMissionDataV1.Revision;
+            int Objective(uint mission, uint objective) => Count($"SELECT COUNT(*) AS Value FROM mission_objective_definition WHERE mission_id = {mission} AND objective_id = {objective} AND content_revision = '{revision}'");
+            int BlockCMarkerX() => Count($"SELECT CAST(pos_x AS INTEGER) AS Value FROM mission_indicator WHERE mission_id = 548 AND objective_id = 5 AND content_revision = '{revision}'");
+            int ChoiceFlag() => Count($"SELECT COUNT(*) AS Value FROM mission_channel_policy WHERE mission_id IN (893, 1078) AND content_revision = '{revision}' AND radio_sources LIKE '%893001%'");
+            int ElderMarkerX() => Count($"SELECT CAST(pos_x AS INTEGER) AS Value FROM mission_indicator WHERE mission_id = 893 AND indicator_id = 10000003 AND content_revision = '{revision}'");
+            (int, int, int, int, int, int, int) Fixes() => (Objective(664, 2), BlockCMarkerX(), Objective(718, 8), Objective(1052, 3),
+                Objective(920, 4), ChoiceFlag(), ElderMarkerX());
+            var migrator = world.GetService<IMigrator>();
+
+            Assert.AreEqual((0, 744, 1, 1, 1, 2, 127), Fixes(), "head");
+            migrator.Migrate(Previous(world, PlaytestFixes));
+            Assert.AreEqual((1, 728, 0, 1, 0, 0, 127), Fixes(), "664, 548, 718, 920, 893 and 1078 as applied (the elder's marker moved)");
+            migrator.Migrate(Previous(world, TrappedApproach));
+            Assert.AreEqual((1, 728, 0, 0, 0, 0, 127), Fixes(), "1052 as applied");
+            Assert.AreEqual(1, Count($"SELECT COUNT(*) AS Value FROM mission_scene_binding WHERE mission_id = 1052 AND content_revision = '{revision}' AND bindings LIKE '%-672%'"),
+                "the Retread at its first place");
+
+            migrator.Migrate(PlaytestFixes);
+            Assert.AreEqual((0, 744, 1, 1, 1, 2, 127), Fixes(), "all back");
         }
 
         /// <summary>

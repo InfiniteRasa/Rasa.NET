@@ -121,7 +121,6 @@ namespace Rasa.Services.Preloader.Missions.Marshes
             mission.Transition(Myrquar);
             mission.Progress(Myrquar, MissionProgressEventKind.ScenarioEvent, 1, null, counter: MyrquarDown);
             MarshesTasteOfTheirOwnMedicineV1.Open(mission, Myrquar, 1, Element);
-            MarshesNeedleInABaneCampV1.MakeTheChoice(mission, Myrquar, 3, MissionId);
             mission.FailOnDeadline(Myrquar, DeadlineSeconds, 2);
 
             Lab(mission, MissionId, Element, Equipment, LabTally, Return, DisperseLogos, 17190, 17191, 4, gated: true);

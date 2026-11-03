@@ -51,7 +51,7 @@ namespace Rasa.Services.Preloader.Missions.Marshes
         public const uint Level = 35;
         public const uint Hax = MarshesLogosResearchNpcsV1.Hax;
         public const uint Facility = MarshesLogosResearchNpcsV1.MapContextId;
-        public const uint Larvax = 1, Xynnr = 2, Mesgel = 3, Equipment = 4, Specimen = 5, Teleporter = 6, Alarm = 7, Quiet = 8;
+        public const uint Larvax = 1, Xynnr = 2, Mesgel = 3, Equipment = 4, Specimen = 5, Teleporter = 6, Alarm = 7;
 
         /// <summary>Scenarios (results only): each boss down, the equipment, the DNA, the alarm, the teleporter.</summary>
         public const uint LarvaxDown = 1, XynnrDown = 2, MesgelDown = 3, EquipmentDown = 4, DnaTaken = 5, AlarmRaised = 6, TeleporterDown = 7;
@@ -127,7 +127,6 @@ namespace Rasa.Services.Preloader.Missions.Marshes
             mission.Objective(Specimen, 8983, 8984, 4, MissionObjectiveState.Incomplete);
             mission.Objective(Teleporter, 8987, 8988, 5, MissionObjectiveState.Inactive);
             mission.Objective(Alarm, 8985, 8986, 6, MissionObjectiveState.Incomplete, required: false);   // hidden
-            mission.Objective(Quiet, 8985, 8986, 7, MissionObjectiveState.Incomplete, required: false);   // hidden, server only
 
             mission.Transition(Larvax);
             mission.Progress(Larvax, MissionProgressEventKind.ScenarioEvent, 1, 1, counter: LarvaxDown);
@@ -146,14 +145,6 @@ namespace Rasa.Services.Preloader.Missions.Marshes
             MarshesTasteOfTheirOwnMedicineV1.Open(mission, Alarm, 1, Teleporter);
             mission.Transition(Teleporter);
             mission.Progress(Teleporter, MissionProgressEventKind.ScenarioEvent, 1, null, counter: TeleporterDown);
-            // Mesgel's death before the alarm: 8 completes, opens 6 and 6 completes on it; the alarm fails 8 first.
-            mission.Transition(Quiet);
-            mission.Progress(Quiet, MissionProgressEventKind.ScenarioEvent, 1, null, counter: MesgelDown);
-            MarshesTasteOfTheirOwnMedicineV1.Open(mission, Quiet, 1, Teleporter);
-            mission.Transition(Quiet, 2, 2, MissionObjectiveState.Failed);
-            mission.Progress(Quiet, 2, MissionProgressEventKind.ScenarioEvent, 1, null, counter: AlarmRaised);
-            mission.Transition(Teleporter, 2, 2);
-            mission.ObjectiveState(Teleporter, 2, Quiet, MissionObjectiveState.Completed);
 
             var indicator = 1U;
             foreach (var boss in Bosses)
@@ -190,7 +181,7 @@ namespace Rasa.Services.Preloader.Missions.Marshes
                 MapContextId = Facility,
                 DefeatSequences = new(),
                 DamagedSequences = new() { [BossRole(2)] = AlarmSequence },
-                HiddenObjectiveIds = new() { Alarm, Quiet },
+                HiddenObjectiveIds = new() { Alarm },
                 Items = new()
                 {
                     new MissionItemBinding(DnaKey, DnaTemplate, MissionItemScope.AssignmentIssued, 1,

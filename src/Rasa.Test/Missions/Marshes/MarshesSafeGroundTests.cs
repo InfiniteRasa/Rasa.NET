@@ -65,7 +65,7 @@ namespace Rasa.Test.Missions.Marshes
                 .Select(entry => (entry.MissionId, Scene: System.Text.Json.JsonSerializer.Deserialize<Rasa.Missions.Content.MissionSceneDefinition>(
                     entry.Bindings, Rasa.Missions.Content.MissionContentCodec.Options)))
                 .Where(entry => entry.Scene.Script == "marshes.defence").ToList();
-            CollectionAssert.AreEquivalent(new[] { MarshesTrappedV1.MissionId, MarshesHeadEastV1.MissionId },
+            CollectionAssert.AreEquivalent(new[] { MarshesTrappedV1.MissionId, MarshesHeadEastV2.MissionId },
                 scenes.Select(entry => entry.MissionId).ToArray(), "the defence scenes");
             var checkedWards = 0;
             foreach (var (mission, scene) in scenes)
@@ -96,6 +96,33 @@ namespace Rasa.Test.Missions.Marshes
             Assert.IsLessThan(0.1f, Vector2.Distance(new((float)at.X, (float)at.Z), new(dikah.Position.X, dikah.Position.Z)));
             AssertOnGround(marshes, dikah.Position, "Dikah");
             Assert.IsLessThan(25f, Vector2.Distance(new(-521, -179), new(dikah.Position.X, dikah.Position.Z)), "near TaRapedia's /loc");
+        }
+
+        /// <summary>
+        /// To-fix row 11: in the bot's Village Ruins copies Kirii and Rakla (and Qunle) never came into view. Why this test: in
+        /// a 1743 copy the pool worker itself (no forced spawn) stands each Ruins NPC at its pool, visible to the player (the
+        /// move, Marshes_safe_ground, keeps them out of the Grubbers' reach: a pool killed in a squad's copy stays dead for the
+        /// copy's run).
+        /// </summary>
+        [TestMethod]
+        public void TheRuinsNpcsStandInTheCopyAndAreSeen()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var ruins = MarshesPreoDasTests.IntoRuins(harness);
+            Assert.IsNotNull(ruins.SquadState, "a squad's copy");
+            for (var second = 0; second < 10; second++)
+            {
+                SpawnPoolManager.Instance.SpawnPoolWorker(ruins, 1000);
+                MarshesPreoDasTests.Tick(harness, ruins, 1000);
+            }
+            foreach (var pool in new[] { MarshesPreoDasNpcsV1.Elder, MarshesPreoDasNpcsV1.Qunle, MarshesPreoDasVillageNpcsV1.Tola,
+                         MarshesPreoDasVillageNpcsV1.Kirii, MarshesPreoDasVillageNpcsV1.Rakla })
+            {
+                var npc = Rasa.Test.Missions.Plateau.PlateauCampResistanceTests.Living(ruins).SingleOrDefault(creature => creature.SpawnPool?.DbId == pool);
+                Assert.IsNotNull(npc, $"{pool} stands in the copy");
+                Assert.IsFalse(HiddenCreatures.IsHiddenFrom(npc, harness.Client), $"{pool} is seen");
+                Assert.IsLessThan(40f, Vector3.Distance(npc.Position, SpawnPoolManager.Instance.LoadedSpawnPools[pool].Position), $"{pool} by its pool (an earlier test may have walked it)");
+            }
         }
 
         /// <summary>The moved Village Ruins NPCs on the ground, walked to from their old places, their markers with them.</summary>

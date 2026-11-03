@@ -33,14 +33,12 @@ namespace Rasa.Services.Preloader.Missions.Marshes
     ///  - Offered by radio on arrival in the squad's depot (no requirement); played there.
     ///  - 1: 10 minutes from the accept (the patch notes' timer) to walk into the camp (20 m round the hospital); else 1 and
     ///    the mission fail. The camp reached brings the attack: three waves of four of the run's own Thrax (the triage's 12)
-    ///    at once, after 30 s and after 60 s, from the camp's south and west, each attacking the player. 1 opens 5 (to-fix 5:
-    ///    the fight is a visible objective), which counts the 12 kills with the client's counter "Bane Remaining" (6254; the
-    ///    server's counters count up, n/12, as upstream Pravus' "Bane Remaining" ambush) and opens 3: two of the player's own
-    ///    crates stand at the wreck. Each crate gives its item once (a Supply and a Medical crate); hidden 4 counts the two and
-    ///    completes 3. Ortega takes them at the turn-in (he is the receiver). The client's objective talks at Ortega's package
-    ///    542 (664,5 "Did you see all of them coming our way?!" and 664,3 "find some supplies off the wreckage") are not used:
-    ///    5 is the fight, 3 the items themselves.
-    ///  - Markers: the depot's door on the Marshes and the camp (1), the camp (5), the wreck's two crates and Ortega (3).
+    ///    at once, after 30 s and after 60 s, from the camp's south and west, each attacking the player. Hidden 2 counts the 12
+    ///    kills and opens 5; Ortega's talk (the client's 5 text) completes 5 and opens 3, and two of the player's own crates
+    ///    stand at the wreck. Each crate gives its item once (a Supply and a Medical crate); hidden 4 counts the two and
+    ///    completes 3. Ortega takes them at the turn-in. 5's counter text and 3's talk (2656) are not used: 5 is a talk after
+    ///    the kills, 3 the items themselves.
+    ///  - Markers: the depot's door on the Marshes and the camp (1), Ortega (5), the wreck's two crates (3).
     /// </summary>
     public static class MarshesSurvivorsV1
     {
@@ -48,8 +46,7 @@ namespace Rasa.Services.Preloader.Missions.Marshes
         public const uint Level = 35;
         public const uint Ortega = MarshesBaneSupplyDepotNpcsV1.Ortega;
         public const uint Depot = MarshesBaneSupplyDepotNpcsV1.MapContextId;
-        public const uint Locate = 1, Eliminate = 5, Supplies = 3, CrateTally = 4;
-        public const uint BaneRemaining = 6254;         // 5's counter text (missionobjective 664,5)
+        public const uint Locate = 1, Eliminate = 5, Supplies = 3, KillTally = 2, CrateTally = 4;
         public const uint CampArea = 1;
         public const uint DeadlineSeconds = 600;
 
@@ -106,21 +103,23 @@ namespace Rasa.Services.Preloader.Missions.Marshes
             mission.Area(CampArea, Depot, CampAt.X, CampAt.Y, CampAt.Z, CampRadius, 12);
 
             mission.Objective(Locate, 2651, 7243, 0, MissionObjectiveState.Incomplete);
-            mission.Objective(Eliminate, 6253, 7244, 1, MissionObjectiveState.Inactive, counterTextId: BaneRemaining);
+            mission.Objective(Eliminate, 6253, 7244, 1, MissionObjectiveState.Inactive);
             mission.Objective(Supplies, 2655, 7245, 2, MissionObjectiveState.Inactive);
-            mission.Objective(CrateTally, 2655, 7245, 3, MissionObjectiveState.Incomplete, required: false);    // hidden
+            mission.Objective(KillTally, 6253, 7244, 3, MissionObjectiveState.Incomplete, required: false);     // hidden
+            mission.Objective(CrateTally, 2655, 7245, 4, MissionObjectiveState.Incomplete, required: false);    // hidden
 
             mission.Transition(Locate);
             mission.EnterArea(Locate, CampArea);
             mission.Action(Locate, 1, MissionActionKind.StartScenario, scenario: AttackComes);
-            MarshesTasteOfTheirOwnMedicineV1.Open(mission, Locate, 2, Eliminate);
             mission.FailOnDeadline(Locate, DeadlineSeconds, 2);
 
-            // 5 is the fight itself (to-fix 5): open from the camp, it counts the 12 kills ("Bane Remaining" n/12: the
-            // server's counters count up, as Pravus' "Bane Remaining" ambush) and opens 3.
-            mission.Transition(Eliminate);
+            mission.Transition(KillTally);
             for (var kill = 1U; kill <= Attackers; kill++)
-                mission.Progress(Eliminate, MissionProgressEventKind.ScenarioEvent, kill, Attackers, counter: Kills, trigger: kill);
+                mission.Progress(KillTally, MissionProgressEventKind.ScenarioEvent, kill, Attackers, counter: Kills, trigger: kill);
+            MarshesTasteOfTheirOwnMedicineV1.Open(mission, KillTally, 1, Eliminate);
+
+            mission.Transition(Eliminate);
+            mission.Conversation(Eliminate, MarshesBaneSupplyDepotNpcsV1.OrtegaPackage);
             MarshesTasteOfTheirOwnMedicineV1.Open(mission, Eliminate, 1, Supplies);
             mission.Action(Eliminate, 3, MissionActionKind.StartScenario, scenario: CratesReady);
 
@@ -134,11 +133,10 @@ namespace Rasa.Services.Preloader.Missions.Marshes
             var door = MarshesBaneSupplyDepotNpcsV1.DoorAt;
             mission.Indicator(Locate, 1, door.X, door.Y, door.Z, 10);
             mission.Indicator(Locate, 2, CampAt.X, CampAt.Y, CampAt.Z, CampRadius, Depot);
-            mission.Indicator(Eliminate, 3, CampAt.X, CampAt.Y, CampAt.Z, CampRadius, Depot);
+            var ortega = MarshesBaneSupplyDepotNpcsV1.OrtegaAt;
+            mission.Indicator(Eliminate, 3, ortega.X, ortega.Y, ortega.Z, 8, Depot);
             for (var index = 0; index < Crates.Length; index++)
                 mission.Indicator(Supplies, 4 + (uint)index, Crates[index].At.X, Crates[index].At.Y, Crates[index].At.Z, 8, Depot);
-            var ortega = MarshesBaneSupplyDepotNpcsV1.OrtegaAt;
-            mission.Indicator(Supplies, 6, ortega.X, ortega.Y, ortega.Z, 8, Depot);      // the turn-in
 
             mission.Evidence(1, MissionEvidenceSourceKind.Client, "native:missionobjective/664",
                 "Native1 'Locate the C6801 crew before they are killed' 2651/7243, 5 'Eliminate the surrounding Bane attacking the " +
@@ -151,7 +149,7 @@ namespace Rasa.Services.Preloader.Missions.Marshes
                 "notes 2008-01-17: 10 minute timer, crates once per player.", 0.5);
             mission.Evidence(3, MissionEvidenceSourceKind.Reconstruction, "repository:MarshesSurvivorsV1",
                 "Radio offer on arrival in 1451; 1 an area r20 at the Survivor's Camp within 600 s; 3 waves of 4 Thrax at 0/30/60 s, " +
-                "5 (opened by 1, counter6254) counts the 12 kills and opens 3: two personal crates (11078) at the wreck, one item " +
+                "hidden 2 counts 12 and opens 5 (Ortega's talk), which opens 3: two personal crates (11078) at the wreck, one item " +
                 "each, hidden 4 counts them. Ortega 760382 takes them. Places, counts and times are estimates.", 0.3);
 
             mission.Enable(Scene());
@@ -166,7 +164,7 @@ namespace Rasa.Services.Preloader.Missions.Marshes
                 BoundMapContextId = Depot,
                 MapContextId = Depot,
                 DefeatSequences = new(),
-                HiddenObjectiveIds = new() { CrateTally },
+                HiddenObjectiveIds = new() { KillTally, CrateTally },
                 Items = new()
             };
             scene.Sequences[0] = new SceneSequenceDefinition();

@@ -71,7 +71,7 @@ namespace Rasa.Services.Preloader.Missions.Marshes
                 new ScenePosition[] { new(720f, 289.07f, -220f), new(736f, 289.04f, -220f) }),
             (BlockB, CellblockB, new(728f, 289.92f, -240f), new(728f, 289.92f, -246f),
                 new ScenePosition[] { new(716f, 289.37f, -240f), new(740f, 289.37f, -240f) }),
-            (BlockC, CellblockC, new(744f, 289.77f, -262f), new(744f, 289.77f, -262f),      // the marker on the terminal (to-fix 7)
+            (BlockC, CellblockC, new(728f, 289.82f, -268f), new(744f, 289.77f, -262f),
                 new ScenePosition[] { new(712f, 289.17f, -275f), new(744f, 289.17f, -275f) }),
         };
         public static readonly ScenePosition SakaiAt = new(716f, 290f, -264f);

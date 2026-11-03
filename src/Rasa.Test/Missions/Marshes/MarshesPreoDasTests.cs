@@ -21,7 +21,7 @@ namespace Rasa.Test.Missions.Marshes
     using static PlateauCampResistanceTests;
     using static PlateauInstanceMaps;
     using N = MarshesPreoDasNpcsV1;
-    using C = MarshesTheChoicesWeMakeV1;
+    using C = MarshesTheChoicesWeMakeV2;
 
     /// <summary>
     /// Marshes set 14, P'reo Das in the Village Ruins (squad instance 1743), played through as a player plays it: Lieutenant
@@ -44,7 +44,7 @@ namespace Rasa.Test.Missions.Marshes
     {
         private const uint Ruins = N.MapContextId;
         private const uint LostOnes = MarshesTheLostOnesV1.MissionId;
-        private const uint Needle = MarshesNeedleInABaneCampV1.MissionId;
+        private const uint Needle = MarshesNeedleInABaneCampV2.MissionId;
         private const uint Choices = C.MissionId;
         private const uint Secrets = MarshesDirtySecretsV1.MissionId;
 
@@ -178,7 +178,7 @@ namespace Rasa.Test.Missions.Marshes
             TakeByRadio(harness, copy, Needle, Choices);
 
             var elder = Giver(copy, N.Elder);
-            ForkTalk(harness, elder, Needle, MarshesNeedleInABaneCampV1.Contact, 1);
+            ForkTalk(harness, elder, Needle, MarshesNeedleInABaneCampV2.Contact, 1);
             Tick(harness, copy, 250);
             Assert.AreEqual(MissionState.Failed, harness.Client.Player.Missions[Choices].State, "the convoy is gone");
             Assert.IsNull(SceneCreature(harness, copy, Choices, C.MyrquarRole), "Myrquar with it");
@@ -207,7 +207,7 @@ namespace Rasa.Test.Missions.Marshes
             Assert.IsFalse(harness.Client.Player.Missions.ContainsKey(Choices), "1078 not taken");
 
             var elder = Giver(copy, N.Elder);
-            ForkTalk(harness, elder, Needle, MarshesNeedleInABaneCampV1.Contact, 1);
+            ForkTalk(harness, elder, Needle, MarshesNeedleInABaneCampV2.Contact, 1);
             PayNeedle(harness, elder);
             Assert.IsFalse(harness.Manager.TryAcceptRadioMission(harness.Client, Choices), "1078 is closed");
         }
@@ -293,7 +293,7 @@ namespace Rasa.Test.Missions.Marshes
             harness.Drain();
             TakeByRadio(harness, copy, Needle);
             var elder = Giver(copy, N.Elder);
-            ForkTalk(harness, elder, Needle, MarshesNeedleInABaneCampV1.Contact, 1);
+            ForkTalk(harness, elder, Needle, MarshesNeedleInABaneCampV2.Contact, 1);
             Assert.IsFalse(harness.Manager.TryAcceptRadioMission(harness.Client, Choices), "1078 is closed between the talk and the pay");
             harness.Drain();
             PayNeedle(harness, elder);
@@ -326,7 +326,7 @@ namespace Rasa.Test.Missions.Marshes
             copy = IntoRuins(harness);
             Tick(harness, copy, 250);
             Assert.IsNotNull(SceneCreature(harness, copy, Choices, C.MyrquarRole), "Myrquar stands in the Ruins");
-            ForkTalk(harness, Giver(copy, N.Elder), Needle, MarshesNeedleInABaneCampV1.Contact, 1);
+            ForkTalk(harness, Giver(copy, N.Elder), Needle, MarshesNeedleInABaneCampV2.Contact, 1);
             Tick(harness, copy, 250);
             Assert.AreEqual(MissionState.Failed, harness.Client.Player.Missions[Choices].State, "1078 fails");
             Assert.IsNull(SceneCreature(harness, copy, Choices, C.MyrquarRole), "Myrquar goes");
@@ -378,7 +378,7 @@ namespace Rasa.Test.Missions.Marshes
             // 893's arrival offer (made with 1078's) still stands.
             TakeByRadio(harness, copy, Needle);
             var elder = Giver(copy, N.Elder);
-            ForkTalk(harness, elder, Needle, MarshesNeedleInABaneCampV1.Contact, 1);
+            ForkTalk(harness, elder, Needle, MarshesNeedleInABaneCampV2.Contact, 1);
             PayNeedle(harness, elder);
         }
 
@@ -493,8 +493,8 @@ namespace Rasa.Test.Missions.Marshes
         {
             FailedTurnInPaysNothing(harness, elder, Needle, 0);
             WildernessRanjaGorgeTests.CompleteAndCheckReward(harness, elder, Needle, 0,
-                MarshesNeedleInABaneCampV1.Experience, MarshesNeedleInABaneCampV1.Credits);
-            Assert.AreEqual(MarshesNeedleInABaneCampV1.EmpBombs, WildernessRanjaGorgeTests.Held(harness, MarshesNeedleInABaneCampV1.EmpBomb), "the chosen stack");
+                MarshesNeedleInABaneCampV2.Experience, MarshesNeedleInABaneCampV2.Credits);
+            Assert.AreEqual(MarshesNeedleInABaneCampV2.EmpBombs, WildernessRanjaGorgeTests.Held(harness, MarshesNeedleInABaneCampV2.EmpBomb), "the chosen stack");
         }
 
         private static void PayTheChoices(WildernessRuntimeTestHarness harness, Creature toida)

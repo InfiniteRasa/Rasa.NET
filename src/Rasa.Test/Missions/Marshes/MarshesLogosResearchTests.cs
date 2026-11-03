@@ -45,9 +45,9 @@ namespace Rasa.Test.Missions.Marshes
     {
         private const uint Facility = N.MapContextId;
         private const uint Taste = MarshesTasteOfTheirOwnMedicineV1.MissionId;
-        private const uint Freedom = MarshesFreedomsJustAnotherWordV1.MissionId;
+        private const uint Freedom = MarshesFreedomsJustAnotherWordV2.MissionId;
         private const uint Leggo = MarshesLeggoMyLogosV1.MissionId;
-        private const uint Slay = MarshesSlayOnTargetV1.MissionId;
+        private const uint Slay = MarshesSlayOnTargetV2.MissionId;
         private const uint Chamber = MarshesSubterraneanChamberV1.MissionId;
 
         private static readonly Vector3 RetreadCityWaypoint = new(-250.45f, 216.8f, -830.56f);
@@ -221,50 +221,50 @@ namespace Rasa.Test.Missions.Marshes
             var copy = IntoFacility(harness);
             Accept(harness, Giver(copy, N.Hax), Freedom);
             Tick(harness, copy, 250);
-            var commander = SceneCreature(harness, copy, Freedom, MarshesFreedomsJustAnotherWordV1.CommanderRole);
+            var commander = SceneCreature(harness, copy, Freedom, MarshesFreedomsJustAnotherWordV2.CommanderRole);
             Assert.IsNotNull(commander, "the Commander stands");
             Assert.AreEqual((N.Commander, N.CommanderName, N.BossLevel), (commander.DbId, commander.NameId, commander.Level));
             Assert.AreEqual((int)N.CommanderHitPoints, (int)commander.Attributes[Attributes.Health].Current);
             Assert.AreEqual(TargetCategory.Hostile, commander.TargetCategory);
             AssertOnGround(copy, commander.Position, "the Commander");
             AssertPath(copy, Door(harness), commander.Position, "the Commander from the door");
-            AssertPath(copy, Door(harness), ToVector(MarshesFreedomsJustAnotherWordV1.SakaiAt), "cell block C (Sakai) from the door");
-            AssertPath(copy, Door(harness), ToVector(MarshesFreedomsJustAnotherWordV1.Blocks[2].Terminal), "block C's terminal from the door");
-            for (var guard = 0; guard < MarshesFreedomsJustAnotherWordV1.GuardsAt.Length; guard++)
-                Assert.IsNotNull(SceneCreature(harness, copy, Freedom, MarshesFreedomsJustAnotherWordV1.GuardRole(guard)), $"guard {guard + 1}");
-            var sakai = SceneCreature(harness, copy, Freedom, MarshesFreedomsJustAnotherWordV1.SakaiRole);
+            AssertPath(copy, Door(harness), ToVector(MarshesFreedomsJustAnotherWordV2.SakaiAt), "cell block C (Sakai) from the door");
+            AssertPath(copy, Door(harness), ToVector(MarshesFreedomsJustAnotherWordV2.Blocks[2].Terminal), "block C's terminal from the door");
+            for (var guard = 0; guard < MarshesFreedomsJustAnotherWordV2.GuardsAt.Length; guard++)
+                Assert.IsNotNull(SceneCreature(harness, copy, Freedom, MarshesFreedomsJustAnotherWordV2.GuardRole(guard)), $"guard {guard + 1}");
+            var sakai = SceneCreature(harness, copy, Freedom, MarshesFreedomsJustAnotherWordV2.SakaiRole);
             Assert.IsNotNull(sakai, "Sakai is held in block C");
             Assert.AreEqual(N.Sakai, sakai.DbId);
             for (var block = 0; block < 3; block++)
             {
-                Assert.AreEqual(MissionObjectiveState.Inactive, Objective(harness, Freedom, MarshesFreedomsJustAnotherWordV1.Blocks[block].Objective));
+                Assert.AreEqual(MissionObjectiveState.Inactive, Objective(harness, Freedom, MarshesFreedomsJustAnotherWordV2.Blocks[block].Objective));
                 for (var index = 0; index < 2; index++)
                 {
-                    var prisoner = SceneCreature(harness, copy, Freedom, MarshesFreedomsJustAnotherWordV1.PrisonerRole(block, index));
+                    var prisoner = SceneCreature(harness, copy, Freedom, MarshesFreedomsJustAnotherWordV2.PrisonerRole(block, index));
                     Assert.IsNotNull(prisoner, $"prisoner {block}.{index}");
                     Assert.AreEqual((N.Prisoner, N.PrisonerName), (prisoner.DbId, prisoner.NameId));
                     AssertOnGround(copy, prisoner.Position, prisoner.SpawnPool.SceneActorRole);
                 }
             }
-            Assert.IsFalse(FindSceneObject(harness, copy, Freedom, MarshesFreedomsJustAnotherWordV1.TerminalRole(0)) != null, "no terminal before the keypass");
+            Assert.IsFalse(FindSceneObject(harness, copy, Freedom, MarshesFreedomsJustAnotherWordV2.TerminalRole(0)) != null, "no terminal before the keypass");
 
             Kill(harness, copy, commander);
-            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Freedom, MarshesFreedomsJustAnotherWordV1.Keypass));
-            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, MarshesFreedomsJustAnotherWordV1.KeycardTemplate), "the keypass");
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Freedom, MarshesFreedomsJustAnotherWordV2.Keypass));
+            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, MarshesFreedomsJustAnotherWordV2.KeycardTemplate), "the keypass");
             var order = new[] { 2, 0, 1 };
             for (var step = 0; step < order.Length; step++)
             {
                 var block = order[step];
-                var objective = MarshesFreedomsJustAnotherWordV1.Blocks[block].Objective;
+                var objective = MarshesFreedomsJustAnotherWordV2.Blocks[block].Objective;
                 Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Freedom, objective));
-                var terminal = SceneObject(harness, copy, Freedom, MarshesFreedomsJustAnotherWordV1.TerminalRole(block));
-                Assert.AreEqual(MarshesFreedomsJustAnotherWordV1.TerminalClass, (uint)terminal.EntityClassId);
+                var terminal = SceneObject(harness, copy, Freedom, MarshesFreedomsJustAnotherWordV2.TerminalRole(block));
+                Assert.AreEqual(MarshesFreedomsJustAnotherWordV2.TerminalClass, (uint)terminal.EntityClassId);
                 AssertOnGround(copy, terminal.Position, terminal.SceneActorRole);
-                Use(harness, copy, terminal, MarshesFreedomsJustAnotherWordV1.UseArgument);
-                Use(harness, copy, terminal, MarshesFreedomsJustAnotherWordV1.UseArgument);
+                Use(harness, copy, terminal, MarshesFreedomsJustAnotherWordV2.UseArgument);
+                Use(harness, copy, terminal, MarshesFreedomsJustAnotherWordV2.UseArgument);
                 Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Freedom, objective), $"block {block}");
                 for (var index = 0; index < 2; index++)
-                    Assert.IsNull(SceneCreature(harness, copy, Freedom, MarshesFreedomsJustAnotherWordV1.PrisonerRole(block, index)), "freed");
+                    Assert.IsNull(SceneCreature(harness, copy, Freedom, MarshesFreedomsJustAnotherWordV2.PrisonerRole(block, index)), "freed");
                 if (step == 0)
                 {
                     ReloadAndRecover(harness, copy);
@@ -274,12 +274,12 @@ namespace Rasa.Test.Missions.Marshes
                     Assert.IsFalse(harness.Client.Player.Missions[Freedom].Completeable);
             }
             Assert.IsTrue(harness.Client.Player.Missions[Freedom].Completeable);
-            sakai = SceneCreature(harness, copy, Freedom, MarshesFreedomsJustAnotherWordV1.SakaiRole);
+            sakai = SceneCreature(harness, copy, Freedom, MarshesFreedomsJustAnotherWordV2.SakaiRole);
             FailedTurnInPaysNothing(harness, sakai, Freedom, 2);
             WildernessRanjaGorgeTests.CompleteAndCheckReward(harness, sakai, Freedom, 2,
-                MarshesFreedomsJustAnotherWordV1.Experience, MarshesFreedomsJustAnotherWordV1.Credits);
-            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, MarshesFreedomsJustAnotherWordV1.Rewards[2]), "the chosen item");
-            Assert.AreEqual(0U, WildernessRanjaGorgeTests.Held(harness, MarshesFreedomsJustAnotherWordV1.KeycardTemplate), "Sakai takes the keypass");
+                MarshesFreedomsJustAnotherWordV2.Experience, MarshesFreedomsJustAnotherWordV2.Credits);
+            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, MarshesFreedomsJustAnotherWordV2.Rewards[2]), "the chosen item");
+            Assert.AreEqual(0U, WildernessRanjaGorgeTests.Held(harness, MarshesFreedomsJustAnotherWordV2.KeycardTemplate), "Sakai takes the keypass");
             Tick(harness, copy, 250);
             Assert.IsTrue(PlateauRetreadCampTests.Offers(harness, Giver(copy, N.Sakai), Leggo), "the public Sakai offers 550 next");
         }
@@ -468,7 +468,7 @@ namespace Rasa.Test.Missions.Marshes
             var levels = new[] { (N.Larvax, N.LarvaxName, N.LarvaxHitPoints), (N.Xynnr, N.XynnrName, N.XynnrHitPoints), (N.Mesgel, N.MesgelName, N.MesgelHitPoints) };
             for (var index = 0; index < 3; index++)
             {
-                bosses[index] = SceneCreature(harness, copy, Slay, MarshesSlayOnTargetV1.BossRole(index));
+                bosses[index] = SceneCreature(harness, copy, Slay, MarshesSlayOnTargetV2.BossRole(index));
                 Assert.IsNotNull(bosses[index], $"boss {index + 1}");
                 Assert.AreEqual((levels[index].Item1, levels[index].Item2, N.BossLevel), (bosses[index].DbId, bosses[index].NameId, bosses[index].Level));
                 Assert.AreEqual((int)levels[index].Item3, (int)bosses[index].Attributes[Attributes.Health].Current);
@@ -476,65 +476,65 @@ namespace Rasa.Test.Missions.Marshes
                 AssertOnGround(copy, bosses[index].Position, $"boss {index + 1}");
                 AssertPath(copy, ToVector(MarshesTasteOfTheirOwnMedicineV1.RoomAt), bosses[index].Position, $"boss {index + 1} from the checkpoint");
             }
-            Assert.AreEqual(MissionObjectiveState.Inactive, Objective(harness, Slay, MarshesSlayOnTargetV1.Teleporter));
-            Assert.IsNull(FindSceneObject(harness, copy, Slay, MarshesSlayOnTargetV1.TeleporterRole), "no teleporter before the alarm");
+            Assert.AreEqual(MissionObjectiveState.Inactive, Objective(harness, Slay, MarshesSlayOnTargetV2.Teleporter));
+            Assert.IsNull(FindSceneObject(harness, copy, Slay, MarshesSlayOnTargetV2.TeleporterRole), "no teleporter before the alarm");
 
-            for (var index = 0; index < MarshesSlayOnTargetV1.EquipmentAt.Length; index++)
+            for (var index = 0; index < MarshesSlayOnTargetV2.EquipmentAt.Length; index++)
             {
-                var piece = SceneObject(harness, copy, Slay, MarshesSlayOnTargetV1.EquipmentRole(index));
-                Assert.AreEqual(MarshesSlayOnTargetV1.EquipmentClass, (uint)piece.EntityClassId);
+                var piece = SceneObject(harness, copy, Slay, MarshesSlayOnTargetV2.EquipmentRole(index));
+                Assert.AreEqual(MarshesSlayOnTargetV2.EquipmentClass, (uint)piece.EntityClassId);
                 AssertOnGround(copy, piece.Position, piece.SceneActorRole);
                 Damage(harness, copy, piece, 60);
-                Assert.AreEqual((uint)index, Counter(harness, Slay, MarshesSlayOnTargetV1.Equipment), "not at 60 of 100");
+                Assert.AreEqual((uint)index, Counter(harness, Slay, MarshesSlayOnTargetV2.Equipment), "not at 60 of 100");
                 Damage(harness, copy, piece, 60);
                 Damage(harness, copy, piece, 60);
-                Assert.AreEqual((uint)index + 1, Counter(harness, Slay, MarshesSlayOnTargetV1.Equipment), $"piece {index + 1}, once");
-                Assert.AreEqual(MarshesSlayOnTargetV1.DestroyedState, (uint)piece.StateId);
+                Assert.AreEqual((uint)index + 1, Counter(harness, Slay, MarshesSlayOnTargetV2.Equipment), $"piece {index + 1}, once");
+                Assert.AreEqual(MarshesSlayOnTargetV2.DestroyedState, (uint)piece.StateId);
             }
-            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Slay, MarshesSlayOnTargetV1.Equipment));
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Slay, MarshesSlayOnTargetV2.Equipment));
 
-            var dispenser = SceneObject(harness, copy, Slay, MarshesSlayOnTargetV1.DispenserRole);
+            var dispenser = SceneObject(harness, copy, Slay, MarshesSlayOnTargetV2.DispenserRole);
             AssertOnGround(copy, dispenser.Position, "the dispenser");
-            Use(harness, copy, dispenser, MarshesSlayOnTargetV1.DispenserArgument);
-            Use(harness, copy, dispenser, MarshesSlayOnTargetV1.DispenserArgument);
-            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, MarshesSlayOnTargetV1.DnaTemplate), "one jar");
-            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Slay, MarshesSlayOnTargetV1.Specimen));
+            Use(harness, copy, dispenser, MarshesSlayOnTargetV2.DispenserArgument);
+            Use(harness, copy, dispenser, MarshesSlayOnTargetV2.DispenserArgument);
+            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, MarshesSlayOnTargetV2.DnaTemplate), "one jar");
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Slay, MarshesSlayOnTargetV2.Specimen));
 
             harness.MoveTo(bosses[2].Position + new Vector3(0, 0, 5));
             CreatureManager.RecordCombatDamage(copy, bosses[2], harness.Client.Player, 50);
             Tick(harness, copy, 250);
-            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Slay, MarshesSlayOnTargetV1.Alarm), "the alarm");
-            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Slay, MarshesSlayOnTargetV1.Teleporter));
-            var teleporter = SceneObject(harness, copy, Slay, MarshesSlayOnTargetV1.TeleporterRole);
-            Assert.AreEqual(MarshesSlayOnTargetV1.TeleporterClass, (uint)teleporter.EntityClassId);
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Slay, MarshesSlayOnTargetV2.Alarm), "the alarm");
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Slay, MarshesSlayOnTargetV2.Teleporter));
+            var teleporter = SceneObject(harness, copy, Slay, MarshesSlayOnTargetV2.TeleporterRole);
+            Assert.AreEqual(MarshesSlayOnTargetV2.TeleporterClass, (uint)teleporter.EntityClassId);
             AssertOnGround(copy, teleporter.Position, "the teleporter");
-            Assert.AreEqual((int)MarshesSlayOnTargetV1.WaveSize, Influx(harness, copy, 0).Count(), "the first four at once");
-            foreach (var at in MarshesSlayOnTargetV1.WaveAt)
+            Assert.AreEqual((int)MarshesSlayOnTargetV2.WaveSize, Influx(harness, copy, 0).Count(), "the first four at once");
+            foreach (var at in MarshesSlayOnTargetV2.WaveAt)
                 AssertOnGround(copy, ToVector(at), "a wave's place");
             Assert.IsEmpty(Influx(harness, copy, 1), "the second not yet");
             // Each wave is killed as it comes, as the player would.
             foreach (var thrax in Influx(harness, copy, 0).ToArray())
                 Kill(harness, copy, thrax);
-            for (var second = 0; second < MarshesSlayOnTargetV1.WaveMilliseconds / 1000 + 1; second++)
+            for (var second = 0; second < MarshesSlayOnTargetV2.WaveMilliseconds / 1000 + 1; second++)
                 Tick(harness, copy, 1000);
-            Assert.AreEqual((int)MarshesSlayOnTargetV1.WaveSize, Influx(harness, copy, 1).Count(), "four more after 30 s");
+            Assert.AreEqual((int)MarshesSlayOnTargetV2.WaveSize, Influx(harness, copy, 1).Count(), "four more after 30 s");
             foreach (var thrax in Influx(harness, copy, 1).ToArray())
                 Kill(harness, copy, thrax);
             Assert.AreNotEqual(CharacterState.Dead, harness.Client.Player.State, "the player stands");
 
                         Damage(harness, copy, teleporter, 200);
             Damage(harness, copy, teleporter, 200);
-            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Slay, MarshesSlayOnTargetV1.Teleporter), "not at 400 of 600");
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Slay, MarshesSlayOnTargetV2.Teleporter), "not at 400 of 600");
             Damage(harness, copy, teleporter, 200);
-            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Slay, MarshesSlayOnTargetV1.Teleporter), "shot down");
-            for (var second = 0; second < 2 * MarshesSlayOnTargetV1.WaveMilliseconds / 1000 + 5; second++)
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Slay, MarshesSlayOnTargetV2.Teleporter), "shot down");
+            for (var second = 0; second < 2 * MarshesSlayOnTargetV2.WaveMilliseconds / 1000 + 5; second++)
                 Tick(harness, copy, 1000);
             Assert.IsEmpty(Influx(harness, copy, 2), "no more come");
 
             for (var index = 0; index < 3; index++)
             {
-                Kill(harness, copy, SceneCreature(harness, copy, Slay, MarshesSlayOnTargetV1.BossRole(index)));
-                Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Slay, MarshesSlayOnTargetV1.Bosses[index].Objective), $"boss {index + 1}");
+                Kill(harness, copy, SceneCreature(harness, copy, Slay, MarshesSlayOnTargetV2.BossRole(index)));
+                Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Slay, MarshesSlayOnTargetV2.Bosses[index].Objective), $"boss {index + 1}");
                 if (index == 0)
                     ReloadAndRecover(harness, copy);
             }
@@ -543,11 +543,11 @@ namespace Rasa.Test.Missions.Marshes
             Assert.IsTrue(harness.Manager.TryCompleteRadioMission(harness.Client, Slay, 1, null));
             Assert.AreEqual(1, harness.Drain().OfType<MissionRewardedPacket>().Count(packet => packet.MissionId == Slay), "paid once");
             var after = harness.Context.ReadRewardTotals();
-            Assert.AreEqual((before.Experience + MarshesSlayOnTargetV1.Experience, before.Credits + (int)MarshesSlayOnTargetV1.Credits),
+            Assert.AreEqual((before.Experience + MarshesSlayOnTargetV2.Experience, before.Credits + (int)MarshesSlayOnTargetV2.Credits),
                 (after.Experience, after.Credits));
             Assert.IsFalse(harness.Manager.TryCompleteRadioMission(harness.Client, Slay, 1, null), "and only once");
-            Assert.AreEqual(MarshesSlayOnTargetV1.CryoGrenades, WildernessRanjaGorgeTests.Held(harness, MarshesSlayOnTargetV1.CryoGrenade), "the chosen stack");
-            Assert.AreEqual(0U, WildernessRanjaGorgeTests.Held(harness, MarshesSlayOnTargetV1.DnaTemplate), "the jar goes");
+            Assert.AreEqual(MarshesSlayOnTargetV2.CryoGrenades, WildernessRanjaGorgeTests.Held(harness, MarshesSlayOnTargetV2.CryoGrenade), "the chosen stack");
+            Assert.AreEqual(0U, WildernessRanjaGorgeTests.Held(harness, MarshesSlayOnTargetV2.DnaTemplate), "the jar goes");
         }
 
         /// <summary>
@@ -564,7 +564,7 @@ namespace Rasa.Test.Missions.Marshes
             var copy = IntoFacility(harness);
             Accept(harness, Giver(copy, N.Hax), Slay);
             Tick(harness, copy, 250);
-            var mesgel = SceneCreature(harness, copy, Slay, MarshesSlayOnTargetV1.BossRole(2));
+            var mesgel = SceneCreature(harness, copy, Slay, MarshesSlayOnTargetV2.BossRole(2));
             harness.MoveTo(mesgel.Position + new Vector3(0, 0, 5));
             mesgel.Attributes[Attributes.Health].Current = 0;
             harness.Creatures.HandleCreatureKill(copy, mesgel, null);
@@ -572,22 +572,22 @@ namespace Rasa.Test.Missions.Marshes
             Tick(harness, copy, 250);
             Tick(harness, copy, 250);
 
-            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Slay, MarshesSlayOnTargetV1.Mesgel), "Mesgel's death counts");
-            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Slay, MarshesSlayOnTargetV1.Alarm), "no alarm");
-            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Slay, MarshesSlayOnTargetV1.Quiet));
-            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Slay, MarshesSlayOnTargetV1.Teleporter), "no influx to stop");
-            Assert.IsNull(FindSceneObject(harness, copy, Slay, MarshesSlayOnTargetV1.TeleporterRole), "no teleporter");
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Slay, MarshesSlayOnTargetV2.Mesgel), "Mesgel's death counts");
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Slay, MarshesSlayOnTargetV2.Alarm), "no alarm");
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Slay, MarshesSlayOnTargetV2.Quiet));
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Slay, MarshesSlayOnTargetV2.Teleporter), "no influx to stop");
+            Assert.IsNull(FindSceneObject(harness, copy, Slay, MarshesSlayOnTargetV2.TeleporterRole), "no teleporter");
             Assert.IsEmpty(Influx(harness, copy, 0), "no wave");
 
-            for (var index = 0; index < MarshesSlayOnTargetV1.EquipmentAt.Length; index++)
+            for (var index = 0; index < MarshesSlayOnTargetV2.EquipmentAt.Length; index++)
             {
-                var piece = SceneObject(harness, copy, Slay, MarshesSlayOnTargetV1.EquipmentRole(index));
+                var piece = SceneObject(harness, copy, Slay, MarshesSlayOnTargetV2.EquipmentRole(index));
                 for (var shot = 0; shot < 2; shot++)
                     Damage(harness, copy, piece, 60);
             }
-            Use(harness, copy, SceneObject(harness, copy, Slay, MarshesSlayOnTargetV1.DispenserRole), MarshesSlayOnTargetV1.DispenserArgument);
+            Use(harness, copy, SceneObject(harness, copy, Slay, MarshesSlayOnTargetV2.DispenserRole), MarshesSlayOnTargetV2.DispenserArgument);
             for (var index = 0; index < 2; index++)
-                Kill(harness, copy, SceneCreature(harness, copy, Slay, MarshesSlayOnTargetV1.BossRole(index)));
+                Kill(harness, copy, SceneCreature(harness, copy, Slay, MarshesSlayOnTargetV2.BossRole(index)));
             Assert.IsTrue(harness.Client.Player.Missions[Slay].Completeable, "completable without the teleporter");
             Assert.IsTrue(harness.Manager.TryCompleteRadioMission(harness.Client, Slay, 1, null));
         }
@@ -605,20 +605,20 @@ namespace Rasa.Test.Missions.Marshes
             var copy = IntoFacility(harness);
             Accept(harness, Giver(copy, N.Hax), Slay);
             Tick(harness, copy, 250);
-            var mesgel = SceneCreature(harness, copy, Slay, MarshesSlayOnTargetV1.BossRole(2));
+            var mesgel = SceneCreature(harness, copy, Slay, MarshesSlayOnTargetV2.BossRole(2));
             harness.MoveTo(mesgel.Position + new Vector3(0, 0, 5));
             CreatureManager.RecordCombatDamage(copy, mesgel, harness.Client.Player, 50);
             Tick(harness, copy, 250);
-            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Slay, MarshesSlayOnTargetV1.Alarm), "the alarm");
-            Assert.AreEqual(MissionObjectiveState.Failed, Objective(harness, Slay, MarshesSlayOnTargetV1.Quiet), "the quiet end is gone");
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Slay, MarshesSlayOnTargetV2.Alarm), "the alarm");
+            Assert.AreEqual(MissionObjectiveState.Failed, Objective(harness, Slay, MarshesSlayOnTargetV2.Quiet), "the quiet end is gone");
 
             Kill(harness, copy, mesgel);
-            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Slay, MarshesSlayOnTargetV1.Mesgel));
-            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Slay, MarshesSlayOnTargetV1.Teleporter), "the teleporter still stands");
-            var teleporter = SceneObject(harness, copy, Slay, MarshesSlayOnTargetV1.TeleporterRole);
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Slay, MarshesSlayOnTargetV2.Mesgel));
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Slay, MarshesSlayOnTargetV2.Teleporter), "the teleporter still stands");
+            var teleporter = SceneObject(harness, copy, Slay, MarshesSlayOnTargetV2.TeleporterRole);
             for (var shot = 0; shot < 3; shot++)
                 Damage(harness, copy, teleporter, 200);
-            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Slay, MarshesSlayOnTargetV1.Teleporter), "shot down");
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Slay, MarshesSlayOnTargetV2.Teleporter), "shot down");
         }
 
         /// <summary>
@@ -819,8 +819,8 @@ namespace Rasa.Test.Missions.Marshes
                 .Select(index => SceneCreature(harness, copy, Taste, MarshesTasteOfTheirOwnMedicineV1.RoomRole(index))).Where(creature => creature != null);
 
         private static IEnumerable<Creature> Influx(WildernessRuntimeTestHarness harness, MapChannel copy, int wave) =>
-            Enumerable.Range(0, (int)MarshesSlayOnTargetV1.WaveSize)
-                .Select(member => SceneCreature(harness, copy, Slay, MarshesSlayOnTargetV1.WaveRole(wave, member))).Where(creature => creature != null);
+            Enumerable.Range(0, (int)MarshesSlayOnTargetV2.WaveSize)
+                .Select(member => SceneCreature(harness, copy, Slay, MarshesSlayOnTargetV2.WaveRole(wave, member))).Where(creature => creature != null);
 
         /// <summary>Into a mission area at <paramref name="at"/>, as MissionAreaService takes a step from far off.</summary>
         private static void Enter(WildernessRuntimeTestHarness harness, Vector3 at)

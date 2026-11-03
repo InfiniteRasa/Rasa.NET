@@ -17,7 +17,7 @@ namespace Rasa.Test.Missions.Marshes
     using static PlateauCampResistanceTests;
     using static PlateauInstanceMaps;
     using N = MarshesBaneSupplyDepotNpcsV1;
-    using V = MarshesSurvivorsV1;
+    using V = MarshesSurvivorsV2;
     using B = MarshesBeinvenidosDelVoroV1;
     using I = MarshesInsertionPointV1;
 

@@ -48,25 +48,8 @@ namespace Rasa.Services.Preloader.Missions.Marshes
         public const uint PowerCharger = 118907, PowerChargers = 3;             // Class VII Power Charger
         public const uint FragGrenade = 45446, FragGrenades = 6;                // Class VII Fragmentation Grenade
 
-        /// <summary>
-        /// The player's choice between 893 and 1078 (a mission flag, as PoolsPoisonCanistersV1's fork flag): set to the
-        /// mission's id by its choosing step (893's talk, Myrquar's death), kept for good (an abandon or a fail leaves it).
-        /// </summary>
-        public const uint ChoiceFlag = 893001;
-
-        /// <summary>
-        /// Not offered, not taken, not played once the other path is done or chosen (the choice flag holds the other's id): the
-        /// signal alone cannot close a path the player takes only after the other's choice (1078 alone, Myrquar killed, then
-        /// 893), and the pending-offer accept checks the source's requirement again (MissionOfferAuthority).
-        /// </summary>
-        public static MissionRequirement NotTheOtherPath(uint other) => new AllRequirements(new MissionRequirement[]
-        {
-            new NotRequirement(new MissionStateRequirement(other)), new NotRequirement(new FlagRequirement(ChoiceFlag, other))
-        });
-
-        /// <summary>The choosing step of <paramref name="own"/>: action <paramref name="action"/> sets the choice flag to it.</summary>
-        internal static void MakeTheChoice(MarshesMissionDataV1 mission, uint objective, uint action, uint own) =>
-            mission.Action(objective, action, MissionActionKind.SetPlayerFlag, playerFlag: ChoiceFlag, playerFlagValue: own);
+        /// <summary>Not offered, not taken, once the other path is done.</summary>
+        public static MissionRequirement NotTheOtherPath(uint other) => new NotRequirement(new MissionStateRequirement(other));
 
         /// <summary>
         /// The fork between 893 and 1078, with no requirement on any talk (the client's flag-1 text stays the only topic): 893's
@@ -113,12 +96,10 @@ namespace Rasa.Services.Preloader.Missions.Marshes
             mission.Transition(Contact);
             mission.Conversation(Contact, MarshesPreoDasNpcsV1.ElderPackage);
             mission.Action(Contact, 1, MissionActionKind.GrantReward, reward: 1);
-            MakeTheChoice(mission, Contact, 3, MissionId);
             ClosedByTheOther(mission, "The Choices We Make", (Contact, 2));
             var scene = new MissionSceneDefinition
             {
                 Script = "data.sequence",
-                BoundMapContextId = Ruins,      // offered on the Marshes too (at 1076's turn-in): played in the squad's Village Ruins
                 MapContextId = Ruins,
                 Requirement = NotTheOtherPath(MarshesTheChoicesWeMakeV1.MissionId)
             };

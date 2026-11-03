@@ -34,7 +34,7 @@ namespace Rasa.Test.Missions.Marshes
     {
         private const uint Kael = MarshesBringDownTheKaelV1.MissionId;
         private const uint Spirit = MarshesBringingTheSpiritHomeV1.MissionId;
-        private const uint HeadEast = MarshesHeadEastV1.MissionId;
+        private const uint HeadEast = MarshesHeadEastV2.MissionId;
         private const uint Soyuz = MarshesSoyuzSalvageV1.MissionId;
         private const uint Toida = MarshesWelcomeWagonV1.Toida;
         private const uint Starling = MarshesCannisterCollectionV1.Starling;
@@ -274,28 +274,28 @@ namespace Rasa.Test.Missions.Marshes
             using var harness = WildernessRuntimeTestHarness.Create();
             var marshes = EnterMarshes(harness);
             var figgins = Npc(marshes, Figgins);
-            var publicShaw = Npc(marshes, MarshesHeadEastV1.PublicShawPool);
+            var publicShaw = Npc(marshes, MarshesHeadEastV2.PublicShawPool);
             Assert.IsFalse(HiddenCreatures.IsHiddenFrom(publicShaw, harness.Client), "the public Shaw before the mission");
             var offer = WildernessRanjaGorgeTests.Offer(harness, figgins, HeadEast);
-            CollectionAssert.AreEqual(MarshesHeadEastV1.Rewards, offer.SelectableReward.Select(item => item.ItemTemplateId).ToArray());
+            CollectionAssert.AreEqual(MarshesHeadEastV2.Rewards, offer.SelectableReward.Select(item => item.ItemTemplateId).ToArray());
             Begin(harness, marshes, figgins, HeadEast);
-            Assert.AreEqual(MissionObjectiveState.Inactive, Objective(harness, HeadEast, MarshesHeadEastV1.Defend), "2 hidden");
-            Assert.AreEqual(MissionObjectiveState.Inactive, Objective(harness, HeadEast, MarshesHeadEastV1.Speak), "3 hidden");
+            Assert.AreEqual(MissionObjectiveState.Inactive, Objective(harness, HeadEast, MarshesHeadEastV2.Defend), "2 hidden");
+            Assert.AreEqual(MissionObjectiveState.Inactive, Objective(harness, HeadEast, MarshesHeadEastV2.Speak), "3 hidden");
             // To-fix 10: no station men while no player is near, the public Shaw there.
             for (var second = 0; second < 60; second++)
                 Tick(harness, marshes, 1000);
             Assert.IsNull(SceneCreature(harness, marshes, HeadEast, MarshesDefenceScene.Leader), "no stand-in before the player comes near");
             Assert.IsFalse(HiddenCreatures.IsHiddenFrom(publicShaw, harness.Client), "the public Shaw until then");
             Approach(harness, marshes);
-            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, HeadEast, MarshesHeadEastV1.Near), "the hidden approach");
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, HeadEast, MarshesHeadEastV2.Near), "the hidden approach");
 
             var shaw = SceneCreature(harness, marshes, HeadEast, MarshesDefenceScene.Leader);
             Assert.IsNotNull(shaw, "the stand-in stands once the player is near");
             Assert.AreEqual((MarshesEastAndNorthNpcsV1.ShawStandIn, MarshesEastAndNorthNpcsV1.ShawName, MarshesEastAndNorthNpcsV1.ShawPackage),
                 (shaw.DbId, shaw.NameId, shaw.Npc?.NpcPackageId));
-            Assert.IsLessThan(0.5f, Vector3.Distance(shaw.Position, ToVector(MarshesHeadEastV1.ShawAt)), "at Shaw's place");
+            Assert.IsLessThan(0.5f, Vector3.Distance(shaw.Position, ToVector(MarshesHeadEastV2.ShawAt)), "at Shaw's place");
             Assert.IsTrue(HiddenCreatures.IsHiddenFrom(publicShaw, harness.Client), "the public Shaw hidden");
-            for (var member = 2; member <= MarshesHeadEastV1.SoldiersAt.Length + 1; member++)
+            for (var member = 2; member <= MarshesHeadEastV2.SoldiersAt.Length + 1; member++)
             {
                 var soldier = SceneCreature(harness, marshes, HeadEast, MarshesDefenceScene.Ward(member));
                 Assert.IsNotNull(soldier);
@@ -307,13 +307,13 @@ namespace Rasa.Test.Missions.Marshes
             Assert.IsFalse(Wave(harness, marshes, 1).Any(), "no Thrax before the talk");
             Assert.IsEmpty(Topics(harness, figgins, HeadEast), "Figgins hears nothing");
 
-            Talk(harness, shaw, HeadEast, MarshesHeadEastV1.Report);
-            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, HeadEast, MarshesHeadEastV1.Defend));
+            Talk(harness, shaw, HeadEast, MarshesHeadEastV2.Report);
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, HeadEast, MarshesHeadEastV2.Defend));
             Tick(harness, marshes, 250);
             var log = new List<PythonPacket>();
-            for (var wave = 1; wave <= MarshesHeadEastV1.Waves.Length; wave++)
+            for (var wave = 1; wave <= MarshesHeadEastV2.Waves.Length; wave++)
             {
-                var (after, members) = MarshesHeadEastV1.Waves[wave - 1];
+                var (after, members) = MarshesHeadEastV2.Waves[wave - 1];
                 AdvanceTo(harness, marshes, after - 5000, log);
                 Assert.IsFalse(Wave(harness, marshes, wave).Any(), $"wave {wave} not before {after - 5000} ms");
                 AdvanceTo(harness, marshes, after + 1000, log);
@@ -330,33 +330,33 @@ namespace Rasa.Test.Missions.Marshes
                 }
             }
             Assert.IsTrue(Wave(harness, marshes, 2).Any(creature => creature.DbId == MarshesEastAndNorthNpcsV1.Stalker), "a Stalker");
-            AdvanceTo(harness, marshes, MarshesHeadEastV1.HoldMilliseconds - 5000, log);
-            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, HeadEast, MarshesHeadEastV1.Defend), "not before the hold");
+            AdvanceTo(harness, marshes, MarshesHeadEastV2.HoldMilliseconds - 5000, log);
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, HeadEast, MarshesHeadEastV2.Defend), "not before the hold");
             Assert.IsNull(SceneCreature(harness, marshes, HeadEast, MarshesDefenceScene.AfterRole(1)), "no Meeko before the hold");
-            AdvanceTo(harness, marshes, MarshesHeadEastV1.HoldMilliseconds + 2000, log);
-            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, HeadEast, MarshesHeadEastV1.Defend), "held");
+            AdvanceTo(harness, marshes, MarshesHeadEastV2.HoldMilliseconds + 2000, log);
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, HeadEast, MarshesHeadEastV2.Defend), "held");
             Assert.AreEqual(1, log.OfType<ObjectiveCompletedPacket>().Count(packet => packet.MissionId == HeadEast &&
-                packet.ObjectiveId == MarshesHeadEastV1.Defend), "ObjectiveCompleted once");
-            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, HeadEast, MarshesHeadEastV1.Speak), "3 opens");
+                packet.ObjectiveId == MarshesHeadEastV2.Defend), "ObjectiveCompleted once");
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, HeadEast, MarshesHeadEastV2.Speak), "3 opens");
             Assert.IsNull(SceneCreature(harness, marshes, HeadEast, MarshesDefenceScene.Leader), "the stand-in goes");
-            for (var wave = 1; wave <= MarshesHeadEastV1.Waves.Length; wave++)
+            for (var wave = 1; wave <= MarshesHeadEastV2.Waves.Length; wave++)
                 Assert.IsFalse(Wave(harness, marshes, wave).Any(), $"wave {wave} goes");
             Assert.IsFalse(HiddenCreatures.IsHiddenFrom(publicShaw, harness.Client), "the public Shaw is back");
             var meeko = Meeko(harness, marshes);
 
             ReloadAndRecover(harness, marshes);
             meeko = Meeko(harness, marshes);
-            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, HeadEast, MarshesHeadEastV1.Speak), "kept at a reload");
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, HeadEast, MarshesHeadEastV2.Speak), "kept at a reload");
 
             // Meeko cannot be killed: the receiver stays.
             Assert.IsTrue(Rasa.Game.Missions.World.CreatureGameplayRules.IsInvulnerable(meeko), "Meeko is invulnerable");
 
-            Talk(harness, meeko, HeadEast, MarshesHeadEastV1.Speak);
+            Talk(harness, meeko, HeadEast, MarshesHeadEastV2.Speak);
             Assert.IsTrue(harness.Client.Player.Missions[HeadEast].Completeable);
             Assert.IsFalse(harness.Manager.CompleteOfferedMission(harness.Client, figgins.EntityId, HeadEast, 1), "not Figgins' to take");
-            FullBagWaits(harness, meeko, HeadEast, 1, MarshesHeadEastV1.Rewards[0]);
+            FullBagWaits(harness, meeko, HeadEast, 1, MarshesHeadEastV2.Rewards[0]);
             FailedTurnInPaysNothing(harness, meeko, HeadEast, 1);
-            WildernessRanjaGorgeTests.CompleteAndCheckReward(harness, meeko, HeadEast, 1, MarshesHeadEastV1.Experience, MarshesHeadEastV1.Credits);
+            WildernessRanjaGorgeTests.CompleteAndCheckReward(harness, meeko, HeadEast, 1, MarshesHeadEastV2.Experience, MarshesHeadEastV2.Credits);
             Assert.AreEqual(1, harness.Drain().OfType<MissionRewardedPacket>().Count(packet => packet.MissionId == HeadEast), "MissionRewarded once");
             Tick(harness, marshes, 250);
             Tick(harness, marshes, 250);
@@ -372,7 +372,7 @@ namespace Rasa.Test.Missions.Marshes
         [TestMethod]
         public void TheDefenceKeepsMeekoAfterTheHold()
         {
-            var bindings = MarshesHeadEastV1.Scene().Bindings(MarshesMissionDataV1.Revision);
+            var bindings = MarshesHeadEastV2.Scene().Bindings(MarshesMissionDataV1.Revision);
             SceneDecision Handle(string phase, SceneEventKind kind, uint sequence = 0, SceneBindings with = null) =>
                 new MarshesDefenceScene().Handle(
                     new SceneContext(new SceneRun("run", MarshesMissionDataV1.Revision, "marshes.defence", 1, 1, 0,
@@ -389,11 +389,11 @@ namespace Rasa.Test.Missions.Marshes
             Assert.AreEqual("waiting", Phase(waiting));
             Assert.IsEmpty(waiting.WorldIntents, "nobody stands before the approach");
             Assert.IsEmpty(Handle("waiting", SceneEventKind.Recovered).WorldIntents, "nor at a recovery");
-            var near = Handle("waiting", SceneEventKind.Signal, MarshesHeadEastV1.Approach);
+            var near = Handle("waiting", SceneEventKind.Signal, MarshesHeadEastV2.Approach);
             Assert.AreEqual("standing", Phase(near));
             Assert.IsTrue(near.WorldIntents.Any(intent => intent is EnsureActorIntent { Role: MarshesDefenceScene.Leader }), "Shaw's stand-in stands");
             Assert.IsTrue(near.WorldIntents.Any(intent => intent is HideSpawnPoolsIntent), "the public Shaw hidden");
-            var early = Handle("waiting", SceneEventKind.Signal, MarshesHeadEastV1.DefenceStarts);
+            var early = Handle("waiting", SceneEventKind.Signal, MarshesHeadEastV2.DefenceStarts);
             Assert.AreEqual("defending", Phase(early));
             Assert.IsTrue(early.WorldIntents.Any(intent => intent is EnsureActorIntent { Role: MarshesDefenceScene.Leader }), "the men stand at the start");
             Assert.IsNotEmpty(early.Timers, "the waves are timed");
@@ -405,14 +405,14 @@ namespace Rasa.Test.Missions.Marshes
             Assert.IsTrue(held.WorldIntents.Any(intent => intent is RemoveActorIntent remove && remove.Role == MarshesDefenceScene.WaveRole(2, 5)),
                 "the Stalker goes");
             Assert.IsFalse(held.WorldIntents.Any(intent => intent is RemoveActorIntent remove && remove.Role.StartsWith("after-")), "Meeko stays");
-            Assert.AreEqual((HeadEast, MarshesHeadEastV1.Held, 1U),
+            Assert.AreEqual((HeadEast, MarshesHeadEastV2.Held, 1U),
                 (held.Signals.Single().MissionId, held.Signals.Single().SequenceId, held.Signals.Single().EventId), "held");
 
             var recovered = Handle("after", SceneEventKind.Recovered);
             CollectionAssert.AreEqual(new[] { meeko }, recovered.WorldIntents.Select(intent => intent.OperationKey).ToArray(), "Meeko back");
             Assert.AreEqual(SceneStatus.Running, recovered.Status);
             foreach (var (kind, sequence) in new[] { (SceneEventKind.TimerElapsed, MarshesDefenceScene.HoldTimerSequence),
-                (SceneEventKind.Signal, MarshesHeadEastV1.DefenceStarts), (SceneEventKind.ActorDied, 0U) })
+                (SceneEventKind.Signal, MarshesHeadEastV2.DefenceStarts), (SceneEventKind.ActorDied, 0U) })
             {
                 var unchanged = Handle("after", kind, sequence);
                 Assert.IsEmpty(unchanged.WorldIntents, $"{kind} changes nothing");
@@ -435,7 +435,7 @@ namespace Rasa.Test.Missions.Marshes
         /// <summary>The player 30 m west of Shaw, inside 920's approach (40 m): the station's men stand.</summary>
         private static void Approach(WildernessRuntimeTestHarness harness, MapChannel marshes)
         {
-            MarshesPreoDasTests.Enter(harness, ToVector(MarshesHeadEastV1.ShawAt) + new Vector3(-30, 0, 0));
+            MarshesPreoDasTests.Enter(harness, ToVector(MarshesHeadEastV2.ShawAt) + new Vector3(-30, 0, 0));
             Tick(harness, marshes, 250);
             Tick(harness, marshes, 250);
         }
@@ -447,11 +447,11 @@ namespace Rasa.Test.Missions.Marshes
             using var harness = WildernessRuntimeTestHarness.Create();
             var marshes = EnterMarshes(harness);
             var figgins = Npc(marshes, Figgins);
-            var publicShaw = Npc(marshes, MarshesHeadEastV1.PublicShawPool);
+            var publicShaw = Npc(marshes, MarshesHeadEastV2.PublicShawPool);
             Begin(harness, marshes, figgins, HeadEast);
             Approach(harness, marshes);
             var failed = Die(harness, marshes, SceneCreature(harness, marshes, HeadEast, MarshesDefenceScene.Leader));
-            Assert.AreEqual(MissionObjectiveState.Failed, Objective(harness, HeadEast, MarshesHeadEastV1.Report), "lost before the report");
+            Assert.AreEqual(MissionObjectiveState.Failed, Objective(harness, HeadEast, MarshesHeadEastV2.Report), "lost before the report");
             Assert.AreEqual(MissionState.Failed, harness.Client.Player.Missions[HeadEast].State);
             Assert.AreEqual(1, failed.OfType<ObjectiveFailedPacket>().Count(packet => packet.MissionId == HeadEast), "ObjectiveFailed once");
             Assert.IsNull(SceneCreature(harness, marshes, HeadEast, MarshesDefenceScene.Ward(2)), "the soldiers go");
@@ -632,7 +632,7 @@ namespace Rasa.Test.Missions.Marshes
                 (meeko.DbId, meeko.NameId, meeko.Npc?.NpcPackageId));
             Assert.AreNotEqual(TargetCategory.Hostile, meeko.TargetCategory);
             AssertOnGround(marshes, meeko.Position, "Meeko");
-            Assert.IsLessThan(10f, Vector3.Distance(meeko.Position, ToVector(MarshesHeadEastV1.ShawAt)), "by Shaw");
+            Assert.IsLessThan(10f, Vector3.Distance(meeko.Position, ToVector(MarshesHeadEastV2.ShawAt)), "by Shaw");
             return meeko;
         }
 
@@ -648,7 +648,7 @@ namespace Rasa.Test.Missions.Marshes
             while ((harness.UtcNow - _talkedAt.Value).TotalMilliseconds < milliseconds)
             {
                 // The attackers are held where they come in, the station kept up: only the scene's clock is under test.
-                foreach (var creature in Enumerable.Range(1, MarshesHeadEastV1.Waves.Length).SelectMany(wave => Wave(harness, marshes, wave)))
+                foreach (var creature in Enumerable.Range(1, MarshesHeadEastV2.Waves.Length).SelectMany(wave => Wave(harness, marshes, wave)))
                     creature.Attributes[Attributes.Health].Current = creature.Attributes[Attributes.Health].NormalMax;
                 foreach (var role in new[] { MarshesDefenceScene.Leader, MarshesDefenceScene.Ward(2), MarshesDefenceScene.Ward(3) })
                     if (SceneCreature(harness, marshes, HeadEast, role) is { } ward)

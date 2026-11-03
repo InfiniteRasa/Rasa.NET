@@ -58,6 +58,13 @@ namespace Rasa.Services.Preloader.Missions.Marshes
                 yield return Marker(marker, At(marker.Pool));
         }
 
+        /// <summary>
+        /// The moved markers of one mission, as Up writes them (Marshes_playtest_fixes: a mission written again by its V1 class
+        /// takes its moved marker back).
+        /// </summary>
+        public static IEnumerable<string> MarkersOf(uint mission) =>
+            Markers.Where(marker => marker.Mission == mission).Select(marker => Marker(marker, At(marker.Pool)));
+
         public static IEnumerable<string> Down()
         {
             foreach (var marker in Markers)
