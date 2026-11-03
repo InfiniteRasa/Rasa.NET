@@ -72,9 +72,10 @@ namespace Rasa.Test.Missions.Pools
         /// one, Mox Clearing's five, Mox Shouldn't Smoke's two, A Mox On Both Our Houses' two, Deadly Moxins' four, Miasma
         /// Mutations' four, Miasma Testing's eleven, Total Slaughter's two, The Mad Bomber's one. Turpis Refinery: Things
         /// That Blow Up's six, Hard Core's six, Chemistry 101's fourteen, The Bad Doctor's one, Cost of Doing Business'
-        /// 22; Turpis Transport's one, at the door on the Pools.
+        /// 22; Turpis Transport's one, at the door on the Pools. Looking For Logos?' second for objective 3, on the Far
+        /// Logos' shrine inside the refinery (Mission_marker_maps).
         /// </summary>
-        internal const int Indicators = 271;
+        internal const int Indicators = 272;
 
         private const string Before = "20270926000000_Plateau_retreads_to_retreads";
         private const string SnakePit = "20270927000000_Pools_snake_pit";
@@ -696,7 +697,7 @@ namespace Rasa.Test.Missions.Pools
             int Stays() => Count("SELECT COUNT(*) AS Value FROM spawnpool WHERE map_context_id = 1429 AND id NOT BETWEEN 760239 AND 760245");
 
             Assert.IsTrue(missions.All(Has));
-            Assert.AreEqual((7, 6, 6, 1, 2, 5), All(), "1305 has no scene; only the Toxicologist has a stat row");
+            Assert.AreEqual((7, 6, 6, 1, 2, 6), All(), "1305's scene holds only its marker's map (Mission_marker_maps); only the Toxicologist has a stat row");
             var stays = Stays();
 
             world.GetService<IMigrator>().Migrate(RetreadCaves);
@@ -709,7 +710,7 @@ namespace Rasa.Test.Missions.Pools
 
             world.GetService<IMigrator>().Migrate(TurpisRefinery);
             Assert.IsTrue(missions.All(Has));
-            Assert.AreEqual((7, 6, 6, 1, 2, 5), All());
+            Assert.AreEqual((7, 6, 6, 1, 2, 5), All(), "1305 has no scene until Mission_marker_maps");
         }
 
         /// <summary>
