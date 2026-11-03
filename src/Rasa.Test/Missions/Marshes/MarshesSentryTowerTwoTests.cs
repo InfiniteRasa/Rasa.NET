@@ -41,7 +41,7 @@ namespace Rasa.Test.Missions.Marshes
     [DoNotParallelize]
     public class MarshesSentryTowerTwoTests
     {
-        private const uint Core = MarshesCoreOfTheMatterV2.MissionId;
+        private const uint Core = MarshesCoreOfTheMatterV3.MissionId;
         private const uint Destruction = MarshesThisCallsForDestructionV1.MissionId;
         private const uint Disaster = MarshesDataDisasterV1.MissionId;
         private const uint Help = MarshesNeedALittleHelpHereV1.MissionId;
@@ -106,8 +106,8 @@ namespace Rasa.Test.Missions.Marshes
             var offer = WildernessRanjaGorgeTests.Offer(harness, mcdonald, Core);
             CollectionAssert.AreEqual(new[]
                 {
-                    MarshesCoreOfTheMatterV2.BioGloves, MarshesCoreOfTheMatterV2.GravitonHelmet,
-                    MarshesCoreOfTheMatterV2.MechGloves, MarshesCoreOfTheMatterV2.StealthGloves
+                    MarshesCoreOfTheMatterV3.BioGloves, MarshesCoreOfTheMatterV3.GravitonHelmet,
+                    MarshesCoreOfTheMatterV3.MechGloves, MarshesCoreOfTheMatterV3.StealthGloves
                 },
                 offer.SelectableReward.Select(item => item.ItemTemplateId).ToArray());
             Assert.IsFalse(PlateauRetreadCampTests.Offers(harness, kiang, Core), "not Kiang's to give");
@@ -115,13 +115,13 @@ namespace Rasa.Test.Missions.Marshes
             Assert.IsEmpty(Topics(harness, mcdonald, Core), "McDonald hears no objective: the cores count as they are taken");
             // To-fix 14: 1's marker reaches the client on the Marshes, round all three crates.
             var marker = harness.Manager.BuildStatusSnapshot(harness.Client.Player)[Core].ObjectivesList
-                .Single(objective => objective.ObjectiveId == MarshesCoreOfTheMatterV2.Gather).IndicatorList.Single();
-            foreach (var crate in MarshesCoreOfTheMatterV2.Crates)
-                Assert.IsLessThan((float)MarshesCoreOfTheMatterV2.BaseRadius, System.Numerics.Vector2.Distance(new(marker.Position.X, marker.Position.Z), new(crate.X, crate.Z)), "a crate in the marker");
+                .Single(objective => objective.ObjectiveId == MarshesCoreOfTheMatterV3.Gather).IndicatorList.Single();
+            foreach (var crate in MarshesCoreOfTheMatterV3.Crates)
+                Assert.IsLessThan((float)MarshesCoreOfTheMatterV3.BaseRadius, System.Numerics.Vector2.Distance(new(marker.Position.X, marker.Position.Z), new(crate.X, crate.Z)), "a crate in the marker");
 
             var crates = CoreCrates(harness, marshes);
             WildernessRanjaGorgeTests.Reload(harness);
-            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Core, MarshesCoreOfTheMatterV2.Gather), "kept at a reload");
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Core, MarshesCoreOfTheMatterV3.Gather), "kept at a reload");
             harness.Drain();
             crates = CoreCrates(harness, marshes);
 
@@ -130,43 +130,43 @@ namespace Rasa.Test.Missions.Marshes
             Use(harness, marshes, crates[0], 1, recovers: false);
             Assert.AreEqual(0U, Cores(harness), "argument 1 is not the client's");
             WildernessAliaBranchesTests.FillCategory(harness, MissionItemFiller, 50);
-            Take(harness, marshes, crates[0], MarshesCoreOfTheMatterV2.UseArgument);
+            Take(harness, marshes, crates[0], MarshesCoreOfTheMatterV3.UseArgument);
             Assert.AreEqual(0U, Cores(harness), "no room");
             Assert.IsTrue(crates[0].IsEnabled, "the crate waits");
             WildernessAliaBranchesTests.FreeOneSlot(harness, MissionItemFiller);
             harness.Drain();
 
-            Take(harness, marshes, crates[0], MarshesCoreOfTheMatterV2.UseArgument);
+            Take(harness, marshes, crates[0], MarshesCoreOfTheMatterV3.UseArgument);
             harness.Drain();
             Assert.AreEqual(1U, Cores(harness), "a core");
-            Assert.AreEqual((UseObjectState)MarshesCoreOfTheMatterV2.TakenState, crates[0].StateId, "opened");
+            Assert.AreEqual((UseObjectState)MarshesCoreOfTheMatterV3.TakenState, crates[0].StateId, "opened");
             Assert.IsFalse(crates[0].IsEnabled, "closed");
-            TryUse(harness, marshes, crates[0], MarshesCoreOfTheMatterV2.UseArgument);
+            TryUse(harness, marshes, crates[0], MarshesCoreOfTheMatterV3.UseArgument);
             Assert.AreEqual(1U, Cores(harness), "an opened crate gives no second");
             WildernessRanjaGorgeTests.Reload(harness);
-            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Core, MarshesCoreOfTheMatterV2.Gather), "one of two");
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Core, MarshesCoreOfTheMatterV3.Gather), "one of two");
             Assert.AreEqual(1U, Cores(harness), "kept at a reload");
             harness.Drain();
             crates = CoreCrates(harness, marshes, opened: 1);
 
-            Take(harness, marshes, crates[2], MarshesCoreOfTheMatterV2.UseArgument);
+            Take(harness, marshes, crates[2], MarshesCoreOfTheMatterV3.UseArgument);
             var second = harness.Drain();
             Assert.AreEqual(2U, Cores(harness));
             Assert.AreEqual(1, second.OfType<ObjectiveCompletedPacket>().Count(packet => packet.MissionId == Core &&
-                packet.ObjectiveId == MarshesCoreOfTheMatterV2.Gather), "ObjectiveCompleted once");
+                packet.ObjectiveId == MarshesCoreOfTheMatterV3.Gather), "ObjectiveCompleted once");
             Assert.AreEqual(1, second.OfType<MissionCompleteablePacket>().Count(packet => packet.MissionId == Core && packet.IsCompleteable),
                 "MissionCompleteable once");
-            TryUse(harness, marshes, crates[1], MarshesCoreOfTheMatterV2.UseArgument);
+            TryUse(harness, marshes, crates[1], MarshesCoreOfTheMatterV3.UseArgument);
             Assert.AreEqual(2U, Cores(harness), "the third crate gives none: the objective is done");
 
             Assert.IsFalse(harness.Manager.CompleteOfferedMission(harness.Client, kiang.EntityId, Core, 1), "not Kiang's to take");
-            FullBagWaits(harness, mcdonald, Core, 1, MarshesCoreOfTheMatterV2.BioGloves);
+            FullBagWaits(harness, mcdonald, Core, 1, MarshesCoreOfTheMatterV3.BioGloves);
             FailedTurnInPaysNothing(harness, mcdonald, Core, 1);
             Assert.AreEqual(2U, Cores(harness), "kept at the failed turn-in");
             WildernessRanjaGorgeTests.CompleteAndCheckReward(harness, mcdonald, Core, 1,
-                MarshesCoreOfTheMatterV2.Experience, MarshesCoreOfTheMatterV2.Credits);
+                MarshesCoreOfTheMatterV3.Experience, MarshesCoreOfTheMatterV3.Credits);
             Assert.AreEqual(1, harness.Drain().OfType<MissionRewardedPacket>().Count(packet => packet.MissionId == Core), "MissionRewarded once");
-            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, MarshesCoreOfTheMatterV2.GravitonHelmet), "the selected helmet");
+            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, MarshesCoreOfTheMatterV3.GravitonHelmet), "the selected helmet");
             Assert.AreEqual(0U, Cores(harness), "McDonald takes the cores");
             Assert.IsFalse(PlateauRetreadCampTests.Offers(harness, mcdonald, Core), "done once");
         }
@@ -180,7 +180,7 @@ namespace Rasa.Test.Missions.Marshes
             var marshes = EnterMarshes(harness);
             var mcdonald = Npc(marshes, McDonald);
             Accept(harness, mcdonald, Core);
-            Take(harness, marshes, CoreCrates(harness, marshes)[0], MarshesCoreOfTheMatterV2.UseArgument);
+            Take(harness, marshes, CoreCrates(harness, marshes)[0], MarshesCoreOfTheMatterV3.UseArgument);
             harness.Drain();
             Assert.AreEqual(1U, Cores(harness));
 
@@ -521,13 +521,13 @@ namespace Rasa.Test.Missions.Marshes
         private static DynamicObject[] CoreCrates(WildernessRuntimeTestHarness harness, MapChannel marshes, int opened = 0)
         {
             var crates = SceneObjects(marshes, Core, "core-crate-");
-            Assert.HasCount(MarshesCoreOfTheMatterV2.Crates.Length, crates);
+            Assert.HasCount(MarshesCoreOfTheMatterV3.Crates.Length, crates);
             for (var index = 0; index < crates.Length; index++)
             {
                 var crate = crates[index];
-                var at = MarshesCoreOfTheMatterV2.Crates[index];
-                Assert.AreEqual(MarshesCoreOfTheMatterV2.CrateRole(index), crate.SceneActorRole);
-                Assert.AreEqual(MarshesCoreOfTheMatterV2.CrateClass, (uint)crate.EntityClassId);
+                var at = MarshesCoreOfTheMatterV3.Crates[index];
+                Assert.AreEqual(MarshesCoreOfTheMatterV3.CrateRole(index), crate.SceneActorRole);
+                Assert.AreEqual(MarshesCoreOfTheMatterV3.CrateClass, (uint)crate.EntityClassId);
                 Assert.AreEqual(new Vector3(at.X, at.Y, at.Z), crate.Position);
                 Assert.AreEqual(harness.Client.Player.Id, crate.SceneOwnerCharacterId, "the player's own");
                 AssertOnGround(marshes, crate.Position, crate.SceneActorRole);
@@ -657,7 +657,7 @@ namespace Rasa.Test.Missions.Marshes
         }
 
         private static uint Cores(WildernessRuntimeTestHarness harness) =>
-            WildernessRanjaGorgeTests.Held(harness, MarshesCoreOfTheMatterV2.CoreTemplate);
+            WildernessRanjaGorgeTests.Held(harness, MarshesCoreOfTheMatterV3.CoreTemplate);
 
         private static uint Viruses(WildernessRuntimeTestHarness harness) =>
             WildernessRanjaGorgeTests.Held(harness, MarshesThisCallsForDestructionV1.VirusTemplate);

@@ -58,7 +58,7 @@ namespace Rasa.Test.Missions.Marshes
             MarshesButcherBakerCaretakerV1.MissionId, MarshesRegulatorPartOneV1.MissionId, MarshesRegulatorPartTwoV1.MissionId,
             MarshesRegulatorPartThreeV1.MissionId, MarshesRegulatorPartFourV1.MissionId, MarshesMortarMadnessV1.MissionId,
             MarshesUnderTheRadarV1.MissionId, MarshesUnderTheRadarPartTwoV1.MissionId, MarshesUnderTheRadarNelgV1.MissionId,
-            MarshesCoreOfTheMatterV2.MissionId, MarshesThisCallsForDestructionV1.MissionId, MarshesDataDisasterV1.MissionId,
+            MarshesCoreOfTheMatterV3.MissionId, MarshesThisCallsForDestructionV1.MissionId, MarshesDataDisasterV1.MissionId,
             MarshesNeedALittleHelpHereV1.MissionId, MarshesMissingInActionV1.MissionId, MarshesLightTheFiresV1.MissionId,
             MarshesNowCanYouHearMeV1.MissionId, MarshesMawFlowersV1.MissionId, MarshesGunControlV1.MissionId,
             MarshesGunControlPartTwoV1.MissionId, MarshesGunControlPartThreeV1.MissionId, MarshesGunControlPartFourV1.LouMissionId,
@@ -153,6 +153,7 @@ namespace Rasa.Test.Missions.Marshes
         private const string HarvestersDryGround = "20271104002600_Marshes_harvesters_dry_ground";
         private const string NpcsInTheOpen = "20271104002700_Marshes_npcs_in_the_open";
         private const string FirePitsLit = "20271104002800_Marshes_fire_pits_lit";
+        private const string OnTheClientFloor = "20271104002900_Marshes_on_the_client_floor";
 
         /// <summary>
         /// The migration directly before <paramref name="migration"/> (IMigrationsAssembly, ordinal order), the target that
@@ -930,10 +931,10 @@ namespace Rasa.Test.Missions.Marshes
                 (881, 1, 26, 646, 95), (890, 1, 26, 646, 95),       // round the harvester field east of Falcon Hold
                 (913, 1, 732, -276, 20), (913, 2, 734, -149, 20), (913, 3, 860, -68, 20), (913, 4, 700, 107, 20),   // pipeline ends
                 (968, 1, 459, 11, 15), (968, 2, 362, -168, 15), (968, 3, 490, 413, 15),  // Fik 520028, Sto 520030, Barzak 520029
-                (925, 1, -138, -472, 8), (1028, 1, 462, -592, 8),   // Wilson, Kaav (to-fix 21)
+                (925, 1, -138, -472, 8), (1028, 1, 443.5, -589.5, 8), // Wilson, Kaav (to-fix 24)
                 (1029, 1, 300, -650, 20), (1030, 1, -2, 29, 15),    // the Strider pool 760315, the scrapper (TaRapedia /loc)
                 (1875, 1, -51, -366, 15), (1876, 1, 101, -289, 8),  // the black box, the computer (Ten Ton Hammer)
-                (1877, 1, 170, 55, 15),                             // Nelg's post (Ten Ton Hammer)
+                (1877, 1, 181.5, 44, 15),                           // Nelg on the deck by his post (to-fix 25)
                 (1878, 1, 428, -580, 20),                           // round the three core crates west of the depot door (to-fix 14)
                 (1879, 1, 420, -728, 20), (1879, 2, 400, -730, 10), // round the three consoles, the generator
                 (1870, 1, 178, 46, 10),                             // the CommLink terminal on the deck by Nelg's post
@@ -986,7 +987,7 @@ namespace Rasa.Test.Missions.Marshes
                 (1078, 4, -320.8, -6.8, 8),                                                   // Toida
                 (1077, 1, -33, 390, 8), (1077, 2, -31, 396, 18), (1077, 3, -320.8, -6.8, 8),   // the Logos, the control room, Toida
                 (891, 1, 100.8, -236.8, 40), (891, 1, 165, -228, 8),                          // P'reo Das, Kirii (to-fix 17)
-                (892, 1, 97, -227, 25), (892, 1, 239.2, 0.4, 15), (892, 1, 67, -254, 8),      // the fallen, Rakla
+                (892, 1, 97, -227, 25), (892, 1, 239.2, 0.4, 15), (892, 1, 62, -247, 8),      // the fallen, Rakla
                 (894, 1, 25.2, 315.3, 50), (894, 8, 10, 330, 8), (894, 9, 37.2, 330.75, 8),       // the pumps
                 (894, 10, -19.49, 300.31, 8), (894, 11, 69.81, 299.78, 8),
                 (894, 6, 250, 8, 15), (894, 6, 75, -122, 15), (894, 6, 145, 14, 15),          // the camps
@@ -1969,11 +1970,24 @@ namespace Rasa.Test.Missions.Marshes
             Assert.AreEqual(2, Dry(), "to-fix 20: 881's and 890's harvesters on dry ground");
             int Kaav(int x) => Count($"SELECT COUNT(*) AS Value FROM spawnpool WHERE id = {MarshesRegulatorNpcsV1.Kaav} AND CAST(pos_x AS INTEGER) = {x}") +
                 Count($"SELECT COUNT(*) AS Value FROM mission_indicator WHERE mission_id = 1028 AND content_revision = '{revision}' AND CAST(pos_x AS INTEGER) = {x}");
-            Assert.AreEqual(2, Kaav(462), "to-fix 21: Kaav and his marker in the open");
+            Assert.AreEqual(2, Kaav(443), "to-fix 24: Kaav and his marker on the client's floor");
             int Kiang(double y) => Count($"SELECT COUNT(*) AS Value FROM spawnpool WHERE id = {MarshesSentryTowerNpcsV1.Kiang} AND CAST(pos_y AS INTEGER) = {(int)y}");
             Assert.AreEqual(1, Kiang(216.88), "to-fix 22: Kiang at the tower's foot");
             int ColdFires() => Count($"SELECT COUNT(*) AS Value FROM mission_scene_binding WHERE mission_id = 1864 AND content_revision = '{revision}' AND bindings LIKE '%\"initialObjectState\":56%'");
             Assert.AreEqual(1, ColdFires(), "to-fix 23: the pits start cold (56)");
+            int Pool(uint pool, int x) => Count($"SELECT COUNT(*) AS Value FROM spawnpool WHERE id = {pool} AND CAST(pos_x AS INTEGER) = {x}");
+            int Marker(uint mission, int x) => Count($"SELECT COUNT(*) AS Value FROM mission_indicator WHERE mission_id = {mission} AND content_revision = '{revision}' AND CAST(pos_x AS INTEGER) = {x}");
+            int Bound(uint mission, string text) => Count($"SELECT COUNT(*) AS Value FROM mission_scene_binding WHERE mission_id = {mission} AND content_revision = '{revision}' AND bindings LIKE '%{text}%'");
+            (int, int, int, int, int, int) OnTheFloor(int qunle, int rakla, string crate, string nelg, int nelgMarker) => (Pool(MarshesPreoDasNpcsV1.Qunle, qunle),
+                Pool(MarshesPreoDasVillageNpcsV1.Rakla, rakla), Marker(MarshesPickingUpThePiecesV1.MissionId, rakla), Bound(MarshesCoreOfTheMatterV3.MissionId, crate),
+                Bound(MarshesUnderTheRadarNelgV2.MissionId, nelg), Marker(MarshesUnderTheRadarNelgV2.MissionId, nelgMarker));
+            Assert.AreEqual((1, 1, 1, 1, 1, 1), OnTheFloor(74, 62, "434", "181.5", 181), "to-fix 24 and 25: Qunle, Rakla, the third crate and Nelg on a client floor");
+            Assert.AreEqual(1, Bound(MarshesMawFlowersV2.MissionId, "-742"), "to-fix 24: the fourth flower on the cliff's top");
+            migrator.Migrate(Previous(world, OnTheClientFloor));
+            Assert.AreEqual(2, Kaav(462), "Kaav and his marker at the 2700 place");
+            Assert.AreEqual((1, 1, 1, 1, 1, 1), OnTheFloor(82, 67, "435", "170", 170), "Qunle, Rakla, 1878 V2 and 1877 V1 as applied");
+            Assert.AreEqual((0, 1), (Bound(MarshesMawFlowersV2.MissionId, "-742"), Bound(MarshesMawFlowersV2.MissionId, "229.5")), "1871 V1 as applied");
+            Assert.AreEqual(1, ColdFires(), "to-fix 23 stays");
             migrator.Migrate(Previous(world, FirePitsLit));
             Assert.AreEqual(0, ColdFires(), "1864 as Marshes_stalker_woods applied it");
             Assert.IsTrue(world.MissionContentDefinitionEntries.Any(entry => entry.MissionId == 1864 && entry.ContentRevision == revision), "1864 stays");
@@ -2036,6 +2050,10 @@ namespace Rasa.Test.Missions.Marshes
             Assert.AreEqual(1, Kiang(216.88), "to-fix 22 back");
             migrator.Migrate(FirePitsLit);
             Assert.AreEqual(1, ColdFires(), "to-fix 23 back");
+            migrator.Migrate(OnTheClientFloor);
+            Assert.AreEqual(2, Kaav(443), "to-fix 24 back");
+            Assert.AreEqual((1, 1, 1, 1, 1, 1), OnTheFloor(74, 62, "434", "181.5", 181), "to-fix 24 and 25 back");
+            Assert.AreEqual(1, Bound(MarshesMawFlowersV2.MissionId, "-742"), "1871 V2 back");
         }
 
         /// <summary>

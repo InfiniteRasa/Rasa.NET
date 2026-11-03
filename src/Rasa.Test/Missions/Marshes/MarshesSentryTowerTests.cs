@@ -655,11 +655,15 @@ namespace Rasa.Test.Missions.Marshes
             Assert.AreEqual(MarshesSentryTowerNpcsV1.NelgName, nelg.NameId);
             Assert.AreEqual(TargetCategory.Hostile, nelg.TargetCategory, "Nelg is a foe");
             Assert.IsNull(nelg.Npc, "Nelg does not talk");
-            var at = MarshesUnderTheRadarNelgV1.NelgAt;
+            var at = MarshesUnderTheRadarNelgV2.NelgAt;
             Assert.IsLessThan(8f, Vector2.Distance(new(at.X, at.Z), new(nelg.Position.X, nelg.Position.Z)), "in his post (he may step out at the player)");
             AssertOnGround(marshes, new Vector3(at.X, at.Y, at.Z), "Nelg's post");
             Assert.IsTrue(marshes.NavMesh.FindPath(BaneAssertionCampWaypoint, NelgDeck, out var complete) != null && complete, "the deck is walked to");
             Assert.IsLessThan(20f, Vector3.Distance(NelgDeck, new Vector3(at.X, at.Y, at.Z)), "Nelg in reach from the deck");
+            // To-fix 25: on his old post (an island) the client walked to 8 m of his corpse, over the 6 m loot reach.
+            var walk = marshes.NavMesh.FindPath(BaneAssertionCampWaypoint, new Vector3(at.X, at.Y, at.Z), out var toNelg);
+            Assert.IsTrue(walk != null && toNelg, "Nelg is walked to from the camp, over the deck");
+            Assert.IsLessThan(6f, Vector3.Distance(walk[^1], new Vector3(at.X, at.Y, at.Z)), "the walk ends within the corpse loot reach");
             return nelg;
         }
 

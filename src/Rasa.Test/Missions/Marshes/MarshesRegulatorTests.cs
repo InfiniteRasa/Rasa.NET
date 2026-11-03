@@ -64,7 +64,7 @@ namespace Rasa.Test.Missions.Marshes
             foreach (var (pool, name, package, at) in new[]
             {
                 (Wilson, MarshesRegulatorNpcsV1.WilsonName, MarshesRegulatorNpcsV1.WilsonPackage, MarshesRegulatorNpcsV1.WilsonAt),
-                (Kaav, MarshesRegulatorNpcsV1.KaavName, MarshesRegulatorNpcsV1.KaavPackage, MarshesNpcsInTheOpenV1.KaavAt)
+                (Kaav, MarshesRegulatorNpcsV1.KaavName, MarshesRegulatorNpcsV1.KaavPackage, MarshesOnTheClientFloorV1.KaavAt)
             })
             {
                 var npc = Npc(marshes, pool);

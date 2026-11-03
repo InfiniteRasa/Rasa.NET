@@ -40,7 +40,7 @@ namespace Rasa.Test.Missions.Marshes
         private const uint Missing = MarshesMissingInActionV1.MissionId;
         private const uint Fires = MarshesLightTheFiresV2.MissionId;
         private const uint Spikes = MarshesNowCanYouHearMeV1.MissionId;
-        private const uint Flowers = MarshesMawFlowersV1.MissionId;
+        private const uint Flowers = MarshesMawFlowersV2.MissionId;
         private const uint Jeska = MarshesStalkerWoodsNpcsV1.Jeska, Dudley = MarshesStalkerWoodsNpcsV1.Dudley;
         private const uint Duvall = MarshesStalkerWoodsNpcsV1.Duvall;
         private const uint MissionItemFiller = 11519;      // as PlateauCampResistanceTests
@@ -80,8 +80,8 @@ namespace Rasa.Test.Missions.Marshes
             var maws = Alive(marshes).Where(creature => creature.SpawnPool?.DbId == MarshesStalkerWoodsNpcsV1.MawPool).Distinct().ToArray();
             Assert.HasCount(2, maws, "two Maws");
             Assert.IsTrue(maws.All(maw => maw.DbId == MarshesStalkerWoodsNpcsV1.Maw && maw.TargetCategory == TargetCategory.Hostile));
-            var field = MarshesMawFlowersV1.FieldAt;
-            Assert.IsLessThan(MarshesMawFlowersV1.FieldRadius, Vector2.Distance(new((float)field.X, (float)field.Z),
+            var field = MarshesMawFlowersV2.FieldAt;
+            Assert.IsLessThan(MarshesMawFlowersV2.FieldRadius, Vector2.Distance(new((float)field.X, (float)field.Z),
                 new((float)MarshesStalkerWoodsNpcsV1.MawAt.X, (float)MarshesStalkerWoodsNpcsV1.MawAt.Z)), "the Maws among the flowers");
         }
 
@@ -346,8 +346,8 @@ namespace Rasa.Test.Missions.Marshes
             var offer = WildernessRanjaGorgeTests.Offer(harness, duvall, Flowers);
             CollectionAssert.AreEqual(new[]
                 {
-                    MarshesMawFlowersV1.AreaRepairTool, MarshesMawFlowersV1.SonicTorqueshellRifle,
-                    MarshesMawFlowersV1.Rifle, MarshesMawFlowersV1.SonicDisperser
+                    MarshesMawFlowersV2.AreaRepairTool, MarshesMawFlowersV2.SonicTorqueshellRifle,
+                    MarshesMawFlowersV2.Rifle, MarshesMawFlowersV2.SonicDisperser
                 },
                 offer.SelectableReward.Select(item => item.ItemTemplateId).ToArray());
             Assert.IsFalse(PlateauRetreadCampTests.Offers(harness, dudley, Flowers), "not Dudley's to give");
@@ -359,45 +359,45 @@ namespace Rasa.Test.Missions.Marshes
             Use(harness, marshes, flowers[0], 1, recovers: false);
             Assert.AreEqual(0U, FlowersHeld(harness), "argument 1 is not the client's");
             WildernessAliaBranchesTests.FillCategory(harness, MissionItemFiller, 50);
-            Take(harness, marshes, flowers[0], MarshesMawFlowersV1.UseArgument);
+            Take(harness, marshes, flowers[0], MarshesMawFlowersV2.UseArgument);
             Assert.AreEqual(0U, FlowersHeld(harness), "no room");
             Assert.IsTrue(flowers[0].IsEnabled, "the flower waits");
             WildernessAliaBranchesTests.FreeOneSlot(harness, MissionItemFiller);
             harness.Drain();
 
-            Take(harness, marshes, flowers[0], MarshesMawFlowersV1.UseArgument);
-            Take(harness, marshes, flowers[1], MarshesMawFlowersV1.UseArgument);
+            Take(harness, marshes, flowers[0], MarshesMawFlowersV2.UseArgument);
+            Take(harness, marshes, flowers[1], MarshesMawFlowersV2.UseArgument);
             harness.Drain();
             Assert.AreEqual(2U, FlowersHeld(harness));
-            Assert.AreEqual((UseObjectState)MarshesMawFlowersV1.TakenState, flowers[0].StateId, "picked");
-            TryUse(harness, marshes, flowers[1], MarshesMawFlowersV1.UseArgument);
+            Assert.AreEqual((UseObjectState)MarshesMawFlowersV2.TakenState, flowers[0].StateId, "picked");
+            TryUse(harness, marshes, flowers[1], MarshesMawFlowersV2.UseArgument);
             Assert.AreEqual(2U, FlowersHeld(harness), "a picked flower gives no second");
             WildernessRanjaGorgeTests.Reload(harness);
-            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Flowers, MarshesMawFlowersV1.Gather), "kept at a reload");
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Flowers, MarshesMawFlowersV2.Gather), "kept at a reload");
             Assert.AreEqual(2U, FlowersHeld(harness));
             harness.Drain();
             flowers = MawFlowers(harness, marshes, picked: 2);
 
-            Take(harness, marshes, flowers[2], MarshesMawFlowersV1.UseArgument);
-            Take(harness, marshes, flowers[3], MarshesMawFlowersV1.UseArgument);
+            Take(harness, marshes, flowers[2], MarshesMawFlowersV2.UseArgument);
+            Take(harness, marshes, flowers[3], MarshesMawFlowersV2.UseArgument);
             harness.Drain();
             Assert.IsFalse(harness.Client.Player.Missions[Flowers].Completeable, "four of five");
-            Take(harness, marshes, flowers[4], MarshesMawFlowersV1.UseArgument);
+            Take(harness, marshes, flowers[4], MarshesMawFlowersV2.UseArgument);
             var last = harness.Drain();
             Assert.AreEqual(5U, FlowersHeld(harness));
             Assert.AreEqual(1, last.OfType<ObjectiveCompletedPacket>().Count(packet => packet.MissionId == Flowers &&
-                packet.ObjectiveId == MarshesMawFlowersV1.Gather), "ObjectiveCompleted once");
+                packet.ObjectiveId == MarshesMawFlowersV2.Gather), "ObjectiveCompleted once");
             Assert.AreEqual(1, last.OfType<MissionCompleteablePacket>().Count(packet => packet.MissionId == Flowers && packet.IsCompleteable),
                 "MissionCompleteable once");
 
             Assert.IsFalse(harness.Manager.CompleteOfferedMission(harness.Client, dudley.EntityId, Flowers, 0), "not Dudley's to take");
-            FullBagWaits(harness, duvall, Flowers, 0, MarshesMawFlowersV1.Rifle);
+            FullBagWaits(harness, duvall, Flowers, 0, MarshesMawFlowersV2.Rifle);
             FailedTurnInPaysNothing(harness, duvall, Flowers, 0);
             Assert.AreEqual(5U, FlowersHeld(harness), "kept at the failed turn-in");
             WildernessRanjaGorgeTests.CompleteAndCheckReward(harness, duvall, Flowers, 0,
-                MarshesMawFlowersV1.Experience, MarshesMawFlowersV1.Credits);
+                MarshesMawFlowersV2.Experience, MarshesMawFlowersV2.Credits);
             Assert.AreEqual(1, harness.Drain().OfType<MissionRewardedPacket>().Count(packet => packet.MissionId == Flowers), "MissionRewarded once");
-            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, MarshesMawFlowersV1.AreaRepairTool), "the selected repair tool");
+            Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, MarshesMawFlowersV2.AreaRepairTool), "the selected repair tool");
             Assert.AreEqual(0U, FlowersHeld(harness), "Duvall takes the flowers");
             Assert.IsFalse(PlateauRetreadCampTests.Offers(harness, duvall, Flowers), "done once");
         }
@@ -410,7 +410,7 @@ namespace Rasa.Test.Missions.Marshes
             var marshes = EnterMarshes(harness);
             var duvall = Npc(marshes, Duvall);
             Accept(harness, duvall, Flowers);
-            Take(harness, marshes, MawFlowers(harness, marshes)[0], MarshesMawFlowersV1.UseArgument);
+            Take(harness, marshes, MawFlowers(harness, marshes)[0], MarshesMawFlowersV2.UseArgument);
             harness.Drain();
             Assert.AreEqual(1U, FlowersHeld(harness));
 
@@ -470,9 +470,9 @@ namespace Rasa.Test.Missions.Marshes
         private static DynamicObject[] MawFlowers(WildernessRuntimeTestHarness harness, MapChannel marshes, int picked = 0)
         {
             var flowers = Placed(harness, marshes, Flowers, "maw-flower-",
-                MarshesMawFlowersV1.FlowersAt.Select(at => new Vector3(at.X, at.Y, at.Z)).ToArray(), picked, "five flowers");
+                MarshesMawFlowersV2.FlowersAt.Select(at => new Vector3(at.X, at.Y, at.Z)).ToArray(), picked, "five flowers");
             for (var index = 0; index < flowers.Length; index++)
-                Assert.AreEqual(MarshesMawFlowersV1.GiverClasses[index % MarshesMawFlowersV1.GiverClasses.Length], (uint)flowers[index].EntityClassId);
+                Assert.AreEqual(MarshesMawFlowersV2.GiverClasses[index % MarshesMawFlowersV2.GiverClasses.Length], (uint)flowers[index].EntityClassId);
             Assert.IsTrue(flowers.All(flower => flower.Position.Z > HighPointRetreatWaypoint.Z), "north of the camp");
             return flowers;
         }
@@ -538,6 +538,6 @@ namespace Rasa.Test.Missions.Marshes
             WildernessRanjaGorgeTests.Held(harness, MarshesNowCanYouHearMeV1.SpikeTemplate);
 
         private static uint FlowersHeld(WildernessRuntimeTestHarness harness) =>
-            WildernessRanjaGorgeTests.Held(harness, MarshesMawFlowersV1.FlowerTemplate);
+            WildernessRanjaGorgeTests.Held(harness, MarshesMawFlowersV2.FlowerTemplate);
     }
 }
