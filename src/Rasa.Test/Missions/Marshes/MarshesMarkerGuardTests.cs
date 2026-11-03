@@ -165,5 +165,45 @@ namespace Rasa.Test.Missions.Marshes
             CollectionAssert.AreEquivalent(Exceptions, misses.Distinct().ToArray(),
                 "outside every marker: " + string.Join(", ", misses.Distinct()));
         }
+
+        /// <summary>
+        /// To-fix row 14 (1878's second crate 2.5 m from the depot door's map link 41): a player who walks up to a target in a
+        /// map link's circle is taken to the other map before he can use it. Why this test: no Marshes scene object with a
+        /// use or a talk, and no talking scene creature, stands within its map's enabled map links' radius plus LinkClearance
+        /// (the old second crate stood inside the circle).
+        /// </summary>
+        [TestMethod]
+        public void NoTargetStandsByAMapLink()
+        {
+            const float LinkClearance = 5;     // about the client's use and talk reach (550's Brock stands 7 m out)
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            var links = world.Set<MapLinkEntry>().AsNoTracking().Where(link => link.Enabled != 0).ToList();
+            var scenes = world.Set<MissionSceneBindingEntry>().AsNoTracking().Where(entry => entry.ContentRevision == MarshesMissionDataV1.Revision).ToList()
+                .Select(entry => (entry.MissionId, Scene: System.Text.Json.JsonSerializer.Deserialize<MissionSceneDefinition>(entry.Bindings, MissionContentCodec.Options)))
+                .ToList();
+            var packages = world.NpcPackageEntries.AsNoTracking().ToList().ToLookup(entry => entry.PackageId, entry => entry.Id);
+            var talkers = world.MissionTriggerEntries.AsNoTracking().Where(entry => entry.ContentRevision == MarshesMissionDataV1.Revision &&
+                    entry.Kind == MissionTriggerKind.Conversation && entry.NpcPackageId != null).Select(entry => entry.NpcPackageId.Value).ToList()
+                .SelectMany(package => packages[package]).ToHashSet();
+            var checkedTargets = 0;
+            var near = new List<string>();
+            foreach (var (mission, scene) in scenes)
+                foreach (var actor in scene.Actors.Values.Where(actor => actor.Position != null &&
+                             (actor.UseAction != null || actor.Conversation != null ||
+                              actor.Kind == SceneActorKind.Creature && talkers.Contains(actor.TemplateId))))
+                {
+                    checkedTargets++;
+                    var map = scene.BoundMapContextId ?? scene.MapContextId;
+                    foreach (var link in links.Where(link => link.MapContextId == map))
+                    {
+                        var gap = Vector2.Distance(new(actor.Position.X, actor.Position.Z), new((float)link.PosX, (float)link.PosZ)) - (float)link.Radius;
+                        if (gap < LinkClearance)
+                            near.Add($"{mission} {actor.Role} {gap:F1} m outside link {link.Id}");
+                    }
+                }
+            Assert.IsGreaterThan(30, checkedTargets, "the targets are read");
+            Assert.IsEmpty(near, string.Join(", ", near));
+        }
     }
 }

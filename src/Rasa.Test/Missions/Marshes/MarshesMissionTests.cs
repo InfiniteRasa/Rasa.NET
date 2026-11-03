@@ -58,7 +58,7 @@ namespace Rasa.Test.Missions.Marshes
             MarshesButcherBakerCaretakerV1.MissionId, MarshesRegulatorPartOneV1.MissionId, MarshesRegulatorPartTwoV1.MissionId,
             MarshesRegulatorPartThreeV1.MissionId, MarshesRegulatorPartFourV1.MissionId, MarshesMortarMadnessV1.MissionId,
             MarshesUnderTheRadarV1.MissionId, MarshesUnderTheRadarPartTwoV1.MissionId, MarshesUnderTheRadarNelgV1.MissionId,
-            MarshesCoreOfTheMatterV1.MissionId, MarshesThisCallsForDestructionV1.MissionId, MarshesDataDisasterV1.MissionId,
+            MarshesCoreOfTheMatterV2.MissionId, MarshesThisCallsForDestructionV1.MissionId, MarshesDataDisasterV1.MissionId,
             MarshesNeedALittleHelpHereV1.MissionId, MarshesMissingInActionV1.MissionId, MarshesLightTheFiresV1.MissionId,
             MarshesNowCanYouHearMeV1.MissionId, MarshesMawFlowersV1.MissionId, MarshesGunControlV1.MissionId,
             MarshesGunControlPartTwoV1.MissionId, MarshesGunControlPartThreeV1.MissionId, MarshesGunControlPartFourV1.LouMissionId,
@@ -145,6 +145,7 @@ namespace Rasa.Test.Missions.Marshes
         private const string TrappedApproach = "20271104001800_Marshes_trapped_approach";
         private const string PlaytestFixes = "20271104001900_Marshes_playtest_fixes";
         private const string CleaningHouseV2 = "20271104002000_Marshes_cleaning_house_v2";
+        private const string CoreOfTheMatterV2 = "20271104002100_Marshes_core_of_the_matter_v2";
 
         /// <summary>
         /// The migration directly before <paramref name="migration"/> (IMigrationsAssembly, ordinal order), the target that
@@ -926,7 +927,7 @@ namespace Rasa.Test.Missions.Marshes
                 (1029, 1, 300, -650, 20), (1030, 1, -2, 29, 15),    // the Strider pool 760315, the scrapper (TaRapedia /loc)
                 (1875, 1, -51, -366, 15), (1876, 1, 101, -289, 8),  // the black box, the computer (Ten Ton Hammer)
                 (1877, 1, 170, 55, 15),                             // Nelg's post (Ten Ton Hammer)
-                (1878, 1, 443, -585, 30),                           // round the three core crates before the depot door
+                (1878, 1, 428, -580, 20),                           // round the three core crates west of the depot door (to-fix 14)
                 (1879, 1, 420, -728, 20), (1879, 2, 400, -730, 10), // round the three consoles, the generator
                 (1870, 1, 178, 46, 10),                             // the CommLink terminal on the deck by Nelg's post
                 (1873, 1, 178, 43, 15),                             // round the four supply crates
@@ -1930,6 +1931,10 @@ namespace Rasa.Test.Missions.Marshes
             int FollowTimers() => Count($"SELECT COUNT(*) AS Value FROM mission_scene_binding WHERE mission_id = 894 AND content_revision = '{revision}' AND bindings LIKE '%sets-off%'");
             Assert.AreEqual((0, 744, 1, 1, 1, 2, 127), Fixes(), "head");
             Assert.AreEqual((50, 1), (PumpsRadius(), FollowTimers()), "894 V2");
+            int CratesRadius() => Count($"SELECT CAST(radius AS INTEGER) AS Value FROM mission_indicator WHERE mission_id = 1878 AND objective_id = 1 AND content_revision = '{revision}'");
+            Assert.AreEqual(20, CratesRadius(), "1878 V2");
+            migrator.Migrate(Previous(world, CoreOfTheMatterV2));
+            Assert.AreEqual(30, CratesRadius(), "1878 as applied");
             migrator.Migrate(Previous(world, CleaningHouseV2));
             Assert.AreEqual((35, 0), (PumpsRadius(), FollowTimers()), "894 as applied");
             Assert.AreEqual((0, 744, 1, 1, 1, 2, 127), Fixes());
@@ -1940,7 +1945,8 @@ namespace Rasa.Test.Missions.Marshes
             Assert.AreEqual(1, Count($"SELECT COUNT(*) AS Value FROM mission_scene_binding WHERE mission_id = 1052 AND content_revision = '{revision}' AND bindings LIKE '%-672%'"),
                 "the Retread at its first place");
 
-            migrator.Migrate(CleaningHouseV2);
+            migrator.Migrate(CoreOfTheMatterV2);
+            Assert.AreEqual(20, CratesRadius(), "1878 V2 back");
             Assert.AreEqual((0, 744, 1, 1, 1, 2, 127), Fixes(), "all back");
             Assert.AreEqual((50, 1), (PumpsRadius(), FollowTimers()), "894 V2 back");
         }
