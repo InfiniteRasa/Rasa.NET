@@ -65,13 +65,13 @@ namespace Rasa.Services.Preloader.Missions.Marshes
         public const uint Credits = 5800;
         public static readonly uint[] Rewards = { 120097, 120098, 120099, 120100 };
 
-        public static void Up(MigrationBuilder migration) => Write(migration, RetreadsAt, approach: false);
+        public static void Up(MigrationBuilder migration) => Write(migration, SamuelAt, RetreadsAt, approach: false);
 
         /// <summary>
         /// The mission's rows; with <paramref name="approach"/> (MarshesTrappedV2, to-fix 10) the crew stands only once the
         /// player comes near.
         /// </summary>
-        internal static void Write(MigrationBuilder migration, ScenePosition[] retreadsAt, bool approach)
+        internal static void Write(MigrationBuilder migration, ScenePosition samuelAt, ScenePosition[] retreadsAt, bool approach)
         {
             var mission = new MarshesMissionDataV1(migration, MissionId, "Trapped!", 5912, Vincent, Vincent, Level);
             mission.Reward(Experience, Credits, Rewards);
@@ -83,7 +83,7 @@ namespace Rasa.Services.Preloader.Missions.Marshes
             if (approach)
             {
                 mission.Scenario(MarshesTrappedV2.Approach, "The player near the station: the crew stands", 0);
-                mission.Area(MarshesTrappedV2.ApproachArea, MarshesMissionDataV1.MapContextId, SamuelAt.X, SamuelAt.Y, SamuelAt.Z,
+                mission.Area(MarshesTrappedV2.ApproachArea, MarshesMissionDataV1.MapContextId, samuelAt.X, samuelAt.Y, samuelAt.Z,
                     MarshesTrappedV2.ApproachRadius, 20);
                 mission.Objective(MarshesTrappedV2.Near, 6082, 7014, 2, MissionObjectiveState.Incomplete, required: false);   // hidden, server only
                 mission.Transition(MarshesTrappedV2.Near);
@@ -100,8 +100,8 @@ namespace Rasa.Services.Preloader.Missions.Marshes
             mission.Progress(Defend, MissionProgressEventKind.ScenarioEvent, 1, null, counter: Freed);
             mission.Action(Defend, 1, MissionActionKind.GrantReward, reward: 1);
 
-            mission.Indicator(Locate, 1, SamuelAt.X, SamuelAt.Y, SamuelAt.Z);
-            mission.Indicator(Defend, 2, SamuelAt.X, SamuelAt.Y, SamuelAt.Z, 30);
+            mission.Indicator(Locate, 1, samuelAt.X, samuelAt.Y, samuelAt.Z);
+            mission.Indicator(Defend, 2, samuelAt.X, samuelAt.Y, samuelAt.Z, 30);
 
             mission.Evidence(1, MissionEvidenceSourceKind.Client, "native:missionobjective/1052",
                 "Native1 'Locate Samuel in the Bane Depot Exterior' 6082/7014, 2 'Defend the Retreads from the incoming Bane " +
@@ -144,7 +144,7 @@ namespace Rasa.Services.Preloader.Missions.Marshes
                 scene.DefeatSequences[role] = ++defeat;
                 scene.Sequences[defeat] = new SceneSequenceDefinition();
             }
-            Add(MarshesDefenceScene.Leader, MarshesRetreadCityNpcsV1.SamuelStandIn, SamuelAt, true);
+            Add(MarshesDefenceScene.Leader, MarshesRetreadCityNpcsV1.SamuelStandIn, samuelAt, true);
             for (var member = 0; member < retreadsAt.Length; member++)
                 Add(MarshesDefenceScene.Ward(member + 2), MarshesRetreadCityNpcsV1.Retread, retreadsAt[member], false);
             if (approach)

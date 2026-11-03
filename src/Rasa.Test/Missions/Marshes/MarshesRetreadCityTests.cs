@@ -82,7 +82,7 @@ namespace Rasa.Test.Missions.Marshes
             Assert.IsTrue(PlateauRetreadCampTests.Offers(harness, vincent, Robbery), "Highway Robbery needs nothing");
             Assert.IsTrue(PlateauRetreadCampTests.Offers(harness, vincent, Trapped), "Trapped! needs nothing");
             Assert.IsFalse(PlateauRetreadCampTests.Offers(harness, vincent, ForVincent), "916 waits for 914");
-            foreach (var at in MarshesProductionDestructionV1.Kiosks.Append(MarshesTrappedV1.SamuelAt).Concat(MarshesTrappedV2.RetreadsAt)
+            foreach (var at in MarshesProductionDestructionV1.Kiosks.Append(MarshesTrappedV3.SamuelAt).Concat(MarshesTrappedV3.RetreadsAt)
                 .Concat(MarshesHighwayRobberyV1.Crates))
                 AssertOnGround(marshes, ToVector(at), $"{at}");
         }
@@ -390,10 +390,10 @@ namespace Rasa.Test.Missions.Marshes
             Assert.IsNotNull(samuel, "the stand-in stands once the player is near");
             Assert.AreEqual((MarshesRetreadCityNpcsV1.SamuelStandIn, MarshesRetreadCityNpcsV1.SamuelName, MarshesRetreadCityNpcsV1.SamuelPackage),
                 (samuel.DbId, samuel.NameId, samuel.Npc?.NpcPackageId));
-            Assert.IsLessThan(0.5f, Vector3.Distance(samuel.Position, ToVector(MarshesTrappedV1.SamuelAt)), "at Samuel's place");
+            Assert.IsLessThan(0.5f, Vector3.Distance(samuel.Position, ToVector(MarshesTrappedV3.SamuelAt)), "at Samuel's place");
             Assert.IsTrue(marshes.NavMesh.FindPath(BaneAssertionCampWaypoint, samuel.Position, out var walked) != null && walked, "walked to");
             Assert.IsTrue(HiddenCreatures.IsHiddenFrom(publicSamuel, harness.Client), "the public Samuel hidden");
-            var crew = Enumerable.Range(2, MarshesTrappedV2.RetreadsAt.Length)
+            var crew = Enumerable.Range(2, MarshesTrappedV3.RetreadsAt.Length)
                 .Select(member => SceneCreature(harness, marshes, Trapped, MarshesDefenceScene.Ward(member))).ToArray();
             foreach (var retread in crew)
             {
@@ -475,7 +475,7 @@ namespace Rasa.Test.Missions.Marshes
             var samuel = SceneCreature(harness, marshes, Trapped, MarshesDefenceScene.Leader);
             Assert.AreEqual((int)MarshesRetreadCityNpcsV1.SamuelHealth, (int)samuel.Attributes[Attributes.Health].NormalMax, "Samuel's hit points");
             Assert.AreEqual(12000U, MarshesRetreadCityNpcsV1.SamuelHealth);
-            var crew = Enumerable.Range(2, MarshesTrappedV2.RetreadsAt.Length)
+            var crew = Enumerable.Range(2, MarshesTrappedV3.RetreadsAt.Length)
                 .Select(member => SceneCreature(harness, marshes, Trapped, MarshesDefenceScene.Ward(member))).ToArray();
             Talk(harness, samuel, Trapped, MarshesTrappedV1.Locate);
             Tick(harness, marshes, 250);
@@ -550,7 +550,7 @@ namespace Rasa.Test.Missions.Marshes
         /// <summary>The player 30 m west of Samuel, inside 1052's approach (40 m): the crew stands.</summary>
         private static void Approach(WildernessRuntimeTestHarness harness, MapChannel marshes)
         {
-            MarshesPreoDasTests.Enter(harness, ToVector(MarshesTrappedV1.SamuelAt) + new Vector3(-30, 0, 0));
+            MarshesPreoDasTests.Enter(harness, ToVector(MarshesTrappedV3.SamuelAt) + new Vector3(-30, 0, 0));
             Tick(harness, marshes, 250);
             Tick(harness, marshes, 250);
         }

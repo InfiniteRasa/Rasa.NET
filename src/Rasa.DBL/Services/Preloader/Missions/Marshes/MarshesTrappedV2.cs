@@ -27,7 +27,7 @@ namespace Rasa.Services.Preloader.Missions.Marshes
             MarshesTrappedV1.RetreadsAt[0], new(198f, 219.49f, -678f), MarshesTrappedV1.RetreadsAt[2]
         };
 
-        public static void Up(MigrationBuilder migration) => MarshesTrappedV1.Write(migration, RetreadsAt, approach: true);
+        public static void Up(MigrationBuilder migration) => MarshesTrappedV1.Write(migration, MarshesTrappedV1.SamuelAt, RetreadsAt, approach: true);
 
         public static void Down(MigrationBuilder migration) => MarshesMissionDataV1.Remove(migration, MarshesTrappedV1.MissionId);
     }

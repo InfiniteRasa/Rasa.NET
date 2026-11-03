@@ -22,8 +22,10 @@ namespace Rasa.Test.Missions.Marshes
     public class MarshesSafeGroundTests
     {
         /// <summary>
-        /// Every friendly Marshes NPC pool (760300-760399) stands at least SafeClearance outside every hostile automatic pool's
-        /// circle on its map, and the start-up check (ValidatePools) names none of them.
+        /// Every friendly Marshes NPC pool (760300-760399) stands at least ReachClearance (a creature's 18 m AggroRange and 2 m)
+        /// outside every hostile automatic pool's circle on its map (to-fix 15: the start-up check's 15 m is less than the
+        /// reach), stands still (no run or walk speed, as upstream givers: BehaviorManager.NeverMoves), and the start-up check
+        /// (ValidatePools) names none of them.
         /// </summary>
         [TestMethod]
         public void TheMarshesNpcsStandClearOfEveryHostilePool()
@@ -41,15 +43,18 @@ namespace Rasa.Test.Missions.Marshes
                              pool.SpawnSlot.TrueForAll(slot => Side(slot.CreatureId, TargetCategory.Hostile))))
                 {
                     var gap = Vector2.Distance(new(npc.Position.X, npc.Position.Z), new(hostile.Position.X, hostile.Position.Z)) - hostile.Radius;
-                    Assert.IsGreaterThanOrEqualTo(SpawnPoolManager.SafeClearance, gap, $"NPC pool {npc.DbId} and hostile pool {hostile.DbId}");
+                    Assert.IsGreaterThanOrEqualTo(MarshesNpcsStandStillV1.ReachClearance, gap, $"NPC pool {npc.DbId} and hostile pool {hostile.DbId}");
                 }
+            foreach (var npc in npcs)
+                foreach (var slot in npc.SpawnSlot)
+                    Assert.IsTrue(BehaviorManager.NeverMoves(CreatureManager.Instance.LoadedCreatures[slot.CreatureId]), $"{slot.CreatureId} stands still");
             var found = SpawnPoolManager.Instance.PoolsTooClose(new List<(uint, Vector3, string)>()).Select(entry => entry.Message).ToList();
             Assert.IsFalse(found.Any(message => message.Contains("of pool 7603")), string.Join("\n", found));
         }
 
         /// <summary>
         /// To-fix row 10: the defence scenes' wards (Trapped! 1052, Head East 920) are personal scene creatures, which the
-        /// start-up check does not see. Why this test: each ward stands SafeClearance outside every hostile automatic pool's
+        /// start-up check does not see. Why this test: each ward stands ReachClearance outside every hostile automatic pool's
         /// circle on its map, as the friendly pools must.
         /// </summary>
         [TestMethod]
@@ -77,7 +82,7 @@ namespace Rasa.Test.Missions.Marshes
                                  pool.SpawnSlot.TrueForAll(slot => Side(slot.CreatureId, TargetCategory.Hostile))))
                     {
                         var gap = Vector2.Distance(new(ward.Position.X, ward.Position.Z), new(hostile.Position.X, hostile.Position.Z)) - hostile.Radius;
-                        Assert.IsGreaterThanOrEqualTo(SpawnPoolManager.SafeClearance, gap, $"{mission} {ward.Role} and hostile pool {hostile.DbId}");
+                        Assert.IsGreaterThanOrEqualTo(MarshesNpcsStandStillV1.ReachClearance, gap, $"{mission} {ward.Role} and hostile pool {hostile.DbId}");
                     }
                 }
             Assert.IsGreaterThan(4, checkedWards, "the wards are read");
@@ -92,10 +97,10 @@ namespace Rasa.Test.Missions.Marshes
             var dikah = Npc(marshes, MarshesSentryTowerNpcsV1.Dikah);
             Assert.AreEqual((int)MarshesSafeGroundV1.DikahHitPoints, dikah.Attributes[Attributes.Health].NormalMax, "max hit points");
             Assert.AreEqual((int)MarshesSafeGroundV1.DikahArmor, dikah.Attributes[Attributes.Armor].NormalMax, "armour");
-            var at = MarshesSafeGroundV1.At(MarshesSentryTowerNpcsV1.Dikah);
+            var at = MarshesNpcsStandStillV1.At(MarshesSentryTowerNpcsV1.Dikah);
             Assert.IsLessThan(0.1f, Vector2.Distance(new((float)at.X, (float)at.Z), new(dikah.Position.X, dikah.Position.Z)));
             AssertOnGround(marshes, dikah.Position, "Dikah");
-            Assert.IsLessThan(25f, Vector2.Distance(new(-521, -179), new(dikah.Position.X, dikah.Position.Z)), "near TaRapedia's /loc");
+            Assert.IsLessThan(30f, Vector2.Distance(new(-521, -179), new(dikah.Position.X, dikah.Position.Z)), "near TaRapedia's /loc (27 m since to-fix 15)");
         }
 
         /// <summary>
@@ -131,7 +136,7 @@ namespace Rasa.Test.Missions.Marshes
         {
             using var harness = WildernessRuntimeTestHarness.Create();
             var ruins = MarshesPreoDasTests.IntoRuins(harness);
-            foreach (var (pool, before, now) in MarshesSafeGroundV1.Moves.Where(move => move.Pool != MarshesSentryTowerNpcsV1.Dikah))
+            foreach (var (pool, before, now) in MarshesNpcsStandStillV1.Moves.Where(move => move.Pool != MarshesSentryTowerNpcsV1.Dikah))
             {
                 // The pool's place (the squad copy outlives a test: its NPC may have been walked by an earlier one).
                 var place = SpawnPoolManager.Instance.LoadedSpawnPools[pool].Position;
@@ -144,7 +149,7 @@ namespace Rasa.Test.Missions.Marshes
             {
                 var row = harness.World.MissionIndicatorEntries.Single(entry => entry.MissionId == marker.Mission &&
                     entry.ObjectiveId == marker.Objective && entry.IndicatorId == marker.Indicator);
-                var at = MarshesSafeGroundV1.At(marker.Pool);
+                var at = MarshesNpcsStandStillV1.At(marker.Pool);
                 Assert.AreEqual((at.X, at.Z), (row.PosX, row.PosZ), $"{marker.Mission}'s marker at its NPC");
             }
         }

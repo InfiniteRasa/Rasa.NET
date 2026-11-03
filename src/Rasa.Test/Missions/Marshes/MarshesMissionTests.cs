@@ -146,6 +146,7 @@ namespace Rasa.Test.Missions.Marshes
         private const string PlaytestFixes = "20271104001900_Marshes_playtest_fixes";
         private const string CleaningHouseV2 = "20271104002000_Marshes_cleaning_house_v2";
         private const string CoreOfTheMatterV2 = "20271104002100_Marshes_core_of_the_matter_v2";
+        private const string NpcsStandStill = "20271104002200_Marshes_npcs_stand_still";
 
         /// <summary>
         /// The migration directly before <paramref name="migration"/> (IMigrationsAssembly, ordinal order), the target that
@@ -950,7 +951,7 @@ namespace Rasa.Test.Missions.Marshes
                 (914, 2, -184, 627, 8), (914, 4, -276.8, -761, 8),  // Figgins, Vincent
                 (916, 1, 330, -525, 40), (916, 2, 350, -525, 15), (916, 3, 320, -525, 15),      // the kiosks, Vesh 520035, Koorva 520033
                 (1033, 1, 330, -525, 40), (1033, 2, 350, -525, 15), (1033, 3, 320, -525, 15),
-                (1052, 1, 196.4, -669.1, 8), (1052, 2, 196.4, -669.1, 30),                     // Samuel, round him
+                (1052, 1, 188.4, -673.1, 8), (1052, 2, 188.4, -673.1, 30),                     // Samuel, round him (to-fix 15)
                 (1085, 2, -219.9, -799.1, 8), (1085, 1, -219.9, -761.1, 25),                   // Foster, the arena
                 (1087, 2, -219.9, -799.1, 8), (1087, 1, -219.9, -761.1, 25),
                 (1088, 2, -219.9, -799.1, 8), (1088, 1, -219.9, -761.1, 25), (1088, 3, -219.9, -761.1, 25),
@@ -974,12 +975,12 @@ namespace Rasa.Test.Missions.Marshes
                 (718, 5, 632, -200, 8), (718, 6, 608, -104, 8),                               // the dispenser, the teleporter
                 (1674, 1, -160, -902, 8), (1674, 1, -160, -868, 6),                           // Jumna, the lake's teleporter
                 (1076, 2, 755.08, 727.67, 10), (1076, 2, -107, -355, 15), (1076, 1, 181, -118, 8),   // the door, the travel point, the spot
-                (893, 1, 755.08, 727.67, 10), (893, 1, 127, -27, 10),  // the elder moved (to-fix 4)                          // the door, the elder
+                (893, 1, 755.08, 727.67, 10), (893, 1, 127, -35, 10),  // the elder moved (to-fix 4, 15)                          // the door, the elder
                 (1078, 1, 25, 270, 12), (1078, 2, -33, 390, 8), (1078, 3, -31, 396, 18),       // Myrquar, the Logos, the control room
                 (1078, 4, -320.8, -6.8, 8),                                                   // Toida
                 (1077, 1, -33, 390, 8), (1077, 2, -31, 396, 18), (1077, 3, -320.8, -6.8, 8),   // the Logos, the control room, Toida
-                (891, 1, 100.8, -236.8, 40), (891, 1, 132, -235, 8),                          // P'reo Das, Kirii
-                (892, 1, 97, -227, 25), (892, 1, 239.2, 0.4, 15), (892, 1, 75, -254, 8),      // the fallen, Rakla
+                (891, 1, 100.8, -236.8, 40), (891, 1, 138, -224.6, 8),                        // P'reo Das, Kirii
+                (892, 1, 97, -227, 25), (892, 1, 239.2, 0.4, 15), (892, 1, 67, -254, 8),      // the fallen, Rakla
                 (894, 1, 25.2, 315.3, 50), (894, 8, 10, 330, 8), (894, 9, 37.2, 330.75, 8),       // the pumps
                 (894, 10, -19.49, 300.31, 8), (894, 11, 69.81, 299.78, 8),
                 (894, 6, 250, 8, 15), (894, 6, 75, -122, 15), (894, 6, 145, 14, 15),          // the camps
@@ -1931,6 +1932,13 @@ namespace Rasa.Test.Missions.Marshes
             int FollowTimers() => Count($"SELECT COUNT(*) AS Value FROM mission_scene_binding WHERE mission_id = 894 AND content_revision = '{revision}' AND bindings LIKE '%sets-off%'");
             Assert.AreEqual((0, 744, 1, 1, 1, 2, 127), Fixes(), "head");
             Assert.AreEqual((50, 1), (PumpsRadius(), FollowTimers()), "894 V2");
+            var still = string.Join(", ", MarshesNpcsStandStillV1.StandStill);
+            int Still() => Count($"SELECT COUNT(*) AS Value FROM creature WHERE id IN ({still}) AND run_speed = 0 AND walk_speed = 0");
+            int CrewMoved() => Count($"SELECT COUNT(*) AS Value FROM mission_scene_binding WHERE mission_id = 1052 AND content_revision = '{revision}' AND bindings LIKE '%188.4%'");
+            Assert.AreEqual((10, 1), (Still(), CrewMoved()), "to-fix 15");
+            migrator.Migrate(Previous(world, NpcsStandStill));
+            Assert.AreEqual((0, 0), (Still(), CrewMoved()), "the speeds and the crew as applied");
+            Assert.AreEqual((0, 744, 1, 1, 1, 2, 127), Fixes());
             int CratesRadius() => Count($"SELECT CAST(radius AS INTEGER) AS Value FROM mission_indicator WHERE mission_id = 1878 AND objective_id = 1 AND content_revision = '{revision}'");
             Assert.AreEqual(20, CratesRadius(), "1878 V2");
             migrator.Migrate(Previous(world, CoreOfTheMatterV2));
@@ -1945,8 +1953,9 @@ namespace Rasa.Test.Missions.Marshes
             Assert.AreEqual(1, Count($"SELECT COUNT(*) AS Value FROM mission_scene_binding WHERE mission_id = 1052 AND content_revision = '{revision}' AND bindings LIKE '%-672%'"),
                 "the Retread at its first place");
 
-            migrator.Migrate(CoreOfTheMatterV2);
+            migrator.Migrate(NpcsStandStill);
             Assert.AreEqual(20, CratesRadius(), "1878 V2 back");
+            Assert.AreEqual((10, 1), (Still(), CrewMoved()), "to-fix 15 back");
             Assert.AreEqual((0, 744, 1, 1, 1, 2, 127), Fixes(), "all back");
             Assert.AreEqual((50, 1), (PumpsRadius(), FollowTimers()), "894 V2 back");
         }

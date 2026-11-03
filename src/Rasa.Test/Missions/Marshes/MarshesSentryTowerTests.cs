@@ -70,7 +70,7 @@ namespace Rasa.Test.Missions.Marshes
             foreach (var (pool, name, package, at) in new[]
             {
                 (McDonald, MarshesSentryTowerNpcsV1.McDonaldName, MarshesSentryTowerNpcsV1.McDonaldPackage, MarshesSentryTowerNpcsV1.McDonaldAt),
-                (Dikah, MarshesSentryTowerNpcsV1.DikahName, MarshesSentryTowerNpcsV1.DikahPackage, MarshesSafeGroundV1.At(Dikah)),   // to-fix 4
+                (Dikah, MarshesSentryTowerNpcsV1.DikahName, MarshesSentryTowerNpcsV1.DikahPackage, MarshesNpcsStandStillV1.At(Dikah)),   // to-fix 4
                 (Kiang, MarshesSentryTowerNpcsV1.KiangName, MarshesSentryTowerNpcsV1.KiangPackage, MarshesSentryTowerNpcsV1.KiangAt)
             })
             {
