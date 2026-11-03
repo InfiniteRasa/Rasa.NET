@@ -30,10 +30,17 @@ namespace Rasa.Services.Preloader.Missions.Plateau
     /// is no escort portion"; "you must have possession of the extractor when you turn in the mission".
     ///
     /// Reconstructed (ESTIMATE): level 32. The extractor is given with the mission and taken back at
-    /// turn-in. Each soldier's first talk finds him and opens his extraction; the second talk gives his
-    /// implant (not a shot of the extractor - the server cannot count a hit on a friendly NPC); Perdu takes
-    /// the four. The soldiers stay where they are. "Equipment" read as the four Uncommon V04 gloves of the
-    /// 30-34 band, one of each armor type, no module.
+    /// turn-in. Each soldier's first talk finds him and opens his extraction; Perdu takes the four. The
+    /// soldiers stay where they are. "Equipment" read as the four Uncommon V04 gloves of the 30-34 band,
+    /// one of each armor type, no module.
+    ///
+    /// The extraction: <see cref="Up"/> wrote it as a second talk, which the client has no line for (only
+    /// the REMINDER, type 2: "ERROR: 23: Missing translation for objectiveconversation ID 905/3/633/1/1",
+    /// to-fix #49). The migration Plateau_mind_bender_extract_on_find completes it with the find, so one
+    /// talk gives the implant (<see cref="ExtractOnFind"/>). Retail extracted with a use of the extractor
+    /// on the soldier (class 21027 attacks with TOOL_HEALING_DISC 147 argument 3: actionArguments 4000 ms
+    /// windup, 5 m, no damage); here a mission-owned item cannot be drawn (MissionItemProtection), so the
+    /// extractor is only given and taken back (the user's choice of 2026-10-30).
     /// </summary>
     public static class PlateauMindBenderV1
     {
@@ -125,5 +132,31 @@ namespace Rasa.Services.Preloader.Missions.Plateau
         }
 
         public static void Down(MigrationBuilder migration) => PlateauMissionDataV1.Remove(migration, MissionId);
+
+        /// <summary>
+        /// Each extraction completes when its find does (an ObjectiveStateReached trigger), in place of the
+        /// soldier's second talk; the extraction's own action still gives the implant.
+        /// </summary>
+        public static void ExtractOnFind(MigrationBuilder migration)
+        {
+            DeleteExtractTriggers(migration, MissionTriggerKind.Conversation);
+            var mission = PlateauMissionDataV1.Existing(migration, MissionId);
+            foreach (var soldier in Soldiers)
+                mission.ObjectiveState(soldier.Extract, soldier.Find, MissionObjectiveState.Completed);
+        }
+
+        /// <summary>Back to <see cref="Up"/>'s second talk.</summary>
+        public static void ExtractByTalk(MigrationBuilder migration)
+        {
+            DeleteExtractTriggers(migration, MissionTriggerKind.ObjectiveState);
+            var mission = PlateauMissionDataV1.Existing(migration, MissionId);
+            for (var index = 0; index < Soldiers.Length; index++)
+                mission.Conversation(Soldiers[index].Extract, PlateauPerduNpcsV1.Implanted[index].Package);
+        }
+
+        private static void DeleteExtractTriggers(MigrationBuilder migration, MissionTriggerKind kind) =>
+            migration.Sql($"DELETE FROM mission_trigger WHERE mission_id = {MissionId} AND content_revision = " +
+                $"'{PlateauMissionDataV1.Revision}' AND kind = {(byte)kind} AND objective_id IN " +
+                $"({string.Join(", ", Soldiers.Select(soldier => soldier.Extract))});");
     }
 }
