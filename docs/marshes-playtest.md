@@ -84,6 +84,13 @@ Set 11, the Retread Arena (migration `20271104001000_Marshes_retread_arena`).
 - [ ] 1088 Retread Arena: Legend or Fall (Valverde Marshes): Karl offers it after 1087, level 35. Foster's choice: "I'll take a fall" (flag 1088001 = 1, 1 and 3 open) or "A winner never quits" (flag 2, 1 only). Either way you fight Retread Toro (level 40, 15000 HP). Fight: beat him in 5 minutes or 1 fails. Fall: hold out 5 minutes with Toro standing: 1 and 3 done (beating him also completes 1). Turn in at Karl: 35000 XP, 3700 credits, one of 2 EMP Bomb, 2 Armor Charger, 2 Cryo, 2 Incendiary Grenade VII. Is "survive 5 minutes" a fair reading of a fall?
 - [ ] 1084 Calling all Parts (Valverde Marshes): Retread Vincent offers it after 1088, level 33. A Motherboard from any Stalker (540002, the pool -664.6, 217.6, -583), an AI Controller from any Caretaker (531048), a Brain Implant from a Forean Machina (new pool of 3, -650, 218.4, -620, level 36), each 100% while its objective is open. Note: a Machina's first death is a self revive; the part drops at its real death. Markers at the Stalker pool, the three Caretaker pools nearest Retread City and the Machina pool. Turn in at Vincent (he takes the parts): 70000 XP, 5550 credits, one of Virulent Injection Gun 15654, Sonic Rocket Launcher 49164, Electric Rifle 14734, Laser Machine Gun 48256.
 
+Set 12, east and north (migration `20271104001100_Marshes_east_and_north`).
+
+- [ ] 542 Bring Down the Kael (Valverde Marshes): Elder Toida (Paludos) offers it, no requirement, level 33. A prison caravan walks the Long Walk from (480, 216.9, 320) south to (420, 219.6, -300) and back: a Forean Prisoner Leader (new, neutral, no attack) with four Thrax Prison Guards (new, the Marshes Thrax Soldier's row) on his tether. Kill four guards (counter 1529 "Thrax Guards Eliminated"); the caravan comes again 300 s after it is gone. Markers along the route (3, 60 m). Turn in at Toida: 150000 XP, 7600 credits, one of Graviton Vest 24046, Reflective Vest 36148, Bio Boots 18730, Motor Assist Vest 29227. Do the guards fight the player and not the prisoner? Is the route on the Long Walk?
+- [ ] 864 Bringing the Spirit Home (Valverde Marshes): Elder Bargas (new, the Temple of Paludos' upper floor -205, 230.3, 40, a server-only package) offers it, no requirement, level 36. Kill four Forean Machina (new pools of three north (-250, 213.9, 200) and east (-100, 217.1, 150) of Paludos, and the High Point Retreat pool; each first death is a self revive): a Forean Spirit Icon (42408) each, 100%; four complete 2 and open 1. Use either of your own Forean braziers (class 7636) in the two squares of shrines by Bargas (-180, 230.9, 28) and (-236, 230.9, 28): the four icons go in, "Spirit Shards Returned" 4, both close. Markers on the two new pools (2) and the client's "Forean Spirit Altar" over the braziers (1). Turn in at Bargas: 75000 XP, 5700 credits, one of 120045-120048 (the client's block). Does the brazier read as "an urn on the altar"? Can the player reach the temple's upper floor?
+- [ ] 920 Head East, Young Man (Valverde Marshes): Commander Figgins (Falcon Hold) offers it, no requirement, level 33. At the accept your own Lieutenant Shaw (new stand-in, package 1012) and two AFS soldiers stand at the eastern guard station (90.4, 216.9, 535); the public Shaw is hidden from you. Talk to Shaw ("I hear their ships approaching now!"): 1 done, the defence starts: 2 Thrax soldiers and 2 grenadiers at 10 s from the north-east, 2 and 2 with a Stalker at 90 s from the south-east, on foot. Hold 3 minutes: 2 done, the station's men and the Thrax go, the public Shaw is back and your own Ranger Meeko (new, package 1013) stands by Shaw. Talk to Meeko (3); turn in at Meeko: 70000 XP, 5550 credits, one of 120069-120072 (the client's block). Shaw's death fails it. Markers: the client's "Guard Station" at Shaw (1), round the station (2, 40 m), at Meeko (3). Do the waves go for the station? Does Meeko show the turn-in?
+- [ ] 2009 Soyuz Salvage: Marshes (Valverde Marshes): Sergeant Starling (Paludos) offers it, no requirement, level 37. Five of your own Soyuz debris pieces (classes 29783/29784) at (-560, 217.5, 350), (-550, 217.1, -150), (250, 214.1, 600), (200, 214.3, 150), (300, 214.1, -100); use one (argument 1): the Soyuz Orbital Module piece (122851), all five close. Markers at each piece (40 m). Turn in at Starling (he keeps the piece): 65000 XP, 5400 credits and the Soyuz ISS Model Rocket 122834. Are the pieces on open ground?
+
 ## Assumptions and choices (not from a source)
 
 Rules carried over from the Pools batch (`docs/pools-playtest.md`):
@@ -237,6 +244,25 @@ Per mission:
 - 1052: the stand-in at the DB Samuel's spot, not TaRapedia's "near (15, -535)" (the triage); 3 Retreads; waves 3/4/5 at
   5/75/150 s, hold 240 s (TaRapedia "about 4 minutes"; the triage said 5 minutes); the wave places within 2 m of the probed
   spots.
+- Set 12 NPCs (ids 760352-760361): Bargas a copy of Toida's row and look (name 8536, a server-only package) at TaRapedia's
+  place; the Forean Prisoner Leader a copy of the Torcastra one 660023 (level 33, neutral, no attack); the prison guards a
+  copy of the Marshes Thrax Soldier 531045; Shaw and his stand-in copies of Morrison (name 8625, the client's package 1012),
+  the stand-in with the escort stats; the station's soldier a friendly copy of the AFS Rifleman 692101 with the escort
+  stats; the Stalker of the attack a copy of the Marshes Stalker 540002 (its own row: no 1084 motherboard); Meeko a copy of
+  Ranger Taavik 510164 (name 8627, the client's package 1013). Next free id 760362.
+- 542: one public squad on the Long Walk (the triage's Q10, TaR-hist's line east of the long defensive line), the navmesh
+  corners of (480, 320) to (420, -300) by (500, 100), there and back, 10 s at each end, 300 s respawn (ESTIMATE, as the
+  Pools' Nakrinx: one caravan is one player's four kills; the triage said 20 minutes); 4 guards; the
+  player's own kills count. The rewards the lowest Uncommon templates of the four kinds in the bands holding 33 (no client
+  block matches). Level TR MMO DB's.
+- 864: two pools of three Machina (L36, 760351's row) north and east of Paludos (the client's "east and north"); the icon
+  drops 100% while 2 is open, from any Machina; the altars two personal braziers 7636 (the client's only usable Forean
+  burner, no urn class) in the middle of the two shrine squares by Bargas; one use takes all four icons and counts four
+  shards.
+- 920: Shaw at Ten Ton Hammer's place; 2 soldiers; waves of 4 and 5 (the second with the Stalker) at 10 and 90 s, hold 180 s
+  (the triage's Q40 3 minutes); Meeko comes 6 m from Shaw at the hold's end (Q23) and is the receiver.
+- 2009: Starling the giver and receiver (Q21); five pieces, one per map region and one in the middle east (the triage); XP
+  and credits Starling's 498's; the model rocket fixed.
 
 
 ## Deviations (client/server limits)
@@ -299,6 +325,19 @@ Per mission:
 - 1088: the fall is "survive 5 minutes with Toro standing"; the player is not checked to be alive (lenient: it completes after a
   death too).
 - 1084: a Forean Machina's first death is a self revive (upstream CreatureSupport): kill it twice, its implant drops at the second.
+- 542: one prisoner, not the debriefing's three: only a squad's leader can be a bystander (NpcSquads). He is NEUTRAL
+  (faction 3, as the Pools' Nakrinx): friendly, his own Thrax guards fight him and the caravan stands; a player may shoot
+  him. The prisoners are not freed in the world: left alone, the prisoner walks on until the caravan is sent again.
+- 864: the "urn on a Forean altar" is a Forean brazier (no urn class in the client); one use places all four icons (the
+  counter goes 0 to 4 at once). A use with fewer than four icons fails silently: the brazier stays ready and nothing counts
+  (abandon and accept again to recover; review finding, not tested). The temple's upper floor (Bargas, the braziers) is a
+  navmesh island: no walk from the Paludos or Falcon Hold waypoint (players stood there, TaRapedia); a real-client playtest
+  item: can a player climb up there?
+- 864: a Forean Machina's first death is a self revive (upstream): kill each twice for its icon.
+- 920: no Bane dropship: the waves come on foot (the Marshes dropships are on their own branch, and no scene spawns by
+  dropship). Meeko does not walk up to the player: he appears by Shaw. Meeko is invulnerable: a killed scene actor stays dead for its run, so
+  the receiver could not come back without a relog.
+- 2009: "only one of the five Soyuz Salvage missions" is not enforced (only 2007 and 2009 are on the server).
 - 916 / 1033: the kiosks stand in the open round the Overseers; the client's objective is "Destroy the Production Matrix
   in the Strider Bay" (underground, the triage's Q13).
 - 914: abandoned after the theft, the supplies go. The flag is set when a way is chosen; an abandon does not clear it.

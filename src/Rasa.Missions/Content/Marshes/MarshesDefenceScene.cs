@@ -24,6 +24,10 @@ namespace Rasa.Missions.Content.Marshes
     /// The wards are the actors <c>ward-M</c> (<c>ward-1</c> the leader), wave K's are <c>wave-K-M</c>. A death comes as the
     /// actor's defeat sequence or as ActorDied; only the leader's matters. The other wards' deaths, and the waves', change
     /// nothing.
+    ///
+    /// The actors <c>after-M</c> (optional, Head East, Young Man 920) come when the hold is over, as the wards and the waves go,
+    /// and stay: the scene runs on (phase "after") and puts them back at a recovery, until the mission's reward retirement or
+    /// a cancel ends it. Without them the scene ends at the hold's end.
     /// </summary>
     [MissionScript("marshes.defence", 1)]
     public sealed class MarshesDefenceScene : ISceneScript
@@ -35,6 +39,7 @@ namespace Rasa.Missions.Content.Marshes
         public static string After(int wave) => $"wave.{wave}.after";
         public static string Ward(int member) => $"ward-{member}";
         public static string WaveRole(int wave, int member) => $"wave-{wave}-{member}";
+        public static string AfterRole(int member) => $"after-{member}";
         public static uint WaveTimerSequence(int wave) => 900 + (uint)wave;
 
         public SceneDecision Handle(SceneContext context, SceneObservation observation)
@@ -45,7 +50,7 @@ namespace Rasa.Missions.Content.Marshes
                 ? new Checkpoint("new", 0, Array.Empty<string>())
                 : JsonSerializer.Deserialize<Checkpoint>(context.Run.Checkpoint)
                     ?? throw new InvalidOperationException("Marshes defence checkpoint is missing.");
-            if (state.Phase is not ("new" or "standing" or "defending" or "done" or "failed" or "cancelled") || state.Dead == null)
+            if (state.Phase is not ("new" or "standing" or "defending" or "after" or "done" or "failed" or "cancelled") || state.Dead == null)
                 throw new InvalidOperationException($"Marshes defence checkpoint has an invalid phase {state.Phase}.");
             var wards = Roles(context, "ward-");
 
@@ -57,6 +62,13 @@ namespace Rasa.Missions.Content.Marshes
 
             if (state.Phase is "done" or "failed" or "cancelled" or "new")
                 return Unchanged(context);
+
+            if (state.Phase == "after")
+            {
+                if (observation.Kind == SceneEventKind.Recovered)
+                    return Decide(state, Roles(context, "after-").Select(role => (WorldIntent)new EnsureActorIntent($"ensure-{role}", role)));
+                return Unchanged(context);
+            }
 
             if (observation.Kind == SceneEventKind.Recovered)
             {
@@ -108,9 +120,13 @@ namespace Rasa.Missions.Content.Marshes
             if (state.Phase == "defending" && observation.Kind == SceneEventKind.TimerElapsed)
             {
                 if (observation.SequenceId == HoldTimerSequence)
-                    return Decide(state with { Phase = "done" }, Away(context, state, wards),
+                {
+                    var after = Roles(context, "after-");
+                    return Decide(state with { Phase = after.Length > 0 ? "after" : "done" },
+                        Away(context, state, wards).Concat(after.Select(role => (WorldIntent)new EnsureActorIntent($"ensure-{role}", role))),
                         signals: new[] { new SceneMissionSignal(Name(Mission), Name(Outcome), Name(Step)) },
-                        status: SceneStatus.Ended);
+                        status: after.Length > 0 ? SceneStatus.Running : SceneStatus.Ended);
+                }
                 var wave = Enumerable.Range(1, (int)Name(Waves)).FirstOrDefault(candidate => WaveTimerSequence(candidate) == observation.SequenceId);
                 if (wave > state.Waves)
                 {
