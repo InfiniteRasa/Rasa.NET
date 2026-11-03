@@ -69,7 +69,8 @@ namespace Rasa.Test.Missions.Marshes
             MarshesCallingAllPartsV1.MissionId, MarshesBringDownTheKaelV1.MissionId, MarshesBringingTheSpiritHomeV1.MissionId,
             MarshesHeadEastV1.MissionId, MarshesSoyuzSalvageV1.MissionId, MarshesTasteOfTheirOwnMedicineV1.MissionId,
             MarshesFreedomsJustAnotherWordV1.MissionId, MarshesLeggoMyLogosV1.MissionId, MarshesSlayOnTargetV1.MissionId,
-            MarshesSubterraneanChamberV1.MissionId
+            MarshesSubterraneanChamberV1.MissionId, MarshesTheLostOnesV1.MissionId, MarshesNeedleInABaneCampV1.MissionId,
+            MarshesTheChoicesWeMakeV1.MissionId, MarshesDirtySecretsV1.MissionId
         };
 
         /// <summary>It Lies in Ruins: a Marshes mission on the Plateau revision (in PlateauMissionTests.MissionIds).</summary>
@@ -107,8 +108,12 @@ namespace Rasa.Test.Missions.Marshes
         /// at each objective's object or NPC (the escape's two round the entrance hall); Slay on Target's eight, at each boss (1-3),
         /// round each boss room (4), at the dispenser (5) and the teleporter (6); To a Subterranean Chamber's two, the client's
         /// "Eloh Chamber" at Jumna and one at the lake's teleporter.
+        /// Set 14 (the Village Ruins, map 1743): The Lost Ones' three, at the Marshes door and the travel point (2) and the spike
+        /// spot (1); Needle in a Bane Camp's two, at the Marshes door and the client's "Undefended Village" at the elder; The
+        /// Choices We Make's four, at Myrquar, the Logos, the client's "Bane Equipment" round the control room and Toida on the
+        /// Marshes; Dirty Secrets' three, the same three but Myrquar's.
         /// </summary>
-        internal const int Indicators = 166;
+        internal const int Indicators = 178;
 
         private const string Paludos = "20271104000000_Marshes_paludos";
         private const string FalconHold = "20271104000100_Marshes_falcon_hold";
@@ -123,6 +128,7 @@ namespace Rasa.Test.Missions.Marshes
         private const string RetreadArena = "20271104001000_Marshes_retread_arena";
         private const string EastAndNorth = "20271104001100_Marshes_east_and_north";
         private const string LogosResearch = "20271104001200_Marshes_logos_research";
+        private const string PreoDas = "20271104001300_Marshes_preo_das";
 
         /// <summary>
         /// The migration directly before <paramref name="migration"/> (IMigrationsAssembly, ordinal order), the target that
@@ -156,7 +162,8 @@ namespace Rasa.Test.Missions.Marshes
                 (1085, 760344, 760344, 35), (1087, 760344, 760344, 35), (1088, 760344, 760344, 35), (1084, 510168, 510168, 33),
                 (542, 510160, 510160, 33), (864, 760352, 760352, 36), (920, 760339, 760361, 33), (2009, 510171, 510171, 37),
                 (546, 510170, 760362, 33), (548, 760362, 760363, 35), (550, 760363, 510170, 35), (718, 760362, null, 35),
-                (1674, 510168, 760372, 38)
+                (1674, 510168, 760372, 38),
+                (1076, 510162, null, 33), (893, null, 760374, 35), (1078, null, 510160, 33), (1077, 760373, 510160, 35)
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             var enabled = harness.World.MissionContentDefinitionEntries.AsNoTracking()
@@ -370,7 +377,14 @@ namespace Rasa.Test.Missions.Marshes
                 (718, marshes, 3427, new (uint, uint, uint, uint?)[] { (1, 3432, 7308, 3434), (2, 3433, 7309, 3435),
                     (3, 4715, 7310, null), (4, 8980, 8981, 8982), (5, 8983, 8984, null), (6, 8987, 8988, null), (7, 8985, 8986, null),
                     (8, 8985, 8986, null) }),
-                (1674, marshes, 16109, new (uint, uint, uint, uint?)[] { (1, 16119, 16120, null) })
+                (1674, marshes, 16109, new (uint, uint, uint, uint?)[] { (1, 16119, 16120, null) }),
+                (1076, marshes, 6069, new (uint, uint, uint, uint?)[] { (2, 8349, 8350, null), (1, 6081, 7277, null) }),
+                (893, marshes, 4686, new (uint, uint, uint, uint?)[] { (1, 4696, 7286, null) }),
+                // 1078's and 1077's hidden lab tallies (5, 4) carry their lab objective's texts.
+                (1078, marshes, 6077, new (uint, uint, uint, uint?)[] { (1, 6136, 7279, null), (2, 6137, 7280, null),
+                    (3, 17190, 17191, null), (4, 17192, 17193, null), (5, 17190, 17191, null) }),
+                (1077, marshes, 6073, new (uint, uint, uint, uint?)[] { (1, 6135, 7289, null), (2, 17185, 17186, null),
+                    (3, 17187, 17188, null), (4, 17185, 17186, null) })
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             foreach (var (mission, revision, title, objectives) in expected)
@@ -462,6 +476,12 @@ namespace Rasa.Test.Missions.Marshes
             CollectionAssert.AreEqual(new (uint, uint?)[] { (5, 960) }, Talks(546, marshes));
             CollectionAssert.AreEqual(new (uint, uint?)[] { (7, 284), (10, 2203) }, Talks(550, marshes));
             CollectionAssert.AreEqual(new (uint, uint?)[] { (1, 2036) }, Talks(1674, marshes));
+            // Set 14: 893's at the elder's (893,1 package 958), 1078's and 1077's at Toida's (1078,4 and 1077,3 package 288);
+            // one each, flag 1 (the fork between 893 and 1078 is a scene signal, not a second talk); 1076 has none.
+            CollectionAssert.AreEqual(new (uint, uint?)[] { (1, 958) }, Talks(893, marshes));
+            CollectionAssert.AreEqual(new (uint, uint?)[] { (4, 288) }, Talks(1078, marshes));
+            CollectionAssert.AreEqual(new (uint, uint?)[] { (3, 288) }, Talks(1077, marshes));
+            Assert.IsEmpty(Talks(1076, marshes), "1076");
             foreach (var mission in new uint[] { 548, 718 })
                 Assert.IsEmpty(Talks(mission, marshes), $"{mission}");
         }
@@ -478,7 +498,8 @@ namespace Rasa.Test.Missions.Marshes
         /// Destructions follow Highway Robbery, each on its ending (914001: 1 stolen, 916; 2 told, 1033); Trapped! needs none.
         /// The arena rounds follow each other, Beat Street needs none; Calling all Parts follows Legend or Fall. Set 12 needs
         /// none. Freedom's Just Another Word and Slay on Target follow A Taste of Their Own Medicine, Leggo My Logos follows
-        /// Freedom's Just Another Word, To a Subterranean Chamber Leggo My Logos (TaRapedia). None repeats.
+        /// Freedom's Just Another Word, To a Subterranean Chamber Leggo My Logos (TaRapedia). Needle in a Bane Camp and The Choices We
+        /// Make follow The Lost Ones (TaRapedia); Dirty Secrets needs none. None repeats.
         /// </summary>
         [TestMethod]
         public void OnlyTheFollowUpsRequireAMission()
@@ -492,7 +513,8 @@ namespace Rasa.Test.Missions.Marshes
                     (1866U, (uint?)1865), (1867U, (uint?)1866), (1868U, (uint?)1867), (1904U, (uint?)1867),
                     (916U, (uint?)914), (1033U, (uint?)914),
                     (1087U, (uint?)1085), (1088U, (uint?)1087), (1084U, (uint?)1088),
-                    (548U, (uint?)546), (718U, (uint?)546), (550U, (uint?)548), (1674U, (uint?)550)
+                    (548U, (uint?)546), (718U, (uint?)546), (550U, (uint?)548), (1674U, (uint?)550),
+                    (893U, (uint?)1076), (1078U, (uint?)1076)
                 },
                 harness.World.MissionPrerequisiteEntries.AsNoTracking()
                 .Where(entry => entry.ContentRevision == MarshesMissionDataV1.Revision && entry.Kind == MissionPrerequisiteKind.MissionCompleted)
@@ -647,12 +669,22 @@ namespace Rasa.Test.Missions.Marshes
                 // Class VII EMP Bomb, Cryogenic Grenade, Standard Med Pack (stacks ESTIMATE).
                 (718, marshes, 75000, 5700, new (uint, uint)[] { (111232, 2), (111048, 4), (45061, 2) }),
                 // Class VII Advanced Med Pack, Armor Charger, EMP Grenade, Concussion Grenade.
-                (1674, marshes, 40000, 3900, new (uint, uint)[] { (45062, 2), (118898, 2), (111028, 4), (111018, 4) })
+                (1674, marshes, 40000, 3900, new (uint, uint)[] { (45062, 2), (118898, 2), (111028, 4), (111018, 4) }),
+                // Set 14. 3 Class VII Advanced Med Pack, 3 Armor Charger, 6 Cryogenic Grenade, 6 Incendiary Grenade.
+                (1076, marshes, 30000, 3500, new (uint, uint)[] { (45062, 3), (118898, 3), (111048, 6), (111038, 6) }),
+                // 3 Class VII EMP Bomb, 3 Power Charger, 6 Fragmentation Grenade (XP 30000 ESTIMATE).
+                (893, marshes, 30000, 3600, new (uint, uint)[] { (111232, 3), (118907, 3), (45446, 6) }),
+                // Electric Torqueshell Rifle 33-37, Photonic Blade 31-35, Pulse Cannon 29-33, Cryogenic Leech Gun 29-33 (XP 65000
+                // ESTIMATE).
+                (1078, marshes, 65000, 7000, new (uint, uint)[] { (49572, 1), (47668, 1), (17681, 1), (47764, 1) }),
+                // No item (XP 35000 ESTIMATE).
+                (1077, marshes, 35000, 1750, new (uint, uint)[0])
             })
             {
                 var reward = harness.World.Set<MissionRewardDefinitionEntry>().AsNoTracking()
                     .Single(entry => entry.MissionId == mission && entry.ContentRevision == revision);
-                Assert.AreEqual((experience, credits, (byte)1), (reward.Experience, reward.Credits, reward.SelectionCount), $"{mission}");
+                Assert.AreEqual((experience, credits, (byte)(items.Length > 0 ? 1 : 0)), (reward.Experience, reward.Credits, reward.SelectionCount),
+                    $"{mission}");
                 var rows = harness.World.MissionRewardItemEntries.AsNoTracking()
                     .Where(entry => entry.MissionId == mission && entry.ContentRevision == revision &&
                         entry.Kind == MissionRewardItemKind.Selectable)
@@ -711,10 +743,18 @@ namespace Rasa.Test.Missions.Marshes
                 // Set 13's facility missions are on the Logos Research Facility (map 1700), 546's door marker on the Marshes.
                 var facility = row.MissionId is 546 or 548 or 550 or 718 &&
                     !(row.MissionId == 546 && row.IndicatorId == MissionIndicator.UnnamedFrom + 2);
-                Assert.AreEqual(facility ? MarshesLogosResearchNpcsV1.MapContextId : 1454U, MissionMarkerProjection.ResolveMap(catalog, row.MissionId, row.ObjectiveId, new MissionIndicator { IndicatorId = row.IndicatorId }),
+                // Set 14's on the Village Ruins (map 1743), but the Marshes door's (1076 and 893: unnamed 1) and Toida's (the
+                // return: 1078 unnamed 3, 1077 unnamed 2).
+                var marshesDoorOrToida = row.MissionId is 1076 or 893 && row.IndicatorId == MissionIndicator.UnnamedFrom + 1 ||
+                    row.MissionId == 1078 && row.IndicatorId == MissionIndicator.UnnamedFrom + 3 ||
+                    row.MissionId == 1077 && row.IndicatorId == MissionIndicator.UnnamedFrom + 2;
+                var ruinsMap = row.MissionId is 1076 or 893 or 1078 or 1077 && !marshesDoorOrToida;
+                Assert.AreEqual(facility ? MarshesLogosResearchNpcsV1.MapContextId : ruinsMap ? MarshesPreoDasNpcsV1.MapContextId : 1454U,
+                    MissionMarkerProjection.ResolveMap(catalog, row.MissionId, row.ObjectiveId, new MissionIndicator { IndicatorId = row.IndicatorId }),
                     $"mission {row.MissionId} objective {row.ObjectiveId}: on its map");
                 // 1674's second marker, at the lake's teleporter, has no client name.
-                var unnamedSecond = row.MissionId == 1674 && row.IndicatorId == MissionIndicator.UnnamedFrom + 1;
+                var unnamedSecond = row.MissionId == 1674 && row.IndicatorId == MissionIndicator.UnnamedFrom + 1 ||
+                    row.MissionId == 893 && row.IndicatorId == MissionIndicator.UnnamedFrom + 1;   // 893's at the Marshes door
                 if (!unnamedSecond && NamedMarker(row.MissionId, row.ObjectiveId) is { } name)
                     Assert.AreEqual(name, row.IndicatorId, $"mission {row.MissionId} objective {row.ObjectiveId}: the client's name");
                 else
@@ -739,6 +779,9 @@ namespace Rasa.Test.Missions.Marshes
             (548, 4) => 346U,                               // Cellblock B
             (548, 5) => 347U,                               // Cellblock C
             (1674, 1) => 384U,                              // Eloh Chamber (the second, unnamed, at the lake's teleporter)
+            (893, 1) => 10000003U,                          // Undefended Village (the first, unnamed, at the Marshes door)
+            (1078, 3) => 72U,                               // Bane Equipment
+            (1077, 2) => 72U,                               // Bane Equipment
             _ => null
         };
 
@@ -759,7 +802,8 @@ namespace Rasa.Test.Missions.Marshes
                 .ToHashSet();
             var objectives = world.MissionObjectiveDefinitionEntries.AsNoTracking().Where(entry => entry.ContentRevision == revision)
                 .Select(entry => new { entry.MissionId, entry.ObjectiveId }).ToList();
-            Assert.HasCount(133, objectives, "the objectives are read");
+            Assert.HasCount(145, objectives, "the objectives are read");
+            Assert.IsTrue(hidden.Contains((1078U, 5U)) && hidden.Contains((1077U, 4U)), "1078's and 1077's lab tallies are hidden");
             Assert.IsTrue(hidden.Contains((546U, 3U)) && hidden.Contains((546U, 4U)), "546's tally and hack are hidden");
             Assert.IsTrue(hidden.Contains((550U, 8U)) && hidden.Contains((718U, 7U)) && hidden.Contains((718U, 8U)),
                 "550's failed escape, 718's alarm and its quiet end are hidden");
@@ -846,7 +890,12 @@ namespace Rasa.Test.Missions.Marshes
                 (718, 1, 776, -104, 15), (718, 2, 688, -24, 15), (718, 3, 648, -200, 15),     // the bosses
                 (718, 4, 776, -104, 15), (718, 4, 688, -24, 15), (718, 4, 648, -200, 15),     // their rooms
                 (718, 5, 632, -200, 8), (718, 6, 608, -104, 8),                               // the dispenser, the teleporter
-                (1674, 1, -160, -902, 8), (1674, 1, -160, -868, 6)                            // Jumna, the lake's teleporter
+                (1674, 1, -160, -902, 8), (1674, 1, -160, -868, 6),                           // Jumna, the lake's teleporter
+                (1076, 2, 755.08, 727.67, 10), (1076, 2, -107, -355, 15), (1076, 1, 181, -118, 8),   // the door, the travel point, the spot
+                (893, 1, 755.08, 727.67, 10), (893, 1, 130, -18, 10),                          // the door, the elder
+                (1078, 1, 25, 270, 12), (1078, 2, -33, 390, 8), (1078, 3, -31, 396, 18),       // Myrquar, the Logos, the control room
+                (1078, 4, -320.8, -6.8, 8),                                                   // Toida
+                (1077, 1, -33, 390, 8), (1077, 2, -31, 396, 18), (1077, 3, -320.8, -6.8, 8)    // the Logos, the control room, Toida
             };
             // 889's search places: the client's name on 4-7, and 1's marker at each.
             foreach (var (objective, x, z) in new (uint, double, double)[] { (4, -520, 40), (5, -450, 120), (6, -330, -160), (7, -200, -100) })
@@ -912,8 +961,9 @@ namespace Rasa.Test.Missions.Marshes
             // consoles, generator and charge, 1870's terminal, 1873's four crates; 1863's body, 1864's five fires, 1869's three
             // spike spots, 1871's five flowers; 914's two supply crates, 916's and 1033's five kiosks each; 864's two braziers,
             // 2009's five debris pieces; 548's three cell terminals, 550's crate, two tanks, two charges, console, analyzer and
-            // its keyboard, 718's six pieces of lab equipment, dispenser and teleporter.
-            Assert.AreEqual(14 + 14 + 5 + 8 + 1 + 2 + 3 + 5 + 1 + 4 + 1 + 5 + 3 + 5 + 2 + 10 + 2 + 5 + 3 + 8 + 8, objects);
+            // its keyboard, 718's six pieces of lab equipment, dispenser and teleporter; 1076's spike spot, 1078's and 1077's three
+            // pieces of lab equipment and toxin crate each.
+            Assert.AreEqual(14 + 14 + 5 + 8 + 1 + 2 + 3 + 5 + 1 + 4 + 1 + 5 + 3 + 5 + 2 + 10 + 2 + 5 + 3 + 8 + 8 + 1 + 4 + 4, objects);
         }
 
         /// <summary>
@@ -924,7 +974,7 @@ namespace Rasa.Test.Missions.Marshes
         private static readonly Dictionary<uint, uint> ClientUseArguments = new()
         {
             [11096] = 3,    // UsableItemDisp_item_bag_hum_v01 (917 Helka's pack)
-            [11116] = 3,    // UsableItemDisp_item_crate_bane_v01CONVERT2TD (881 sample taps, 718 DNA dispenser)
+            [11116] = 3,    // UsableItemDisp_item_crate_bane_v01CONVERT2TD (881 sample taps, 718 DNA dispenser, 1077/1078 toxin crates)
             [7334] = 1,     // UsableItemAccHumBombV01 (913 bomb receptacles)
             [21824] = 1,    // UsableItemAccForeanTreebackFood (961 feed acceptors)
             [11114] = 3,    // UsableItemDisp_item_canister_hum_v01 (1030 viral scrapper; g_usabledata.dis:19364)
@@ -935,7 +985,7 @@ namespace Rasa.Test.Missions.Marshes
             [7870] = 1,     // UsableBombHumV01 (1879 generator charge, 550 tank charges; lookup[0] None, the client sends 1)
             [21568] = 3,    // the bomb crate (550; as PlateauBombVoyageV1's crates)
             [6137] = 1,     // UsableTwoStateForeanFirePitV01 (1864 fires; lookup[0] None, the client sends 1)
-            [7847] = 3,     // UsableItemAccHumGpsBeacon (1869 spike spots; lookup[0] 3)
+            [7847] = 3,     // UsableItemAccHumGpsBeacon (1869 spike spots, 1076 signal spike spot; lookup[0] 3)
             [22518] = 3, [22519] = 3, [22520] = 3, [22521] = 3, [22522] = 3,   // UsableItemDispMawflowerV01-V05 (1871 flowers; lookup[0] 3)
             [11078] = 3,    // UsableItemDisp_item_crate_hum_v01 (914 supply crates; lookup[0] 3)
             [7636] = 1,     // UsableTwoStateForeanElohBrazierV01 (864 altars; lookup[0] None, the client sends 1)
@@ -964,8 +1014,9 @@ namespace Rasa.Test.Missions.Marshes
             // Helka's pack, the twelve feeders, the seven taps, the eight receptacles, the scrapper, the black box, the computer;
             // 1878's three crates, 1879's three consoles and the charge, 1873's four crates (1870's terminal talks); 1864's five
             // fires, 1869's three spots, 1871's five flowers (1863's body talks); 914's two crates; 864's two braziers, 2009's
-            // five debris pieces; 548's three terminals, 550's crate, two charges, console and keyboard, 718's dispenser.
-            Assert.AreEqual(1 + 12 + 7 + 8 + 1 + 2 + 3 + 4 + 4 + 5 + 3 + 5 + 2 + 2 + 5 + 3 + 5 + 1, used);
+            // five debris pieces; 548's three terminals, 550's crate, two charges, console and keyboard, 718's dispenser; 1076's
+            // spot, 1078's and 1077's toxin crates.
+            Assert.AreEqual(1 + 12 + 7 + 8 + 1 + 2 + 3 + 4 + 4 + 5 + 3 + 5 + 2 + 2 + 5 + 3 + 5 + 1 + 1 + 2, used);
         }
 
         /// <summary>
@@ -1011,8 +1062,9 @@ namespace Rasa.Test.Missions.Marshes
             // guard, Shaw's stand-in (package, Morrison's six), the soldier (the Rifleman's slot), the Stalker, Meeko (package,
             // Taavik's slot), and three scenes (864, 920, 2009); set 13 Hax and Sakai (pool, package, slots), the medic, the
             // prisoner, Russell and Brock (slots; Russell's and Brock's packages), the Commander and the three bosses, Jumna
-            // (pool, package), and four scenes (546, 548, 550, 718).
-            Assert.AreEqual((62, 45, 38, 192, 3, 4, 45), All(), "541, 968, 1874, 1868, 1904, 542 and 1674 have no scene");
+            // (pool, package), and four scenes (546, 548, 550, 718); set 14 Qunle and the elder (pool, package, Toida's slot),
+            // Myrquar, and four scenes (1076, 893, 1078, 1077).
+            Assert.AreEqual((65, 47, 40, 194, 3, 4, 49), All(), "541, 968, 1874, 1868, 1904, 542 and 1674 have no scene");
             Assert.AreEqual(4, Upstream());
 
             world.GetService<IMigrator>().Migrate(Previous(world, Paludos));
@@ -1604,6 +1656,54 @@ namespace Rasa.Test.Missions.Marshes
             world.GetService<IMigrator>().Migrate(LogosResearch);
             Assert.IsTrue(setThirteen.All(Has));
             Assert.AreEqual(full, SetThirteen());
+        }
+
+        /// <summary>
+        /// Marshes_preo_das takes out its four missions, Qunle, the encampment's elder and Myrquar; the copied rows (Toida, the
+        /// Marshes Commander), Morrison and the Thrax Soldier stay. Up again, all are back.
+        /// </summary>
+        [TestMethod]
+        public void PreoDasRollsBackWithItsMigration()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            bool Has(uint mission) => world.MissionContentDefinitionEntries.AsNoTracking()
+                .Any(entry => entry.MissionId == mission && entry.ContentRevision == MarshesMissionDataV1.Revision);
+            int Count(string sql) => world.Database.SqlQueryRaw<int>(sql).AsEnumerable().Single();
+            const string missions = "(1076, 893, 1078, 1077)";
+            (int, int, int, int, int, int, int, int) SetFourteen() => (
+                Count("SELECT COUNT(*) AS Value FROM creature WHERE id BETWEEN 760373 AND 760375") +
+                    Count("SELECT COUNT(*) AS Value FROM spawnpool WHERE id BETWEEN 760373 AND 760375"),
+                Count("SELECT COUNT(*) AS Value FROM npc_package WHERE id BETWEEN 760373 AND 760375") +
+                    Count("SELECT COUNT(*) AS Value FROM creature_appearance WHERE id BETWEEN 760373 AND 760375") +
+                    Count("SELECT COUNT(*) AS Value FROM creature_stat WHERE id BETWEEN 760373 AND 760375"),
+                Count($"SELECT COUNT(*) AS Value FROM mission_channel_policy WHERE mission_id IN {missions}"),
+                Count($"SELECT COUNT(*) AS Value FROM mission_indicator WHERE mission_id IN {missions}"),
+                Count($"SELECT COUNT(*) AS Value FROM mission_evidence WHERE mission_id IN {missions}"),
+                Count($"SELECT COUNT(*) AS Value FROM mission_scene_binding WHERE mission_id IN {missions}"),
+                Count($"SELECT COUNT(*) AS Value FROM mission_reward_item WHERE mission_id IN {missions}"),
+                Count($"SELECT COUNT(*) AS Value FROM mission_prerequisite WHERE mission_id IN {missions}"));
+            int Kept() => Count("SELECT COUNT(*) AS Value FROM creature WHERE id IN (510160, 510162, 531049, 531045)");
+            var setFourteen = new uint[] { 1076, 893, 1078, 1077 };
+            var setThirteen = new uint[] { 546, 548, 550, 718, 1674 };
+            // 3 creatures and 2 pools (Qunle, the elder); 2 packages, 2 appearance slots (Toida's one each), 1 stat (Myrquar); 3
+            // channel policies (1076 by radio in, 893 and 1078 by radio out); 3 + 2 + 4 + 3 markers; 12 sources; 4 scenes; 4 + 3
+            // + 4 items (1077 has none); 2 requirements (893 and 1078 on 1076).
+            var full = (5, 5, 3, 12, 12, 4, 11, 2);
+
+            Assert.IsTrue(setFourteen.All(Has));
+            Assert.AreEqual(full, SetFourteen());
+            Assert.AreEqual(4, Kept());
+
+            world.GetService<IMigrator>().Migrate(Previous(world, PreoDas));
+            Assert.IsFalse(setFourteen.Any(Has));
+            Assert.AreEqual((0, 0, 0, 0, 0, 0, 0, 0), SetFourteen());
+            Assert.AreEqual(4, Kept(), "the copied and used rows stay");
+            Assert.IsTrue(setThirteen.All(Has), "set 13 stays");
+
+            world.GetService<IMigrator>().Migrate(PreoDas);
+            Assert.IsTrue(setFourteen.All(Has));
+            Assert.AreEqual(full, SetFourteen());
         }
     }
 }

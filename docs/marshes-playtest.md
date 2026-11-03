@@ -100,6 +100,14 @@ the squad instance 1700 (door on the Marshes at -318.4, 285.7, -497.8); its miss
 - [ ] 718 Slay on Target (Valverde Marshes): Hax offers it after 546, level 35. Your own Coroner Larvax (776, 289, -104), Dissector Xynnr (688, 289, -24) and Overseer Mesgel (648, 289, -200) (new, level 38, 10000/12500/15000 HP), two pieces of lab equipment (20595, 100 HP) in each room, a DNA dispenser (11116, argument 3) at the third room's shelves (632, 288.2, -200): a DNA Sample Jar (2506), 5 done. Mesgel's first hit: the hidden alarm, 6 opens, a Bane teleporter (10603, 600 HP) in the Test Chamber (608, 248.3, -104) sends 4 Thrax at once and 4 more every 30 s (6 waves at most) until it is shot down (6 done). Kill the three (1-3) and the six pieces (4). Markers at each boss (1-3), round each room (4), at the dispenser (5) and the teleporter (6). Radio turn-in: 75000 XP, 5700 credits, one of 2 EMP Bomb VII, 4 Cryogenic Grenade VII, 2 Standard Med Pack VII. Does the dispenser open with the client's argument 3? Is the teleporter targetable?
 - [ ] 1674 To a Subterranean Chamber (Valverde Marshes): Retread Vincent (Retread City) offers it after 550, level 38. Walk to the rock under the lily glows in the lake (-160, 213.7, -868): a local teleporter (new, 907) takes you to the Eloh chamber's plates (-160, 112.4, -808; 908 takes you back). Talk to Jumna (new, the hologram Eloh's look, level 45, -160, 112.1, -902, the client's package 2036): 1 done. Markers: the client's "Eloh Chamber" at Jumna, one at the lake's pad. Turn in at Jumna: 40000 XP, 3900 credits, one of 2 Advanced Med Pack VII, 2 Armor Charger VII, 4 EMP Grenade VII, 4 Concussion Grenade VII. Is the pad on the rock reachable by swimming? Does Jumna's model show?
 
+Set 14, P'reo Das (migration `20271104001300_Marshes_preo_das`). The Village Ruins are the squad instance 1743 (door on the
+Marshes at 755.1, 215.6, 727.7, arrival -138.5, 63, -360); its missions are bound to it.
+
+- [ ] 1076 The Lost Ones (Valverde Marshes): Lieutenant Morrison (Falcon Hold) offers it, no requirement, level 33; you get one AFS Signal Spike (45451). In the Village Ruins walk into the travel point (-107, 60.2, -355, 15 m, 32 m from the arrival): 2 done, a spike spot (7847, the client's name "AFS Communication Spike") stands east of P'reo Das (181, 56.3, -118). Use it (argument 3): the spike is planted, 1 done. Markers at the Marshes door and the travel point (2), at the spot (1). Radio turn-in: 30000 XP, 3500 credits, one of 3 Advanced Med Pack VII, 3 Armor Charger VII, 6 Cryogenic Grenade VII, 6 Incendiary Grenade VII; Headquarters then calls with 893 and 1078. Does the spot read as a spike spot?
+- [ ] 893 Needle in a Bane Camp (Valverde Marshes): Headquarters offers it by radio after 1076 (at its turn-in, and on arrival in the Village Ruins), not once 1078 is done, level 35. Talk to the Forean Elder (new, the client's package 958) at He'kal Das (130, 66, -18): 1 done; a held 1078 fails (Myrquar and his guards go). Markers at the Marshes door and the client's "Undefended Village" at the elder. Turn in at the elder: 30000 XP (ESTIMATE), 3600 credits, one of 3 EMP Bomb VII, 3 Power Charger VII, 6 Fragmentation Grenade VII. Does the radio offer come in the instance?
+- [ ] 1078 The Choices We Make (Valverde Marshes): Headquarters offers it by radio after 1076 (as 893), not once 893 is done, level 33. Your own Operation Master Myrquar (new, level 38, 12375 HP) and four Thrax Soldiers south of the landing pads (25, 59.7, 270); kill him within 25 minutes of the accept: 1 done, the Level 1 Security Clearance Pass (45453; it opens nothing); a held 893 fails (the choice is made at his death). After 25 minutes he and his guards go, 1 and the mission fail. Take the Disperse Logos in the control room (-33, 65.5, 390; one you have counts): 2 done; three pieces of Bane lab equipment (20595, 100 HP) and a Bane crate (11116, argument 3) stand round it: destroy the three and take the Concentrated Toxin Sample (117028) from the crate, any order: 3 done. Talk to Elder Toida (Paludos): she takes the sample, 4 done. Markers at Myrquar, the Logos, the client's "Bane Equipment" round the control room (18 m), Toida. Turn in at Toida: 65000 XP (ESTIMATE), 7000 credits, one of Electric Torqueshell Rifle 49572, Photonic Blade 47668, Pulse Cannon 17681, Cryogenic Leech Gun 47764. Is Myrquar in reach of the landing pads' approach? Is the Logos usable on its console?
+- [ ] 1077 Dirty Secrets (Valverde Marshes): Forean Elder Qunle (new, at P'reo Das 95, 58.1, -230) offers it, no requirement, level 35, and gives you the Level 1 Security Clearance Pass. The Disperse Logos (1; one you have counts at once) and your own lab in the control room (2: three pieces of equipment at -22/386, -40/386, -34/412 and the crate at -28, 64, 412, apart from 1078's), any order; 2 opens 3: Toida takes the sample. Markers at the Logos, "Bane Equipment", Toida. Turn in at Toida: 35000 XP (ESTIMATE), 1750 credits, no item. With 1078 held too, do both labs read apart?
+
 ## Assumptions and choices (not from a source)
 
 Rules carried over from the Pools batch (`docs/pools-playtest.md`):
@@ -279,6 +287,22 @@ Per mission:
   friendly copy of the Maligo Base Prisoner, no attack. Russell a copy of Holloway, Brock of Perdu, scene actors only.
   Jumna a copy of Veryin (the hologram Eloh: the client has no other Eloh NPC with a body) at level 45. Teleporters 907
   (the lake) and 908 (the chamber), linked both ways, public. Next free id 760373, next free teleporter id 909.
+- Set 14 NPCs (ids 760373-760375): Qunle and the encampment's elder copies of Toida's row and look (levels 35 and 34),
+  public in the Village Ruins; Qunle's package a server-only one (his id), the elder's the client's 958 with the plain
+  name "Forean Elder" (9626: package 958 names no one). Myrquar a copy of the Marshes Thrax Commander at level 38 with
+  the Plains level 38 one's hit points, a scene actor only. No teleporter. Next free id 760376, next free teleporter id 909.
+- 1076: Ten Ton Hammer's travel point and spike place read as Village Ruins /locs (the triage's conflict 39); the spot
+  1869's class with the client's name 273 "AFS Communication Spike" (no signal-spike name in the client); the stacks
+  TaRapedia's.
+- 893: the receiver the encampment's elder at He'kal Das (the client's package, no name); offered at 1076's turn-in and on
+  arrival in the Village Ruins; XP 30000 (TaRapedia none); the marker named "Undefended Village" (10000003, by name only).
+- 1078: Myrquar by the landing pads (the offer: "shipping out"), on the walked-to ground south of them (the pads are a
+  navmesh island); four guards; 1500 s from the accept (the offer's 25 minutes); the key at his death (TaRapedia's bug note);
+  the element the Disperse Logos (the triage's conflict 19); three pieces of equipment and one crate (no source gives
+  counts); XP 65000 (TaRapedia none); weapons the band rule for level 33; the marker named "Bane Equipment" (72, by name).
+- 1077: Qunle's key at the accept (the client's offer text; TaRapedia's bug note says he does not give it: the triage's
+  conflict 7); the receiver Toida in Paludos (the client's objective; TaRapedia says P'reo Das: conflict 6); 1078's lab at
+  other places; XP 35000, no item (TaRapedia gives credits only).
 - 546: six room Thrax, waves of 4 at 10/50/90 s, a 120 s hack (no source gives counts or times); the item block 120017-120020
   (the client block nearest TaRapedia's four, ESTIMATE).
 - 548: the keypass is given at the Commander's death (TR MMO DB "from a boss in the control room"), not a loot drop; two
@@ -379,6 +403,29 @@ Per mission:
 - 718: the bosses drop no keycards (TaRapedia names keycards 1-3: no objective takes them). The teleporter stands in the
   Test Chamber, about 100 m from Mesgel's room; at most 6 waves.
 - 1674: the lake's teleporter is public, not gated by the mission (the client has no gate on it).
+- Set 14: the Village Ruins arrival (-138.5, 63, -360) is a small navmesh island about 4 m short of the main mesh (probe
+  2026-11-03; NPCs cannot path to the door; players walk it). The landing pads are an island too: Myrquar stands south of
+  them. Open upstream PR #214 regenerates this navmesh: places to check again after it.
+- 1077, 1078: the Security Clearance Pass opens nothing: Central Operations has no locked door on the server (no
+  key-gated door mechanic). 893: the "Bane attack" on the village is not built (the client has only the contact).
+- 1077: the Logos and the lab are open together from the accept, in any order (the client lists the lab after the Logos):
+  an owned Logos completes 1 inside the accept, where the engine cannot queue a scene sequence yet (StartScenario from an
+  existing-fact completion at accept fails the accept), so the lab cannot wait for 1.
+- 893 and 1078: one fork, a cross-mission scene signal. The elder's talk (893's 1) and Myrquar's death (1078's 1) each
+  start a sequence that signals the other mission's "closed by the other" scenario; that mission's objective then fails
+  (a required objective: the mission fails). A signal to a mission the player does not hold does nothing, so each talk is
+  the client's one flag-1 topic in every case (no server-only flag, no FailRelatedMission, which throws when the other is
+  not held). 1078's choice is made at Myrquar's death, not at Toida's talk (893's offer: "not enough time to both save
+  this village and intercept the next Bane convoy"); a signal from 1078's bound scene queued on the Marshes (at Toida)
+  does not reach 1743.
+  The choice is also kept in the mission flag 893001 (893 or 1078, set by the elder's talk or Myrquar's death): each
+  mission's offers and scene need the flag not to hold the other, so a path taken only after the other's choice is
+  closed. The flag stays at an abandon or a fail: a player who abandons 1078 after Myrquar's death cannot take 893
+  (ESTIMATE, by design). 893's scene is bound to the squad's Village Ruins, as the other three.
+- 1077 and 1078: each has its own lab (a player with both sees two sets in the control room); TaRapedia's P'reo Das bug
+  (a failed 1078 takes Myrquar's key from 1077) is not built: 1077's key is Qunle's.
+- 1078: Myrquar's leaving is a scene timer of the deadline's length beside the objective's own deadline (the deadline's
+  failure does not take the scene's actors away; 893's signal starts 1078's ShipsOut sequence, which does).
 - Client use not seen in game (ESTIMATE): the bomb crate 21568 with argument 3, the dispenser 11116 in the facility, the
   extraction drone 11255's states 110 and 2.
   916 and 1033 also need 914 completed, and either choice overwrites it, so a left-over flag offers nothing.
