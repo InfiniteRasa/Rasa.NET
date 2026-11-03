@@ -20,7 +20,7 @@ namespace Rasa.Test.World
     [DoNotParallelize]
     public class AttacksOnTheirModelsTests
     {
-        private const string Migration = "20271021000000_Attacks_on_their_models", Previous = "20271020000000_Marker_map_scopes";
+        private const string Migration = "20271022000000_Attacks_on_their_models", Previous = "20271021000000_Instance_creature_kits";
 
         [TestMethod]
         public void TheAttacksMoveOnToTheirModelsAndDownPutsThemBack()
@@ -41,6 +41,27 @@ namespace Rasa.Test.World
             migrator.Migrate(Previous);
             AssertActions(database, before: true);
             Assert.AreEqual(0, Count(database, $"SELECT COUNT(*) AS Value FROM creature_action WHERE id IN ({A.EmberStomp}, {A.SubjectRifle})"));
+        }
+
+        // It was 20271021000000, Instance_creature_kits' timestamp: a World that ran it under that id
+        // runs it again under this one, changing nothing, and loses the old id's history row.
+        [TestMethod]
+        public void AWorldThatRanItUnderItsOldIdRunsItAgainAsItIsAndForgetsTheOldId()
+        {
+            using var database = new Rasa.Test.Database.OrdinaryLootTestDatabase();
+            var migrator = database.Context.GetService<IMigrator>();
+
+            migrator.Migrate(Previous);
+            foreach (var sql in A.Up())
+                database.Context.Database.ExecuteSqlRaw(sql);
+            database.Context.Database.ExecuteSqlRaw(
+                $"INSERT INTO __EFMigrationsHistory (MigrationId, ProductVersion) VALUES ('{A.OldId}', '10.0.0');");
+            AssertActions(database, before: false);
+
+            migrator.Migrate(Migration);
+            AssertActions(database, before: false);
+            Assert.AreEqual(0, Count(database, $"SELECT COUNT(*) AS Value FROM __EFMigrationsHistory WHERE MigrationId = '{A.OldId}'"));
+            Assert.AreEqual(1, Count(database, $"SELECT COUNT(*) AS Value FROM __EFMigrationsHistory WHERE MigrationId = '{Migration}'"));
         }
 
         private static void AssertActions(Rasa.Test.Database.OrdinaryLootTestDatabase database, bool before)

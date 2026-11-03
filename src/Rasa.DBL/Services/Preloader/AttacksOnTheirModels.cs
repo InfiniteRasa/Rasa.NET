@@ -24,6 +24,13 @@ namespace Rasa.Services.Preloader
         public const uint EmberStomp = 678106, SubjectRifle = 678107;
         public const uint QueenSpit = 781113;
 
+        /// <summary>The id the migration first had, 20271021000000, which Instance_creature_kits shares.</summary>
+        public const string OldId = "20271021000000_Attacks_on_their_models";
+
+        /// <summary>The history row a World that ran it under OldId still has.</summary>
+        public static readonly string ForgetOldId =
+            $"DELETE FROM __EFMigrationsHistory WHERE MigrationId = '{OldId}';";
+
         /// <summary>An action row as it is and as it was: id, description, action, arg, range, cooldown, windup, damage, type.</summary>
         public sealed record Row(uint Id, string Description, uint ActionId, uint ArgId, double RangeMin, double RangeMax,
             uint Cooldown, uint Windup, uint MinDamage, uint MaxDamage, uint DamageType);

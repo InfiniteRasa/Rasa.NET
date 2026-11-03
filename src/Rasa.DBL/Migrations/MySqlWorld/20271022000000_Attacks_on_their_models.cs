@@ -13,18 +13,24 @@ namespace Rasa.Migrations.MySqlWorld
     /// animations their models have (AttacksOnTheirModels). Data only, in plain SQL: no model of
     /// its own.
     ///
+    /// It was 20271021000000, the timestamp Instance_creature_kits has. A World that ran it under
+    /// that id runs it again under this one, which its guards leave as it is, and its history row
+    /// for the old id is removed.
+    ///
     /// Down puts the old ones back.
     /// </summary>
     // ReSharper disable once InconsistentNaming
     [UsedImplicitly]
     [DbContext(typeof(MySqlWorldContext))]
-    [Migration("20271021000000_Attacks_on_their_models")]
+    [Migration("20271022000000_Attacks_on_their_models")]
     public class Attacks_on_their_models : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             foreach (var sql in AttacksOnTheirModels.Up())
                 migrationBuilder.Sql(sql);
+
+            migrationBuilder.Sql(AttacksOnTheirModels.ForgetOldId);
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
