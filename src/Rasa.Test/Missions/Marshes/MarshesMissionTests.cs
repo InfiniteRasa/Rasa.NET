@@ -71,7 +71,7 @@ namespace Rasa.Test.Missions.Marshes
             MarshesFreedomsJustAnotherWordV2.MissionId, MarshesLeggoMyLogosV1.MissionId, MarshesSlayOnTargetV2.MissionId,
             MarshesSubterraneanChamberV1.MissionId, MarshesTheLostOnesV1.MissionId, MarshesNeedleInABaneCampV2.MissionId,
             MarshesTheChoicesWeMakeV2.MissionId, MarshesDirtySecretsV1.MissionId, MarshesNeverSurrenderV1.MissionId,
-            MarshesPickingUpThePiecesV1.MissionId, MarshesCleaningHouseV2.MissionId, MarshesSurvivorsV2.MissionId,
+            MarshesPickingUpThePiecesV1.MissionId, MarshesCleaningHouseV3.MissionId, MarshesSurvivorsV2.MissionId,
             MarshesBeinvenidosDelVoroV1.MissionId, MarshesInsertionPointV1.MissionId
         };
 
@@ -147,6 +147,7 @@ namespace Rasa.Test.Missions.Marshes
         private const string CleaningHouseV2 = "20271104002000_Marshes_cleaning_house_v2";
         private const string CoreOfTheMatterV2 = "20271104002100_Marshes_core_of_the_matter_v2";
         private const string NpcsStandStill = "20271104002200_Marshes_npcs_stand_still";
+        private const string CleaningHouseV3 = "20271104002300_Marshes_cleaning_house_v3";
 
         /// <summary>
         /// The migration directly before <paramref name="migration"/> (IMigrationsAssembly, ordinal order), the target that
@@ -1168,8 +1169,9 @@ namespace Rasa.Test.Missions.Marshes
             // (pool, package), and four scenes (546, 548, 550, 718); set 14 Qunle and the elder (pool, package, Toida's slot),
             // Myrquar, and four scenes (1076, 893, 1078, 1077); set 15 Tola, Kirii and Rakla (pool, package, Veska's, Toida's and
             // Siva's slot), the three prisoners (package), and three scenes (891, 892, 894); set 16 Ortega (pool, package,
-            // Morrison's six slots) and three scenes (664, 919, 663).
-            Assert.AreEqual((72, 51, 47, 203, 3, 4, 55), All(), "541, 968, 1874, 1868, 1904, 542 and 1674 have no scene");
+            // Morrison's six slots) and three scenes (664, 919, 663); the 894 fix gives the three survivors their own creature
+            // and package rows (to-fix 16).
+            Assert.AreEqual((75, 51, 50, 203, 3, 4, 55), All(), "541, 968, 1874, 1868, 1904, 542 and 1674 have no scene");
             Assert.AreEqual(4, Upstream());
 
             world.GetService<IMigrator>().Migrate(Previous(world, Paludos));
@@ -1907,7 +1909,7 @@ namespace Rasa.Test.Missions.Marshes
         }
 
         /// <summary>
-        /// The playtest-fix migrations (to-fix 10 and 13, 894's notes) roll back one by one to the rows the live server had, and come
+        /// The playtest-fix migrations (to-fix 10, 13, 14, 15 and 16, 894's notes) roll back one by one to the rows the live server had, and come
         /// back: Marshes_playtest_fixes writes 664, 548, 718, 920, 893 and 1078 as sets 12-16 applied them (664's hidden tally
         /// 2, 548's block C marker at 728, no 718 hidden 8, no 920 approach, no choice flag on 893's and 1078's offers; the
         /// elder's marker as Marshes_safe_ground moved it);
@@ -1936,6 +1938,15 @@ namespace Rasa.Test.Missions.Marshes
             int Still() => Count($"SELECT COUNT(*) AS Value FROM creature WHERE id IN ({still}) AND run_speed = 0 AND walk_speed = 0");
             int CrewMoved() => Count($"SELECT COUNT(*) AS Value FROM mission_scene_binding WHERE mission_id = 1052 AND content_revision = '{revision}' AND bindings LIKE '%188.4%'");
             Assert.AreEqual((10, 1), (Still(), CrewMoved()), "to-fix 15");
+            var survivors = string.Join(", ", MarshesCleaningHouseSurvivorsV1.Survivors);
+            (int, int, int) Survivors() => (Count($"SELECT COUNT(*) AS Value FROM creature WHERE id IN ({survivors})"),
+                Count($"SELECT COUNT(*) AS Value FROM npc_package WHERE id IN ({survivors})"),
+                Count($"SELECT COUNT(*) AS Value FROM mission_scene_binding WHERE mission_id = 894 AND content_revision = '{revision}' AND bindings LIKE '%760383%'"));
+            Assert.AreEqual((3, 3, 1), Survivors(), "to-fix 16");
+            migrator.Migrate(Previous(world, CleaningHouseV3));
+            Assert.AreEqual((0, 0, 0), Survivors(), "894's survivors on the prisoners' rows as applied");
+            Assert.AreEqual((50, 1), (PumpsRadius(), FollowTimers()), "894 V2 under V3");
+            Assert.AreEqual((10, 1), (Still(), CrewMoved()));
             migrator.Migrate(Previous(world, NpcsStandStill));
             Assert.AreEqual((0, 0), (Still(), CrewMoved()), "the speeds and the crew as applied");
             Assert.AreEqual((0, 744, 1, 1, 1, 2, 127), Fixes());
@@ -1958,6 +1969,9 @@ namespace Rasa.Test.Missions.Marshes
             Assert.AreEqual((10, 1), (Still(), CrewMoved()), "to-fix 15 back");
             Assert.AreEqual((0, 744, 1, 1, 1, 2, 127), Fixes(), "all back");
             Assert.AreEqual((50, 1), (PumpsRadius(), FollowTimers()), "894 V2 back");
+            migrator.Migrate(CleaningHouseV3);
+            Assert.AreEqual((3, 3, 1), Survivors(), "to-fix 16 back");
+            Assert.AreEqual((50, 1), (PumpsRadius(), FollowTimers()), "894 V3 back");
         }
 
         /// <summary>

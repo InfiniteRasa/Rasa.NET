@@ -19,7 +19,7 @@ namespace Rasa.Test.Missions.Marshes
     using N = MarshesPreoDasVillageNpcsV1;
     using S = MarshesNeverSurrenderV1;
     using P = MarshesPickingUpThePiecesV1;
-    using H = MarshesCleaningHouseV2;
+    using H = MarshesCleaningHouseV3;
 
     /// <summary>
     /// Marshes set 15, P'reo Das (part 2) in the Village Ruins (squad instance 1743), played through as a player plays it:
@@ -258,13 +258,24 @@ namespace Rasa.Test.Missions.Marshes
                     Assert.AreNotEqual(TargetCategory.Hostile, npc.TargetCategory);
                     AssertOnGround(copy, npc.Position, $"camp {index + 1}'s {what}");
                     AssertPath(copy, DoorEdge, npc.Position, $"camp {index + 1}'s {what} from the door");
-                    CollectionAssert.AreEquivalent(new[] { camp.Rescue, camp.Survivor }, Topics(harness, npc), $"camp {index + 1}'s {what}: both talks");
                 }
+                // To-fix 16: each NPC offers only his own talk (the survivor is his own creature row, the talk names it).
+                CollectionAssert.AreEqual(new[] { camp.Rescue }, Topics(harness, prisoner), $"camp {index + 1}'s prisoner: the rescue only");
+                CollectionAssert.AreEqual(new[] { camp.Survivor }, Topics(harness, survivor), $"camp {index + 1}'s survivor: his own talk only");
+                Assert.AreEqual(H.SurvivorRow(index), survivor.DbId, $"camp {index + 1}'s survivor row");
+                harness.MoveTo(survivor.Position);
+                harness.Drain();
+                Assert.IsFalse(harness.Manager.CompleteOfferedObjective(harness.Client, survivor.EntityId, Cleaning, camp.Rescue, 1),
+                    $"camp {index + 1}: the survivor cannot do the prisoner's rescue");
+                harness.Drain();
+                Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Cleaning, camp.Rescue));
                 if (index == 0)
                     foreach (var npc in new[] { prisoner, survivor })
                         Unhurt(harness, copy, npc);
                 Rescue(harness, copy, prisoner, camp.Rescue);
                 Assert.AreEqual(harness.Client.Player.Id, prisoner.SpawnPool.FollowOwnerCharacterId, $"camp {index + 1}'s prisoner follows");
+                Assert.AreNotEqual(harness.Client.Player.Id, survivor.SpawnPool.FollowOwnerCharacterId, $"camp {index + 1}: the prisoner's talk moves only the prisoner");
+                Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Cleaning, camp.Survivor), $"camp {index + 1}: the survivor's talk still open");
                 Assert.AreEqual(index < 2 ? MissionObjectiveState.Incomplete : MissionObjectiveState.Completed, Objective(harness, Cleaning, H.Camps));
                 if (index < 2)
                     Assert.AreEqual((uint)index + 1, Counter(harness, Cleaning, H.Camps), "the camps counted");
@@ -273,6 +284,7 @@ namespace Rasa.Test.Missions.Marshes
                     // The first camp's survivor too: optional, counted for 14 only.
                     Rescue(harness, copy, survivor, camp.Survivor);
                     Assert.AreEqual(harness.Client.Player.Id, survivor.SpawnPool.FollowOwnerCharacterId, "the survivor follows");
+                    Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Cleaning, camp.Rescue), "the rescue stays done");
                     Assert.AreEqual(1U, Counter(harness, Cleaning, H.Camps), "the survivor frees no camp");
                 }
             }
