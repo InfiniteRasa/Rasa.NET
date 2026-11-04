@@ -191,6 +191,7 @@ namespace Rasa.Test.Missions.Marshes
             Assert.IsNotNull(SceneCreature(harness, copy, Taste, MarshesTasteOfTheirOwnMedicineV1.WaveRole(0, 0)), "the first wave is in");
 
             var hax = SceneCreature(harness, copy, Taste, MarshesTasteOfTheirOwnMedicineV1.HaxRole);
+            Assert.AreEqual((int)MarshesHaxHoldsV1.HitPoints, (int)hax.Attributes[Attributes.Health].NormalMax, "the hack's Hax has the extra hit points");
             hax.Attributes[Attributes.Health].Current = 0;
             harness.Creatures.HandleCreatureKill(copy, hax, null);
             harness.Drain();

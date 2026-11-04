@@ -21,6 +21,7 @@ namespace Rasa.Test.Missions.Marshes
     {
         private const string BraziersOnDryFloor = "20271104003100_Marshes_braziers_on_dry_floor";
         private const string KiriiInSight = "20271104003200_Marshes_kirii_in_sight";
+        private const string HaxHolds = "20271104003300_Marshes_hax_holds";
 
         private static string Previous(DbContext world, string migration)
         {
@@ -78,6 +79,28 @@ namespace Rasa.Test.Missions.Marshes
             Assert.AreEqual((0, 2), (At(MarshesKiriiInSightV1.Now), At(MarshesKiriiInSightV1.Before)), "both at the rock pile's foot");
             migrator.Migrate(KiriiInSight);
             Assert.AreEqual((2, 0), (At(MarshesKiriiInSightV1.Now), At(MarshesKiriiInSightV1.Before)), "back in sight");
+        }
+
+        /// <summary>
+        /// Hax died 22-24 s into 546's hack with the escort's 4000 hit points (review list, 2026-11-04). His stat row and
+        /// max_hp have 12000 now; rolled back, 4000.
+        /// </summary>
+        [TestMethod]
+        public void HaxHasTheHitPointsForTheHack()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            var migrator = world.GetService<IMigrator>();
+            var hax = MarshesLogosResearchNpcsV1.Hax;
+            (int, int) Health() => (Count(world, $"SELECT health AS Value FROM creature_stat WHERE id = {hax}"),
+                Count(world, $"SELECT max_hp AS Value FROM creature WHERE id = {hax}"));
+
+            Assert.AreEqual(12000U, MarshesHaxHoldsV1.HitPoints, "three times the escort's (ESTIMATE)");
+            Assert.AreEqual((12000, 12000), Health(), "Hax's hit points");
+            migrator.Migrate(Previous(world, HaxHolds));
+            Assert.AreEqual((4000, 4000), Health(), "the escort's");
+            migrator.Migrate(HaxHolds);
+            Assert.AreEqual((12000, 12000), Health(), "back");
         }
     }
 }

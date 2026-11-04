@@ -402,7 +402,10 @@ Per mission:
 - 919: the four armor pieces are TaRapedia's cached names; the templates are the Uncommon base templates (lowest version)
   of those kinds and slots in the level-35 bands (19008, 38932, 23937, 29073), as 894's weapons.
 - 546: six room Thrax, waves of 4 at 10/50/90 s, a 120 s hack (no source gives counts or times); the item block 120017-120020
-  (the client block nearest TaRapedia's four, ESTIMATE).
+  (the client block nearest TaRapedia's four, ESTIMATE). Hax has 12000 hit points (ESTIMATE: three times the escort's, as
+  1052's Samuel; review list 2026-11-04, migration `20271104003300_Marshes_hax_holds`): with the escort's 4000 he died
+  22-24 s after wave 1 in three real-client runs. The waves' targets stay (half Hax, half the medic): Trapped!'s spare is
+  the defence script's, not data.sequence's.
 - 548: the keypass is given at the Commander's death (TR MMO DB "from a boss in the control room"), not a loot drop; two
   prisoners a block; Sakai held in block C; the item block 96268-96271 (ESTIMATE).
 - 550: the bomb crate by the south bio lab, the tanks extraction drones in the two bio labs, the console at the analysis
