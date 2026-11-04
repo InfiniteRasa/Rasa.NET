@@ -51,11 +51,11 @@ namespace Rasa.Test.Missions.Marshes
         private const int RingPlaces = 16;
 
         /// <summary>
-        /// The places the line-of-sight test does not hold, reported (not moved, not in to-fix 27, 32, 33; 2026-11-04):
-        /// 864's west brazier (-236, 230.88, 28) stands inside the collision of the Forean statue next to it (25535 at -235,
-        /// 230.8, 30). Its twin, the east brazier, passes and was used in the real client; the west one is not checked there.
+        /// The places the line-of-sight test does not hold, reported (not moved, not in to-fix 27, 32, 33). None now: 864's
+        /// west brazier (-236, 230.88, 28) stood inside the collision of the Forean statue next to it (25535 at -235, 230.8,
+        /// 30) until Marshes_braziers_on_dry_floor moved both braziers out of the fountains (MarshesBraziersOnDryFloorV1).
         /// </summary>
-        private static readonly HashSet<string> ReportedSight = new() { "864 altar-west" };
+        private static readonly HashSet<string> ReportedSight = new();
 
         [TestMethod]
         public void EveryMarshesNpcAndObjectStandsOnAClientFloor()

@@ -69,7 +69,7 @@ namespace Rasa.Test.Missions.Marshes
             AssertOnGround(marshes, bargas.Position, "Bargas");
             Assert.IsFalse(marshes.NavMesh.FindPath(PaludosWaypoint, bargas.Position, out var fromPaludos) != null && fromPaludos,
                 "the temple's upper floor is an island");
-            foreach (var (_, at) in MarshesBringingTheSpiritHomeV1.Altars)
+            foreach (var (_, _, at) in MarshesBraziersOnDryFloorV1.Moves)
             {
                 AssertOnGround(marshes, ToVector(at), "an altar");
                 Assert.IsTrue(marshes.NavMesh.FindPath(bargas.Position, ToVector(at), out var walked) != null && walked, "walked to from Bargas");
@@ -617,7 +617,7 @@ namespace Rasa.Test.Missions.Marshes
             for (var index = 0; index < altars.Length; index++)
             {
                 Assert.AreEqual(MarshesBringingTheSpiritHomeV1.BrazierClass, (uint)altars[index].EntityClassId);
-                Assert.AreEqual(ToVector(MarshesBringingTheSpiritHomeV1.Altars[index].At), altars[index].Position);
+                Assert.AreEqual(ToVector(MarshesBraziersOnDryFloorV1.Moves[index].Now), altars[index].Position, "on the temple floor, out of the fountain");
                 Assert.AreEqual(harness.Client.Player.Id, altars[index].SceneOwnerCharacterId, "the player's own");
             }
             return altars;
