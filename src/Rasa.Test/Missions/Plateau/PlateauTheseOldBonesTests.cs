@@ -3,6 +3,9 @@ extern alias RasaGame;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Rasa.Data;
 using Rasa.Game;
@@ -81,7 +84,7 @@ namespace Rasa.Test.Missions.Plateau
             Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, PlateauTheseOldBonesV1.Protect));
             Assert.IsTrue(harness.Client.Player.Missions[TheseOldBones].Completeable);
             var home = ToVector(PlateauTheseOldBonesV1.HathenAt);
-            var wayBack = ToVector(PlateauTheseOldBonesV1.WayBackAt[2]);
+            var wayBack = ToVector(PlateauTheseOldBonesWayBackV2.WayBackAt[2]);
             var seconds = 0;
             for (; seconds < 70 && SceneCreature(harness, copy, PlateauTheseOldBonesScene.Hathen) != null; seconds++)
             {
@@ -238,7 +241,12 @@ namespace Rasa.Test.Missions.Plateau
             Assert.IsTrue(harness.Client.Player.Missions[TheseOldBones].Completeable);
         }
 
-        /// <summary>Each temple's way back ends on the navmesh about 100 m (ESTIMATE) along the path towards the hospital.</summary>
+        /// <summary>
+        /// Each temple's way back ends on the navmesh about 100 m (ESTIMATE) along the path towards the hospital, where
+        /// SceneRouteController.Start takes it: the path from the temple ends within 0.5 m of the end, and under 0.5 m
+        /// above or below it. On the upstream Velon Hollow navmesh (f887edda) V1's ends of temples 1 and 2 did not
+        /// (0.78 m to the side, 0.55 m over); PlateauTheseOldBonesWayBackV2's do.
+        /// </summary>
         [TestMethod]
         public void HathensWayBackFromEachTempleIsAbout100Metres()
         {
@@ -249,14 +257,14 @@ namespace Rasa.Test.Missions.Plateau
             var copy = ThroughTheDoor(harness, VelonHollow);
             foreach (var temple in PlateauTheseOldBonesV1.Temples)
             {
-                var end = ToVector(PlateauTheseOldBonesV1.WayBackAt[temple.Objective - 1]);
+                var end = ToVector(PlateauTheseOldBonesWayBackV2.WayBackAt[temple.Objective - 1]);
                 var ground = copy.NavMesh.GroundHeight(end);
-                if (ground == null || System.Math.Abs(ground.Value - end.Y) > 0.5f)
-                    Assert.Inconclusive($"No navmesh under the way back from temple {temple.Objective}: the Velon Hollow navmesh is split (upstream bug report).");
+                Assert.IsTrue(ground != null && System.Math.Abs(ground.Value - end.Y) <= 0.1f, $"temple {temple.Objective}: its end on the navmesh ({ground})");
                 var start = ToVector(temple.At);
                 var path = copy.NavMesh.FindPath(start, end, out var joined);
-                if (path == null || !joined)
-                    Assert.Inconclusive($"No navmesh path from temple {temple.Objective}: the Velon Hollow navmesh is split (upstream bug report).");
+                Assert.IsTrue(path != null && joined, $"temple {temple.Objective}: a path to its end");
+                Assert.IsTrue(Vector3.Distance(path[^1], end) <= 0.5f && System.Math.Abs(path[^1].Y - end.Y) < 0.5f,
+                    $"temple {temple.Objective}: the path ends at {path[^1]}, as SceneRouteController.Start asks");
                 var length = 0f;
                 var at = start;
                 foreach (var corner in path) { length += Vector3.Distance(at, corner); at = corner; }
@@ -264,6 +272,97 @@ namespace Rasa.Test.Missions.Plateau
                 Assert.IsTrue(Vector3.Distance(end, ToVector(PlateauTheseOldBonesV1.HathenAt)) < Vector3.Distance(start, ToVector(PlateauTheseOldBonesV1.HathenAt)),
                     $"temple {temple.Objective}: towards the hospital");
             }
+        }
+
+        /// <summary>
+        /// The temple secured last is 1 or 2: Hathen, who walked there with the player, walks his way back from it and is
+        /// gone at its end before the walk-back timeout. With V1's ends the upstream navmesh has no grounded path to them,
+        /// the route is refused, and he stands until the timeout takes him.
+        /// </summary>
+        [TestMethod]
+        [DataRow(1U)]
+        [DataRow(2U)]
+        public void HathenWalksBackFromTempleOneOrTwoWhenItIsSecuredLast(uint last)
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var copy = AcceptAtHathen(harness);
+            var hathen = Escort(harness, copy);
+            var hospital = harness.Client.Player.Position;
+            foreach (var other in PlateauTheseOldBonesV1.Temples.Where(temple => temple.Objective != last))
+                Secure(harness, copy, other);
+            Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, PlateauTheseOldBonesV1.Protect), "one temple to go");
+
+            // Back to Hathen (he stayed at the hospital), and with him to the last temple.
+            harness.MoveTo(hospital);
+            Tick(harness, copy, 1000);
+            var temple = PlateauTheseOldBonesV1.Temples[last - 1];
+            var route = copy.NavMesh.FindPath(hospital, ToVector(temple.At), out var complete);
+            Assert.IsTrue(complete && route != null, $"a path to temple {last}");
+            Walk(harness, copy, hathen, route.ToArray());
+            Assert.IsTrue(Vector3.Distance(hathen.Position, harness.Client.Player.Position) <= 20, $"Hathen with the player at temple {last}");
+            Secure(harness, copy, temple);
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, PlateauTheseOldBonesV1.Protect));
+
+            var wayBack = ToVector(PlateauTheseOldBonesWayBackV2.WayBackAt[last - 1]);
+            var seconds = 0;
+            for (; seconds < 70 && SceneCreature(harness, copy, PlateauTheseOldBonesScene.Hathen) != null; seconds++)
+                Tick(harness, copy, 1000);
+            Assert.IsNull(SceneCreature(harness, copy, PlateauTheseOldBonesScene.Hathen), "Hathen is gone");
+            Assert.IsTrue(Vector3.Distance(hathen.Position, wayBack) < 3, $"he walked his way back from temple {last} and is gone there, at {hathen.Position}");
+            Assert.IsTrue(seconds * 1000 < PlateauTheseOldBonesScene.WalkBackMilliseconds, $"gone at the route's end ({seconds} s), not by the timeout");
+        }
+
+        /// <summary>
+        /// Plateau_these_old_bones_way_back: the stored scene's routes from temples 1 and 2 end at V2's points, temple 3's
+        /// as before; rolled back to the migration before it, they are V1's again; its Up run twice changes nothing more.
+        /// </summary>
+        [TestMethod]
+        public void TheWayBackMigrationMovesTheEndsOfTemplesOneAndTwoAndRollsBack()
+        {
+            const string Migration = "20271103000200_Plateau_these_old_bones_way_back";
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            string Bindings() => world.Database.SqlQueryRaw<string>(
+                $"SELECT bindings AS Value FROM mission_scene_binding WHERE mission_id = {TheseOldBones} AND content_revision = '{PlateauMissionDataV1.Revision}'").Single();
+            Vector3[] Ends() => Enumerable.Range(1, 3).Select(temple => System.Text.Json.JsonSerializer.Deserialize<Rasa.Missions.Content.MissionSceneDefinition>(
+                    Bindings(), Rasa.Missions.Content.MissionContentCodec.Options).Routes[PlateauTheseOldBonesScene.WayBack((uint)temple)].Points.Single().Position)
+                .Select(ToVector).ToArray();
+            var v1 = PlateauTheseOldBonesV1.WayBackAt.Select(ToVector).ToArray();
+            var v2 = PlateauTheseOldBonesWayBackV2.WayBackAt.Select(ToVector).ToArray();
+            Assert.AreNotEqual(v1[0], v2[0]);
+            Assert.AreNotEqual(v1[1], v2[1]);
+            Assert.AreEqual(v1[2], v2[2], "temple 3's end stays");
+
+            CollectionAssert.AreEqual(v2, Ends(), "after the migration");
+            var others = Bindings().Replace(PlateauTheseOldBonesWayBackV2.RouteJson(1, PlateauTheseOldBonesWayBackV2.WayBackAt[0]), "")
+                .Replace(PlateauTheseOldBonesWayBackV2.RouteJson(2, PlateauTheseOldBonesWayBackV2.WayBackAt[1]), "");
+
+            var migrations = world.GetService<IMigrationsAssembly>().Migrations.Keys.OrderBy(id => id, System.StringComparer.Ordinal).ToList();
+            var before = migrations[migrations.IndexOf(Migration) - 1];
+            world.GetService<IMigrator>().Migrate(before);
+            CollectionAssert.AreEqual(v1, Ends(), "rolled back to " + before);
+            Assert.AreEqual(others, Bindings().Replace(PlateauTheseOldBonesWayBackV2.RouteJson(1, PlateauTheseOldBonesV1.WayBackAt[0]), "")
+                .Replace(PlateauTheseOldBonesWayBackV2.RouteJson(2, PlateauTheseOldBonesV1.WayBackAt[1]), ""), "nothing else changed");
+
+            world.GetService<IMigrator>().Migrate();
+            CollectionAssert.AreEqual(v2, Ends(), "migrated again");
+            void Run(IEnumerable<string> statements)
+            {
+                var connection = world.Database.GetDbConnection();
+                if (connection.State != System.Data.ConnectionState.Open)
+                    connection.Open();
+                foreach (var sql in statements)
+                {
+                    using var command = connection.CreateCommand();
+                    command.CommandText = sql;
+                    command.ExecuteNonQuery();
+                }
+            }
+            Run(PlateauTheseOldBonesWayBackV2.Up());
+            CollectionAssert.AreEqual(v2, Ends(), "Up a second time");
+            Run(PlateauTheseOldBonesWayBackV2.Down());
+            Run(PlateauTheseOldBonesWayBackV2.Down());
+            CollectionAssert.AreEqual(v1, Ends(), "Down twice");
         }
 
         /// <summary>Abandoned with a temple's group up: Hathen's copy and the group are gone, Hathen offers it again.</summary>
