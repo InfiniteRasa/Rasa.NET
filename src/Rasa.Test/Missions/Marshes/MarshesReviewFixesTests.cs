@@ -6,6 +6,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Rasa.Test.Missions.Marshes
 {
+    using Rasa.Missions.Content;
     using Rasa.Missions.Scenes;
     using Rasa.Services.Preloader.Missions.Marshes;
     using Rasa.Test.Missions.Wilderness;
@@ -23,6 +24,7 @@ namespace Rasa.Test.Missions.Marshes
         private const string KiriiInSight = "20271104003200_Marshes_kirii_in_sight";
         private const string HaxHolds = "20271104003300_Marshes_hax_holds";
         private const string GuardStationHolds = "20271104003400_Marshes_guard_station_holds";
+        private const string TrappedSmallerWave = "20271104003500_Marshes_trapped_smaller_wave";
 
         private static string Previous(DbContext world, string migration)
         {
@@ -149,6 +151,35 @@ namespace Rasa.Test.Missions.Marshes
             Assert.AreEqual(MarshesBindings.Json(MarshesGuardStationHoldsV1.Scene()), Binding(world, mission), "the new binding back");
             Assert.AreEqual((12000, 12000, 8000, 8000), Health(), "back");
             Assert.AreEqual((1, 0), (Still(), AsRifleman()), "still again");
+        }
+
+        /// <summary>
+        /// 1052's wave 3 (five Thrax) killed the crew and Samuel against one player (review list, to-fix 29 recheck,
+        /// 2026-11-04). Wave 3 has three now, waves 1 and 2 and the spare as before; rolled back, the binding as
+        /// MarshesTrappedV3 wrote it, to the byte.
+        /// </summary>
+        [TestMethod]
+        public void TrappedsThirdWaveIsOnePlayersFight()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            var migrator = world.GetService<IMigrator>();
+            const uint mission = MarshesTrappedV1.MissionId;
+            int Members(MissionSceneDefinition scene, int wave) => scene.Actors.Keys.Count(role => role.StartsWith($"wave-{wave}-"));
+
+            var before = MarshesTrappedSmallerWaveV1.Before();
+            Assert.AreEqual(before, MarshesBindings.Json(MarshesBindings.Read(before)), "the stored binding reads and writes back the same");
+            var scene = MarshesBindings.Read(Binding(world, mission));
+            Assert.AreEqual((3, 4, 3), (Members(scene, 1), Members(scene, 2), Members(scene, 3)), "the waves' sizes");
+            Assert.AreEqual(1U, scene.Names[Rasa.Missions.Content.Marshes.MarshesDefenceScene.Spare], "the spare stays");
+            Assert.IsTrue(MarshesTrappedSmallerWaveV1.LeftOut.All(role => !scene.DefeatSequences.ContainsKey(role)), "no defeat sequences for the left-out Thrax");
+            CollectionAssert.AreEqual(MarshesTrappedSmallerWaveV1.Waves.Select(wave => wave.Members.Length).ToArray(), new[] { 3, 4, 3 });
+
+            migrator.Migrate(Previous(world, TrappedSmallerWave));
+            Assert.AreEqual(before, Binding(world, mission), "the binding as MarshesTrappedV3 wrote it");
+            Assert.AreEqual(5, Members(MarshesBindings.Read(before), 3), "wave 3 five Thrax then");
+            migrator.Migrate(TrappedSmallerWave);
+            Assert.AreEqual(MarshesBindings.Json(MarshesTrappedSmallerWaveV1.Scene()), Binding(world, mission), "the new binding back");
         }
     }
 }
