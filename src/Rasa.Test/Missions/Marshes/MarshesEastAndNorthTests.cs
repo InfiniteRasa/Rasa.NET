@@ -294,6 +294,7 @@ namespace Rasa.Test.Missions.Marshes
             Assert.AreEqual((MarshesEastAndNorthNpcsV1.ShawStandIn, MarshesEastAndNorthNpcsV1.ShawName, MarshesEastAndNorthNpcsV1.ShawPackage),
                 (shaw.DbId, shaw.NameId, shaw.Npc?.NpcPackageId));
             Assert.IsLessThan(0.5f, Vector3.Distance(shaw.Position, ToVector(MarshesHeadEastV2.ShawAt)), "at Shaw's place");
+            Assert.AreEqual((int)MarshesGuardStationHoldsV1.ShawHitPoints, (int)shaw.Attributes[Attributes.Health].NormalMax, "Shaw's hit points");
             Assert.IsTrue(HiddenCreatures.IsHiddenFrom(publicShaw, harness.Client), "the public Shaw hidden");
             for (var member = 2; member <= MarshesHeadEastV2.SoldiersAt.Length + 1; member++)
             {
@@ -301,6 +302,8 @@ namespace Rasa.Test.Missions.Marshes
                 Assert.IsNotNull(soldier);
                 Assert.AreEqual(MarshesEastAndNorthNpcsV1.StationSoldier, soldier.DbId);
                 Assert.AreNotEqual(TargetCategory.Hostile, soldier.TargetCategory);
+                Assert.IsTrue(BehaviorManager.NeverMoves(soldier), "a soldier stands still (review list 2026-11-04)");
+                Assert.AreEqual((int)MarshesGuardStationHoldsV1.SoldierHitPoints, (int)soldier.Attributes[Attributes.Health].NormalMax, "a soldier's hit points");
                 AssertOnGround(marshes, soldier.Position, "a soldier");
             }
             Assert.IsNull(SceneCreature(harness, marshes, HeadEast, MarshesDefenceScene.AfterRole(1)), "no Meeko yet");
@@ -311,9 +314,9 @@ namespace Rasa.Test.Missions.Marshes
             Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, HeadEast, MarshesHeadEastV2.Defend));
             Tick(harness, marshes, 250);
             var log = new List<PythonPacket>();
-            for (var wave = 1; wave <= MarshesHeadEastV2.Waves.Length; wave++)
+            for (var wave = 1; wave <= MarshesGuardStationHoldsV1.Waves.Length; wave++)
             {
-                var (after, members) = MarshesHeadEastV2.Waves[wave - 1];
+                var (after, members) = MarshesGuardStationHoldsV1.Waves[wave - 1];
                 AdvanceTo(harness, marshes, after - 5000, log);
                 Assert.IsFalse(Wave(harness, marshes, wave).Any(), $"wave {wave} not before {after - 5000} ms");
                 AdvanceTo(harness, marshes, after + 1000, log);
@@ -339,7 +342,7 @@ namespace Rasa.Test.Missions.Marshes
                 packet.ObjectiveId == MarshesHeadEastV2.Defend), "ObjectiveCompleted once");
             Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, HeadEast, MarshesHeadEastV2.Speak), "3 opens");
             Assert.IsNull(SceneCreature(harness, marshes, HeadEast, MarshesDefenceScene.Leader), "the stand-in goes");
-            for (var wave = 1; wave <= MarshesHeadEastV2.Waves.Length; wave++)
+            for (var wave = 1; wave <= MarshesGuardStationHoldsV1.Waves.Length; wave++)
                 Assert.IsFalse(Wave(harness, marshes, wave).Any(), $"wave {wave} goes");
             Assert.IsFalse(HiddenCreatures.IsHiddenFrom(publicShaw, harness.Client), "the public Shaw is back");
             var meeko = Meeko(harness, marshes);
@@ -648,7 +651,7 @@ namespace Rasa.Test.Missions.Marshes
             while ((harness.UtcNow - _talkedAt.Value).TotalMilliseconds < milliseconds)
             {
                 // The attackers are held where they come in, the station kept up: only the scene's clock is under test.
-                foreach (var creature in Enumerable.Range(1, MarshesHeadEastV2.Waves.Length).SelectMany(wave => Wave(harness, marshes, wave)))
+                foreach (var creature in Enumerable.Range(1, MarshesGuardStationHoldsV1.Waves.Length).SelectMany(wave => Wave(harness, marshes, wave)))
                     creature.Attributes[Attributes.Health].Current = creature.Attributes[Attributes.Health].NormalMax;
                 foreach (var role in new[] { MarshesDefenceScene.Leader, MarshesDefenceScene.Ward(2), MarshesDefenceScene.Ward(3) })
                     if (SceneCreature(harness, marshes, HeadEast, role) is { } ward)
