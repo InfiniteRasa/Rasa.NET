@@ -36,18 +36,12 @@ namespace Rasa.Test.Missions.Marshes
         private const float NotVertical = 0.1f;    // for an object (a flower on a cliff)
 
         /// <summary>
-        /// The places this test does not hold, each one reported in to-fix 24 (ESTIMATE, not moved): the Logos Research
-        /// Facility instance's client files have no collision floor at all under these spots (the cells' floors), while the
-        /// server navmesh has one; whether the client walks there is open (a real-client check). Still so with upstream's
-        /// parent-bone collision (f1669e5f) and the rebuilt navmesh (79f36cd6), 2026-11-03: block B's prisoners found their
-        /// floor then (291.57) and were moved onto it; these two did not, and nothing is within 3.6 m over them. The hospital
-        /// Sakai and 550's Brock of this list stood at the edge of their floors: the real client could not talk to them
-        /// (to-fix 32, 33), and they were moved onto them.
+        /// The places this test does not hold, each one reported (ESTIMATE, not moved). None now. Block C's two prisoners
+        /// (548) were on this list (to-fix 24: no client floor under them, 2026-11-03; block B's had found theirs at 291.57,
+        /// the hospital Sakai and 550's Brock were moved onto theirs for to-fix 32, 33); Marshes_on_the_navmesh moved them
+        /// 3 m along the cell row onto the server navmesh, where the client has a floor (MarshesOnTheNavmeshV1).
         /// </summary>
-        private static readonly HashSet<string> Reported = new()
-        {
-            "548 prisoner-c-1", "548 prisoner-c-2"
-        };
+        private static readonly HashSet<string> Reported = new();
 
         // The line of sight (to-fix 27, 32, 33: the real client's "You cannot see your target from here", pm 274, for a
         // target that stood on a client floor by this test's first check). ESTIMATE, the client's own test is not known: a

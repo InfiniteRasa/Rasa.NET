@@ -154,6 +154,7 @@ namespace Rasa.Test.Missions.Marshes
         private const string NpcsInTheOpen = "20271104002700_Marshes_npcs_in_the_open";
         private const string FirePitsLit = "20271104002800_Marshes_fire_pits_lit";
         private const string OnTheClientFloor = "20271104002900_Marshes_on_the_client_floor";
+        private const string OnTheNavmesh = "20271104003000_Marshes_on_the_navmesh";
 
         /// <summary>
         /// The migration directly before <paramref name="migration"/> (IMigrationsAssembly, ordinal order), the target that
@@ -1983,6 +1984,13 @@ namespace Rasa.Test.Missions.Marshes
                 Bound(MarshesUnderTheRadarNelgV2.MissionId, nelg), Marker(MarshesUnderTheRadarNelgV2.MissionId, nelgMarker));
             Assert.AreEqual((1, 1, 1, 1, 1, 1), OnTheFloor(74, 62, "434", "181.5", 181), "to-fix 24 and 25: Qunle, Rakla, the third crate and Nelg on a client floor");
             Assert.AreEqual(1, Bound(MarshesMawFlowersV2.MissionId, "-742"), "to-fix 24: the fourth flower on the cliff's top");
+            // The actor's JSON has braces: doubled for SqlQueryRaw's format.
+            int Actors(bool now) => MarshesOnTheNavmeshV1.Moves.Count(move => Bound(move.Mission,
+                MarshesOnTheNavmeshV1.Actor(move.Role, move.Template, now ? move.Now : move.Before).Replace("{", "{{").Replace("}", "}}")) == 1);
+            Assert.AreEqual((8, 0), (Actors(true), Actors(false)), "the eight actors on the navmesh");
+            migrator.Migrate(Previous(world, OnTheNavmesh));
+            Assert.AreEqual((0, 8), (Actors(true), Actors(false)), "the eight actors at their old places");
+            Assert.AreEqual((1, 1, 1, 1, 1, 1), OnTheFloor(74, 62, "434", "181.5", 181), "to-fix 24 and 25 stay");
             migrator.Migrate(Previous(world, OnTheClientFloor));
             Assert.AreEqual(2, Kaav(462), "Kaav and his marker at the 2700 place");
             Assert.AreEqual((1, 1, 1, 1, 1, 1), OnTheFloor(82, 67, "435", "170", 170), "Qunle, Rakla, 1878 V2 and 1877 V1 as applied");
@@ -2054,6 +2062,9 @@ namespace Rasa.Test.Missions.Marshes
             Assert.AreEqual(2, Kaav(443), "to-fix 24 back");
             Assert.AreEqual((1, 1, 1, 1, 1, 1), OnTheFloor(74, 62, "434", "181.5", 181), "to-fix 24 and 25 back");
             Assert.AreEqual(1, Bound(MarshesMawFlowersV2.MissionId, "-742"), "1871 V2 back");
+            Assert.AreEqual((0, 8), (Actors(true), Actors(false)), "the eight actors still at their old places");
+            migrator.Migrate(OnTheNavmesh);
+            Assert.AreEqual((8, 0), (Actors(true), Actors(false)), "the eight actors back on the navmesh");
         }
 
         /// <summary>
