@@ -244,7 +244,7 @@ namespace Rasa.Test.Missions
 
                 // The other battlefields' missions are as they were.
                 Assert.AreEqual(14, world.MissionContentDefinitionEntries.AsNoTracking().Count(row => row.ContentRevision == TargetsOfOpportunitySeed.Revision && row.Enabled));
-                Assert.AreEqual(59 + 14 + 6, world.Set<MissionObjectiveDefinitionEntry>().AsNoTracking().Count(row => row.ContentRevision == TargetsOfOpportunitySeed.Revision));
+                Assert.AreEqual(59 + 14 + 6 + TargetsOfOpportunitySeed.Valverde.AllObjectives.Count, world.Set<MissionObjectiveDefinitionEntry>().AsNoTracking().Count(row => row.ContentRevision == TargetsOfOpportunitySeed.Revision));
 
                 world.GetService<IMigrator>().Migrate(WorldBefore);
 
