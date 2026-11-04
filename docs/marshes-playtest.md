@@ -546,8 +546,16 @@ Per mission:
   fight elsewhere in the depot does not sound the alarm. A hit after 3 is done completes 4 too (both optional).
 - 664: the waves come on timers, not when the previous one is dead; the Thrax attack the player, not Ortega.
 - 664: "Bane Remaining" counts up (n/12): the server's counters count up only (upstream Pravus' "Bane Remaining" ambush
-  does the same).
+  does the same; the tester saw 1 to 12, review list 2026-11-04). The client could show a count down: a counter with
+  target 0 shows its value alone, no "/target" (client/gameuiutil.pyo _SetupMissionCounter, ui/bigtextwindow.pyo
+  OBJECTIVE_COUNTER_UPDATED_NO_TARGET), so 12, 11 ... 0 would need the server to send the remaining count with target 0,
+  in UpdateObjectiveCounter and in the mission status. The mission runtime (MissionRuntime) counts from the initial
+  value up to the target, and no counter data says "remaining": an upstream code change, not changed here.
 - 664: after a fail it can be taken again once the player clears it (retail: one take until the instance reset).
+- 548: a cell terminal's use takes 10 s, and a player who walks off before the end gets nothing and no message (review list
+  2026-11-04). Both are upstream's for every scene object without its own windup (DynamicObjectManager.
+  DefaultScenarioUseWindupMs, FootlockerRecovery's range check); the client shows the use's progress bar. Not changed:
+  no source gives the terminals another time.
 - 919: the reward templates are ESTIMATE (the names only are sourced).
 - 663: the mortars (and the terminal) count before a way in (retail after its 2008-10 fix); the mission still needs a way in.
 - 663: the front guards are hostile, so they fight a player who comes near: the stealth way means not shooting back.
