@@ -17,14 +17,14 @@ namespace Rasa.Migrations.MySqlWorld
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             foreach (var sql in MarshesQuestNpcsHoldV1.Up())
-                migrationBuilder.Sql(sql);
+                migrationBuilder.Sql(MarshesSql.Guard(sql));
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             foreach (var sql in MarshesQuestNpcsHoldV1.Down())
-                migrationBuilder.Sql(sql);
+                migrationBuilder.Sql(MarshesSql.Guard(sql));
         }
     }
 }

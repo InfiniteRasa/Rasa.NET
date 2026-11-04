@@ -18,7 +18,7 @@ namespace Rasa.Migrations.SqliteWorld
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             foreach (var sql in MarshesFalconHoldNpcsV1.Up())
-                migrationBuilder.Sql(sql);
+                migrationBuilder.Sql(MarshesSql.Guard(sql));
             MarshesItLiesInRuinsV1.Up(migrationBuilder);
             MarshesTastesLikeGrubberV1.Up(migrationBuilder);
             MarshesFixingTheFoodChainV1.Up(migrationBuilder);
@@ -31,7 +31,7 @@ namespace Rasa.Migrations.SqliteWorld
             MarshesTastesLikeGrubberV1.Down(migrationBuilder);
             MarshesItLiesInRuinsV1.Down(migrationBuilder);
             foreach (var sql in MarshesFalconHoldNpcsV1.Down())
-                migrationBuilder.Sql(sql);
+                migrationBuilder.Sql(MarshesSql.Guard(sql));
         }
     }
 }

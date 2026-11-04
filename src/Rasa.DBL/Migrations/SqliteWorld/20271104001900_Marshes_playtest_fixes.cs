@@ -39,7 +39,7 @@ namespace Rasa.Migrations.SqliteWorld
             MarshesNeedleInABaneCampV2.Down(migrationBuilder);
             MarshesNeedleInABaneCampV1.Up(migrationBuilder);
             foreach (var sql in MarshesSafeGroundV1.MarkersOf(MarshesNeedleInABaneCampV1.MissionId))
-                migrationBuilder.Sql(sql);   // the elder's marker as Marshes_safe_ground left it
+                migrationBuilder.Sql(MarshesSql.Guard(sql));   // the elder's marker as Marshes_safe_ground left it
             MarshesHeadEastV2.Down(migrationBuilder);
             MarshesHeadEastV1.Up(migrationBuilder);
             MarshesSlayOnTargetV2.Down(migrationBuilder);

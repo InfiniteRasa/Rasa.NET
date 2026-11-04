@@ -18,7 +18,7 @@ namespace Rasa.Migrations.MySqlWorld
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             foreach (var sql in MarshesEastAndNorthNpcsV1.Up())
-                migrationBuilder.Sql(sql);
+                migrationBuilder.Sql(MarshesSql.Guard(sql));
             MarshesBringDownTheKaelV1.Up(migrationBuilder);
             MarshesBringingTheSpiritHomeV1.Up(migrationBuilder);
             MarshesHeadEastV1.Up(migrationBuilder);
@@ -33,7 +33,7 @@ namespace Rasa.Migrations.MySqlWorld
             MarshesBringingTheSpiritHomeV1.Down(migrationBuilder);
             MarshesBringDownTheKaelV1.Down(migrationBuilder);
             foreach (var sql in MarshesEastAndNorthNpcsV1.Down())
-                migrationBuilder.Sql(sql);
+                migrationBuilder.Sql(MarshesSql.Guard(sql));
         }
     }
 }
