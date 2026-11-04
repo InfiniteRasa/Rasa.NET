@@ -166,6 +166,35 @@ namespace Rasa.Test.Missions.Marshes
             Assert.IsEmpty(failures, string.Join("; ", failures));
         }
 
+        /// <summary>
+        /// Review list (real client, 2026-11-04): Kirii at MarshesQuestNpcsHoldV1's place talked only from his east side; from
+        /// (162, -226), west of him, the client said "You cannot see your target from here". Why this test: from that spot
+        /// (a player's eye over its client floor) the line to Kirii's middle meets no client collision at his place now, and
+        /// meets the rock pile at the old one.
+        /// </summary>
+        [TestMethod]
+        public void KiriiIsSeenFromTheVillageSide()
+        {
+            var dataDir = ClientData();
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var maps = harness.World.MapInfoEntries.AsNoTracking().ToDictionary(map => map.Id, map => map.MapName);
+            using var meshes = new MeshLibrary(dataDir, MeshCsv());
+            var geometry = MapGeometry.Load(Path.Combine(dataDir, "maps", maps[MarshesPreoDasVillageNpcsV1.MapContextId]), meshes, 1);
+            static Vector3 V((double X, double Y, double Z) at) => new((float)at.X, (float)at.Y, (float)at.Z);
+            var now = V(MarshesKiriiInSightV1.Now);
+            var before = V(MarshesKiriiInSightV1.Before);
+            var near = Near(geometry, new List<Vector3> { now, before }, 8);
+            var spot = new Vector3(162, 0, -226);
+            bool Seen(int i, Vector3 at)
+            {
+                var floor = FloorAt(near[i], spot, at.Y - 2, at.Y + 1);
+                Assert.IsNotNull(floor, "a client floor at the spot");
+                return Clear(near[i], spot with { Y = floor.Value + Eye }, at + new Vector3(0, NpcMiddle, 0));
+            }
+            Assert.IsTrue(Seen(0, now), "Kirii seen from (162, -226)");
+            Assert.IsFalse(Seen(1, before), "the rock pile between the spot and the old place");
+        }
+
         private static string ClientData()
         {
             var dataDir = Environment.GetEnvironmentVariable("RASA_CLIENT_DATA");

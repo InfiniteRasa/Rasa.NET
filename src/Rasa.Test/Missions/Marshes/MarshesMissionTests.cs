@@ -987,7 +987,7 @@ namespace Rasa.Test.Missions.Marshes
                 (1078, 1, 25, 270, 12), (1078, 2, -33, 390, 8), (1078, 3, -31, 396, 18),       // Myrquar, the Logos, the control room
                 (1078, 4, -320.8, -6.8, 8),                                                   // Toida
                 (1077, 1, -33, 390, 8), (1077, 2, -31, 396, 18), (1077, 3, -320.8, -6.8, 8),   // the Logos, the control room, Toida
-                (891, 1, 100.8, -236.8, 40), (891, 1, 165, -228, 8),                          // P'reo Das, Kirii (to-fix 17)
+                (891, 1, 100.8, -236.8, 40), (891, 1, 166, -225, 8),                          // P'reo Das, Kirii (to-fix 17, review list)
                 (892, 1, 97, -227, 25), (892, 1, 239.2, 0.4, 15), (892, 1, 62, -247, 8),      // the fallen, Rakla
                 (894, 1, 25.2, 315.3, 50), (894, 8, 10, 330, 8), (894, 9, 37.2, 330.75, 8),       // the pumps
                 (894, 10, -19.49, 300.31, 8), (894, 11, 69.81, 299.78, 8),
@@ -1944,6 +1944,8 @@ namespace Rasa.Test.Missions.Marshes
             (int, int, int, int, int, int, int) Fixes() => (Objective(664, 2), BlockCMarkerX(), Objective(718, 8), Objective(1052, 3),
                 Objective(920, 4), ChoiceFlag(), ElderMarkerX());
             var migrator = world.GetService<IMigrator>();
+            // The review-list fixes after Marshes_on_the_navmesh roll back first: MarshesReviewFixesTests checks each.
+            migrator.Migrate(OnTheNavmesh);
 
             int PumpsRadius() => Count($"SELECT CAST(radius AS INTEGER) AS Value FROM mission_indicator WHERE mission_id = 894 AND objective_id = 1 AND content_revision = '{revision}'");
             int FollowTimers() => Count($"SELECT COUNT(*) AS Value FROM mission_scene_binding WHERE mission_id = 894 AND content_revision = '{revision}' AND bindings LIKE '%sets-off%'");
