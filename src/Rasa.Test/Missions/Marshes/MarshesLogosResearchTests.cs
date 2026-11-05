@@ -174,6 +174,52 @@ namespace Rasa.Test.Missions.Marshes
             Assert.IsTrue(PlateauRetreadCampTests.Offers(harness, Giver(copy, N.Hax), Freedom), "the public Hax offers 548 next");
         }
 
+        /// <summary>
+        /// 546 (real client 2026-11-05: Hax died 42-51 s into the hack against one player killing a Thrax per 10-15 s): each
+        /// wave comes for the player, not for Hax or the medic, three Thrax at a time, and with nobody keeping Hax alive and
+        /// the player by him killing none, Hax lives through the 120 s and 2 completes (MarshesHackWavesOnPlayerV1).
+        /// </summary>
+        [TestMethod]
+        public void TheHackWavesGoForThePlayerAndHaxLives()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var marshes = EnterMarshes(harness);
+            Accept(harness, Fitz(harness, marshes), Taste);
+            var copy = IntoFacility(harness);
+            Talk(harness, Giver(copy, N.Hax), Taste, MarshesTasteOfTheirOwnMedicineV1.Rendezvous);
+            Tick(harness, copy, 250);
+            foreach (var thrax in Room(harness, copy).ToArray())
+                Kill(harness, copy, thrax);
+            harness.MoveTo(ToVector(MarshesTasteOfTheirOwnMedicineV1.HaxAt) + new Vector3(3, 0, 0));
+            harness.Drain();
+            var player = harness.Client.Player.EntityId;
+            var seen = new HashSet<int>();
+            for (var second = 1; second <= MarshesTasteOfTheirOwnMedicineV1.HackMilliseconds / 1000 + 3; second++)
+            {
+                Tick(harness, copy, 1000, Taste);
+                for (var wave = 0; wave < MarshesTasteOfTheirOwnMedicineV1.Waves.Length; wave++)
+                {
+                    var members = Enumerable.Range(0, 4).Select(member => SceneCreature(harness, copy, Taste, MarshesTasteOfTheirOwnMedicineV1.WaveRole(wave, member))).ToArray();
+                    Assert.IsNull(members[3], $"no fourth Thrax in wave {wave + 1}");
+                    if (members[0] == null || !seen.Add(wave))
+                        continue;
+                    Assert.IsTrue(members.Take(3).All(thrax => thrax != null), $"wave {wave + 1}: three Thrax");
+                    Assert.IsTrue(members.Take(3).All(thrax => thrax.Controller.ActionFighting?.TargetEntityId == player),
+                        $"wave {wave + 1} comes for the player");
+                }
+                if (Objective(harness, Taste, MarshesTasteOfTheirOwnMedicineV1.Protect) != MissionObjectiveState.Incomplete)
+                    break;
+            }
+            CollectionAssert.AreEquivalent(new[] { 0, 1, 2 }, seen.ToArray(), "three waves");
+            Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Taste, MarshesTasteOfTheirOwnMedicineV1.Protect), "Hax held through the hack");
+            var hax = SceneCreature(harness, copy, Taste, MarshesTasteOfTheirOwnMedicineV1.HaxRole);
+            Assert.IsNotNull(hax, "Hax lives");
+            // The turn-in ends the scene, so the public Hax (hidden while the run's stands) is back for the next test.
+            WildernessRanjaGorgeTests.CompleteAndCheckReward(harness, hax, Taste, 1,
+                MarshesTasteOfTheirOwnMedicineV1.Experience, MarshesTasteOfTheirOwnMedicineV1.Credits);
+            Tick(harness, copy, 250);
+        }
+
         /// <summary>546: Hax killed in the hack fails 2 and the mission; the waves go, and the hack's timer does not complete 2 later.</summary>
         [TestMethod]
         public void TasteOfTheirOwnMedicineFailsWhenHaxDies()

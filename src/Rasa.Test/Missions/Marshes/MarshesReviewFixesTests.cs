@@ -26,6 +26,7 @@ namespace Rasa.Test.Missions.Marshes
         private const string GuardStationHolds = "20271104003400_Marshes_guard_station_holds";
         private const string TrappedSmallerWave = "20271104003500_Marshes_trapped_smaller_wave";
         private const string KiriiInOpen = "20271104003600_Marshes_kirii_in_open";
+        private const string HackWavesOnPlayer = "20271104003700_Marshes_hack_waves_on_player";
 
         private static string Previous(DbContext world, string migration)
         {
@@ -210,6 +211,39 @@ namespace Rasa.Test.Missions.Marshes
             Assert.AreEqual(5, Members(MarshesBindings.Read(before), 3), "wave 3 five Thrax then");
             migrator.Migrate(TrappedSmallerWave);
             Assert.AreEqual(MarshesBindings.Json(MarshesTrappedSmallerWaveV1.Scene()), Binding(world, mission), "the new binding back");
+        }
+
+        /// <summary>
+        /// 546: Hax died 42-51 s into the hack against one player killing a Thrax per 10-15 s (real client, 2026-11-05). The
+        /// waves are three Thrax each now and every member attacks the player (no target role); rolled back, the binding as
+        /// MarshesTasteOfTheirOwnMedicineV1 wrote it, to the byte.
+        /// </summary>
+        [TestMethod]
+        public void TheHackWavesGoForThePlayer()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            var migrator = world.GetService<IMigrator>();
+            const uint mission = MarshesTasteOfTheirOwnMedicineV1.MissionId;
+            var now = MarshesBindings.Json(MarshesHackWavesOnPlayerV1.Scene());
+            var before = MarshesHackWavesOnPlayerV1.Before();
+            Assert.AreEqual(before, MarshesBindings.Json(MarshesBindings.Read(before)), "the stored binding reads and writes back the same");
+
+            Assert.AreEqual(now, Binding(world, mission), "the new waves at the head");
+            var scene = MarshesBindings.Read(now);
+            var attacks = scene.Sequences.Values.SelectMany(sequence => sequence.World).OfType<Rasa.Missions.Scenes.AttackActorIntent>().ToList();
+            Assert.HasCount(9, attacks, "nine wave members, each with its attack");
+            Assert.IsTrue(attacks.All(attack => attack.TargetRole == null), "each attacks the player");
+            Assert.AreEqual(9, scene.Actors.Keys.Count(role => role.StartsWith("wave-")), "three per wave");
+            Assert.IsFalse(scene.Sequences.Values.SelectMany(sequence => sequence.World).Any(intent => MarshesHackWavesOnPlayerV1.LeftOut.Contains(intent.Role)),
+                "nothing left of the fourth members");
+
+            migrator.Migrate(Previous(world, HackWavesOnPlayer));
+            Assert.AreEqual(before, Binding(world, mission), "the binding as MarshesTasteOfTheirOwnMedicineV1 wrote it");
+            Assert.AreEqual(6, MarshesBindings.Read(before).Sequences.Values.SelectMany(sequence => sequence.World)
+                .OfType<Rasa.Missions.Scenes.AttackActorIntent>().Count(attack => attack.TargetRole == MarshesTasteOfTheirOwnMedicineV1.HaxRole), "six on Hax then");
+            migrator.Migrate(HackWavesOnPlayer);
+            Assert.AreEqual(now, Binding(world, mission), "the new waves back");
         }
     }
 }
