@@ -12,15 +12,16 @@ using Rasa.Test.Database;
 
 namespace Rasa.Test.World
 {
-    /// <summary>The dropship migrations of the Plateau and the Pools: Up, Down, Up again, and each Up safe to run twice.</summary>
+    /// <summary>The dropship migrations of the Plateau, the Pools and the Marshes: Up, Down, Up again, and each Up safe to run twice.</summary>
     [TestClass, DoNotParallelize]
     public class DynamicDropshipsMigrationTests
     {
         private const string Plateau = "20271105000000_Plateau_dynamic_dropships";
         private const string Pools = "20271105000100_Pools_dynamic_dropships";
+        private const string Marshes = "20271105000200_Marshes_dynamic_dropships";
 
         /// <summary>The dropship migrations in the order they must run.</summary>
-        private static readonly string[] Order = { Plateau, Pools };
+        private static readonly string[] Order = { Plateau, Pools, Marshes };
 
         private static void WithWorld(Action<WorldContext> test)
         {
@@ -75,6 +76,10 @@ namespace Rasa.Test.World
         public void ThePoolsMigrationAddsItsRowsOnceAndItsDownTakesThemOut() =>
             UpDownUp(Pools, 692101, 692199, PoolsDynamicDropshipsContent.Garrison.Length, PoolsDynamicDropshipsContent.Up);
 
+        [TestMethod]
+        public void TheMarshesMigrationAddsItsRowsOnceAndItsDownTakesThemOut() =>
+            UpDownUp(Marshes, MarshesDynamicDropshipsContent.IdMin, MarshesDynamicDropshipsContent.IdMax, MarshesDynamicDropshipsContent.Garrison.Length, MarshesDynamicDropshipsContent.Up);
+
         /// <summary>The newest migration on development when the dropship migrations were written: each sorts after it.</summary>
         private const string NewestWhenWritten = "20271103000200";
 
@@ -100,7 +105,7 @@ namespace Rasa.Test.World
         [TestMethod]
         public void EveryInsertIsGuardedAndEveryRowItsOwn()
         {
-            foreach (var sql in PlateauDynamicDropshipsContent.Up().Concat(PoolsDynamicDropshipsContent.Up()))
+            foreach (var sql in PlateauDynamicDropshipsContent.Up().Concat(PoolsDynamicDropshipsContent.Up()).Concat(MarshesDynamicDropshipsContent.Up()))
             {
                 StringAssert.StartsWith(sql, "INSERT INTO ");
                 StringAssert.Contains(sql, " FROM (SELECT 1 AS one) d WHERE NOT EXISTS (SELECT 1 FROM ");

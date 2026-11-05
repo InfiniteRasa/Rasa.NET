@@ -7,8 +7,8 @@ using System.Text.RegularExpressions;
 namespace Rasa.Services.Preloader
 {
     /// <summary>
-    /// Every zone's control point plans by dropship - the Plateau's (PlateauDynamicDropshipsContent)
-    /// and the Pools' (PoolsDynamicDropshipsContent) -
+    /// Every zone's control point plans by dropship - the Plateau's (PlateauDynamicDropshipsContent),
+    /// the Pools' (PoolsDynamicDropshipsContent) and the Marshes' (MarshesDynamicDropshipsContent) -
     /// and what a plan is made of.
     /// </summary>
     public static class DynamicDropshipsContent
@@ -57,7 +57,7 @@ namespace Rasa.Services.Preloader
             public uint[] NotEscalated { get; init; } = Array.Empty<uint>();
         }
 
-        // Each zone's escalation (Plateau and Pools, tuned on the Plateau). "Allowing the Bane to control these points may give them the means to drop an ever
+        // Each zone's escalation (Plateau, Pools and Marshes, tuned on the Plateau). "Allowing the Bane to control these points may give them the means to drop an ever
         // increasing number of troops" (Ten Ton Hammer, E3 2005); "as Bane are killed, even more are
         // called in for backup" (TaRapedia, Control Point); "The game had a built in 'ramp up' for the
         // number of Bane that would spawn in and assault so that EVENTUALLY the Control Point would get
@@ -161,6 +161,7 @@ namespace Rasa.Services.Preloader
         }
 
         public static readonly Assault[] Assaults =
-            PlateauDynamicDropshipsContent.Assaults.Concat(PoolsDynamicDropshipsContent.Assaults).ToArray();
+            PlateauDynamicDropshipsContent.Assaults.Concat(PoolsDynamicDropshipsContent.Assaults)
+                .Concat(MarshesDynamicDropshipsContent.Assaults).ToArray();
     }
 }
