@@ -31,6 +31,7 @@ namespace Rasa.Test.Missions.Marshes
         private const string HackWavesOnPlayer = "20271104003700_Marshes_hack_waves_on_player";
         private const string TrappedLighterWaves = "20271104003800_Marshes_trapped_lighter_waves";
         private const string TrappedClearOfDepot = "20271104003900_Marshes_trapped_clear_of_depot";
+        private const string TrappedRetreadsHold = "20271104004000_Marshes_trapped_retreads_hold";
 
         private static string Previous(DbContext world, string migration)
         {
@@ -340,6 +341,29 @@ namespace Rasa.Test.Missions.Marshes
             migrator.Migrate(TrappedClearOfDepot);
             Assert.AreEqual(now, Binding(world, mission), "the new places back");
             Assert.AreEqual((1, 2), Placed(MarshesTrappedClearOfDepotV1.SamuelAt), "the area and the markers back");
+        }
+
+        /// <summary>
+        /// 1052: a Retread lasted 15-30 s under one Thrax with the escort's 4000 hit points (real client, 2026-11-05: the
+        /// first died 31 s after wave 2). The Retreads have 8000 now; rolled back, the escort's.
+        /// </summary>
+        [TestMethod]
+        public void TrappedsRetreadsHoldAThrax()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            var migrator = world.GetService<IMigrator>();
+            const uint retread = MarshesRetreadCityNpcsV1.Retread;
+            (int, int) Health() => (Count(world, $"SELECT health AS Value FROM creature_stat WHERE id = {retread}"),
+                Count(world, $"SELECT max_hp AS Value FROM creature WHERE id = {retread}"));
+
+            Assert.AreEqual((8000, 8000), Health(), "twice the escort's");
+            Assert.AreEqual((12000, 12000), (Count(world, $"SELECT health AS Value FROM creature_stat WHERE id = {MarshesRetreadCityNpcsV1.SamuelStandIn}"),
+                Count(world, $"SELECT max_hp AS Value FROM creature WHERE id = {MarshesRetreadCityNpcsV1.SamuelStandIn}")), "Samuel's stay");
+            migrator.Migrate(Previous(world, TrappedRetreadsHold));
+            Assert.AreEqual((4000, 4000), Health(), "the escort's");
+            migrator.Migrate(TrappedRetreadsHold);
+            Assert.AreEqual((8000, 8000), Health(), "back");
         }
     }
 }

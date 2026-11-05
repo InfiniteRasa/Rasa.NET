@@ -401,7 +401,7 @@ namespace Rasa.Test.Missions.Marshes
                 Assert.AreEqual(MarshesRetreadCityNpcsV1.Retread, retread.DbId);
                 Assert.AreEqual(9005U, retread.NameId, "the client's name 'Retread' (creaturenamelanguage 9005), not 'Human' (to-fix 29)");
                 Assert.AreNotEqual(TargetCategory.Hostile, retread.TargetCategory);
-                Assert.AreEqual(4000, (int)retread.Attributes[Attributes.Health].NormalMax, "the escort's hit points");
+                Assert.AreEqual((int)MarshesTrappedRetreadsHoldV1.RetreadHitPoints, (int)retread.Attributes[Attributes.Health].NormalMax, "twice the escort's hit points");
                 AssertOnGround(marshes, retread.Position, "a Retread");
             }
             Assert.IsFalse(Wave(harness, marshes, 1).Any(), "no Thrax before the talk");
