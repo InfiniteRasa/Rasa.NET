@@ -12,14 +12,15 @@ using Rasa.Test.Database;
 
 namespace Rasa.Test.World
 {
-    /// <summary>The dropship migration of the Plateau: Up, Down, Up again, and its Up safe to run twice.</summary>
+    /// <summary>The dropship migrations of the Plateau and the Pools: Up, Down, Up again, and each Up safe to run twice.</summary>
     [TestClass, DoNotParallelize]
     public class DynamicDropshipsMigrationTests
     {
         private const string Plateau = "20271105000000_Plateau_dynamic_dropships";
+        private const string Pools = "20271105000100_Pools_dynamic_dropships";
 
         /// <summary>The dropship migrations in the order they must run.</summary>
-        private static readonly string[] Order = { Plateau };
+        private static readonly string[] Order = { Plateau, Pools };
 
         private static void WithWorld(Action<WorldContext> test)
         {
@@ -70,6 +71,10 @@ namespace Rasa.Test.World
         public void ThePlateauMigrationAddsItsRowsOnceAndItsDownTakesThemOut() =>
             UpDownUp(Plateau, 692001, 692099, PlateauDynamicDropshipsContent.Garrison.Length, PlateauDynamicDropshipsContent.Up);
 
+        [TestMethod]
+        public void ThePoolsMigrationAddsItsRowsOnceAndItsDownTakesThemOut() =>
+            UpDownUp(Pools, 692101, 692199, PoolsDynamicDropshipsContent.Garrison.Length, PoolsDynamicDropshipsContent.Up);
+
         /// <summary>The newest migration on development when the dropship migrations were written: each sorts after it.</summary>
         private const string NewestWhenWritten = "20271103000200";
 
@@ -95,7 +100,7 @@ namespace Rasa.Test.World
         [TestMethod]
         public void EveryInsertIsGuardedAndEveryRowItsOwn()
         {
-            foreach (var sql in PlateauDynamicDropshipsContent.Up())
+            foreach (var sql in PlateauDynamicDropshipsContent.Up().Concat(PoolsDynamicDropshipsContent.Up()))
             {
                 StringAssert.StartsWith(sql, "INSERT INTO ");
                 StringAssert.Contains(sql, " FROM (SELECT 1 AS one) d WHERE NOT EXISTS (SELECT 1 FROM ");
