@@ -501,7 +501,7 @@ namespace Rasa.Managers
                 ShowLockbox(point);
             }
             RefreshServices(mapChannel);
-            LandingZoneAssaults.Worker(mapChannel, ById(Rasa.Services.Preloader.LandingZoneAssaultContent.PointId));
+            LandingZoneAssaults.Worker(mapChannel, _points.Values.Where(p => p.MapContextId == mapChannel.MapInfo?.MapContextId).ToList());
         }
 
         /// <summary>
@@ -536,6 +536,9 @@ namespace Rasa.Managers
         public Point ById(uint id) => _points.TryGetValue(id, out var point) ? point : null;
 
         public Point PointOf(DynamicObject obj) => obj != null && _byObject.TryGetValue(obj.EntityId, out var point) ? point : null;
+
+        /// <summary>The point a garrison pool (control_point_link kind 1 or 2) is of, or null.</summary>
+        public Point PointOf(SpawnPool pool) => pool != null && _byPool.TryGetValue(pool.DbId, out var point) ? point : null;
 
         /// <summary>The point an object is the clan lockbox of, or null.</summary>
         public Point LockboxOf(DynamicObject obj) => obj != null && _byLockbox.TryGetValue(obj.EntityId, out var point) ? point : null;
@@ -695,7 +698,7 @@ namespace Rasa.Managers
                 return;
 
             RefreshServices(mapChannel);
-            LandingZoneAssaults.Worker(mapChannel, ById(Rasa.Services.Preloader.LandingZoneAssaultContent.PointId));
+            LandingZoneAssaults.Worker(mapChannel, _points.Values.Where(p => p.MapContextId == mapChannel.MapInfo?.MapContextId).ToList());
 
             foreach (var point in _points.Values.Where(p => p.MapContextId == mapChannel.MapInfo.MapContextId && !p.IsBattleground).ToList())
             {
@@ -730,7 +733,9 @@ namespace Rasa.Managers
 
                     // Down for as long as it stays down: all of it comes back, on the spawn
                     // worker's next pass.
-                    if (now - point.DownSince.Value >= ReturnMs(mapChannel, point))
+                    // Not while an AFS sortie runs on it (AfsSorties.HoldsGarrison): it comes back
+                    // when the sortie is over, if the point is still the Bane's.
+                    if (now - point.DownSince.Value >= ReturnMs(mapChannel, point) && !AfsSorties.HoldsGarrison(mapChannel, point))
                     {
                         point.DownSince = null;
                         point.Returning = true;
@@ -817,6 +822,13 @@ namespace Rasa.Managers
 
             Announce(mapChannel, PlayerMessage.PmControlpointClaiming, point, FactionName(Bane));
         }
+
+        /// <summary>
+        /// The pools linked to the point for <paramref name="side"/> (control_point_link, kind 1 or 2)
+        /// that are on its map, service pools (a vendor's, a mission giver's) left out; pools that
+        /// would never spawn anyone are not left out.
+        /// </summary>
+        internal List<SpawnPool> PoolsOfSide(MapChannel mapChannel, Point point, byte side) => PoolsOn(mapChannel, point.PoolsOf(side));
 
         /// <summary>
         /// A player's use of a control point has run its time (DynamicObjectManager): the point

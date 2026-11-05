@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Rasa.Structures
@@ -163,6 +164,18 @@ namespace Rasa.Structures
         /// turns on nobody who hits it - the harm breaks its claim off instead. Not copied from a template.
         /// </summary>
         internal bool OnClaimDuty { get; set; }
+        /// <summary>
+        /// Making for a control point whose garrison is down, with the claimant (LandingZoneAssaults):
+        /// it looks for no fight on the way, but still turns on whoever hits it. Not copied from a template.
+        /// </summary>
+        internal bool OnRally { get; set; }
+        /// <summary>
+        /// The creatures it looks for a fight with, or null for any (BehaviorManager's aggro scan): a
+        /// control point's assault troop or AFS sortie trooper seeks out the point's garrison only,
+        /// not a vendor or a mission's NPC standing by (LandingZoneAssaults, AfsSorties). It still
+        /// turns on whoever hits it, and on players. Not copied from a template.
+        /// </summary>
+        internal Func<Creature, bool> SeeksOnly { get; set; }
         internal Game.Missions.World.ScriptedCombatAuthorization ScriptedCombatAuthorization { get; set; }
 
         /// <summary>

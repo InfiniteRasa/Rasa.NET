@@ -339,7 +339,9 @@ namespace Rasa.Managers
 
                 // A Bane garrison comes back together: a pool of it that has been killed waits
                 // until the whole garrison has been down long enough (ControlPoints.HoldsBack).
-                if (spawnPool.IsGarrison && ControlPoints.Instance.HoldsBack(spawnPool))
+                // An AFS garrison pool of a planned point is not set down again, nor its turrets
+                // repaired, while a Bane assault on the point runs (LandingZoneAssaults.HoldsGarrison).
+                if (spawnPool.IsGarrison && (ControlPoints.Instance.HoldsBack(spawnPool) || LandingZoneAssaults.HoldsGarrison(mapChannel, spawnPool)))
                     continue;
 
                 // In a squad's instance a pool that has been cleared comes back a set time after
@@ -368,7 +370,11 @@ namespace Rasa.Managers
                 // A turret's wreck is still on its mount: it is put back in service where it
                 // stands rather than a second one set down in the wreckage (AlternateMesh).
                 if (AlternateMesh.ReviveWrecks(mapChannel, spawnPool))
+                {
+                    if (spawnPool.IsGarrison)
+                        LandingZoneAssaults.GarrisonBack(mapChannel, spawnPool, repaired: true);
                     continue;
+                }
 
                 // A pool of an area with no walkable ground in it spawns nothing (Anchor).
                 if (!HasWalkableGround(mapChannel, spawnPool))
@@ -384,6 +390,9 @@ namespace Rasa.Managers
                     .GroupBy(creature => creature.DbId)
                     .Select(group => (group.Key, group.Count()))
                     .ToList();
+
+                if (spawnPool.IsGarrison)
+                    LandingZoneAssaults.GarrisonBack(mapChannel, spawnPool, repaired: false);
 
                 Dispatch(mapChannel, spawnPool, creatureList);
             }
