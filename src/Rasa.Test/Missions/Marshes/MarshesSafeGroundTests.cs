@@ -155,10 +155,10 @@ namespace Rasa.Test.Missions.Marshes
             }
         }
 
-        /// <summary>Where a moved Village Ruins NPC stands now: Kirii at the review list's place (in sight from the west), Qunle
+        /// <summary>Where a moved Village Ruins NPC stands now: Kirii in the open (MarshesKiriiInOpenV1), Qunle
         /// and Rakla at the to-fix 24 one, the others at the to-fix 15 one.</summary>
         private static (double X, double Y, double Z) Now(uint pool) => pool == MarshesPreoDasVillageNpcsV1.Kirii
-            ? MarshesKiriiInSightV1.Now
+            ? MarshesKiriiInOpenV1.Now
             : System.Array.Exists(MarshesOnTheClientFloorV1.Moves, move => move.Pool == pool) ? MarshesOnTheClientFloorV1.At(pool) : MarshesNpcsStandStillV1.At(pool);
 
         /// <summary>

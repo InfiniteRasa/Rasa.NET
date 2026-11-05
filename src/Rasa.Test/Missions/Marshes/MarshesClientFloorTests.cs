@@ -167,10 +167,57 @@ namespace Rasa.Test.Missions.Marshes
         }
 
         /// <summary>
-        /// Review list (real client, 2026-11-04): Kirii at MarshesQuestNpcsHoldV1's place talked only from his east side; from
-        /// (162, -226), west of him, the client said "You cannot see your target from here". Why this test: from that spot
-        /// (a player's eye over its client floor) the line to Kirii's middle meets no client collision at his place now, and
-        /// meets the rock pile at the old one.
+        /// A body's collision capsule as the client's collision.pyo gives it for the body's mesh: (3, radius, y, radius), the
+        /// capsule's segment half length y - radius (tabula_rasa.exe 0x9212b4).
+        /// </summary>
+        private readonly record struct Capsule(float Radius, float Y)
+        {
+            public float Half => MathF.Max(0, Y - Radius);
+            public float Middle => Half;                        // feet + h
+            public float Top => Radius + 2 * Half;              // feet + r + 2h
+            public float Quarter => Half / 2;                   // feet + h / 2
+            public float Height => 2 * Y;
+        }
+
+        // collision.pyo: HumanBaseMale (692, avatar_hum_m_nude_caucasian_v01.geo), the female avatar mesh, and Kirii's class
+        // NPC_Forean_Shaman (7035, creature_forean_shaman_v01.geo).
+        private static readonly Capsule HumanMale = new(0.33f, 1.12f), HumanFemale = new(0.32f, 1.09f), ForeanShaman = new(0.34f, 1.41f);
+
+        /// <summary>
+        /// The client's own sight test for a talk or a use: converse.pyo and useobject.pyo CheckAction say "You cannot see
+        /// your target from here" (pm 274) when world.InLineOfSight(actor.body, target.body) fails; the server does not test
+        /// it. tabula_rasa.exe: InLineOfSight 0x544590 -> 0x921c60 -> ClientCollisionManager 0x942e10 tests five lines between
+        /// the bodies' points (0x9219d0, the heights from the capsule 0x9217f0): the actor's middle and top, the target's
+        /// middle, top and quarter; actor middle to target middle, top and quarter, actor top to target middle and top. It
+        /// sees when one line meets neither a collision body (the two bodies left out) nor a walkable surface (the
+        /// ClientWalkableSurfaceManager 0x927fd0: the .map meshes' collision and the terrain). <paramref name="middle"/>:
+        /// whether the middle-to-middle line, the lowest pair, is clear too.
+        /// </summary>
+        private static bool ClientSees(List<(Vector3 A, Vector3 B, Vector3 C)> triangles, Vector3 actorFeet, Capsule actor,
+            Vector3 targetFeet, Capsule target, out bool middle)
+        {
+            Vector3 Up(Vector3 feet, float height) => feet + new Vector3(0, height, 0);
+            var lines = new[]
+            {
+                (Up(actorFeet, actor.Middle), Up(targetFeet, target.Middle)), (Up(actorFeet, actor.Middle), Up(targetFeet, target.Top)),
+                (Up(actorFeet, actor.Middle), Up(targetFeet, target.Quarter)), (Up(actorFeet, actor.Top), Up(targetFeet, target.Middle)),
+                (Up(actorFeet, actor.Top), Up(targetFeet, target.Top))
+            };
+            var clear = lines.Select(line => Clear(triangles, line.Item1, line.Item2)).ToArray();
+            middle = clear[0];
+            return clear.Any(line => line);
+        }
+
+        /// <summary>
+        /// Real client 2026-11-04 and 2026-11-05: Kirii talked only from his east side at MarshesQuestNpcsHoldV1's place and
+        /// at MarshesKiriiInSightV1's; from the south-west, where the client's walk to him stopped at talk range (163.8,
+        /// -227.8), and from (162-163, -226 to -227) the client said "You cannot see your target from here"; from (170, -225)
+        /// he talked. MarshesKiriiInSightV1 had checked one line (eye 1.6 m to middle 1.5 m) from (162, -226). Why this test:
+        /// by the client's own rule (ClientSees) Kirii is seen now from every place 2, 3, 4 and 5 m round him with a client
+        /// floor and room for a player, by a male and a female avatar, each with the middle-to-middle line clear too; at
+        /// MarshesKiriiInSightV1's place the ring fails, the client's rule fails from (163.8, -227.8) and (163, -227), and
+        /// from (162, -226) the rock pile takes the middle-to-middle line (ESTIMATE: there only the actor's top lines are
+        /// clear, within the tester's spot's error); from (170, -225) he is seen there too, as in the client.
         /// </summary>
         [TestMethod]
         public void KiriiIsSeenFromTheVillageSide()
@@ -181,18 +228,56 @@ namespace Rasa.Test.Missions.Marshes
             using var meshes = new MeshLibrary(dataDir, MeshCsv());
             var geometry = MapGeometry.Load(Path.Combine(dataDir, "maps", maps[MarshesPreoDasVillageNpcsV1.MapContextId]), meshes, 1);
             static Vector3 V((double X, double Y, double Z) at) => new((float)at.X, (float)at.Y, (float)at.Z);
-            var now = V(MarshesKiriiInSightV1.Now);
-            var before = V(MarshesKiriiInSightV1.Before);
-            var near = Near(geometry, new List<Vector3> { now, before }, 8);
-            var spot = new Vector3(162, 0, -226);
-            bool Seen(int i, Vector3 at)
+            var now = V(MarshesKiriiInOpenV1.Now);
+            var inSight = V(MarshesKiriiInSightV1.Now);
+            var first = V(MarshesQuestNpcsHoldV1.KiriiAt);
+            Assert.AreEqual(inSight, V(MarshesKiriiInOpenV1.Before), "Marshes_kirii_in_open moves him from MarshesKiriiInSightV1's place");
+            var near = Near(geometry, new List<Vector3> { now, inSight, first }, 8);
+
+            // The ring: places 2-5 m round him with a client floor (as EveryMarshesNpcAndObjectStandsOnAClientFloor's) and room
+            // for a player (no collision from the feet to the top of the capsule).
+            (int Places, List<string> Unseen) Ring(int i, Vector3 at)
             {
-                var floor = FloorAt(near[i], spot, at.Y - 2, at.Y + 1);
-                Assert.IsNotNull(floor, "a client floor at the spot");
-                return Clear(near[i], spot with { Y = floor.Value + Eye }, at + new Vector3(0, NpcMiddle, 0));
+                var places = 0;
+                var unseen = new List<string>();
+                foreach (var radius in new[] { 2f, 3f, 4f, 5f })
+                    for (var k = 0; k < RingPlaces; k++)
+                    {
+                        var angle = k * 2 * MathF.PI / RingPlaces;
+                        var stand = at + new Vector3(MathF.Sin(angle) * radius, 0, MathF.Cos(angle) * radius);
+                        if (FloorAt(near[i], stand, at.Y - MaxOver, at.Y + MaxUnder) is not { } y)
+                            continue;
+                        var feet = stand with { Y = y };
+                        if (!Clear(near[i], feet + new Vector3(0, 0.05f, 0), feet + new Vector3(0, HumanMale.Height, 0)))
+                            continue;
+                        places++;
+                        var seen = true;
+                        foreach (var avatar in new[] { HumanMale, HumanFemale })
+                            seen &= ClientSees(near[i], feet, avatar, at, ForeanShaman, out var middle) && middle;
+                        if (!seen)
+                            unseen.Add(FormattableString.Invariant($"({feet.X:0.0}, {feet.Z:0.0})"));
+                    }
+                return (places, unseen);
             }
-            Assert.IsTrue(Seen(0, now), "Kirii seen from (162, -226)");
-            Assert.IsFalse(Seen(1, before), "the rock pile between the spot and the old place");
+            var (places, unseen) = Ring(0, now);
+            Assert.IsGreaterThanOrEqualTo(48, places, "a client floor round him");
+            Assert.IsEmpty(unseen, "Kirii unseen by the client's rule from " + string.Join(", ", unseen));
+            Assert.IsNotEmpty(Ring(1, inSight).Unseen, "MarshesKiriiInSightV1's place is not seen from all round");
+            Assert.IsNotEmpty(Ring(2, first).Unseen, "nor MarshesQuestNpcsHoldV1's");
+
+            // The tester's spots, a male avatar on the client floor there.
+            bool Sees(int i, Vector3 at, float x, float z, out bool middle)
+            {
+                var spot = new Vector3(x, 0, z);
+                var floor = FloorAt(near[i], spot, at.Y - 2, at.Y + 1);
+                Assert.IsNotNull(floor, FormattableString.Invariant($"a client floor at ({x}, {z})"));
+                return ClientSees(near[i], spot with { Y = floor.Value }, HumanMale, at, ForeanShaman, out middle);
+            }
+            Assert.IsFalse(Sees(1, inSight, 163.8f, -227.8f, out _), "from where the walk to him stopped");
+            Assert.IsFalse(Sees(1, inSight, 163, -227, out _), "from (163, -227)");
+            Sees(1, inSight, 162, -226, out var fromWest);
+            Assert.IsFalse(fromWest, "from (162, -226) the rock pile takes the middle-to-middle line");
+            Assert.IsTrue(Sees(1, inSight, 170, -225, out _), "from the east, as in the client");
         }
 
         private static string ClientData()

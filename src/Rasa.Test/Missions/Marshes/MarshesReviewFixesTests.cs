@@ -25,6 +25,7 @@ namespace Rasa.Test.Missions.Marshes
         private const string HaxHolds = "20271104003300_Marshes_hax_holds";
         private const string GuardStationHolds = "20271104003400_Marshes_guard_station_holds";
         private const string TrappedSmallerWave = "20271104003500_Marshes_trapped_smaller_wave";
+        private const string KiriiInOpen = "20271104003600_Marshes_kirii_in_open";
 
         private static string Previous(DbContext world, string migration)
         {
@@ -68,7 +69,7 @@ namespace Rasa.Test.Missions.Marshes
 
         /// <summary>
         /// Kirii (891, 894) talked only from his east side (review list, 2026-11-04). His pool and his 891 marker stand at the
-        /// new place; rolled back, both at MarshesQuestNpcsHoldV1's.
+        /// new place; rolled back, both at MarshesQuestNpcsHoldV1's. Marshes_kirii_in_open, after it, rolls back first.
         /// </summary>
         [TestMethod]
         public void KiriiAndHisMarkerStandInSight()
@@ -76,17 +77,46 @@ namespace Rasa.Test.Missions.Marshes
             using var harness = WildernessRuntimeTestHarness.Create();
             var world = harness.World;
             var migrator = world.GetService<IMigrator>();
-            int At((double X, double Y, double Z) at) => Count(world, System.FormattableString.Invariant(
-                $"SELECT COUNT(*) AS Value FROM spawnpool WHERE id = {MarshesPreoDasVillageNpcsV1.Kirii} AND ABS(pos_x - {at.X}) < 0.01 AND ABS(pos_y - {at.Y}) < 0.01 AND ABS(pos_z - {at.Z}) < 0.01")) +
-                Count(world, System.FormattableString.Invariant(
-                $"SELECT COUNT(*) AS Value FROM mission_indicator WHERE mission_id = {MarshesNeverSurrenderV1.MissionId} AND content_revision = '{MarshesMissionDataV1.Revision}' AND ABS(pos_x - {at.X}) < 0.01 AND ABS(pos_z - {at.Z}) < 0.01"));
+            int At((double X, double Y, double Z) at) => KiriiAt(world, at);
 
+            migrator.Migrate(KiriiInSight);
             Assert.AreEqual((2, 0), (At(MarshesKiriiInSightV1.Now), At(MarshesKiriiInSightV1.Before)), "Kirii and his marker in sight");
             migrator.Migrate(Previous(world, KiriiInSight));
             Assert.AreEqual((0, 2), (At(MarshesKiriiInSightV1.Now), At(MarshesKiriiInSightV1.Before)), "both at the rock pile's foot");
             migrator.Migrate(KiriiInSight);
             Assert.AreEqual((2, 0), (At(MarshesKiriiInSightV1.Now), At(MarshesKiriiInSightV1.Before)), "back in sight");
+            migrator.Migrate();
+            Assert.AreEqual((2, 0), (At(MarshesKiriiInOpenV1.Now), At(MarshesKiriiInOpenV1.Before)), "in the open at the head");
         }
+
+        /// <summary>
+        /// At MarshesKiriiInSightV1's place the real client still refused the talk from the south-west, the way its walk to him
+        /// came (2026-11-05). His pool and his 891 marker stand in the open now; rolled back, both at MarshesKiriiInSightV1's
+        /// place; up again (the Up twice), in the open.
+        /// </summary>
+        [TestMethod]
+        public void KiriiAndHisMarkerStandInTheOpen()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            var migrator = world.GetService<IMigrator>();
+            int At((double X, double Y, double Z) at) => KiriiAt(world, at);
+
+            Assert.AreEqual((2, 0), (At(MarshesKiriiInOpenV1.Now), At(MarshesKiriiInOpenV1.Before)), "Kirii and his marker in the open");
+            migrator.Migrate(Previous(world, KiriiInOpen));
+            Assert.AreEqual((0, 2), (At(MarshesKiriiInOpenV1.Now), At(MarshesKiriiInOpenV1.Before)), "both by the rock pile again");
+            migrator.Migrate(KiriiInOpen);
+            Assert.AreEqual((2, 0), (At(MarshesKiriiInOpenV1.Now), At(MarshesKiriiInOpenV1.Before)), "back in the open");
+            foreach (var sql in MarshesKiriiInOpenV1.Up())
+                world.Database.ExecuteSqlRaw(MarshesSql.Guard(sql));
+            Assert.AreEqual((2, 0), (At(MarshesKiriiInOpenV1.Now), At(MarshesKiriiInOpenV1.Before)), "the Up twice: still one place each");
+        }
+
+        /// <summary>How many of Kirii's pool and his 891 marker stand at <paramref name="at"/>.</summary>
+        private static int KiriiAt(DbContext world, (double X, double Y, double Z) at) => Count(world, System.FormattableString.Invariant(
+            $"SELECT COUNT(*) AS Value FROM spawnpool WHERE id = {MarshesPreoDasVillageNpcsV1.Kirii} AND ABS(pos_x - {at.X}) < 0.01 AND ABS(pos_y - {at.Y}) < 0.01 AND ABS(pos_z - {at.Z}) < 0.01")) +
+            Count(world, System.FormattableString.Invariant(
+            $"SELECT COUNT(*) AS Value FROM mission_indicator WHERE mission_id = {MarshesNeverSurrenderV1.MissionId} AND content_revision = '{MarshesMissionDataV1.Revision}' AND ABS(pos_x - {at.X}) < 0.01 AND ABS(pos_z - {at.Z}) < 0.01"));
 
         /// <summary>
         /// Hax died 22-24 s into 546's hack with the escort's 4000 hit points (review list, 2026-11-04). His stat row and
