@@ -88,6 +88,68 @@ namespace Rasa.Test.Missions.Marshes
             Assert.IsGreaterThan(4, checkedWards, "the wards are read");
         }
 
+        /// <summary>
+        /// How far outside every hostile automatic pool's circle a defence's wards and wave places stand (ESTIMATE): a
+        /// creature's 18 m AggroRange and 17 m for the fight to move in (the player meets a wave, a Retread is chased).
+        /// </summary>
+        public const float FightClearance = 35f;
+
+        /// <summary>How far from the leader each wave member comes in (ESTIMATE): Trapped!'s ground between the depot's pools
+        /// leaves 37-41 m.</summary>
+        public const float TrappedWaveDistance = 35f;
+
+        public static float Flat(Vector3 a, Vector3 b) => Vector2.Distance(new(a.X, a.Z), new(b.X, b.Z));
+
+        /// <summary>
+        /// Real client 2026-11-05: Trapped!'s depot Thrax (pool 531291) joined the defence each try (its wave 2 came in 19 m
+        /// outside that pool's circle, the crew stood 24-29 m outside it). Why this test: in Trapped!'s defence every ward and every wave member stands
+        /// FightClearance outside every hostile automatic pool's circle on its map, and every wave member comes in at least
+        /// its mission's wave distance from the leader. The old data fails both (checked 2026-11-05 with the old values).
+        /// </summary>
+        [TestMethod]
+        public void TheDefenceFightsStandClearOfEveryHostilePool()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var pools = SpawnPoolManager.Instance.LoadedSpawnPools.Values.ToList();
+            bool Side(uint creature, TargetCategory side) =>
+                CreatureManager.Instance.LoadedCreatures.TryGetValue(creature, out var c) && c.TargetCategory == side;
+            var revision = MarshesMissionDataV1.Revision;
+            var scenes = harness.World.Set<Rasa.Structures.World.MissionSceneBindingEntry>().AsNoTracking()
+                .Where(entry => entry.ContentRevision == revision).ToList()
+                .Select(entry => (entry.MissionId, Scene: System.Text.Json.JsonSerializer.Deserialize<Rasa.Missions.Content.MissionSceneDefinition>(
+                    entry.Bindings, Rasa.Missions.Content.MissionContentCodec.Options)))
+                .Where(entry => entry.Scene.Script == "marshes.defence" && entry.MissionId == MarshesTrappedV1.MissionId).ToList();
+            var distance = new Dictionary<uint, float> { [MarshesTrappedV1.MissionId] = TrappedWaveDistance };
+            CollectionAssert.AreEquivalent(distance.Keys.ToArray(), scenes.Select(entry => entry.MissionId).ToArray(), "the defence scenes");
+            var failures = new List<string>();
+            var waves = 0;
+            foreach (var (mission, scene) in scenes)
+            {
+                var leader = scene.Actors[Rasa.Missions.Content.Marshes.MarshesDefenceScene.Leader].Position;
+                var hostiles = pools.Where(pool => pool.MapContextId == scene.MapContextId && pool.Mode == 0 &&
+                    pool.SpawnSlot.Exists(slot => slot.CountMax > 0) &&
+                    pool.SpawnSlot.TrueForAll(slot => Side(slot.CreatureId, TargetCategory.Hostile))).ToList();
+                foreach (var actor in scene.Actors.Values.Where(actor => (actor.Role.StartsWith("ward-") || actor.Role.StartsWith("wave-")) && actor.Position != null))
+                {
+                    var at = new Vector3(actor.Position.X, actor.Position.Y, actor.Position.Z);
+                    foreach (var hostile in hostiles)
+                    {
+                        var gap = Flat(at, hostile.Position) - hostile.Radius;
+                        if (gap < FightClearance)
+                            failures.Add($"{mission} {actor.Role} {gap:0.0} m outside hostile pool {hostile.DbId}");
+                    }
+                    if (!actor.Role.StartsWith("wave-"))
+                        continue;
+                    waves++;
+                    var away = Flat(at, new Vector3(leader.X, leader.Y, leader.Z));
+                    if (away < distance[mission])
+                        failures.Add($"{mission} {actor.Role} only {away:0.0} m from the leader");
+                }
+            }
+            Assert.IsEmpty(failures, string.Join("; ", failures));
+            Assert.AreEqual(8, waves, "the waves are read: 1052's 2+3+3");
+        }
+
         /// <summary>Dikah: Ranger Anjuhi's stats (4500 hit points, armour 300), at his new place on the walked-to ground.</summary>
         [TestMethod]
         public void DikahHasAnUpstreamGiversHitPointsAndStandsOnTheGround()

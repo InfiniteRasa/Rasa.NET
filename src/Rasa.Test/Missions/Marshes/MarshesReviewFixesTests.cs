@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -29,6 +30,7 @@ namespace Rasa.Test.Missions.Marshes
         private const string KiriiInOpen = "20271104003600_Marshes_kirii_in_open";
         private const string HackWavesOnPlayer = "20271104003700_Marshes_hack_waves_on_player";
         private const string TrappedLighterWaves = "20271104003800_Marshes_trapped_lighter_waves";
+        private const string TrappedClearOfDepot = "20271104003900_Marshes_trapped_clear_of_depot";
 
         private static string Previous(DbContext world, string migration)
         {
@@ -41,6 +43,8 @@ namespace Rasa.Test.Missions.Marshes
         /// <summary>The mission's stored bindings JSON.</summary>
         private static string Binding(DbContext world, uint mission) => world.Database.SqlQueryRaw<string>(
             $"SELECT bindings AS Value FROM mission_scene_binding WHERE mission_id = {mission} AND content_revision = '{MarshesMissionDataV1.Revision}'").AsEnumerable().Single();
+
+        private static string Json(SceneActorDefinition actor) => System.Text.Json.JsonSerializer.Serialize(actor, MissionContentCodec.Options);
 
         private static int Count(DbContext world, string sql) => world.Database.SqlQueryRaw<int>(sql).AsEnumerable().Single();
 
@@ -216,7 +220,7 @@ namespace Rasa.Test.Missions.Marshes
             migrator.Migrate(TrappedSmallerWave);
             Assert.AreEqual(MarshesBindings.Json(MarshesTrappedSmallerWaveV1.Scene()), Binding(world, mission), "the new binding back");
             migrator.Migrate();
-            Assert.AreEqual(MarshesBindings.Json(MarshesTrappedLighterWavesV1.Scene()), Binding(world, mission), "the head's binding");
+            Assert.AreEqual(MarshesBindings.Json(MarshesTrappedClearOfDepotV1.Scene()), Binding(world, mission), "the head's binding");
         }
 
         /// <summary>
@@ -235,7 +239,9 @@ namespace Rasa.Test.Missions.Marshes
             uint Name(MissionSceneDefinition scene, string name) => scene.Names[name];
             var now = MarshesBindings.Json(MarshesTrappedLighterWavesV1.Scene());
 
-            Assert.AreEqual(now, Binding(world, mission), "the lighter waves at the head");
+            // Marshes_trapped_clear_of_depot, after it, rolls back first.
+            migrator.Migrate(TrappedLighterWaves);
+            Assert.AreEqual(now, Binding(world, mission), "the lighter waves");
             var scene = MarshesBindings.Read(now);
             Assert.AreEqual((2, 3, 3), (Members(scene, 1), Members(scene, 2), Members(scene, 3)), "the waves' sizes");
             Assert.IsTrue(MarshesTrappedLighterWavesV1.LeftOut.All(role => !scene.DefeatSequences.ContainsKey(role)), "no defeat sequences for the left-out Thrax");
@@ -293,6 +299,47 @@ namespace Rasa.Test.Missions.Marshes
                 .OfType<Rasa.Missions.Scenes.AttackActorIntent>().Count(attack => attack.TargetRole == MarshesTasteOfTheirOwnMedicineV1.HaxRole), "six on Hax then");
             migrator.Migrate(HackWavesOnPlayer);
             Assert.AreEqual(now, Binding(world, mission), "the new waves back");
+        }
+
+        /// <summary>
+        /// 1052: the depot's Thrax (pool 531291) joined the defence in both real-client tries of 2026-11-05. The crew, its
+        /// waves, the approach area and the two markers stand 25 m west now, clear of it; rolled back, the binding as
+        /// MarshesTrappedLighterWavesV1 wrote it, to the byte, and the area and the markers on MarshesTrappedV3's Samuel.
+        /// </summary>
+        [TestMethod]
+        public void TrappedIsFoughtClearOfTheDepot()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            var migrator = world.GetService<IMigrator>();
+            const uint mission = MarshesTrappedV1.MissionId;
+            var now = MarshesBindings.Json(MarshesTrappedClearOfDepotV1.Scene());
+            var before = MarshesTrappedClearOfDepotV1.Before();
+            string Where(ScenePosition at) => FormattableString.Invariant(
+                $"mission_id = {mission} AND content_revision = '{MarshesMissionDataV1.Revision}' AND ABS(pos_x - {at.X}) < 0.01 AND ABS(pos_y - {at.Y}) < 0.01 AND ABS(pos_z - {at.Z}) < 0.01");
+            (int, int) Placed(ScenePosition at) => (Count(world, $"SELECT COUNT(*) AS Value FROM mission_area WHERE area_id = {MarshesTrappedV2.ApproachArea} AND {Where(at)}"),
+                Count(world, $"SELECT COUNT(*) AS Value FROM mission_indicator WHERE objective_id IN (1, 2) AND {Where(at)}"));
+            Assert.AreEqual(before, MarshesBindings.Json(MarshesBindings.Read(before)), "the stored binding reads and writes back the same");
+
+            Assert.AreEqual(now, Binding(world, mission), "the crew clear of the depot at the head");
+            var scene = MarshesBindings.Read(now);
+            Assert.AreEqual(MarshesTrappedClearOfDepotV1.SamuelAt, scene.Actors[MarshesDefenceScene.Leader].Position, "Samuel's stand-in");
+            Assert.AreEqual(MarshesTrappedClearOfDepotV1.WavesAt[1][0], scene.Actors[MarshesDefenceScene.WaveRole(2, 1)].Position, "wave 2 from the north-west");
+            var old = MarshesBindings.Read(before);
+            Assert.AreEqual(old.Names.Count, scene.Names.Count, "the names as they were");
+            Assert.IsTrue(old.Names.All(name => scene.Names[name.Key] == name.Value), "the times, the hold and the spare as they were");
+            CollectionAssert.AreEquivalent(old.Actors.Keys.ToArray(), scene.Actors.Keys.ToArray(), "the same actors");
+            Assert.IsTrue(old.Actors.All(actor => Json(scene.Actors[actor.Key]) == Json(actor.Value with { Position = scene.Actors[actor.Key].Position })),
+                "only the places changed");
+            Assert.AreEqual((1, 2), Placed(MarshesTrappedClearOfDepotV1.SamuelAt), "the approach area and the markers on the stand-in");
+
+            migrator.Migrate(Previous(world, TrappedClearOfDepot));
+            Assert.AreEqual(before, Binding(world, mission), "the binding as MarshesTrappedLighterWavesV1 wrote it");
+            Assert.AreEqual((1, 2), Placed(MarshesTrappedV3.SamuelAt), "the area and the markers where MarshesTrappedV3 put them");
+            Assert.AreEqual((0, 0), Placed(MarshesTrappedClearOfDepotV1.SamuelAt), "none at the new place");
+            migrator.Migrate(TrappedClearOfDepot);
+            Assert.AreEqual(now, Binding(world, mission), "the new places back");
+            Assert.AreEqual((1, 2), Placed(MarshesTrappedClearOfDepotV1.SamuelAt), "the area and the markers back");
         }
     }
 }
