@@ -7,6 +7,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace Rasa.Test.Missions.Marshes
 {
     using Rasa.Missions.Content;
+    using Rasa.Missions.Content.Marshes;
     using Rasa.Missions.Scenes;
     using Rasa.Services.Preloader.Missions.Marshes;
     using Rasa.Test.Missions.Wilderness;
@@ -27,6 +28,7 @@ namespace Rasa.Test.Missions.Marshes
         private const string TrappedSmallerWave = "20271104003500_Marshes_trapped_smaller_wave";
         private const string KiriiInOpen = "20271104003600_Marshes_kirii_in_open";
         private const string HackWavesOnPlayer = "20271104003700_Marshes_hack_waves_on_player";
+        private const string TrappedLighterWaves = "20271104003800_Marshes_trapped_lighter_waves";
 
         private static string Previous(DbContext world, string migration)
         {
@@ -200,6 +202,8 @@ namespace Rasa.Test.Missions.Marshes
 
             var before = MarshesTrappedSmallerWaveV1.Before();
             Assert.AreEqual(before, MarshesBindings.Json(MarshesBindings.Read(before)), "the stored binding reads and writes back the same");
+            // Marshes_trapped_lighter_waves, after it, rolls back first.
+            migrator.Migrate(TrappedSmallerWave);
             var scene = MarshesBindings.Read(Binding(world, mission));
             Assert.AreEqual((3, 4, 3), (Members(scene, 1), Members(scene, 2), Members(scene, 3)), "the waves' sizes");
             Assert.AreEqual(1U, scene.Names[Rasa.Missions.Content.Marshes.MarshesDefenceScene.Spare], "the spare stays");
@@ -211,6 +215,51 @@ namespace Rasa.Test.Missions.Marshes
             Assert.AreEqual(5, Members(MarshesBindings.Read(before), 3), "wave 3 five Thrax then");
             migrator.Migrate(TrappedSmallerWave);
             Assert.AreEqual(MarshesBindings.Json(MarshesTrappedSmallerWaveV1.Scene()), Binding(world, mission), "the new binding back");
+            migrator.Migrate();
+            Assert.AreEqual(MarshesBindings.Json(MarshesTrappedLighterWavesV1.Scene()), Binding(world, mission), "the head's binding");
+        }
+
+        /// <summary>
+        /// 1052: Samuel died in wave 2 against one player killing a Thrax per 10-15 s (real client, 2026-11-05). Wave 1 has two
+        /// Thrax now and wave 2 three, 100 s after the talk; wave 3, the hold and the spare as before; rolled back, the binding
+        /// as MarshesTrappedSmallerWaveV1 wrote it, to the byte; the Up twice, the same.
+        /// </summary>
+        [TestMethod]
+        public void TrappedsFirstWavesAreOnePlayersFight()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            var migrator = world.GetService<IMigrator>();
+            const uint mission = MarshesTrappedV1.MissionId;
+            int Members(MissionSceneDefinition scene, int wave) => scene.Actors.Keys.Count(role => role.StartsWith($"wave-{wave}-"));
+            uint Name(MissionSceneDefinition scene, string name) => scene.Names[name];
+            var now = MarshesBindings.Json(MarshesTrappedLighterWavesV1.Scene());
+
+            Assert.AreEqual(now, Binding(world, mission), "the lighter waves at the head");
+            var scene = MarshesBindings.Read(now);
+            Assert.AreEqual((2, 3, 3), (Members(scene, 1), Members(scene, 2), Members(scene, 3)), "the waves' sizes");
+            Assert.IsTrue(MarshesTrappedLighterWavesV1.LeftOut.All(role => !scene.DefeatSequences.ContainsKey(role)), "no defeat sequences for the left-out Thrax");
+            Assert.AreEqual((5000U, 100000U, 150000U, (uint)MarshesTrappedV1.HoldMilliseconds, 1U),
+                (Name(scene, MarshesDefenceScene.After(1)), Name(scene, MarshesDefenceScene.After(2)), Name(scene, MarshesDefenceScene.After(3)),
+                 Name(scene, MarshesDefenceScene.Hold), Name(scene, MarshesDefenceScene.Spare)), "the times, the hold and the spare");
+
+            migrator.Migrate(Previous(world, TrappedLighterWaves));
+            Assert.AreEqual(MarshesTrappedLighterWavesV1.Before(), Binding(world, mission), "the binding as MarshesTrappedSmallerWaveV1 wrote it");
+            Assert.AreEqual(75000U, Name(MarshesBindings.Read(Binding(world, mission)), MarshesDefenceScene.After(2)), "wave 2 at 75 s then");
+            migrator.Migrate(TrappedLighterWaves);
+            Assert.AreEqual(now, Binding(world, mission), "the lighter waves back");
+            var builder = new MigrationBuilder("Microsoft.EntityFrameworkCore.Sqlite");
+            MarshesTrappedLighterWavesV1.Up(builder);
+            var connection = world.Database.GetDbConnection();
+            if (connection.State != System.Data.ConnectionState.Open)
+                connection.Open();
+            foreach (var sql in builder.Operations.OfType<Microsoft.EntityFrameworkCore.Migrations.Operations.SqlOperation>())
+            {
+                using var command = connection.CreateCommand();
+                command.CommandText = sql.Sql;   // the JSON's braces as they are: no format pass
+                command.ExecuteNonQuery();
+            }
+            Assert.AreEqual(now, Binding(world, mission), "the Up twice: the same binding");
         }
 
         /// <summary>

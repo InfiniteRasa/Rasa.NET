@@ -411,9 +411,9 @@ namespace Rasa.Test.Missions.Marshes
             Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Trapped, MarshesTrappedV1.Defend));
             Tick(harness, marshes, 250);
             var log = new List<PythonPacket>();
-            for (var wave = 1; wave <= MarshesTrappedSmallerWaveV1.Waves.Length; wave++)
+            for (var wave = 1; wave <= MarshesTrappedLighterWavesV1.Waves.Length; wave++)
             {
-                var (after, members) = MarshesTrappedSmallerWaveV1.Waves[wave - 1];
+                var (after, members) = MarshesTrappedLighterWavesV1.Waves[wave - 1];
                 var before = after - (wave == 1 ? 1000U : 5000U);
                 AdvanceTo(harness, marshes, before, log);
                 Assert.IsFalse(Wave(harness, marshes, wave).Any(), $"wave {wave} not before {before} ms");
@@ -448,7 +448,7 @@ namespace Rasa.Test.Missions.Marshes
             Assert.AreEqual(1, log.OfType<MissionCompleteablePacket>().Count(packet => packet.MissionId == Trapped && packet.IsCompleteable),
                 "MissionCompleteable once");
             Assert.IsNull(SceneCreature(harness, marshes, Trapped, MarshesDefenceScene.Leader), "the crew slips away");
-            for (var wave = 1; wave <= MarshesTrappedSmallerWaveV1.Waves.Length; wave++)
+            for (var wave = 1; wave <= MarshesTrappedLighterWavesV1.Waves.Length; wave++)
                 Assert.IsFalse(Wave(harness, marshes, wave).Any(), $"wave {wave} goes");
             Assert.IsFalse(HiddenCreatures.IsHiddenFrom(publicSamuel, harness.Client), "the public Samuel is back");
 
@@ -482,11 +482,11 @@ namespace Rasa.Test.Missions.Marshes
             var log = new List<PythonPacket>();
             static ulong Target(Creature creature) => creature.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting
                 ? creature.Controller.ActionFighting.TargetEntityId : 0;
-            for (var wave = 1; wave <= MarshesTrappedSmallerWaveV1.Waves.Length; wave++)
+            for (var wave = 1; wave <= MarshesTrappedLighterWavesV1.Waves.Length; wave++)
             {
-                AdvanceTo(harness, marshes, MarshesTrappedSmallerWaveV1.Waves[wave - 1].After + 1000, log);
+                AdvanceTo(harness, marshes, MarshesTrappedLighterWavesV1.Waves[wave - 1].After + 1000, log);
                 var thrax = Wave(harness, marshes, wave).ToArray();
-                Assert.HasCount(MarshesTrappedSmallerWaveV1.Waves[wave - 1].Members.Length, thrax, $"wave {wave}");
+                Assert.HasCount(MarshesTrappedLighterWavesV1.Waves[wave - 1].Members.Length, thrax, $"wave {wave}");
                 for (var member = 0; member < thrax.Length; member++)
                 {
                     Assert.AreNotEqual(samuel.EntityId, Target(thrax[member]), $"wave {wave} member {member + 1} spares Samuel");
@@ -496,7 +496,7 @@ namespace Rasa.Test.Missions.Marshes
             foreach (var retread in crew)
                 Die(harness, marshes, retread);
             Tick(harness, marshes, 1000);
-            var left = Enumerable.Range(1, MarshesTrappedSmallerWaveV1.Waves.Length).SelectMany(wave => Wave(harness, marshes, wave)).ToArray();
+            var left = Enumerable.Range(1, MarshesTrappedLighterWavesV1.Waves.Length).SelectMany(wave => Wave(harness, marshes, wave)).ToArray();
             Assert.IsNotEmpty(left);
             foreach (var thrax in left)
                 Assert.AreEqual(samuel.EntityId, Target(thrax), "the crew down: at Samuel");
@@ -525,7 +525,7 @@ namespace Rasa.Test.Missions.Marshes
             Approach(harness, marshes);
             Talk(harness, SceneCreature(harness, marshes, Trapped, MarshesDefenceScene.Leader), Trapped, MarshesTrappedV1.Locate);
             var log = new List<PythonPacket>();
-            AdvanceTo(harness, marshes, MarshesTrappedSmallerWaveV1.Waves[0].After + 1000, log);
+            AdvanceTo(harness, marshes, MarshesTrappedLighterWavesV1.Waves[0].After + 1000, log);
             Assert.IsTrue(Wave(harness, marshes, 1).Any(), "the first wave");
             Die(harness, marshes, SceneCreature(harness, marshes, Trapped, MarshesDefenceScene.Leader));
             Assert.AreEqual(MissionObjectiveState.Failed, Objective(harness, Trapped, MarshesTrappedV1.Defend), "lost in the defence");
@@ -661,7 +661,7 @@ namespace Rasa.Test.Missions.Marshes
             while ((harness.UtcNow - _talkedAt.Value).TotalMilliseconds < milliseconds)
             {
                 // The Thrax are held where they come in: only the scene's clock is under test, not the fight.
-                foreach (var creature in Enumerable.Range(1, MarshesTrappedSmallerWaveV1.Waves.Length).SelectMany(wave => Wave(harness, marshes, wave)))
+                foreach (var creature in Enumerable.Range(1, MarshesTrappedLighterWavesV1.Waves.Length).SelectMany(wave => Wave(harness, marshes, wave)))
                     creature.Attributes[Attributes.Health].Current = creature.Attributes[Attributes.Health].NormalMax;
                 log.AddRange(Tick(harness, marshes, 1000));
             }
