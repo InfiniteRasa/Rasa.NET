@@ -330,6 +330,9 @@ namespace Rasa.Test.Missions.Marshes
                     AssertOnGround(marshes, thrax[member].Position, $"wave {wave} member {member + 1}");
                     Assert.IsTrue(marshes.NavMesh.FindPath(thrax[member].Position, shaw.Position, out var reaches) != null && reaches,
                         $"wave {wave} member {member + 1} reaches the station");
+                    // Real client 2026-11-05: from the old places, 36-43 m out, wave 1 was at the station before the player met it. Where it came in: its pool.
+                    Assert.IsGreaterThanOrEqualTo(MarshesSafeGroundTests.HeadEastWaveDistance, MarshesSafeGroundTests.Flat(thrax[member].SpawnPool.Position, shaw.Position),
+                        $"wave {wave} member {member + 1} comes in from far enough out to be met");
                 }
             }
             Assert.IsTrue(Wave(harness, marshes, 2).Any(creature => creature.DbId == MarshesEastAndNorthNpcsV1.Stalker), "a Stalker");

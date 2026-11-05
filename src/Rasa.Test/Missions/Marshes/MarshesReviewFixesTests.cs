@@ -32,6 +32,7 @@ namespace Rasa.Test.Missions.Marshes
         private const string TrappedLighterWaves = "20271104003800_Marshes_trapped_lighter_waves";
         private const string TrappedClearOfDepot = "20271104003900_Marshes_trapped_clear_of_depot";
         private const string TrappedRetreadsHold = "20271104004000_Marshes_trapped_retreads_hold";
+        private const string GuardStationWavesOut = "20271104004100_Marshes_guard_station_waves_out";
 
         private static string Previous(DbContext world, string migration)
         {
@@ -364,6 +365,35 @@ namespace Rasa.Test.Missions.Marshes
             Assert.AreEqual((4000, 4000), Health(), "the escort's");
             migrator.Migrate(TrappedRetreadsHold);
             Assert.AreEqual((8000, 8000), Health(), "back");
+        }
+
+        /// <summary>
+        /// 920: from 36-43 m out wave 1 was at the guard station before the player met it (real client, 2026-11-05). The waves
+        /// come from 54-62 m out now; rolled back, the binding as MarshesGuardStationHoldsV1 wrote it, to the byte.
+        /// </summary>
+        [TestMethod]
+        public void HeadEastsWavesComeFromFarOut()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            var migrator = world.GetService<IMigrator>();
+            const uint mission = MarshesHeadEastV2.MissionId;
+            var now = MarshesBindings.Json(MarshesGuardStationWavesOutV1.Scene());
+            var before = MarshesGuardStationWavesOutV1.Before();
+            Assert.AreEqual(before, MarshesBindings.Json(MarshesBindings.Read(before)), "the stored binding reads and writes back the same");
+
+            Assert.AreEqual(now, Binding(world, mission), "the waves far out at the head");
+            var scene = MarshesBindings.Read(now);
+            var old = MarshesBindings.Read(before);
+            CollectionAssert.AreEquivalent(old.Actors.Keys.ToArray(), scene.Actors.Keys.ToArray(), "the same actors");
+            Assert.IsTrue(old.Actors.Where(actor => !actor.Key.StartsWith("wave-")).All(actor => Json(scene.Actors[actor.Key]) == Json(actor.Value)), "the wards and Meeko stay");
+            Assert.AreEqual(8, scene.Actors.Keys.Count(role => role.StartsWith("wave-") && scene.Actors[role].Position != old.Actors[role].Position), "every wave member moved");
+            Assert.AreEqual(MarshesGuardStationWavesOutV1.WavesAt[1][4], scene.Actors[MarshesDefenceScene.WaveRole(2, 5)].Position, "the Stalker from the east");
+
+            migrator.Migrate(Previous(world, GuardStationWavesOut));
+            Assert.AreEqual(before, Binding(world, mission), "the binding as MarshesGuardStationHoldsV1 wrote it");
+            migrator.Migrate(GuardStationWavesOut);
+            Assert.AreEqual(now, Binding(world, mission), "the new places back");
         }
     }
 }

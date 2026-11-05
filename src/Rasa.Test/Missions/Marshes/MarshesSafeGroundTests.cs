@@ -95,14 +95,15 @@ namespace Rasa.Test.Missions.Marshes
         public const float FightClearance = 35f;
 
         /// <summary>How far from the leader each wave member comes in (ESTIMATE): Trapped!'s ground between the depot's pools
-        /// leaves 37-41 m.</summary>
-        public const float TrappedWaveDistance = 35f;
+        /// leaves 37-41 m; Head East's open swamp east of the station 54-62 m (a Marshes Thrax runs at 9).</summary>
+        public const float TrappedWaveDistance = 35f, HeadEastWaveDistance = 50f;
 
         public static float Flat(Vector3 a, Vector3 b) => Vector2.Distance(new(a.X, a.Z), new(b.X, b.Z));
 
         /// <summary>
         /// Real client 2026-11-05: Trapped!'s depot Thrax (pool 531291) joined the defence each try (its wave 2 came in 19 m
-        /// outside that pool's circle, the crew stood 24-29 m outside it). Why this test: in Trapped!'s defence every ward and every wave member stands
+        /// outside that pool's circle, the crew stood 24-29 m outside it), and Head East's waves, 36-43 m out, were at the
+        /// station before the player met them. Why this test: in both defence scenes every ward and every wave member stands
         /// FightClearance outside every hostile automatic pool's circle on its map, and every wave member comes in at least
         /// its mission's wave distance from the leader. The old data fails both (checked 2026-11-05 with the old values).
         /// </summary>
@@ -118,8 +119,8 @@ namespace Rasa.Test.Missions.Marshes
                 .Where(entry => entry.ContentRevision == revision).ToList()
                 .Select(entry => (entry.MissionId, Scene: System.Text.Json.JsonSerializer.Deserialize<Rasa.Missions.Content.MissionSceneDefinition>(
                     entry.Bindings, Rasa.Missions.Content.MissionContentCodec.Options)))
-                .Where(entry => entry.Scene.Script == "marshes.defence" && entry.MissionId == MarshesTrappedV1.MissionId).ToList();
-            var distance = new Dictionary<uint, float> { [MarshesTrappedV1.MissionId] = TrappedWaveDistance };
+                .Where(entry => entry.Scene.Script == "marshes.defence").ToList();
+            var distance = new Dictionary<uint, float> { [MarshesTrappedV1.MissionId] = TrappedWaveDistance, [MarshesHeadEastV2.MissionId] = HeadEastWaveDistance };
             CollectionAssert.AreEquivalent(distance.Keys.ToArray(), scenes.Select(entry => entry.MissionId).ToArray(), "the defence scenes");
             var failures = new List<string>();
             var waves = 0;
@@ -147,7 +148,7 @@ namespace Rasa.Test.Missions.Marshes
                 }
             }
             Assert.IsEmpty(failures, string.Join("; ", failures));
-            Assert.AreEqual(8, waves, "the waves are read: 1052's 2+3+3");
+            Assert.AreEqual(8 + 8, waves, "the waves are read: 1052's 2+3+3, 920's 3+5");
         }
 
         /// <summary>Dikah: Ranger Anjuhi's stats (4500 hit points, armour 300), at his new place on the walked-to ground.</summary>
