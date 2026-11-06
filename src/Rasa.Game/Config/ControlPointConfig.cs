@@ -14,6 +14,11 @@ namespace Rasa.Config
         public int LandingZoneAssaultWaveSeconds { get; set; } = 180;
         /// <summary>Survivor cleanup deadline; at least one minute after wave three.</summary>
         public int LandingZoneAssaultLifetimeSeconds { get; set; } = 900;
+        /// <summary>
+        /// Timed Bane assaults on the other public points with a plan (DynamicDropshipsContent: Valverde Plateau, Valverde Pools).
+        /// Each plan has its own delay, period and waves, so a zone's points are not attacked at once.
+        /// </summary>
+        public bool ControlPointAssaultEnabled { get; set; } = true;
         /// <summary>Uninterrupted boss claim duration after the AFS combat garrison falls.</summary>
         public int LandingZoneAssaultCaptureSeconds { get; set; } = 10;
 

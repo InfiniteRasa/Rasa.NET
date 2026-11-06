@@ -255,6 +255,10 @@ namespace Rasa.Managers
                 if (tCreature == creature)
                     continue;
 
+                // A control point's assault troop or sortie trooper seeks the point's garrison only (Creature.SeeksOnly).
+                if (creature.SeeksOnly != null && !creature.SeeksOnly(tCreature))
+                    continue;
+
                 if (!TargetCategories.Seeks(creature.TargetCategory, tCreature.TargetCategory) && !Pvp.SummonMayFight(creature, tCreature.EntityId))
                     continue;
 
@@ -3266,7 +3270,7 @@ namespace Rasa.Managers
         public static bool ChasedTooFar(Creature creature)
         {
             var home = LandingZoneAssaultTargeting.IsAssault(creature)
-                ? ControlPoints.Instance.ById(Rasa.Services.Preloader.LandingZoneAssaultContent.PointId)?.Position ?? creature.HomePos.Position
+                ? ControlPoints.Instance.ById(creature.SpawnPool.AssaultPointId is > 0 and var id ? id : Rasa.Services.Preloader.LandingZoneAssaultContent.PointId)?.Position ?? creature.HomePos.Position
                 : creature.HomePos.Position;
             var dx = creature.Position.X - home.X;
             var dz = creature.Position.Z - home.Z;
@@ -3583,7 +3587,7 @@ namespace Rasa.Managers
         /// </summary>
         private static bool ScansForEnemies(Creature creature)
         {
-            if (creature.ScriptedCombatGate != null || creature.OnClaimDuty)
+            if (creature.ScriptedCombatGate != null || creature.OnClaimDuty || creature.OnRally)
                 return false;
 
             var pump = AbilityManager.MindControlPumpOf(creature);
