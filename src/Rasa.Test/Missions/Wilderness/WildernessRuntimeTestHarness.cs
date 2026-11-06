@@ -137,6 +137,9 @@ namespace Rasa.Test.Missions.Wilderness
                 new Dictionary<uint, MissionRewardDefinition>(), manifestations, utcNow: () => UtcNow);
             Creatures = new CreatureManager(this, manifestations, Manager);
             Objects = new DynamicObjectManager(this, Maps, missionManager: Manager);
+            // Hospitals caches the hospitals it read from the DynamicObjectManager it found first; this
+            // harness's world has its own teleporters, so a cache from an earlier harness must not be kept.
+            Hospitals.Reset();
             Install(Maps);
             Install(Manager);
             Install(Creatures);
@@ -449,6 +452,7 @@ namespace Rasa.Test.Missions.Wilderness
                 CellManager.Instance.RemoveCreatureFromWorld(Map, creature);
             foreach (var restore in _restoreServices.AsEnumerable().Reverse())
                 restore();
+            Hospitals.Reset();
             World?.Dispose();
             Context?.Dispose();
             SqliteConnection.ClearAllPools();
