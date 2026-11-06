@@ -916,6 +916,9 @@ namespace Rasa.Managers
                 else
                     Logger.WriteLog(LogType.Error, $"creature_scale {entry.Id}: scale {entry.Scale} is no size; the model's own is used.");
             }
+            var tints = new Dictionary<uint, (uint? Hue, uint? Hue2)>();
+            foreach (var entry in unitOfWork.Creatures.GetTints())
+                tints[entry.Id] = (entry.Hue, entry.Hue2);
             var greetings = new Dictionary<uint, Structures.World.NpcGreetingEntry>();
             foreach (var entry in unitOfWork.Creatures.GetNpcGreetings())
                 greetings[entry.Id] = entry;
@@ -1002,6 +1005,10 @@ namespace Rasa.Managers
                 // A body bigger or smaller than its class's model (creature_scale; BodyAttributes).
                 if (scales.TryGetValue(data.Id, out var scale))
                     creature.Scale = scale;
+
+                // Its retail body tints, or none (creature_tint; Creature.TintAtSpawn).
+                if (tints.TryGetValue(data.Id, out var tint))
+                    creature.RowTint = tint;
 
                 // load Creature Actions
                 if (data.Action1 != 0)

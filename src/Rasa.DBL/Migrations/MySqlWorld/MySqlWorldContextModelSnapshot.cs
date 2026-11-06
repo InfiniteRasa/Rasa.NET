@@ -628,6 +628,25 @@ namespace Rasa.Migrations.MySqlWorld
                     b.ToTable("creature_stat");
                 });
 
+            modelBuilder.Entity("Rasa.Structures.World.CreatureTintEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("id");
+
+                    b.Property<uint?>("Hue")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("hue");
+
+                    b.Property<uint?>("Hue2")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("hue2");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("creature_tint");
+                });
+
             modelBuilder.Entity("Rasa.Structures.World.EntityClassEntry", b =>
                 {
                     b.Property<uint>("Id")

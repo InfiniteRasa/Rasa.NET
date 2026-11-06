@@ -161,6 +161,15 @@ namespace Rasa.Managers
                 });
         }
 
+        /// <summary>
+        /// The tints a child is born with: none - an amoeboid's stock colours - when its parent has
+        /// tints of its own (creature_tint), as Goriam has; otherwise no row, and the child is tinted
+        /// as any creature without one (Creature.TintAtSpawn). ESTIMATE: no image shows a retail
+        /// child; a normal Amoeboid shows its stock colours (TaRapedia File:Amoeboid.jpg, beta).
+        /// </summary>
+        internal static (uint? Hue, uint? Hue2)? ChildRowTint(Creature parent) =>
+            parent.RowTint != null ? (null, null) : null;
+
         private static Creature Birth(MapChannel mapChannel, Creature parent, CreatureAction action, ActionLevelInfo level)
         {
             var classId = ChildClassOf(action.ActionId);
@@ -197,6 +206,7 @@ namespace Rasa.Managers
 
             child.Attributes.Add(Attributes.Health, new ActorAttributes(Attributes.Health, health, health, health, 0, 0));
             child.Attributes.Add(Attributes.Speed, new ActorAttributes(Attributes.Speed, 1, 1, 1, 0, 0));
+            child.RowTint = ChildRowTint(parent);
             child.TintAtSpawn();
 
             var spit = Spit(action.ActionArgId, childLevel);
