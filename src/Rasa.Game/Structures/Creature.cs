@@ -41,12 +41,28 @@ namespace Rasa.Structures
         public Color Hue2 { get; set; }
 
         /// <summary>
-        /// Its tints for this life, chosen as it spawns: none for a FRIENDLY creature - the AFS
-        /// soldiers, vendors and townsfolk, whose models have stock colours of their own that a
-        /// tint paints over - and two random ones for anything else.
+        /// The tints its creature row has of its own (creature_tint: hue and hue2, as Color.Hue),
+        /// or null: it has no row. A row whose hue is null is no tint, the model's stock colours.
+        /// Read with the creature rows (CreatureManager.CreatureInit) and kept by every creature
+        /// made from the row, as its <see cref="Scale"/> is.
+        /// </summary>
+        public (uint? Hue, uint? Hue2)? RowTint { get; set; }
+
+        /// <summary>
+        /// Its tints for this life, chosen as it spawns: its row's own (<see cref="RowTint"/>) when
+        /// it has them; otherwise none for a FRIENDLY creature - the AFS soldiers, vendors and
+        /// townsfolk, whose models have stock colours of their own that a tint paints over - and
+        /// two random ones for anything else.
         /// </summary>
         internal void TintAtSpawn()
         {
+            if (RowTint is { } row)
+            {
+                Hue = row.Hue is { } hue ? new Color(hue) : null;
+                Hue2 = row.Hue is { } first ? new Color(row.Hue2 ?? first) : null;
+                return;
+            }
+
             if (TargetCategory == TargetCategory.Friendly)
             {
                 Hue = null;
@@ -325,6 +341,7 @@ namespace Rasa.Structures
             NameId = creature.NameId;
             ActorName = creature.ActorName;
             Scale = creature.Scale;
+            RowTint = creature.RowTint;
             Npc = creature.Npc;
             RunSpeed = creature.RunSpeed;
             WalkSpeed = creature.WalkSpeed;
