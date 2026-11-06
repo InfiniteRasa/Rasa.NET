@@ -269,7 +269,18 @@ namespace Rasa.Managers
             client.MoveObject(player.EntityId, movement);
 
             if (player.MapChannel != null)
+            {
                 client.CellMoveObject(client, new Packets.Protocol.MoveObjectMessage(player.EntityId, movement), true);
+
+                // In the cells around where they stand now, as a revive at a hospital moves a
+                // player: the map links are looked for in those cells. Then standing in whatever
+                // link holds the spot, as one who has just arrived through it: it does not fire
+                // until they step out and back in. The spot they last stood on can be inside a
+                // link's circle - the Bane supply depot's way out (link 39), where a player who
+                // fell from the arrival behind the door was put back and sent to the Marshes.
+                CellManager.Instance.UpdateVisibility(client);
+                MapLinkManager.Instance.PlacedOnMap(client);
+            }
 
             return true;
         }
