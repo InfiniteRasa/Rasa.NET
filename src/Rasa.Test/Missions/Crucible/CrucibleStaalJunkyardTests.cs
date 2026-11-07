@@ -122,7 +122,7 @@ namespace Rasa.Test.Missions.Crucible
                 (J.UltraReconstructor, J.UltraReconstructor, J.UltraReconstructorClass, J.UltraReconstructorLevel, J.BossHitPoints, 1)
             })
             {
-                var at = ToVector(J.At(pool));
+                var at = ToVector(Now(pool));
                 AssertOnGround(copy, at, $"pool {pool}");
                 AssertPath(copy, Arrival, at, $"pool {pool} from the arrival");
                 Assert.IsGreaterThanOrEqualTo(MarshesNpcsStandStillV1.ReachClearance, LinkGap(at, J.TechnicianPoolRadius), $"pool {pool} clear of the door");
@@ -162,7 +162,7 @@ namespace Rasa.Test.Missions.Crucible
             var cirkin = ToVector(J.CirkinAt);
             var places = new List<(string Label, Vector3 At)> { ("Cirkin", cirkin), ("the lockbox", ToVector(M.LockboxAt)) };
             places.AddRange(B.BlocksAt.Select((at, index) => ($"block {index + 1}", ToVector(at))));
-            places.AddRange(JunkyardPools.Select(pool => ($"pool {pool}", ToVector(J.At(pool)))));
+            places.AddRange(JunkyardPools.Select(pool => ($"pool {pool}", ToVector(Now(pool)))));
             var (floors, ceilings) = F.Surfaces(geometry, places.Select(place => (place.At, F.Walkable)).ToList());
             var failures = new List<string>();
             for (var i = 0; i < places.Count; i++)
@@ -218,6 +218,120 @@ namespace Rasa.Test.Missions.Crucible
                 }
             Assert.AreEqual(7, ends, "the walk's points 5 to 2 m from Cirkin");
             Assert.IsEmpty(failures, string.Join("; ", failures));
+        }
+
+        /// <summary>
+        /// Fix job H (to-fix row 64): the real client could not walk to the Ultra Reconstructor on its rock ledge. Every navmesh
+        /// walk from the arrival and from Cirkin to each Junkyard place a mission sends the player to (Cirkin, the Technician
+        /// pools, Lamontix, the Ultra Reconstructor where it stands now, the six blocks, the lockbox) is one the client climbs
+        /// (CrucibleGuardTests.ClientClimb: no step over MaxClientStep, no 12 m over MaxClientGrade); the Ultra Reconstructor is
+        /// seen from each walk's points 5 to 2 m from it. The two climbs of row 64 fail it: the junk slope north of
+        /// (290.5, 267.2, -2.0) and the ledge on the walk from Cirkin to the old place (so the guard can fail).
+        /// </summary>
+        [TestMethod]
+        public void EveryJunkyardWalkIsOneTheClientClimbs()
+        {
+            var dataDir = F.ClientData();
+            using var harness = WildernessRuntimeTestHarness.Create();
+            C.EnterCrucible(harness);
+            var copy = IntoJunkyard(harness);
+            var nav = copy.NavMesh;
+            using var meshes = new MeshLibrary(dataDir, F.MeshCsv());
+            var name = harness.World.MapInfoEntries.AsNoTracking().Single(row => row.Id == Junkyard).MapName;
+            var geometry = MapGeometry.Load(Path.Combine(dataDir, "maps", name), meshes, 1);
+            List<Vector3> Walk(Vector3 from, Vector3 to, string label)
+            {
+                var path = nav.FindPath(nav.Nearest(from) ?? from, nav.Nearest(to) ?? to, out var complete);
+                Assert.IsTrue(path != null && complete, $"{label}: a walk");
+                return path.Prepend(nav.Nearest(from) ?? from).ToList();
+            }
+
+            var cirkin = ToVector(J.CirkinAt);
+            var ultra = ToVector(Now(J.UltraReconstructor));
+            var places = JunkyardPools.Select(pool => ($"pool {pool}", ToVector(Now(pool))))
+                .Concat(B.BlocksAt.Select((at, index) => ($"block {index + 1}", ToVector(at)))).Append(("the lockbox", ToVector(M.LockboxAt))).ToList();
+            var walks = places.SelectMany(place => new[] { ($"the arrival to {place.Item1}", Arrival, place.Item2), ($"Cirkin to {place.Item1}", cirkin, place.Item2) })
+                .Append(("the arrival to Cirkin", Arrival, cirkin))
+                // The walks back from the Ultra Reconstructor (the navmesh's way down need not be its way up).
+                .Append(("the Ultra Reconstructor to Cirkin", ultra, cirkin)).Append(("the Ultra Reconstructor to the arrival", ultra, Arrival)).ToList();
+            Assert.HasCount(2 * (4 + 6 + 1) + 1 + 2, walks);
+            var failures = new List<string>();
+            foreach (var (label, from, to) in walks)
+            {
+                var (step, stepAt, grade, gradeAt) = CrucibleGuardTests.ClientClimb(nav, geometry, Walk(from, to, label));
+                if (step > CrucibleGuardTests.MaxClientStep)
+                    failures.Add(FormattableString.Invariant($"{label}: a {step:0.00} m step at ({stepAt.X:0.0}, {stepAt.Y:0.0}, {stepAt.Z:0.0})"));
+                if (grade > CrucibleGuardTests.MaxClientGrade)
+                    failures.Add(FormattableString.Invariant($"{label}: {grade:0.00} a metre over 12 m from ({gradeAt.X:0.0}, {gradeAt.Y:0.0}, {gradeAt.Z:0.0})"));
+            }
+
+            // The Ultra Reconstructor seen from the walks' points 5 to 2 m from it (the old place was out of sight from below).
+            var near = F.Near(geometry, new List<Vector3> { ultra }, 8)[0];
+            var aim = ultra + new Vector3(0, F.NpcMiddle, 0);
+            var ends = 0;
+            foreach (var from in new[] { Arrival, cirkin })
+            {
+                var walk = Walk(from, ultra, "to the Ultra Reconstructor");
+                foreach (var distance in new[] { 5f, 4.5f, 4f, 3.5f, 3f, 2.5f, 2f })
+                {
+                    Vector3? hit = null;
+                    for (var i = 0; i + 1 < walk.Count && hit == null; i++)
+                        for (var step = 0; step <= 50 && hit == null; step++)
+                        {
+                            var at = Vector3.Lerp(walk[i], walk[i + 1], step / 50f);
+                            if (Vector3.Distance(at, ultra) <= distance)
+                                hit = at;
+                        }
+                    if (hit is not { } end)
+                        continue;
+                    ends++;
+                    var floor = F.FloorAt(near, end, end.Y - 1.5f, end.Y + 1f) ?? end.Y;
+                    if (!F.Clear(near, end with { Y = floor + F.Eye }, aim))
+                        failures.Add($"the Ultra Reconstructor not seen from the walk's point ({end.X:F1}, {end.Z:F1}) {distance} m off");
+                }
+            }
+            Assert.AreEqual(2 * 7, ends, "the walks' points 5 to 2 m from the Ultra Reconstructor");
+            // No lava within 20 m of its point (fix job F's rule for point pools).
+            for (var dx = -20f; dx <= 20; dx += 1.5f)
+                for (var dz = -20f; dz <= 20; dz += 1.5f)
+                    if (dx * dx + dz * dz <= 400 && nav.Nearest(ultra + new Vector3(dx, 0, dz)) is { } ground && LavaDamage.InLava(name, ground))
+                        failures.Add(FormattableString.Invariant($"lava at ({ground.X:0.0}, {ground.Y:0.0}, {ground.Z:0.0}) by the Ultra Reconstructor"));
+            // The Junkyard's lava lake (LavaSurfaces, adv_arieki_ligo_staaljunkyard): no set 7 pool's reach (a point's 20 m), no
+            // block, the lockbox, Cirkin or Junkyard marker on it.
+            Assert.IsTrue(LavaDamage.InLava(name, new Vector3(24, 305.5f, 300)), "the Junkyard's lava lake is lava to the server");
+            foreach (var pool in JunkyardPools)
+            {
+                var at = ToVector(Now(pool));
+                var radius = (float)harness.World.SpawnPoolEntries.AsNoTracking().Single(row => row.Id == pool).Radius;
+                var reach = radius > 0 ? CrucibleGuardTests.SpawnReach(nav, nav.Nearest(at) ?? at, radius) : new List<Vector3>();
+                for (var dx = -20f; dx <= 20; dx += 1.5f)
+                    for (var dz = -20f; dz <= 20; dz += 1.5f)
+                        if (dx * dx + dz * dz <= 400 && nav.Nearest(at + new Vector3(dx, 0, dz)) is { } ground)
+                            reach.Add(ground);
+                if (reach.FirstOrDefault(spot => LavaDamage.InLava(name, spot)) is var lava && LavaDamage.InLava(name, lava))
+                    failures.Add(FormattableString.Invariant($"pool {pool}: lava at ({lava.X:0.0}, {lava.Y:0.0}, {lava.Z:0.0})"));
+            }
+            var catalog = new MissionContentCatalog(harness, new Dictionary<uint, Mission>(), null);
+            catalog.Load();
+            var markers = harness.World.MissionIndicatorEntries.AsNoTracking().Where(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision).ToList()
+                .Where(marker => MissionMarkerProjection.ResolveMap(catalog, marker.MissionId, marker.ObjectiveId, new MissionIndicator { IndicatorId = marker.IndicatorId }) == Junkyard)
+                .Select(marker => (Label: $"marker {marker.MissionId}.{marker.ObjectiveId}/{marker.IndicatorId}", At: new Vector3((float)marker.PosX, (float)marker.PosY, (float)marker.PosZ)))
+                .Concat(places.Select(place => (Label: place.Item1, At: place.Item2))).Append(("Cirkin", cirkin)).ToList();
+            Assert.HasCount(JunkyardMarkers + places.Count + 1, markers);
+            foreach (var (label, at) in markers)
+                if (LavaDamage.InLava(name, nav.Nearest(at) ?? at) || LavaDamage.InLava(name, at))
+                    failures.Add(FormattableString.Invariant($"{label} at ({at.X:0.0}, {at.Y:0.0}, {at.Z:0.0}) on lava"));
+            Assert.IsEmpty(failures, string.Join("; ", failures));
+
+            // Row 64's two climbs fail the guard.
+            var slope = CrucibleGuardTests.ClientClimb(nav, geometry, Walk(new Vector3(290.5f, 267.2f, -2.0f), new Vector3(292.8f, 278.2f, 7.6f), "the junk slope"));
+            Assert.IsGreaterThan(CrucibleGuardTests.MaxClientGrade, slope.Grade, "the junk slope the client slid back on");
+            var ledge = CrucibleGuardTests.ClientClimb(nav, geometry, Walk(cirkin, ToVector(CrucibleFixHV1.Before), "the old place"));
+            Assert.IsTrue(ledge.Step > CrucibleGuardTests.MaxClientStep || ledge.Grade > CrucibleGuardTests.MaxClientGrade,
+                FormattableString.Invariant($"the ledge under the old place fails the guard: step {ledge.Step:0.00} at ({ledge.StepAt.X:0.0}, {ledge.StepAt.Z:0.0}), grade {ledge.Grade:0.00} at ({ledge.GradeAt.X:0.0}, {ledge.GradeAt.Z:0.0})"));
+            var where = ledge.Step > CrucibleGuardTests.MaxClientStep ? ledge.StepAt : ledge.GradeAt;
+            Assert.IsLessThan(12f, Vector2.Distance(new(where.X, where.Z), new(37.7f, 212.6f)),
+                FormattableString.Invariant($"the ledge at (37.7, 330.4, 212.6): failed at ({where.X:0.0}, {where.Z:0.0})"));
         }
 
         /// <summary>
@@ -803,6 +917,9 @@ namespace Rasa.Test.Missions.Crucible
             harness.Drain();
             return copy;
         }
+
+        /// <summary>Where a Junkyard pool of set 7 stands now: fix job H moved the Ultra Reconstructor's.</summary>
+        private static (double X, double Y, double Z) Now(uint pool) => pool == CrucibleFixHV1.Pool ? CrucibleFixHV1.Now : J.At(pool);
 
         /// <summary>The boss of <paramref name="pool"/> standing in the copy: spawned, or back after its own time if an earlier kill left it dead.</summary>
         private static void Stand(MapChannel copy, uint pool)

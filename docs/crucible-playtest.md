@@ -192,8 +192,9 @@ package 1742) stands in the Junkyard at (187, 240.31, -233).
   257.43, -106), three Thrax Technicians each, level 40) dead at the same time. 2 Collect Dolomite: six personal Dolomite
   Blocks (TaRapedia's places: (306, 263.51, -65), (325, 265.45, -22), (225, 242.21, -172), (231, 265.99, -48), (28,
   243.67, -219), (-331, 263.43, -36)); a use gives one block, five complete 2 (n/5). The sixth block stays; its use gives
-  nothing. 3 Collect Energy Matrix: a 100 % drop from the Ultra Reconstructor (new, 770038, class 10314, at (-14, 335.14,
-  244), north centre). 4 Return to Cirkin (opens when 1-3 are done): walk into the 10 m area round him. Markers on each
+  nothing. 3 Collect Energy Matrix: a 100 % drop from the Ultra Reconstructor (new, 770038, class 10314, at (164, 265.44,
+  -76), the open middle of the Junkyard since fix job H; set 7 had it on the north-centre ledge (-14, 335.14, 244), to-fix
+  row 64). 4 Return to Cirkin (opens when 1-3 are done): walk into the 10 m area round him. Markers on each
   pool (r15), each block (r3), the Ultra Reconstructor (r15) and Cirkin. Turn in at Cirkin: 180000 XP, 8200 credits, one
   of 25119, 21400, 36339, 46021; he takes the blocks and the matrix. Abandon: the blocks are put back. Look: the
   Ultra Reconstructor comes back 90 s after a kill in the squad's copy; the Technicians come back only with the copy.
@@ -292,6 +293,13 @@ Walk to Khulago Base by Confirmed Kills' north trench marker (388, 166.71, -26).
   174.48, -168), #2 (363, 174.48, -208), #3 (383, 174.22, -268); a marker r8 on each. A use takes one beacon, shows the
   planted beacon and completes the objective. No air strike follows (see Deviations). Turn in at Keplinger: 170000 XP,
   8000 credits, one of 40611, 25099, 21380, 28614. Abandon: the beacons left and the spots go; taken again, three beacons.
+
+Fix job H (migration `20271108001500_Crucible_fix_h`, to-fix row 64): the Ultra Reconstructor's point pool 770038 (1529,
+Staal Junkyard) moved from the north-centre rock ledge (-14, 335.14, 244) to the open middle of the Junkyard (164, 265.44,
+-76); 1529's marker 9 with it.
+
+- [ ] 1529 (look): walk from the Junkyard arrival and from Cirkin to the Ultra Reconstructor with no GM help: no junk
+  slope or ledge stops the walk, and the boss is seen before the walk ends. It still comes back 90 s after a kill.
 
 ## Assumptions and choices (not from a source)
 
@@ -495,6 +503,10 @@ All ESTIMATE (set 9):
   the name gives no kind). 1214 the lowest Uncommon of each kind and the nearest icon number in the band of level 35
   (Stealth V04 Vest, Graviton V04 Helmet, Hazmat V03 Helmet, Motor Assist V04 Boots).
 
+All ESTIMATE (fix job H):
+- The Ultra Reconstructor in the open middle of the Junkyard (164, 265.44, -76), not TaRapedia's "upper centre": the client
+  cannot walk to the north-centre ledge (to-fix row 64).
+
 ## Deviations (client/server limits)
 
 - 1143: one counter of distinct corpses does the work of the client's twenty per-corpse objectives.
@@ -625,3 +637,8 @@ All ESTIMATE (set 9):
 
 - Moved (upstream D3, the placeholder cluster inside the Prometheus Outpost control point model): Captain Tiersky 510021
   from (404.2, 169.77, 387.9) to (379, 168.36, 400); his pool stays control point 31's AFS link (kind 2).
+
+## Server data changed by fix job H (20271108001500)
+
+- Ours: the Ultra Reconstructor's point pool 770038 moved from (-14, 335.14, 244) to (164, 265.44, -76), 1529's marker 9
+  with it.

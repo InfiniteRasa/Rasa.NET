@@ -102,6 +102,7 @@ namespace Rasa.Test.Missions.Crucible
         private const string FixG = "20271108001200_Crucible_fix_g";
         private const string PrometheusOutpost = "20271108001300_Crucible_prometheus_outpost";
         private const string KhulagoStrikes = "20271108001400_Crucible_khulago_strikes";
+        private const string FixH = "20271108001500_Crucible_fix_h";
 
         private const uint Shandy = 770000, Mullins = 770001, Munit = 770002;
         private const uint DeLisi = 510019, Drake = 510034, Vitto = 510027, Donal = 510037, Rigs = 510025, DAmbrose = 510023;
@@ -389,7 +390,7 @@ namespace Rasa.Test.Missions.Crucible
             foreach (var (pool, map, creature, count, x, z) in new (uint, uint, uint, byte, double, double)[]
             {
                 (Cirkin, 2138, Cirkin, 1, 187, -233), (770034, 1993, Kalamit, 1, -486, 120), (Lamontix, 2138, Lamontix, 1, 350, -52),
-                (770036, 2138, Technician, 3, 330, -160), (770037, 2138, Technician, 3, 306, -106), (UltraReconstructor, 2138, UltraReconstructor, 1, -14, 244)
+                (770036, 2138, Technician, 3, 330, -160), (770037, 2138, Technician, 3, 306, -106), (UltraReconstructor, 2138, UltraReconstructor, 1, 164, -76)   // fix job H moved it off the ledge
             })
             {
                 var row = world.SpawnPoolEntries.AsNoTracking().Single(entry => entry.Id == pool);
@@ -635,9 +636,10 @@ namespace Rasa.Test.Missions.Crucible
             // 20271108000500 (to-fix rows 32, 34, 35) one of Munit's and Vargo's new places to 1145, 1146 and 1170;
             // 20271108000800 (to-fix rows 43, 44) one of the bot pools' and Vargo's new places to 1147, 1203, 1204, 1202 and 1146.
             // 20271108001000 (fix job F) one to 1232, 1147, 1203, 1204, 1202, 1157, 1149, 1208 and 1185; 20271108001200 (fix job G)
-            // one to 1208.
+            // one to 1208; 20271108001500 (fix job H) one to 1529.
             int Fixes(uint mission) => (mission is 1147 or 1149 or 1145 or 1146 or 1170 ? 1 : 0) + (mission is 1147 or 1203 or 1204 or 1202 or 1146 ? 1 : 0)
-                + (CrucibleFixFV1.EvidenceIds.Any(id => id.Mission == mission) ? 1 : 0) + (mission == CrucibleOutOfSightV1.MissionId ? 1 : 0);
+                + (CrucibleFixFV1.EvidenceIds.Any(id => id.Mission == mission) ? 1 : 0) + (mission == CrucibleOutOfSightV1.MissionId ? 1 : 0)
+                + (mission == CruciblePartOfTheBargainV1.MissionId ? 1 : 0);
             foreach (var mission in MissionIds)
                 CollectionAssert.AreEqual(new[]
                     {
@@ -812,7 +814,7 @@ namespace Rasa.Test.Missions.Crucible
                 (1206, 1, -796, 528, 60), (1206, 2, -796, 528, 60), (1206, 3, -796, 528, 60),
                 (1519, 1, -486, 120, 20), (1519, 2, -492, -115, 8), (1519, 2, 187, -233, 10),
                 (1529, 1, 330, -160, 15), (1529, 1, 306, -106, 15), (1529, 2, 306, -65, 3), (1529, 2, 325, -22, 3), (1529, 2, 225, -172, 3),
-                (1529, 2, 231, -48, 3), (1529, 2, 28, -219, 3), (1529, 2, -331, -36, 3), (1529, 3, -14, 244, 15), (1529, 4, 187, -233, 10),
+                (1529, 2, 231, -48, 3), (1529, 2, 28, -219, 3), (1529, 2, -331, -36, 3), (1529, 3, 164, -76, 15) /* fix job H */, (1529, 4, 187, -233, 10),
                 (1538, 1, -492, -115, 8), (1538, 1, 187, -233, 10), (1538, 2, 350, -52, 10), (1538, 4, 343, -68, 3), (1538, 3, -953, 255, 10),
                 // Set 8a: Keplinger (1210); the west and north trenches (1212); Tiernan (1217, 1218); Botha on Ashen Desert (1218).
                 (1210, 1, 379, 384, 8), (1212, 1, 320, -128.5, 35), (1212, 1, 388, -26, 35), (1217, 1, 589.5, 250, 8),
@@ -1425,10 +1427,11 @@ namespace Rasa.Test.Missions.Crucible
                 .Where(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision).AsEnumerable()
                 .Where(entry => CrucibleFixFV1.EvidenceIds.Contains((entry.MissionId, entry.EvidenceId)))
                 .Select(entry => (entry.MissionId, entry.EvidenceId)).ToList();
-            // Set 8a, fix job G, set 8b and set 9 (later migrations) are rolled back with the fix and not put back: their evidence is not counted.
+            // Set 8a, fix job G, set 8b, set 9 and fix job H (later migrations) are rolled back with the fix and not put back: their evidence is not counted.
             int All() => world.MissionEvidenceEntries.AsNoTracking().Count(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision &&
                 !SetEight.Contains(entry.MissionId) && !SetEightB.Contains(entry.MissionId) && !SetNine.Contains(entry.MissionId) &&
-                !(entry.MissionId == CrucibleOutOfSightV1.MissionId && entry.EvidenceId == CrucibleFixGV1.Evidence));
+                !(entry.MissionId == CrucibleOutOfSightV1.MissionId && entry.EvidenceId == CrucibleFixGV1.Evidence) &&
+                !(entry.MissionId == CruciblePartOfTheBargainV1.MissionId && entry.EvidenceId == CrucibleFixHV1.Evidence));
             double Radius(uint pool) => world.SpawnPoolEntries.AsNoTracking().Single(entry => entry.Id == pool).Radius;
             var kept = CrucibleFixFV1.Points.Where(point => CrucibleFixFV1.Now(point.Pool) == null).Select(point => point.Pool).ToList();
             Assert.HasCount(6, kept, "six of the twelve stay where they are");
@@ -1545,7 +1548,8 @@ namespace Rasa.Test.Missions.Crucible
             bool Evidence() => world.MissionEvidenceEntries.AsNoTracking().Any(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision &&
                 entry.MissionId == CrucibleOutOfSightV1.MissionId && entry.EvidenceId == CrucibleFixGV1.Evidence);
             int All() => world.MissionEvidenceEntries.AsNoTracking().Count(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision &&
-                !SetEightB.Contains(entry.MissionId) && !SetNine.Contains(entry.MissionId));
+                !SetEightB.Contains(entry.MissionId) && !SetNine.Contains(entry.MissionId) &&
+                !(entry.MissionId == CruciblePartOfTheBargainV1.MissionId && entry.EvidenceId == CrucibleFixHV1.Evidence));
             bool Has(uint mission) => world.MissionContentDefinitionEntries.AsNoTracking()
                 .Any(entry => entry.MissionId == mission && entry.ContentRevision == CrucibleMissionDataV1.Revision);
             var place = At(world, pool);
@@ -1681,5 +1685,63 @@ namespace Rasa.Test.Missions.Crucible
             harness.World.Set<MissionSceneBindingEntry>().AsNoTracking().Where(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision)
                 .ToList().Select(entry => (entry.MissionId, System.Text.Json.JsonSerializer.Deserialize<Rasa.Missions.Content.MissionSceneDefinition>(
                     entry.Bindings, Rasa.Missions.Content.MissionContentCodec.Options))).ToList();
+
+        /// <summary>
+        /// Crucible_fix_h (fix job H, to-fix row 64) puts the Ultra Reconstructor's point pool 770038 and 1529's marker 9 back on
+        /// the ledge and takes out its evidence row and nothing else: the pool stays a point, the other Junkyard pools, 1529's
+        /// other markers and every row of sets 1-9 stay. Up again, the move is back.
+        /// </summary>
+        [TestMethod]
+        public void FixHRollsBackWithItsMigration()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            Assert.AreEqual((770038U, (-14.0, 335.14, 244.0)), (CrucibleFixHV1.Pool, CrucibleFixHV1.Before), "set 7's place");
+            bool Evidence() => world.MissionEvidenceEntries.AsNoTracking().Any(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision &&
+                entry.MissionId == CruciblePartOfTheBargainV1.MissionId && entry.EvidenceId == CrucibleFixHV1.Evidence);
+            int All() => world.MissionEvidenceEntries.AsNoTracking().Count(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision);
+            List<(uint, double, double, double)> Markers() => world.MissionIndicatorEntries.AsNoTracking()
+                .Where(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision && entry.MissionId == CruciblePartOfTheBargainV1.MissionId)
+                .AsEnumerable().OrderBy(entry => entry.IndicatorId).Select(entry => (entry.IndicatorId, entry.PosX, entry.PosY, entry.PosZ)).ToList();
+            var others = new uint[] { 770030, 770035, 770036, 770037 }.ToDictionary(id => id, id => At(world, id));
+            var markers = Markers();
+            Assert.HasCount(10, markers, "1529's ten markers");
+            void Check(bool now)
+            {
+                var place = now ? CrucibleFixHV1.Now : CrucibleFixHV1.Before;
+                Assert.AreEqual(place, At(world, CrucibleFixHV1.Pool), "the pool's place");
+                Assert.AreEqual(0.0, world.SpawnPoolEntries.AsNoTracking().Single(entry => entry.Id == CrucibleFixHV1.Pool).Radius, "a point pool");
+                foreach (var (id, at) in others)
+                    Assert.AreEqual(at, At(world, id), $"pool {id} stays");
+                var rows = Markers();
+                Assert.AreEqual((CrucibleFixHV1.Marker, place.X, place.Y, place.Z), rows.Single(row => row.Item1 == CrucibleFixHV1.Marker), "marker 9 on the pool");
+                CollectionAssert.AreEqual(markers.Where(row => row.Item1 != CrucibleFixHV1.Marker).ToList(),
+                    rows.Where(row => row.Item1 != CrucibleFixHV1.Marker).ToList(), "the other markers stay");
+                Assert.AreEqual(now, Evidence());
+                Assert.IsTrue(MissionIds.All(mission => world.MissionContentDefinitionEntries.AsNoTracking()
+                    .Any(entry => entry.MissionId == mission && entry.ContentRevision == CrucibleMissionDataV1.Revision)), "sets 1-9 stay");
+            }
+
+            Check(true);
+            var row = world.MissionEvidenceEntries.AsNoTracking().Single(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision &&
+                entry.MissionId == CruciblePartOfTheBargainV1.MissionId && entry.EvidenceId == CrucibleFixHV1.Evidence);
+            Assert.AreEqual((MissionEvidenceSourceKind.Reconstruction, CrucibleFixHV1.Source, CrucibleFixHV1.Note, 0.3),
+                (row.SourceKind, row.SourceUri, row.ReconstructionNote, row.Confidence));
+            Assert.AreEqual(AllRows, Rows(world));
+            var all = All();
+
+            Assert.AreEqual(KhulagoStrikes, Previous(world, FixH), "the fix follows set 9");
+            world.GetService<IMigrator>().Migrate(KhulagoStrikes);
+            world.ChangeTracker.Clear();
+            Check(false);
+            Assert.AreEqual(all - 1, All(), "only the fix's row goes");
+            Assert.AreEqual(AllRows, Rows(world), "no other row comes or goes");
+
+            world.GetService<IMigrator>().Migrate(FixH);
+            world.ChangeTracker.Clear();
+            Check(true);
+            Assert.AreEqual(all, All());
+            Assert.AreEqual(AllRows, Rows(world), "no other row comes or goes");
+        }
     }
 }

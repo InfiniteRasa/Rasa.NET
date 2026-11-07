@@ -585,6 +585,90 @@ namespace Rasa.Test.Missions.Crucible
             return points;
         }
 
+        /// <summary>The highest rise of the client floor from one 0.5 m step of a walk to the next that the client climbs (fix job H).</summary>
+        internal const float MaxClientStep = 1.5f;
+        /// <summary>The steepest rise of the client floor over ClimbRun m of a walk that the client climbs, in m a metre (fix job H).</summary>
+        internal const float MaxClientGrade = 0.9f;
+        /// <summary>A walk's steps of 0.5 m that make the ClimbRun of the grade (12 m).</summary>
+        internal const int ClimbSteps = 24;
+
+        /// <summary>
+        /// Fix job H (to-fix row 64): the real client stopped on a junk slope on the navmesh's walk north in the Staal Junkyard
+        /// (296.7, 273.5, 3.8) and slid back, and could not go up the 7 m rock ledge at (37.7, 330.4, 212.6) that the navmesh
+        /// climbs. The navmesh is baked with a step and a slope the client does not take there. This reads a walk on the
+        /// client's floor: the walk cut into steps of 0.5 m across (each set on the navmesh under it), under each the highest walkable
+        /// client surface (MarshesClientFloorTests.FloorAt, 1.5 m under to 1 m over the navmesh); Step the highest rise from one
+        /// step to the next, Grade the steepest rise over ClimbSteps steps (12 m) going on, in m a metre (a fall does not count:
+        /// the client goes down what it cannot go up; a step on a steep face takes that face; a step with no client surface at all fails the walk: Step infinite, at that step). Probe 2026-11-07 on the client
+        /// files: the junk slope climbs 1.06 a metre over 12 m, the ledge 3.26 m in one step; the walks the real client made in
+        /// the Junkyard (to Cirkin, the Technician pools, Lamontix, the six blocks, the lockbox) at most 0.81 and 0.97 m. So
+        /// MaxClientGrade 0.9 and MaxClientStep 1.5 (ESTIMATE between the two).
+        /// </summary>
+        internal static (float Step, Vector3 StepAt, float Grade, Vector3 GradeAt) ClientClimb(NavMeshQuery nav, MapGeometry geometry, IReadOnlyList<Vector3> walk)
+        {
+            var steps = new List<Vector3>();
+            for (var k = 0; k + 1 < walk.Count; k++)
+            {
+                var count = Math.Max(1, (int)(Vector2.Distance(new(walk[k].X, walk[k].Z), new(walk[k + 1].X, walk[k + 1].Z)) / 0.5f));
+                for (var s = 0; s < count; s++)
+                    steps.Add(Vector3.Lerp(walk[k], walk[k + 1], s / (float)count));
+            }
+            steps.Add(walk[^1]);
+            // Each step set on the navmesh under the straight line between the path's corners (they are string-pulled across x
+            // and z only, so the line can run metres over or under the ground between them): the nearest navmesh point if it
+            // is right under the step, else the step is off the mesh and left out.
+            bool Under(Vector3? on, Vector3 at) => on is { } point && Vector2.Distance(new(point.X, point.Z), new(at.X, at.Z)) < 0.3f;
+            var onMesh = new bool[steps.Count];
+            steps = steps.Select((at, i) => nav.Nearest(at) is var on && Under(on, at) ? (onMesh[i] = true, on.Value).Item2 : at).ToList();
+            var near = F.Near(geometry, steps, 1);
+            // The walkable client floor under each step. Where there is none, a client surface must be there all the same (a
+            // steep junk or rock face: the Junkyard walks the real client made cross such steps); none at all under a step on
+            // the navmesh (a hole) fails the walk; a step the navmesh has no point right under (the corners' line off the
+            // mesh) is left out. A run of such steps up to 1 m across counts as one step (the rise from the walkable floor before it
+            // to the one after), a longer run as a slope (that rise a metre across, into Grade). Probe 2026-11-07: the runs on the
+            // real client's Junkyard walks are 5 m across (2.33 m up) and 7 m (4.78 m), the Ward's north stairs 19-24 m (7.85 m).
+            float? AnySurface(List<(Vector3 A, Vector3 B, Vector3 C)> triangles, Vector3 at)
+            {
+                var from = at with { Y = at.Y + 1.01f };
+                float? best = null;
+                foreach (var (a, b, c) in triangles)
+                    if (F.Hit(from, -Vector3.UnitY, a, b, c) is { } down && down <= 2.5f && (best == null || from.Y - down > best))
+                        best = from.Y - down;
+                return best;
+            }
+            var floors = steps.Select((at, i) => onMesh[i] ? F.FloorAt(near[i], at, at.Y - 1.5f, at.Y + 1) : null).ToArray();
+            var (step, stepAt, grade, gradeAt) = (0f, Vector3.Zero, 0f, Vector3.Zero);
+            for (var i = 0; i < floors.Length; i++)
+                if (onMesh[i] && floors[i] == null && AnySurface(near[i], steps[i]) == null)
+                    return (float.PositiveInfinity, steps[i], grade, gradeAt);
+            int? last = null;
+            for (var i = 0; i < floors.Length; i++)
+            {
+                if (floors[i] is not { } now)
+                    continue;
+                if (last is { } j && floors[j] is { } before)
+                {
+                    var across = Vector2.Distance(new(steps[j].X, steps[j].Z), new(steps[i].X, steps[i].Z));
+                    if (i - j <= 2 || across <= 1)
+                    {
+                        if (now - before > step)
+                            (step, stepAt) = (now - before, steps[i] with { Y = now });
+                    }
+                    else if ((now - before) / across > grade)
+                        (grade, gradeAt) = ((now - before) / across, steps[j]);
+                }
+                last = i;
+            }
+            for (var i = 0; i + ClimbSteps < floors.Length; i++)
+                if (floors[i] is { } low && floors[i + ClimbSteps] is { } high)
+                {
+                    var across = Vector2.Distance(new(steps[i].X, steps[i].Z), new(steps[i + ClimbSteps].X, steps[i + ClimbSteps].Z));
+                    if (across > 0.1f && (high - low) / across > grade)
+                        (grade, gradeAt) = ((high - low) / across, steps[i]);
+                }
+            return (step, stepAt, grade, gradeAt);
+        }
+
         private static bool InConvex(List<Vector3> corners, float x, float z)
         {
             var sign = 0;
