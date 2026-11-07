@@ -69,7 +69,7 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
-        public void ASmartMineComesUpWithItsOwnBirthOnlyWhenAPlayerIsClose()
+        public void ASmartMineComesUpWithItsOwnBirthOnlyWhenAPlayerIsClose() => WithTheSmartMinesBirth(() =>
         {
             using var world = new WorldTestContext();
             var mine = Bury(world, SmartMine);
@@ -92,8 +92,32 @@ namespace Rasa.Test.World
             Assert.AreEqual((ActionId.CreatureBirth, 7528u),
                 (sent.OfType<PerformRecoveryPacket>().Single().ActionId, sent.OfType<PerformRecoveryPacket>().Single().ActionArgId));
             Assert.IsTrue(MawLurk.IsBusy(mine), "coming up");
-            _now += 4000;
+            _now += MawLurk.EmergeMs;
+            Assert.IsTrue(MawLurk.IsBusy(mine), "its own birth's 4 s, not the 1.5 s the Maw's has or the fallback");
+            _now += 4000 - MawLurk.EmergeMs;
             Assert.IsFalse(MawLurk.IsBusy(mine));
+        });
+
+        /// <summary>CREATURE_BIRTH at 7528 as the World DB has it (action_level 561: recovery 4000 ms, family 622), for the body.</summary>
+        private static void WithTheSmartMinesBirth(Action body)
+        {
+            var actions = (Dictionary<ActionId, ActionInfo>)typeof(AbilityManager)
+                .GetField("_actions", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(AbilityManager.Instance)!;
+            actions.TryGetValue(ActionId.CreatureBirth, out var previous);
+            var birth = new ActionInfo { ActionId = ActionId.CreatureBirth, Name = "CREATURE_BIRTH" };
+            birth.Levels[7528] = new ActionLevelInfo { ActionId = ActionId.CreatureBirth, Level = 7528, RecoveryMs = 4000 };
+            actions[ActionId.CreatureBirth] = birth;
+            try
+            {
+                body();
+            }
+            finally
+            {
+                if (previous != null)
+                    actions[ActionId.CreatureBirth] = previous;
+                else
+                    actions.Remove(ActionId.CreatureBirth);
+            }
         }
 
         [TestMethod]

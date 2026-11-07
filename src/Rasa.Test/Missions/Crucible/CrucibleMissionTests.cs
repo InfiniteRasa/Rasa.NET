@@ -67,6 +67,7 @@ namespace Rasa.Test.Missions.Crucible
         private const string WardensAndLashers = "20271108000200_Crucible_wardens_and_lashers";
         private const string JunkyardDogsMarkers = "20271108000300_Crucible_junkyard_dogs_markers";
         private const string MinefieldAndSalvage = "20271108000400_Crucible_minefield_and_salvage";
+        private const string StaalWalks = "20271108000500_Crucible_staal_walks";
 
         private const uint Shandy = 770000, Mullins = 770001, Munit = 770002;
         private const uint DeLisi = 510019, Drake = 510034, Vitto = 510027, Donal = 510037, Rigs = 510025, DAmbrose = 510023;
@@ -146,12 +147,12 @@ namespace Rasa.Test.Missions.Crucible
             // The places (TaRapedia's for Shandy, DeLisi, Drake and Rigs; the quarters' region points for the Grupas).
             foreach (var (pool, x, z) in new (uint, double, double)[]
             {
-                (Shandy, 987.07, 59.65), (Mullins, 292.49, 736.36), (Munit, -215, 205), (DeLisi, 952, 106), (Drake, 952.46, 110.89),
+                (Shandy, 987.07, 59.65), (Mullins, 292.49, 736.36), (Munit, -218, 228), (DeLisi, 952, 106), (Drake, 952.46, 110.89),
                 (Vitto, -300, 320), (Donal, -216, 472), (Rigs, -392.77, 276.23),
-                // Set 2: the two new merchants, Lohen in his office, Cugin on the Centrum floor, Fiorella and Haggus; Vargo and
-                // Melching where upstream has them.
+                // Set 2: the two new merchants, Lohen in his office, Cugin on the Centrum floor, Fiorella and Haggus; Melching
+                // where upstream has him. The Staal walks fix: Munit on the lower corridor, Vargo out of the crafting station.
                 (Bunko, -197, 319), (Yeg, -153.7, 346.9), (Lohen, -215, 326), (Cugin, -174.3, 280.2), (Fiorella, 959, 111),
-                (Haggus, -400, 270), (Vargo, -192.5, 264.2), (Melching, -945.9, 246.9),
+                (Haggus, -400, 270), (Vargo, -190.5, 267.2), (Melching, -945.9, 246.9),
                 // Set 3: Halprin by the Outpost Intrepid hospital.
                 (Halprin, 989, 108)
             })
@@ -371,13 +372,14 @@ namespace Rasa.Test.Missions.Crucible
             using var harness = WildernessRuntimeTestHarness.Create();
             var evidence = harness.World.MissionEvidenceEntries.AsNoTracking()
                 .Where(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision).ToArray();
-            // 20271108000300 (to-fix rows 23-25) adds a reconstruction of the new marker places to 1147 and 1149.
+            // 20271108000300 (to-fix rows 23-25) adds a reconstruction of the new marker places to 1147 and 1149;
+            // 20271108000500 (to-fix rows 32, 34, 35) one of Munit's and Vargo's new places to 1145, 1146 and 1170.
             foreach (var mission in MissionIds)
                 CollectionAssert.AreEqual(new[]
                     {
                         (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
                         (MissionEvidenceSourceKind.Reconstruction, 0.3)
-                    }.Concat(mission is 1147 or 1149 ? new[] { (MissionEvidenceSourceKind.Reconstruction, 0.3) } : []).ToArray(),
+                    }.Concat(mission is 1147 or 1149 or 1145 or 1146 or 1170 ? new[] { (MissionEvidenceSourceKind.Reconstruction, 0.3) } : []).ToArray(),
                     evidence.Where(entry => entry.MissionId == mission).OrderBy(entry => entry.EvidenceId)
                         .Select(entry => (entry.SourceKind, entry.Confidence)).ToArray(), $"{mission} evidence");
         }
@@ -479,18 +481,18 @@ namespace Rasa.Test.Missions.Crucible
                 (1142, 1, 952, 106, 8),                             // DeLisi
                 (1143, 1, 802.3, 570, 70),                          // round the twenty fallen
                 (1150, 1, 809.74, 676.74, 10),                      // the terminal
-                (1145, 6, 292.49, 736.36, 8), (1145, 1, -300, 320, 8), (1145, 2, -216, 472, 8), (1145, 3, -215, 205, 8),
+                (1145, 6, 292.49, 736.36, 8), (1145, 1, -300, 320, 8), (1145, 2, -216, 472, 8), (1145, 3, -218, 228, 8),
                 (1145, 5, -392.77, 276.23, 8),                      // Mullins, Vitto, Donal, Munit, Rigs
                 (1161, 1, -215, 326, 8), (1161, 1, -206.738, 317.945, 4),                   // Lohen, the lower office teleporter
-                (1146, 1, -197, 319, 8), (1146, 2, -174.3, 280.2, 8), (1146, 3, -192.5, 264.2, 8), (1146, 4, -153.7, 346.9, 8),
-                (1146, 5, -214, 258, 15), (1146, 6, -192.5, 264.2, 8),                    // Bunko, Cugin, Vargo, Yeg, Roscoe, Vargo
+                (1146, 1, -197, 319, 8), (1146, 2, -174.3, 280.2, 8), (1146, 3, -190.5, 267.2, 8), (1146, 4, -153.7, 346.9, 5),
+                (1146, 5, -214, 258, 15), (1146, 6, -190.5, 267.2, 8),                    // Bunko, Cugin, Vargo, Yeg, Roscoe, Vargo
                 (1148, 1, 959, 111, 8), (1148, 2, -400, 270, 8), (1148, 3, -945.9, 246.9, 8), // Fiorella, Haggus, Melching
                 (1149, 1, -452, 58, 25), (1149, 1, -518, 64, 25), (1149, 1, -380, 46, 25),                  // the Flaregasher pools
                 (1147, 1, -528.6, 546.6, 20), (1147, 1, -493.6, 581.6, 20), (1147, 1, -578.6, 561.6, 20),     // the Warden Bot pools
                 (1147, 2, -528.6, 546.6, 20), (1147, 2, -493.6, 581.6, 20), (1147, 2, -578.6, 561.6, 20),
                 (1147, 3, -528.6, 546.6, 20), (1147, 3, -493.6, 581.6, 20), (1147, 3, -578.6, 561.6, 20),
                 (1157, 1, -785, 390, 20), (1157, 1, -790, 420, 20),                                          // the Lasher pools
-                (1170, 1, -215, 205, 8), (1170, 2, -215, 205, 8), (1170, 3, -300, 320, 8), (1170, 4, -300, 320, 8),
+                (1170, 1, -218, 228, 8), (1170, 2, -218, 228, 8), (1170, 3, -300, 320, 8), (1170, 4, -300, 320, 8),
                 (1170, 5, -216, 472, 8), (1170, 6, -216, 472, 8), (1170, 7, -392.77, 276.23, 8), (1170, 8, -392.77, 276.23, 8),
                 (1229, 1, 952, 106, 8),                                                                      // DeLisi
                 (1232, 1, 635, 557, 20), (1232, 1, 585, 577, 20), (1232, 1, 545, 587, 20),                   // the mine pools
@@ -800,6 +802,49 @@ namespace Rasa.Test.Missions.Crucible
             Assert.IsTrue(MissionIds.All(Has));
             Assert.AreEqual(AllRows, Rows(world));
             Assert.AreEqual(5, Pools());
+        }
+
+        /// <summary>
+        /// Crucible_staal_walks (to-fix rows 32, 34, 35) puts Munit and Vargo and their five markers back at sets 1's and 2's
+        /// places, Yeg's marker back at r8, and takes out its three evidence rows; set 4 stays. Up again, the new values are back.
+        /// </summary>
+        [TestMethod]
+        public void StaalWalksRollBackWithTheirMigration()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            (double, double, double, double) Marker(uint mission, uint objective, uint indicator) => world.MissionIndicatorEntries.AsNoTracking()
+                .Where(entry => entry.MissionId == mission && entry.ObjectiveId == objective && entry.IndicatorId == indicator &&
+                    entry.ContentRevision == CrucibleMissionDataV1.Revision).AsEnumerable()
+                .Select(entry => (entry.PosX, entry.PosY, entry.PosZ, entry.Radius)).Single();
+            int Evidence() => world.MissionEvidenceEntries.AsNoTracking().Count(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision &&
+                (entry.MissionId == 1145 || entry.MissionId == 1146 || entry.MissionId == 1170) && entry.EvidenceId == 4);
+            var yeg = CrucibleStaalWalksV1.YegMarker;
+            void Check(bool now)
+            {
+                foreach (var (pool, before, after) in CrucibleStaalWalksV1.Moves)
+                    Assert.AreEqual(now ? after : before, At(world, pool), $"pool {pool}");
+                foreach (var (mission, objective, indicator, pool) in CrucibleStaalWalksV1.Markers)
+                {
+                    var move = CrucibleStaalWalksV1.Moves.Single(entry => entry.Pool == pool);
+                    var at = now ? move.Now : move.Before;
+                    Assert.AreEqual((at.X, at.Y, at.Z, 8.0), Marker(mission, objective, indicator),
+                        $"{mission}.{objective}/{indicator} on pool {pool}");
+                }
+                Assert.AreEqual(now ? CrucibleStaalWalksV1.YegMarkerNow : CrucibleStaalWalksV1.YegMarkerBefore,
+                    Marker(yeg.Mission, yeg.Objective, yeg.Indicator).Item4, "Yeg's marker");
+                Assert.AreEqual(now ? 3 : 0, Evidence());
+                Assert.AreEqual(AllRows, Rows(world), "sets 1-4's rows stay");
+            }
+
+            Check(true);
+            Assert.AreEqual(MinefieldAndSalvage, Previous(world, StaalWalks), "the fix follows set 4");
+            world.GetService<IMigrator>().Migrate(MinefieldAndSalvage);
+            world.ChangeTracker.Clear();
+            Check(false);
+            world.GetService<IMigrator>().Migrate(StaalWalks);
+            world.ChangeTracker.Clear();
+            Check(true);
         }
 
         internal static List<(uint MissionId, Rasa.Missions.Content.MissionSceneDefinition Scene)> Scenes(WildernessRuntimeTestHarness harness) =>

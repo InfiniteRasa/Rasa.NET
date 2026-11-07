@@ -21,7 +21,7 @@ Set 1, Outpost Intrepid (migration `20271108000000_Crucible_outpost_intrepid`). 
 - [ ] 1145 The Wire (Ligo Crucible): DeLisi offers it after 1150, level 40. The Audio Surveillance Bug (template 50305)
   at the accept. Five talks, any order: Recon Sergeant Mullins (new, 770001, east mouth of Convict Pass, 292.49, 167.43,
   736.36), Vitto (Larai, moved to -300, 180.5, 320), Donal (Viddia, moved to -216, 195.69, 472), Munit (Top Khana, new,
-  770002, -215, 196.5, 205) and Rigs (Labbna, moved to -392.77, 249.46, 276.23). A marker at each. Turn in at DeLisi:
+  770002; since 20271108000500 on the lower corridor under the Top Khana Quarter, -218, 180.68, 228) and Rigs (Labbna, moved to -392.77, 249.46, 276.23). A marker at each. Turn in at DeLisi:
   75000 XP, 5700 credits, one of 33729, 20802, 23569, 30167; the bug goes. Look: can a player walk from the pass into
   Staal and into the Labbna Quarter (the navmesh has these as separate parts, to-fix row 3)?
 - [ ] 1143 The Departed (Ligo Crucible): Private Drake (moved to 952.46, 144.5, 110.89) offers it, no requirement, level
@@ -39,8 +39,8 @@ New local teleporters 909 (lower) and 910 (upper).
   Lohen: 40000 XP, 3900 credits, one of 3x 111018, 6x 45060, 3x 45446, 1x 111232. Look: the Brann teleporter statics
   show where the pads are; the upper pad takes you back.
 - [ ] 1146 The Protection Racket (Ligo Crucible): Vitto offers it after 1161, level 35. Four talks in any order: Bunko
-  (new, 770003, -197, 180.7, 319), Merchant Cugin (moved to -174.3, 196.7, 280.2), Merchant Vargo (not moved, -192.5,
-  180.5, 264.2), Merchant Yeg (new, 770004, -153.7, 196.9, 346.9). Bunko, Cugin and Yeg each give their Protection Money.
+  (new, 770003, -197, 180.7, 319), Merchant Cugin (moved to -174.3, 196.7, 280.2), Merchant Vargo (moved by 20271108000500
+  out of the crafting station to -190.5, 180.79, 267.2), Merchant Yeg (new, 770004, -153.7, 196.9, 346.9). Bunko, Cugin and Yeg each give their Protection Money.
   Vargo refuses: Roscoe (770005, a Flare Gasher, hostile, 3000 HP) comes out 22 m west of him (-214, 180.7, 258) and attacks. Kill Roscoe, then
   talk to Vargo again: he gives his money. Turn in at Vitto: 75000 XP, the Larai Syndicate Token (50314) and one of
   14444, 14815; he takes the four payments. Abandon: the money and Roscoe go. Look: Roscoe attacks only the player who
@@ -152,7 +152,12 @@ All ESTIMATE (set 2):
   (-452, 249.56, 58), (-518, 250.21, 64), (-380, 248.05, 46), 190 m or more from the door (ESTIMATE, navmesh probe).
   Upstream pool 540144 moved off the Thunderhead border link 94 to (-841, 285.48, 674).
   Roscoe (1146, class 7338, flag 85) is a Flare Gasher too: with 1149 open, his kill counts 1 of the 20.
-- Melching and Vargo are not moved (their upstream places pass the probe).
+- Melching is not moved (his upstream place passes the probe). Vargo was not moved in set 2; the fix 20271108000500
+  (to-fix row 34) moves him out of the Staal Centrum crafting station (kraftwerk 22), which hid him from the client.
+- Fix 20271108000500 (to-fix rows 32, 35; ESTIMATE, navmesh probe): Munit at (-218, 180.68, 228), on the lower corridor
+  23 m from his quarter's region point, because the only way up to the region point crosses a floor hole; Yeg's marker
+  r5 (was r8), clear of the second hole. A player who walks to Yeg from the stairs at (-177, 196, 355) passes the hole
+  near (-176..-161, 196.7, 357..345): the walk from Cugin's counter keeps clear of it.
 
 All ESTIMATE (set 3):
 - Levels: 1147 35, 1157 40 and 1170 35 are from the TR MMO DB; 1229 35 (no source; the level of 1170). Halprin level 38
@@ -237,6 +242,9 @@ All ESTIMATE (set 4):
   (from the Outpost Intrepid cluster, 944.4, 170.86, 185, to 959, 144.68, 111); Cugin 510032 (from y 137, 44 m under the
   Staal Centrum floor, -188.8, 137.08, 264.2, to -174.3, 196.68, 280.2).
 - Added: local teleporters 909 and 910 for the Kappa Grupa's office (the client's Brann statics had no server rows).
+
+- The Staal walks fix (`20271108000500`) moved Merchant Vargo 510033 out of the Staal Centrum crafting station (kraftwerk
+  22 at the same point, upstream D11) to (-190.5, 180.79, 267.2).
 
 ## Server data changed by set 3 (upstream rows)
 

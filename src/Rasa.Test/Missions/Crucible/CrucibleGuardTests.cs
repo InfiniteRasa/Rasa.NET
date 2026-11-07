@@ -168,6 +168,11 @@ namespace Rasa.Test.Missions.Crucible
             using var meshes = new MeshLibrary(dataDir, F.MeshCsv());
             var geometry = MapGeometry.Load(Path.Combine(dataDir, "maps", MapName(harness)), meshes, 1);
             var near = F.Near(geometry, places.Select(place => place.At).ToList(), F.Ring + 1);
+            // To-fix row 34: the server-placed objects with a client model (the crafting stations) block the sight too.
+            var objects = ServerObjects(harness, meshes);
+            for (var i = 0; i < places.Count; i++)
+                foreach (var placed in objects.Where(placed => placed.Box.Distance2D(places[i].At) < F.Ring + 1))
+                    near[i].AddRange(placed.Triangles);
             var failures = new List<string>();
             for (var i = 0; i < places.Count; i++)
             {
@@ -185,6 +190,76 @@ namespace Rasa.Test.Missions.Crucible
                     failures.Add(FormattableString.Invariant($"{label} at ({at.X}, {at.Y}, {at.Z})"));
             }
             Assert.IsEmpty(failures, "not seen from a client floor " + F.Ring + " m round: " + string.Join("; ", failures));
+        }
+
+        /// <summary>
+        /// To-fix row 34: Vargo stood inside the Staal Centrum crafting station, and the client answered every use with "You
+        /// cannot see your target from here". No Crucible NPC or scene object stands inside a server-placed object's model
+        /// (the kraftwerks rows on the Crucible, their class's client mesh) or within 0.5 m of it across.
+        /// </summary>
+        [TestMethod]
+        public void NoCrucibleNpcStandsInsideAServerPlacedObject()
+        {
+            const float Clearance = 0.5f;
+            var dataDir = F.ClientData();
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var places = Places(harness);
+            using var meshes = new MeshLibrary(dataDir, F.MeshCsv());
+            var objects = ServerObjects(harness, meshes);
+            Assert.IsGreaterThanOrEqualTo(2, objects.Count, "the Outpost Intrepid and Staal Centrum crafting stations");
+            var inside = new List<string>();
+            foreach (var (label, at, _) in places)
+                foreach (var placed in objects.Where(placed => placed.Box.Distance2D(at) < Clearance && at.Y >= placed.Box.Min.Y - 1 && at.Y <= placed.Box.Max.Y))
+                    inside.Add(FormattableString.Invariant($"{label} at ({at.X}, {at.Y}, {at.Z}) in {placed.Label}"));
+            Assert.IsEmpty(inside, string.Join("; ", inside));
+        }
+
+        /// <summary>
+        /// To-fix rows 32 and 35: the real client fell through two holes in the y 196.7 floor of Staal (the panopticon room; our
+        /// client floor reader finds a floor there, NOTES-upstream-bugs N10), so no check of the client files finds them: they
+        /// are named (CrucibleStaalWalksV1.Holes). No Crucible NPC, scene object or marker on that level reaches into one (its
+        /// circle and 1 m), and the navmesh walks to Munit (from the lower office teleporter, Vitto and Donal), to Vargo (from
+        /// the teleporter and Cugin) and to Yeg from Cugin keep out of them.
+        /// </summary>
+        [TestMethod]
+        public void NoCrucibleNpcMarkerOrWalkLeadsOverAStaalFloorHole()
+        {
+            const float Level = 2, Margin = 1;
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var crucible = CrucibleOutpostIntrepidTests.EnterCrucible(harness);
+            var holes = CrucibleStaalWalksV1.Holes.Select(hole => (At: new Vector3((float)hole.At.X, (float)hole.At.Y, (float)hole.At.Z), R: (float)hole.Radius)).ToList();
+            float? Into(Vector3 at, float radius) => holes.Where(hole => MathF.Abs(at.Y - hole.At.Y) < Level)
+                .Select(hole => (float?)(hole.R + radius + Margin - Vector2.Distance(new(at.X, at.Z), new(hole.At.X, hole.At.Z)))).Where(gap => gap > 0).Max();
+            var failures = new List<string>();
+            foreach (var (label, at, _) in Places(harness))
+                if (Into(at, 0) is { } into)
+                    failures.Add(FormattableString.Invariant($"{label} at ({at.X}, {at.Y}, {at.Z}): {into:0.0} m into a hole's circle"));
+            foreach (var marker in harness.World.MissionIndicatorEntries.AsNoTracking().Where(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision).ToList())
+                if (Into(new((float)marker.PosX, (float)marker.PosY, (float)marker.PosZ), (float)marker.Radius) is { } into)
+                    failures.Add(FormattableString.Invariant($"marker {marker.MissionId}.{marker.ObjectiveId}/{marker.IndicatorId}: {into:0.0} m into a hole's circle"));
+
+            Vector3 Pool(uint pool) => SpawnPoolManager.Instance.LoadedSpawnPools.Values.Single(entry => entry.DbId == pool).Position;
+            var pad = new Vector3((float)G.LowerPadAt.X, (float)G.LowerPadAt.Y, (float)G.LowerPadAt.Z);
+            foreach (var (from, to, label) in new[]
+            {
+                (pad, Pool(N.Munit), "the lower teleporter to Munit"), (Pool(N.Vitto), Pool(N.Munit), "Vitto to Munit"),
+                (Pool(N.Donal), Pool(N.Munit), "Donal to Munit"), (pad, Pool(G.Vargo), "the lower teleporter to Vargo"),
+                (Pool(G.Cugin), Pool(G.Vargo), "Cugin to Vargo"), (Pool(G.Cugin), Pool(G.Yeg), "Cugin to Yeg")
+            })
+            {
+                var path = crucible.NavMesh.FindPath(crucible.NavMesh.Nearest(from) ?? from, crucible.NavMesh.Nearest(to) ?? to, out var complete);
+                Assert.IsTrue(path != null && complete, $"{label}: a path");
+                for (var i = 0; i + 1 < path.Count; i++)
+                    for (var k = 0; k <= 20; k++)
+                        if (Into(Vector3.Lerp(path[i], path[i + 1], k / 20f), 0) is { } into)
+                        {
+                            var at = Vector3.Lerp(path[i], path[i + 1], k / 20f);
+                            failures.Add(FormattableString.Invariant($"{label} walks over a hole at ({at.X:0.0}, {at.Y:0.0}, {at.Z:0.0})"));
+                            i = path.Count;
+                            break;
+                        }
+            }
+            Assert.IsEmpty(failures, string.Join("; ", failures));
         }
 
         /// <summary>
@@ -454,6 +529,34 @@ namespace Rasa.Test.Missions.Crucible
             Assert.HasCount(N.New.Length + N.Moves.Length + G.New.Length + G.Moves.Length + G.Kept.Length + W.New.Length + 21 + 1, places,
                 "the NPCs, the terminal, the twenty fallen and Roscoe");
             return places;
+        }
+
+        /// <summary>A world box across x and z (and its height).</summary>
+        private readonly record struct Box(Vector3 Min, Vector3 Max)
+        {
+            public float Distance2D(Vector3 at) => new Vector2(MathF.Max(0, MathF.Max(Min.X - at.X, at.X - Max.X)), MathF.Max(0, MathF.Max(Min.Z - at.Z, at.Z - Max.Z))).Length();
+        }
+
+        /// <summary>The server-placed objects on the Crucible with a client model (the kraftwerks rows): their triangles and box.</summary>
+        private static List<(string Label, List<(Vector3 A, Vector3 B, Vector3 C)> Triangles, Box Box)> ServerObjects(WildernessRuntimeTestHarness harness, MeshLibrary meshes)
+        {
+            var objects = new List<(string, List<(Vector3, Vector3, Vector3)>, Box)>();
+            foreach (var row in harness.World.KraftwerksEntries.AsNoTracking().Where(row => row.MapContextId == Map).ToList())
+            {
+                var mesh = meshes.GetForClass((int)row.ClassId);
+                if (mesh == null || !mesh.HasCollision)
+                    continue;
+                var turn = Quaternion.CreateFromAxisAngle(Vector3.UnitY, (float)row.Rotation);
+                var origin = new Vector3((float)row.PosX, (float)row.PosY, (float)row.PosZ);
+                var points = mesh.Vertices.Select(vertex => Vector3.Transform(vertex, turn) + origin).ToList();
+                var triangles = new List<(Vector3, Vector3, Vector3)>();
+                for (var i = 0; i + 2 < mesh.Triangles.Count; i += 3)
+                    triangles.Add((points[mesh.Triangles[i]], points[mesh.Triangles[i + 1]], points[mesh.Triangles[i + 2]]));
+                var used = mesh.Triangles.Select(index => points[index]).ToList();
+                objects.Add(($"kraftwerk {row.Id}", triangles,
+                    new Box(used.Aggregate(Vector3.Min), used.Aggregate(Vector3.Max))));
+            }
+            return objects;
         }
 
         private static string MapName(WildernessRuntimeTestHarness harness) =>

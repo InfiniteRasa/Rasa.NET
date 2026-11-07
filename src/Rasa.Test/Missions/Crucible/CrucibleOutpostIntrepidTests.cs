@@ -88,7 +88,7 @@ namespace Rasa.Test.Missions.Crucible
                 if (package != 0)
                     Assert.AreEqual(package, npc.Npc.NpcPackageId, $"{pool} package");
                 Assert.AreNotEqual(TargetCategory.Hostile, npc.TargetCategory);
-                var at = N.At(pool);
+                var at = CrucibleStaalWalksV1.Now(pool) ?? N.At(pool);
                 Assert.IsLessThan(0.1f, Vector2.Distance(new((float)at.X, (float)at.Z), new(npc.Position.X, npc.Position.Z)), $"{pool} at its place");
                 AssertOnGround(crucible, npc.Position, $"{pool}");
                 Assert.IsTrue(crucible.NavMesh.FindPath(from, npc.Position, out var complete) != null && complete, $"{pool} is walked to");

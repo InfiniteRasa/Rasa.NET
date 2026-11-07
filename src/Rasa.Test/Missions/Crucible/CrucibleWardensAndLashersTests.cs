@@ -150,6 +150,7 @@ namespace Rasa.Test.Missions.Crucible
             Assert.IsFalse(Part(early, 0) || Part(early, 1) || Part(early, 2), "no part before the mission");
             Accept(harness, donal, Wardens);
             Assert.IsEmpty(Topics(harness, donal, Wardens), "Donal hears no objective: the parts count as they are picked up");
+            MarkersOnTheWardenPools(harness, 1, 2, 3);
 
             // 75: none; 74 and 50: only a servo-motor; 49: all three. A death is not a pickup.
             percentile = 75;
@@ -180,6 +181,7 @@ namespace Rasa.Test.Missions.Crucible
             var completed = new List<uint>();
             var completeable = 0;
             var kills = 0;
+            var thirdChecked = false;
             while (Held(harness, 2) < 15)
             {
                 if (kills++ == 6)
@@ -196,10 +198,17 @@ namespace Rasa.Test.Missions.Crucible
                 PickUp(harness, loot);
                 var drained = harness.Drain();
                 completed.AddRange(drained.OfType<ObjectiveCompletedPacket>().Where(packet => packet.MissionId == Wardens).Select(packet => packet.ObjectiveId));
+                if (completed.Contains(1) && completed.Contains(2) && !completed.Contains(3) && !thirdChecked)
+                {
+                    // The bot (2026-11-07): objective 3 showed no marker. With the first two done, the third keeps its three.
+                    MarkersOnTheWardenPools(harness, 3);
+                    thirdChecked = true;
+                }
                 completeable += drained.OfType<MissionCompleteablePacket>().Count(packet => packet.MissionId == Wardens && packet.IsCompleteable);
             }
             Assert.AreEqual((10U, 10U, 15U), (Held(harness, 0), Held(harness, 1), Held(harness, 2)), "no part over its count");
             CollectionAssert.AreEquivalent(new[] { 1U, 2U, 3U }, completed, "ObjectiveCompleted once each");
+            Assert.IsTrue(thirdChecked, "objective 3's markers checked with the first two done");
             Assert.AreEqual(1, completeable, "MissionCompleteable once");
 
             Assert.IsFalse(harness.Manager.CompleteOfferedMission(harness.Client, vitto.EntityId, Wardens, 0), "not Vitto's to take");
@@ -212,6 +221,27 @@ namespace Rasa.Test.Missions.Crucible
             Assert.AreEqual(1U, WildernessRanjaGorgeTests.Held(harness, CrucibleGameWardensV1.ViddiaToken), "the Viddia token");
             Assert.AreEqual((0U, 0U, 0U), (Held(harness, 0), Held(harness, 1), Held(harness, 2)), "Donal takes the parts");
             Assert.IsFalse(PlateauRetreadCampTests.Offers(harness, donal, Wardens), "done once");
+        }
+
+        /// <summary>
+        /// To-fix row 25 and the bot's "1147 objective 3 has no marker": each open objective named shows the client its three
+        /// markers (CrucibleMarkersClearOfLinksV2.WardenMarkers), one on each Warden Bot pool, on the Crucible.
+        /// </summary>
+        private static void MarkersOnTheWardenPools(WildernessRuntimeTestHarness harness, params uint[] objectives)
+        {
+            var info = harness.Manager.BuildStatusSnapshot(harness.Client.Player)[Wardens];
+            foreach (var objective in objectives)
+            {
+                var markers = info.ObjectivesList.Single(o => o.ObjectiveId == objective).IndicatorList;
+                CollectionAssert.AreEquivalent(CrucibleMarkersClearOfLinksV2.WardenMarkers.Where(m => m.Objective == objective).Select(m => m.Indicator).ToArray(),
+                    markers.Select(m => m.IndicatorId).ToArray(), $"objective {objective}'s markers");
+                foreach (var marker in markers)
+                {
+                    Assert.AreEqual(CrucibleMissionDataV1.MapContextId, marker.MapContextId, $"objective {objective} marker {marker.IndicatorId}'s map");
+                    Assert.IsTrue(W.WardenPools.Any(pool => Vector2.Distance(new(marker.Position.X, marker.Position.Z), new((float)pool.At.X, (float)pool.At.Z)) < 0.1f),
+                        $"objective {objective} marker {marker.IndicatorId} on a Warden Bot pool");
+                }
+            }
         }
 
         /// <summary>A part stays on the corpse while the bag is full; an abandon keeps the parts, and taken again they count.</summary>

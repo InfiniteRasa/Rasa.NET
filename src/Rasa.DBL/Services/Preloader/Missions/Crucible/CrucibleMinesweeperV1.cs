@@ -22,7 +22,8 @@ namespace Rasa.Services.Preloader.Missions.Crucible
     /// Reconstructed (ESTIMATE):
     ///  - The mines the new Smart Mines 770014 (a copy of the Necromite, CrucibleMinefieldAndSalvageNpcsV1) in pools
     ///    770014-770016; a kill of one counts (CreatureKilled, counter 0, 20), the mine's self-destruct on the player too
-    ///    (CreatureBombs: the kill is its target's). They lie buried until a player comes near (MawLurk, as the Maws).
+    ///    (CreatureBombs: the kill is its target's). They lie buried until a player is 8 m off (ESTIMATE) and come up with their
+    ///    birth 155/7528 (MawLurk, as the Maws).
     ///  - The items the lowest Uncommon templates of the kinds and icon numbers in the band of level 40: Mech V03 Boots
     ///    33342, Stealth V02 Boots 38823, Graviton V04 Legs 25248, Motor Assist V06 Helmet 30474; one to choose. A marker
     ///    (radius 20) on each mine pool.
@@ -68,7 +69,7 @@ namespace Rasa.Services.Preloader.Missions.Crucible
                 "= Necromite (TaRapedia). TR MMO DB level40.");
             mission.Evidence(3, MissionEvidenceSourceKind.Reconstruction, "repository:CrucibleMinesweeperV1",
                 "New Smart Mines 770014 (copy of Necromite 570003, level40, 1500 HP) in pools 770014-770016 in the trench west of " +
-                "the Fort Intrepid waypoint; CreatureKilled 20, counter 0; not buried. Items 33342, 38823, 25248, 30474, one to " +
+                "the Fort Intrepid waypoint; CreatureKilled 20, counter 0; they lie buried until a player is 8 m off (ESTIMATE) and come up with their birth 155/7528 (MawLurk). Items 33342, 38823, 25248, 30474, one to " +
                 "choose. A marker r20 on each pool.", 0.3);
 
             mission.Enable();
