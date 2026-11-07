@@ -25,6 +25,7 @@ namespace Rasa.Services.Preloader.Missions.Crucible
         public static readonly IReadOnlyDictionary<string, string[]> Keys = new Dictionary<string, string[]>
         {
             ["creature"] = new[] { "id" },
+            ["creature_action"] = new[] { "id" },
             ["creature_appearance"] = new[] { "id", "slot_id" },
             ["creature_stat"] = new[] { "id" },
             ["npc_package"] = new[] { "id" },

@@ -55,6 +55,32 @@ New local teleporters 909 (lower) and 910 (upper).
   counts; markers at pools 540139-540141 by the Staal Junkyard door). Turn in at Rigs: 75000 XP, the Labbna Syndicate
   Token (50317) and one of 20355, 28634, 33193, 35591.
 
+Set 3, wardens and lashers (migration `20271108000200_Crucible_wardens_and_lashers`). New NPC 770006 (Halprin), new
+creatures 770007 (Warden Bot Screw) and 770008 (Lasher, attack 770008), new pools 770006 and 770009-770013, next free id
+770014.
+
+- [ ] 1147 Game Wardens (Ligo Crucible): Viddia Grupa Donal (-216, 195.7, 472) offers it after 1161, level 35. Three
+  Warden Bot pools (770009-770011, three Warden Bot Screws each, level 35, hostile) 35-54 m round the Chaukas Robotics
+  Facility door (-528.6, 249.4, 581.6); one marker per objective round them (radius 55). Each bot drops a Power Supply
+  (50222) at 50 %, a Neural Processor (50220) at 50 %, a Servo-Motor (50221) at 75 %, until 10/10/15. Turn in at Donal:
+  75000 XP, the Viddia Syndicate Token (50315) and one of 19395, 39061; he takes the parts. Abandon: the parts stay. Look:
+  can a player walk from the Awol Camp (or the Labbna Quarter) to the door (to-fix rows 15, 21)? The bots must not attack
+  a player who comes out of the facility door at once (the pools are 23 m or more outside the link).
+- [ ] 1157 Whiplash (Ligo Crucible): Medical Technician Halprin (new, 770006, by the Outpost Intrepid hospital, 989,
+  144.9, 108) offers it, no requirement, level 40. Two Lasher pools (770012-770013, three Lashers each, level 40,
+  hostile) north-east of the Awol Camp (-785, 284.3, 390) and (-790, 283.9, 420); a marker at each. Each Lasher drops a
+  Lasher Venom Gland (50295) at 60 %, until 10. Turn in at Halprin: 75000 XP, 5700 credits, one of 49140, 15513, 15301,
+  15025; he takes the glands. Look: the Lasher looks and attacks right (a new row of class 7477, no creature weapon in its
+  look, melee 174/28); its name shows "Lasher".
+- [ ] 1170 Earning Respect (Ligo Crucible): Kappa Grupa Lohen (in his office, by teleporter 909) offers it after 1161,
+  level 35. Eight objectives, any order: talk to Munit, Vitto, Donal and Rigs; and each Grupa's token mission done
+  (Smoking Guns 1148, The Protection Racket 1146, Game Wardens 1147, Junkyard Dogs 1149). A token mission done before
+  1170 counts at the accept. Markers at each Grupa (two each). Turn in at Lohen: 160000 XP, 7800 credits, one of 49592,
+  15542, 49136, 15295; the tokens stay.
+- [ ] 1229 Business Proposal (Ligo Crucible): Lohen offers it after 1170, level 35. Kappa Grupa Lohen's Business Proposal
+  (73215) at the accept. Talk to Captain DeLisi (952, 144.5, 106): he takes it. A marker at DeLisi. Turn in at DeLisi:
+  40000 XP, 3900 credits, one of 3x 111028, 1x 47599, 3x 111018, 6x 45060. Abandon: the proposal goes.
+
 ## Assumptions and choices (not from a source)
 
 All ESTIMATE (set 1):
@@ -102,11 +128,40 @@ All ESTIMATE (set 2):
   Roscoe (1146, class 7338, flag 85) is a Flare Gasher too: with 1149 open, his kill counts 1 of the 20.
 - Melching and Vargo are not moved (their upstream places pass the probe).
 
+All ESTIMATE (set 3):
+- Levels: 1147 35, 1157 40 and 1170 35 are from the TR MMO DB; 1229 35 (no source; the level of 1170). Halprin level 38
+  (TaRapedia).
+- All positions: Halprin and the five pools. Chosen by a probe (2026-11-07): on the navmesh and a client floor, 2 m (pools
+  3 m) or more from a wall, nothing over the head, seen from 16/16 places 2 m round (Halprin and four pools; one pool
+  15/16), a complete path from the Outpost Intrepid waypoint (Halprin), the Labbna Quarter and Awol Camp waypoints (the
+  Warden Bots) and the Awol Camp waypoint (the Lashers); the pools 120 m or more from every friendly NPC. Halprin stands
+  6 m from TaRapedia's place (995, 144, 108), 3 m from the hospital spawn point.
+- 1147: "the Warden Bot Facility" read as the Chaukas Robotics Facility's door (no source names a facility of that name on
+  the Crucible). Receiver Donal.
+- 1157: the Lasher nest place: north-east of the Awol Camp, between the Seeds logos and Molitor's road (TaRapedia Defiler
+  Sedge: "possibly fighting the lashers by there", 0.3). Receiver Halprin.
+- The new creatures: the Warden Bot a copy of the Jailor 531044 (class 6961, its laser and shock attacks and its death
+  blast 60002) one rank down, "Warden
+  Bot Screw" (8045), level 35, 4970 HP, armour 247. The Lasher a new row of class 7477, no name (the client shows the class
+  name), level 40, 8470 HP, armour 285, one melee attack 174/28 (the client's Weapon_Creature_Lasher), reach 0.5-4 m,
+  2100 ms (client), 557-779 damage, Virulent (damage_type 0: the client's weapon table). Three per pool, 120 s respawn, radius 6. Halprin a copy of DeLisi 510019
+  (class 3846), 4500 HP, armour 300, server-only package 770006.
+- Drop chances: 1147 power supply 50 %, neural processor 50 %, servo-motor 75 %; 1157 venom gland 60 %. Personal drops,
+  from any of the kind on the Crucible while the objective is open.
+- Rewards: no client reward blocks. The token of 1147 is a fixed reward. The items: the lowest Uncommon template of each
+  kind and icon number in the band of the mission level (1147: 19395, 39061; 1157: 49140, 15513, 15301, 15025 with "RPG
+  Launcher" = the physical rocket launcher and "Pulse" = EMP; 1170: 49592, 15542, 49136, 15295). 1229: TaRapedia's four
+  items as one to choose, in TaRapedia's stacks.
+- 1170: receiver Lohen. The eight objectives open at once, in any order. Each token objective completes when that Grupa's
+  mission is completed (also before 1170). The tokens stay with the player.
+- 1229: the proposal at the accept, taken by DeLisi at the talk.
+
 ## Deviations (client/server limits)
 
 - 1143: one counter of distinct corpses does the work of the client's twenty per-corpse objectives.
 - 1145: no failure for being caught with the wire.
 - 1148: until Calendar Girl (1144) is built, every player hears Melching's "neither" text (203).
+- 1170: a token objective reads the Grupa's mission as completed, not the token in the bag (to-fix row 20).
 
 ## Server data that differs from the sources (not changed)
 
@@ -127,3 +182,8 @@ All ESTIMATE (set 2):
   (from the Outpost Intrepid cluster, 944.4, 170.86, 185, to 959, 144.68, 111); Cugin 510032 (from y 137, 44 m under the
   Staal Centrum floor, -188.8, 137.08, 264.2, to -174.3, 196.68, 280.2).
 - Added: local teleporters 909 and 910 for the Kappa Grupa's office (the client's Brann statics had no server rows).
+
+## Server data changed by set 3 (upstream rows)
+
+- None moved. Added: Medical Technician Halprin, the Warden Bot and the Lasher creature rows and their pools (upstream D7:
+  the World DB had no Lasher on any map, no open-world Warden Bot on the Crucible and no Halprin).

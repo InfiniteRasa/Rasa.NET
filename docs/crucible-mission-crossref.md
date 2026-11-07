@@ -1,6 +1,6 @@
 # Ligo Crucible missions: sources (cross-reference)
 
-The 8 missions of the Ligo Crucible quest PR, taken from the full mission cross-reference of the 1.16.5.0
+The 12 missions of the Ligo Crucible quest PR, taken from the full mission cross-reference of the 1.16.5.0
 client. For each mission: the client text and objectives, the sources found (TaRapedia, TR MMO DB, Ellatha,
 Ten Ton Hammer, archived fan and official pages, patch notes) and a rebuild summary with the source of each
 value. Values without a source are marked ESTIMATE. "This PR" rows (where present) show the data this PR adds.
@@ -9,7 +9,7 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
 
 | Zone | Missions |
 | --- | ---: |
-| Crucible | 8 |
+| Crucible | 12 |
 
 ## Crucible
 
@@ -102,6 +102,34 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
 - **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 5
   - Requires: The Boss Of All Bosses (id 1161) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Protection_Racket)
 
+### 1147 — Game Wardens
+
+
+- **Instance mentioned:** Warden bot facility — the name appears in the client mission text or the TaRapedia page; not shown to happen there (ESTIMATE)
+- **Rebuild summary:**
+  - level: 35 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731171503/http://tr.mmodb.com/quests/startingzone-crucible/)
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 75,000 XP; 0 credits — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Game_Wardens)
+  - drops / mission items: Viddia Syndicate Token: Overview: The is only given out to those who have proven themselves worthy. The token represents that you are one of the most loyal and trustworthy members of the … — source: [TaRapedia item](https://tabularasa.fandom.com/wiki/Viddia_Syndicate_Token)
+  - location: NPC Viddia Grupa Donal: Crucible, Staal Infirmary — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Viddia_Grupa_Donal)
+- **Client:** The Viddia Syndicate has received an order for reprogrammed Warden Bots for use in the Larai arena. Grupa Donal needs you to retrieve various important Warden Bot parts from hostile bots patrolling the area near the Warden Bot Facility. He needs: 15 Servo-Motors, 10 Power Supplies and 10 Neural …
+  - objectives (client): Get 10 Power Supplies — Acquire 10 Warden Bot Power Supplies for Grupa Donal of the Viddia.; Get 10 Neural Processors — Acquire qo Warden bot Neural Processors for Grupa Donal of the Viddia.; Get 15 Servo-Motors. — Acquire 15 Warden Bot Servo-Motors for Grupa Donal of the Viddia.
+- **TaRapedia** [Game Wardens](https://tabularasa.fandom.com/wiki/Game_Wardens): giver: Viddia Grupa Donal; at: Staal Infirmary; zone: Crucible; requires: The Boss Of All Bosses; follow-up: Architects Of Destruction; XP: 75,000; credits: 0
+  - overview: The Viddia Syndicate has recieved an order for reprogrammed Warden Bots for use in the Larai arena. Grupa Donal needs you to retrieve various important Warden Bot parts from hostile bots patrolling the aren near the Warden Bot Facility. He needs: 15 Servo-Motors, 10 Power Supplies and 10 Neural …
+  - objectives: • Get 10 Power Supplies • Aquire 10 Warden Bot Power Supplies for Grupa Donal of the Viddia. • x/10 • Get 10 Neural Processors • Aquire 10 Warden Bot Neural Processors for Grupa Donal of the Viddia. • x/10 • Get 15 Servo-Motors • Aquire 15 Warden Bot Servo-Motors for Grupa Donal of the Viddia. • x/15
+  - walkthrough: For maximum efficiency, do this mission in conjuction with the missions Salvage Duty and Crucible Targets of Opportunity. They also contain objectives that involves killing Reconstructor Bots and Warden Bots.
+- **TaRapedia mission list** [Staal Infirmary mission list](https://tabularasa.fandom.com/wiki/Staal_Infirmary_mission_list): zone Crucible, area Staal Infirmary, given by Viddia Grupa Donal
+- **NPCs (TaRapedia NPC pages):**
+  - [Viddia Grupa Donal](https://tabularasa.fandom.com/wiki/Viddia_Grupa_Donal): Crucible, Staal Infirmary (named as giver/receiver)
+- **Mission items (TaRapedia item pages):**
+  - [Viddia Syndicate Token](https://tabularasa.fandom.com/wiki/Viddia_Syndicate_Token): Overview: The is only given out to those who have proven themselves worthy. The token represents that you are one of the most loyal and trustworthy members of the Viddia Syndicate. Rumours tell that, to this day, only a select few is in possession of this token, and Viddia Grupa …
+
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 5
+  - Requires: The Boss Of All Bosses (id 1161) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Game_Wardens)
+  - Leads to: Architects Of Destruction (id 1202) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Architects_Of_Destruction), [TaRapedia](https://tabularasa.fandom.com/wiki/Game_Wardens)
+  - Leads to: Sadistic Sabotage (id 1445) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Sadistic_Sabotage)
+
 ### 1148 — Smoking Guns
 
 
@@ -184,6 +212,27 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
   - Leads to: Funeral Derge (id 1241) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Fort_Called_Intrepid), [TaRapedia](https://tabularasa.fandom.com/wiki/Funeral_Derge)
 - **Requires (name not matched to a mission):** The Last Man Standing — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Fort_Called_Intrepid)
 
+### 1157 — Whiplash
+
+
+- **Rebuild summary:**
+  - level: 40 — source: [TR MMO DB](https://web.archive.org/web/20081204222509/http://tr.mmodb.com/quests/whiplash-615.php)
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 75,000 XP; 5,700 credits; ChiTech RPG Launcher; ChiTech Electric Net Gun; AccuMax Virulent Leech Gun; Vextronics Pulse Shotgun — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Whiplash)
+  - reward: 5700 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20081204222509/http://tr.mmodb.com/quests/whiplash-615.php)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Medical Technician Halprin: Crucible, Outpost Intrepid — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Medical_Technician_Halprin)
+- **Client:** A medic at Outpost Intrepid needs you to gather Lasher venom glands so that he can synthesize an Antivenom for a poisoned soldier.
+  - objectives (client): Acquire 10 Venom Glands. — Acquire 10 Lasher Venom Glands so that Halprin can synthesize an anti-venom.
+- **TaRapedia** [Whiplash](https://tabularasa.fandom.com/wiki/Whiplash): giver: Medical Technician Halprin; at: Outpost Intrepid; zone: Crucible; requires: None; follow-up: None; XP: 75,000; credits: 5,700; items: ChiTech RPG Launcher; ChiTech Electric Net Gun; AccuMax Virulent Leech Gun; Vextronics Pulse Shotgun
+  - overview: A medic at Outpost Intrepid needs you to gather Lasher venom glands so that he can synthesize an anti-venom for a poisoned soldier.
+  - objectives: • Aquire 10 Venom Glands • Aquire 10 Lasher Venom Glands so that Halprin can synthesize an anti-venom. • Lasher Venom Gland x/10
+- **TaRapedia mission list** [Outpost Intrepid mission list](https://tabularasa.fandom.com/wiki/Outpost_Intrepid_mission_list): zone Crucible, area Outpost Intrepid, given by Medical Technician Halprin
+- **TR MMO DB** [Whiplash](https://web.archive.org/web/20081204222509/http://tr.mmodb.com/quests/whiplash-615.php): level: 40; starts at npc: Medical Technician Halprin; starts in zone: Crucible; objectives: Acquire Lasher Venom Glands (0/10), Return to Medical Technician Halprin; reward: 5700
+- **NPCs (TaRapedia NPC pages):**
+  - [Medical Technician Halprin](https://tabularasa.fandom.com/wiki/Medical_Technician_Halprin): Crucible, Outpost Intrepid (named as giver/receiver)
+
 ### 1161 — The Boss Of All Bosses
 
 
@@ -211,4 +260,58 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
   - Leads to: Smoking Guns (id 1148) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Smoking_Guns)
   - Leads to: Junkyard Dogs (id 1149) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Junkyard_Dogs)
   - Leads to: Earning Respect (id 1170) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Earning_Respect), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Boss_Of_All_Bosses)
+
+### 1170 — Earning Respect
+
+
+- **Rebuild summary:**
+  - level: 35 — source: [TR MMO DB](https://web.archive.org/web/20081202023124/http://tr.mmodb.com/quests/earning-respect-626.php)
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 160,000 XP; 7,800 credits; Vitalius EMP Torqueshell Rifle; Vitalius Electric Polarity Gun; Vextronics Rocket Launcher; Teleract Virulent Leech Gun — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Earning_Respect)
+  - reward: 7800 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20081202023124/http://tr.mmodb.com/quests/earning-respect-626.php)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: zone Crucible only
+- **Client:** Kappa Grupa Lohen, the head of all the Brann syndicates, will not discuss any kind of deal with the AFS until you gain the trust and approval of all four syndicate Grupas by getting a Syndicate Token from each of them.
+  - objectives (client): Speak to Grupa Munit. — Ask Grupa Munit about acquiring a Top Khana Syndicate Token.; Acquire the Top Khana token. — Acquire the Top Khana Token by accepting a mission from Grupa Munit and earning his trust.; Speak to Grupa Vitto. — Ask Grupa Vitto about acquiring a Larai Syndicate Token.; Acquire the Larai token. — Acquire the Larai Token by earning Vitto's trust by completing a mission for him.; Speak to Grupa Donal. — Ask Grupa Donal about acquiring a Viddia Syndicate Token.; Acquire the Viddia Token. — Acquire the Viddia Token by sucessfully completing Grupa Donal's mission and earning his trust.; Speak to Grupa Rigs. — Ask Grupa Rigs about acquiring a Labbna Syndicate Token.; Acquire the Labbna Token. — Acquire the Labbna Token by completing a mission for Grupa Rigs and earning his trust.
+- **TaRapedia** [Earning Respect](https://tabularasa.fandom.com/wiki/Earning_Respect) [stub]: giver: Kappa Grupa Lohen; at: Staal Detention Center; zone: Crucible; requires: The Boss Of All Bosses; follow-up: Business Proposal; XP: 160,000; credits: 7,800; items: Vitalius EMP Torqueshell Rifle; Vitalius Electric Polarity Gun; Vextronics Rocket Launcher; Teleract Virulent Leech Gun
+  - overview: Kappa Grupa Lohen, the head of all the Brann Syndicates, will not discuss any kind of deal with the AFS until you gain the trust and approval of all four Syndicate Grupas by getting a Syndicate Token from each of them. Note: You will get one side-mission from each of the Grupas. These are: Smoking …
+  - objectives: • Speak to Grupa Munit • Ask Grupa Munit about acquiring a Top Khana Syndicate Token. • Acquire the Top Khana token. • Acquire the Top Khana Token by accepting a mission from Grupa Munit and earning his trust. • - 0/1 • Speak to Grupa Munit again and accept mission Smoking Guns. • Speak to Grupa Vitto • Ask Grupa Vitto about acquiring a Larai Syndicate Token. • Acquire the Larai Syndicate token. …
+  - walkthrough: This mission will begin a long and cumbersome journey. You will have to do four side-missions for each of the Grupas before you get all the tokens.
+- **TaRapedia mission list** [Staal Detention Center mission list](https://tabularasa.fandom.com/wiki/Staal_Detention_Center_mission_list): zone Crucible, area Staal Detention Center, given by Kappa Grupa Lohen
+- **TR MMO DB** [Earning Respect](https://web.archive.org/web/20081202023124/http://tr.mmodb.com/quests/earning-respect-626.php): level: 35; starts at npc: Kappa Grupa Lohen; starts in zone: Crucible; objectives: Speak to Grupa Munit, Speak to Grupa Vitto, Speak to Grupa Donal, Speak to Grupa Digs, Return to Kappa Grupa Lohen; reward: 7800
+  - related mob Grupa Donal (not in the archived bestiary pages)
+- **TR MMO DB NPC** [Grupa Munit](https://web.archive.org/web/20120731173457/http://tr.mmodb.com/bestiary/grupa-munit-978.php): Quest NPC, zone Crucible (related to this quest)
+- **TR MMO DB NPC** [Kappa Grupa Lohen](https://web.archive.org/web/20120731172016/http://tr.mmodb.com/bestiary/kappa-grupa-lohen-1009.php): Quest NPC, zone Crucible (starts this quest)
+- **NPCs (TaRapedia NPC pages):**
+  - [Kappa Grupa Lohen](https://tabularasa.fandom.com/wiki/Kappa_Grupa_Lohen): Crucible (named as giver/receiver)
+
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 5
+  - Requires: The Boss Of All Bosses (id 1161) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Earning_Respect), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Boss_Of_All_Bosses)
+  - Leads to: Irreconcilable Differences (id 1185) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Irreconcilable_Differences)
+  - Leads to: Business Proposal (id 1229) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Business_Proposal), [TaRapedia](https://tabularasa.fandom.com/wiki/Earning_Respect)
+
+### 1229 — Business Proposal
+
+
+- **Rebuild summary:**
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 40,000 XP; 3,900 credits; Class VII EMP Grenade x3; Class VII Res Trauma Kit; Class VII Concussion Grenade x3; Class VII Basic Med Pack x6 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Business_Proposal)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Captain DeLisi: Crucible, Outpost Intrepid — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Captain_DeLisi)
+- **Client:** Now that you have proved yourself to Kappa Grupa Lohen, the leader of the Brann syndicates, deliver Lohen's "business proposal" to Captain Delisi at Outpost Intrepid.
+  - objectives (client): Deliver the Proposal to DeLisi. — Deliver Kappa Grupa Lohen's "Business Proposal" to Captain DeLisi.
+- **TaRapedia** [Business Proposal](https://tabularasa.fandom.com/wiki/Business_Proposal): giver: Kappa Grupa Lohen; at: Staal Detention Center; zone: Crucible; requires: Earning Respect; follow-up: Prometheus Rising; XP: 40,000; credits: 3,900; items: Class VII EMP Grenade x3; Class VII Res Trauma Kit; Class VII Concussion Grenade x3; Class VII Basic Med Pack x6; reward from: Captain DeLisi
+  - overview: Now that you have proved yourself to Kappa Grupa Lohen, the leader of the Brann Syndicates, deliver Lohen's "business proposal" to Captain DeLisi at Outpost Intrepid.
+  - objectives: • Deliver the Proposal to DeLisi • Deliver Kappa Grupa Lohen's "Business Proposal" to Captain DeLisi.
+- **NPCs (TaRapedia NPC pages):**
+  - [Kappa Grupa Lohen](https://tabularasa.fandom.com/wiki/Kappa_Grupa_Lohen): Crucible (named as giver/receiver)
+  - [Captain DeLisi](https://tabularasa.fandom.com/wiki/Captain_DeLisi): Crucible, Outpost Intrepid (named as giver/receiver)
+
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 6
+  - Requires: Earning Respect (id 1170) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Business_Proposal), [TaRapedia](https://tabularasa.fandom.com/wiki/Earning_Respect)
+  - Leads to: Prometheus Rising (id 1210) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Business_Proposal), [TaRapedia](https://tabularasa.fandom.com/wiki/Prometheus_Rising)
+  - Leads to: Confirmed Kills (id 1212) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Confirmed_Kills)
+  - Leads to: Careful Negotiation (id 1519) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Careful_Negotiation)
 

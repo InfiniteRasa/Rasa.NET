@@ -26,6 +26,7 @@ namespace Rasa.Test.Missions.Crucible
 {
     using N = CrucibleOutpostIntrepidNpcsV1;
     using G = CrucibleGrupaChiefsNpcsV1;
+    using W = CrucibleWardensAndLashersNpcsV1;
     using F = MarshesClientFloorTests;
 
     /// <summary>
@@ -53,7 +54,8 @@ namespace Rasa.Test.Missions.Crucible
             bool Friendly(uint creature) => CreatureManager.Instance.LoadedCreatures.TryGetValue(creature, out var c) && c.TargetCategory != TargetCategory.Hostile;
             var npcs = SpawnPoolManager.Instance.LoadedSpawnPools.Values.Where(pool => (pool.DbId is >= 770000 and <= 770999 || moved.Contains(pool.DbId)) &&
                 pool.SpawnSlot.Count > 0 && pool.SpawnSlot.TrueForAll(slot => Friendly(slot.CreatureId))).ToList();
-            Assert.HasCount(N.New.Length + N.Moves.Length + G.New.Length + G.Moves.Length + G.Kept.Length, npcs, "the Crucible NPCs are read");
+            Assert.HasCount(N.New.Length + N.Moves.Length + G.New.Length + G.Moves.Length + G.Kept.Length + W.New.Length, npcs,
+                "the Crucible NPCs are read");
             return npcs;
         }
 
@@ -103,7 +105,7 @@ namespace Rasa.Test.Missions.Crucible
             using var harness = WildernessRuntimeTestHarness.Create();
             var stats = harness.World.CreatureStatEntries.AsNoTracking().Where(row => row.Id >= 770000 && row.Id <= 770999).ToDictionary(row => row.Id);
             var npcs = Npcs().Where(pool => pool.DbId >= 770000).SelectMany(pool => pool.SpawnSlot).Select(slot => slot.CreatureId).Distinct().ToList();
-            Assert.HasCount(N.New.Length + G.New.Length, npcs);
+            Assert.HasCount(N.New.Length + G.New.Length + W.New.Length, npcs);
             foreach (var npc in npcs)
             {
                 Assert.IsTrue(stats.TryGetValue(npc, out var stat), $"{npc} has a creature_stat row");
@@ -221,9 +223,9 @@ namespace Rasa.Test.Missions.Crucible
                         outside.Add($"{mission}.{objective} {actor.Role}");
                 }
             // Set 2: Lohen; Bunko, Cugin, Vargo (twice: 3 and 6) and Yeg; Fiorella, Haggus and Melching (three times: his three
-            // variants are three talks).
-            Assert.AreEqual(1 + 5 + 21 + 1 + 5 + 2 + 3, checkedTargets,
-                "DeLisi, the five of The Wire, the terminal, the twenty fallen, and set 2's talks");
+            // variants are three talks). Set 3: Munit, Vitto, Donal and Rigs (1170) and DeLisi (1229).
+            Assert.AreEqual(1 + 5 + 21 + 1 + 5 + 2 + 3 + 4 + 1, checkedTargets,
+                "DeLisi, the five of The Wire, the terminal, the twenty fallen, and set 2's and set 3's talks");
             Assert.IsEmpty(outside, string.Join(", ", outside));
         }
 
@@ -248,6 +250,40 @@ namespace Rasa.Test.Missions.Crucible
                         near.Add($"{label} {gap:F1} m outside link {link.Id}");
                 }
             Assert.IsEmpty(near, string.Join(", ", near));
+        }
+
+        /// <summary>
+        /// Set 3's new hostile pools (the Warden Bots by the Chaukas Robotics Facility's door, the Lashers north-east of the Awol
+        /// Camp): each centre on a client floor (a walkable surface at most MaxOver under it, none just over it), and its circle
+        /// ReachClearance or more outside every enabled map link's circle, so that a player who comes out of the facility is
+        /// not set on at once.
+        /// </summary>
+        [TestMethod]
+        public void TheNewHostilePoolsStandOnAClientFloorAndClearOfTheMapLinks()
+        {
+            var dataDir = F.ClientData();
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var pools = W.WardenPools.Concat(W.LasherPools)
+                .Select(pool => (Label: $"pool {pool.Pool}", At: new Vector3((float)pool.At.X, (float)pool.At.Y, (float)pool.At.Z))).ToList();
+            var links = harness.World.Set<MapLinkEntry>().AsNoTracking().Where(link => link.Enabled != 0 && link.MapContextId == Map).ToList();
+            var near = new List<string>();
+            foreach (var (label, at) in pools)
+                foreach (var link in links)
+                {
+                    var gap = Vector2.Distance(new(at.X, at.Z), new((float)link.PosX, (float)link.PosZ)) - (float)link.Radius - W.PoolRadius;
+                    if (gap < MarshesNpcsStandStillV1.ReachClearance)
+                        near.Add($"{label} {gap:F1} m outside link {link.Id}");
+                }
+            Assert.IsEmpty(near, string.Join(", ", near));
+
+            using var meshes = new MeshLibrary(dataDir, F.MeshCsv());
+            var geometry = MapGeometry.Load(Path.Combine(dataDir, "maps", MapName(harness)), meshes, 1);
+            var (floors, ceilings) = F.Surfaces(geometry, pools.Select(pool => (pool.At, F.Walkable)).ToList());
+            var failures = new List<string>();
+            for (var i = 0; i < pools.Count; i++)
+                if (pools[i].At.Y - floors[i] > F.MaxOver || !float.IsPositiveInfinity(ceilings[i]))
+                    failures.Add($"{pools[i].Label} at {pools[i].At}");
+            Assert.IsEmpty(failures, string.Join("; ", failures));
         }
 
         /// <summary>CrucibleSql.Keys is each table's primary key in WorldContext's model; the keyless creature_appearance has its index's columns.</summary>
@@ -323,7 +359,7 @@ namespace Rasa.Test.Missions.Crucible
                 foreach (var actor in scene.Actors.Values.Where(actor => actor.Position != null))
                     places.Add(($"{mission} {actor.Role}", new Vector3(actor.Position.X, actor.Position.Y, actor.Position.Z),
                         actor.Kind == SceneActorKind.Creature));
-            Assert.HasCount(N.New.Length + N.Moves.Length + G.New.Length + G.Moves.Length + G.Kept.Length + 21 + 1, places,
+            Assert.HasCount(N.New.Length + N.Moves.Length + G.New.Length + G.Moves.Length + G.Kept.Length + W.New.Length + 21 + 1, places,
                 "the NPCs, the terminal, the twenty fallen and Roscoe");
             return places;
         }
