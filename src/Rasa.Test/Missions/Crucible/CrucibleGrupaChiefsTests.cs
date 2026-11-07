@@ -91,7 +91,7 @@ namespace Rasa.Test.Missions.Crucible
                 Assert.AreEqual(name, npc.NameId, $"{pool} name");
                 Assert.AreEqual(package, npc.Npc.NpcPackageId, $"{pool} package");
                 Assert.AreNotEqual(TargetCategory.Hostile, npc.TargetCategory);
-                var at = CrucibleStaalWalksV1.Now(pool) ?? G.At(pool);
+                var at = CrucibleWardenPoolsAndVargoV1.Now(pool) ?? CrucibleStaalWalksV1.Now(pool) ?? G.At(pool);
                 Assert.IsLessThan(0.1f, Vector2.Distance(new((float)at.X, (float)at.Z), new(npc.Position.X, npc.Position.Z)), $"{pool} at its place");
                 AssertOnGround(crucible, npc.Position, $"{pool}");
                 var start = crucible.NavMesh.Nearest(from);

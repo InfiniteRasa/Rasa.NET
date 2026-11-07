@@ -238,7 +238,8 @@ namespace Rasa.Test.Missions.Crucible
                 foreach (var marker in markers)
                 {
                     Assert.AreEqual(CrucibleMissionDataV1.MapContextId, marker.MapContextId, $"objective {objective} marker {marker.IndicatorId}'s map");
-                    Assert.IsTrue(W.WardenPools.Any(pool => Vector2.Distance(new(marker.Position.X, marker.Position.Z), new((float)pool.At.X, (float)pool.At.Z)) < 0.1f),
+                    Assert.IsTrue(W.WardenPools.Select(pool => CrucibleWardenPoolsAndVargoV1.Now(pool.Pool) ?? pool.At)
+                        .Any(at => Vector2.Distance(new(marker.Position.X, marker.Position.Z), new((float)at.X, (float)at.Z)) < 0.1f),
                         $"objective {objective} marker {marker.IndicatorId} on a Warden Bot pool");
                 }
             }

@@ -40,7 +40,7 @@ New local teleporters 909 (lower) and 910 (upper).
   show where the pads are; the upper pad takes you back.
 - [ ] 1146 The Protection Racket (Ligo Crucible): Vitto offers it after 1161, level 35. Four talks in any order: Bunko
   (new, 770003, -197, 180.7, 319), Merchant Cugin (moved to -174.3, 196.7, 280.2), Merchant Vargo (moved by 20271108000500
-  out of the crafting station to -190.5, 180.79, 267.2), Merchant Yeg (new, 770004, -153.7, 196.9, 346.9). Bunko, Cugin and Yeg each give their Protection Money.
+  out of the crafting station to -190.5, 180.79, 267.2; by 20271108000800 7.4 m clear of it to -186, 180.78, 270), Merchant Yeg (new, 770004, -153.7, 196.9, 346.9). Bunko, Cugin and Yeg each give their Protection Money.
   Vargo refuses: Roscoe (770005, a Flare Gasher, hostile, 3000 HP) comes out 22 m west of him (-214, 180.7, 258) and attacks. Kill Roscoe, then
   talk to Vargo again: he gives his money. Turn in at Vitto: 75000 XP, the Larai Syndicate Token (50314) and one of
   14444, 14815; he takes the four payments. Abandon: the money and Roscoe go. Look: Roscoe attacks only the player who
@@ -60,8 +60,9 @@ creatures 770007 (Warden Bot Screw) and 770008 (Lasher, attack 770008), new pool
 770014.
 
 - [ ] 1147 Game Wardens (Ligo Crucible): Viddia Grupa Donal (-216, 195.7, 472) offers it after 1161, level 35. Three
-  Warden Bot pools (770009-770011, three Warden Bot Screws each, level 35, hostile) 35-54 m round the Chaukas Robotics
-  Facility door (-528.6, 249.4, 581.6); for each objective a marker on each pool (radius 20, clear of the door; fix
+  Warden Bot pools (770009-770011, three Warden Bot Screws each, level 35, hostile) south, west and east of the Chaukas Robotics
+  Facility door (-528.6, 249.4, 581.6): (-575, 491), (-499, 434), (-606, 534), each circle 70 m or more outside the
+  door's circle (fix 20271108000800, to-fix row 44); for each objective a marker on each pool (radius 20; fix
   20271108000300, to-fix row 25). Each bot drops a Power Supply
   (50222) at 50 %, a Neural Processor (50220) at 50 %, a Servo-Motor (50221) at 75 %, until 10/10/15. Turn in at Donal:
   75000 XP, the Viddia Syndicate Token (50315) and one of 19395, 39061; he takes the parts. Abandon: the parts stay. Look:
@@ -110,7 +111,7 @@ Khana Sigal Pico, 770021 Trista; new creatures 770022 (Shield Drone) and 770023 
 
 - [ ] 1202 Architects Of Destruction (Ligo Crucible): Viddia Sigal Nema (-219.5, 195.62, 474), 4 m from Donal by the
   Staal Infirmary waypoint, offers it after 1147, level 35. Destroy 20 Reconstructor Bots (class 6960 or 10314; the bots
-  of set 4's pools 770017, 770018 and the new 770027 (-490, 249.72, 480), 770028 (-460, 251.31, 570) by the Chaukas
+  of set 4's pools 770017, 770018 and the new 770027 (-490, 249.72, 480), 770028 (-454, 250.1, 495; moved by 20271108000800, to-fix row 44) by the Chaukas
   Robotics Facility). A Warden Bot does not count. A marker (r20) on each of the four pools. Turn in at Nema: 80000 XP,
   5850 credits, one of 47688, 48104, 15437, 14569. Abandon: the count starts again.
 - [ ] 1208 Out Of Sight (Ligo Crucible): Top Khana Sigal Pico (-216, 180.68, 231.5), 4 m from Munit on the lower corridor,
@@ -358,7 +359,8 @@ All ESTIMATE (set 6):
 - Added: local teleporters 909 and 910 for the Kappa Grupa's office (the client's Brann statics had no server rows).
 
 - The Staal walks fix (`20271108000500`) moved Merchant Vargo 510033 out of the Staal Centrum crafting station (kraftwerk
-  22 at the same point, upstream D11) to (-190.5, 180.79, 267.2).
+  22 at the same point, upstream D11) to (-190.5, 180.79, 267.2). The fix `20271108000800` (to-fix row 43) moved him to
+  (-186, 180.78, 270): from the end of the walk from Munit the station hid him.
 
 ## Server data changed by set 3 (upstream rows)
 

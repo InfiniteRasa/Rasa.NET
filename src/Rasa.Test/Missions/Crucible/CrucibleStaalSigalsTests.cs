@@ -175,7 +175,7 @@ namespace Rasa.Test.Missions.Crucible
             Accept(harness, nema, Architects);
             Assert.IsEmpty(Topics(harness, nema, Architects), "Nema hears no objective");
             var markers = harness.Manager.BuildStatusSnapshot(harness.Client.Player)[Architects].ObjectivesList.Single().IndicatorList;
-            CollectionAssert.AreEquivalent(A.Pools.Select(pool => ((float)pool.At.X, (float)pool.At.Z)).ToArray(),
+            CollectionAssert.AreEquivalent(A.Pools.Select(pool => CrucibleWardenPoolsAndVargoV1.Now(pool.Pool) ?? pool.At).Select(at => ((float)at.X, (float)at.Z)).ToArray(),
                 markers.Select(marker => (marker.Position.X, marker.Position.Z)).ToArray(), "a marker on each Reconstructor pool");
             Assert.IsTrue(markers.All(marker => marker.MapContextId == CrucibleMissionDataV1.MapContextId));
 

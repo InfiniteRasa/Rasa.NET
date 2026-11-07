@@ -216,7 +216,176 @@ namespace Rasa.Test.Missions.Crucible
                 foreach (var placed in objects.Where(placed => placed.Box.Distance2D(at) < Clearance && at.Y >= placed.Box.Min.Y - 1 && at.Y <= placed.Box.Max.Y))
                     inside.Add(FormattableString.Invariant($"{label} at ({at.X}, {at.Y}, {at.Z}) in {placed.Label}"));
             Assert.IsEmpty(inside, string.Join("; ", inside));
+
+            // To-fix row 43: a player who walks up to an NPC stops anywhere within the talk reach of it, also beside a crafting
+            // station, and the station hid Vargo from there. So no server-placed object is within TalkReach and 1 m of an NPC:
+            // then no line from the talk reach to the NPC crosses one.
+            const float TalkReach = 5;
+            var near = new List<string>();
+            foreach (var (label, at, npc) in places.Where(place => place.Npc))
+                foreach (var placed in objects.Where(placed => placed.Box.Distance2D(at) < TalkReach + 1 && MathF.Abs(at.Y - placed.Box.Min.Y) < 3))
+                    near.Add(FormattableString.Invariant($"{label} at ({at.X}, {at.Y}, {at.Z}): {placed.Label} {placed.Box.Distance2D(at):0.0} m off"));
+            Assert.IsEmpty(near, string.Join("; ", near));
         }
+
+        /// <summary>
+        /// To-fix row 43: Vargo was seen from 8 of 8 places 2 m round him, but not from the end of the real client's walk to
+        /// him from Munit (on his far side, 4.2 m off, with the crafting station in the line). Every Crucible NPC on the
+        /// Crucible is seen (eye to its middle, the client files and the kraftwerks models) from each point of each navmesh
+        /// walk to it that ends a walk: where the walk first comes 5 m to 2 m near it (every 0.5 m). For Vargo, whose stall is
+        /// among the Staal Centrum's props, also the navmesh points on that level 1 m and 2 m to each side of it across the walk
+        /// (the client's walk does not keep to the server's line: the tester stopped 1.3 m beside it). The walks: from each waypoint, office teleporter and NPC in Starts that has a
+        /// complete navmesh path to it; Vargo's from Munit, the lower office teleporter, Cugin and Vitto must be complete.
+        /// </summary>
+        [TestMethod]
+        public void EveryCrucibleNpcIsSeenFromTheEndOfEachWalkToIt()
+        {
+            var dataDir = F.ClientData();
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var crucible = CrucibleOutpostIntrepidTests.EnterCrucible(harness);
+            var nav = crucible.NavMesh;
+            using var meshes = new MeshLibrary(dataDir, F.MeshCsv());
+            var geometry = MapGeometry.Load(Path.Combine(dataDir, "maps", MapName(harness)), meshes, 1);
+            var objects = ServerObjects(harness, meshes);
+            Vector3 Pool(uint pool) => SpawnPoolManager.Instance.LoadedSpawnPools.Values.Single(entry => entry.DbId == pool).Position;
+            Vector3 V((double X, double Y, double Z) at) => new((float)at.X, (float)at.Y, (float)at.Z);
+            var starts = new (string Label, Vector3 At)[]
+            {
+                ("the Outpost Intrepid waypoint", CrucibleOutpostIntrepidTests.OutpostWaypoint), ("the Fort Intrepid waypoint", CrucibleOutpostIntrepidTests.FortWaypoint),
+                ("the Staal waypoint", CrucibleOutpostIntrepidTests.StaalWaypoint), ("the Infirmary waypoint", CrucibleOutpostIntrepidTests.InfirmaryWaypoint),
+                ("the Labbna waypoint", CrucibleOutpostIntrepidTests.LabbnaWaypoint), ("the Awol Camp waypoint", AwolCampWaypoint),
+                ("the lower office teleporter", V(G.LowerPadAt)), ("the upper office teleporter", V(G.UpperPadAt)),
+                ("Munit", Pool(N.Munit)), ("Cugin", Pool(G.Cugin)), ("Vitto", Pool(N.Vitto))
+            };
+            var mustWalk = new Dictionary<uint, string[]> { [G.Vargo] = new[] { "Munit", "the lower office teleporter", "Cugin", "Vitto" } };
+            var npcs = Npcs().Where(npc => npc.MapContextId == Map).ToList();
+            var near = F.Near(geometry, npcs.Select(npc => npc.Position).ToList(), 7);
+            for (var i = 0; i < npcs.Count; i++)
+                near[i].AddRange(objects.Where(placed => placed.Box.Distance2D(npcs[i].Position) < 7).SelectMany(placed => placed.Triangles));
+            bool Seen(int i, Vector3 stand)
+            {
+                var floor = F.FloorAt(near[i], stand, stand.Y - 1.5f, stand.Y + 1) ?? stand.Y;
+                return F.Clear(near[i], stand with { Y = floor + F.Eye }, npcs[i].Position + new Vector3(0, F.NpcMiddle, 0));
+            }
+            var failures = new List<string>();
+            var walked = 0;
+            for (var i = 0; i < npcs.Count; i++)
+            {
+                var at = npcs[i].Position;
+                foreach (var (label, from) in starts)
+                {
+                    if (Vector2.Distance(new(from.X, from.Z), new(at.X, at.Z)) < 6)
+                        continue;
+                    var path = nav.FindPath(nav.Nearest(from) ?? from, nav.Nearest(at) ?? at, out var complete);
+                    if (path == null || !complete)
+                    {
+                        if (mustWalk.TryGetValue(npcs[i].DbId, out var must) && must.Contains(label))
+                            failures.Add($"pool {npcs[i].DbId}: no walk from {label}");
+                        continue;
+                    }
+                    walked++;
+                    var points = path.Prepend(nav.Nearest(from) ?? from).ToList();
+                    foreach (var reach in new[] { 5f, 4.5f, 4f, 3.5f, 3f, 2.5f, 2f })
+                    {
+                        // The first point of the walk that comes within reach.
+                        Vector3? end = null;
+                        for (var k = 0; k + 1 < points.Count && end == null; k++)
+                            for (var s = 0; s <= 40 && end == null; s++)
+                            {
+                                var p = Vector3.Lerp(points[k], points[k + 1], s / 40f);
+                                if (Vector3.Distance(p, at) <= reach)
+                                    end = p;
+                            }
+                        if (end is not { } stop)
+                            continue;
+                        var across = Vector3.Normalize(new Vector3(at.Z - stop.Z, 0, stop.X - at.X));
+                        var unseen = (npcs[i].DbId == G.Vargo ? new[] { 0f, -1f, 1f, -2f, 2f } : new[] { 0f }).Select(side => stop + across * side)
+                            .Select(stand => nav.GroundHeight(stand + new Vector3(0, 1, 0)) is { } y && MathF.Abs(y - stop.Y) <= 0.6f ? stand with { Y = y } : (Vector3?)null)
+                            .Where(stand => stand != null && !Seen(i, stand.Value)).FirstOrDefault();
+                        if (unseen is { } stand)
+                        {
+                            failures.Add(FormattableString.Invariant($"pool {npcs[i].DbId} from {label}: not seen at ({stand.X:0.0}, {stand.Y:0.0}, {stand.Z:0.0}), {reach} m off"));
+                            break;
+                        }
+                    }
+                }
+            }
+            Assert.IsGreaterThanOrEqualTo(npcs.Count, walked, "walks to the NPCs");
+
+            Assert.IsEmpty(failures, string.Join("; ", failures));
+        }
+
+        /// <summary>
+        /// To-fix row 44: the navmesh walk between two Warden Bot pools passed 5.3 m from the Chaukas Robotics Facility door
+        /// (map link 98, r6), and a player who hunted between them went through it; a Warden Bot also chased the player from
+        /// its pool to the door. For each Crucible objective with markers on hostile pools (a pool centre within 0.5 m of a
+        /// marker centre), every navmesh walk between two of its pools, and from the Awol Camp and Labbna waypoints to each pool
+        /// of 1147, 1202, 1203 and 1204, keeps WalkClearance or more outside every enabled map link's circle on the Crucible;
+        /// and each pool of those four missions has its circle MaxChaseDistance and WalkClearance outside every link's circle, so a
+        /// creature that follows a fight as far from home as it can still stops WalkClearance short of a door.
+        /// </summary>
+        [TestMethod]
+        public void NoWalkBetweenTheBotPoolsOfAnObjectivePassesAMapLink()
+        {
+            const float WalkClearance = 10;
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var crucible = CrucibleOutpostIntrepidTests.EnterCrucible(harness);
+            var nav = crucible.NavMesh;
+            var links = harness.World.Set<MapLinkEntry>().AsNoTracking().Where(link => link.Enabled != 0 && link.MapContextId == Map).ToList();
+            float LinkGap(Vector3 at) => links.Min(link => Vector2.Distance(new(at.X, at.Z), new((float)link.PosX, (float)link.PosZ)) - (float)link.Radius);
+            bool Hostile(uint creature) => CreatureManager.Instance.LoadedCreatures.TryGetValue(creature, out var c) && c.TargetCategory == TargetCategory.Hostile;
+            var hostiles = SpawnPoolManager.Instance.LoadedSpawnPools.Values.Where(pool => pool.MapContextId == Map && pool.SpawnSlot.Count > 0 &&
+                pool.SpawnSlot.TrueForAll(slot => Hostile(slot.CreatureId))).ToList();
+            var markers = harness.World.MissionIndicatorEntries.AsNoTracking().Where(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision).ToList();
+            var groups = markers.GroupBy(marker => (marker.MissionId, marker.ObjectiveId)).Select(group => (group.Key, Pools: hostiles.Where(pool =>
+                group.Any(marker => Vector2.Distance(new((float)marker.PosX, (float)marker.PosZ), new(pool.Position.X, pool.Position.Z)) < 0.5f)).ToList()))
+                .Where(group => group.Pools.Count > 0).ToList();
+            var chaukas = new uint[] { CrucibleGameWardensV1.MissionId, CrucibleArchitectsOfDestructionV1.MissionId, CrucibleSalvageDutyV1.MissionId,
+                CrucibleSalvageDutyV1.MoreMissionId };
+            CollectionAssert.IsSubsetOf(chaukas, groups.Select(group => group.Key.MissionId).Distinct().ToArray(), "the four missions' markers are on their pools");
+            Assert.AreEqual(3 * 3 + 2 * 5 + 3 * 5 + 4, groups.Where(group => chaukas.Contains(group.Key.MissionId)).Sum(group => group.Pools.Count),
+                "1147's three objectives on the three Warden Bot pools, 1203's two and 1204's three on the five bot pools, 1202's on the four Reconstructor pools");
+
+            var failures = new List<string>();
+            void Walk(string label, Vector3 from, Vector3 to)
+            {
+                var path = nav.FindPath(nav.Nearest(from) ?? from, nav.Nearest(to) ?? to, out var complete);
+                if (path == null || !complete)
+                {
+                    failures.Add($"{label}: no walk");
+                    return;
+                }
+                var points = path.Prepend(nav.Nearest(from) ?? from).ToList();
+                for (var k = 0; k + 1 < points.Count; k++)
+                    for (var s = 0; s <= 40; s++)
+                    {
+                        var at = Vector3.Lerp(points[k], points[k + 1], s / 40f);
+                        if (LinkGap(at) < WalkClearance)
+                        {
+                            failures.Add(FormattableString.Invariant($"{label} passes ({at.X:0.0}, {at.Y:0.0}, {at.Z:0.0}), {LinkGap(at):0.0} m outside a link's circle"));
+                            return;
+                        }
+                    }
+            }
+            var walks = 0;
+            foreach (var ((mission, objective), pools) in groups)
+                for (var a = 0; a < pools.Count; a++)
+                    for (var b = a + 1; b < pools.Count; b++, walks++)
+                        Walk($"{mission}.{objective} pool {pools[a].DbId} to {pools[b].DbId}", pools[a].Position, pools[b].Position);
+            foreach (var pool in groups.Where(group => chaukas.Contains(group.Key.MissionId)).SelectMany(group => group.Pools).Distinct())
+            {
+                Walk($"the Awol Camp waypoint to pool {pool.DbId}", AwolCampWaypoint, pool.Position);
+                Walk($"the Labbna waypoint to pool {pool.DbId}", CrucibleOutpostIntrepidTests.LabbnaWaypoint, pool.Position);
+                walks += 2;
+                if (LinkGap(pool.Position) - pool.Radius < BehaviorManager.MaxChaseDistance + WalkClearance)
+                    failures.Add(FormattableString.Invariant($"pool {pool.DbId}: its circle {LinkGap(pool.Position) - pool.Radius:0.0} m outside a link's circle"));
+            }
+            Assert.IsGreaterThanOrEqualTo(3 * 3 + 2 * 10 + 3 * 10 + 6 + 14, walks, "the walks between the pools and from the waypoints");
+            Assert.IsEmpty(failures, string.Join("; ", failures));
+        }
+
+        /// <summary>The Awol Camp waypoint (as CrucibleWardensAndLashersTests.AwolWaypoint).</summary>
+        internal static readonly Vector3 AwolCampWaypoint = new(-945.54f, 309.45f, 244.47f);
 
         /// <summary>
         /// To-fix rows 32 and 35: the real client fell through two holes in the y 196.7 floor of Staal (the panopticon room; our
@@ -445,7 +614,10 @@ namespace Rasa.Test.Missions.Crucible
                 .Select(pool => (Label: $"pool {pool.Pool}", Id: pool.Pool, At: new Vector3((float)pool.At.X, (float)pool.At.Y, (float)pool.At.Z))).ToList();
             Assert.HasCount(3 + 2 + 3 + 2 + 1 + 4 + 3 + 2 + 1, pools,
                 "set 3's, set 4's and set 5's pools, Derge and the four Flaregasher pools 20271108000300 moved");
-            var radii = harness.World.SpawnPoolEntries.AsNoTracking().Where(pool => pool.MapContextId == Map).ToDictionary(pool => pool.Id, pool => (float)pool.Radius);
+            // Where each stands now: a later fix (20271108000800) moved some of them.
+            var rows = harness.World.SpawnPoolEntries.AsNoTracking().Where(pool => pool.MapContextId == Map).ToDictionary(pool => pool.Id);
+            pools = pools.Select(pool => (pool.Label, pool.Id, At: new Vector3((float)rows[pool.Id].PosX, (float)rows[pool.Id].PosY, (float)rows[pool.Id].PosZ))).ToList();
+            var radii = rows.ToDictionary(row => row.Key, row => (float)row.Value.Radius);
             var links = harness.World.Set<MapLinkEntry>().AsNoTracking().Where(link => link.Enabled != 0 && link.MapContextId == Map).ToList();
             var near = new List<string>();
             foreach (var (label, id, at) in pools)

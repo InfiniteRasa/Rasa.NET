@@ -187,6 +187,7 @@ namespace Rasa.Test.World
                 .Concat(Rasa.Services.Preloader.Missions.Crucible.CrucibleOutpostIntrepidNpcsV1.Moves.Select(move => move.Pool))
                 .Concat(Rasa.Services.Preloader.Missions.Crucible.CrucibleGrupaChiefsNpcsV1.Moves.Select(move => move.Pool))
                 .Concat(Rasa.Services.Preloader.Missions.Crucible.CrucibleStaalWalksV1.Moves.Select(move => move.Pool))
+                .Concat(Rasa.Services.Preloader.Missions.Crucible.CrucibleWardenPoolsAndVargoV1.Moves.Select(move => move.Pool))
                 .Concat(Rasa.Services.Preloader.Missions.Crucible.CrucibleAwolCampNpcsV1.Moves.Select(move => move.Pool)).ToArray());
 
             // The vendor of Torcastra Prison was 5.69 m over the floor of the hall; Private
