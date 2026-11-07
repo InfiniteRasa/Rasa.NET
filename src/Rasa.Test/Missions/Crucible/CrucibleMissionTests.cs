@@ -50,15 +50,16 @@ namespace Rasa.Test.Missions.Crucible
         /// Departed's one round the fallen (hidden 22 has none); A Fort Called Intrepid's one at the terminal; The Wire's five,
         /// one at each NPC; The Boss Of All Bosses' two, at Lohen and the lower office teleporter; The Protection Racket's six,
         /// one at each merchant, one at Roscoe and one at Vargo for his money; Smoking Guns' three, one at each receiver;
-        /// Junkyard Dogs' three, one at each Flaregasher pool by the Staal Junkyard; Game Wardens' three, one per part round
-        /// the Warden Bot pools; Whiplash's two, one at each Lasher pool; Earning Respect's eight, one at each Grupa for his
+        /// Junkyard Dogs' three, one at each Flaregasher pool before the Staal Junkyard bridge; Game Wardens' nine, one per part
+        /// on each Warden Bot pool (20271108000300); Whiplash's two, one at each Lasher pool; Earning Respect's eight, one at each Grupa for his
         /// talk and one for his token; Business Proposal's one at DeLisi.
         /// </summary>
-        internal const int Indicators = 8 + 2 + 6 + 3 + 3 + 3 + 2 + 8 + 1;
+        internal const int Indicators = 8 + 2 + 6 + 3 + 3 + 9 + 2 + 8 + 1;
 
         private const string OutpostIntrepid = "20271108000000_Crucible_outpost_intrepid";
         private const string GrupaChiefs = "20271108000100_Crucible_grupa_chiefs";
         private const string WardensAndLashers = "20271108000200_Crucible_wardens_and_lashers";
+        private const string JunkyardDogsMarkers = "20271108000300_Crucible_junkyard_dogs_markers";
 
         private const uint Shandy = 770000, Mullins = 770001, Munit = 770002;
         private const uint DeLisi = 510019, Drake = 510034, Vitto = 510027, Donal = 510037, Rigs = 510025, DAmbrose = 510023;
@@ -314,12 +315,13 @@ namespace Rasa.Test.Missions.Crucible
             using var harness = WildernessRuntimeTestHarness.Create();
             var evidence = harness.World.MissionEvidenceEntries.AsNoTracking()
                 .Where(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision).ToArray();
+            // 20271108000300 (to-fix rows 23-25) adds a reconstruction of the new marker places to 1147 and 1149.
             foreach (var mission in MissionIds)
                 CollectionAssert.AreEqual(new[]
                     {
                         (MissionEvidenceSourceKind.Client, 1.0), (MissionEvidenceSourceKind.Documentation, 0.5),
                         (MissionEvidenceSourceKind.Reconstruction, 0.3)
-                    },
+                    }.Concat(mission is 1147 or 1149 ? new[] { (MissionEvidenceSourceKind.Reconstruction, 0.3) } : []).ToArray(),
                     evidence.Where(entry => entry.MissionId == mission).OrderBy(entry => entry.EvidenceId)
                         .Select(entry => (entry.SourceKind, entry.Confidence)).ToArray(), $"{mission} evidence");
         }
@@ -423,8 +425,10 @@ namespace Rasa.Test.Missions.Crucible
                 (1146, 1, -197, 319, 8), (1146, 2, -174.3, 280.2, 8), (1146, 3, -192.5, 264.2, 8), (1146, 4, -153.7, 346.9, 8),
                 (1146, 5, -214, 258, 15), (1146, 6, -192.5, 264.2, 8),                    // Bunko, Cugin, Vargo, Yeg, Roscoe, Vargo
                 (1148, 1, 959, 111, 8), (1148, 2, -400, 270, 8), (1148, 3, -945.9, 246.9, 8), // Fiorella, Haggus, Melching
-                (1149, 1, -492.1, -149.1, 25), (1149, 1, -533.2, -251.1, 25), (1149, 1, -432.8, -56.4, 25),  // the Flaregasher pools
-                (1147, 1, -533.6, 563.3, 55), (1147, 2, -533.6, 563.3, 55), (1147, 3, -533.6, 563.3, 55),    // round the Warden Bots
+                (1149, 1, -452, 58, 25), (1149, 1, -518, 64, 25), (1149, 1, -380, 46, 25),                  // the Flaregasher pools
+                (1147, 1, -528.6, 546.6, 20), (1147, 1, -493.6, 581.6, 20), (1147, 1, -578.6, 561.6, 20),     // the Warden Bot pools
+                (1147, 2, -528.6, 546.6, 20), (1147, 2, -493.6, 581.6, 20), (1147, 2, -578.6, 561.6, 20),
+                (1147, 3, -528.6, 546.6, 20), (1147, 3, -493.6, 581.6, 20), (1147, 3, -578.6, 561.6, 20),
                 (1157, 1, -785, 390, 20), (1157, 1, -790, 420, 20),                                          // the Lasher pools
                 (1170, 1, -215, 205, 8), (1170, 2, -215, 205, 8), (1170, 3, -300, 320, 8), (1170, 4, -300, 320, 8),
                 (1170, 5, -216, 472, 8), (1170, 6, -216, 472, 8), (1170, 7, -392.77, 276.23, 8), (1170, 8, -392.77, 276.23, 8),
@@ -437,10 +441,10 @@ namespace Rasa.Test.Missions.Crucible
                     $"{mission} objective {objective}'s marker at ({x}, {z}) radius {radius}");
             Assert.HasCount(Indicators, rows);
 
-            // The Warden Bot pools inside 1147's marker, by their radius; the fallen inside their marker, 10 m in from its edge.
-            foreach (var (_, at) in CrucibleWardensAndLashersNpcsV1.WardenPools)
-                Assert.IsLessThan(55f - CrucibleWardensAndLashersNpcsV1.PoolRadius, Vector2.Distance(new((float)at.X, (float)at.Z), new(-533.6f, 563.3f)),
-                    $"a Warden Bot pool at ({at.X}, {at.Z}) in the marker");
+            // The moved Flaregasher pools under 1149's markers; the fallen inside their marker, 10 m in from its edge.
+            foreach (var (pool, _, now) in CrucibleMarkersClearOfLinksV2.Pools.Take(3))
+                Assert.IsTrue(rows.Any(row => row.MissionId == 1149 && Vector2.Distance(new((float)row.PosX, (float)row.PosZ), new((float)now.X, (float)now.Z)) < 0.1f),
+                    $"pool {pool} under a marker");
             foreach (var at in CrucibleDepartedV1.CorpsesAt)
                 Assert.IsLessThan(CrucibleDepartedV1.FieldRadius - 10, Vector2.Distance(new(at.X, at.Z), new(802.3f, 570f)), $"a corpse at ({at.X}, {at.Z}) in the marker");
         }
@@ -639,6 +643,55 @@ namespace Rasa.Test.Missions.Crucible
             Assert.IsTrue(MissionIds.All(Has));
             Assert.AreEqual(AllRows, Rows(world));
             Assert.AreEqual(6, Pools());
+        }
+
+        /// <summary>
+        /// Crucible_junkyard_dogs_markers (to-fix rows 23-25) puts the four Flaregasher pools and the markers of 1149 and 1147
+        /// back at set 2's and set 3's values, and takes out 1147's six new markers and the two evidence rows; Up again, the
+        /// new values are back.
+        /// </summary>
+        [TestMethod]
+        public void JunkyardDogsMarkersRollBackWithTheirMigration()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            List<(uint, uint, double, double, double, double)> Markers(uint mission) => world.MissionIndicatorEntries.AsNoTracking()
+                .Where(entry => entry.MissionId == mission && entry.ContentRevision == CrucibleMissionDataV1.Revision).AsEnumerable()
+                .Select(entry => (entry.ObjectiveId, entry.IndicatorId, entry.PosX, entry.PosY, entry.PosZ, entry.Radius))
+                .OrderBy(entry => entry.ObjectiveId).ThenBy(entry => entry.IndicatorId).ToList();
+            int Evidence() => world.MissionEvidenceEntries.AsNoTracking().Count(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision &&
+                (entry.MissionId == 1147 || entry.MissionId == 1149) && entry.EvidenceId == 4);
+            void AssertNow()
+            {
+                foreach (var (pool, _, now) in CrucibleMarkersClearOfLinksV2.Pools)
+                    Assert.AreEqual(now, At(world, pool), $"pool {pool} at its new place");
+                CollectionAssert.AreEqual(CrucibleMarkersClearOfLinksV2.GasherMarkers.Select(marker => (1U, marker.Indicator, marker.At.X, marker.At.Y, marker.At.Z, 25.0)).ToList(),
+                    Markers(1149), "1149's markers on the moved pools");
+                CollectionAssert.AreEqual(CrucibleMarkersClearOfLinksV2.WardenMarkers.Select(marker => (marker.Objective, marker.Indicator, marker.At.X, marker.At.Y, marker.At.Z, 20.0))
+                    .OrderBy(entry => entry.Objective).ThenBy(entry => entry.Indicator).ToList(), Markers(1147), "1147's nine markers");
+                Assert.AreEqual(2, Evidence());
+            }
+
+            AssertNow();
+            Assert.AreEqual(WardensAndLashers, Previous(world, JunkyardDogsMarkers), "the fix follows set 3");
+            world.GetService<IMigrator>().Migrate(Previous(world, JunkyardDogsMarkers));
+            world.ChangeTracker.Clear();
+            foreach (var (pool, before, _) in CrucibleMarkersClearOfLinksV2.Pools)
+                Assert.AreEqual(before, At(world, pool), $"pool {pool} back at its upstream place");
+            CollectionAssert.AreEqual(new List<(uint, uint, double, double, double, double)>
+            {
+                (1, 1000000001, -492.1, 236.9, -149.1, 25), (1, 1000000002, -533.2, 236.9, -251.1, 25), (1, 1000000003, -432.8, 236.9, -56.4, 25)
+            }, Markers(1149), "set 2's markers");
+            CollectionAssert.AreEqual(new List<(uint, uint, double, double, double, double)>
+            {
+                (1, 1000000001, -533.6, 249.7, 563.3, 55), (2, 1000000002, -533.6, 249.7, 563.3, 55), (3, 1000000003, -533.6, 249.7, 563.3, 55)
+            }, Markers(1147), "set 3's markers");
+            Assert.AreEqual(0, Evidence());
+            Assert.AreEqual(AllRows, Rows(world), "the sets' rows stay");
+
+            world.GetService<IMigrator>().Migrate(JunkyardDogsMarkers);
+            world.ChangeTracker.Clear();
+            AssertNow();
         }
 
         internal static List<(uint MissionId, Rasa.Missions.Content.MissionSceneDefinition Scene)> Scenes(WildernessRuntimeTestHarness harness) =>

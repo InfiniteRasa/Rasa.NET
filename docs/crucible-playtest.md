@@ -52,7 +52,7 @@ New local teleporters 909 (lower) and 910 (upper).
   sets flag 1144001. Turn in at Munit: 75000 XP, the Top Khana Syndicate Token (50316) and one of 19524, 25357. Abandon:
   the shipments go.
 - [ ] 1149 Junkyard Dogs (Ligo Crucible): Rigs offers it after 1161, level 40. Kill 20 Flare Gashers (any Flare Gasher
-  counts; markers at pools 540139-540141 by the Staal Junkyard door). Turn in at Rigs: 75000 XP, the Labbna Syndicate
+  counts; markers at pools 540139-540141 before the Staal Junkyard bridge, clear of the door). Turn in at Rigs: 75000 XP, the Labbna Syndicate
   Token (50317) and one of 20355, 28634, 33193, 35591.
 
 Set 3, wardens and lashers (migration `20271108000200_Crucible_wardens_and_lashers`). New NPC 770006 (Halprin), new
@@ -61,7 +61,8 @@ creatures 770007 (Warden Bot Screw) and 770008 (Lasher, attack 770008), new pool
 
 - [ ] 1147 Game Wardens (Ligo Crucible): Viddia Grupa Donal (-216, 195.7, 472) offers it after 1161, level 35. Three
   Warden Bot pools (770009-770011, three Warden Bot Screws each, level 35, hostile) 35-54 m round the Chaukas Robotics
-  Facility door (-528.6, 249.4, 581.6); one marker per objective round them (radius 55). Each bot drops a Power Supply
+  Facility door (-528.6, 249.4, 581.6); for each objective a marker on each pool (radius 20, clear of the door; fix
+  20271108000300, to-fix row 25). Each bot drops a Power Supply
   (50222) at 50 %, a Neural Processor (50220) at 50 %, a Servo-Motor (50221) at 75 %, until 10/10/15. Turn in at Donal:
   75000 XP, the Viddia Syndicate Token (50315) and one of 19395, 39061; he takes the parts. Abandon: the parts stay. Look:
   can a player walk from the Awol Camp (or the Labbna Quarter) to the door (to-fix rows 15, 21)? The bots must not attack
@@ -123,8 +124,11 @@ All ESTIMATE (set 2):
   (24864-24868) are not used.
 - 1148: receiver Munit. The three shipments at the accept, delivered in any order. Melching's variant by flag 1144001:
   1 "ratted out" (177), 2 "helped" (178), other values or unset "neither" (203). Set 6 (1144) must set this flag.
-- 1149: any Flare Gasher counts (creature flag 85, as Targets of Opportunity 1589). Markers at the three pools by the
-  Staal Junkyard door.
+- 1149: any Flare Gasher counts (creature flag 85, as Targets of Opportunity 1589). Markers at the three pools before the
+  Staal Junkyard bridge. Fix 20271108000300 (to-fix rows 23, 24): upstream pool 540139 stood on the junkyard door (map
+  link 96) and 540140, 540141 off the navmesh; the three pools and markers are now on the plateau north of the bridge
+  (-452, 249.56, 58), (-518, 250.21, 64), (-380, 248.05, 46), 190 m or more from the door (ESTIMATE, navmesh probe).
+  Upstream pool 540144 moved off the Thunderhead border link 94 to (-841, 285.48, 674).
   Roscoe (1146, class 7338, flag 85) is a Flare Gasher too: with 1149 open, his kill counts 1 of the 20.
 - Melching and Vargo are not moved (their upstream places pass the probe).
 

@@ -253,6 +253,95 @@ namespace Rasa.Test.Missions.Crucible
         }
 
         /// <summary>
+        /// To-fix rows 23 and 25: a player or bot that hunts inside a marker that holds a map link walks into the link (1149's
+        /// marker on the Staal Junkyard door moved the bot into instance 2138 nine times). Every Crucible marker of every set has
+        /// a map (MissionMarkerProjection.ResolveMap), and its circle stays MarkerClearance or more outside every enabled map
+        /// link's circle on that map.
+        /// </summary>
+        [TestMethod]
+        public void NoCrucibleMarkerCircleTouchesAMapLinkCircle()
+        {
+            const float MarkerClearance = 5;
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var catalog = new MissionContentCatalog(harness, new Dictionary<uint, Mission>(), null);
+            catalog.Load();
+            var links = harness.World.Set<MapLinkEntry>().AsNoTracking().Where(link => link.Enabled != 0).ToList();
+            var markers = harness.World.MissionIndicatorEntries.AsNoTracking().Where(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision).ToList();
+            Assert.HasCount(CrucibleMissionTests.Indicators, markers, "the Crucible markers");
+            var near = new List<string>();
+            foreach (var marker in markers)
+            {
+                var map = MissionMarkerProjection.ResolveMap(catalog, marker.MissionId, marker.ObjectiveId, new MissionIndicator { IndicatorId = marker.IndicatorId });
+                Assert.AreNotEqual(0U, map, $"{marker.MissionId}.{marker.ObjectiveId}/{marker.IndicatorId} has a map");
+                foreach (var link in links.Where(link => link.MapContextId == map))
+                {
+                    var gap = Vector2.Distance(new((float)marker.PosX, (float)marker.PosZ), new((float)link.PosX, (float)link.PosZ)) -
+                              (float)marker.Radius - (float)link.Radius;
+                    if (gap < MarkerClearance)
+                        near.Add(FormattableString.Invariant($"{marker.MissionId}.{marker.ObjectiveId}/{marker.IndicatorId} {gap:F1} m outside link {link.Id}"));
+                }
+            }
+            Assert.IsEmpty(near, string.Join(", ", near));
+        }
+
+        /// <summary>
+        /// To-fix rows 23 and 25: Junkyard Dogs (1149) counts a Flaregasher killed anywhere, so each Crucible Flaregasher pool
+        /// (World DB, upstream's and the ones 20271108000300 moved) is a hunting place: its circle stands ReachClearance or more
+        /// outside every enabled map link's circle on the Crucible, and none stands where a player arrives.
+        /// </summary>
+        [TestMethod]
+        public void TheFlareGasherPoolsStandClearOfTheMapLinks()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var links = harness.World.Set<MapLinkEntry>().AsNoTracking().Where(link => link.Enabled != 0 && link.MapContextId == Map).ToList();
+            var gasher = G.Flaregasher;
+            var pools = harness.World.SpawnPoolEntries.AsNoTracking().Where(pool => pool.MapContextId == Map && (pool.Creature1Id == gasher ||
+                pool.Creature2Id == gasher || pool.Creature3Id == gasher || pool.Creature4Id == gasher || pool.Creature5Id == gasher || pool.Creature6Id == gasher)).ToList();
+            Assert.HasCount(13, pools, "the Crucible's Flaregasher pools");
+            var near = new List<string>();
+            foreach (var pool in pools)
+                foreach (var link in links)
+                {
+                    var gap = Vector2.Distance(new((float)pool.PosX, (float)pool.PosZ), new((float)link.PosX, (float)link.PosZ)) - (float)link.Radius - (float)pool.Radius;
+                    if (gap < MarshesNpcsStandStillV1.ReachClearance)
+                        near.Add(FormattableString.Invariant($"pool {pool.Id} {gap:F1} m outside link {link.Id}"));
+                }
+            Assert.IsEmpty(near, string.Join(", ", near));
+        }
+
+        /// <summary>
+        /// To-fix row 24: 1149's markers stood off the navmesh. Every Crucible marker on the Crucible has its centre on the
+        /// navmesh (ground at most MarkerHeight from its y) and on a client floor (a walkable surface at most MarkerHeight
+        /// under it).
+        /// </summary>
+        [TestMethod]
+        public void EveryCrucibleMarkerStandsOnTheNavmeshAndAClientFloor()
+        {
+            const float MarkerHeight = 2;
+            var dataDir = F.ClientData();
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var crucible = CrucibleOutpostIntrepidTests.EnterCrucible(harness);
+            var markers = harness.World.MissionIndicatorEntries.AsNoTracking().Where(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision).ToList()
+                .Select(marker => (Label: $"{marker.MissionId}.{marker.ObjectiveId}/{marker.IndicatorId}", At: new Vector3((float)marker.PosX, (float)marker.PosY, (float)marker.PosZ)))
+                .ToList();
+            Assert.HasCount(CrucibleMissionTests.Indicators, markers, "the Crucible markers, all on the Crucible (CrucibleMissionTests)");
+            using var meshes = new MeshLibrary(dataDir, F.MeshCsv());
+            var geometry = MapGeometry.Load(Path.Combine(dataDir, "maps", MapName(harness)), meshes, 1);
+            var (floors, _) = F.Surfaces(geometry, markers.Select(marker => (marker.At + new Vector3(0, MarkerHeight - F.MaxUnder, 0), F.Walkable)).ToList());
+            var failures = new List<string>();
+            for (var i = 0; i < markers.Count; i++)
+            {
+                var (label, at) = markers[i];
+                var ground = crucible.NavMesh.GroundHeight(at + new Vector3(0, MarkerHeight, 0));
+                if (ground is not { } y || MathF.Abs(y - at.Y) > MarkerHeight)
+                    failures.Add(FormattableString.Invariant($"{label} at ({at.X}, {at.Y}, {at.Z}): navmesh {ground}"));
+                if (at.Y - floors[i] > MarkerHeight)
+                    failures.Add(FormattableString.Invariant($"{label} at ({at.X}, {at.Y}, {at.Z}): client floor {floors[i]}"));
+            }
+            Assert.IsEmpty(failures, string.Join("; ", failures));
+        }
+
+        /// <summary>
         /// Set 3's new hostile pools (the Warden Bots by the Chaukas Robotics Facility's door, the Lashers north-east of the Awol
         /// Camp): each centre on a client floor (a walkable surface at most MaxOver under it, none just over it), and its circle
         /// ReachClearance or more outside every enabled map link's circle, so that a player who comes out of the facility is

@@ -483,8 +483,20 @@ namespace Rasa.Test.Missions.Crucible
                 offer.FixedReward.FixedItems.Select(item => item.ItemTemplateId).ToArray(), "the Labbna token with every choice");
             Accept(harness, rigs, Dogs);
             Assert.IsEmpty(Topics(harness, rigs, Dogs), "Rigs hears no objective");
+            // To-fix rows 23 and 24: on the Crucible the client gets objective 1's three markers, on the moved pools before the
+            // bridge, each clear of the Staal Junkyard door (map link 96).
+            var markers = harness.Manager.BuildStatusSnapshot(harness.Client.Player)[Dogs].ObjectivesList
+                .Single(objective => objective.ObjectiveId == CrucibleJunkyardDogsV1.Kill).IndicatorList;
+            CollectionAssert.AreEqual(CrucibleMarkersClearOfLinksV2.GasherMarkers.Select(marker => marker.Indicator).ToArray(),
+                markers.Select(marker => marker.IndicatorId).ToArray(), "objective 1's markers");
+            foreach (var marker in markers)
+            {
+                Assert.AreEqual(CrucibleMissionDataV1.MapContextId, marker.MapContextId);
+                Assert.IsGreaterThan(CrucibleMarkersClearOfLinksV2.GasherMarkerRadius + 6 + 5,
+                    Vector2.Distance(new(marker.Position.X, marker.Position.Z), new(-492.13f, -149.06f)), $"marker {marker.IndicatorId} clear of the door");
+            }
 
-            var pools = CrucibleJunkyardDogsV1.Pools.Select(pool => pool.Pool).ToArray();
+            var pools = CrucibleMarkersClearOfLinksV2.Pools.Take(3).Select(pool => pool.Pool).ToArray();
             Spawn(crucible, pools);
             var completed = 0;
             var completeable = 0;
