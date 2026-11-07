@@ -22,7 +22,7 @@ namespace Rasa.Services.Preloader.Missions.Crucible
     /// Reconstructed (ESTIMATE):
     ///  - The mines the new Smart Mines 770014 (a copy of the Necromite, CrucibleMinefieldAndSalvageNpcsV1) in pools
     ///    770014-770016; a kill of one counts (CreatureKilled, counter 0, 20), the mine's self-destruct on the player too
-    ///    (CreatureBombs: the kill is its target's). They stand on the sand, not buried (no mechanic buries them).
+    ///    (CreatureBombs: the kill is its target's). They lie buried until a player comes near (MawLurk, as the Maws).
     ///  - The items the lowest Uncommon templates of the kinds and icon numbers in the band of level 40: Mech V03 Boots
     ///    33342, Stealth V02 Boots 38823, Graviton V04 Legs 25248, Motor Assist V06 Helmet 30474; one to choose. A marker
     ///    (radius 20) on each mine pool.

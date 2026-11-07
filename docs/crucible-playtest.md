@@ -211,8 +211,10 @@ All ESTIMATE (set 4):
 - 1145: no failure for being caught with the wire.
 - 1148: until Calendar Girl (1144) is built, every player hears Melching's "neither" text (203).
 - 1170: a token objective reads the Grupa's mission as completed, not the token in the bag (to-fix row 20).
-- 1232: the Smart Mines stand visible on the sand; the client says they stay buried until a player comes near (to-fix row
-  28; a burying change for them follows).
+- 1232: the Smart Mines lie buried until a player is about 8 m off (ESTIMATE, no source gives the range), then come up
+  with their own birth (155/7528) and fight (MawLurk, as the Maws). They go down again with the Maw's despawn (424/1), as
+  the client has no despawn for them: check in the real client that a mine shows when it comes up and is hidden when it
+  goes down.
 - 1241: Derge stands on the rampart; his patrol is not built.
 - 1203, 1204: the Reconstructor Bot only shoots: no heal, no shield drain, no micromech clone (TaRapedia).
 

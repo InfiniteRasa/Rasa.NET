@@ -42,8 +42,8 @@ namespace Rasa.Services.Preloader.Missions.Crucible
     ///    points and armour 150 (a mine "shot out of the air"); its weapon 1/109 and its self-destruct 489 (the client's
     ///    "detonate") at about a quarter of the Necromite's damage (TaRapedia "very little damage"): 80-120 and 150-300, damage_type 0
     ///    so that the client decides the kind (CreatureWeaponDamage 1/109 Physical; the ability data for 489). No corpse
-    ///    explosion. It stands on the sand: no new code buries it (MawLurk buries only the Maw classes; see the triage
-    ///    "Mechanics check").
+    ///    explosion. It lies buried in the sand until a player is about 8 m off (ESTIMATE), then comes up with its own
+    ///    CREATURE_BIRTH 155/7528: MawLurk.Classes (code, not data; a summoned Necromite has a master and does not lurk).
     ///  - The Reconstructor Bot a new row of class 6960 at level 35 (the level of 1147, the Warden Bot Screw's), name 8033
     ///    "Reconstructor Bot Laborer" (the rank of the Screw, 8045, in the Reconstructor list), 4970 hit points and armour
     ///    247 (the Screw's), one attack 1/152, reach 1-40 m, 1500 ms, damage 77-115 (the Screw's laser per second, 1.5 s),
