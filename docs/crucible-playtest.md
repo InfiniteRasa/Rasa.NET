@@ -247,6 +247,33 @@ Prometheus Outpost waypoint (435, 168.05, 407): the walks from the Fort and Outp
 Fix job G (migration `20271108001200_Crucible_fix_g`, to-fix row 61): Shield Drone pool 770026 (1208) is a point
 (radius 0): its drones stand within 6.6 m of (535, 172.92, 80), none on the lava 46 m north of it.
 
+Set 8b, Khulago Base for Larai Zupa Madias (migration `20271108001300_Crucible_prometheus_outpost`). New creatures 770041
+Juggernaut (class 7722, level 42) and 770042 Maxxum Ugoretz (name 9317, level 43); attacks 770041, 770042; pools
+770041-770044; next free id 770045. Walk to Khulago Base by Confirmed Kills' north trench marker (388, 166.71, -26).
+
+- [ ] To-fix row 62 (look): walk from the Prometheus Outpost waypoint (435, 168.05, 407) to the north trench marker
+  (388, 166.71, -26) as the navmesh does. It passes (399, 168.84, 267.3), over a lava lake at y 164.09 (lakes at x
+  380-384 and 398-412 on z 267.3). Watch for Fire hits (a navmesh walk over lava, as row 59) or a bridge (no hits).
+
+- [ ] 1213 Iron Giants (Ligo Crucible): Madias offers it after 1212, level 35. 1 Destroy 6 Juggernauts: counter
+  "Juggernauts Destroyed" n/6. Two Juggernauts in each of three pools in front of Khulago Base, (383, 174.41, -185),
+  (440, 175.5, -190), (310, 175.18, -230), 120 s respawn; a marker r15 on each. A kill before the accept does not count.
+  Turn in at Madias: 170000 XP, 8000 credits, one of 47648, 14855, 119370, 14774. Look: the client shows the name
+  "Juggernaut" over them (class name, row name 0). If it shows no name or another one, the fallback is name 10757
+  "Juggernaut Aggressor" (the Devil's Den row's). No navmesh lava within 80 m of the pools.
+- [ ] 1215 Who's In Charge Here? (Ligo Crucible): Madias offers it after 1213, level 35. The accept gives the Viddia
+  Syndicate Hacking Program (96429). 1 Hack the Bane Computer: talk to the player's own Bane CommLink Terminal (class
+  10519) at (390, 174.28, -236), the mouth of the Bane tunnel piece that holds the client's console; marker r10. The talk
+  shows "Viddia hacking program uploading...", takes the program and opens 2; the terminal is swapped for the hacked one
+  in the same place. 2 Use the Hacked Computer: talk to it again ("Kuhlago Base Commander: Maxxum Ugoretz."); marker r10.
+  Turn in at Madias: 85000 XP, 6000 credits, one of 15582, 14691, 3853, 49136. Abandon: the terminal and the program go;
+  taken again, a new program and the first terminal. Look: can a player step into the tunnel to the client's console at
+  (360.7, 175.6, -236.2)? (Its floor is a navmesh island 1.4 m above the ground.)
+- [ ] 1216 The Big Kahuna (Ligo Crucible): Madias offers it after 1215, level 35. 1 Kill Maxxum Ugoretz: he stands alone
+  at (340, 165.12, -130), west of Khulago Base (TaRapedia's /loc), 50 s respawn, no navmesh lava within 80 m; marker r15
+  on him. A kill before the
+  accept does not count. Turn in at Madias: 85000 XP, 2000 credits, one of 47628, 120030, 47808, 48256.
+
 ## Assumptions and choices (not from a source)
 
 All ESTIMATE (set 1):
@@ -424,6 +451,19 @@ All ESTIMATE (set 8a):
   "Frag Grenade" read as Class VIII Fragmentation Grenade 45447). 1212 and 1218: TaRapedia's kinds and icon numbers, the
   lowest Uncommon template whose band holds the level (1218: Uncommon, not TaRapedia's purple with mods).
 
+All ESTIMATE (set 8b):
+- The Juggernaut: a new row of class 7722, level 42 (Khulago's Thrax), name 0 (the client's ranked Juggernaut names have
+  no level band in any source), 16700 HP and armor 300, and the Devil's Den Juggernaut's two attacks (1/180 at 480-720,
+  428/1 at 1080-1540): the Devil's Den Juggernaut to its Thrax as this one to the Crucible's Thrax 531018.
+- Ugoretz: a copy of Executioner Derge 520013 (class 10504, his six attacks), level 43, 10905 HP, armor 308 (as Molitor).
+- Positions: the three Juggernaut pools on the open ground in front of Khulago Base (no source gives them); Ugoretz at
+  TaRapedia's /loc on the navmesh, standing; the terminal at the tunnel mouth, not at the client's console.
+- 1215: the terminal is two actors (the first for 1, the hacked one for 2); the program at the accept.
+- 1216: 2000 credits (TaRapedia; TR MMO DB says 0).
+- Rewards: the lowest template of each kind whose Uncommon band holds level 35. 1215's Titan Cipher Tool: 3853
+  (Tool_Avatar_Cipher_35, quality 2: no Uncommon cipher tool exists). The RPG launcher (1215) and the Leech Gun (1216):
+  the names give no damage kind, physical taken.
+
 ## Deviations (client/server limits)
 
 - 1143: one counter of distinct corpses does the work of the client's twenty per-corpse objectives.
@@ -459,6 +499,12 @@ All ESTIMATE (set 8a):
   prerequisite.
 - 1218: after an abandon the offer comes back on the next arrival on the Crucible (leave and return, or relog).
 - 1212: a foot soldier killed anywhere counts (a kill objective takes no area), not only in the Khulago Base trenches.
+- 1215: the client's text says "Enter the Bane structure ... access the mainframe within"; the terminal stands at the
+  tunnel's mouth, as the server navmesh does not reach the console inside.
+- 1216: Ugoretz stands; his patrol ("patrolling the northwest area", TaRapedia) is not built.
+- 1215 (as 1538's keycard, row 55): the program is a mission item: a destroy, sale or trade of it is refused while 1215
+  is held, so it cannot be lost before the hack. Should it be gone anyway (a GM removal), the hack cannot be done:
+  abandon and accept again for a new program.
 
 - 1152 and 1153: the fork is built as designed (keep the secret fails 1152), not as the retail known issue (refusing
   completes 1153 and fails 1152).

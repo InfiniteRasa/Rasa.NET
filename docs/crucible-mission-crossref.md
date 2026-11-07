@@ -1,6 +1,6 @@
 # Ligo Crucible missions: sources (cross-reference)
 
-The 32 missions of the Ligo Crucible quest PR, taken from the full mission cross-reference of the 1.16.5.0
+The 35 missions of the Ligo Crucible quest PR, taken from the full mission cross-reference of the 1.16.5.0
 client. For each mission: the client text and objectives, the sources found (TaRapedia, TR MMO DB, Ellatha,
 Ten Ton Hammer, archived fan and official pages, patch notes) and a rebuild summary with the source of each
 value. Values without a source are marked ESTIMATE. "This PR" rows (where present) show the data this PR adds.
@@ -9,7 +9,7 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
 
 | Zone | Missions |
 | --- | ---: |
-| Crucible | 32 |
+| Crucible | 35 |
 
 ## Crucible
 
@@ -650,6 +650,90 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
   - Requires: Business Proposal (id 1229) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Confirmed_Kills)
   - Leads to: Iron Giants (id 1213) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Confirmed_Kills), [TaRapedia](https://tabularasa.fandom.com/wiki/Iron_Giants)
 - **TR MMO DB quest series:** "Confirmed Kills", row 1 of 4 ([list](https://web.archive.org/web/20120731162239/http://tr.mmodb.com/quests/seriesname-confirmed_kills/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+
+### 1213 — Iron Giants
+
+
+- **Rebuild summary:**
+  - level: 35 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731171503/http://tr.mmodb.com/quests/startingzone-crucible/)
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 170,000 XP; 8,000 credits; ChiTech Cryogenic Blade; ChiTech Incendiary Shotgun; Titan Radial Repair Tool; ChiTech EMP Rifle — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Iron_Giants)
+  - reward: 8000 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB quest series list](https://web.archive.org/web/20120731162239/http://tr.mmodb.com/quests/seriesname-confirmed_kills/)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Larai Zupa Madias: Mires, Control Point: Prometheus Outpost, /loc 378.9, 168.0, 367.6 — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Larai_Zupa_Madias)
+- **Client:** Zupa Madias challenges you to destroy six Bane Juggernauts at Khalago Base.
+  - objectives (client): Destroy 6 Juggernauts — Destroy six of the Bane Juggernauts defending Khalago Base.
+- **TaRapedia** [Iron Giants](https://tabularasa.fandom.com/wiki/Iron_Giants): giver: Larai Zupa Madias; at: Prometheus Outpost; zone: Crucible; requires: Confirmed Kills; follow-up: Who's In Charge Here?; XP: 170,000; credits: 8,000; items: ChiTech Cryogenic Blade; ChiTech Incendiary Shotgun; Titan Radial Repair Tool; ChiTech EMP Rifle
+  - overview: Zupa Madias challenges you to destroy six Bane Juggernauts at Khalago Base.
+  - objectives: • Destroy 6 Juggernauts • Destroy six of the Bane Juggernauts defending Khalago Base. • Juggernauts Destroyed x/6
+- **TaRapedia mission list** [Prometheus Outpost mission list](https://tabularasa.fandom.com/wiki/Prometheus_Outpost_mission_list): zone Crucible, area Prometheus Outpost, given by Larai Zupa Madias
+- **TR MMO DB quest series** [Confirmed Kills](https://web.archive.org/web/20120731162239/http://tr.mmodb.com/quests/seriesname-confirmed_kills/): Confirmed Kills (level 35, reward 8000) → Iron Giants (level 35, reward 8000) → The Big Kahuna (level 35, reward 0) → Who's In Charge Here (level 35, reward 6000) (series order as listed on the page; reward unit not stated)
+- **PlanetTR** [planettr.com:80/forums/archive/index.php/f-106-p-2.html](https://web.archive.org/web/20090116215358/http://planettr.com:80/forums/archive/index.php/f-106-p-2.html): “[ 2 ] / 3 / 4 / Glass reflection / Bug: Iron Giants quest / Rivasa Atta Colony / Getting stuck as a spy / Blue screen - not supported / 1.5.4.0 Glitches and Bugs (screenshots)”
+- **NPCs (TaRapedia NPC pages):**
+  - [Larai Zupa Madias](https://tabularasa.fandom.com/wiki/Larai_Zupa_Madias): Mires, Control Point: Prometheus Outpost, /loc 378.9, 168.0, 367.6 (NPC page lists this mission)
+
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 8
+  - Requires: Confirmed Kills (id 1212) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Confirmed_Kills), [TaRapedia](https://tabularasa.fandom.com/wiki/Iron_Giants)
+  - Leads to: Who's In Charge Here? (id 1215) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Iron_Giants), [TaRapedia](https://tabularasa.fandom.com/wiki/Who%27s_In_Charge_Here%3F)
+- **TR MMO DB quest series:** "Confirmed Kills", row 2 of 4 ([list](https://web.archive.org/web/20120731162239/http://tr.mmodb.com/quests/seriesname-confirmed_kills/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+
+### 1215 — Who's In Charge Here?
+
+
+- **Rebuild summary:**
+  - level: 35 — source: [TR MMO DB](https://web.archive.org/web/20090210203521/http://tr.mmodb.com:80/quests/whos-in-charge-here-622.php)
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 85,000 XP; 6,000 credits; Vextronics Electric Injector Gun; Vextronics Laser Rifle; Titan Cipher Tool; Teleract RPG Launcher — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Who%27s_In_Charge_Here%3F)
+  - reward: 6000 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20090210203521/http://tr.mmodb.com:80/quests/whos-in-charge-here-622.php)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Larai Zupa Madias: Mires, Control Point: Prometheus Outpost, /loc 378.9, 168.0, 367.6 — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Larai_Zupa_Madias)
+- **Client:** Enter the Bane structure at the heart of Khalago Base and access the mainframe within to identify the leader of the base.
+  - objectives (client): Hack the Bane Computer. — Hack a computer inside the main structure of Kuhlago Base.; Use the Hacked Computer. — Use the hacked computer to discover the name of the commander of Kuhlago Base.
+- **TaRapedia** [Who's In Charge Here?](https://tabularasa.fandom.com/wiki/Who%27s_In_Charge_Here%3F): giver: Larai Zupa Madias; at: Prometheus Outpost; zone: Crucible; requires: Iron Giants; follow-up: The Big Kahuna; XP: 85,000; credits: 6,000; items: Vextronics Electric Injector Gun; Vextronics Laser Rifle; Titan Cipher Tool; Teleract RPG Launcher
+  - overview: Enter the Bane structure at the heart of Khalago Base and access the mainframe within to identify the leader of the base.
+  - objectives: • Hack the Bane Computer • Hack a computer inside the main structure of Kuhlago Base. • Use the Hacked Computer • Use the hacked computer to discover the name of the commander of Khulago Base.
+- **TaRapedia mission list** [Prometheus Outpost mission list](https://tabularasa.fandom.com/wiki/Prometheus_Outpost_mission_list): zone Crucible, area Prometheus Outpost, given by Larai Zupa Madias
+- **TR MMO DB** [Who's In Charge Here](https://web.archive.org/web/20090210203521/http://tr.mmodb.com:80/quests/whos-in-charge-here-622.php): level: 35; starts at npc: Larai Zupa Madias; starts in zone: Crucible; objectives: Hack the Bane Computer, Use the Hacked Computer, Return to Larai Zupa Madias; reward: 6000; series: Confirmed Kills
+- **TR MMO DB quest series** [Confirmed Kills](https://web.archive.org/web/20120731162239/http://tr.mmodb.com/quests/seriesname-confirmed_kills/): Confirmed Kills (level 35, reward 8000) → Iron Giants (level 35, reward 8000) → The Big Kahuna (level 35, reward 0) → Who's In Charge Here (level 35, reward 6000) (series order as listed on the page; reward unit not stated)
+- **NPCs (TaRapedia NPC pages):**
+  - [Larai Zupa Madias](https://tabularasa.fandom.com/wiki/Larai_Zupa_Madias): Mires, Control Point: Prometheus Outpost, /loc 378.9, 168.0, 367.6 (NPC page lists this mission)
+
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 9
+  - Requires: Iron Giants (id 1213) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Iron_Giants), [TaRapedia](https://tabularasa.fandom.com/wiki/Who%27s_In_Charge_Here%3F)
+  - Leads to: The Big Kahuna (id 1216) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Big_Kahuna), [TaRapedia](https://tabularasa.fandom.com/wiki/Who%27s_In_Charge_Here%3F)
+- **TR MMO DB quest series:** "Confirmed Kills", row 4 of 4 ([list](https://web.archive.org/web/20120731162239/http://tr.mmodb.com/quests/seriesname-confirmed_kills/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+
+### 1216 — The Big Kahuna
+
+
+- **Rebuild summary:**
+  - level: 35 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731171503/http://tr.mmodb.com/quests/startingzone-crucible/)
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 85,000 XP; 2,000 credits; Vextronics Incendiary Blade; Astra Radial Healing Disc; Vextronics Leech Gun; Vextronics Laser Chaingun — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Big_Kahuna)
+  - reward: 0 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB quest series list](https://web.archive.org/web/20120731162239/http://tr.mmodb.com/quests/seriesname-confirmed_kills/)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Larai Zupa Madias: Mires, Control Point: Prometheus Outpost, /loc 378.9, 168.0, 367.6 — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Larai_Zupa_Madias)
+  - location: Maxxum Ugoretz, zone Crucible — source: [Ellatha boss NPC](https://www.ellatha.com/tr/bossnpcview.asp?key=Maxxum+Ugoretz&id=70)
+- **Client:** Zupa Madias at Prometheus Outpost wants you to kill Maxxum Ugoretz, supreme leader of the Bane troops at Kahlago Base.
+  - objectives (client): Kill Maxxum Ugoretz. — Kill the Bane commander known as Maxxum Ugoretz.
+- **TaRapedia** [The Big Kahuna](https://tabularasa.fandom.com/wiki/The_Big_Kahuna): giver: Larai Zupa Madias; at: Prometheus Outpost; zone: Crucible; requires: Who's In Charge Here?; follow-up: None; XP: 85,000; credits: 2,000; items: Vextronics Incendiary Blade; Astra Radial Healing Disc; Vextronics Leech Gun; Vextronics Laser Chaingun
+  - overview: Zupa Madias at Prometheus Outpost wants you to kill Maxxum Ugoretz, supreme leader of the Bane troops at Kahlago Base.
+  - objectives: • Kill Maxxum Ugoretz • Kill the Bane commander known as Maxxum Ugoretz.
+  - walkthrough: He can be found patrolling the northwest area of Kahlugo Base.
+- **TaRapedia mission list** [Prometheus Outpost mission list](https://tabularasa.fandom.com/wiki/Prometheus_Outpost_mission_list): zone Crucible, area Prometheus Outpost, given by Larai Zupa Madias
+- **TR MMO DB quest series** [Confirmed Kills](https://web.archive.org/web/20120731162239/http://tr.mmodb.com/quests/seriesname-confirmed_kills/): Confirmed Kills (level 35, reward 8000) → Iron Giants (level 35, reward 8000) → The Big Kahuna (level 35, reward 0) → Who's In Charge Here (level 35, reward 6000) (series order as listed on the page; reward unit not stated)
+- **Where (locations / coordinates):**
+  - Maxxum Ugoretz, zone Crucible — source: [Ellatha boss NPC](https://www.ellatha.com/tr/bossnpcview.asp?key=Maxxum+Ugoretz&id=70)
+- **NPCs (TaRapedia NPC pages):**
+  - [Larai Zupa Madias](https://tabularasa.fandom.com/wiki/Larai_Zupa_Madias): Mires, Control Point: Prometheus Outpost, /loc 378.9, 168.0, 367.6 (NPC page lists this mission)
+- **Ellatha boss NPC** [Maxxum Ugoretz](https://www.ellatha.com/tr/bossnpcview.asp?key=Maxxum+Ugoretz&id=70): zone Crucible; needed for: Crucible Targets of Opportunity (boss named in client text)
+
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 10
+  - Requires: Who's In Charge Here? (id 1215) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Big_Kahuna), [TaRapedia](https://tabularasa.fandom.com/wiki/Who%27s_In_Charge_Here%3F)
+- **TR MMO DB quest series:** "Confirmed Kills", row 3 of 4 ([list](https://web.archive.org/web/20120731162239/http://tr.mmodb.com/quests/seriesname-confirmed_kills/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 
 ### 1217 — Point Of Impact
 

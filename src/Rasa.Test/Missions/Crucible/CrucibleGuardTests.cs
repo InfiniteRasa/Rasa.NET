@@ -720,9 +720,9 @@ namespace Rasa.Test.Missions.Crucible
             // variants are three talks). Set 3: Munit, Vitto, Donal and Rigs (1170) and DeLisi (1229). Set 5: Lohen twice (1185).
             // Set 6: 1144's ten (each choice is a talk), 1152's two, 1153's two (two choices), 1155's and 1205's three each.
             // Set 7 (in the Staal Junkyard): Cirkin (1538), 1529's six Dolomite Blocks and 1538's lockbox. Set 8a: Keplinger (1210),
-            // Tiernan (1217, 1218); Botha on Ashen Desert is CrucibleKardashAndPrometheusTests'.
-            Assert.AreEqual(1 + 5 + 21 + 1 + 5 + 2 + 3 + 4 + 1 + 2 + 10 + 2 + 2 + 3 + 3 + 1 + 6 + 1 + 3, checkedTargets,
-                "DeLisi, the five of The Wire, the terminal, the twenty fallen, and set 2's, set 3's, set 5's, set 6's, set 7's and set 8a's talks and uses");
+            // Tiernan (1217, 1218); Botha on Ashen Desert is CrucibleKardashAndPrometheusTests'. Set 8b: 1215's two Bane terminals.
+            Assert.AreEqual(1 + 5 + 21 + 1 + 5 + 2 + 3 + 4 + 1 + 2 + 10 + 2 + 2 + 3 + 3 + 1 + 6 + 1 + 3 + 2, checkedTargets,
+                "DeLisi, the five of The Wire, the terminal, the twenty fallen, and set 2's, set 3's, set 5's, set 6's, set 7's, set 8a's and set 8b's talks and uses");
             Assert.IsEmpty(outside, string.Join(", ", outside));
         }
 
@@ -859,9 +859,11 @@ namespace Rasa.Test.Missions.Crucible
             var pools = W.WardenPools.Concat(W.LasherPools).Concat(S.MinePools).Concat(S.ReconstructorPools).Append((Pool: S.DergePool, At: S.DergeAt)).Concat(CrucibleMarkersClearOfLinksV2.Pools.Select(pool => (pool.Pool, At: pool.Now)))
                 .Concat(V.DronePools).Concat(V.ReconstructorPools).Append((Pool: V.MolitorPool, At: V.MolitorAt))
                 .Append((Pool: CrucibleStaalJunkyardNpcsV1.KalamitPool, At: CrucibleStaalJunkyardNpcsV1.KalamitAt))
+                .Concat(CruciblePrometheusOutpostNpcsV1.JuggernautPools)
+                .Append((Pool: CruciblePrometheusOutpostNpcsV1.UgoretzPool, At: CruciblePrometheusOutpostNpcsV1.UgoretzAt))
                 .Select(pool => (Label: $"pool {pool.Pool}", Id: pool.Pool, At: new Vector3((float)pool.At.X, (float)pool.At.Y, (float)pool.At.Z))).ToList();
-            Assert.HasCount(3 + 2 + 3 + 2 + 1 + 4 + 3 + 2 + 1 + 1, pools,
-                "set 3's, set 4's, set 5's and set 7's pools on the Crucible, Derge and the four Flaregasher pools 20271108000300 moved");
+            Assert.HasCount(3 + 2 + 3 + 2 + 1 + 4 + 3 + 2 + 1 + 1 + 3 + 1, pools,
+                "set 3's, set 4's, set 5's, set 7's and set 8b's pools on the Crucible, Derge and the four Flaregasher pools 20271108000300 moved");
             // Where each stands now: a later fix (20271108000800) moved some of them.
             var rows = harness.World.SpawnPoolEntries.AsNoTracking().Where(pool => pool.MapContextId == Map).ToDictionary(pool => pool.Id);
             pools = pools.Select(pool => (pool.Label, pool.Id, At: new Vector3((float)rows[pool.Id].PosX, (float)rows[pool.Id].PosY, (float)rows[pool.Id].PosZ))).ToList();
@@ -964,8 +966,8 @@ namespace Rasa.Test.Missions.Crucible
                     places.Add(($"{mission} {actor.Role}", new Vector3(actor.Position.X, actor.Position.Y, actor.Position.Z),
                         actor.Kind == SceneActorKind.Creature));
             Assert.HasCount(N.New.Length + N.Moves.Length + G.New.Length + G.Moves.Length + G.Kept.Length + W.New.Length + V.New.Length +
-                A.Moves.Length + A.Kept.Length + K.Moves.Length + K.New.Count(npc => npc.Map == Map) + 21 + 1 + 1, places,
-                "the NPCs, the terminal, the twenty fallen, Roscoe and 1217's obelisk");
+                A.Moves.Length + A.Kept.Length + K.Moves.Length + K.New.Count(npc => npc.Map == Map) + 21 + 1 + 1 + 2, places,
+                "the NPCs, the terminal, the twenty fallen, Roscoe, 1217's obelisk and 1215's two Bane terminals");
             return places;
         }
 
