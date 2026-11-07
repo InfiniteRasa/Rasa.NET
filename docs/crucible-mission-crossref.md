@@ -1,6 +1,6 @@
 # Ligo Crucible missions: sources (cross-reference)
 
-The 12 missions of the Ligo Crucible quest PR, taken from the full mission cross-reference of the 1.16.5.0
+The 16 missions of the Ligo Crucible quest PR, taken from the full mission cross-reference of the 1.16.5.0
 client. For each mission: the client text and objectives, the sources found (TaRapedia, TR MMO DB, Ellatha,
 Ten Ton Hammer, archived fan and official pages, patch notes) and a rebuild summary with the source of each
 value. Values without a source are marked ESTIMATE. "This PR" rows (where present) show the data this PR adds.
@@ -9,7 +9,7 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
 
 | Zone | Missions |
 | --- | ---: |
-| Crucible | 12 |
+| Crucible | 16 |
 
 ## Crucible
 
@@ -291,6 +291,53 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
   - Leads to: Irreconcilable Differences (id 1185) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Irreconcilable_Differences)
   - Leads to: Business Proposal (id 1229) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Business_Proposal), [TaRapedia](https://tabularasa.fandom.com/wiki/Earning_Respect)
 
+### 1203 — Salvage Duty
+
+
+- **Rebuild summary:**
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 80,000 XP; 5,850 credits; AccuMax Electric Blade; Vextronics Virulent Staff; Vextronics Incendiary RPG Launcher; AccuMax Rifle — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Salvage_Duty)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Labbna Sigal Haggus: Crucible, Labbna Quarter — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Labbna_Sigal_Haggus)
+- **Client:** Collect 6 Electrostatic Sequencers and 8 Pressure Boosters by hunting Reconstructor and Warden Bots.
+  - objectives (client): Get 6 Sequencers — Collect 6 Electrostatic Sequencers by killing Warden and Reconstructor Bots.; Get 8 Pressure Boosters — Collect 8 Pressure Boosters by killing Warden and Reconstructor Bots.
+- **TaRapedia** [Salvage Duty](https://tabularasa.fandom.com/wiki/Salvage_Duty): giver: Labbna Sigal Haggus; at: Labbna Quarter; zone: Crucible; requires: Junkyard Dogs; follow-up: More Salvage Duty; XP: 80,000; credits: 5,850; items: AccuMax Electric Blade; Vextronics Virulent Staff; Vextronics Incendiary RPG Launcher; AccuMax Rifle
+  - overview: Collect 6 Electrostatic Sequencers and 8 Pressure Boosters by hunting Reconstructor and Warden Bots.
+  - objectives: • Get 6 Sequencers • Collect 6 Electrostatic Sequencers by killing Warden and Reconstructor Bots. • x/6 • Get 8 Pressure Boosters • Collect 8 Pressure Boosters by killing Warden and Reconstructor Bots. • x/8
+  - walkthrough: For maximum efficiency, do this mission in conjuction with the missions Game Wardens and Crucible Targets of Opportunity. They also contain objectives that involves killing Reconstructor Bots and Warden Bots.
+- **TaRapedia mission list** [Labbna Quarter mission list](https://tabularasa.fandom.com/wiki/Labbna_Quarter_mission_list): zone Crucible, area Labbna Quarter, given by Labbna Sigal Haggus
+- **NPCs (TaRapedia NPC pages):**
+  - [Labbna Sigal Haggus](https://tabularasa.fandom.com/wiki/Labbna_Sigal_Haggus): Crucible, Labbna Quarter (named as giver/receiver)
+
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 6
+  - Requires: Junkyard Dogs (id 1149) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Junkyard_Dogs), [TaRapedia](https://tabularasa.fandom.com/wiki/Salvage_Duty)
+  - Leads to: More Salvage Duty (id 1204) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/More_Salvage_Duty), [TaRapedia](https://tabularasa.fandom.com/wiki/Salvage_Duty)
+
+### 1204 — More Salvage Duty
+
+
+- **Rebuild summary:**
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 160,000 XP; 7,800 credits; Modification: Light Resistance; Modification: Regen Bonus; Modification: Regen Armor Bonus; Modification: Debuff to Fire Resist — source: [TaRapedia](https://tabularasa.fandom.com/wiki/More_Salvage_Duty)
+  - drops / mission items: These can also be found on the Warden Bots and Reconstructor Bots, but they are not so common — source: [TaRapedia](https://tabularasa.fandom.com/wiki/More_Salvage_Duty)
+  - location: NPC Labbna Sigal Haggus: Crucible, Labbna Quarter — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Labbna_Sigal_Haggus)
+- **Client:** Collect 6 Process Controllers, 10 Solenoid Valves and 10 Vacuum Pumps by hunting Reconstructor and Warden Bots and return them to Sigal Haggus of the Labbna syndicate.
+  - objectives (client): Get 6 Process Controllers. — Collect 6 Process Controllers by hunting Warden and Reconstructor Bots.; Get 10 Solenoid Valves — Collect 10 Solenoid Valves by hunting Warden and Reconstructor Bots.; Get 10 Vacuum Pumps. — Collect 10 Vacuum Pumps by hunting Warden and Recosntructor Bots.
+- **TaRapedia** [More Salvage Duty](https://tabularasa.fandom.com/wiki/More_Salvage_Duty): giver: Labbna Sigal Haggus; at: Labbna Quarter; zone: Crucible; requires: Salvage Duty; follow-up: None; XP: 160,000; credits: 7,800; items: Modification: Light Resistance; Modification: Regen Bonus; Modification: Regen Armor Bonus; Modification: Debuff to Fire Resist
+  - overview: Collect 6 Process Controllers, 10 Solenoid Valves and 10 Vacuum Pumps by hunting Reconstructor and Warden Bots and return them to Sigal Haggus of the Labbna syndicate.
+  - objectives: • Get 6 Process Controllers • Collect 6 Process Controllers by hunting Warden and Reconstructor Bots. • x/6 • Get 10 Solenoid Valves • Collect 10 Solenoid Valves by hunting Warden and Reconstructor Bots. • x/8 • Get 10 Vacuum Pumps • Collect 10 Vacuum Pumps by hunting Warden and Reconstructor Bots. • x/8
+  - walkthrough: For maximum efficiency, do this mission in conjuction with the mission Architects Of Destruction. That also contain objectives that involves destroying Reconstructor Bots.
+- **TaRapedia mission list** [Labbna Quarter mission list](https://tabularasa.fandom.com/wiki/Labbna_Quarter_mission_list): zone Crucible, area Labbna Quarter, given by Labbna Sigal Haggus
+- **NPCs (TaRapedia NPC pages):**
+  - [Labbna Sigal Haggus](https://tabularasa.fandom.com/wiki/Labbna_Sigal_Haggus): Crucible, Labbna Quarter (named as giver/receiver)
+- **Drops / item sources:**
+  - These can also be found on the Warden Bots and Reconstructor Bots, but they are not so common — source: [TaRapedia](https://tabularasa.fandom.com/wiki/More_Salvage_Duty)
+
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 7
+  - Requires: Salvage Duty (id 1203) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/More_Salvage_Duty), [TaRapedia](https://tabularasa.fandom.com/wiki/Salvage_Duty)
+
 ### 1229 — Business Proposal
 
 
@@ -314,4 +361,58 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
   - Leads to: Prometheus Rising (id 1210) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Business_Proposal), [TaRapedia](https://tabularasa.fandom.com/wiki/Prometheus_Rising)
   - Leads to: Confirmed Kills (id 1212) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Confirmed_Kills)
   - Leads to: Careful Negotiation (id 1519) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Careful_Negotiation)
+
+### 1232 — Minesweeper
+
+
+- **Rebuild summary:**
+  - level: 40 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731171503/http://tr.mmodb.com/quests/startingzone-crucible/)
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 75,000 XP; 5,700 credits — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Minesweeper)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Private Drake: Crucible, Outpost Intrepid — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Private_Drake)
+- **Client:** Perform minesweeping detail by destroying 2O Bane Smart Mines near the trenches due west of the Fort Intrepid ruins. Report back to Private Drake when you've completed the task.
+  - objectives (client): Destroy 20 Smart Mines — Perform minesweeping detail by destroying 2O Bane Smart Mines near the trenches due west of the Fort Intrepid ruins.
+- **TaRapedia** [Minesweeper](https://tabularasa.fandom.com/wiki/Minesweeper): giver: Private Drake; at: Outpost Intrepid; zone: Crucible; requires: A Fort Called Intrepid; follow-up: None; XP: 75,000; credits: 5,700; reward from: Private Drake
+  - overview: Perform minesweeping detail by destroying 20 Bane Smart Mines near the trenches due west of the Fort Intrepid ruins. Report back to Private Drake when you've completed the task.
+  - objectives: • Destroy 20 Smart Mines • Perform minesweeping detail by destroying 20 Bane Smart Mines near the trenches due west of Fort Intrepid ruins." • Smart Mines Destroyed x/20
+  - walkthrough: The mines don't actually explode and they do very little damage, so don't worry. Just follow the briefing and you'll do fine.
+- **TaRapedia mission list** [Outpost Intrepid mission list](https://tabularasa.fandom.com/wiki/Outpost_Intrepid_mission_list): zone Crucible, area Outpost Intrepid, given by Private Drake
+- **NPCs (TaRapedia NPC pages):**
+  - [Private Drake](https://tabularasa.fandom.com/wiki/Private_Drake): Crucible, Outpost Intrepid (named as giver/receiver)
+
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 3
+  - Requires: A Fort Called Intrepid (id 1150) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Minesweeper)
+
+### 1241 — Funeral Derge
+
+
+- **Rebuild summary:**
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 75,000 XP; 5,700 credits — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Funeral_Derge)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Captain DeLisi: Crucible, Outpost Intrepid — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Captain_DeLisi)
+  - location: Executioner Derge, zone Crucible — Patrols around Fort Intrepid ruins walls, use strairs to get up top — source: [Ellatha boss NPC](https://www.ellatha.com/tr/bossnpcview.asp?key=Executioner+Derge)
+  - location: Executioner Derge, zone Crucible — Patrols around Fort Intrepid ruins walls, use strairs to get up top — source: [Ellatha boss NPC](https://www.ellatha.com/tr/bossnpcview.asp?key=Executioner+Derge&id=65)
+- **Client:** Executioner Derge, the Thrax Commander who spearheaded the attack on Fort Intrepid, has been spotted in the ruins of Fort Intrepid. Captain DeLisi wants him taken out!
+  - objectives (client): Kill Executioner Derge — Kill the Executioner Derge, a Thrax Commander patroling inside the Fort Intrepid ruins.
+- **TaRapedia** [Funeral Derge](https://tabularasa.fandom.com/wiki/Funeral_Derge): giver: Captain DeLisi; at: Outpost Intrepid; zone: Crucible; requires: A Fort Called Intrepid; follow-up: None; XP: 75,000; credits: 5,700; reward from: Captain DeLisi
+  - overview: Executioner Derge, the Thrax Commander who spearheaded the assault on Fort Intrepid, has been spotted in the ruins of Fort Intrepid. Captain DeLisi wants him taken out!
+  - objectives: • Kill Executioner Derge • Kill the Executioner Derge, a Thrax Commander patrolling inside the Fort Intrepid ruins.
+  - walkthrough: Check out Executioner Derge for information about where to locate him.
+- **TaRapedia mission list** [Outpost Intrepid mission list](https://tabularasa.fandom.com/wiki/Outpost_Intrepid_mission_list): zone Crucible, area Outpost Intrepid, given by Captain DeLisi
+- **IGN TR boards** [vnboards.ign.com:80/tabula_rasa_general_board/b22750/105961985/p1/?](https://web.archive.org/web/20080119023851/http://vnboards.ign.com:80/tabula_rasa_general_board/b22750/105961985/p1/?): “For the mission Funeral Derge players are instructed to go to Fort Intrepid and kill a boss named Derge. The specified location is the Fort Intrepid CP, but Derge is not there when the Bane control the CP or when the AFS control the CP. Instead he spawns at 859 188 476 which is on top of a very tall wall.”
+- **Where (locations / coordinates):**
+  - Executioner Derge, zone Crucible — Patrols around Fort Intrepid ruins walls, use strairs to get up top — source: [Ellatha boss NPC](https://www.ellatha.com/tr/bossnpcview.asp?key=Executioner+Derge)
+  - Executioner Derge, zone Crucible — Patrols around Fort Intrepid ruins walls, use strairs to get up top — source: [Ellatha boss NPC](https://www.ellatha.com/tr/bossnpcview.asp?key=Executioner+Derge&id=65)
+  - Instead he spawns at 859 188 476 which is on top of a very tall wall. — source: [IGN TR boards](https://web.archive.org/web/20080119023851/http://vnboards.ign.com:80/tabula_rasa_general_board/b22750/105961985/p1/?)
+- **NPCs (TaRapedia NPC pages):**
+  - [Captain DeLisi](https://tabularasa.fandom.com/wiki/Captain_DeLisi): Crucible, Outpost Intrepid (named as giver/receiver)
+- **Ellatha boss NPC** [Executioner Derge](https://www.ellatha.com/tr/bossnpcview.asp?key=Executioner+Derge): zone Crucible; Patrols around Fort Intrepid ruins walls, use strairs to get up top; needed for: Crucible Targets of Opportunity (boss named in client text)
+- **Ellatha boss NPC** [Executioner Derge](https://www.ellatha.com/tr/bossnpcview.asp?key=Executioner+Derge&id=65): zone Crucible; Patrols around Fort Intrepid ruins walls, use strairs to get up top; needed for: Crucible Targets of Opportunity (boss named in client text)
+
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 3
+  - Requires: A Fort Called Intrepid (id 1150) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Fort_Called_Intrepid), [TaRapedia](https://tabularasa.fandom.com/wiki/Funeral_Derge)
 

@@ -82,6 +82,28 @@ creatures 770007 (Warden Bot Screw) and 770008 (Lasher, attack 770008), new pool
   (73215) at the accept. Talk to Captain DeLisi (952, 144.5, 106): he takes it. A marker at DeLisi. Turn in at DeLisi:
   40000 XP, 3900 credits, one of 3x 111028, 1x 47599, 3x 111018, 6x 45060. Abandon: the proposal goes.
 
+Set 4, the minefield and the salvage (migration `20271108000400_Crucible_minefield_and_salvage`). New creatures 770014
+(Smart Mine) and 770015 (Reconstructor Bot Laborer), their actions 770014-770016, new pools 770014-770018, Derge's pool
+520013 moved; next free id 770019. Before it: the marker fix `20271108000300_Crucible_junkyard_dogs_markers`.
+
+- [ ] 1232 Minesweeper (Ligo Crucible): Private Drake (952.46, 144.5, 110.89) offers it after 1150, level 40. Destroy 20
+  Smart Mines (770014 only; four in each of three pools in the trench on the road west of the Fort Intrepid waypoint,
+  (635, 168.45, 557), (585, 168.43, 577), (545, 168.46, 587)); a mine that blows up on the player counts too. A marker
+  (r20) on each pool. Turn in at Drake: 75000 XP, 5700 credits, one of 33342, 38823, 25248, 30474. Abandon: the count
+  starts again.
+- [ ] 1241 Funeral Derge (Ligo Crucible): Captain DeLisi offers it after 1150, level 40. Kill Executioner Derge 520013 on
+  the Fort Intrepid rampart (859, 188.68, 476), up the stairs from the Fort Intrepid waypoint. A marker (r15) on him. Turn
+  in at DeLisi: 75000 XP, 5700 credits, one of 19673, 33600, 24861, 36188.
+- [ ] 1203 Salvage Duty (Ligo Crucible): Labbna Sigal Haggus (-400, 249.68, 270) offers it after 1149, level 35. 6
+  Electrostatic Sequencers (50431, 40 %) and 8 Pressure Boosters (50429, 50 %) from Warden Bot Screws (770009-770011) and
+  Reconstructor Bots (770017 (-617, 249.68, 570), 770018 (-545, 250.53, 486)) by the Chaukas Robotics Facility. A marker
+  (r20) per objective on each of the five bot pools. Turn in at Haggus: 80000 XP, 5850 credits, one of 15470, 15247,
+  49136, 14610; he takes the parts. Abandon: the parts stay.
+- [ ] 1204 More Salvage Duty (Ligo Crucible): Haggus offers it after 1203, level 35. Objectives 3, 4, 5 (the client's
+  ids): 6 Process Controllers (50430, 25 %), 10 Solenoid Valves (50428, 30 %), 10 Vacuum Pumps (50427, 30 %), from the
+  same bots. Markers as 1203. Turn in at Haggus: 160000 XP, 7800 credits, one of the modules 123041, 122986, 122961,
+  123176; he takes the parts. Abandon: the parts stay.
+
 ## Assumptions and choices (not from a source)
 
 All ESTIMATE (set 1):
@@ -160,12 +182,39 @@ All ESTIMATE (set 3):
   mission is completed (also before 1170). The tokens stay with the player.
 - 1229: the proposal at the accept, taken by DeLisi at the talk.
 
+All ESTIMATE (set 4):
+- Levels: 1232 40 (TR MMO DB); 1241 40 (no source; the level of 1232 and 1150); 1203 and 1204 35 (no source; the level
+  of 1147 and of the bots).
+- All positions: the three mine pools, the two Reconstructor pools and Derge's place. Chosen by a probe (2026-11-07): on
+  the navmesh and a client floor, a complete path from the Fort Intrepid waypoint (mines, Derge) or the Labbna Quarter
+  waypoint (Reconstructors). The mines in the trench on the road to Staal (client: "near the trenches due west of the Fort
+  Intrepid ruins", "no way to reach Staal without passing through the area"). Derge at the wall spawn (IGN / patch 1.4,
+  859 188 476), on the rampart (TaRapedia, Ellatha: up the stairs). The Reconstructors 83 m or more from the facility door.
+- The Smart Mine: a copy of the Necromite 570003 (class 7528, name 433 "Necromite"; TaRapedia: Smart Mine = Necromite),
+  level 40, 1500 HP, armour 150, four per pool, 120 s respawn, radius 6. Its weapon 1/109 80-120 and its self-destruct
+  489 150-300 (TaRapedia "very little damage"; the Necromite has 320-480 and 733-1448; user review), damage_type 0.
+- The Reconstructor Bot: a new row of class 6960, "Reconstructor Bot Laborer" (8033, the Screw's rank), level 35, 4970
+  HP, armour 247 (the Screw's), one attack 1/152 (client Weapon_Creature_Arieki_Bot_Reconstructor), 1-40 m, 1500 ms
+  (client), 77-115 damage, damage_type 0. Three per pool.
+- Drop chances: 1203 40 / 50 %; 1204 25 / 30 / 30 % (client: "the most common", "rarer"; no rate). Personal drops from
+  a Warden Bot Screw or a Reconstructor Bot on the Crucible while the objective is open.
+- 1204 counts 6 / 10 / 10 from the client objective names (no client counter text; TaRapedia's counters say x/8, 0.3).
+- Rewards: no client reward blocks. The items: the lowest Uncommon template of each kind and icon number in the band of the
+  mission level (1232: 33342, 38823, 25248, 30474; 1241: 19673, 33600, 24861, 36188; 1203: 15470, 15247, 49136, 14610
+  with "Incendiary RPG Launcher" = the physical rocket launcher (no fire one exists) and the rifle of no kind = physical).
+  1204: "Modification" = the grade [4] modules: Resist Photonic (Light), Regen Bonus, Armor Recharge (Regen Armor), Debuff
+  Fire Resist.
+
 ## Deviations (client/server limits)
 
 - 1143: one counter of distinct corpses does the work of the client's twenty per-corpse objectives.
 - 1145: no failure for being caught with the wire.
 - 1148: until Calendar Girl (1144) is built, every player hears Melching's "neither" text (203).
 - 1170: a token objective reads the Grupa's mission as completed, not the token in the bag (to-fix row 20).
+- 1232: the Smart Mines stand visible on the sand; the client says they stay buried until a player comes near (to-fix row
+  28; a burying change for them follows).
+- 1241: Derge stands on the rampart; his patrol is not built.
+- 1203, 1204: the Reconstructor Bot only shoots: no heal, no shield drain, no micromech clone (TaRapedia).
 
 ## Server data that differs from the sources (not changed)
 
@@ -191,3 +240,12 @@ All ESTIMATE (set 3):
 
 - None moved. Added: Medical Technician Halprin, the Warden Bot and the Lasher creature rows and their pools (upstream D7:
   the World DB had no Lasher on any map, no open-world Warden Bot on the Crucible and no Halprin).
+
+## Server data changed by set 4 (upstream rows)
+
+- Moved: Executioner Derge's pool 520013 from the Fort Intrepid control point flag (757.1, 171.1, 549.1), shared with the
+  Thrax Commander 520014 and 27 m from the control point hospital, to the rampart (859, 188.68, 476) (upstream D10).
+- Added: the Smart Mine and the Reconstructor Bot creature rows and their pools (the World DB had no Smart Mine and no
+  Reconstructor Bot on any map).
+- The marker fix before set 4 (`20271108000300`) moved the upstream Flaregasher pools 540139-540141 (off the Staal Junkyard
+  door and off the navmesh) and 540144 (off the Thunderhead border) (upstream D9).

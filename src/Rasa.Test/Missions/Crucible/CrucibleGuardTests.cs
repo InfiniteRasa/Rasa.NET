@@ -27,6 +27,7 @@ namespace Rasa.Test.Missions.Crucible
     using N = CrucibleOutpostIntrepidNpcsV1;
     using G = CrucibleGrupaChiefsNpcsV1;
     using W = CrucibleWardensAndLashersNpcsV1;
+    using S = CrucibleMinefieldAndSalvageNpcsV1;
     using F = MarshesClientFloorTests;
 
     /// <summary>
@@ -342,8 +343,9 @@ namespace Rasa.Test.Missions.Crucible
         }
 
         /// <summary>
-        /// Set 3's new hostile pools (the Warden Bots by the Chaukas Robotics Facility's door, the Lashers north-east of the Awol
-        /// Camp): each centre on a client floor (a walkable surface at most MaxOver under it, none just over it), and its circle
+        /// Set 3's and set 4's new hostile pools (the Warden Bots by the Chaukas Robotics Facility's door, the Lashers north-east
+        /// of the Awol Camp, the Smart Mines west of the Fort Intrepid ruins, the Reconstructor Bots by the facility) and
+        /// Executioner Derge on the Fort Intrepid rampart, and the four Flaregasher pools the marker fix moved: each centre on a client floor (a walkable surface at most MaxOver under it, none just over it), and its circle
         /// ReachClearance or more outside every enabled map link's circle, so that a player who comes out of the facility is
         /// not set on at once.
         /// </summary>
@@ -352,8 +354,9 @@ namespace Rasa.Test.Missions.Crucible
         {
             var dataDir = F.ClientData();
             using var harness = WildernessRuntimeTestHarness.Create();
-            var pools = W.WardenPools.Concat(W.LasherPools)
+            var pools = W.WardenPools.Concat(W.LasherPools).Concat(S.MinePools).Concat(S.ReconstructorPools).Append((Pool: S.DergePool, At: S.DergeAt)).Concat(CrucibleMarkersClearOfLinksV2.Pools.Select(pool => (pool.Pool, At: pool.Now)))
                 .Select(pool => (Label: $"pool {pool.Pool}", At: new Vector3((float)pool.At.X, (float)pool.At.Y, (float)pool.At.Z))).ToList();
+            Assert.HasCount(3 + 2 + 3 + 2 + 1 + 4, pools, "set 3's and set 4's pools, Derge and the four Flaregasher pools 20271108000300 moved");
             var links = harness.World.Set<MapLinkEntry>().AsNoTracking().Where(link => link.Enabled != 0 && link.MapContextId == Map).ToList();
             var near = new List<string>();
             foreach (var (label, at) in pools)
