@@ -301,6 +301,36 @@ Staal Junkyard) moved from the north-centre rock ledge (-14, 335.14, 244) to the
 - [ ] 1529 (look): walk from the Junkyard arrival and from Cirkin to the Ultra Reconstructor with no GM help: no junk
   slope or ledge stops the walk, and the boss is seen before the walk ends. It still comes back 90 s after a kill.
 
+Set 11a, the Incurables Ward (squad instance 2141; migration `20271108001600_Crucible_incurables_ward`). New rows
+770045-770057 (next free id 770058). The Ward's door on the Crucible: map link 97 at (-216, 180.5, 419.7), under the
+Staal Infirmary; arrival (18.27, 70.5, -131.31). The server navmesh of the Ward is in islands (upstream, N13): the north
+part (Dhimand, Paliv, the Throne Room, the north pools) is reached through the north airlock (78, 62.6, 70.5), where the
+client floor goes on and the navmesh has a 1 m gap; the bot cannot path across it (walk it by hand).
+
+- [ ] Ward (look): Sheira (moved 12 m north of the medic Siebring, (-18, 62.61, -88)), Shanul (60, 62.61, -70) in the
+  dormitory and Dhimand (-40, 94.61, 386) between the Throne Room and the Sanctum hub; talk to each from each side. Walk
+  through the north airlock: does the client pass it with no jump?
+- [ ] 1445 Sadistic Sabotage (Ligo Crucible -> Incurables Ward): Viddia Sigal Nema (Staal Infirmary) offers it after
+  1147 Game Wardens, level 35. 1 Report to Supervisor Sheira: her talk (package 1640) in the squad's Ward completes it.
+  Markers: before the Ward's door on the Crucible (r6) and on Sheira (r8). Turn in at Sheira: 42500 XP, 4000 credits,
+  one of 45063 x6, 45447 x3, 111233 x1, 111049 x3.
+- [ ] 1444 Lost in the Asylum (Incurables Ward): Sheira offers it after 1445, level 40. 1 Find Mechanic Shanul (talk,
+  package 1664), 2 Find Technician Paliv (a personal talking Fresh Brann Corpse, class 25474, package 1727, at (94,
+  78.5, 421) by the north door display), 3 Find Engineer Dhimand (talk, package 1700); all open at once, any order; a
+  marker r8 on each. Turn in at Sheira: 170000 XP, 8000 credits, one of 34116, 40373, 21249, 23569. Abandon: all three
+  again. Look: does the client draw the body and open its text on a use?
+- [ ] 1402 Rehabilitation at Gunpoint (Ligo Crucible -> Incurables Ward): Larai Sigal Tempa (moved to TaRapedia's place
+  by the Larai Arena, (-307, 180.79, 326)) offers it (no prerequisite), level 35. 1 Kill Jaikev (point pool, (-98, 94.61,
+  332)), 2 Kill Parvatee (point pool, (-90, 94.73, 340)), both in the Throne Room, back 90 s after a kill in the copy; 3
+  Execute 30 Incurables: the Brutes (class 23191) and Slayers (25611) of nine pools of four (two of each, radius 5, 770053 and 770055 points, 36 in
+  all; back only with the copy); the bosses do not count. Markers: the bosses (r10), each pool (r15), before the Ward's
+  door on the Crucible (r6, each objective). Turn in at Tempa: 180000 XP, 8200 credits, one of 122971, 123046, 123041,
+  123276. Abandon: the count starts at 0. Look: the Incurables' look and attack (weapon 174/51); Jaikev's and Parvatee's
+  look. Solo: the 36 Incurables are 6 over the 30; a cleared pool comes back only with the copy (45 min,
+  SquadInstanceConfig.RespawnMinutes), so a player who leaves the count short after clearing all nine waits up to 45 min.
+- [ ] Second client (bot checklist): a squad mate in the same Ward copy kills Jaikev, Parvatee or Incurables: counted for
+  each member near with 1402? Each member sees his own Paliv body (1444).
+
 ## Assumptions and choices (not from a source)
 
 All ESTIMATE (set 1):
@@ -507,7 +537,27 @@ All ESTIMATE (fix job H):
 - The Ultra Reconstructor in the open middle of the Junkyard (164, 265.44, -76), not TaRapedia's "upper centre": the client
   cannot walk to the north-centre ledge (to-fix row 64).
 
+All ESTIMATE (set 11a):
+- Stats: no source gives the levels or HP. Shanul and Dhimand copies of Lohen (level 40, 4500 HP, armor 300); the
+  Incurables level 40, 8409 HP, armor 285 (as the Junkyard's Technicians); Jaikev and Parvatee level 42, 12000 HP, armor
+  300; one attack for all four (weapon 23198's 174/51, the Lasher's 557-779 damage, 2.1 s, damage_type 0).
+- The Incurables: Brute (male class, name 9521) and Slayer (female class, name 9617) only; the client has more names
+  (9520-9524, 9607, 9609, 9616) and TaRapedia names flamethrowers and bots. Nine pools of four (radius 5; 770053 and 770055 points: their radius-5 draw reached 20-40 m off), 90 s respawn
+  (back with the copy); places chosen by probe (north corridor, junction room, Sanctum hub, north room, Throne Room).
+- Positions: Sheira 12 m north of her upstream spot; Shanul in the dormitory; Dhimand in the hallway by the Sanctum (not
+  behind the Sanctum door); Paliv by the north door display; Jaikev and Parvatee in the Throne Room; the door marker 8 m
+  outside link 97's circle; Tempa at TaRapedia's /loc (-307, 180, 326).
+- 1444: level 40 (no source); all three objectives open at once.
+- 1402: no prerequisite (none known); the turn-in at Tempa on the Crucible.
+- Rewards: 1445 TaRapedia's stacks by their client names, one to choose (as 1161); 1444 the lowest Uncommon of each kind
+  and the nearest icon number in the band of level 40 (Mech V04 Gloves, Stealth V04 Helmet, Hazmat V03 Gloves, Graviton
+  V02 Boots); 1402 "Modification" read as the grade [4] modules (as 1204): Health Bonus, Resist Physical, Resist Photonic
+  (Light), Steal Power.
+
 ## Deviations (client/server limits)
+
+- 1444: Shanul's text sends the player for the keycards of Atali and Umank (1401, set 11b, not built); Paliv and Dhimand
+  are reached without them, and no Sanctum door stands in the way.
 
 - 1143: one counter of distinct corpses does the work of the client's twenty per-corpse objectives.
 - 1145: no failure for being caught with the wire.
@@ -642,3 +692,11 @@ All ESTIMATE (fix job H):
 
 - Ours: the Ultra Reconstructor's point pool 770038 moved from (-14, 335.14, 244) to (164, 265.44, -76), 1529's marker 9
   with it.
+
+## Server data changed by set 11a (upstream rows)
+
+- Moved: Supervisor Sheira 510038 (Ward) from (-18, 62.61, -99.8), the medic Siebring's and the hospital teleporter's spot,
+  to (-18, 62.61, -88); Larai Sigal Tempa 510028 (upstream D3, the Staal placeholder cluster) from (-20.4, 187.77, 319.7)
+  to (-307, 180.79, 326).
+- Added: Shanul 770045, Dhimand 770046, the Incurable Brute 770047 (attack 770047), the Incurable Slayer 770048, Jaikev
+  770049, Parvatee 770050; pools 770045-770057 (upstream had no row for them).

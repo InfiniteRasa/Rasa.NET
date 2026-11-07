@@ -1,6 +1,6 @@
 # Ligo Crucible missions: sources (cross-reference)
 
-The 37 missions of the Ligo Crucible quest PR, taken from the full mission cross-reference of the 1.16.5.0
+The 40 missions of the Ligo Crucible quest PR, taken from the full mission cross-reference of the 1.16.5.0
 client. For each mission: the client text and objectives, the sources found (TaRapedia, TR MMO DB, Ellatha,
 Ten Ton Hammer, archived fan and official pages, patch notes) and a rebuild summary with the source of each
 value. Values without a source are marked ESTIMATE. "This PR" rows (where present) show the data this PR adds.
@@ -9,7 +9,7 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
 
 | Zone | Missions |
 | --- | ---: |
-| Crucible | 37 |
+| Crucible | 40 |
 
 ## Crucible
 
@@ -915,6 +915,86 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
 
 - **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 3
   - Requires: A Fort Called Intrepid (id 1150) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Fort_Called_Intrepid), [TaRapedia](https://tabularasa.fandom.com/wiki/Funeral_Derge)
+
+### 1402 — Rehabilitation at Gunpoint [instance]
+
+
+- **Instance:** Incurables Ward — client objective/log text: "Travel into the Incurables Ward inside of Staal Centrum. Thin out the population of Incurables by killing them, and …"
+- **Rebuild summary:**
+  - level: 35 — source: [TR MMO DB](https://web.archive.org/web/20081216162331/http://tr.mmodb.com:80/quests/rehabilitation-at-gunpoint-640.php)
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 180000 XP; 8200 credits; Modification: Health Bonus; Modification: Physical Resistance; Modification: Light Resistance; Modification: Steal Power — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Rehabilitation_at_Gunpoint)
+  - reward: 8200 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20081216162331/http://tr.mmodb.com:80/quests/rehabilitation-at-gunpoint-640.php)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Larai Sigal Tempa: Crucible, Larai Quarter — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Larai_Sigal_Tempa)
+- **Client:** Travel into the Incurables Ward inside of Staal Centrum. Thin out the population of Incurables by killing them, and execute Lord Jaikev and Lady Parvatee for the security of the Brann. Report back to Sigal Tempa inside of Staal once you have completed this task.
+  - objectives (client): Kill Jaikev; Kill Parvatee; Execute 30 Incurables
+- **TaRapedia** [Rehabilitation at Gunpoint](https://tabularasa.fandom.com/wiki/Rehabilitation_at_Gunpoint) [bug noted]: giver: Larai Sigal Tempa; at: Staal Detention Center; zone: Crucible; XP: 180000; credits: 8200; items: Modification: Health Bonus; Modification: Physical Resistance; Modification: Light Resistance; Modification: Steal Power; reward from: Larai Sigal Tempa
+  - overview: Travel into the Incurables Ward inside of Staal Centrum. Thin out the population of Incurables by killing them, and execute Lord Jaikev and Lady Parvatee for the security of the Brann. Report back to Sigal Tempa inside of Staal once you have completed this task. Note: This mission is the primary …
+  - objectives: • Kill Jaikev • Kill Parvatee • Execute 30 Incurables
+  - walkthrough: Look at your map and note the location of the center circular room. Go there. Straight north are the 2 locked doors for which you need the keys referenced here. Right or east ultimately gets you to a boss who drops one key; left or west leads to the other. You will essentially fight several different foes: melee fighters, firethrowers, bladesmen and bots - warden and reconstructor types. The melee fighters attack with physical and virulent damage so stay more than 4 meters away. The same for the bladesmen who use strong physical attacks. Flamethrowers also need to be close to damage you. Bots …
+- **TaRapedia mission list** [Incurables Ward mission list](https://tabularasa.fandom.com/wiki/Incurables_Ward_mission_list): zone Crucible, given by Larai Sigal Tempa
+- **TR MMO DB** [Rehabilitation at Gunpoint](https://web.archive.org/web/20081216162331/http://tr.mmodb.com:80/quests/rehabilitation-at-gunpoint-640.php): level: 35; starts at npc: Larai Sigal Tempa; starts in zone: Crucible; objectives: Kill Jaikava, Kill Parvatee, Execute 30 Incurables; description: TIP: This quest all takes place in the Incurable Ward.; reward: 8200
+  - related mob Jaikav (not in the archived bestiary pages)
+- **TR MMO DB NPC** [Larai Sigal Tempa](https://web.archive.org/web/20081216161909/http://tr.mmodb.com:80/bestiary/larai-sigal-tempa-1017.php): Quest NPC, zone Crucible (starts this quest)
+- **TR MMO DB NPC** [Parvatee](https://web.archive.org/web/20081216161923/http://tr.mmodb.com:80/bestiary/parvatee-1019.php): Quest Monster, zone Incurable Ward (related to this quest)
+- **NPCs (TaRapedia NPC pages):**
+  - [Larai Sigal Tempa](https://tabularasa.fandom.com/wiki/Larai_Sigal_Tempa): Crucible, Larai Quarter (named as giver/receiver)
+
+### 1444 — Lost in the Asylum [instance]
+
+
+- **Instance:** Incurables Ward — NPC Supervisor Sheira (named as giver/receiver) is in Incurables Ward — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Supervisor_Sheira)
+- **Rebuild summary:**
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 170,000 XP; 8,000 credits — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Lost_in_the_Asylum)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Supervisor Sheira: Crucible, Incurables Ward — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Supervisor_Sheira)
+- **Client:** Travel into the Incurables Ward and find Mechanic Shanul, Technician Paliv, and Engineer Dhimand. They may have additional tasks for you to perform in order to repair the damaged water processing system. Once you have found all three missing Brann, report back to Supervisor Sheira, just inside the …
+  - objectives (client): Find Mechanic Shanul; Find Technician Paliv; Find Engineer Dhimand
+- **TaRapedia** [Lost in the Asylum](https://tabularasa.fandom.com/wiki/Lost_in_the_Asylum) [bug noted]: giver: Supervisor Sheira; at: Incurables Ward; zone: Crucible; requires: Sadistic Sabotage; follow-up: None; XP: 170,000; credits: 8,000; reward from: Supervisor Sheira
+  - overview: Travel into the Incurables Ward and find Mechanic Shanul, Technician Paliv and Engineer Dhimand. They may have additional tasks for you to perform in order to repair the damaged water processing system. Once you have found all three missing Brann, report back to Supervisor Sheira, just inside the …
+  - objectives: • Find Mechanic Shanul • Find Technician Paliv • Find Engineer Dhimand
+- **TaRapedia mission list** [Incurables Ward mission list](https://tabularasa.fandom.com/wiki/Incurables_Ward_mission_list): zone Crucible, given by Supervisor Sheira
+- **NPCs (TaRapedia NPC pages):**
+  - [Supervisor Sheira](https://tabularasa.fandom.com/wiki/Supervisor_Sheira): Crucible, Incurables Ward (named as giver/receiver)
+  - [Engineer Dhimand](https://tabularasa.fandom.com/wiki/Engineer_Dhimand): Crucible, Incurables Ward (named in client text)
+
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 7
+  - Requires: Sadistic Sabotage (id 1445) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Lost_in_the_Asylum), [TaRapedia](https://tabularasa.fandom.com/wiki/Sadistic_Sabotage)
+- **Requires an instance mission:** Sadistic Sabotage (1445) — source: the chain links above
+
+### 1445 — Sadistic Sabotage [instance]
+
+
+- **Instance:** Incurables Ward — an objective conversation's NPC package 1640 spawns in this instance (map 2141) — source: client objectiveconversation + data/rasaworld.db
+- **Rebuild summary:**
+  - level: 35 — source: [TR MMO DB](https://web.archive.org/web/20080929015620/http://tr.mmodb.com:80/quests/sadistic-sabotage-635.php)
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 42,500 XP; 4,000 credits; Class VIII Basic Med Pack x6; Class VIII Fragmentation Grenade x3; Class VIII EMP Bomb; Class VIII Cryogenic Grenade x3 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Sadistic_Sabotage)
+  - reward: 4000 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20080929015620/http://tr.mmodb.com:80/quests/sadistic-sabotage-635.php)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Viddia Sigal Nema: Crucible, Staal Infirmary — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Viddia_Sigal_Nema)
+- **Client:** Travel into the Incurables Ward, inside of Staal, and report to Supervisor Sheira.
+  - objectives (client): Report to Supervisor Sheira
+- **TaRapedia** [Sadistic Sabotage](https://tabularasa.fandom.com/wiki/Sadistic_Sabotage): giver: Viddia Sigal Nema; at: Staal Infirmary; zone: Crucible; requires: Game Wardens; follow-up: Lost in the Asylum; XP: 42,500; credits: 4,000; items: Class VIII Basic Med Pack x6; Class VIII Fragmentation Grenade x3; Class VIII EMP Bomb; Class VIII Cryogenic Grenade x3; reward from: Supervisor Sheira
+  - overview: Travel into the Incurables Ward, inside of Staal, and report to Supervisor Sheira.
+  - objectives: • Report to Supervisor Sheira
+- **TaRapedia mission list** [Incurables Ward mission list](https://tabularasa.fandom.com/wiki/Incurables_Ward_mission_list): zone Crucible, given by Viddia Sigal Nema
+- **TaRapedia mission list** [Staal Infirmary mission list](https://tabularasa.fandom.com/wiki/Staal_Infirmary_mission_list): zone Crucible, area Staal Infirmary, given by Viddia Sigal Nema
+- **TR MMO DB** [Sadistic Sabotage](https://web.archive.org/web/20080929015620/http://tr.mmodb.com:80/quests/sadistic-sabotage-635.php): level: 35; starts at npc: Viddia Sigal Nema; starts in zone: Crucible; objectives: Report to Supervisor Sheira; reward: 4000
+  - related mob Supervisor Sheira (not in the archived bestiary pages)
+- **TR MMO DB NPC** [Supervisor Sheira](https://web.archive.org/web/20080929015610/http://tr.mmodb.com:80/bestiary/supervisor-sheira-1016.php): Quest NPC, zone Crucible (related to this quest)
+- **NPCs (TaRapedia NPC pages):**
+  - [Viddia Sigal Nema](https://tabularasa.fandom.com/wiki/Viddia_Sigal_Nema): Crucible, Staal Infirmary (named as giver/receiver)
+  - [Supervisor Sheira](https://tabularasa.fandom.com/wiki/Supervisor_Sheira): Crucible, Incurables Ward (named as giver/receiver)
+
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 6
+  - Requires: Game Wardens (id 1147) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Sadistic_Sabotage)
+  - Leads to: Lost in the Asylum (id 1444) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Lost_in_the_Asylum), [TaRapedia](https://tabularasa.fandom.com/wiki/Sadistic_Sabotage)
 
 ### 1519 — Careful Negotiation [instance]
 
