@@ -274,6 +274,25 @@ Juggernaut (class 7722, level 42) and 770042 Maxxum Ugoretz (name 9317, level 43
   on him. A kill before the
   accept does not count. Turn in at Madias: 85000 XP, 2000 credits, one of 47628, 120030, 47808, 48256.
 
+Set 9, Khulago Base from Prometheus Outpost (migration `20271108001400_Crucible_khulago_strikes`). No new row (next free
+id stays 770045); Captain Tiersky 510021 moved off the control point to (379, 168.36, 400), 16 m north of Keplinger.
+Walk to Khulago Base by Confirmed Kills' north trench marker (388, 166.71, -26).
+
+- [ ] Tiersky (look): he stands by the CP gate, not inside the control point model; talk to him from each side.
+- [ ] 1224 Pump Up The Jam (Ligo Crucible): Tiersky offers it (no prerequisite), level 36. 1-6 Destroy Tower #1-#6: six
+  personal Bane towers (class 10282 Sonic Tower, name "Biomechanical Jamming Tower", 1500 HP) on the rim of Khulago Base,
+  any order: #1 (433, 173.17, 2), #2 (523, 185.34, -68), #3 (523, 177.01, -208), #4 (363, 164.68, -368), #5 (323, 174.5,
+  -258), #6 (233, 178.95, -158); a marker r10 on each. A tower shot down shows its wreck and completes its own objective.
+  Turn in at Tiersky: 85000 XP, 6000 credits, one of 15181, 49136, 18260, 14444. Then Keplinger offers 1214. Look: does
+  the client show the name "Biomechanical Jamming Tower" (usable name override 4) or "Sonic Tower"? Can the player
+  target and shoot each tower, and does it explode into a wreck? The walk to #6 (west) goes round (543 m from the north
+  trench marker).
+- [ ] 1214 Strike Zone (Ligo Crucible): Keplinger offers it after 1224, level 35. The accept gives three GPS Beacons
+  (50714). 1-3 Place Beacon #1-#3: three personal GPS Beacon spots (class 7847) inside Khulago Base, any order: #1 (403,
+  174.48, -168), #2 (363, 174.48, -208), #3 (383, 174.22, -268); a marker r8 on each. A use takes one beacon, shows the
+  planted beacon and completes the objective. No air strike follows (see Deviations). Turn in at Keplinger: 170000 XP,
+  8000 credits, one of 40611, 25099, 21380, 28614. Abandon: the beacons left and the spots go; taken again, three beacons.
+
 ## Assumptions and choices (not from a source)
 
 All ESTIMATE (set 1):
@@ -464,6 +483,18 @@ All ESTIMATE (set 8b):
   (Tool_Avatar_Cipher_35, quality 2: no Uncommon cipher tool exists). The RPG launcher (1215) and the Leech Gun (1216):
   the names give no damage kind, physical taken.
 
+All ESTIMATE (set 9):
+- Tiersky: by the CP gate, 16 m north of Keplinger (no source gives his place).
+- 1224: six towers (the client's six objectives, not the texts' eight), all open from the accept, any order; no
+  prerequisite (TaRapedia "Unknown"). The tower: class 10282 UsableInertDestBaneSonicTowerV01 (no jamming tower class on
+  the Crucible), the usable name override 4 "Biomechanical Jamming Tower" (key GUARDPROM_JAMMINGTOWER, another zone's),
+  1500 HP (the server's Large size of this class). The six places on the rim of Khulago Base (no source gives them).
+- 1214: the three spots inside the base (no source gives Frohman's spots), class 7847 as Mapping The Pools; the beacons at
+  the accept.
+- Rewards: 1224 the lowest template of each kind whose Uncommon band holds level 36 (Teleract Rocket Launcher: physical,
+  the name gives no kind). 1214 the lowest Uncommon of each kind and the nearest icon number in the band of level 35
+  (Stealth V04 Vest, Graviton V04 Helmet, Hazmat V03 Helmet, Motor Assist V04 Boots).
+
 ## Deviations (client/server limits)
 
 - 1143: one counter of distinct corpses does the work of the client's twenty per-corpse objectives.
@@ -505,6 +536,10 @@ All ESTIMATE (set 8b):
 - 1215 (as 1538's keycard, row 55): the program is a mission item: a destroy, sale or trade of it is refused while 1215
   is held, so it cannot be lost before the hack. Should it be gone anyway (a GM removal), the hack cannot be done:
   abandon and accept again for a new program.
+
+- 1214: no air strike after a beacon ("bomb drops", client offer text). No mission action or scene intent calls an air
+  strike: the fire support strike is a player ability's (AbilityManager.FireSupport), the Torcastra carpet bomb that
+  prison's own code, and a falling bomb object (PlacedUsables) goes off on its own clock for every player.
 
 - 1152 and 1153: the fork is built as designed (keep the secret fails 1152), not as the retail known issue (refusing
   completes 1153 and fails 1152).
@@ -585,3 +620,8 @@ All ESTIMATE (set 8b):
   from (402.2, 169.77, 384.4) to (379, 168.47, 384); Larai Zupa Madias 510029 from (402.2, 169.77, 391.4) to (378.9,
   168.3, 367.6). Captain Tiersky 510021 stays inside the model (set 9, 1224).
 - Added: Professor Tiernan 770039 (Crucible) and Captain Amandla Botha 770040 (Ashen Desert); upstream had no row for them.
+
+## Server data changed by set 9 (upstream rows)
+
+- Moved (upstream D3, the placeholder cluster inside the Prometheus Outpost control point model): Captain Tiersky 510021
+  from (404.2, 169.77, 387.9) to (379, 168.36, 400); his pool stays control point 31's AFS link (kind 2).

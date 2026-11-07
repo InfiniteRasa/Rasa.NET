@@ -1,6 +1,6 @@
 # Ligo Crucible missions: sources (cross-reference)
 
-The 35 missions of the Ligo Crucible quest PR, taken from the full mission cross-reference of the 1.16.5.0
+The 37 missions of the Ligo Crucible quest PR, taken from the full mission cross-reference of the 1.16.5.0
 client. For each mission: the client text and objectives, the sources found (TaRapedia, TR MMO DB, Ellatha,
 Ten Ton Hammer, archived fan and official pages, patch notes) and a rebuild summary with the source of each
 value. Values without a source are marked ESTIMATE. "This PR" rows (where present) show the data this PR adds.
@@ -9,7 +9,7 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
 
 | Zone | Missions |
 | --- | ---: |
-| Crucible | 35 |
+| Crucible | 37 |
 
 ## Crucible
 
@@ -678,6 +678,28 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
   - Leads to: Who's In Charge Here? (id 1215) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Iron_Giants), [TaRapedia](https://tabularasa.fandom.com/wiki/Who%27s_In_Charge_Here%3F)
 - **TR MMO DB quest series:** "Confirmed Kills", row 2 of 4 ([list](https://web.archive.org/web/20120731162239/http://tr.mmodb.com/quests/seriesname-confirmed_kills/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 
+### 1214 — Strike Zone
+
+
+- **Rebuild summary:**
+  - level: 35 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731171503/http://tr.mmodb.com/quests/startingzone-crucible/)
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 170,000 XP; 8,000 credits — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Strike_Zone)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Major Keplinger: Crucible, Prometheus Outpost — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Major_Keplinger)
+- **Client:** Place three GPS Beacons at the predesignated spots to call in AFS airstrikes. When you've placed all three, return to Major Keplinger at Prometheus Outpost.
+  - objectives (client): Place Beacon #1 — Place the first GPS Beacon to call in an airstrike.; Place Beacon #2 — Place the second GPS Beacon to call in an airstrike.; Place Beacon #3 — Place the third GPS Beacon to call in an airstrike.
+- **TaRapedia** [Strike Zone](https://tabularasa.fandom.com/wiki/Strike_Zone): giver: Major Keplinger; at: Prometheus Outpost; zone: Crucible; requires: Pump Up The Jam; follow-up: None; XP: 170,000; credits: 8,000
+  - overview: Place three GPS Beacons at the predesignated spots to call in AFS airstrikes. When you've placed all three, return to Major Keplinger at Prometheus Outpost.
+  - objectives: • Place Beacon #1 • Place the first GPS Beacon to call in an airstrike. • Place Beacon #2 • Place the second GPS Beacon to call in an airstrike. • Place Beacon #3 • Place the third GPS Beacon to call in an airstrike.
+- **TaRapedia mission list** [Prometheus Outpost mission list](https://tabularasa.fandom.com/wiki/Prometheus_Outpost_mission_list): zone Crucible, area Prometheus Outpost, given by Major Keplinger
+- **NPCs (TaRapedia NPC pages):**
+  - [Major Keplinger](https://tabularasa.fandom.com/wiki/Major_Keplinger): Crucible, Prometheus Outpost (named as giver/receiver)
+
+- **Chain** (explicit prerequisite links): Pump Up The Jam chain (2 missions), step 2
+  - Requires: Pump Up The Jam (id 1224) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Pump_Up_The_Jam), [TaRapedia](https://tabularasa.fandom.com/wiki/Strike_Zone)
+
 ### 1215 — Who's In Charge Here?
 
 
@@ -792,6 +814,29 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
 - **Chain** (explicit prerequisite links): Making Amends chain (8 missions), step 4
   - Requires: Point Of Impact (id 1217) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/It_Came_From_Erdas), [TaRapedia](https://tabularasa.fandom.com/wiki/Point_Of_Impact)
   - Leads to: Echoes in the Sand (id 1736) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Echoes_in_the_Sand), [TaRapedia](https://tabularasa.fandom.com/wiki/It_Came_From_Erdas)
+
+### 1224 — Pump Up The Jam
+
+
+- **Rebuild summary:**
+  - level: 36 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731171503/http://tr.mmodb.com/quests/startingzone-crucible/)
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 85,000 XP; 6,000 credits; Vextronics Electric Staff; Teleract Rocket Launcher; Wellcare Direct Repair Tool; Vextronics Sonic Pistol — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Pump_Up_The_Jam)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Captain Tiersky: Crucible, Prometheus Outpost — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Captain_Tiersky)
+- **Client:** Destroy the eight Bane Jamming Towers at Kahlago Base for Captain Tiersky at Prometheus Outpost.
+  - objectives (client): Destroy Tower #1 — Destroy the first Bane Jamming Tower.; Destroy Tower #2 — Destroy the second Bane Jamming Tower.; Destroy Tower #3 — Destroy the third Bane Jamming Tower.; Destroy Tower #4 — Destroy the fourth Bane Jamming Tower.; Destroy Tower #5 — Destroy the fifth Bane Jamming Tower.; Destroy Towwer #6 — Destroy the sixth Bane Jamming Tower.
+- **TaRapedia** [Pump Up The Jam](https://tabularasa.fandom.com/wiki/Pump_Up_The_Jam) [bug noted]: giver: Captain Tiersky; at: Prometheus Outpost; zone: Crucible; follow-up: Strike Zone; XP: 85,000; credits: 6,000; items: Vextronics Electric Staff; Teleract Rocket Launcher; Wellcare Direct Repair Tool; Vextronics Sonic Pistol
+  - overview: Destroy the eight Bane Jamming Towers at Kahlago Base for Captain Tiersky at Prometheus Outpost.
+  - objectives: • Destroy Tower #1 • Destroy the first Bane Jamming Tower. • Destroy Tower #2 • Destroy the second Bane Jamming Tower. • Destroy Tower #3 • Destroy the third Bane Jamming Tower. • Destroy Tower #4 • Destroy the fourth Bane Jamming Tower. • Destroy Tower #5 • Destroy the fifth Bane Jamming Tower. • Destroy Tower #6 • Destroy the sixth Bane Jamming Tower.
+- **TaRapedia mission list** [Prometheus Outpost mission list](https://tabularasa.fandom.com/wiki/Prometheus_Outpost_mission_list): zone Crucible, area Prometheus Outpost, given by Captain Tiersky
+- **TR MMO DB NPC** [Captain Tiersky](https://web.archive.org/web/20081121155011/http://tr.mmodb.com/bestiary/captain-tiersky-1001.php): Quest NPC, location Prometheus Outpost, zone Crucible (starts this quest)
+- **NPCs (TaRapedia NPC pages):**
+  - [Captain Tiersky](https://tabularasa.fandom.com/wiki/Captain_Tiersky): Crucible, Prometheus Outpost (named as giver/receiver)
+
+- **Chain** (explicit prerequisite links): Pump Up The Jam chain (2 missions), step 1
+  - Leads to: Strike Zone (id 1214) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Pump_Up_The_Jam), [TaRapedia](https://tabularasa.fandom.com/wiki/Strike_Zone)
 
 ### 1229 — Business Proposal
 

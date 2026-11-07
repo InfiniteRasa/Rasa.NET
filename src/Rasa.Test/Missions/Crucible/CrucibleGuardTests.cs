@@ -34,6 +34,7 @@ namespace Rasa.Test.Missions.Crucible
     using V = CrucibleStaalSigalsNpcsV1;
     using A = CrucibleAwolCampNpcsV1;
     using K = CrucibleKardashAndPrometheusNpcsV1;
+    using T = CrucibleKhulagoStrikesNpcsV1;
     using F = MarshesClientFloorTests;
 
     /// <summary>
@@ -62,13 +63,14 @@ namespace Rasa.Test.Missions.Crucible
         private static List<SpawnPool> Npcs()
         {
             var moved = N.Moves.Select(move => move.Pool).Concat(G.Moves.Select(move => move.Pool)).Concat(G.Kept.Select(kept => kept.Pool))
-                .Concat(A.Moves.Select(move => move.Pool)).Concat(A.Kept.Select(kept => kept.Pool)).Concat(K.Moves.Select(move => move.Pool)).ToHashSet();
+                .Concat(A.Moves.Select(move => move.Pool)).Concat(A.Kept.Select(kept => kept.Pool)).Concat(K.Moves.Select(move => move.Pool))
+                .Concat(T.Moves.Select(move => move.Pool)).ToHashSet();
             bool Friendly(uint creature) => CreatureManager.Instance.LoadedCreatures.TryGetValue(creature, out var c) && c.TargetCategory != TargetCategory.Hostile;
             var npcs = SpawnPoolManager.Instance.LoadedSpawnPools.Values.Where(pool => pool.MapContextId == Map &&
                 (pool.DbId is >= 770000 and <= 770999 || moved.Contains(pool.DbId)) &&
                 pool.SpawnSlot.Count > 0 && pool.SpawnSlot.TrueForAll(slot => Friendly(slot.CreatureId))).ToList();
             Assert.HasCount(N.New.Length + N.Moves.Length + G.New.Length + G.Moves.Length + G.Kept.Length + W.New.Length + V.New.Length +
-                A.Moves.Length + A.Kept.Length + K.Moves.Length + K.New.Count(npc => npc.Map == Map), npcs,
+                A.Moves.Length + A.Kept.Length + K.Moves.Length + K.New.Count(npc => npc.Map == Map) + T.Moves.Length, npcs,
                 "the Crucible NPCs are read");
             return npcs;
         }
@@ -721,8 +723,9 @@ namespace Rasa.Test.Missions.Crucible
             // Set 6: 1144's ten (each choice is a talk), 1152's two, 1153's two (two choices), 1155's and 1205's three each.
             // Set 7 (in the Staal Junkyard): Cirkin (1538), 1529's six Dolomite Blocks and 1538's lockbox. Set 8a: Keplinger (1210),
             // Tiernan (1217, 1218); Botha on Ashen Desert is CrucibleKardashAndPrometheusTests'. Set 8b: 1215's two Bane terminals.
-            Assert.AreEqual(1 + 5 + 21 + 1 + 5 + 2 + 3 + 4 + 1 + 2 + 10 + 2 + 2 + 3 + 3 + 1 + 6 + 1 + 3 + 2, checkedTargets,
-                "DeLisi, the five of The Wire, the terminal, the twenty fallen, and set 2's, set 3's, set 5's, set 6's, set 7's, set 8a's and set 8b's talks and uses");
+            // Set 9: 1214's three beacon spots (1224's towers are shot, not used; Tiersky and Keplinger hear no objective).
+            Assert.AreEqual(1 + 5 + 21 + 1 + 5 + 2 + 3 + 4 + 1 + 2 + 10 + 2 + 2 + 3 + 3 + 1 + 6 + 1 + 3 + 2 + 3, checkedTargets,
+                "DeLisi, the five of The Wire, the terminal, the twenty fallen, and set 2's, set 3's, set 5's, set 6's, set 7's, set 8a's, set 8b's and set 9's talks and uses");
             Assert.IsEmpty(outside, string.Join(", ", outside));
         }
 
@@ -966,8 +969,8 @@ namespace Rasa.Test.Missions.Crucible
                     places.Add(($"{mission} {actor.Role}", new Vector3(actor.Position.X, actor.Position.Y, actor.Position.Z),
                         actor.Kind == SceneActorKind.Creature));
             Assert.HasCount(N.New.Length + N.Moves.Length + G.New.Length + G.Moves.Length + G.Kept.Length + W.New.Length + V.New.Length +
-                A.Moves.Length + A.Kept.Length + K.Moves.Length + K.New.Count(npc => npc.Map == Map) + 21 + 1 + 1 + 2, places,
-                "the NPCs, the terminal, the twenty fallen, Roscoe, 1217's obelisk and 1215's two Bane terminals");
+                A.Moves.Length + A.Kept.Length + K.Moves.Length + K.New.Count(npc => npc.Map == Map) + T.Moves.Length + 21 + 1 + 1 + 2 + 6 + 3, places,
+                "the NPCs, the terminal, the twenty fallen, Roscoe, 1217's obelisk, 1215's two Bane terminals, 1224's six jamming towers and 1214's three beacon spots");
             return places;
         }
 
