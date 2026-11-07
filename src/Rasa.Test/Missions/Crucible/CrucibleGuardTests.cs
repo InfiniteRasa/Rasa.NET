@@ -50,13 +50,17 @@ namespace Rasa.Test.Missions.Crucible
     {
         private const uint Map = CrucibleMissionDataV1.MapContextId;
 
-        /// <summary>The friendly NPC pools of the Crucible missions: the block's, the upstream ones the sets moved, and the ones set 2 kept.</summary>
+        /// <summary>
+        /// The friendly NPC pools of the Crucible missions on the Crucible: the block's, the upstream ones the sets moved, and the
+        /// ones set 2 kept. Set 7's Cirkin stands in the Staal Junkyard (CrucibleStaalJunkyardTests holds him to these rules there).
+        /// </summary>
         private static List<SpawnPool> Npcs()
         {
             var moved = N.Moves.Select(move => move.Pool).Concat(G.Moves.Select(move => move.Pool)).Concat(G.Kept.Select(kept => kept.Pool))
                 .Concat(A.Moves.Select(move => move.Pool)).Concat(A.Kept.Select(kept => kept.Pool)).ToHashSet();
             bool Friendly(uint creature) => CreatureManager.Instance.LoadedCreatures.TryGetValue(creature, out var c) && c.TargetCategory != TargetCategory.Hostile;
-            var npcs = SpawnPoolManager.Instance.LoadedSpawnPools.Values.Where(pool => (pool.DbId is >= 770000 and <= 770999 || moved.Contains(pool.DbId)) &&
+            var npcs = SpawnPoolManager.Instance.LoadedSpawnPools.Values.Where(pool => pool.MapContextId == Map &&
+                (pool.DbId is >= 770000 and <= 770999 || moved.Contains(pool.DbId)) &&
                 pool.SpawnSlot.Count > 0 && pool.SpawnSlot.TrueForAll(slot => Friendly(slot.CreatureId))).ToList();
             Assert.HasCount(N.New.Length + N.Moves.Length + G.New.Length + G.Moves.Length + G.Kept.Length + W.New.Length + V.New.Length +
                 A.Moves.Length + A.Kept.Length, npcs,
@@ -454,7 +458,8 @@ namespace Rasa.Test.Missions.Crucible
             bool Inside(uint mission, uint objective, Vector3 at) => markers.Any(marker => marker.MissionId == mission && marker.ObjectiveId == objective &&
                 Vector2.Distance(new((float)marker.PosX, (float)marker.PosZ), new(at.X, at.Z)) <= marker.Radius);
             var packages = world.NpcPackageEntries.AsNoTracking().ToList().ToLookup(entry => entry.PackageId, entry => entry.Id);
-            var pools = world.SpawnPoolEntries.AsNoTracking().Where(pool => pool.MapContextId == Map).ToList();
+            var pools = world.SpawnPoolEntries.AsNoTracking().Where(pool => pool.MapContextId == Map ||
+                pool.MapContextId == CrucibleStaalJunkyardNpcsV1.Junkyard).ToList();
             var checkedTargets = 0;
             var outside = new List<string>();
             foreach (var talk in world.MissionTriggerEntries.AsNoTracking().Where(entry => entry.ContentRevision == revision &&
@@ -479,8 +484,9 @@ namespace Rasa.Test.Missions.Crucible
             // Set 2: Lohen; Bunko, Cugin, Vargo (twice: 3 and 6) and Yeg; Fiorella, Haggus and Melching (three times: his three
             // variants are three talks). Set 3: Munit, Vitto, Donal and Rigs (1170) and DeLisi (1229). Set 5: Lohen twice (1185).
             // Set 6: 1144's ten (each choice is a talk), 1152's two, 1153's two (two choices), 1155's and 1205's three each.
-            Assert.AreEqual(1 + 5 + 21 + 1 + 5 + 2 + 3 + 4 + 1 + 2 + 10 + 2 + 2 + 3 + 3, checkedTargets,
-                "DeLisi, the five of The Wire, the terminal, the twenty fallen, and set 2's, set 3's, set 5's and set 6's talks");
+            // Set 7 (in the Staal Junkyard): Cirkin (1538), 1529's six Dolomite Blocks and 1538's lockbox.
+            Assert.AreEqual(1 + 5 + 21 + 1 + 5 + 2 + 3 + 4 + 1 + 2 + 10 + 2 + 2 + 3 + 3 + 1 + 6 + 1, checkedTargets,
+                "DeLisi, the five of The Wire, the terminal, the twenty fallen, and set 2's, set 3's, set 5's, set 6's and set 7's talks and uses");
             Assert.IsEmpty(outside, string.Join(", ", outside));
         }
 
@@ -567,7 +573,7 @@ namespace Rasa.Test.Missions.Crucible
         /// <summary>
         /// To-fix row 24: 1149's markers stood off the navmesh. Every Crucible marker on the Crucible has its centre on the
         /// navmesh (ground at most MarkerHeight from its y) and on a client floor (a walkable surface at most MarkerHeight
-        /// under it).
+        /// under it). The Staal Junkyard's (MissionMarkerProjection.ResolveMap 2138) are CrucibleStaalJunkyardTests'.
         /// </summary>
         [TestMethod]
         public void EveryCrucibleMarkerStandsOnTheNavmeshAndAClientFloor()
@@ -576,10 +582,14 @@ namespace Rasa.Test.Missions.Crucible
             var dataDir = F.ClientData();
             using var harness = WildernessRuntimeTestHarness.Create();
             var crucible = CrucibleOutpostIntrepidTests.EnterCrucible(harness);
+            var catalog = new MissionContentCatalog(harness, new Dictionary<uint, Mission>(), null);
+            catalog.Load();
             var markers = harness.World.MissionIndicatorEntries.AsNoTracking().Where(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision).ToList()
+                .Where(marker => MissionMarkerProjection.ResolveMap(catalog, marker.MissionId, marker.ObjectiveId, new MissionIndicator { IndicatorId = marker.IndicatorId }) == Map)
                 .Select(marker => (Label: $"{marker.MissionId}.{marker.ObjectiveId}/{marker.IndicatorId}", At: new Vector3((float)marker.PosX, (float)marker.PosY, (float)marker.PosZ)))
                 .ToList();
-            Assert.HasCount(CrucibleMissionTests.Indicators, markers, "the Crucible markers, all on the Crucible (CrucibleMissionTests)");
+            Assert.HasCount(CrucibleMissionTests.Indicators - CrucibleStaalJunkyardTests.JunkyardMarkers, markers,
+                "the Crucible markers on the Crucible (CrucibleMissionTests)");
             using var meshes = new MeshLibrary(dataDir, F.MeshCsv());
             var geometry = MapGeometry.Load(Path.Combine(dataDir, "maps", MapName(harness)), meshes, 1);
             var (floors, _) = F.Surfaces(geometry, markers.Select(marker => (marker.At + new Vector3(0, MarkerHeight - F.MaxUnder, 0), F.Walkable)).ToList());
@@ -611,9 +621,10 @@ namespace Rasa.Test.Missions.Crucible
             using var harness = WildernessRuntimeTestHarness.Create();
             var pools = W.WardenPools.Concat(W.LasherPools).Concat(S.MinePools).Concat(S.ReconstructorPools).Append((Pool: S.DergePool, At: S.DergeAt)).Concat(CrucibleMarkersClearOfLinksV2.Pools.Select(pool => (pool.Pool, At: pool.Now)))
                 .Concat(V.DronePools).Concat(V.ReconstructorPools).Append((Pool: V.MolitorPool, At: V.MolitorAt))
+                .Append((Pool: CrucibleStaalJunkyardNpcsV1.KalamitPool, At: CrucibleStaalJunkyardNpcsV1.KalamitAt))
                 .Select(pool => (Label: $"pool {pool.Pool}", Id: pool.Pool, At: new Vector3((float)pool.At.X, (float)pool.At.Y, (float)pool.At.Z))).ToList();
-            Assert.HasCount(3 + 2 + 3 + 2 + 1 + 4 + 3 + 2 + 1, pools,
-                "set 3's, set 4's and set 5's pools, Derge and the four Flaregasher pools 20271108000300 moved");
+            Assert.HasCount(3 + 2 + 3 + 2 + 1 + 4 + 3 + 2 + 1 + 1, pools,
+                "set 3's, set 4's, set 5's and set 7's pools on the Crucible, Derge and the four Flaregasher pools 20271108000300 moved");
             // Where each stands now: a later fix (20271108000800) moved some of them.
             var rows = harness.World.SpawnPoolEntries.AsNoTracking().Where(pool => pool.MapContextId == Map).ToDictionary(pool => pool.Id);
             pools = pools.Select(pool => (pool.Label, pool.Id, At: new Vector3((float)rows[pool.Id].PosX, (float)rows[pool.Id].PosY, (float)rows[pool.Id].PosZ))).ToList();
@@ -704,11 +715,14 @@ namespace Rasa.Test.Missions.Crucible
             migrator.Migrate(ids[^1]);
         }
 
-        /// <summary>The sets' NPCs (label, place, NPC) and scene actors on the Crucible (Roscoe, a creature, as an NPC).</summary>
+        /// <summary>
+        /// The sets' NPCs (label, place, NPC) and scene actors on the Crucible (Roscoe, a creature, as an NPC); the Staal
+        /// Junkyard's scenes (1529, 1538) are CrucibleStaalJunkyardTests'.
+        /// </summary>
         private static List<(string Label, Vector3 At, bool Npc)> Places(WildernessRuntimeTestHarness harness)
         {
             var places = Npcs().Select(pool => ($"pool {pool.DbId}", pool.Position, true)).ToList();
-            foreach (var (mission, scene) in CrucibleMissionTests.Scenes(harness))
+            foreach (var (mission, scene) in CrucibleMissionTests.Scenes(harness).Where(entry => entry.Scene.MapContextId != CrucibleStaalJunkyardNpcsV1.Junkyard))
                 foreach (var actor in scene.Actors.Values.Where(actor => actor.Position != null))
                     places.Add(($"{mission} {actor.Role}", new Vector3(actor.Position.X, actor.Position.Y, actor.Position.Z),
                         actor.Kind == SceneActorKind.Creature));

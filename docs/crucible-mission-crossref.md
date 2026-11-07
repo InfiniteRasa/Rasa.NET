@@ -1,6 +1,6 @@
 # Ligo Crucible missions: sources (cross-reference)
 
-The 24 missions of the Ligo Crucible quest PR, taken from the full mission cross-reference of the 1.16.5.0
+The 28 missions of the Ligo Crucible quest PR, taken from the full mission cross-reference of the 1.16.5.0
 client. For each mission: the client text and objectives, the sources found (TaRapedia, TR MMO DB, Ellatha,
 Ten Ton Hammer, archived fan and official pages, patch notes) and a rebuild summary with the source of each
 value. Values without a source are marked ESTIMATE. "This PR" rows (where present) show the data this PR adds.
@@ -9,7 +9,7 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
 
 | Zone | Missions |
 | --- | ---: |
-| Crucible | 24 |
+| Crucible | 28 |
 
 ## Crucible
 
@@ -536,6 +536,49 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
   - Leads to: Not My Junk (id 1538) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Not_My_Junk)
 - **Requires (name not matched to a mission):** The Other Side Of The Coin (option 1) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Sweet_Revenge)
 
+### 1206 — Heads Will Roll
+
+
+- **Rebuild summary:**
+  - level: 45 — source: [TR MMO DB](https://web.archive.org/web/20080907092736/http://tr.mmodb.com/quests/heads-will-roll-606.php)
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 160,000 XP; 7,800 credits; Vextronics Photonic Blade; Teleract Incendiary Injector Gun; Shinobi Electric Chaingun; Vextronics Cryogenic Shotgun — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Heads_Will_Roll)
+  - reward: 7800 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20080907092736/http://tr.mmodb.com/quests/heads-will-roll-606.php)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Awol Sergeant Melching: Crucible, AWOL Camp — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Awol_Sergeant_Melching)
+  - location: Archfiend (Thrax Grenadier), level 13: /loc 615,284,737, zone Wilderness — Roams around Lake Tinctuan near Alia Das — source: [Ellatha boss NPC](https://www.ellatha.com/tr/bossnpcview.asp?key=Archfiend&id=43)
+  - location: Archfiend Krubb, zone Crucible — source: [Ellatha boss NPC](https://www.ellatha.com/tr/bossnpcview.asp?key=Archfiend+Krubb&id=67)
+- **Client:** Sergeant Melching at the Awol Camp wants you to kill three Thrax officers that have been harrassing the Awols: Archfiend Krubb, Coercer Mungrel and Defiler Sedge.
+  - objectives (client): Kill Archfiend Krubb — Kill the Thrax Officer known as Archfiend Krubb.; Kill Coercer Mungrel — Kill the Thrax Officer known as Coercer Mungrel.; Kill Defiler Sedge — Kill the Thrax Officer known as Defiler Sedge.
+- **TaRapedia** [Heads Will Roll](https://tabularasa.fandom.com/wiki/Heads_Will_Roll): giver: Sergeant Melching; at: AWOL Camp; zone: Crucible; requires: The Other Side Of The Coin; or; Making Amends; follow-up: None; XP: 160,000; credits: 7,800; items: Vextronics Photonic Blade; Teleract Incendiary Injector Gun; Shinobi Electric Chaingun; Vextronics Cryogenic Shotgun; reward from: Sergeant Melching
+  - overview: Sergeant Melching at the Awol Camp wants go to kill three Thrax of officers that have been harassing no the Awols: Archfiend Krubb, Coercer Mungrel and Defiler Sedge.
+  - objectives: • Kill Archfiend Krubb • Kill the Thrax Officer known as Archfiend Krubb. • Kill Coercer Mungrel • Kill the Thrax Officer known as Coercer Mungrel. • Kill Defiler Sedge • Kill the Thrax Officer known as Defiler Sedge.
+  - walkthrough: All of these spawn as a group. They can be found patrolling the path around -839.5 285.4 576.3. [Posted by Idaho, Cassiopeia, March 24, 2008] Found these bosses at -731, 466. Found them at -764, 276, 493.
+- **TaRapedia mission list** [AWOL Camp mission list](https://tabularasa.fandom.com/wiki/AWOL_Camp_mission_list): zone Crucible, area AWOL Camp, given by Awol Sergeant Melching
+- **TR MMO DB** [Heads Will Roll](https://web.archive.org/web/20080907092736/http://tr.mmodb.com/quests/heads-will-roll-606.php): level: 45; starts at npc: Sergeant Melching; starts in zone: Crucible; objectives: Kill Archfiend Krubb, Kill Coercer Mungrel, Kill Defiler Sedge, Return to Sergeant Melching; description: TIP: You can find the bosses near -731, +466.; reward: 7800
+  - related mob Archfiend Krubb (not in the archived bestiary pages)
+- **TR MMO DB NPC** [Coercer Mungrel](https://web.archive.org/web/20081010234851/http://tr.mmodb.com/bestiary/coercer-mungrel-982.php): Quest Monster, zone Crucible (related to this quest)
+- **TR MMO DB NPC** [Defiler Sedge](https://web.archive.org/web/20080829152610/http://tr.mmodb.com/bestiary/defiler-sedge-983.php): Quest Monster, zone Crucible (related to this quest)
+- **TR MMO DB NPC** [Sergeant Melching](https://web.archive.org/web/20080907092624/http://tr.mmodb.com/bestiary/sergeant-melching-980.php): Quest NPC, zone Crucible (starts this quest)
+- **Where (locations / coordinates):**
+  - Archfiend (Thrax Grenadier), level 13: /loc 615,284,737, zone Wilderness — Roams around Lake Tinctuan near Alia Das — source: [Ellatha boss NPC](https://www.ellatha.com/tr/bossnpcview.asp?key=Archfiend&id=43)
+  - Archfiend Krubb, zone Crucible — source: [Ellatha boss NPC](https://www.ellatha.com/tr/bossnpcview.asp?key=Archfiend+Krubb&id=67)
+  - Found them at -764, 276, 493. — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Heads_Will_Roll)
+- **NPCs (TaRapedia NPC pages):**
+  - [Sergeant Melching](https://tabularasa.fandom.com/wiki/Sergeant_Melching): Crucible (NPC page lists this mission)
+  - [Archfiend](https://tabularasa.fandom.com/wiki/Archfiend): Wilderness (named in client text)
+  - [Awol Sergeant Melching](https://tabularasa.fandom.com/wiki/Awol_Sergeant_Melching): Crucible, AWOL Camp (listed under this NPC on a TaRapedia mission list)
+- **Ellatha boss NPC** [Archfiend](https://www.ellatha.com/tr/bossnpcview.asp?key=Archfiend&id=43): Thrax Grenadier; level 13; /loc 615,284,737; zone Wilderness; Roams around Lake Tinctuan near Alia Das; needed for: Herbal Remedy Wilderness Targets of Opportunity (boss named in client text)
+- **Ellatha boss NPC** [Archfiend Krubb](https://www.ellatha.com/tr/bossnpcview.asp?key=Archfiend+Krubb&id=67): zone Crucible; needed for: Crucible Targets of Opportunity (boss named in client text)
+- **Ellatha boss NPC** [Coercer Mungrel](https://www.ellatha.com/tr/bossnpcview.asp?key=Coercer+Mungrel&id=68): zone Crucible; needed for: Crucible Targets of Opportunity (boss named in client text)
+- **Ellatha boss NPC** [Defiler Sedge](https://www.ellatha.com/tr/bossnpcview.asp?key=Defiler+Sedge&id=69): zone Crucible; needed for: Crucible Targets of Opportunity (boss named in client text)
+
+- **Chain** (explicit prerequisite links): Making Amends chain (8 missions), step 2
+  - Requires: The Other Side Of The Coin (id 1153) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Heads_Will_Roll)
+  - Requires: Making Amends (id 1155) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Heads_Will_Roll), [TaRapedia](https://tabularasa.fandom.com/wiki/Making_Amends)
+  - Requires: Sweet Revenge (id 1205) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Sweet_Revenge)
+
 ### 1208 — Out Of Sight
 
 
@@ -635,4 +678,99 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
 
 - **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 3
   - Requires: A Fort Called Intrepid (id 1150) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Fort_Called_Intrepid), [TaRapedia](https://tabularasa.fandom.com/wiki/Funeral_Derge)
+
+### 1519 — Careful Negotiation [instance]
+
+
+- **Instance:** Staal Junkyard — NPC Cirkin (named as giver/receiver) is in Staal Junkyard — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Cirkin)
+- **Rebuild summary:**
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 90,000 XP; 6,150 credits; Vextronics Sonic Rifle; Vextronics Sonic RPG Launcher; Vextronics Virulent Leech Gun; Vextronics Electric Chaingun — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Careful_Negotiation)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Captain DeLisi: Crucible, Outpost Intrepid — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Captain_DeLisi)
+- **Client:** Kill the Lasher named Kalamit and take its reproductive sack to Circin inside the Staal Junkyard.
+  - objectives (client): Kill Kalamit — Kill Kalamit near the Staal Junkyard to collect its reproductive sack.; Meet Cirkin — Travel to Staal Junkyard to deliver the "trophy" to Cirkin.
+- **TaRapedia** [Careful Negotiation](https://tabularasa.fandom.com/wiki/Careful_Negotiation): giver: Captain DeLisi; at: Outpost Intrepid; zone: Crucible; requires: Business Proposal; follow-up: Your Part of the Bargain; XP: 90,000; credits: 6,150; items: Vextronics Sonic Rifle; Vextronics Sonic RPG Launcher; Vextronics Virulent Leech Gun; Vextronics Electric Chaingun; reward from: Cirkin
+  - overview: Kill the Lasher named Kalamit and take its reproductive sack to Cirkin inside the Staal Junkyard.
+  - objectives: • Kill Kalamit • Kill Kalamit near the Staal Junkyard to collect its reproductive sack. • x/1 • Meet Cirkin • Travel to Staal Junkyard to deliver the "trophy" to Cirkin.
+- **TaRapedia mission list** [Outpost Intrepid mission list](https://tabularasa.fandom.com/wiki/Outpost_Intrepid_mission_list): zone Crucible, area Outpost Intrepid, given by Captain DeLisi
+- **NPCs (TaRapedia NPC pages):**
+  - [Captain DeLisi](https://tabularasa.fandom.com/wiki/Captain_DeLisi): Crucible, Outpost Intrepid (named as giver/receiver)
+  - [Cirkin](https://tabularasa.fandom.com/wiki/Cirkin): Crucible, Staal Junkyard (named as giver/receiver)
+
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 7
+  - Requires: Business Proposal (id 1229) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Careful_Negotiation)
+  - Leads to: Your Part of the Bargain (id 1529) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Careful_Negotiation), [TaRapedia](https://tabularasa.fandom.com/wiki/Your_Part_of_the_Bargain)
+
+### 1529 — Your Part of the Bargain [instance]
+
+
+- **Instance:** Staal Junkyard — NPC Cirkin (named as giver/receiver) is in Staal Junkyard — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Cirkin)
+- **Rebuild summary:**
+  - level: 40 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731171628/http://tr.mmodb.com/quests/startingzone-staal_junkyard/)
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 180,000 XP; 8,200 credits — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Your_Part_of_the_Bargain)
+  - drops / mission items: They are small, blue crystal-shaped items that can be found on the ground — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Your_Part_of_the_Bargain)
+  - location: NPC Cirkin: Crucible, Staal Junkyard — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Cirkin)
+  - location: 306, 262, -65 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Your_Part_of_the_Bargain)
+  - location: 325, 265, -22 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Your_Part_of_the_Bargain)
+- **Client:** Cirkin from the Staal Junkyard wants you to eliminate all the Thrax technicans from the southeastern part of Staal Junkyard, collect large blocks of Dolomite, and collect a Energy Matrix for his warden bot guardian "Sparks."
+  - objectives (client): Eliminate all Thrax Technicians — Kill all of the Thrax Technicians inside of Staal Junkyard.; Collect Dolomite — Collect Dolmite Blocks for Cirkin inside of the Staal Junkyard; Collect Energy Matrix — Find a new Energy Matrix for Sparks inside of Staal Junkyard. Begin your search by killing the Ultra Reconstructors.; Return to Cirkin — Return to Cirkin inside of Staal Junkyard when you have completed all of the objectives.; Mission Tracker
+- **TaRapedia** [Your Part of the Bargain](https://tabularasa.fandom.com/wiki/Your_Part_of_the_Bargain): giver: Cirkin; at: Staal Junkyard; zone: Crucible; requires: Careful Negotiation; follow-up: Rising Up; XP: 180,000; credits: 8,200; reward from: Cirkin
+  - overview: Cirkin from the Staal Junkyard wants you to eliminate all the Thrax technicians from the southeastern part of Staal Junkyard, collect large blocks of Dolomite, and collect a Energy Matrix for his warden bot guardian "Sparks".
+  - objectives: • Eliminate all Thrax Technicians • Kill all Thrax Technicians inside of Staal Junkyard • All Thrax Technicians Killed x/1 • Collect Dolomite • Collect Dolomite Blocks for Cirkin inside of the Staal Junkyard. • x/5 • Collect Energy Matrix • Find a new Energy Matrix for Sparks inside of Staal Junkyard. Begin your search by killing the Ultra Reconstructors.' • x/1
+  - walkthrough: [Posted by Idaho, Cassiopeia Server, March 23, 2008] [Comments added by Deathbane_Hunter, Orion Server, July 2008] Dolomite Blocks are hard to find in the Staal Junkyard instance, Your Part of the Bargain. Five (5) are needed to complete this part of the mission objective. They are small, blue crystal-shaped items that can be found on the ground. I found samples at the following locations: 306, 262, -65 325, 265, -22 225, 242, -172 231, 266, -48 28, 243, -219 -331, 263, -36 The first four listed are in generally the same area, in the south east portion of the map, where the Bane have taken …
+- **TaRapedia mission list** [Staal Junkyard mission list](https://tabularasa.fandom.com/wiki/Staal_Junkyard_mission_list): zone Crucible, given by Cirkin
+- **PlayTR EU** [eu.playtr.com/en/news_article/deployment_102_patchnotes_known_issues_4 …](https://web.archive.org/web/20090107005649/http://eu.playtr.com/en/news_article/deployment_102_patchnotes_known_issues_4th_july_2008): “Ability: Grenadier: Scatterbombs rank 4 and 5 do not have explosion visual FX. / Mission: Your Part of the Bargain: Cannot complete “collect energy matrix” objective. / A logout timer has been implemented to prevent players from logging out to avoid death.”
+- **RGTR official site** [www.rgtr.com/news/patch_notes_public_test/deployment_10.html](https://web.archive.org/web/20081117082235/http://www.rgtr.com/news/patch_notes_public_test/deployment_10.html): “bility: Ranger: Tactical Evasion cast time has not decreased. Ability: Grenadier: Scatterbombs rank 4 and 5 do not have explosion visual FX. Mission: Your Part of the Bargain: Cannot complete “collect energy matrix” objective.”
+- **Where (locations / coordinates):**
+  - 306, 262, -65 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Your_Part_of_the_Bargain)
+  - 325, 265, -22 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Your_Part_of_the_Bargain)
+  - 225, 242, -172 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Your_Part_of_the_Bargain)
+  - 231, 266, -48 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Your_Part_of_the_Bargain)
+- **NPCs (TaRapedia NPC pages):**
+  - [Cirkin](https://tabularasa.fandom.com/wiki/Cirkin): Crucible, Staal Junkyard (named as giver/receiver)
+- **Drops / item sources:**
+  - They are small, blue crystal-shaped items that can be found on the ground — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Your_Part_of_the_Bargain)
+
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 8
+  - Requires: Careful Negotiation (id 1519) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Careful_Negotiation), [TaRapedia](https://tabularasa.fandom.com/wiki/Your_Part_of_the_Bargain)
+  - Leads to: Rising Up (id 1534) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Rising_Up), [TaRapedia](https://tabularasa.fandom.com/wiki/Your_Part_of_the_Bargain)
+- **Requires an instance mission:** Careful Negotiation (1519) — source: the chain links above
+
+### 1538 — Not My Junk [instance]
+
+
+- **Instance:** Staal Junkyard — NPC Cirkin (named in client text) is in Staal Junkyard — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Cirkin)
+- **Rebuild summary:**
+  - level: 40 — source: [TR MMO DB](https://web.archive.org/web/20080829153712/http://tr.mmodb.com/quests/not-my-junk-604.php)
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 85,000 XP; 0 credits — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Not_My_Junk)
+  - reward: 5850 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20080829153712/http://tr.mmodb.com/quests/not-my-junk-604.php)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: Fisrt talk to Cirkin at 181, 241, -222 then go to 343,263,-68 and kill Lamonix to get the key to unlock the chest, the chest is right next to Lamonix. — source: [TR MMO DB](https://web.archive.org/web/20080829153712/http://tr.mmodb.com/quests/not-my-junk-604.php)
+- **Client:** Travel to the Staal Junkyard and speak with a Brann named Cirkin, to see if you can obtain a Plasma Power Converter for Captain Chueng at the Awol Camp.
+  - objectives (client): Speak to Cirkin — Find Cirkin inside the Staal Junkyard about getting a Plasma Power Converter.; Kill Lamontix — Kill the Bane named Lamontix inside of Staal Junkyard to gain acces to the Bane Lock Box. Lamontix is located in the Bane controlled area directly east of …; Return to Captain Cheung — Return to Captain Cheung to deliver the Plasma Power Converter; Retrieve the Power Converter — Retrieve the Plasma Power Converter from Staal Junkyard
+- **TaRapedia** [Not My Junk](https://tabularasa.fandom.com/wiki/Not_My_Junk): giver: Awol Captain Cheung; at: AWOL Camp; zone: Crucible; requires: Sweet Revenge; or; Making Amends; follow-up: Point Of Impact; XP: 85,000; credits: 0
+  - overview: Travel to the Staal Junkyard and speak with a Brann named Cirkin, to see if you can obtain a Plasma Power Converter for Captain Cheung at the Awol Camp.
+  - objectives: • Speak to Cirkin • Find Cirkin inside the Staal Junkyard about getitng a Plasma Converter. • Retrieve the Power Converter • Retrieve the Plasma Power Converter from Staal Junkyard. • x/1 • Kill Lamontix • Kill the Bane named Lamontix inside of Staal Junkyard to gain access to the Bane Lock Box. Lamontix is located in the Bane controlled area directly east of Cirkin. • x/1
+  - walkthrough: My initial reaction is that this map was expected to be used for more than these simple mission. Navigation is odd compared to the map reference. It is nearly impossible to scale walls of the trenches, yet enemies have no such problems. A pack of roving Warden Bots in the northwest quadrant making travel there perilous. Do not attempt to fight them as 2 volleys will kill through level 40 Graviton armor like it isn't even there. There is a building at the center extreme north of the map that attracts but has no significance in the instance mission. Beware of the numerous Sentinel Bots that …
+- **TaRapedia mission list** [AWOL Camp mission list](https://tabularasa.fandom.com/wiki/AWOL_Camp_mission_list): zone Crucible, area AWOL Camp, given by Awol Captain Cheung
+- **TaRapedia mission list** [Staal Junkyard mission list](https://tabularasa.fandom.com/wiki/Staal_Junkyard_mission_list): zone Crucible, given by Awol Captain Cheung
+- **TR MMO DB** [Not My Junk](https://web.archive.org/web/20080829153712/http://tr.mmodb.com/quests/not-my-junk-604.php): level: 40; starts at npc: AWOL Captain Cheung; starts in zone: Crucible; objectives: Speak to Cirkin, Retrieve the Power Converter, Kill Lamonix, Return to Captain Cheung; description: SPOILER: Travel to the Staal Junkyard and speak with a Brann named Cirkin, to see if you can obtain a Plasma Power Converter for Captain Chueng at the Awol Camp. Fisrt talk to Cirkin at 181, 241, -222 then go to 343,263,-68 and kill Lamonix to get the key to unlock the chest, the chest is right …; reward: 5850
+  - related mob Lamontix (not in the archived bestiary pages)
+- **TR MMO DB NPC** [AWOL Captain Cheung](https://web.archive.org/web/20080907092501/http://tr.mmodb.com/bestiary/awol-captain-cheung-977.php): Quest NPC, location AWOL Camp, zone Crucible (starts this quest)
+- **Where (locations / coordinates):**
+  - Fisrt talk to Cirkin at 181, 241, -222 then go to 343,263,-68 and kill Lamonix to get the key to unlock the chest, the chest is right next to Lamonix. — source: [TR MMO DB](https://web.archive.org/web/20080829153712/http://tr.mmodb.com/quests/not-my-junk-604.php)
+- **NPCs (TaRapedia NPC pages):**
+  - [Awol Captain Cheung](https://tabularasa.fandom.com/wiki/Awol_Captain_Cheung): Crucible (NPC page lists this mission)
+  - [Cirkin](https://tabularasa.fandom.com/wiki/Cirkin): Crucible, Staal Junkyard (named in client text)
+
+- **Chain** (explicit prerequisite links): Making Amends chain (8 missions), step 2
+  - Requires: Making Amends (id 1155) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Making_Amends), [TaRapedia](https://tabularasa.fandom.com/wiki/Not_My_Junk)
+  - Requires: Sweet Revenge (id 1205) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Not_My_Junk)
+  - Leads to: Point Of Impact (id 1217) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Not_My_Junk), [TaRapedia](https://tabularasa.fandom.com/wiki/Point_Of_Impact)
 

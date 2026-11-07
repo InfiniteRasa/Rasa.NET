@@ -169,6 +169,50 @@ designed one (the client's 1153 log), not the patch-note known issue.
 - [ ] 1205 Sweet Revenge (Ligo Crucible): as 1155, but offered after 1153 (never with 1155). Turn in at Breiburg: 80000
   XP, 5850 credits, one of 19157, 33084, 40373, 36638.
 
+Set 7, the Staal Junkyard (migration `20271108000900_Crucible_staal_junkyard`). New rows 770030-770038 (next free id
+770039). The Staal Junkyard is a squad instance (map 2138): its door is on the Crucible at (-492.1, 236.9, -149.1), at the
+end of the bridge road; the arrival in the Junkyard is (29.7, 241.2, -336.9). Cirkin (new, 770030, a Brann, conversation
+package 1742) stands in the Junkyard at (187, 240.31, -233).
+
+- [ ] 1206 Heads Will Roll (Ligo Crucible): Sergeant Melching (Awol Camp) offers it after 1153 or 1155 (completed), level
+  45. Kill Archfiend Krubb 770031, Coercer Mungrel 770032 and Defiler Sedge 770033 (level 45, 12000 HP each), any order.
+  They walk together with a Shield Drone (770022) on a patrol of 7 points in the trench by the rock bridge north-west of
+  the Awol Camp, from (-839.5, 285.68, 576.3) to (-764, 276.77, 493) and back; respawn 300 s. One marker r60 for each on
+  the rock bridge (-796, 289.9, 528). A kill before the accept does not count. Turn in at Melching: 160000 XP, 7800
+  credits, one of 12105, 12143, 12027, 11973. Look: the squad walks the patrol and the drone stays with them.
+- [ ] 1519 Careful Negotiation (Ligo Crucible, Staal Junkyard): Captain DeLisi offers it after 1229, level 40 (ESTIMATE).
+  1 Kill Kalamit (new, 770034, a Lasher boss, class 10331, level 42, pool r10 at (-486, 249.88, 120) on the Crucible,
+  respawn 120 s): Kalamit's Reproductive Sack (111149) drops at 100 %, for the killer only. 2 Meet Cirkin: walk into the
+  10 m area round Cirkin in the Junkyard (no talk). Markers: Kalamit's pool r20 (1); the bridge road (-492, 237.88, -115)
+  r8 on the Crucible and Cirkin in the Junkyard (2; each shows only on its own map). Turn in at Cirkin: 90000 XP, 6150
+  credits, one of 14658, 49172, 15301, 15111; he takes the sack. Abandon: the sack stays.
+- [ ] 1529 Your Part of the Bargain (Staal Junkyard): Cirkin offers it in the Junkyard after 1519, level 40. 1 Eliminate
+  all Thrax Technicians: the two Technician pools of the south-east (770036 at (330, 243.46, -160), 770037 at (306,
+  257.43, -106), three Thrax Technicians each, level 40) dead at the same time. 2 Collect Dolomite: six personal Dolomite
+  Blocks (TaRapedia's places: (306, 263.51, -65), (325, 265.45, -22), (225, 242.21, -172), (231, 265.99, -48), (28,
+  243.67, -219), (-331, 263.43, -36)); a use gives one block, five complete 2 (n/5). The sixth block stays; its use gives
+  nothing. 3 Collect Energy Matrix: a 100 % drop from the Ultra Reconstructor (new, 770038, class 10314, at (-14, 335.14,
+  244), north centre). 4 Return to Cirkin (opens when 1-3 are done): walk into the 10 m area round him. Markers on each
+  pool (r15), each block (r3), the Ultra Reconstructor (r15) and Cirkin. Turn in at Cirkin: 180000 XP, 8200 credits, one
+  of 25119, 21400, 36339, 46021; he takes the blocks and the matrix. Abandon: the blocks are put back. Look: the
+  Ultra Reconstructor comes back 90 s after a kill in the squad's copy; the Technicians come back only with the copy.
+- [ ] 1538 Not My Junk (Ligo Crucible, Staal Junkyard): Awol Captain Cheung (Awol Camp) offers it after 1205 or 1155
+  (completed), level 40. 1 Speak to Cirkin in the Junkyard (talk, Cirkin's text 13943). 2 Kill Lamontix (new, 770035, a
+  Thrax, level 42, at (350, 265.42, -52), east of Cirkin): the Bane Lockbox Keycard (111182) drops at 100 %. 4 Retrieve
+  the Power Converter: use the player's own Bane Lockbox at (343, 263.8, -68); it gives the Plasma Power Converter
+  (111181) and takes the keycard. 3 Return to Captain Cheung: walk into the 10 m area round him at the Awol Camp. Markers:
+  the bridge road and Cirkin (1), Lamontix (2), the lockbox (4), Cheung (3). Turn in at Cheung: 85000 XP, no credits, the
+  Eloh Resonator (117177, fixed); he takes the converter. With a full bag the turn-in still works: the Resonator takes
+  the converter's slot. Abandon: start again from the talk. Look: Lamontix comes back 90 s after a kill in the squad's
+  copy.
+
+Second client (set 7, the squad's Junkyard copy). Expected results (not yet seen in a client); the bot must cover each:
+- A squad mate kills Lamontix or the Ultra Reconstructor: each squad member near with the mission gets the keycard or the
+  matrix. A mate's kill of Kalamit on the open Crucible gives the sack to the killer only (to-fix row 58).
+- Late join: a squad member who comes into the copy after a kill can kill the boss again after its 90 s.
+- Leave and enter again: the mission state, the taken blocks and the opened lockbox stay.
+- Instance reset (the copy closes, a new copy): the bosses, the Technicians and the blocks not yet taken stand again.
+
 ## Assumptions and choices (not from a source)
 
 All ESTIMATE (set 1):
@@ -319,6 +363,21 @@ All ESTIMATE (set 6):
   = Ice, "Exothermic" and "Incendiary" = Fire, "Pulse Cannon" = EMP rocket launcher, "Incendiary RPG Launcher" = the
   physical rocket launcher, Stealth V06 read as V04).
 
+All ESTIMATE (set 7):
+- Stats: no source gives the levels of the new NPCs, their HP or armor. Officers level 45 (the mission level), Kalamit,
+  Lamontix and the Ultra Reconstructor level 42, Technicians level 40 (copy of 531020, 8409 HP, armor 285).
+- Positions: Cirkin 11 m from the TR MMO DB spot (to-fix row 53); Lamontix and the lockbox at TaRapedia's (339.1, -70.5)
+  on the navmesh; the Ultra Reconstructor "near the upper centre" (TaRapedia); Kalamit "near the Junkyard" (client) on
+  the Crucible; the officers' patrol on TaRapedia's three points.
+- 1206: offered after 1153 or 1155 completed (TaRapedia names 1205, 1153, 1155 as before it).
+- 1519: level 40 (no source; as 1529). The sack drops only while 1 is open.
+- 1529: objective 1 needs both Technician pools dead at the same time; the block places are on the navmesh's height.
+- 1538: the lockbox is the item crate 11116 15 m west of Lamontix; the keycard is the gate (the patch of 2008-01-31).
+- Rewards: no client reward blocks. 1206 and 1519: TaRapedia's four kinds (to-fix row 54); each the lowest Uncommon
+  template whose band holds the mission level (1206 level 45: 12105, 12143, 12027, 11973; 1519 level 40: 14658, 49172,
+  15301, 15111). 1529: the lowest Uncommon template of each kind and icon number in the band of level 40 (Graviton V04,
+  Hazmat V03, Reflective V03, Bio V04: no Uncommon V05 or V04 of these in the band).
+
 ## Deviations (client/server limits)
 
 - 1143: one counter of distinct corpses does the work of the client's twenty per-corpse objectives.
@@ -334,6 +393,15 @@ All ESTIMATE (set 6):
 - 1208: the processors drop only from the Crucible's Shield Drones. A mission drop names one map (MissionItemDropDefinition),
   so the drones of other maps (TaRapedia user note: "I did it on Mires") give none.
 - 1185: Molitor and his pack stand in one pool; his patrol on the road is not built.
+- 1519, 1529, 1538: "Meet Cirkin", "Return to Cirkin" and "Return to Captain Cheung" have no client talk: built as a walk
+  into a 10 m area round the NPC. The area fires only on a step into it: a player who already stands in it when the
+  objective opens must step out and in again (to-fix row 57).
+- 1529: the client's tracker objective 5 with three counters is hidden; the block count is on hidden objective 7 (to-fix
+  row 56).
+- 1538: the keycard does not gate the lockbox by a requirement, only by the objective order. If the keycard is gone (sold
+  or destroyed) after 2, the lockbox use is refused; abandon and accept again (to-fix row 55).
+- 1519: the sack drops for the killer only (open Crucible, upstream loot rule; to-fix row 58).
+- 1529, 1538: the markers show only on the player's current map (the bridge road on the Crucible, Cirkin in the Junkyard).
 
 - 1152 and 1153: the fork is built as designed (keep the secret fails 1152), not as the retail known issue (refusing
   completes 1153 and fails 1152).
@@ -388,3 +456,9 @@ All ESTIMATE (set 6):
   Lieutenant Sherer 510030 from (944.4, 152, 176.4) to (969, 144.68, 108); Intelligence Officer D'Ambrose 510023 from
   (942, 152, 180.7) to (975, 144.68, 110).
 - None added. Packages unchanged (D'Ambrose has 1301 from set 1).
+
+## Server data changed by set 7 (upstream rows)
+
+- None moved. Added: Cirkin 770030, Krubb 770031, Mungrel 770032, Sedge 770033 (squad 770031 with the Shield Drone
+  770022), Kalamit 770034, Lamontix 770035, the Technician 770036 (pools 770036, 770037), the Ultra Reconstructor 770038
+  (upstream had no row for them: to-fix row 51).
