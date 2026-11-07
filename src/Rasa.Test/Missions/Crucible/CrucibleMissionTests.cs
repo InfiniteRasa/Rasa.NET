@@ -60,7 +60,8 @@ namespace Rasa.Test.Missions.Crucible
             CruciblePointOfImpactV1.MissionId, CrucibleItCameFromErdasV1.MissionId, CrucibleIronGiantsV1.MissionId,
             CrucibleWhosInChargeHereV1.MissionId, CrucibleBigKahunaV1.MissionId, CruciblePumpUpTheJamV1.MissionId,
             CrucibleStrikeZoneV1.MissionId, CrucibleSadisticSabotageV1.MissionId, CrucibleLostInTheAsylumV1.MissionId,
-            CrucibleRehabilitationAtGunpointV1.MissionId
+            CrucibleRehabilitationAtGunpointV1.MissionId, CrucibleGetToChaukasV1.MissionId, CrucibleControlTheBrainV1.MissionId,
+            CrucibleFixTheFactoryV1.MissionId
         };
 
         /// <summary>
@@ -85,10 +86,13 @@ namespace Rasa.Test.Missions.Crucible
         /// two, at the terminal (1 and 2); The Big Kahuna's one on Ugoretz; Pump Up The Jam's six, one on each jamming tower;
         /// Strike Zone's three, one on each beacon spot; Sadistic Sabotage's two, before the Ward's door (Crucible) and at Sheira
         /// (Ward); Lost in the Asylum's three, one at each find (Ward); Rehabilitation at Gunpoint's fourteen, on Jaikev, on
-        /// Parvatee, on each of the nine Incurable pools (Ward) and before the Ward's door for each objective (Crucible).
+        /// Parvatee, on each of the nine Incurable pools (Ward) and before the Ward's door for each objective (Crucible); Get to
+        /// Chaukas' two, before the Chaukas door (Crucible) and at Brian (Chaukas); Control the Brain's eight, the Brain room's
+        /// mouth, each of its three Claviger pools, the container and Brian at the Brain for 7, 5 and 6 (hidden 9, 10 and 11 have
+        /// none; Chaukas); Fix the Factory's two, one on each switch (Chaukas).
         /// </summary>
         internal const int Indicators = 8 + 2 + 6 + 3 + 3 + 9 + 2 + 8 + 1 + 3 + 1 + 10 + 15 + 4 + 3 + 3 + 7 + 2 + 1 + 3 + 3 + 3 + 3 + 10 + 5 + 1 + 2 + 1 + 2
-            + 3 + 2 + 1 + 6 + 3 + 2 + 3 + 14;
+            + 3 + 2 + 1 + 6 + 3 + 2 + 3 + 14 + 2 + 8 + 2;
 
         private const string OutpostIntrepid = "20271108000000_Crucible_outpost_intrepid";
         private const string GrupaChiefs = "20271108000100_Crucible_grupa_chiefs";
@@ -107,6 +111,7 @@ namespace Rasa.Test.Missions.Crucible
         private const string KhulagoStrikes = "20271108001400_Crucible_khulago_strikes";
         private const string FixH = "20271108001500_Crucible_fix_h";
         private const string IncurablesWard = "20271108001600_Crucible_incurables_ward";
+        private const string Chaukas = "20271108001700_Crucible_chaukas";
 
         private const uint Shandy = 770000, Mullins = 770001, Munit = 770002;
         private const uint DeLisi = 510019, Drake = 510034, Vitto = 510027, Donal = 510037, Rigs = 510025, DAmbrose = 510023;
@@ -123,6 +128,7 @@ namespace Rasa.Test.Missions.Crucible
         private const uint Tiersky = 510021;
         private const uint Sheira = 510038, Tempa = 510028, Shanul = 770045, Dhimand = 770046, Brute = 770047, Slayer = 770048;
         private const uint Jaikev = 770049, Parvatee = 770050;
+        private const uint Ruben = 770058, Brian = 770059;
 
         /// <summary>
         /// The migration directly before <paramref name="migration"/> (IMigrationsAssembly, ordinal order), the target that
@@ -153,7 +159,8 @@ namespace Rasa.Test.Missions.Crucible
                 (1210, DeLisi, Keplinger, 35), (1212, Madias, Madias, 35), (1217, Cheung, null, 40), (1218, null, Botha, 35),
                 (1213, Madias, Madias, 35), (1215, Madias, Madias, 35), (1216, Madias, Madias, 35),
                 (1224, Tiersky, Tiersky, 36), (1214, Keplinger, Keplinger, 35),
-                (1445, Nema, Sheira, 35), (1444, Sheira, Sheira, 40), (1402, Tempa, Tempa, 35)
+                (1445, Nema, Sheira, 35), (1444, Sheira, Sheira, 40), (1402, Tempa, Tempa, 35),
+                (1577, Ruben, Brian, 40), (1521, Brian, Brian, 35), (1522, Brian, Brian, 35)
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             var enabled = harness.World.MissionContentDefinitionEntries.AsNoTracking()
@@ -555,8 +562,34 @@ namespace Rasa.Test.Missions.Crucible
                     row.Creature1MaxCount, row.Creature2Id, (uint)row.RespawnTime, row.Radius), $"pool {pool}: a point");
                 Assert.IsLessThan(0.01, System.Math.Abs(row.PosX - x) + System.Math.Abs(row.PosZ - z), $"pool {pool} at ({x}, {z})");
             }
-            Assert.IsFalse(world.CreatureEntries.AsNoTracking().Any(row => row.Id >= 770051 && row.Id <= 770999), "set 11a adds no more creatures");
-            Assert.IsFalse(world.SpawnPoolEntries.AsNoTracking().Any(row => row.Id >= 770058 && row.Id <= 770999), "set 11a's last pool is 770057");
+            Assert.IsFalse(world.CreatureEntries.AsNoTracking().Any(row => row.Id >= 770051 && row.Id <= 770057), "set 11a adds no more creatures");
+
+            // Set 12a: Ruben (client name 9724, server-only package 770058: no objective talk with him) on the Crucible, a copy of
+            // Sherer's row and look (class 3848, female); Brian (9725, package 1800: objectiveconversation 1577,1, 1521,5 and 1521,7)
+            // in Chaukas (2146), a copy of DeLisi's (class 3846), able to walk (run 7, walk 2: 1521's copy follows) and posed
+            // Standing at his pool (he keeps his post).
+            foreach (var (npc, name, package, copy, cls, run, walk, map, x, z) in new (uint, uint, uint, uint, uint, uint, uint, uint, double, double)[]
+            {
+                (Ruben, 9724, 770058, Sherer, 3848, 0, 0, 1993, 966, 156), (Brian, 9725, 1800, DeLisi, 3846, 7, 2, 2146, -38, -256)
+            })
+            {
+                var creature = world.CreatureEntries.AsNoTracking().Single(row => row.Id == npc);
+                Assert.AreEqual((name, 40U, 1U, cls, run, walk), (creature.NameId, creature.Level, creature.Faction, creature.ClassId,
+                    (uint)creature.RunSpeed, (uint)creature.WalkSpeed), $"{npc}");
+                Assert.AreEqual(package, world.NpcPackageEntries.AsNoTracking().Single(row => row.Id == npc).PackageId, $"{npc} package");
+                Assert.AreEqual(1, world.NpcPackageEntries.AsNoTracking().Count(row => row.PackageId == package), $"only {npc} has {package}");
+                var stat = world.CreatureStatEntries.AsNoTracking().Single(row => row.Id == npc);
+                Assert.AreEqual((4500, 300), (stat.Health, stat.Armor), $"{npc} stats");
+                Assert.AreEqual(world.CreatureAppearanceEntries.AsNoTracking().Count(row => row.Id == copy),
+                    world.CreatureAppearanceEntries.AsNoTracking().Count(row => row.Id == npc), $"{npc} has {copy}'s look");
+                var pool = world.SpawnPoolEntries.AsNoTracking().Single(row => row.Id == npc);
+                Assert.AreEqual((map, npc, (byte)1, (byte)1, 0.0), (pool.MapContextId, pool.Creature1Id, pool.Creature1MinCount, pool.Creature1MaxCount, pool.Radius), $"{npc} pool");
+                Assert.IsLessThan(0.01, System.Math.Abs(pool.PosX - x) + System.Math.Abs(pool.PosZ - z), $"pool {npc} at ({x}, {z})");
+            }
+            Assert.AreEqual(1, world.Database.SqlQueryRaw<int>($"SELECT pose AS Value FROM spawnpool_pose WHERE id = {Brian}").AsEnumerable().Single(),
+                "Brian's pool posed Standing (Data.NpcPose 1)");
+            Assert.IsFalse(world.CreatureEntries.AsNoTracking().Any(row => row.Id >= 770060 && row.Id <= 770999), "set 12a's last creature is 770059");
+            Assert.IsFalse(world.SpawnPoolEntries.AsNoTracking().Any(row => row.Id >= 770060 && row.Id <= 770999), "set 12a's last pool is 770059");
         }
 
         /// <summary>
@@ -614,7 +647,12 @@ namespace Rasa.Test.Missions.Crucible
                 (1214, 9569, new (uint, uint, uint, uint?)[] { (1, 9665, 9666, null), (2, 9667, 9668, null), (3, 9669, 9670, null) }),
                 (1445, 12643, new (uint, uint, uint, uint?)[] { (1, 12648, 12649, null) }),
                 (1444, 12638, new (uint, uint, uint, uint?)[] { (1, 12682, 12683, null), (2, 12685, 12686, null), (3, 12688, 12689, null) }),
-                (1402, 12067, new (uint, uint, uint, uint?)[] { (1, 12651, 12652, 12653), (2, 12654, 12655, 12656), (3, 12657, 12658, 12659) })
+                (1402, 12067, new (uint, uint, uint, uint?)[] { (1, 12651, 12652, 12653), (2, 12654, 12655, 12656), (3, 12657, 12658, 12659) }),
+                (1577, 14453, new (uint, uint, uint, uint?)[] { (1, 14458, 14459, null) }),
+                // 1521: the client's 3-8; hidden 9 and 10 (the tracker and its opener) with 8's texts, hidden 11 (6's tally) with 6's.
+                (1521, 13581, new (uint, uint, uint, uint?)[] { (3, 13648, 13649, null), (4, 13650, 13651, null), (5, 13652, 13653, null),
+                    (6, 13654, 13655, null), (7, 14861, 14862, null), (8, 20199, 20200, null), (9, 20199, 20200, null), (10, 20199, 20200, null), (11, 13654, 13655, null) }),
+                (1522, 13586, new (uint, uint, uint, uint?)[] { (1, 13939, 13940, null), (2, 13941, 13942, null) })
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             foreach (var (mission, title, objectives) in expected)
@@ -645,7 +683,8 @@ namespace Rasa.Test.Missions.Crucible
             // 1144,6 1297 (two choices); 1144,8 1304; 1144,9 1297; 1152,1 1292; 1152,2 1301; 1153,1 1292 (two choices); 1155 and
             // 1205: 1 1229 (Munit), 2 1219 (DeLisi), 3 1293 (Breiburg); set 7: 1538,1 1742 (Cirkin); set 8a: 1210,1 1337
             // (Keplinger), 1217,1 and 1218,1 1483 (Tiernan), 1218,2 1410 (Botha); set 8b: 1215,1 and 1215,2 1453 (the Bane terminal);
-            // set 11a: 1445,1 1640 (Sheira), 1444,1 1664 (Shanul), 1444,2 1727 (Paliv's body), 1444,3 1700 (Dhimand).
+            // set 11a: 1445,1 1640 (Sheira), 1444,1 1664 (Shanul), 1444,2 1727 (Paliv's body), 1444,3 1700 (Dhimand); set 12a:
+            // 1577,1, 1521,5 and 1521,7 1800 (Brian).
             var talks = harness.World.Set<MissionTriggerEntry>().AsNoTracking()
                 .Where(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision && entry.Kind == MissionTriggerKind.Conversation)
                 .AsEnumerable().Select(entry => (entry.MissionId, entry.ObjectiveId, entry.NpcPackageId, entry.PlayerFlagId))
@@ -660,14 +699,15 @@ namespace Rasa.Test.Missions.Crucible
                 (1155, 1, 1229, 1), (1155, 2, 1219, 1), (1155, 3, 1293, 1), (1161, 1, 1222, 1),
                 (1170, 1, 1229, 1), (1170, 3, 1225, 1), (1170, 5, 1227, 1), (1170, 7, 1231, 1), (1185, 1, 1222, 1), (1185, 3, 1222, 1),
                 (1205, 1, 1229, 1), (1205, 2, 1219, 1), (1205, 3, 1293, 1), (1210, 1, 1337, 1), (1215, 1, 1453, 1), (1215, 2, 1453, 1), (1217, 1, 1483, 1), (1218, 1, 1483, 1), (1218, 2, 1410, 1),
-                (1229, 1, 1219, 1), (1444, 1, 1664, 1), (1444, 2, 1727, 1), (1444, 3, 1700, 1), (1445, 1, 1640, 1), (1538, 1, 1742, 1)
+                (1229, 1, 1219, 1), (1444, 1, 1664, 1), (1444, 2, 1727, 1), (1444, 3, 1700, 1), (1445, 1, 1640, 1),
+                (1521, 5, 1800, 1), (1521, 7, 1800, 1), (1538, 1, 1742, 1), (1577, 1, 1800, 1)
             }, talks);
         }
 
         /// <summary>
         /// The chain 1142 -> 1150 -> 1145 -> 1161 -> 1146, 1147, 1148, 1149 and 1170 -> 1229, 1150 -> 1232 and 1241, 1149 ->
         /// 1203 -> 1204, 1147 -> 1202, 1148 -> 1208, 1170 -> 1185, 1144 -> 1152 -> 1155, 1153 -> 1205, 1229 -> 1519 -> 1529, and
-        /// 1153 while 1152 is in the mission log, 1229 -> 1210 and 1212, 1212 -> 1213 -> 1215 -> 1216, 1538 -> 1217 -> 1218, 1224 -> 1214, 1147 -> 1445 -> 1444 (TaRapedia); The Departed, Whiplash, Calendar Girl, Pump Up The Jam and Rehabilitation at Gunpoint need none; 1206 and 1538
+        /// 1153 while 1152 is in the mission log, 1229 -> 1210 and 1212, 1212 -> 1213 -> 1215 -> 1216, 1538 -> 1217 -> 1218, 1224 -> 1214, 1147 -> 1445 -> 1444, 1577 -> 1521 -> 1522 (TaRapedia); The Departed, Whiplash, Calendar Girl, Pump Up The Jam, Rehabilitation at Gunpoint and Get to Chaukas need none; 1206 and 1538
         /// take an either-or (their scenes' requirements, CrucibleStaalJunkyardTests); none repeats.
         /// </summary>
         [TestMethod]
@@ -697,7 +737,8 @@ namespace Rasa.Test.Missions.Crucible
                 (1229, MissionPrerequisiteKind.MissionCompleted, 1170),
                 (1232, MissionPrerequisiteKind.MissionCompleted, 1150), (1241, MissionPrerequisiteKind.MissionCompleted, 1150),
                 (1444, MissionPrerequisiteKind.MissionCompleted, 1445), (1445, MissionPrerequisiteKind.MissionCompleted, 1147),
-                (1519, MissionPrerequisiteKind.MissionCompleted, 1229), (1529, MissionPrerequisiteKind.MissionCompleted, 1519)
+                (1519, MissionPrerequisiteKind.MissionCompleted, 1229), (1521, MissionPrerequisiteKind.MissionCompleted, 1577),
+                (1522, MissionPrerequisiteKind.MissionCompleted, 1521), (1529, MissionPrerequisiteKind.MissionCompleted, 1519)
             }, rows);
             Assert.IsFalse(harness.World.Set<MissionRepeatPolicyEntry>().AsNoTracking()
                 .Any(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision));
@@ -784,7 +825,12 @@ namespace Rasa.Test.Missions.Crucible
                 // nearest icon number in the band of level 40; 1402 the grade [4] modules (as 1204).
                 (1445, 42500, 4000, new[] { (45063U, 6U), (45447U, 3U), (111233U, 1U), (111049U, 3U) }),
                 (1444, 170000, 8000, new[] { (34116U, 1U), (40373U, 1U), (21249U, 1U), (23569U, 1U) }),
-                (1402, 180000, 8200, new[] { (122971U, 1U), (123046U, 1U), (123041U, 1U), (123276U, 1U) })
+                (1402, 180000, 8200, new[] { (122971U, 1U), (123046U, 1U), (123041U, 1U), (123276U, 1U) }),
+                // Set 12a: 1577 the lowest Uncommon of each kind and the nearest icon number in the band of level 40; 1521 the lowest
+                // Uncommon of each kind in the band of level 35; 1522 the grade [4] modules (as 1402).
+                (1577, 90000, 8200, new[] { (33858U, 1U), (24086U, 1U), (21699U, 1U), (31241U, 1U) }),
+                (1521, 90000, 8200, new[] { (47688U, 1U), (48676U, 1U), (15437U, 1U), (14815U, 1U) }),
+                (1522, 85000, 8000, new[] { (122951U, 1U), (122986U, 1U), (123001U, 1U), (123006U, 1U) })
             })
             {
                 var reward = harness.World.Set<MissionRewardDefinitionEntry>().AsNoTracking()
@@ -804,7 +850,8 @@ namespace Rasa.Test.Missions.Crucible
         /// <summary>
         /// The indicators: on the Crucible map (MissionMarkerProjection), but for the ones in the Staal Junkyard (2138): 1519's
         /// on Cirkin, all of 1529's, 1538's on Cirkin, Lamontix and the lockbox; for the ones in the Incurables Ward (2141): 1445's
-        /// on Sheira, all of 1444's, 1402's on the bosses and the pools; on Ashen Desert (1734) 1218's on Botha; keyed
+        /// on Sheira, all of 1444's, 1402's on the bosses and the pools; for the ones in Chaukas (2146): 1577's on Brian, all of
+        /// 1521's and 1522's; on Ashen Desert (1734) 1218's on Botha; keyed
         /// above UnnamedFrom (the client names none of them).
         /// </summary>
         [TestMethod]
@@ -824,12 +871,15 @@ namespace Rasa.Test.Missions.Crucible
                 mission == 1445 && indicator == MissionIndicator.UnnamedFrom + 2 ||
                 mission == 1402 && indicator <= MissionIndicator.UnnamedFrom + 11;
             Assert.AreEqual(1 + 10 + 3, indicators.Count(row => InTheJunkyard(row.MissionId, row.IndicatorId)));
+            bool InChaukas(uint mission, uint indicator) => mission is 1521 or 1522 ||
+                mission == 1577 && indicator == MissionIndicator.UnnamedFrom + 2;
             Assert.AreEqual(1 + 3 + 11, indicators.Count(row => InTheWard(row.MissionId, row.IndicatorId)));
+            Assert.AreEqual(1 + 8 + 2, indicators.Count(row => InChaukas(row.MissionId, row.IndicatorId)));
             Assert.AreEqual(1, indicators.Count(row => OnAshenDesert(row.MissionId, row.IndicatorId)));
             foreach (var row in indicators)
             {
                 var map = InTheJunkyard(row.MissionId, row.IndicatorId) ? 2138U : InTheWard(row.MissionId, row.IndicatorId) ? 2141U
-                    : OnAshenDesert(row.MissionId, row.IndicatorId) ? 1734U : 1993U;
+                    : InChaukas(row.MissionId, row.IndicatorId) ? 2146U : OnAshenDesert(row.MissionId, row.IndicatorId) ? 1734U : 1993U;
                 Assert.AreEqual(map, MissionMarkerProjection.ResolveMap(catalog, row.MissionId, row.ObjectiveId,
                     new MissionIndicator { IndicatorId = row.IndicatorId }), $"mission {row.MissionId} objective {row.ObjectiveId}: on map {map}");
                 Assert.IsTrue(row.IndicatorId > MissionIndicator.UnnamedFrom, $"mission {row.MissionId} objective {row.ObjectiveId} indicator {row.IndicatorId}");
@@ -851,11 +901,12 @@ namespace Rasa.Test.Missions.Crucible
                         System.Text.RegularExpressions.RegexOptions.IgnoreCase).Groups[1].Value
                     .Split(',', System.StringSplitOptions.RemoveEmptyEntries).Select(id => (entry.MissionId, uint.Parse(id.Trim()))))
                 .ToHashSet();
-            CollectionAssert.AreEquivalent(new[] { (1143U, 22U), (1144U, 7U), (1529U, 5U), (1529U, 6U), (1529U, 7U), (1217U, 2U) }, hidden.ToArray(),
-                "The Departed's item tracker, Calendar Girl's outcome, Your Part of the Bargain's tracker, its opener and its block count, and Point Of Impact's walk to the obelisk are hidden");
+            CollectionAssert.AreEquivalent(new[] { (1143U, 22U), (1144U, 7U), (1529U, 5U), (1529U, 6U), (1529U, 7U), (1217U, 2U), (1521U, 9U), (1521U, 10U), (1521U, 11U) }, hidden.ToArray(),
+                "The Departed's item tracker, Calendar Girl's outcome, Your Part of the Bargain's tracker, its opener and its block count, Point Of Impact's walk to the obelisk, " +
+                "and Control the Brain's tracker, its opener and its kill tally are hidden");
             var objectives = world.MissionObjectiveDefinitionEntries.AsNoTracking().Where(entry => entry.ContentRevision == revision)
                 .Select(entry => new { entry.MissionId, entry.ObjectiveId }).ToList();
-            Assert.HasCount(9 + 1 + 6 + 3 + 1 + 3 + 1 + 8 + 1 + 1 + 1 + 2 + 3 + 1 + 1 + 3 + 8 + 2 + 1 + 3 + 3 + 3 + 2 + 7 + 4 + 1 + 1 + 2 + 2 + 1 + 2 + 1 + 6 + 3 + 1 + 3 + 3, objectives, "the objectives are read");
+            Assert.HasCount(9 + 1 + 6 + 3 + 1 + 3 + 1 + 8 + 1 + 1 + 1 + 2 + 3 + 1 + 1 + 3 + 8 + 2 + 1 + 3 + 3 + 3 + 2 + 7 + 4 + 1 + 1 + 2 + 2 + 1 + 2 + 1 + 6 + 3 + 1 + 3 + 3 + 1 + 9 + 2, objectives, "the objectives are read");
             var missing = objectives.Select(entry => (entry.MissionId, entry.ObjectiveId))
                 .Where(key => !marked.Contains(key) && !hidden.Contains(key)).OrderBy(key => key).ToArray();
             Assert.IsEmpty(missing, string.Join(", ", missing));
@@ -919,7 +970,13 @@ namespace Rasa.Test.Missions.Crucible
                 // Parvatee, the nine Incurable pools and the door for each objective (1402).
                 (1445, 1, -216, 400, 6), (1445, 1, -18, -88, 8),
                 (1444, 1, 60, -70, 8), (1444, 2, 94, 421, 8), (1444, 3, -40, 386, 8),
-                (1402, 1, -98, 332, 10), (1402, 2, -90, 340, 10), (1402, 1, -216, 400, 6), (1402, 2, -216, 400, 6), (1402, 3, -216, 400, 6)
+                (1402, 1, -98, 332, 10), (1402, 2, -90, 340, 10), (1402, 1, -216, 400, 6), (1402, 2, -216, 400, 6), (1402, 3, -216, 400, 6),
+                // Set 12a: before the Chaukas door on the Crucible and Brian (1577); the Brain room's mouth, its three Claviger pools
+                // (their radius and 4 m), Brian at the Brain (7, 5, 6), the container (1521); the two switches (1522).
+                (1577, 1, -528.6, 563.6, 6), (1577, 1, -38, -256, 8),
+                (1521, 3, -14, 4, 8), (1521, 8, -16, 10.1, 10), (1521, 8, -15.6, 114.5, 10.5), (1521, 8, 23.6, 37.8, 19),
+                (1521, 7, -24, 38, 8), (1521, 4, -16, -164, 3), (1521, 5, -24, 38, 8), (1521, 6, -24, 38, 15),
+                (1522, 1, 88, -176, 3), (1522, 2, -146, -55, 3)
             };
             foreach (var (x, z) in new[] { (76.0, 90.0), (76.0, 132.0), (94.0, 178.0), (124.0, 184.0), (-22.0, 416.0), (-40.0, 464.0), (94.0, 488.0),
                 (-90.0, 316.0), (-82.0, 348.0) })
@@ -960,9 +1017,9 @@ namespace Rasa.Test.Missions.Crucible
                     Assert.IsTrue(meshes.TryGetValue(actor.TemplateId, out var mesh), $"{scene.MissionId} {actor.Role}: class {actor.TemplateId}");
                     Assert.AreNotEqual(776U, mesh, $"{scene.MissionId} {actor.Role}: class {actor.TemplateId} has the Default mesh");
                 }
-            Assert.AreEqual(20 + 1 + 6 + 1 + 1 + 2 + 6 + 3 + 1, objects,
+            Assert.AreEqual(20 + 1 + 6 + 1 + 1 + 2 + 6 + 3 + 1 + 1 + 2, objects,
                 "The Departed's twenty fallen, the terminal, 1529's six Dolomite Blocks, 1538's lockbox, 1217's obelisk, 1215's two Bane terminals, " +
-                "1224's six jamming towers, 1214's three beacon spots and 1444's Paliv");
+                "1224's six jamming towers, 1214's three beacon spots, 1444's Paliv, 1521's container and 1522's two switches");
         }
 
         /// <summary>
@@ -975,6 +1032,8 @@ namespace Rasa.Test.Missions.Crucible
             [7007] = 3,                                             // UsableItemDispCrystalspecimenCONVERT2TD (1529's Dolomite Blocks)
             [11116] = 3,                                            // UsableItemDisp_item_crate_bane_v01CONVERT2TD (1538's Bane Lockbox)
             [7847] = 3,                                             // UsableItemAccHumGpsBeacon (1214's beacon spots; lookup[0] 3, as MarshesMissionTests')
+            [26580] = 1,                                            // UsableTreasureDispWardenbotCrateV01 (1521's container; lookup[0] None)
+            [26578] = 1,                                            // UsableTwoStateWardenbotGenericSwitchV01 (1522's switches; lookup[0] None)
         };
 
         /// <summary>
@@ -983,7 +1042,13 @@ namespace Rasa.Test.Missions.Crucible
         /// </summary>
         private static readonly Dictionary<uint, uint> ClientUseNames = new()
         {
-            [24995] = 12, [7865] = 12, [24989] = 12, [24990] = 12, [7007] = 166, [11116] = 175, [7847] = 0
+            [24995] = 12, [7865] = 12, [24989] = 12, [24990] = 12, [7007] = 166, [11116] = 175, [7847] = 0, [26580] = 189
+        };
+
+        /// <summary>The names of a class the scenes use under two names, by role: 190 "Factory Reset Switch", 191 "Ore Machine Override Switch" (1522, class 26578).</summary>
+        private static readonly Dictionary<string, uint> ClientRoleUseNames = new()
+        {
+            [CrucibleFixTheFactoryV1.FactoryRole] = 190, [CrucibleFixTheFactoryV1.OreRole] = 191
         };
 
         [TestMethod]
@@ -999,9 +1064,11 @@ namespace Rasa.Test.Missions.Crucible
                         $"{scene.MissionId} {actor.Role}: class {actor.TemplateId} has no pinned client use argument");
                     Assert.AreEqual(argument, actor.UseAction.ActionArgId,
                         $"{scene.MissionId} {actor.Role}: class {actor.TemplateId} is used with the client's argument");
-                    Assert.AreEqual(ClientUseNames[actor.TemplateId], actor.NameOverrideId, $"{actor.Role}: the client's name");
+                    Assert.AreEqual(ClientRoleUseNames.TryGetValue(actor.Role, out var byRole) ? byRole : ClientUseNames[actor.TemplateId],
+                        actor.NameOverrideId, $"{actor.Role}: the client's name");
                 }
-            Assert.AreEqual(20 + 6 + 1 + 3, used, "The Departed's twenty fallen, 1529's six blocks, 1538's lockbox, 1214's three beacon spots (1150's terminal talks)");
+            Assert.AreEqual(20 + 6 + 1 + 3 + 1 + 2, used,
+                "The Departed's twenty fallen, 1529's six blocks, 1538's lockbox, 1214's three beacon spots, 1521's container, 1522's two switches (1150's terminal talks)");
         }
 
         /// <summary>
@@ -1013,12 +1080,12 @@ namespace Rasa.Test.Missions.Crucible
             SetFive = MissionIds.Skip(16).Take(3).ToArray(), SetSix = MissionIds.Skip(19).Take(5).ToArray(),
             SetSeven = MissionIds.Skip(24).Take(4).ToArray(), SetEight = MissionIds.Skip(28).Take(4).ToArray(),
             SetEightB = MissionIds.Skip(32).Take(3).ToArray(), SetNine = MissionIds.Skip(35).Take(2).ToArray(),
-            SetElevenA = MissionIds.Skip(37).ToArray();
+            SetElevenA = MissionIds.Skip(37).Take(3).ToArray(), SetTwelveA = MissionIds.Skip(40).ToArray();
 
         /// <summary>Sets 1-6, before set 7's migration; sets 1-7, before set 8a's; sets 1-8a, before set 8b's; sets 1-8b, before set 9's.</summary>
         private static readonly uint[] SetsOneToSix = MissionIds.Take(24).ToArray(), SetsOneToSeven = MissionIds.Take(28).ToArray(),
             SetsOneToEightA = MissionIds.Take(32).ToArray(), SetsOneToEightB = MissionIds.Take(35).ToArray(),
-            SetsOneToNine = MissionIds.Take(37).ToArray();
+            SetsOneToNine = MissionIds.Take(37).ToArray(), SetsOneToElevenA = MissionIds.Take(40).ToArray();
 
         /// <summary>
         /// The Crucible block's rows (creature, spawnpool, npc_package, creature_stat), Rigs' package, the Crucible scenes, the
@@ -1034,7 +1101,8 @@ namespace Rasa.Test.Missions.Crucible
         /// 1218 (Keplinger and Madias are upstream's, moved); set 8b adds the Juggernaut and Ugoretz (four pools), the scene of 1215
         /// and the Juggernaut's two attacks; set 9 adds the scenes of 1224 and 1214 (no new row: it moves upstream's Tiersky); set
         /// 11a adds Shanul and Dhimand (pools, packages), the Brute, the Slayer, Jaikev and Parvatee (eleven pools), the scenes of
-        /// 1445 (its markers' maps), 1444 and 1402 and the Incurables' attack (it moves upstream's Sheira and Tempa).
+        /// 1445 (its markers' maps), 1444 and 1402 and the Incurables' attack (it moves upstream's Sheira and Tempa); set 12a adds
+        /// Ruben and Brian (pools, packages) and the scenes of 1577 (its markers' maps), 1521 and 1522.
         /// </summary>
         private static (int, int, int, int, int, int, int, int) Rows(DbContext world)
         {
@@ -1054,7 +1122,7 @@ namespace Rasa.Test.Missions.Crucible
             SetTwoRows = (6, 5, 5, 6, 1, 6, 2, 0), SetThreeRows = (9, 11, 6, 9, 1, 10, 2, 1), SetFourRows = (11, 16, 6, 11, 1, 12, 2, 4),
             SetFiveRows = (16, 25, 9, 16, 1, 14, 2, 5), SetSixRows = (16, 25, 9, 16, 1, 19, 2, 5), SetSevenRows = (24, 31, 10, 24, 1, 23, 2, 5),
             SetEightARows = (26, 33, 12, 26, 1, 25, 2, 5), SetEightBRows = (28, 37, 12, 28, 1, 26, 2, 7), SetNineRows = (28, 37, 12, 28, 1, 28, 2, 7),
-            AllRows = (34, 50, 14, 34, 1, 31, 2, 8);
+            SetElevenARows = (34, 50, 14, 34, 1, 31, 2, 8), AllRows = (36, 52, 16, 36, 1, 34, 2, 8);
 
         private static (double, double, double) At(Rasa.Context.World.WorldContext world, uint pool)
         {
@@ -1096,7 +1164,7 @@ namespace Rasa.Test.Missions.Crucible
             world.GetService<IMigrator>().Migrate(OutpostIntrepid);
             world.ChangeTracker.Clear();
             Assert.IsTrue(SetOne.All(Has));
-            Assert.IsFalse(SetTwo.Concat(SetThree).Concat(SetFour).Concat(SetFive).Concat(SetSix).Concat(SetSeven).Concat(SetEight).Concat(SetEightB).Concat(SetNine).Concat(SetElevenA).Any(Has), "sets 2 to 6 are the next migrations'");
+            Assert.IsFalse(SetTwo.Concat(SetThree).Concat(SetFour).Concat(SetFive).Concat(SetSix).Concat(SetSeven).Concat(SetEight).Concat(SetEightB).Concat(SetNine).Concat(SetElevenA).Concat(SetTwelveA).Any(Has), "sets 2 to 6 are the next migrations'");
             Assert.AreEqual(SetOneRows, Rows(world));
             Assert.AreEqual(1301U, Package(DAmbrose));
         }
@@ -1124,7 +1192,7 @@ namespace Rasa.Test.Missions.Crucible
             world.GetService<IMigrator>().Migrate(Previous(world, GrupaChiefs));
             world.ChangeTracker.Clear();
             Assert.IsTrue(SetOne.All(Has), "set 1 stays");
-            Assert.IsFalse(SetTwo.Concat(SetThree).Concat(SetFour).Concat(SetFive).Concat(SetSix).Concat(SetSeven).Concat(SetEight).Concat(SetEightB).Concat(SetNine).Concat(SetElevenA).Any(Has));
+            Assert.IsFalse(SetTwo.Concat(SetThree).Concat(SetFour).Concat(SetFive).Concat(SetSix).Concat(SetSeven).Concat(SetEight).Concat(SetEightB).Concat(SetNine).Concat(SetElevenA).Concat(SetTwelveA).Any(Has));
             Assert.AreEqual(SetOneRows, Rows(world));
             Assert.AreEqual(0, Links());
             Assert.IsFalse(world.MissionEvidenceEntries.Any(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision &&
@@ -1136,7 +1204,7 @@ namespace Rasa.Test.Missions.Crucible
             world.GetService<IMigrator>().Migrate(GrupaChiefs);
             world.ChangeTracker.Clear();
             Assert.IsTrue(SetOne.Concat(SetTwo).All(Has));
-            Assert.IsFalse(SetThree.Concat(SetFour).Concat(SetFive).Concat(SetSix).Concat(SetSeven).Concat(SetEight).Concat(SetEightB).Concat(SetNine).Concat(SetElevenA).Any(Has), "sets 3 to 6 are the next migrations'");
+            Assert.IsFalse(SetThree.Concat(SetFour).Concat(SetFive).Concat(SetSix).Concat(SetSeven).Concat(SetEight).Concat(SetEightB).Concat(SetNine).Concat(SetElevenA).Concat(SetTwelveA).Any(Has), "sets 3 to 6 are the next migrations'");
             Assert.AreEqual(SetTwoRows, Rows(world));
             Assert.AreEqual(2, Links());
         }
@@ -1162,7 +1230,7 @@ namespace Rasa.Test.Missions.Crucible
             world.GetService<IMigrator>().Migrate(Previous(world, WardensAndLashers));
             world.ChangeTracker.Clear();
             Assert.IsTrue(SetOne.Concat(SetTwo).All(Has), "sets 1 and 2 stay");
-            Assert.IsFalse(SetThree.Concat(SetFour).Concat(SetFive).Concat(SetSix).Concat(SetSeven).Concat(SetEight).Concat(SetEightB).Concat(SetNine).Concat(SetElevenA).Any(Has));
+            Assert.IsFalse(SetThree.Concat(SetFour).Concat(SetFive).Concat(SetSix).Concat(SetSeven).Concat(SetEight).Concat(SetEightB).Concat(SetNine).Concat(SetElevenA).Concat(SetTwelveA).Any(Has));
             Assert.AreEqual(SetTwoRows, Rows(world));
             Assert.AreEqual(0, Pools());
             Assert.IsFalse(world.MissionEvidenceEntries.Any(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision &&
@@ -1176,7 +1244,7 @@ namespace Rasa.Test.Missions.Crucible
             world.GetService<IMigrator>().Migrate(WardensAndLashers);
             world.ChangeTracker.Clear();
             Assert.IsTrue(SetOne.Concat(SetTwo).Concat(SetThree).All(Has));
-            Assert.IsFalse(SetFour.Concat(SetFive).Concat(SetSix).Concat(SetSeven).Concat(SetEight).Concat(SetEightB).Concat(SetNine).Concat(SetElevenA).Any(Has), "sets 4 to 6 are later migrations'");
+            Assert.IsFalse(SetFour.Concat(SetFive).Concat(SetSix).Concat(SetSeven).Concat(SetEight).Concat(SetEightB).Concat(SetNine).Concat(SetElevenA).Concat(SetTwelveA).Any(Has), "sets 4 to 6 are later migrations'");
             Assert.AreEqual(SetThreeRows, Rows(world));
             Assert.AreEqual(6, Pools());
         }
@@ -1256,7 +1324,7 @@ namespace Rasa.Test.Missions.Crucible
             world.GetService<IMigrator>().Migrate(Previous(world, MinefieldAndSalvage));
             world.ChangeTracker.Clear();
             Assert.IsTrue(SetOne.Concat(SetTwo).Concat(SetThree).All(Has), "sets 1-3 stay");
-            Assert.IsFalse(SetFour.Concat(SetFive).Concat(SetSix).Concat(SetSeven).Concat(SetEight).Concat(SetEightB).Concat(SetNine).Concat(SetElevenA).Any(Has));
+            Assert.IsFalse(SetFour.Concat(SetFive).Concat(SetSix).Concat(SetSeven).Concat(SetEight).Concat(SetEightB).Concat(SetNine).Concat(SetElevenA).Concat(SetTwelveA).Any(Has));
             Assert.AreEqual(SetThreeRows, Rows(world));
             Assert.AreEqual(0, Pools());
             Assert.AreEqual(CrucibleMinefieldAndSalvageNpcsV1.DergeBefore, At(world, Derge), "Derge back at upstream's place");
@@ -1270,7 +1338,7 @@ namespace Rasa.Test.Missions.Crucible
             world.GetService<IMigrator>().Migrate(MinefieldAndSalvage);
             world.ChangeTracker.Clear();
             Assert.IsTrue(SetOne.Concat(SetTwo).Concat(SetThree).Concat(SetFour).All(Has));
-            Assert.IsFalse(SetFive.Concat(SetSix).Concat(SetSeven).Concat(SetEight).Concat(SetEightB).Concat(SetNine).Concat(SetElevenA).Any(Has), "sets 5 and 6 are later migrations'");
+            Assert.IsFalse(SetFive.Concat(SetSix).Concat(SetSeven).Concat(SetEight).Concat(SetEightB).Concat(SetNine).Concat(SetElevenA).Concat(SetTwelveA).Any(Has), "sets 5 and 6 are later migrations'");
             Assert.AreEqual(SetFourRows, Rows(world));
             Assert.AreEqual(5, Pools());
         }
@@ -1343,7 +1411,7 @@ namespace Rasa.Test.Missions.Crucible
             world.GetService<IMigrator>().Migrate(Previous(world, StaalSigals));
             world.ChangeTracker.Clear();
             Assert.IsTrue(SetOne.Concat(SetTwo).Concat(SetThree).Concat(SetFour).All(Has), "sets 1-4 stay");
-            Assert.IsFalse(SetFive.Concat(SetSix).Concat(SetSeven).Concat(SetEight).Concat(SetEightB).Concat(SetNine).Concat(SetElevenA).Any(Has));
+            Assert.IsFalse(SetFive.Concat(SetSix).Concat(SetSeven).Concat(SetEight).Concat(SetEightB).Concat(SetNine).Concat(SetElevenA).Concat(SetTwelveA).Any(Has));
             Assert.AreEqual(SetFourRows, Rows(world));
             Assert.AreEqual(0, Pools());
             Assert.IsFalse(world.MissionEvidenceEntries.Any(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision &&
@@ -1356,7 +1424,7 @@ namespace Rasa.Test.Missions.Crucible
             world.GetService<IMigrator>().Migrate(StaalSigals);
             world.ChangeTracker.Clear();
             Assert.IsTrue(SetOne.Concat(SetTwo).Concat(SetThree).Concat(SetFour).Concat(SetFive).All(Has));
-            Assert.IsFalse(SetSix.Concat(SetSeven).Concat(SetEight).Concat(SetEightB).Concat(SetNine).Concat(SetElevenA).Any(Has), "sets 6 and 7 are later migrations'");
+            Assert.IsFalse(SetSix.Concat(SetSeven).Concat(SetEight).Concat(SetEightB).Concat(SetNine).Concat(SetElevenA).Concat(SetTwelveA).Any(Has), "sets 6 and 7 are later migrations'");
             Assert.AreEqual(SetFiveRows, Rows(world));
             Assert.AreEqual(9, Pools());
         }
@@ -1393,7 +1461,7 @@ namespace Rasa.Test.Missions.Crucible
             world.GetService<IMigrator>().Migrate(Previous(world, AwolCamp));
             world.ChangeTracker.Clear();
             Assert.IsTrue(SetOne.Concat(SetTwo).Concat(SetThree).Concat(SetFour).Concat(SetFive).All(Has), "sets 1-5 stay");
-            Assert.IsFalse(SetSix.Concat(SetSeven).Concat(SetEight).Concat(SetEightB).Concat(SetNine).Concat(SetElevenA).Any(Has));
+            Assert.IsFalse(SetSix.Concat(SetSeven).Concat(SetEight).Concat(SetEightB).Concat(SetNine).Concat(SetElevenA).Concat(SetTwelveA).Any(Has));
             Assert.AreEqual(SetFiveRows, Rows(world));
             Check(false);
             foreach (var entries in new System.Func<bool>[]
@@ -1410,7 +1478,7 @@ namespace Rasa.Test.Missions.Crucible
             world.GetService<IMigrator>().Migrate(AwolCamp);
             world.ChangeTracker.Clear();
             Assert.IsTrue(SetsOneToSix.All(Has));
-            Assert.IsFalse(SetSeven.Concat(SetEight).Concat(SetEightB).Concat(SetNine).Concat(SetElevenA).Any(Has), "set 7 is a later migration's");
+            Assert.IsFalse(SetSeven.Concat(SetEight).Concat(SetEightB).Concat(SetNine).Concat(SetElevenA).Concat(SetTwelveA).Any(Has), "set 7 is a later migration's");
             Assert.AreEqual(SetSixRows, Rows(world));
             Check(true);
         }
@@ -1490,7 +1558,7 @@ namespace Rasa.Test.Missions.Crucible
             world.GetService<IMigrator>().Migrate(Previous(world, StaalJunkyard));
             world.ChangeTracker.Clear();
             Assert.IsTrue(SetsOneToSix.All(Has), "sets 1-6 stay");
-            Assert.IsFalse(SetSeven.Concat(SetEight).Concat(SetEightB).Concat(SetNine).Concat(SetElevenA).Any(Has));
+            Assert.IsFalse(SetSeven.Concat(SetEight).Concat(SetEightB).Concat(SetNine).Concat(SetElevenA).Concat(SetTwelveA).Any(Has));
             Assert.AreEqual(SetSixRows, Rows(world));
             Assert.AreEqual(0, Squads());
             Assert.IsFalse(Any(mission => world.MissionEvidenceEntries.AsNoTracking().Any(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision && entry.MissionId == mission)));
@@ -1504,7 +1572,7 @@ namespace Rasa.Test.Missions.Crucible
             world.GetService<IMigrator>().Migrate(StaalJunkyard);
             world.ChangeTracker.Clear();
             Assert.IsTrue(SetsOneToSeven.All(Has));
-            Assert.IsFalse(SetEight.Concat(SetEightB).Concat(SetNine).Concat(SetElevenA).Any(Has), "sets 8a and 8b are later migrations'");
+            Assert.IsFalse(SetEight.Concat(SetEightB).Concat(SetNine).Concat(SetElevenA).Concat(SetTwelveA).Any(Has), "sets 8a and 8b are later migrations'");
             Assert.AreEqual(SetSevenRows, Rows(world));
             Assert.AreEqual(1 + 4 + 1 + 7 + 1, Squads());
         }
@@ -1532,7 +1600,7 @@ namespace Rasa.Test.Missions.Crucible
             // Set 8a, fix job G, set 8b, set 9, fix job H and set 11a (later migrations) are rolled back with the fix and not put back: their evidence is not counted.
             int All() => world.MissionEvidenceEntries.AsNoTracking().Count(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision &&
                 !SetEight.Contains(entry.MissionId) && !SetEightB.Contains(entry.MissionId) && !SetNine.Contains(entry.MissionId) &&
-                !SetElevenA.Contains(entry.MissionId) &&
+                !SetElevenA.Contains(entry.MissionId) && !SetTwelveA.Contains(entry.MissionId) &&
                 !(entry.MissionId == CrucibleOutOfSightV1.MissionId && entry.EvidenceId == CrucibleFixGV1.Evidence) &&
                 !(entry.MissionId == CruciblePartOfTheBargainV1.MissionId && entry.EvidenceId == CrucibleFixHV1.Evidence));
             double Radius(uint pool) => world.SpawnPoolEntries.AsNoTracking().Single(entry => entry.Id == pool).Radius;
@@ -1612,7 +1680,7 @@ namespace Rasa.Test.Missions.Crucible
                 Assert.IsTrue(SetsOneToSeven.All(Has), "sets 1-7 stay");
                 Assert.AreEqual(now, SetEight.All(Has));
                 Assert.AreEqual(now, SetEight.Any(Has));
-                Assert.AreEqual(full, SetEightB.Concat(SetNine).Concat(SetElevenA).Any(Has), "sets 8b, 9 and 11a are later migrations'");
+                Assert.AreEqual(full, SetEightB.Concat(SetNine).Concat(SetElevenA).Concat(SetTwelveA).Any(Has), "sets 8b, 9 and 11a are later migrations'");
                 Assert.AreEqual(full ? AllRows : now ? SetEightARows : SetSevenRows, Rows(world));
                 foreach (var (pool, _, after) in CrucibleFixFV1.Moves)
                     Assert.AreEqual(after, At(world, pool), $"fix job F's pool {pool} stays");
@@ -1651,7 +1719,7 @@ namespace Rasa.Test.Missions.Crucible
             bool Evidence() => world.MissionEvidenceEntries.AsNoTracking().Any(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision &&
                 entry.MissionId == CrucibleOutOfSightV1.MissionId && entry.EvidenceId == CrucibleFixGV1.Evidence);
             int All() => world.MissionEvidenceEntries.AsNoTracking().Count(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision &&
-                !SetEightB.Contains(entry.MissionId) && !SetNine.Contains(entry.MissionId) && !SetElevenA.Contains(entry.MissionId) &&
+                !SetEightB.Contains(entry.MissionId) && !SetNine.Contains(entry.MissionId) && !SetElevenA.Contains(entry.MissionId) && !SetTwelveA.Contains(entry.MissionId) &&
                 !(entry.MissionId == CruciblePartOfTheBargainV1.MissionId && entry.EvidenceId == CrucibleFixHV1.Evidence));
             bool Has(uint mission) => world.MissionContentDefinitionEntries.AsNoTracking()
                 .Any(entry => entry.MissionId == mission && entry.ContentRevision == CrucibleMissionDataV1.Revision);
@@ -1665,7 +1733,7 @@ namespace Rasa.Test.Missions.Crucible
                     Assert.AreEqual((at, radius), (At(world, id), Radius(id)), $"pool {id} stays");
                 Assert.AreEqual(now, Evidence());
                 Assert.IsTrue(SetsOneToEightA.All(Has), "sets 1-8a stay");
-                Assert.AreEqual(full, SetEightB.Concat(SetNine).Concat(SetElevenA).Any(Has), "sets 8b, 9 and 11a are later migrations'");
+                Assert.AreEqual(full, SetEightB.Concat(SetNine).Concat(SetElevenA).Concat(SetTwelveA).Any(Has), "sets 8b, 9 and 11a are later migrations'");
                 Assert.AreEqual(full ? AllRows : SetEightARows, Rows(world), "no other row comes or goes");
             }
 
@@ -1717,7 +1785,7 @@ namespace Rasa.Test.Missions.Crucible
                 Assert.IsTrue(SetsOneToEightA.All(Has), "sets 1-8a stay");
                 Assert.AreEqual(now, SetEightB.All(Has));
                 Assert.AreEqual(now, SetEightB.Any(Has));
-                Assert.AreEqual(full, SetNine.Concat(SetElevenA).Any(Has), "sets 9 and 11a are later migrations'");
+                Assert.AreEqual(full, SetNine.Concat(SetElevenA).Concat(SetTwelveA).Any(Has), "sets 9 and 11a are later migrations'");
                 Assert.AreEqual(full ? AllRows : now ? SetEightBRows : SetEightARows, Rows(world));
                 Assert.AreEqual((double)CrucibleFixFV1.PointRadius, world.SpawnPoolEntries.AsNoTracking().Single(row => row.Id == CrucibleFixGV1.Point.Pool).Radius,
                     "fix job G's point stays");
@@ -1764,7 +1832,7 @@ namespace Rasa.Test.Missions.Crucible
                 Assert.IsTrue(SetsOneToEightB.All(Has), "sets 1-8b stay");
                 Assert.AreEqual(now, SetNine.All(Has));
                 Assert.AreEqual(now, SetNine.Any(Has));
-                Assert.AreEqual(full, SetElevenA.Any(Has), "set 11a is a later migration's");
+                Assert.AreEqual(full, SetElevenA.Concat(SetTwelveA).Any(Has), "sets 11a and 12a are later migrations'");
                 Assert.AreEqual(full ? AllRows : now ? SetNineRows : SetEightBRows, Rows(world));
             }
 
@@ -1800,7 +1868,7 @@ namespace Rasa.Test.Missions.Crucible
                 entry.MissionId == CruciblePartOfTheBargainV1.MissionId && entry.EvidenceId == CrucibleFixHV1.Evidence);
             // Set 11a (a later migration) is rolled back with the fix and not put back: its evidence is not counted.
             int All() => world.MissionEvidenceEntries.AsNoTracking().Count(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision &&
-                !SetElevenA.Contains(entry.MissionId));
+                !SetElevenA.Contains(entry.MissionId) && !SetTwelveA.Contains(entry.MissionId));
             List<(uint, double, double, double)> Markers() => world.MissionIndicatorEntries.AsNoTracking()
                 .Where(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision && entry.MissionId == CruciblePartOfTheBargainV1.MissionId)
                 .AsEnumerable().OrderBy(entry => entry.IndicatorId).Select(entry => (entry.IndicatorId, entry.PosX, entry.PosY, entry.PosZ)).ToList();
@@ -1843,8 +1911,8 @@ namespace Rasa.Test.Missions.Crucible
             Check(true);
             Assert.AreEqual(all, All());
             Assert.AreEqual(SetNineRows, Rows(world), "no other row comes or goes");
-            Assert.IsFalse(SetElevenA.Any(mission => world.MissionContentDefinitionEntries.AsNoTracking()
-                .Any(entry => entry.MissionId == mission && entry.ContentRevision == CrucibleMissionDataV1.Revision)), "set 11a is a later migration's");
+            Assert.IsFalse(SetElevenA.Concat(SetTwelveA).Any(mission => world.MissionContentDefinitionEntries.AsNoTracking()
+                .Any(entry => entry.MissionId == mission && entry.ContentRevision == CrucibleMissionDataV1.Revision)), "sets 11a and 12a are later migrations'");
         }
 
         /// <summary>
@@ -1867,7 +1935,7 @@ namespace Rasa.Test.Missions.Crucible
                 (CrucibleIncurablesWardNpcsV1.Moves[0].Before, CrucibleIncurablesWardNpcsV1.Moves[1].Before), "upstream's places, as the World DB has them");
             var pools = new[] { Shanul, Dhimand, CrucibleIncurablesWardNpcsV1.JaikevPool, CrucibleIncurablesWardNpcsV1.ParvateePool }
                 .Concat(CrucibleIncurablesWardNpcsV1.IncurablePools.Select(pool => pool.Pool)).ToArray();
-            void Check(bool now)
+            void Check(bool now, bool full = false)
             {
                 foreach (var (pool, before, after) in CrucibleIncurablesWardNpcsV1.Moves)
                     Assert.AreEqual(now ? after : before, At(world, pool), $"pool {pool}");
@@ -1888,10 +1956,11 @@ namespace Rasa.Test.Missions.Crucible
                 Assert.IsTrue(SetsOneToNine.All(Has), "sets 1-9 stay");
                 Assert.AreEqual(now, SetElevenA.All(Has));
                 Assert.AreEqual(now, SetElevenA.Any(Has));
-                Assert.AreEqual(now ? AllRows : SetNineRows, Rows(world));
+                Assert.AreEqual(full, SetTwelveA.Any(Has), "set 12a is a later migration's");
+                Assert.AreEqual(full ? AllRows : now ? SetElevenARows : SetNineRows, Rows(world));
             }
 
-            Check(true);
+            Check(true, full: true);
             Assert.AreEqual(FixH, Previous(world, IncurablesWard), "set 11a follows fix job H");
             world.GetService<IMigrator>().Migrate(FixH);
             world.ChangeTracker.Clear();
@@ -1904,6 +1973,61 @@ namespace Rasa.Test.Missions.Crucible
             Assert.IsFalse(Any(mission => world.MissionPrerequisiteEntries.AsNoTracking().Any(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision && entry.MissionId == mission)));
 
             world.GetService<IMigrator>().Migrate(IncurablesWard);
+            world.ChangeTracker.Clear();
+            Check(true);
+        }
+
+        /// <summary>
+        /// Crucible_chaukas takes out its three missions (with their talks, markers, scenes, rewards, prerequisites and
+        /// evidence), Ruben and Brian (rows, looks, stats, packages, pools, Brian's pose); sets 1-11a stay, and the facility's
+        /// upstream Claviger pools. Up again, all of it is back.
+        /// </summary>
+        [TestMethod]
+        public void ChaukasRollsBackWithItsMigration()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            bool Has(uint mission) => world.MissionContentDefinitionEntries.AsNoTracking()
+                .Any(entry => entry.MissionId == mission && entry.ContentRevision == CrucibleMissionDataV1.Revision);
+            bool Any(System.Func<uint, bool> rows) => SetTwelveA.Any(rows);
+            CollectionAssert.AreEqual(new[] { CrucibleGetToChaukasV1.MissionId, CrucibleControlTheBrainV1.MissionId, CrucibleFixTheFactoryV1.MissionId },
+                SetTwelveA, "set 12a is 1577, 1521 and 1522");
+            var clavigers = world.SpawnPoolEntries.AsNoTracking().Count(row => row.MapContextId == CrucibleChaukasNpcsV1.Chaukas && row.Creature1Id == CrucibleChaukasNpcsV1.Claviger);
+            Assert.AreEqual(15, clavigers, "the facility's fifteen upstream Claviger pools");
+            int Pose() => world.Database.SqlQueryRaw<int>($"SELECT COUNT(*) AS Value FROM spawnpool_pose WHERE id = {Brian}").AsEnumerable().Single();
+            void Check(bool now)
+            {
+                foreach (var npc in new[] { Ruben, Brian })
+                {
+                    Assert.AreEqual(now, world.CreatureEntries.AsNoTracking().Any(row => row.Id == npc), $"{npc}");
+                    Assert.AreEqual(now, world.CreatureStatEntries.AsNoTracking().Any(row => row.Id == npc), $"{npc}'s stats");
+                    Assert.AreEqual(now, world.CreatureAppearanceEntries.AsNoTracking().Any(row => row.Id == npc), $"{npc}'s look");
+                    Assert.AreEqual(now, world.NpcPackageEntries.AsNoTracking().Any(row => row.Id == npc), $"{npc}'s package");
+                    Assert.AreEqual(now, world.SpawnPoolEntries.AsNoTracking().Any(row => row.Id == npc), $"{npc}'s pool");
+                }
+                Assert.AreEqual(now ? 1 : 0, Pose(), "Brian's pose");
+                Assert.AreEqual(clavigers, world.SpawnPoolEntries.AsNoTracking().Count(row => row.MapContextId == CrucibleChaukasNpcsV1.Chaukas &&
+                    row.Creature1Id == CrucibleChaukasNpcsV1.Claviger), "the Claviger pools stay");
+                Assert.IsTrue(SetsOneToElevenA.All(Has), "sets 1-11a stay");
+                Assert.AreEqual(now, SetTwelveA.All(Has));
+                Assert.AreEqual(now, SetTwelveA.Any(Has));
+                Assert.AreEqual(now ? AllRows : SetElevenARows, Rows(world));
+            }
+
+            Check(true);
+            Assert.AreEqual(IncurablesWard, Previous(world, Chaukas), "set 12a follows set 11a");
+            world.GetService<IMigrator>().Migrate(IncurablesWard);
+            world.ChangeTracker.Clear();
+            Check(false);
+            Assert.IsFalse(Any(mission => world.MissionEvidenceEntries.AsNoTracking().Any(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision && entry.MissionId == mission)));
+            Assert.IsFalse(Any(mission => world.MissionIndicatorEntries.AsNoTracking().Any(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision && entry.MissionId == mission)));
+            Assert.IsFalse(Any(mission => world.Set<MissionTriggerEntry>().AsNoTracking().Any(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision && entry.MissionId == mission)));
+            Assert.IsFalse(Any(mission => world.Set<MissionSceneBindingEntry>().AsNoTracking().Any(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision && entry.MissionId == mission)));
+            Assert.IsFalse(Any(mission => world.MissionRewardItemEntries.AsNoTracking().Any(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision && entry.MissionId == mission)));
+            Assert.IsFalse(Any(mission => world.MissionPrerequisiteEntries.AsNoTracking().Any(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision && entry.MissionId == mission)));
+            Assert.IsFalse(Any(mission => world.Set<MissionScenarioEntry>().AsNoTracking().Any(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision && entry.MissionId == mission)));
+
+            world.GetService<IMigrator>().Migrate(Chaukas);
             world.ChangeTracker.Clear();
             Check(true);
         }

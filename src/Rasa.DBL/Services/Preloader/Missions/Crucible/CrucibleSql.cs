@@ -30,6 +30,7 @@ namespace Rasa.Services.Preloader.Missions.Crucible
             ["creature_stat"] = new[] { "id" },
             ["npc_package"] = new[] { "id" },
             ["spawnpool"] = new[] { "id" },
+            ["spawnpool_pose"] = new[] { "id" },
             ["teleporter"] = new[] { "id" },
             ["local_teleporter_link"] = new[] { "from_teleporter_id" },
             ["npc_squad_type"] = new[] { "id" },

@@ -1,6 +1,6 @@
 # Ligo Crucible missions: sources (cross-reference)
 
-The 40 missions of the Ligo Crucible quest PR, taken from the full mission cross-reference of the 1.16.5.0
+The 43 missions of the Ligo Crucible quest PR, taken from the full mission cross-reference of the 1.16.5.0
 client. For each mission: the client text and objectives, the sources found (TaRapedia, TR MMO DB, Ellatha,
 Ten Ton Hammer, archived fan and official pages, patch notes) and a rebuild summary with the source of each
 value. Values without a source are marked ESTIMATE. "This PR" rows (where present) show the data this PR adds.
@@ -9,7 +9,7 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
 
 | Zone | Missions |
 | --- | ---: |
-| Crucible | 40 |
+| Crucible | 43 |
 
 ## Crucible
 
@@ -1020,6 +1020,63 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
   - Requires: Business Proposal (id 1229) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Careful_Negotiation)
   - Leads to: Your Part of the Bargain (id 1529) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Careful_Negotiation), [TaRapedia](https://tabularasa.fandom.com/wiki/Your_Part_of_the_Bargain)
 
+### 1521 — Control the Brain
+
+
+- **Rebuild summary:**
+  - level: 35 — source: [TR MMO DB](https://web.archive.org/web/20090922021518/http://tr.mmodb.com:80/quests/control-the-brain-637.php)
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 90,000 XP; 8,200 credits; Eclipse Filament Blade; Teleract Exothermic Polarity Gun; Vextronics Pulse RPG Launcher; Vextronics Shotgun — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Control_the_Brain)
+  - reward: 8200 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20090922021518/http://tr.mmodb.com:80/quests/control-the-brain-637.php)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Cipher Specialist Brian: Crucible, Chaukas Robotics Facility — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Cipher_Specialist_Brian)
+- **Client:** Help Brian get to the Brain Room to reprogram the Chaukas Brain's computer.
+  - objectives (client): Escort Brian to the Chaukas Brain Room; Find the Spare Parts — Get the spare parts! Brian thinks that they can be found in a sublevel of this facility.; Take the Parts to Brian — Get the spare parts to Brian.; Keep Brian Safe — Make sure Brian is safe while he repairs the Brain computer.; Talk to Brian — Talk to brian and find out what to do next.; Clear the Brain Room of Enemies so Brian can Access the Brain — Clear the Brain Room of enemies so Brian can enter safely and access the Brain
+- **TaRapedia** [Control the Brain](https://tabularasa.fandom.com/wiki/Control_the_Brain) [bug noted]: giver: Cipher Specialist Brian; at: Chaukas Robotics Facility; zone: Crucible; requires: Get to Chaukas; follow-up: Fix the Factory; XP: 90,000; credits: 8,200; items: Eclipse Filament Blade; Teleract Exothermic Polarity Gun; Vextronics Pulse RPG Launcher; Vextronics Shotgun
+  - overview: Help Brian get to the Brain Computer in Chaukas Robotics Facility.
+  - objectives: • Clear a path to the Brain • Talk to Brian • Find the Spare Parts • Take the Parts to Brian • Keep Brian Safe
+  - walkthrough: There are ramps to the lower level just to the south of the brain control room.
+- **TaRapedia mission list** [Chaukas Robotics Facility mission list](https://tabularasa.fandom.com/wiki/Chaukas_Robotics_Facility_mission_list): zone Crucible, given by Cipher Specialist Brian
+- **TR MMO DB** [Control The Brain](https://web.archive.org/web/20090922021518/http://tr.mmodb.com:80/quests/control-the-brain-637.php): level: 35; starts at npc: Cipher Specialist Brian; starts in zone: Chaukas Robotics Facility; objectives: Clear a path to the Brain, Talk to the Brain, Find the Spare Parts, Take the Parts to Brian, Keep Brian Safe; reward: 8200
+- **TR MMO DB NPC** [Cipher Specialist Brian](https://web.archive.org/web/20120731150942/http://tr.mmodb.com/bestiary/cipher-specialist-brian-994.php): Quest NPC, location Chaukas Robotics Facility, zone Crucible (starts this quest)
+- **IGN TR boards** [vnboards.ign.com/tabula_rasa_general_board/b22750/106585290/r106594805 …](https://web.archive.org/web/20080518034441/http://vnboards.ign.com/tabula_rasa_general_board/b22750/106585290/r106594805/): “* Mission: “Control the Brain” (Chaukus Robotics Facility) – The “Control the Brain” mission has been changed to an escort mission, so NPC Brian will follow the player to the “Brain”. A new objective was added to make the mission clearer. Before the updates to the mission the objectives were very confusing and NPC Brian did not follow players. This often halted or prevented progress through the mission.”
+- **IGN TR boards** [vnboards.ign.com/tabula_rasa_general_board/b22750/107144855/p1/](https://web.archive.org/web/20081012141434/http://vnboards.ign.com/tabula_rasa_general_board/b22750/107144855/p1/): “Fixed an issue if you are running the client in full screen mode and alt tab during a loading screen, the game may crash. / Mission: Control the Brain (Chaukas) is now completable. / Fixed Turpis Refinery: Exit Dropship was too high off the dropship pad and caused issues when exiting.”
+- **PlanetTR** [planettr.com:80/forums/archive/index.php/t-3508.html](https://web.archive.org/web/20090116214625/http://planettr.com:80/forums/archive/index.php/t-3508.html): “01-31-2008, 11:53 AM / Tried to solo Chaukas Robotics in Crucible today with no luck. The mission "Control the Brain" seemed bugged. / I escorted Cipher Specialist Brian all the way to Brain control room, where he just stood there and kept shouting "Let's do this" over and over.”
+- **RGTR official site** [www.rgtr.com/news/patch_notes_public_test/165_patch_notes.html](https://web.archive.org/web/20081117082550/http://www.rgtr.com/news/patch_notes_public_test/165_patch_notes.html): “If you are running the client in full screen mode and alt tab during a loading screen, the game may crash. / Mission: Control the Brain (Chaukas) is not completable. / Turpis Refinery: Exit Dropship is too high off the dropship pad. You have to jump into the right spot of the dropship beam to exit the instance.”
+- **NPCs (TaRapedia NPC pages):**
+  - [Cipher Specialist Brian](https://tabularasa.fandom.com/wiki/Cipher_Specialist_Brian): Crucible, Chaukas Robotics Facility (named as giver/receiver)
+
+- **Chain** (explicit prerequisite links): Get to Chaukas chain (5 missions), step 2
+  - Requires: Get to Chaukas (id 1577) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Control_the_Brain), [TaRapedia](https://tabularasa.fandom.com/wiki/Get_to_Chaukas)
+  - Leads to: Fix the Factory (id 1522) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Control_the_Brain), [TaRapedia](https://tabularasa.fandom.com/wiki/Fix_the_Factory)
+
+### 1522 — Fix the Factory
+
+
+- **Rebuild summary:**
+  - level: 35 — source: [TR MMO DB](https://web.archive.org/web/20090922014958/http://tr.mmodb.com:80/quests/fix-the-factory-638.php)
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 85,000 XP; 8,000 credits; Modification: Armor Absorption; Modification: Regen Armor Bonus; Modification: Regen Health Bonus; Modification: Regen Power Bonus — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Fix_the_Factory)
+  - reward: 8000 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20090922014958/http://tr.mmodb.com:80/quests/fix-the-factory-638.php)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Cipher Specialist Brian: Crucible, Chaukas Robotics Facility — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Cipher_Specialist_Brian)
+- **Client:** Get to the Factory room in Chaukas and restart the machine.
+  - objectives (client): Restart the Machine — Restart the Factory Machine in Chaukas.; Turn on the Ore Processor — The Ore Processing machine turned off, get to it quick and turn it back on so we can produce our own warden bots.
+- **TaRapedia** [Fix the Factory](https://tabularasa.fandom.com/wiki/Fix_the_Factory) [stub]: giver: Cipher Specialist Brian; at: Chaukas Robotics Facility; zone: Crucible; requires: Control the Brain; follow-up: Factory Fortification; XP: 85,000; credits: 8,000; items: Modification: Armor Absorption; Modification: Regen Armor Bonus; Modification: Regen Health Bonus; Modification: Regen Power Bonus
+  - overview: Get to the factory room in Chaukas and restart the machine
+  - objectives: • Restart the Machine • Turn on the Ore Processor
+  - walkthrough: Simply fight your way to each marked room and use the console within.
+- **TaRapedia mission list** [Chaukas Robotics Facility mission list](https://tabularasa.fandom.com/wiki/Chaukas_Robotics_Facility_mission_list): zone Crucible, given by Cipher Specialist Brian
+- **TR MMO DB** [Fix the Factory](https://web.archive.org/web/20090922014958/http://tr.mmodb.com:80/quests/fix-the-factory-638.php): level: 35; starts at npc: Cipher Specialist Brian; starts in zone: Chaukas Robotics Facility; objectives: Restart the Machine, Turn on the Ore Processor; reward: 8000
+- **NPCs (TaRapedia NPC pages):**
+  - [Cipher Specialist Brian](https://tabularasa.fandom.com/wiki/Cipher_Specialist_Brian): Crucible, Chaukas Robotics Facility (named as giver/receiver)
+
+- **Chain** (explicit prerequisite links): Get to Chaukas chain (5 missions), step 3
+  - Requires: Control the Brain (id 1521) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Control_the_Brain), [TaRapedia](https://tabularasa.fandom.com/wiki/Fix_the_Factory)
+  - Leads to: Factory Fortification (id 1523) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Factory_Fortification), [TaRapedia](https://tabularasa.fandom.com/wiki/Fix_the_Factory)
+
 ### 1529 — Your Part of the Bargain [instance]
 
 
@@ -1090,4 +1147,30 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
   - Requires: Making Amends (id 1155) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Making_Amends), [TaRapedia](https://tabularasa.fandom.com/wiki/Not_My_Junk)
   - Requires: Sweet Revenge (id 1205) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Not_My_Junk)
   - Leads to: Point Of Impact (id 1217) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Not_My_Junk), [TaRapedia](https://tabularasa.fandom.com/wiki/Point_Of_Impact)
+
+### 1577 — Get to Chaukas
+
+
+- **Rebuild summary:**
+  - level: 40 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731171503/http://tr.mmodb.com/quests/startingzone-crucible/)
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 90,000 XP; 8,200 credits — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Get_to_Chaukas)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Information Analyst Ruben: Crucible, Outpost Intrepid — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Information_Analyst_Ruben)
+- **Client:** Find Cipher Specialist Brian in Chaukas.
+  - objectives (client): Get to Chaukas — Get down to Chaukas Robotics Facility and meet up with Cipher Specialist Brian.
+- **TaRapedia** [Get to Chaukas](https://tabularasa.fandom.com/wiki/Get_to_Chaukas): giver: Information Analyst Ruben; at: Outpost Intrepid; zone: Crucible; requires: None; follow-up: Control the Brain; XP: 90,000; credits: 8,200; reward from: Cipher Specialist Brian
+  - overview: Find Cipher Specialist Brian in Chaukas.
+  - objectives: • Get to Chaukas • Get down to Chaukas Robotics Facility and meet up with Cipher Specialist Brian.
+  - walkthrough: Cipher Specialist Brian is right inside the instance.
+- **TaRapedia mission list** [Chaukas Robotics Facility mission list](https://tabularasa.fandom.com/wiki/Chaukas_Robotics_Facility_mission_list): zone Crucible, given by Information Analyst Ruben
+- **TaRapedia mission list** [Outpost Intrepid mission list](https://tabularasa.fandom.com/wiki/Outpost_Intrepid_mission_list): zone Crucible, area Outpost Intrepid, given by Information Analyst Ruben
+- **TR MMO DB NPC** [AWOL Captain Cheung](https://web.archive.org/web/20080907092501/http://tr.mmodb.com/bestiary/awol-captain-cheung-977.php): Quest NPC, location AWOL Camp, zone Crucible (related to this quest)
+- **NPCs (TaRapedia NPC pages):**
+  - [Information Analyst Ruben](https://tabularasa.fandom.com/wiki/Information_Analyst_Ruben): Crucible, Outpost Intrepid (named as giver/receiver)
+  - [Cipher Specialist Brian](https://tabularasa.fandom.com/wiki/Cipher_Specialist_Brian): Crucible, Chaukas Robotics Facility (named as giver/receiver)
+
+- **Chain** (explicit prerequisite links): Get to Chaukas chain (5 missions), step 1
+  - Leads to: Control the Brain (id 1521) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Control_the_Brain), [TaRapedia](https://tabularasa.fandom.com/wiki/Get_to_Chaukas)
 

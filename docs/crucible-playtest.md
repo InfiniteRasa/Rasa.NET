@@ -331,6 +331,42 @@ client floor goes on and the navmesh has a 1 m gap; the bot cannot path across i
 - [ ] Second client (bot checklist): a squad mate in the same Ward copy kills Jaikev, Parvatee or Incurables: counted for
   each member near with 1402? Each member sees his own Paliv body (1444).
 
+Set 12a, the Chaukas Robotics Facility (squad instance 2146; migration `20271108001700_Crucible_chaukas`). New rows
+770058-770059 (next free id 770060). The facility's door on the Crucible: map link 98 at (-528.6, 249.44, 581.64), north
+of the Awol Camp; arrival (-31.91, 17.23, -282.11). The east (Robotics Assembly) room's inside is a server navmesh island
+apart from the arrival's (upstream, N14): only its north and south entrance strips are joined; the client floor goes on.
+Set 12b (1523 Factory Fortification, in the east room; 1525 Information is Key, no objectives) is not built.
+
+- [ ] Chaukas (look): Brian (-38, 17.44, -256), 28 m from the arrival; he keeps his post (pose Standing). Ruben on the
+  Crucible (966, 152.73, 156), by Outpost Intrepid's Front Lines exit. Talk to each from each side.
+- [ ] 1577 Get to Chaukas (Ligo Crucible -> Chaukas): Information Analyst Ruben offers it (no prerequisite), level 40. 1 Get
+  to Chaukas: Brian's talk (package 1800) in the squad's copy completes it. Markers: before the Chaukas door on the
+  Crucible (r6) and on Brian (r8). Turn in at Brian: 90000 XP, 8200 credits, one of 33858, 24086, 21699, 31241.
+- [ ] 1521 Control the Brain (Chaukas): Brian offers it after 1577, level 35. At the accept his copy (yours, the public
+  Brian hidden from you) stands at his place and follows you 3 s later. 3 Escort Brian: walk to the Brain room's mouth (-14,
+  16.36, 4) (r8 area; the area checks you, not Brian). 8 Clear the Brain Room: the three Claviger pools 531127-531129 dead
+  at once (a room cleared before the accept counts). 3 and 8 in either order; then Brian stops following and walks to the
+  Brain (-24, 16.04, 38). 7 Talk to Brian (package 1800). 4 Find the Spare Parts: your own Spare Parts Container (class
+  26580, name 189) on the lower level (-16, 1.51, -164); one use. 5 Take the Parts to Brian (talk, "Quick Give me the
+  part."): three Warden Bot Clavigers (531023) come at Brian from the room's north side. 6 Keep Brian Safe: the three dead
+  (a hidden tally counts them; 6 shows no count).
+  Brian cannot die. Turn in at Brian (the copy): 90000 XP, 8200 credits, one of 47688, 48676, 15437, 14815. Abandon: the
+  copy goes, the public Brian is back; all again. Look: does Brian keep up on the ramps and in the corridor, and walk into
+  the room to the Brain? Does the client draw the container and open it on a use? Solo: the Clavigers are level 43, 10905
+  HP (balance out of scope).
+- [ ] 1522 Fix the Factory (Chaukas): Brian (public, at the entrance) offers it after 1521, level 35. 1 Restart the
+  Machine: your own Factory Reset Switch (class 26578, name 190) at the east room's south entrance (88, 17.36, -176). 2 Turn
+  on the Ore Processor: your own Ore Machine Override Switch (name 191) on the north side of the west Ore Processing room's
+  ring (-146, 16.68, -55); it takes no use before 1. Markers on each switch (r3). Turn in at Brian: 85000 XP, 8000 credits, one of 122951,
+  122986, 123001, 123006. Look: the switches' look and their thrown state.
+- [ ] 1521 (look): leave the Chaukas copy for more than 5 min during 1521 (after Brian walked to the Brain), then return.
+  The copy may be made again: is Brian back at the Brain, or at the entrance while the markers point at the Brain (a squad
+  copy refuses RestorePosition)? Can the mission still be done?
+- [ ] Chaukas pools: a cleared Claviger pool comes back only with the copy (45 min, SquadInstanceConfig.RespawnMinutes):
+  a player who abandons 1521 after clearing the Brain room keeps the room cleared (counted again at the accept).
+- [ ] Second client (bot checklist): a squad mate in the same copy sees his own Brian copy only with his own 1521 (the
+  other's copy hidden from him); the room cleared by either counts for both (8); each has his own container and switches.
+
 ## Assumptions and choices (not from a source)
 
 All ESTIMATE (set 1):
@@ -554,7 +590,30 @@ All ESTIMATE (set 11a):
   V02 Boots); 1402 "Modification" read as the grade [4] modules (as 1204): Health Bonus, Resist Physical, Resist Photonic
   (Light), Steal Power.
 
+All ESTIMATE (set 12a):
+- Stats: Ruben (copy of Sherer, female) and Brian (copy of DeLisi) level 40, 4500 HP, armor 300. Brian run 7, walk 2 (as
+  the Plateau escorts) so his 1521 copy can follow; his public pool posed Standing so he does not stroll.
+- Places: Ruben 4 m off TaRapedia's spot (seen from every side there); Brian 28 m in from the arrival; the Brain room's
+  mouth, Brian's place at the Brain, the container on the lower level, the switches at the east room's south entrance and
+  on the Ore room's ring, the three attackers on the Brain room's north side: chosen by probe, the container and the
+  switches 20 m or more from every Claviger pool's spawn reach. The door marker 18 m south of link 98.
+- Classes: the client names the container (189) and the switches (190, 191) but ties no class to them: 26580 (Warden Bot
+  crate) and 26578 (Warden Bot generic switch) are ours; 25897 UsableTwoStateWardenbotOreMachineV01 is a candidate for the
+  ore switch (not usable as the client has it: target_flag 0).
+- 1521 timing: Brian follows 3 s after the accept, walks to the Brain at 3 m/s; the escort area is 8 m round the mouth.
+- Levels: 1577 40 (MMODB row), 1521 and 1522 35 (MMODB; a player says 38-40, 0.3).
+- 1521: the flow (3 and 8 at once, then 7, 4, 5, 6) and the three attackers (count and kind: the facility's own
+  Claviger); no spare-parts item (the client has none); Brian cannot die.
+- 1522: the switches thrown in turn (1 opens 2), no timer.
+- Rewards: 1577 the lowest Uncommon of each kind and the nearest icon number in the band of level 40 (Mech V03 Vest,
+  Graviton V02 Vest, Hazmat V03 Vest, MotorAssist V07 Helmet); 1521 the lowest Uncommon of each kind in the band of level 35
+  (Blade Physical, Polarity Gun Fire, Rocket Launcher EMP, Shotgun Physical); 1522 the grade [4] modules (Armor
+  Absorption, Regen Bonus, Health Regen Bonus, Power Regen Bonus).
+
 ## Deviations (client/server limits)
+
+- 1521: the escort checks the player at the Brain room's mouth, not Brian (Brian follows); Brian cannot die, so "Keep
+  Brian Safe" is the three Clavigers killed; the spare parts are no item.
 
 - 1444: Shanul's text sends the player for the keycards of Atali and Umank (1401, set 11b, not built); Paliv and Dhimand
   are reached without them, and no Sanctum door stands in the way.
@@ -700,3 +759,8 @@ All ESTIMATE (set 11a):
   to (-307, 180.79, 326).
 - Added: Shanul 770045, Dhimand 770046, the Incurable Brute 770047 (attack 770047), the Incurable Slayer 770048, Jaikev
   770049, Parvatee 770050; pools 770045-770057 (upstream had no row for them).
+
+## Server data changed by set 12a (upstream rows)
+
+- Added: Information Analyst Ruben 770058 (Crucible) and Cipher Specialist Brian 770059 (Chaukas), their pools 770058 and
+  770059 and Brian's pool pose (upstream had no row for them). No upstream row moved.

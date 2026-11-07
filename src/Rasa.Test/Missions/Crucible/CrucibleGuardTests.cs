@@ -36,6 +36,7 @@ namespace Rasa.Test.Missions.Crucible
     using K = CrucibleKardashAndPrometheusNpcsV1;
     using T = CrucibleKhulagoStrikesNpcsV1;
     using I = CrucibleIncurablesWardNpcsV1;
+    using H = CrucibleChaukasNpcsV1;
     using F = MarshesClientFloorTests;
 
     /// <summary>
@@ -60,7 +61,8 @@ namespace Rasa.Test.Missions.Crucible
         /// The friendly NPC pools of the Crucible missions on the Crucible: the block's, the upstream ones the sets moved, and the
         /// ones set 2 kept. Set 7's Cirkin stands in the Staal Junkyard (CrucibleStaalJunkyardTests holds him to these rules there),
         /// set 8a's Botha on Ashen Desert (CrucibleKardashAndPrometheusTests), set 11a's Sheira, Shanul and Dhimand in the
-        /// Incurables Ward (CrucibleIncurablesWardTests); set 11a's Tempa on the Crucible.
+        /// Incurables Ward (CrucibleIncurablesWardTests); set 11a's Tempa on the Crucible; set 12a's Brian in Chaukas
+        /// (CrucibleChaukasTests), its Ruben on the Crucible.
         /// </summary>
         private static List<SpawnPool> Npcs()
         {
@@ -72,8 +74,8 @@ namespace Rasa.Test.Missions.Crucible
                 (pool.DbId is >= 770000 and <= 770999 || moved.Contains(pool.DbId)) &&
                 pool.SpawnSlot.Count > 0 && pool.SpawnSlot.TrueForAll(slot => Friendly(slot.CreatureId))).ToList();
             Assert.HasCount(N.New.Length + N.Moves.Length + G.New.Length + G.Moves.Length + G.Kept.Length + W.New.Length + V.New.Length +
-                A.Moves.Length + A.Kept.Length + K.Moves.Length + K.New.Count(npc => npc.Map == Map) + T.Moves.Length + 1, npcs,
-                "the Crucible NPCs are read (set 11a: Tempa; Sheira stands in the Ward)");
+                A.Moves.Length + A.Kept.Length + K.Moves.Length + K.New.Count(npc => npc.Map == Map) + T.Moves.Length + 1 + 1, npcs,
+                "the Crucible NPCs are read (set 11a: Tempa; Sheira stands in the Ward; set 12a: Ruben; Brian stands in Chaukas)");
             return npcs;
         }
 
@@ -123,7 +125,8 @@ namespace Rasa.Test.Missions.Crucible
             using var harness = WildernessRuntimeTestHarness.Create();
             var stats = harness.World.CreatureStatEntries.AsNoTracking().Where(row => row.Id >= 770000 && row.Id <= 770999).ToDictionary(row => row.Id);
             var npcs = Npcs().Where(pool => pool.DbId >= 770000).SelectMany(pool => pool.SpawnSlot).Select(slot => slot.CreatureId).Distinct().ToList();
-            Assert.HasCount(N.New.Length + G.New.Length + W.New.Length + V.New.Length + K.New.Count(npc => npc.Map == Map), npcs);
+            Assert.HasCount(N.New.Length + G.New.Length + W.New.Length + V.New.Length + K.New.Count(npc => npc.Map == Map) + 1, npcs,
+                "the new NPCs on the Crucible (set 12a: Ruben)");
             foreach (var npc in npcs)
             {
                 Assert.IsTrue(stats.TryGetValue(npc, out var stat), $"{npc} has a creature_stat row");
@@ -787,7 +790,8 @@ namespace Rasa.Test.Missions.Crucible
                 Vector2.Distance(new((float)marker.PosX, (float)marker.PosZ), new(at.X, at.Z)) <= marker.Radius);
             var packages = world.NpcPackageEntries.AsNoTracking().ToList().ToLookup(entry => entry.PackageId, entry => entry.Id);
             var pools = world.SpawnPoolEntries.AsNoTracking().Where(pool => pool.MapContextId == Map ||
-                pool.MapContextId == CrucibleStaalJunkyardNpcsV1.Junkyard || pool.MapContextId == I.Ward).ToList();
+                pool.MapContextId == CrucibleStaalJunkyardNpcsV1.Junkyard || pool.MapContextId == I.Ward || pool.MapContextId == H.Chaukas).ToList();
+            var scenes = CrucibleMissionTests.Scenes(harness).ToList();
             var checkedTargets = 0;
             var outside = new List<string>();
             foreach (var talk in world.MissionTriggerEntries.AsNoTracking().Where(entry => entry.ContentRevision == revision &&
@@ -797,11 +801,21 @@ namespace Rasa.Test.Missions.Crucible
                 foreach (var pool in npcs)
                 {
                     checkedTargets++;
-                    if (!Inside(talk.MissionId, talk.ObjectiveId, new((float)pool.PosX, (float)pool.PosY, (float)pool.PosZ)))
+                    // A talk with a scene's copy of the NPC (1521's Brian) is at the copy's place: where its route ends, or where it stands.
+                    var at = new Vector3((float)pool.PosX, (float)pool.PosY, (float)pool.PosZ);
+                    if (scenes.FirstOrDefault(entry => entry.MissionId == talk.MissionId).Scene is { } scene &&
+                        scene.Actors.Values.FirstOrDefault(actor => actor.ReplacesPublicSpawnId == pool.Id && actor.Position != null) is { } copy)
+                    {
+                        var route = scene.Sequences.Values.SelectMany(sequence => sequence.World).OfType<RunRouteIntent>()
+                            .LastOrDefault(intent => intent.Role == copy.Role);
+                        var end = route != null && scene.Routes?.TryGetValue(route.Route, out var walk) == true ? walk.Points[^1].Position : copy.Position;
+                        at = new Vector3(end.X, end.Y, end.Z);
+                    }
+                    if (!Inside(talk.MissionId, talk.ObjectiveId, at))
                         outside.Add($"{talk.MissionId}.{talk.ObjectiveId} NPC pool {pool.Id}");
                 }
             }
-            foreach (var (mission, scene) in CrucibleMissionTests.Scenes(harness))
+            foreach (var (mission, scene) in scenes)
                 foreach (var actor in scene.Actors.Values.Where(actor => actor.UseAction != null || actor.Conversation != null))
                 {
                     checkedTargets++;
@@ -815,9 +829,10 @@ namespace Rasa.Test.Missions.Crucible
             // Set 7 (in the Staal Junkyard): Cirkin (1538), 1529's six Dolomite Blocks and 1538's lockbox. Set 8a: Keplinger (1210),
             // Tiernan (1217, 1218); Botha on Ashen Desert is CrucibleKardashAndPrometheusTests'. Set 8b: 1215's two Bane terminals.
             // Set 9: 1214's three beacon spots (1224's towers are shot, not used; Tiersky and Keplinger hear no objective).
-            // Set 11a (in the Incurables Ward): Sheira (1445), Shanul, Paliv's body and Dhimand (1444).
-            Assert.AreEqual(1 + 5 + 21 + 1 + 5 + 2 + 3 + 4 + 1 + 2 + 10 + 2 + 2 + 3 + 3 + 1 + 6 + 1 + 3 + 2 + 3 + 4, checkedTargets,
-                "DeLisi, the five of The Wire, the terminal, the twenty fallen, and set 2's, set 3's, set 5's, set 6's, set 7's, set 8a's, set 8b's, set 9's and set 11a's talks and uses");
+            // Set 11a (in the Incurables Ward): Sheira (1445), Shanul, Paliv's body and Dhimand (1444). Set 12a (in Chaukas): Brian
+            // (1577 at his place; 1521's 7 and 5 at his copy's, the Brain), 1521's container, 1522's two switches.
+            Assert.AreEqual(1 + 5 + 21 + 1 + 5 + 2 + 3 + 4 + 1 + 2 + 10 + 2 + 2 + 3 + 3 + 1 + 6 + 1 + 3 + 2 + 3 + 4 + 6, checkedTargets,
+                "DeLisi, the five of The Wire, the terminal, the twenty fallen, and set 2's, set 3's, set 5's, set 6's, set 7's, set 8a's, set 8b's, set 9's, set 11a's and set 12a's talks and uses");
             Assert.IsEmpty(outside, string.Join(", ", outside));
         }
 
@@ -905,7 +920,7 @@ namespace Rasa.Test.Missions.Crucible
         /// To-fix row 24: 1149's markers stood off the navmesh. Every Crucible marker on the Crucible has its centre on the
         /// navmesh (ground at most MarkerHeight from its y) and on a client floor (a walkable surface at most MarkerHeight
         /// under it). The Staal Junkyard's (MissionMarkerProjection.ResolveMap 2138) are CrucibleStaalJunkyardTests', the
-        /// Incurables Ward's (2141) CrucibleIncurablesWardTests', the Ashen
+        /// Incurables Ward's (2141) CrucibleIncurablesWardTests', Chaukas's (2146) CrucibleChaukasTests', the Ashen
         /// Desert one (1734) CrucibleKardashAndPrometheusTests'.
         /// </summary>
         [TestMethod]
@@ -922,7 +937,7 @@ namespace Rasa.Test.Missions.Crucible
                 .Select(marker => (Label: $"{marker.MissionId}.{marker.ObjectiveId}/{marker.IndicatorId}", At: new Vector3((float)marker.PosX, (float)marker.PosY, (float)marker.PosZ)))
                 .ToList();
             Assert.HasCount(CrucibleMissionTests.Indicators - CrucibleStaalJunkyardTests.JunkyardMarkers - CrucibleKardashAndPrometheusTests.AshenDesertMarkers -
-                CrucibleIncurablesWardTests.WardMarkers, markers,
+                CrucibleIncurablesWardTests.WardMarkers - CrucibleChaukasTests.ChaukasMarkers, markers,
                 "the Crucible markers on the Crucible (CrucibleMissionTests)");
             using var meshes = new MeshLibrary(dataDir, F.MeshCsv());
             var geometry = MapGeometry.Load(Path.Combine(dataDir, "maps", MapName(harness)), meshes, 1);
@@ -1053,18 +1068,19 @@ namespace Rasa.Test.Missions.Crucible
 
         /// <summary>
         /// The sets' NPCs (label, place, NPC) and scene actors on the Crucible (Roscoe, a creature, as an NPC); the Staal
-        /// Junkyard's scenes (1529, 1538) are CrucibleStaalJunkyardTests', the Incurables Ward's (1444, 1402) CrucibleIncurablesWardTests'.
+        /// Junkyard's scenes (1529, 1538) are CrucibleStaalJunkyardTests', the Incurables Ward's (1444, 1402) CrucibleIncurablesWardTests',
+        /// Chaukas's (1521, 1522) CrucibleChaukasTests'.
         /// </summary>
         private static List<(string Label, Vector3 At, bool Npc)> Places(WildernessRuntimeTestHarness harness)
         {
             var places = Npcs().Select(pool => ($"pool {pool.DbId}", pool.Position, true)).ToList();
             foreach (var (mission, scene) in CrucibleMissionTests.Scenes(harness).Where(entry => entry.Scene.MapContextId != CrucibleStaalJunkyardNpcsV1.Junkyard &&
-                         entry.Scene.MapContextId != I.Ward))
+                         entry.Scene.MapContextId != I.Ward && entry.Scene.MapContextId != H.Chaukas))
                 foreach (var actor in scene.Actors.Values.Where(actor => actor.Position != null))
                     places.Add(($"{mission} {actor.Role}", new Vector3(actor.Position.X, actor.Position.Y, actor.Position.Z),
                         actor.Kind == SceneActorKind.Creature));
             Assert.HasCount(N.New.Length + N.Moves.Length + G.New.Length + G.Moves.Length + G.Kept.Length + W.New.Length + V.New.Length +
-                A.Moves.Length + A.Kept.Length + K.Moves.Length + K.New.Count(npc => npc.Map == Map) + T.Moves.Length + 1 + 21 + 1 + 1 + 2 + 6 + 3, places,
+                A.Moves.Length + A.Kept.Length + K.Moves.Length + K.New.Count(npc => npc.Map == Map) + T.Moves.Length + 1 + 1 + 21 + 1 + 1 + 2 + 6 + 3, places,
                 "the NPCs, the terminal, the twenty fallen, Roscoe, 1217's obelisk, 1215's two Bane terminals, 1224's six jamming towers and 1214's three beacon spots");
             return places;
         }
