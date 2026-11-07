@@ -4,6 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Text.RegularExpressions;
+using DotRecast.Core.Numerics;
+using DotRecast.Detour;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -15,6 +17,7 @@ using Rasa.ClientData;
 using Rasa.Data;
 using Rasa.Managers;
 using Rasa.Missions.Scenes;
+using Rasa.Navigation;
 using Rasa.Services.Preloader.Missions.Crucible;
 using Rasa.Services.Preloader.Missions.Marshes;
 using Rasa.Structures;
@@ -437,11 +440,10 @@ namespace Rasa.Test.Missions.Crucible
 
             // A pool's creatures are set down at a navmesh random point "around" its point (SpawnPoolManager.SpawnPoint,
             // NavMeshQuery.RandomPointAround: Detour's findRandomPointAroundCircle, a point anywhere in a polygon the circle
-            // touches, so it can lie well outside the circle). Every home it can draw, as far as Draws draws find, chases
-            // no nearer than RoamClearance to a link's circle.
+            // touches, so it can lie well outside the circle). Every home it can draw (SpawnReach: every polygon the draw can
+            // pick, on a grid; fix job G, in place of 2000 random draws) chases no nearer than RoamClearance to a link's circle.
             // A point pool (radius 0, fix job F) sets them down on rings round its point (Spacing.OnRings: the second ring a little
             // over two spacings out), its wander zone WanderZoneFallbackRadius round each home.
-            const int Draws = 2000;
             const float Rings = 2 * Spacing.Distance * 1.1f;
             foreach (var pool in pools)
             {
@@ -455,8 +457,7 @@ namespace Rasa.Test.Missions.Crucible
                         failures.Add(FormattableString.Invariant($"point pool {pool}: its rings' chase comes {LinkGap(entry.Position) - far:0.0} m outside a link's circle"));
                     continue;
                 }
-                var nearest = Enumerable.Range(0, Draws).Select(_ => crucible.NavMesh.RandomPointAround(entry.Position, entry.Radius))
-                    .Where(home => home.HasValue).Select(home => home.Value).MinBy(LinkGap);
+                var nearest = SpawnReach(crucible.NavMesh, entry.Position, entry.Radius).MinBy(LinkGap);
                 var gap = LinkGap(nearest) - reach;
                 if (gap < RoamClearance)
                     failures.Add(FormattableString.Invariant(
@@ -470,15 +471,18 @@ namespace Rasa.Test.Missions.Crucible
         /// hits in 12 min). The server knows the client's lava (LavaSurfaces, the lakes, and LavaFlows, the rivers and falls,
         /// both from the client's .map files and meshes; LavaDamage.InLava burns a player there). No Crucible pool (770000-770999,
         /// and the upstream ones the sets moved or talk to) has lava where its creatures can stand: on the navmesh within its
-        /// circle, at any of Draws spawn draws (SpawnPoolManager.SpawnPoint's RandomPointAround, which reaches past the circle),
-        /// or, for a point pool, within its rings (Spacing.OnRings, two spacings and a little out); no friendly NPC stands in it,
-        /// and no Crucible marker's centre is on it.
+        /// circle, anywhere a spawn draw can put one (SpawnPoolManager.SpawnPoint's RandomPointAround, which reaches past the
+        /// circle: <see cref="SpawnReach"/>, every polygon the draw can pick, sampled on a grid; fix job G, to-fix row 61: 500
+        /// random draws found pool 770026's lava 46 m out in one run of four), or, for a point pool, within 20 m of its point
+        /// (fix job F's rule, more than its rings: Spacing.OnRings, 6.6 m); no friendly NPC stands in it, and no Crucible
+        /// marker's centre is on it.
         /// </summary>
         [TestMethod]
         public void NoCruciblePoolNpcOrMarkerStandsOnLava()
         {
-            const int Draws = 500;
-            const float Rings = 2 * Spacing.Distance * 1.1f, Step = 1.5f;
+            // A point pool: no lava within LavaClear of its point (fix job F's rule for the pools it moved), more than its rings
+            // (Spacing.OnRings, two spacings and a little out), so a fight there does not drift onto lava.
+            const float LavaClear = 20, Step = 1.5f;
             using var harness = WildernessRuntimeTestHarness.Create();
             var crucible = CrucibleOutpostIntrepidTests.EnterCrucible(harness);
             var nav = crucible.NavMesh;
@@ -499,14 +503,14 @@ namespace Rasa.Test.Missions.Crucible
                     spots.Add(at);
                 else
                 {
-                    var reach = pool.Radius > 0 ? pool.Radius : Rings;
+                    var reach = pool.Radius > 0 ? pool.Radius : LavaClear;
                     for (var dx = -reach; dx <= reach; dx += Step)
                         for (var dz = -reach; dz <= reach; dz += Step)
                             if (dx * dx + dz * dz <= reach * reach && nav.Nearest(at + new Vector3(dx, 0, dz)) is { } ground
                                 && Vector2.Distance(new(ground.X, ground.Z), new(at.X + dx, at.Z + dz)) < 1)
                                 spots.Add(ground);
                     if (pool.Radius > 0)
-                        spots.AddRange(Enumerable.Range(0, Draws).Select(_ => nav.RandomPointAround(at, pool.Radius)).Where(spot => spot.HasValue).Select(spot => spot.Value));
+                        spots.AddRange(SpawnReach(nav, at, pool.Radius));
                 }
                 if (spots.FirstOrDefault(spot => LavaDamage.InLava(name, spot)) is var lava && LavaDamage.InLava(name, lava))
                     failures.Add(FormattableString.Invariant($"pool {pool.DbId} (r{pool.Radius}): lava at ({lava.X:0.0}, {lava.Y:0.0}, {lava.Z:0.0})"));
@@ -518,6 +522,89 @@ namespace Rasa.Test.Missions.Crucible
                     failures.Add(FormattableString.Invariant($"marker {marker.MissionId}.{marker.ObjectiveId}/{marker.IndicatorId} at ({at.X}, {at.Y}, {at.Z}) on lava"));
             }
             Assert.IsEmpty(failures, string.Join("; ", failures));
+        }
+
+        /// <summary>
+        /// Fix job G (to-fix row 61): every place a radius pool's spawn draw can set a creature down, with no random draw.
+        /// SpawnPoolManager.SpawnPoint takes NavMeshQuery.RandomPointAround, Detour's findRandomPointAroundCircle: from the
+        /// polygon nearest <paramref name="centre"/> it walks to each neighbour whose shared edge (the portal; a tile edge's part
+        /// of it, link bmin/bmax) comes within <paramref name="radius"/> of the centre's point on that polygon, and picks a point
+        /// anywhere in one of the polygons it reached, the far parts of a big one too (upstream C11). This walks the same
+        /// polygons and returns each one's corners and the points of a <paramref name="step"/> m grid inside it, at the polygon's
+        /// height (its detail mesh, as the draw's). The map's navmesh has no off-mesh links (NavMeshBuilder: offMeshConCount 0).
+        /// </summary>
+        internal static List<Vector3> SpawnReach(NavMeshQuery nav, Vector3 centre, float radius, float step = 1)
+        {
+            var mesh = nav.NavMesh;
+            var query = new DtNavMeshQuery(mesh);
+            var filter = new DtQueryDefaultFilter();
+            var points = new List<Vector3>();
+            var status = query.FindNearestPoly(new RcVec3f(centre.X, centre.Y, centre.Z), NavMeshQuery.SearchExtents, filter, out var start, out var from, out _);
+            // No start polygon would make the reach empty and the guard pass on nothing: that fails (the pool's point must be
+            // within NavMeshQuery.SearchExtents of the navmesh, as the draw's own first try).
+            Assert.IsTrue(status.Succeeded() && start != 0,
+                FormattableString.Invariant($"SpawnReach: no navmesh polygon near ({centre.X}, {centre.Y}, {centre.Z})"));
+            var middle = new Vector2(from.X, from.Z);
+            var seen = new HashSet<long> { start };
+            var open = new Queue<long>();
+            open.Enqueue(start);
+            while (open.Count > 0)
+            {
+                var current = open.Dequeue();
+                mesh.GetTileAndPolyByRefUnsafe(current, out var tile, out var poly);
+                var corners = Enumerable.Range(0, poly.vertCount).Select(k => poly.verts[k] * 3)
+                    .Select(v => new Vector3(tile.data.verts[v], tile.data.verts[v + 1], tile.data.verts[v + 2])).ToList();
+                points.AddRange(corners);
+                var min = corners.Aggregate(Vector3.Min);
+                var max = corners.Aggregate(Vector3.Max);
+                for (var x = MathF.Floor(min.X / step) * step; x <= max.X; x += step)
+                    for (var z = MathF.Floor(min.Z / step) * step; z <= max.Z; z += step)
+                        if (InConvex(corners, x, z) && query.GetPolyHeight(current, new RcVec3f(x, max.Y, z), out var y).Succeeded())
+                            points.Add(new Vector3(x, y, z));
+                for (var k = poly.firstLink; k != DtDetour.DT_NULL_LINK; k = tile.links[k].next)
+                {
+                    var link = tile.links[k];
+                    if (link.refs == 0 || seen.Contains(link.refs))
+                        continue;
+                    mesh.GetTileAndPolyByRefUnsafe(link.refs, out var nextTile, out var nextPoly);
+                    if (!filter.PassFilter(link.refs, nextTile, nextPoly))
+                        continue;
+                    var a = corners[link.edge];
+                    var b = corners[(link.edge + 1) % poly.vertCount];
+                    if (link.side != 0xff && (link.bmin != 0 || link.bmax != 255))
+                        (a, b) = (Vector3.Lerp(a, b, link.bmin / 255f), Vector3.Lerp(a, b, link.bmax / 255f));
+                    if (SegmentDistance2D(middle, new Vector2(a.X, a.Z), new Vector2(b.X, b.Z)) > radius)
+                        continue;
+                    seen.Add(link.refs);
+                    open.Enqueue(link.refs);
+                }
+            }
+            Assert.IsNotEmpty(points, FormattableString.Invariant($"SpawnReach: no point round ({centre.X}, {centre.Y}, {centre.Z})"));
+            return points;
+        }
+
+        private static bool InConvex(List<Vector3> corners, float x, float z)
+        {
+            var sign = 0;
+            for (var i = 0; i < corners.Count; i++)
+            {
+                var (a, b) = (corners[i], corners[(i + 1) % corners.Count]);
+                var cross = (b.X - a.X) * (z - a.Z) - (b.Z - a.Z) * (x - a.X);
+                if (MathF.Abs(cross) < 1e-6f)
+                    continue;
+                if (sign == 0)
+                    sign = Math.Sign(cross);
+                else if (Math.Sign(cross) != sign)
+                    return false;
+            }
+            return true;
+        }
+
+        private static float SegmentDistance2D(Vector2 at, Vector2 a, Vector2 b)
+        {
+            var ab = b - a;
+            var t = ab.LengthSquared() > 0 ? Math.Clamp(Vector2.Dot(at - a, ab) / ab.LengthSquared(), 0, 1) : 0;
+            return Vector2.Distance(at, a + ab * t);
         }
 
         /// <summary>The Awol Camp waypoint (as CrucibleWardensAndLashersTests.AwolWaypoint).</summary>

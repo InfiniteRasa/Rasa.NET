@@ -244,6 +244,9 @@ Prometheus Outpost waypoint (435, 168.05, 407): the walks from the Fort and Outp
   Botha: 85000 XP, 6000 credits, one of 33987, 24086, 20971, 28940; he takes the capsule. Abandon: the capsule goes; the
   offer comes again on the next arrival on the Crucible.
 
+Fix job G (migration `20271108001200_Crucible_fix_g`, to-fix row 61): Shield Drone pool 770026 (1208) is a point
+(radius 0): its drones stand within 6.6 m of (535, 172.92, 80), none on the lava 46 m north of it.
+
 ## Assumptions and choices (not from a source)
 
 All ESTIMATE (set 1):
@@ -525,6 +528,10 @@ All ESTIMATE (set 8a):
   pools 770012 and 770013, Shield Drone pool 770024 and Molitor's pool 770029 made points (radius 0); 770011, 770012,
   770013, 770024 and 770029 moved off lava (to (-636, 249.76, 543), (-752, 285.6, 368), (-780, 286.04, 356),
   (415, 170.08, 113), (-853, 286.64, 359)) with their markers.
+
+## Server data changed by fix job G (20271108001200)
+
+- Ours: Shield Drone pool 770026 made a point (radius 6 to 0); not moved.
 
 ## Server data changed by set 8a (upstream rows)
 
