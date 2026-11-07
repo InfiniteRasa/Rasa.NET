@@ -1,6 +1,6 @@
 # Ligo Crucible missions: sources (cross-reference)
 
-The 28 missions of the Ligo Crucible quest PR, taken from the full mission cross-reference of the 1.16.5.0
+The 32 missions of the Ligo Crucible quest PR, taken from the full mission cross-reference of the 1.16.5.0
 client. For each mission: the client text and objectives, the sources found (TaRapedia, TR MMO DB, Ellatha,
 Ten Ton Hammer, archived fan and official pages, patch notes) and a rebuild summary with the source of each
 value. Values without a source are marked ESTIMATE. "This PR" rows (where present) show the data this PR adds.
@@ -9,7 +9,7 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
 
 | Zone | Missions |
 | --- | ---: |
-| Crucible | 28 |
+| Crucible | 32 |
 
 ## Crucible
 
@@ -600,6 +600,114 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
 
 - **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 6
   - Requires: Smoking Guns (id 1148) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Out_Of_Sight)
+
+### 1210 — Prometheus Rising
+
+
+- **Rebuild summary:**
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 42,500 XP; 4,000 credits; Class VIII Res Trauma Kit; Class VIII Concussion Grenade x3; Class VIII Basic Med Pack x6; Class VIII Fragmentation Grenade x3 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Prometheus_Rising)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Captain DeLisi: Crucible, Outpost Intrepid — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Captain_DeLisi)
+- **Client:** The Brann battle syndicate is assisting an AFS assault on Khulago Base. Report to Major Keplinger at Prometheus Outpost, northeast of Staal, to provide assistance.
+  - objectives (client): Report to Keplinger. — Report to Major Keplinger at Prometheus Outpost, northeast of Staal.
+- **TaRapedia** [Prometheus Rising](https://tabularasa.fandom.com/wiki/Prometheus_Rising): giver: Captain DeLisi; at: Outpost Intrepid; zone: Crucible; requires: Business Proposal; follow-up: None; XP: 42,500; credits: 4,000; items: Class VIII Res Trauma Kit; Class VIII Concussion Grenade x3; Class VIII Basic Med Pack x6; Class VIII Fragmentation Grenade x3; reward from: Major Keplinger
+  - overview: The Brann battle syndicate is assisting an AFS assault on Khulago Base. Report to Major Keplinger at Prometheus Outpost, northeast of Staal, to provide assistance.
+  - objectives: • Report to Keplinger • Report to Major Keplinger at Prometheus Outpost, northeast of Staal.
+- **TaRapedia mission list** [Outpost Intrepid mission list](https://tabularasa.fandom.com/wiki/Outpost_Intrepid_mission_list): zone Crucible, area Outpost Intrepid, given by Captain DeLisi
+- **PlanetTR** [planettr.com:80/forums/archive/index.php/t-1365.html](https://web.archive.org/web/20071209022816/http://planettr.com:80/forums/archive/index.php/t-1365.html): “* Abyss “The Abyss Looks Into You” – Both Branching objective choices now complete correctly. / * Abyss “Prometheus Rising” – Fix to mission dialog to give correct directions to objective. / * Sanctus Grotto, Howling Death Burrow, and Fault Lever should no longer be listed in the map list on the right since they are not available.”
+- **NPCs (TaRapedia NPC pages):**
+  - [Captain DeLisi](https://tabularasa.fandom.com/wiki/Captain_DeLisi): Crucible, Outpost Intrepid (named as giver/receiver)
+  - [Major Keplinger](https://tabularasa.fandom.com/wiki/Major_Keplinger): Crucible, Prometheus Outpost (named as giver/receiver)
+
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 7
+  - Requires: Business Proposal (id 1229) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Business_Proposal), [TaRapedia](https://tabularasa.fandom.com/wiki/Prometheus_Rising)
+
+### 1212 — Confirmed Kills
+
+
+- **Rebuild summary:**
+  - level: 35 — source: [TR MMO DB](https://web.archive.org/web/20120731173302/http://tr.mmodb.com/quests/confirmed-kills-620.php)
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 17,000 XP; 8,000 credits — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Confirmed_Kills)
+  - reward: 8000 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20120731173302/http://tr.mmodb.com/quests/confirmed-kills-620.php)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Larai Zupa Madias: Mires, Control Point: Prometheus Outpost, /loc 378.9, 168.0, 367.6 — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Larai_Zupa_Madias)
+- **Client:** Zupa Madias has given you a challenge. Kill 15 Bane foot soldiers in the Kahlago Base trenches and you will earn his respect.
+  - objectives (client): Kill 15 Bane Soldiers. — Kill 15 Bane Foot Soldiers in and around the trenches at Khalago Base.
+- **TaRapedia** [Confirmed Kills](https://tabularasa.fandom.com/wiki/Confirmed_Kills): giver: Larai Zupa Madias; at: Prometheus Outpost; zone: Crucible; requires: Business Proposal; follow-up: Iron Giants; XP: 17,000; credits: 8,000
+  - overview: Zupa Madias has given you a challenge. Kill 15 Bane foot soldiers in the Kahlago Base trenches and you will earn his respect.
+  - objectives: • Kill 15 Bane Soldiers • Kill 15 Bane Foot Soldiers in and around the trenches at Khalago Base. • Bane Foot Soldiers Killed x/15
+- **TaRapedia mission list** [Prometheus Outpost mission list](https://tabularasa.fandom.com/wiki/Prometheus_Outpost_mission_list): zone Crucible, area Prometheus Outpost, given by Larai Zupa Madias
+- **TR MMO DB** [Confirmed Kills](https://web.archive.org/web/20120731173302/http://tr.mmodb.com/quests/confirmed-kills-620.php): level: 35; starts at npc: Larai Zupa Madias; starts in zone: Crucible; objectives: Kill 15 Bane Foot Soldiers around Khalago Base (0/15), Return to Larai Zupa Madias; reward: 8000; series: Confirmed Kills
+- **TR MMO DB quest series** [Confirmed Kills](https://web.archive.org/web/20120731162239/http://tr.mmodb.com/quests/seriesname-confirmed_kills/): Confirmed Kills (level 35, reward 8000) → Iron Giants (level 35, reward 8000) → The Big Kahuna (level 35, reward 0) → Who's In Charge Here (level 35, reward 6000) (series order as listed on the page; reward unit not stated)
+- **NPCs (TaRapedia NPC pages):**
+  - [Larai Zupa Madias](https://tabularasa.fandom.com/wiki/Larai_Zupa_Madias): Mires, Control Point: Prometheus Outpost, /loc 378.9, 168.0, 367.6 (NPC page lists this mission)
+
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 7
+  - Requires: Business Proposal (id 1229) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Confirmed_Kills)
+  - Leads to: Iron Giants (id 1213) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Confirmed_Kills), [TaRapedia](https://tabularasa.fandom.com/wiki/Iron_Giants)
+- **TR MMO DB quest series:** "Confirmed Kills", row 1 of 4 ([list](https://web.archive.org/web/20120731162239/http://tr.mmodb.com/quests/seriesname-confirmed_kills/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+
+### 1217 — Point Of Impact
+
+
+- **Rebuild summary:**
+  - level: 40 — source: [TR MMO DB](https://web.archive.org/web/20080907091624/http://tr.mmodb.com/quests/point-of-impact-605.php)
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 42,500 XP; 4,000 credits; Class VIII EMP Bomb; Class VIII Cryogenic Grenade x3; Class VIII Standard Med Pack x3; Class VIII Incendiary Grenade x3 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Point_Of_Impact)
+  - reward: 4000 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20080907091624/http://tr.mmodb.com/quests/point-of-impact-605.php)
+  - drops / mission items: Eloh Resonator: Overview: The Eloh Resonator is an Eloh artifact that was found at the Eloh Crash Site near Devil's Pitchfork in Crucible. The item was most likely carried onboard … — source: [TaRapedia item](https://tabularasa.fandom.com/wiki/Eloh_Resonator)
+  - location: NPC Kardash Eloh Obelisk: Crucible, Eloh Crash Site — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Kardash_Eloh_Obelisk)
+- **Client:** Take the Eloh Resonator to Professor Tiernan, the researcher in charge of the Eloh crash site near Devil's Pitchfork.
+  - objectives (client): Speak to Professor Tiernan. — Professor Tiernan, chief researcher at the Eloh crash site at Devil's Pitchfork, needs to speak to you.
+- **TaRapedia** [Point Of Impact](https://tabularasa.fandom.com/wiki/Point_Of_Impact): giver: Awol Captain Cheung; at: AWOL Camp; zone: Crucible; requires: Not My Junk; follow-up: It Came From Erdas; XP: 42,500; credits: 4,000; items: Class VIII EMP Bomb; Class VIII Cryogenic Grenade x3; Class VIII Standard Med Pack x3; Class VIII Incendiary Grenade x3; reward from: Kardash Eloh Obelisk
+  - overview: Take the Eloh Resonator to Professor Tiernan, the researcher in charge of the Eloh crash site near Devil's Pitchfork.
+  - objectives: • Speak to Professor Tiernan • Professor Tiernan, chief researcher at the Eloh crash site at Devil's Pitchfork, needs to speak to you.
+- **TaRapedia mission list** [AWOL Camp mission list](https://tabularasa.fandom.com/wiki/AWOL_Camp_mission_list): zone Crucible, area AWOL Camp, given by Awol Captain Cheung
+- **TR MMO DB** [Point Of Impact](https://web.archive.org/web/20080907091624/http://tr.mmodb.com/quests/point-of-impact-605.php): level: 40; starts at npc: AWOL Captain Cheung; starts in zone: Crucible; objectives: Speak to Professor Tiernan; description: TIP: Tiernan is at the crash site near the Devil's Pitchfork.; reward: 4000
+  - related mob Pfoessor Tiernan (not in the archived bestiary pages)
+- **NPCs (TaRapedia NPC pages):**
+  - [Awol Captain Cheung](https://tabularasa.fandom.com/wiki/Awol_Captain_Cheung): Crucible (named as giver/receiver)
+  - [Kardash Eloh Obelisk](https://tabularasa.fandom.com/wiki/Kardash_Eloh_Obelisk): Crucible, Eloh Crash Site (named as giver/receiver)
+- **Mission items (TaRapedia item pages):**
+  - [Eloh Resonator](https://tabularasa.fandom.com/wiki/Eloh_Resonator): Overview: The Eloh Resonator is an Eloh artifact that was found at the Eloh Crash Site near Devil's Pitchfork in Crucible. The item was most likely carried onboard the crashed Eloh vessel, which is believed to be some kind of escape pod launched from Erdas. The artifact is currently …
+
+- **Chain** (explicit prerequisite links): Making Amends chain (8 missions), step 3
+  - Requires: Not My Junk (id 1538) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Not_My_Junk), [TaRapedia](https://tabularasa.fandom.com/wiki/Point_Of_Impact)
+  - Leads to: It Came From Erdas (id 1218) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/It_Came_From_Erdas), [TaRapedia](https://tabularasa.fandom.com/wiki/Point_Of_Impact)
+- **Requires an instance mission:** Not My Junk (1538) — source: the chain links above
+
+### 1218 — It Came From Erdas
+
+
+- **Rebuild summary:**
+  - level: 35 — source: [TR MMO DB](https://web.archive.org/web/20120731164831/http://tr.mmodb.com/quests/it-came-from-erdas-625.php)
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 85,000 XP; 6,000 credits; Icon/Armor|Audiodyne|Mech Armor|Boots|6 40 purple — source: [TaRapedia](https://tabularasa.fandom.com/wiki/It_Came_From_Erdas)
+  - reward: 6000 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20120731164831/http://tr.mmodb.com/quests/it-came-from-erdas-625.php)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Kardash Eloh Obelisk: Crucible, Eloh Crash Site — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Kardash_Eloh_Obelisk)
+- **Client:** Return to Professor Tiernan at the Eloh Crash site at Devil's Pitchfork and tell him of your discovery, then deliver the artifact to Captain Botha in Ashen Desert.
+  - objectives (client): Tell Tiernan of your discovery. — Tell Professor Tiernan of your discovery and show him the artifact.; Bring the artifact to Botha. — Journey to Ashaka Settlement in Ashen Desert and give the artifact to Captain Botha.
+- **TaRapedia** [It Came From Erdas](https://tabularasa.fandom.com/wiki/It_Came_From_Erdas): giver: Kardash Eloh Obelisk; at: Eloh Crash Site; requires: Point Of Impact; follow-up: Echoes in the Sand; XP: 85,000; credits: 6,000; items: Icon/Armor|Audiodyne|Mech Armor|Boots|6 40 purple; reward from: Captain Amandla Botha
+  - overview: Return to Professor Tiernan at the Eloh Crash site at Devil's Pitchfork and tell her of your discovery, then deliver the artifact to Captain Botha in Ashen Desert.
+  - objectives: • Tell Tiernan of your discovery • Tell Professor Tiernan of your discovery and show him the artifact. • Bring the artifact to Botha • Journey to Ashoka Settlement in Ashen Desert and give the artifact to Captain Botha.
+- **TaRapedia mission list** [Eloh Crash Site mission list](https://tabularasa.fandom.com/wiki/Eloh_Crash_Site_mission_list): zone Crucible, area Eloh Crash Site, given by Kardash Eloh Obelisk
+- **TR MMO DB** [It Came From Erdas](https://web.archive.org/web/20120731164831/http://tr.mmodb.com/quests/it-came-from-erdas-625.php): level: 35; starts in zone: Crucible; objectives: Tell Tiernan of your discovery, Bring the Artifact to Captain Amandla Botha in the Ashen Desert; description: NOTE: This mission begins when you examine the Kardash Eloh Obelisk at the Eloh Crash Site.; reward: 6000
+  - related mob Captain Amandla Botha (not in the archived bestiary pages)
+- **TR MMO DB NPC** [Captain Amandla Botha](https://web.archive.org/web/20081121160752/http://tr.mmodb.com/bestiary/captain-amandla-botha-1008.php): Quest NPC, location Ashoka Settlement, zone Crucible (related to this quest)
+- **TR MMO DB NPC** [Captain Amandla Botha](https://web.archive.org/web/20081216161843/http://tr.mmodb.com:80/bestiary/captain-amandla-botha-1022.php): Quest NPC, location Ashoka Settlement, zone Ashen Desert (related to this quest)
+- **NPCs (TaRapedia NPC pages):**
+  - [Kardash Eloh Obelisk](https://tabularasa.fandom.com/wiki/Kardash_Eloh_Obelisk): Crucible, Eloh Crash Site (named as giver/receiver)
+
+- **Chain** (explicit prerequisite links): Making Amends chain (8 missions), step 4
+  - Requires: Point Of Impact (id 1217) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/It_Came_From_Erdas), [TaRapedia](https://tabularasa.fandom.com/wiki/Point_Of_Impact)
+  - Leads to: Echoes in the Sand (id 1736) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Echoes_in_the_Sand), [TaRapedia](https://tabularasa.fandom.com/wiki/It_Came_From_Erdas)
 
 ### 1229 — Business Proposal
 

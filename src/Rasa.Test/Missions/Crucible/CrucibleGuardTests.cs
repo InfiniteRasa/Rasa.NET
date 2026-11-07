@@ -30,6 +30,7 @@ namespace Rasa.Test.Missions.Crucible
     using S = CrucibleMinefieldAndSalvageNpcsV1;
     using V = CrucibleStaalSigalsNpcsV1;
     using A = CrucibleAwolCampNpcsV1;
+    using K = CrucibleKardashAndPrometheusNpcsV1;
     using F = MarshesClientFloorTests;
 
     /// <summary>
@@ -52,18 +53,19 @@ namespace Rasa.Test.Missions.Crucible
 
         /// <summary>
         /// The friendly NPC pools of the Crucible missions on the Crucible: the block's, the upstream ones the sets moved, and the
-        /// ones set 2 kept. Set 7's Cirkin stands in the Staal Junkyard (CrucibleStaalJunkyardTests holds him to these rules there).
+        /// ones set 2 kept. Set 7's Cirkin stands in the Staal Junkyard (CrucibleStaalJunkyardTests holds him to these rules there),
+        /// set 8a's Botha on Ashen Desert (CrucibleKardashAndPrometheusTests).
         /// </summary>
         private static List<SpawnPool> Npcs()
         {
             var moved = N.Moves.Select(move => move.Pool).Concat(G.Moves.Select(move => move.Pool)).Concat(G.Kept.Select(kept => kept.Pool))
-                .Concat(A.Moves.Select(move => move.Pool)).Concat(A.Kept.Select(kept => kept.Pool)).ToHashSet();
+                .Concat(A.Moves.Select(move => move.Pool)).Concat(A.Kept.Select(kept => kept.Pool)).Concat(K.Moves.Select(move => move.Pool)).ToHashSet();
             bool Friendly(uint creature) => CreatureManager.Instance.LoadedCreatures.TryGetValue(creature, out var c) && c.TargetCategory != TargetCategory.Hostile;
             var npcs = SpawnPoolManager.Instance.LoadedSpawnPools.Values.Where(pool => pool.MapContextId == Map &&
                 (pool.DbId is >= 770000 and <= 770999 || moved.Contains(pool.DbId)) &&
                 pool.SpawnSlot.Count > 0 && pool.SpawnSlot.TrueForAll(slot => Friendly(slot.CreatureId))).ToList();
             Assert.HasCount(N.New.Length + N.Moves.Length + G.New.Length + G.Moves.Length + G.Kept.Length + W.New.Length + V.New.Length +
-                A.Moves.Length + A.Kept.Length, npcs,
+                A.Moves.Length + A.Kept.Length + K.Moves.Length + K.New.Count(npc => npc.Map == Map), npcs,
                 "the Crucible NPCs are read");
             return npcs;
         }
@@ -114,7 +116,7 @@ namespace Rasa.Test.Missions.Crucible
             using var harness = WildernessRuntimeTestHarness.Create();
             var stats = harness.World.CreatureStatEntries.AsNoTracking().Where(row => row.Id >= 770000 && row.Id <= 770999).ToDictionary(row => row.Id);
             var npcs = Npcs().Where(pool => pool.DbId >= 770000).SelectMany(pool => pool.SpawnSlot).Select(slot => slot.CreatureId).Distinct().ToList();
-            Assert.HasCount(N.New.Length + G.New.Length + W.New.Length + V.New.Length, npcs);
+            Assert.HasCount(N.New.Length + G.New.Length + W.New.Length + V.New.Length + K.New.Count(npc => npc.Map == Map), npcs);
             foreach (var npc in npcs)
             {
                 Assert.IsTrue(stats.TryGetValue(npc, out var stat), $"{npc} has a creature_stat row");
@@ -259,7 +261,8 @@ namespace Rasa.Test.Missions.Crucible
                 ("the Staal waypoint", CrucibleOutpostIntrepidTests.StaalWaypoint), ("the Infirmary waypoint", CrucibleOutpostIntrepidTests.InfirmaryWaypoint),
                 ("the Labbna waypoint", CrucibleOutpostIntrepidTests.LabbnaWaypoint), ("the Awol Camp waypoint", AwolCampWaypoint),
                 ("the lower office teleporter", V(G.LowerPadAt)), ("the upper office teleporter", V(G.UpperPadAt)),
-                ("Munit", Pool(N.Munit)), ("Cugin", Pool(G.Cugin)), ("Vitto", Pool(N.Vitto))
+                ("Munit", Pool(N.Munit)), ("Cugin", Pool(G.Cugin)), ("Vitto", Pool(N.Vitto)),
+                ("the Prometheus Outpost waypoint", V(K.PrometheusWaypoint))
             };
             var mustWalk = new Dictionary<uint, string[]> { [G.Vargo] = new[] { "Munit", "the lower office teleporter", "Cugin", "Vitto" } };
             var npcs = Npcs().Where(npc => npc.MapContextId == Map).ToList();
@@ -629,9 +632,10 @@ namespace Rasa.Test.Missions.Crucible
             // Set 2: Lohen; Bunko, Cugin, Vargo (twice: 3 and 6) and Yeg; Fiorella, Haggus and Melching (three times: his three
             // variants are three talks). Set 3: Munit, Vitto, Donal and Rigs (1170) and DeLisi (1229). Set 5: Lohen twice (1185).
             // Set 6: 1144's ten (each choice is a talk), 1152's two, 1153's two (two choices), 1155's and 1205's three each.
-            // Set 7 (in the Staal Junkyard): Cirkin (1538), 1529's six Dolomite Blocks and 1538's lockbox.
-            Assert.AreEqual(1 + 5 + 21 + 1 + 5 + 2 + 3 + 4 + 1 + 2 + 10 + 2 + 2 + 3 + 3 + 1 + 6 + 1, checkedTargets,
-                "DeLisi, the five of The Wire, the terminal, the twenty fallen, and set 2's, set 3's, set 5's, set 6's and set 7's talks and uses");
+            // Set 7 (in the Staal Junkyard): Cirkin (1538), 1529's six Dolomite Blocks and 1538's lockbox. Set 8a: Keplinger (1210),
+            // Tiernan (1217, 1218); Botha on Ashen Desert is CrucibleKardashAndPrometheusTests'.
+            Assert.AreEqual(1 + 5 + 21 + 1 + 5 + 2 + 3 + 4 + 1 + 2 + 10 + 2 + 2 + 3 + 3 + 1 + 6 + 1 + 3, checkedTargets,
+                "DeLisi, the five of The Wire, the terminal, the twenty fallen, and set 2's, set 3's, set 5's, set 6's, set 7's and set 8a's talks and uses");
             Assert.IsEmpty(outside, string.Join(", ", outside));
         }
 
@@ -718,7 +722,8 @@ namespace Rasa.Test.Missions.Crucible
         /// <summary>
         /// To-fix row 24: 1149's markers stood off the navmesh. Every Crucible marker on the Crucible has its centre on the
         /// navmesh (ground at most MarkerHeight from its y) and on a client floor (a walkable surface at most MarkerHeight
-        /// under it). The Staal Junkyard's (MissionMarkerProjection.ResolveMap 2138) are CrucibleStaalJunkyardTests'.
+        /// under it). The Staal Junkyard's (MissionMarkerProjection.ResolveMap 2138) are CrucibleStaalJunkyardTests', the Ashen
+        /// Desert one (1734) CrucibleKardashAndPrometheusTests'.
         /// </summary>
         [TestMethod]
         public void EveryCrucibleMarkerStandsOnTheNavmeshAndAClientFloor()
@@ -733,7 +738,7 @@ namespace Rasa.Test.Missions.Crucible
                 .Where(marker => MissionMarkerProjection.ResolveMap(catalog, marker.MissionId, marker.ObjectiveId, new MissionIndicator { IndicatorId = marker.IndicatorId }) == Map)
                 .Select(marker => (Label: $"{marker.MissionId}.{marker.ObjectiveId}/{marker.IndicatorId}", At: new Vector3((float)marker.PosX, (float)marker.PosY, (float)marker.PosZ)))
                 .ToList();
-            Assert.HasCount(CrucibleMissionTests.Indicators - CrucibleStaalJunkyardTests.JunkyardMarkers, markers,
+            Assert.HasCount(CrucibleMissionTests.Indicators - CrucibleStaalJunkyardTests.JunkyardMarkers - CrucibleKardashAndPrometheusTests.AshenDesertMarkers, markers,
                 "the Crucible markers on the Crucible (CrucibleMissionTests)");
             using var meshes = new MeshLibrary(dataDir, F.MeshCsv());
             var geometry = MapGeometry.Load(Path.Combine(dataDir, "maps", MapName(harness)), meshes, 1);
@@ -872,8 +877,8 @@ namespace Rasa.Test.Missions.Crucible
                     places.Add(($"{mission} {actor.Role}", new Vector3(actor.Position.X, actor.Position.Y, actor.Position.Z),
                         actor.Kind == SceneActorKind.Creature));
             Assert.HasCount(N.New.Length + N.Moves.Length + G.New.Length + G.Moves.Length + G.Kept.Length + W.New.Length + V.New.Length +
-                A.Moves.Length + A.Kept.Length + 21 + 1, places,
-                "the NPCs, the terminal, the twenty fallen and Roscoe");
+                A.Moves.Length + A.Kept.Length + K.Moves.Length + K.New.Count(npc => npc.Map == Map) + 21 + 1 + 1, places,
+                "the NPCs, the terminal, the twenty fallen, Roscoe and 1217's obelisk");
             return places;
         }
 

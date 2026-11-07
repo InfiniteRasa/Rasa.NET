@@ -214,6 +214,36 @@ Second client (set 7, the squad's Junkyard copy). Expected results (not yet seen
 - Leave and enter again: the mission state, the taken blocks and the opened lockbox stay.
 - Instance reset (the copy closes, a new copy): the bosses, the Technicians and the blocks not yet taken stand again.
 
+Set 8a, Prometheus Outpost and the Eloh Crash Site (migration `20271108001100_Crucible_kardash_and_prometheus`). New
+NPCs 770039 Professor Tiernan (Crucible, the Eloh Crash Site, (589.5, 154.37, 250), package 1483) and 770040 Captain
+Amandla Botha (Ashen Desert 1734, the Ashoka Settlement, (378, 280.69, -458.5), package 1410); next free id 770041.
+Major Keplinger 510031 and Larai Zupa Madias 510029 moved out of the Prometheus Outpost control point. Walk from the
+Prometheus Outpost waypoint (435, 168.05, 407): the walks from the Fort and Outpost Intrepid waypoints cross lava at
+(126, 183.88, 328.8) (upstream, to-fix row 59).
+
+- [ ] 1210 Prometheus Rising (Ligo Crucible): Captain DeLisi (Outpost Intrepid) offers it after 1229, level 35
+  (ESTIMATE). 1 Report to Keplinger: talk to him at (379, 168.47, 384), by the Prometheus Outpost control point gate;
+  marker r8 on him. Turn in at Keplinger: 42500 XP, 4000 credits, one of Class VIII Res Trauma Kit (47600) x1, Class VIII
+  Concussion Grenade (111019) x3, Class VIII Basic Med Pack (45063) x6, Class VIII Fragmentation Grenade (45447) x3.
+- [ ] 1212 Confirmed Kills (Ligo Crucible): Larai Zupa Madias offers it at (378.9, 168.3, 367.6) after 1229, level 35. 1
+  Kill 15 Bane Soldiers: Thrax Soldier Mark IX 531018 or Thrax Grenadier 531019, counter "Bane Foot Soldiers Killed"
+  n/15. Markers r35 in the west trench (320, 165.28, -128.5) and the north trench (388, 166.71, -26) of Khulago Base. A
+  kill before the accept does not count. Route: the north trench first, then the west one (the navmesh walk from the
+  waypoint straight to the west trench crosses lava at (398.4, 164.1, 238)). Turn in at Madias: 170000 XP, 8000 credits, one of 40482, 46004, 36767, 29994.
+- [ ] 1217 Point Of Impact (Ligo Crucible): Awol Captain Cheung (Awol Camp) offers it after 1538, level 40. The accept
+  sets the player's own Kardash Eloh Obelisk (class 24889, no use) on the escape pod's deck (575.5, 157.27, 232). 1 Speak
+  to Professor Tiernan (marker r8 on him, 23 m north-east of the pod). His talk opens a hidden step: walk up onto the
+  pod's deck, into the 6 m area round the obelisk. Then turn in by radio: 42500 XP, 4000 credits, one of Class VIII EMP
+  Bomb (111233) x1, Class VIII Cryogenic Grenade (111049) x3, Class VIII Standard Med Pack (45064) x3, Class VIII
+  Incendiary Grenade (111039) x3. Look: the obelisk stands on the deck from the accept and goes after the turn-in; the
+  radio turn-in shows the obelisk's message.
+- [ ] 1218 It Came From Erdas (Ligo Crucible, Ashen Desert): offered by radio when 1217 is turned in, and on each arrival
+  on the Crucible while it is not taken; level 35. The accept gives the Eloh Memory Capsule (97496). 1 Tell Tiernan of
+  your discovery (talk, marker on Tiernan). 2 Bring the artifact to Botha: talk to Captain Amandla Botha at the Ashoka
+  Settlement on Ashen Desert (marker on him, Ashen Desert only), 19 m west of the Ashoka Settlement waypoint. Turn in at
+  Botha: 85000 XP, 6000 credits, one of 33987, 24086, 20971, 28940; he takes the capsule. Abandon: the capsule goes; the
+  offer comes again on the next arrival on the Crucible.
+
 ## Assumptions and choices (not from a source)
 
 All ESTIMATE (set 1):
@@ -379,6 +409,18 @@ All ESTIMATE (set 7):
   15301, 15111). 1529: the lowest Uncommon template of each kind and icon number in the band of level 40 (Graviton V04,
   Hazmat V03, Reflective V03, Bio V04: no Uncommon V05 or V04 of these in the band).
 
+All ESTIMATE (set 8a):
+- Stats and looks: Tiernan a copy of Keplinger's row and look, Botha a copy of Captain Flynn Harris's (no source gives
+  Botha's sex), both level 40, 4500 HP, armor 300. 1210 level 35 (no source; 1229's).
+- Positions: Tiernan on the crater floor 23 m from the escape pod; Botha 19 m west of the Ashoka Settlement waypoint;
+  Keplinger by the CP gate (no source), Madias at TaRapedia's /loc on the navmesh height; the obelisk on the pod's deck.
+- 1212: 170000 XP (TaRapedia's 17000 read as a typing error); the two markers on the west and north trench pools.
+- 1217: the walk up to the obelisk is a hidden step after Tiernan's talk, then a radio turn-in (see Deviations).
+- 1218: the capsule at the accept ("Take the capsule"); offered by radio at 1217's turn-in and on arrival on the Crucible.
+- Rewards: 1210 and 1217 TaRapedia's items by their client names (EMP Bomb: the first of two identical templates, 111233;
+  "Frag Grenade" read as Class VIII Fragmentation Grenade 45447). 1212 and 1218: TaRapedia's kinds and icon numbers, the
+  lowest Uncommon template whose band holds the level (1218: Uncommon, not TaRapedia's purple with mods).
+
 ## Deviations (client/server limits)
 
 - 1143: one counter of distinct corpses does the work of the client's twenty per-corpse objectives.
@@ -406,6 +448,14 @@ All ESTIMATE (set 7):
   or destroyed) after 2, the lockbox use is refused; abandon and accept again (to-fix row 55).
 - 1519: the sack drops for the killer only (open Crucible, upstream loot rule; to-fix row 58).
 - 1529, 1538: the markers show only on the player's current map (the bridge road on the Crucible, Cirkin in the Junkyard).
+- 1217, 1218: the Kardash Eloh Obelisk is not 1217's receiver nor 1218's giver (a server mission giver or receiver must be
+  a creature NPC): 1217 is turned in by radio, 1218 is offered by radio.
+- 1217: the walk up to the obelisk (hidden step 2) fires only on a step into the 6 m area: an arrival or relog inside it
+  is no entry; step out and back in.
+- 1217: the Eloh Resonator is not checked (a requirement takes only mission-issued items); 1538, which gives it, is the
+  prerequisite.
+- 1218: after an abandon the offer comes back on the next arrival on the Crucible (leave and return, or relog).
+- 1212: a foot soldier killed anywhere counts (a kill objective takes no area), not only in the Khulago Base trenches.
 
 - 1152 and 1153: the fork is built as designed (keep the secret fails 1152), not as the retail known issue (refusing
   completes 1153 and fails 1152).
@@ -476,3 +526,9 @@ All ESTIMATE (set 7):
   770013, 770024 and 770029 moved off lava (to (-636, 249.76, 543), (-752, 285.6, 368), (-780, 286.04, 356),
   (415, 170.08, 113), (-853, 286.64, 359)) with their markers.
 
+## Server data changed by set 8a (upstream rows)
+
+- Moved (upstream D3, the placeholder cluster inside the Prometheus Outpost control point model): Major Keplinger 510031
+  from (402.2, 169.77, 384.4) to (379, 168.47, 384); Larai Zupa Madias 510029 from (402.2, 169.77, 391.4) to (378.9,
+  168.3, 367.6). Captain Tiersky 510021 stays inside the model (set 9, 1224).
+- Added: Professor Tiernan 770039 (Crucible) and Captain Amandla Botha 770040 (Ashen Desert); upstream had no row for them.
