@@ -89,6 +89,7 @@ namespace Rasa.Test.Missions.Crucible
         private const string AwolCamp = "20271108000700_Crucible_awol_camp";
         private const string WardenPoolsAndVargo = "20271108000800_Crucible_warden_pools_and_vargo";
         private const string StaalJunkyard = "20271108000900_Crucible_staal_junkyard";
+        private const string FixF = "20271108001000_Crucible_fix_f";
 
         private const uint Shandy = 770000, Mullins = 770001, Munit = 770002;
         private const uint DeLisi = 510019, Drake = 510034, Vitto = 510027, Donal = 510037, Rigs = 510025, DAmbrose = 510023;
@@ -256,8 +257,8 @@ namespace Rasa.Test.Missions.Crucible
             foreach (var (pool, creature, x, z) in new (uint, uint, double, double)[]
             {
                 // 20271108000800 moved the Warden Bot pools clear of the facility's door.
-                (770009, WardenBot, -575, 491), (770010, WardenBot, -499, 434), (770011, WardenBot, -606, 534),
-                (770012, Lasher, -785, 390), (770013, Lasher, -790, 420)
+                (770009, WardenBot, -575, 491), (770010, WardenBot, -499, 434), (770011, WardenBot, -636, 543),  // fix job F: 770011 off the lava
+                (770012, Lasher, -752, 368), (770013, Lasher, -780, 356)          // fix job F moved the Lasher pools off the lava
             })
             {
                 var row = world.SpawnPoolEntries.AsNoTracking().Single(entry => entry.Id == pool);
@@ -300,8 +301,8 @@ namespace Rasa.Test.Missions.Crucible
                 (770014, SmartMine, 4, 635, 557), (770015, SmartMine, 4, 585, 577), (770016, SmartMine, 4, 545, 587),
                 (770017, Reconstructor, 3, -617, 570), (770018, Reconstructor, 3, -545, 486), (520013, Derge, 1, 859, 476),
                 // Set 5: the Shield Drones north of Khulago Base, two more Reconstructor pools, Molitor north-east of the Awol Camp.
-                (770024, ShieldDrone, 3, 415, 110), (770025, ShieldDrone, 3, 490, 65), (770026, ShieldDrone, 3, 535, 80),
-                (770027, Reconstructor, 3, -490, 480), (770028, Reconstructor, 3, -454, 495), (770029, Molitor, 1, -856, 371)
+                (770024, ShieldDrone, 3, 415, 113), (770025, ShieldDrone, 3, 490, 65), (770026, ShieldDrone, 3, 535, 80),
+                (770027, Reconstructor, 3, -490, 480), (770028, Reconstructor, 3, -454, 495), (770029, Molitor, 1, -853, 359)   // fix job F moved 770024 and 770029 off the lava
             })
             {
                 var row = world.SpawnPoolEntries.AsNoTracking().Single(entry => entry.Id == pool);
@@ -331,9 +332,9 @@ namespace Rasa.Test.Missions.Crucible
                 Assert.AreEqual((health, armor), (stat.Health, stat.Armor), $"{creature} stats");
             }
             var pack = world.SpawnPoolEntries.AsNoTracking().Single(entry => entry.Id == 770029);
-            Assert.AreEqual((531018U, (byte)3, (byte)3, 531019U, (byte)1, (byte)1, 0U, 500U, 10.0),
+            Assert.AreEqual((531018U, (byte)3, (byte)3, 531019U, (byte)1, (byte)1, 0U, 500U, (double)CrucibleFixFV1.PointRadius),
                 (pack.Creature2Id, pack.Creature2MinCount, pack.Creature2MaxCount, pack.Creature3Id, pack.Creature3MinCount, pack.Creature3MaxCount,
-                    pack.Creature4Id, (uint)pack.RespawnTime, pack.Radius), "Molitor's pack");
+                    pack.Creature4Id, (uint)pack.RespawnTime, pack.Radius), "Molitor's pack (set 5 radius 10; a point since fix job F)");
 
             // Set 7: Cirkin (client name 9643, package 1742: objectiveconversation 1538,1), a copy of Lohen's row and look, in the
             // Staal Junkyard (2138); the three officers (9175, 9176, 9177) copies of Derge, Davinx and Orax with their attacks, in
@@ -523,7 +524,9 @@ namespace Rasa.Test.Missions.Crucible
             // 20271108000300 (to-fix rows 23-25) adds a reconstruction of the new marker places to 1147 and 1149;
             // 20271108000500 (to-fix rows 32, 34, 35) one of Munit's and Vargo's new places to 1145, 1146 and 1170;
             // 20271108000800 (to-fix rows 43, 44) one of the bot pools' and Vargo's new places to 1147, 1203, 1204, 1202 and 1146.
-            int Fixes(uint mission) => (mission is 1147 or 1149 or 1145 or 1146 or 1170 ? 1 : 0) + (mission is 1147 or 1203 or 1204 or 1202 or 1146 ? 1 : 0);
+            // 20271108001000 (fix job F) one to 1232, 1147, 1203, 1204, 1202, 1157, 1149, 1208 and 1185.
+            int Fixes(uint mission) => (mission is 1147 or 1149 or 1145 or 1146 or 1170 ? 1 : 0) + (mission is 1147 or 1203 or 1204 or 1202 or 1146 ? 1 : 0)
+                + (CrucibleFixFV1.EvidenceIds.Any(id => id.Mission == mission) ? 1 : 0);
             foreach (var mission in MissionIds)
                 CollectionAssert.AreEqual(new[]
                     {
@@ -660,19 +663,19 @@ namespace Rasa.Test.Missions.Crucible
                 (1146, 1, -197, 319, 8), (1146, 2, -174.3, 280.2, 8), (1146, 3, -186, 270, 8), (1146, 4, -153.7, 346.9, 5),
                 (1146, 5, -214, 258, 15), (1146, 6, -186, 270, 8),                    // Bunko, Cugin, Vargo, Yeg, Roscoe, Vargo
                 (1148, 1, 959, 111, 8), (1148, 2, -400, 270, 8), (1148, 3, -945.9, 246.9, 8), // Fiorella, Haggus, Melching
-                (1149, 1, -452, 58, 25), (1149, 1, -518, 64, 25), (1149, 1, -380, 46, 25),                  // the Flaregasher pools
-                (1147, 1, -575, 491, 20), (1147, 1, -499, 434, 20), (1147, 1, -606, 534, 20),     // the Warden Bot pools (20271108000800)
-                (1147, 2, -575, 491, 20), (1147, 2, -499, 434, 20), (1147, 2, -606, 534, 20),
-                (1147, 3, -575, 491, 20), (1147, 3, -499, 434, 20), (1147, 3, -606, 534, 20),
-                (1157, 1, -785, 390, 20), (1157, 1, -790, 420, 20),                                          // the Lasher pools
+                (1149, 1, -452, 58, 25), (1149, 1, -518, 64, 25), (1149, 1, -368, 70, 25),                  // the Flaregasher pools (fix job F: 540141 off the lava)
+                (1147, 1, -575, 491, 20), (1147, 1, -499, 434, 20), (1147, 1, -636, 543, 20),     // the Warden Bot pools (20271108000800; fix job F: 770011)
+                (1147, 2, -575, 491, 20), (1147, 2, -499, 434, 20), (1147, 2, -636, 543, 20),
+                (1147, 3, -575, 491, 20), (1147, 3, -499, 434, 20), (1147, 3, -636, 543, 20),
+                (1157, 1, -752, 368, 20), (1157, 1, -780, 356, 20),                                          // the Lasher pools (fix job F)
                 (1170, 1, -218, 228, 8), (1170, 2, -218, 228, 8), (1170, 3, -300, 320, 8), (1170, 4, -300, 320, 8),
                 (1170, 5, -216, 472, 8), (1170, 6, -216, 472, 8), (1170, 7, -392.77, 276.23, 8), (1170, 8, -392.77, 276.23, 8),
                 (1229, 1, 952, 106, 8),                                                                      // DeLisi
                 (1232, 1, 635, 557, 20), (1232, 1, 585, 577, 20), (1232, 1, 545, 587, 20),                   // the mine pools
                 (1241, 1, 859, 476, 15),                                                                     // Derge on the rampart
                 (1202, 1, -617, 570, 20), (1202, 1, -545, 486, 20), (1202, 1, -490, 480, 20), (1202, 1, -454, 495, 20), // the Reconstructor pools
-                (1208, 1, 415, 110, 20), (1208, 1, 490, 65, 20), (1208, 1, 535, 80, 20),                    // the Shield Drone pools
-                (1185, 1, -215, 326, 8), (1185, 2, -856, 371, 20), (1185, 3, -215, 326, 8),                 // Lohen, Molitor, Lohen
+                (1208, 1, 415, 113, 20), (1208, 1, 490, 65, 20), (1208, 1, 535, 80, 20),                    // the Shield Drone pools
+                (1185, 1, -215, 326, 8), (1185, 2, -853, 359, 20), (1185, 3, -215, 326, 8),                 // Lohen, Molitor, Lohen
                 (1144, 1, -230, 324, 8), (1144, 8, -230, 324, 8), (1144, 3, -230, 324, 8),                  // Deirdre
                 (1144, 5, 975, 110, 8), (1144, 6, 969, 108, 8), (1144, 4, 969, 108, 8), (1144, 9, 969, 108, 8), // D'Ambrose, Sherer
                 (1152, 1, -953, 255, 8), (1152, 2, 975, 110, 8), (1153, 1, -953, 255, 8),                   // Cheung, D'Ambrose, Cheung
@@ -688,7 +691,7 @@ namespace Rasa.Test.Missions.Crucible
             };
             // Salvage Duty and More Salvage Duty: each part objective on each of the five bot pools.
             foreach (var (mission, objective) in new (uint, uint)[] { (1203, 1), (1203, 2), (1204, 3), (1204, 4), (1204, 5) })
-                foreach (var (x, z) in new[] { (-575.0, 491.0), (-499.0, 434.0), (-606.0, 534.0), (-617.0, 570.0), (-545.0, 486.0) })
+                foreach (var (x, z) in new[] { (-575.0, 491.0), (-499.0, 434.0), (-636.0, 543.0), (-617.0, 570.0), (-545.0, 486.0) }) // fix job F: 770011
                     expected.Add((mission, objective, x, z, 20));
             Assert.HasCount(Indicators, expected);
             foreach (var (mission, objective, x, z, radius) in expected)
@@ -698,9 +701,12 @@ namespace Rasa.Test.Missions.Crucible
             Assert.HasCount(Indicators, rows);
 
             // The moved Flaregasher pools under 1149's markers; the fallen inside their marker, 10 m in from its edge.
-            foreach (var (pool, _, now) in CrucibleMarkersClearOfLinksV2.Pools.Take(3))
+            foreach (var (pool, _, place) in CrucibleMarkersClearOfLinksV2.Pools.Take(3))
+            {
+                var now = CrucibleFixFV1.Now(pool) ?? place; // fix job F moved 540141 off the lava
                 Assert.IsTrue(rows.Any(row => row.MissionId == 1149 && Vector2.Distance(new((float)row.PosX, (float)row.PosZ), new((float)now.X, (float)now.Z)) < 0.1f),
                     $"pool {pool} under a marker");
+            }
             foreach (var at in CrucibleDepartedV1.CorpsesAt)
                 Assert.IsLessThan(CrucibleDepartedV1.FieldRadius - 10, Vector2.Distance(new(at.X, at.Z), new(802.3f, 570f)), $"a corpse at ({at.X}, {at.Z}) in the marker");
         }
@@ -1178,12 +1184,14 @@ namespace Rasa.Test.Missions.Crucible
                 .Any(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision && entry.MissionId == id.Mission && entry.EvidenceId == id.Evidence));
             void Check(bool now, bool full = false)
             {
+                // Fully migrated, fix job F (20271108001000) has moved Warden Bot pool 770011 and its markers off the lava again.
+                (double, double, double) Latest((double, double, double) at, uint pool) => full ? CrucibleFixFV1.Now(pool) ?? at : at;
                 foreach (var (pool, before, after) in CrucibleWardenPoolsAndVargoV1.Moves)
-                    Assert.AreEqual(now ? after : before, At(world, pool), $"pool {pool}");
+                    Assert.AreEqual(now ? Latest(after, pool) : before, At(world, pool), $"pool {pool}");
                 foreach (var (mission, objective, indicator, pool) in fix)
                 {
                     var move = CrucibleWardenPoolsAndVargoV1.Moves.Single(entry => entry.Pool == pool);
-                    Assert.AreEqual(now ? move.Now : move.Before, Marker(mission, objective, indicator), $"{mission}.{objective}/{indicator} on pool {pool}");
+                    Assert.AreEqual(now ? Latest(move.Now, pool) : move.Before, Marker(mission, objective, indicator), $"{mission}.{objective}/{indicator} on pool {pool}");
                 }
                 Assert.AreEqual(now ? 5 : 0, Evidence());
                 Assert.IsTrue(SetsOneToSix.All(Has), "sets 1-6 stay");
@@ -1247,6 +1255,75 @@ namespace Rasa.Test.Missions.Crucible
             Assert.IsTrue(MissionIds.All(Has));
             Assert.AreEqual(AllRows, Rows(world));
             Assert.AreEqual(1 + 4 + 1 + 7 + 1, Squads());
+        }
+
+        /// <summary>
+        /// Crucible_fix_f (fix job F) puts the twelve pools it made points back at their radii (6; upstream's Flaregasher pool
+        /// 540141 15, Molitor's 10), the six it moved off lava (the Lasher pools, 540141, 770011, 770024, Molitor's) and their
+        /// markers back where the earlier migrations put them, and takes out its nine evidence rows and nothing else: the other
+        /// pools' places, the evidence before it, the missions and every row of sets 1-7 stay. Up again, all of it is back.
+        /// </summary>
+        [TestMethod]
+        public void FixFRollsBackWithItsMigration()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            Assert.HasCount(12, CrucibleFixFV1.Points);
+            Assert.HasCount(6, CrucibleFixFV1.Moves);
+            Assert.HasCount(2 + 1 + 8 + 1 + 1, CrucibleFixFV1.Markers.ToList(), "1157's two, 1149's one, 770011's eight, 1208's one, 1185's one");
+            CollectionAssert.AreEqual(new uint[] { 6, 6, 6, 6, 6, 6, 6, 6, 6, 15, 6, 10 }, CrucibleFixFV1.Points.Select(point => point.Before).ToArray(),
+                "the radii before: set 3's, set 4's and set 5's pools 6, upstream's 540141 15, Molitor's 10");
+            List<(uint, uint)> Evidence() => world.MissionEvidenceEntries.AsNoTracking()
+                .Where(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision).AsEnumerable()
+                .Where(entry => CrucibleFixFV1.EvidenceIds.Contains((entry.MissionId, entry.EvidenceId)))
+                .Select(entry => (entry.MissionId, entry.EvidenceId)).ToList();
+            int All() => world.MissionEvidenceEntries.AsNoTracking().Count(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision);
+            double Radius(uint pool) => world.SpawnPoolEntries.AsNoTracking().Single(entry => entry.Id == pool).Radius;
+            var kept = CrucibleFixFV1.Points.Where(point => CrucibleFixFV1.Now(point.Pool) == null).Select(point => point.Pool).ToList();
+            Assert.HasCount(6, kept, "six of the twelve stay where they are");
+            var places = kept.Select(pool => At(world, pool)).ToList();
+            (double, double, double) Marker(uint mission, uint objective, uint indicator) => world.MissionIndicatorEntries.AsNoTracking()
+                .Where(entry => entry.MissionId == mission && entry.ObjectiveId == objective &&
+                    entry.IndicatorId == indicator && entry.ContentRevision == CrucibleMissionDataV1.Revision).AsEnumerable()
+                .Select(entry => (entry.PosX, entry.PosY, entry.PosZ)).Single();
+            void Check(bool now)
+            {
+                foreach (var (pool, before) in CrucibleFixFV1.Points)
+                    Assert.AreEqual(now ? CrucibleFixFV1.PointRadius : before, (uint)Radius(pool), $"pool {pool}'s radius");
+                CollectionAssert.AreEqual(places, kept.Select(pool => At(world, pool)).ToList(), "the places stay");
+                foreach (var (pool, before, after) in CrucibleFixFV1.Moves)
+                    Assert.AreEqual(now ? after : before, At(world, pool), $"pool {pool}");
+                foreach (var (mission, objective, indicator, pool) in CrucibleFixFV1.Markers)
+                {
+                    var move = CrucibleFixFV1.Moves.Single(entry => entry.Pool == pool);
+                    Assert.AreEqual(now ? move.Now : move.Before, Marker(mission, objective, indicator), $"{mission}.{objective}/{indicator} on pool {pool}");
+                }
+                Assert.HasCount(now ? 9 : 0, Evidence());
+                Assert.IsTrue(MissionIds.All(mission => world.MissionContentDefinitionEntries.AsNoTracking()
+                    .Any(entry => entry.MissionId == mission && entry.ContentRevision == CrucibleMissionDataV1.Revision)), "the missions stay");
+                Assert.AreEqual(AllRows, Rows(world), "no other row comes or goes");
+            }
+
+            Check(true);
+            foreach (var (mission, evidence) in CrucibleFixFV1.EvidenceIds)
+            {
+                var row = world.MissionEvidenceEntries.AsNoTracking().Single(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision &&
+                    entry.MissionId == mission && entry.EvidenceId == evidence);
+                Assert.AreEqual((MissionEvidenceSourceKind.Reconstruction, "repository:CrucibleFixFV1", CrucibleFixFV1.NoteOf(mission), 0.3),
+                    (row.SourceKind, row.SourceUri, row.ReconstructionNote, row.Confidence), $"{mission}/{evidence}");
+            }
+            var all = All();
+
+            Assert.AreEqual(StaalJunkyard, Previous(world, FixF), "the fix follows set 7");
+            world.GetService<IMigrator>().Migrate(StaalJunkyard);
+            world.ChangeTracker.Clear();
+            Check(false);
+            Assert.AreEqual(all - 9, All(), "only the fix's rows go");
+
+            world.GetService<IMigrator>().Migrate(FixF);
+            world.ChangeTracker.Clear();
+            Check(true);
+            Assert.AreEqual(all, All());
         }
 
         internal static List<(uint MissionId, Rasa.Missions.Content.MissionSceneDefinition Scene)> Scenes(WildernessRuntimeTestHarness harness) =>

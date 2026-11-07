@@ -70,7 +70,8 @@ creatures 770007 (Warden Bot Screw) and 770008 (Lasher, attack 770008), new pool
   a player who comes out of the facility door at once (the pools are 23 m or more outside the link).
 - [ ] 1157 Whiplash (Ligo Crucible): Medical Technician Halprin (new, 770006, by the Outpost Intrepid hospital, 989,
   144.9, 108) offers it, no requirement, level 40. Two Lasher pools (770012-770013, three Lashers each, level 40,
-  hostile) north-east of the Awol Camp (-785, 284.3, 390) and (-790, 283.9, 420); a marker at each. Each Lasher drops a
+  hostile) north-east of the Awol Camp, since fix job F off the lava at (-752, 285.6, 368) and (-780, 286.04, 356) (set 3
+  put them on the lava lake at (-785, 284.3, 390) and (-790, 283.9, 420)); a marker at each. Each Lasher drops a
   Lasher Venom Gland (50295) at 60 %, until 10. Turn in at Halprin: 75000 XP, 5700 credits, one of 49140, 15513, 15301,
   15025; he takes the glands. Look: the Lasher looks and attacks right (a new row of class 7477, no creature weapon in its
   look, melee 174/28); its name shows "Lasher".
@@ -89,8 +90,8 @@ Set 4, the minefield and the salvage (migration `20271108000400_Crucible_minefie
 
 - [ ] 1232 Minesweeper (Ligo Crucible): Private Drake (952.46, 144.5, 110.89) offers it after 1150, level 40. Destroy 20
   Smart Mines (770014 only; four in each of three pools in the trench on the road west of the Fort Intrepid waypoint,
-  (635, 168.45, 557), (585, 168.43, 577), (545, 168.46, 587)); a mine that blows up on the player counts too. A marker
-  (r20) on each pool. Turn in at Drake: 75000 XP, 5700 credits, one of 33342, 38823, 25248, 30474. Abandon: the count
+  (635, 168.45, 557), (585, 168.43, 577), (545, 168.46, 587); since fix job F point pools, the four within 6.6 m of the
+  point); a mine that blows up on the player does not count (fix job F), only one shot down. A marker (r20) on each pool. Turn in at Drake: 75000 XP, 5700 credits, one of 33342, 38823, 25248, 30474. Abandon: the count
   starts again.
 - [ ] 1241 Funeral Derge (Ligo Crucible): Captain DeLisi offers it after 1150, level 40. Kill Executioner Derge 520013 on
   the Fort Intrepid rampart (859, 188.68, 476), up the stairs from the Fort Intrepid waypoint. A marker (r15) on him. Turn
@@ -388,6 +389,9 @@ All ESTIMATE (set 7):
   with their own birth (155/7528) and fight (MawLurk, as the Maws). They go down again with the Maw's despawn (424/1), as
   the client has no despawn for them: check in the real client that a mine shows when it comes up and is hidden when it
   goes down.
+- 1232: the mines are named "Necromite" (name 433): the client has no Smart Mine creature name or class (fix job F).
+- 1232: a mine that goes off by itself is nobody's kill (no count, experience or loot), as the client text says it must
+  be shot first (fix job F).
 - 1241: Derge stands on the rampart; his patrol is not built.
 - 1203, 1204: the Reconstructor Bot only shoots: no heal, no shield drain, no micromech clone (TaRapedia).
 - 1208: the processors drop only from the Crucible's Shield Drones. A mission drop names one map (MissionItemDropDefinition),
@@ -462,3 +466,13 @@ All ESTIMATE (set 7):
 - None moved. Added: Cirkin 770030, Krubb 770031, Mungrel 770032, Sedge 770033 (squad 770031 with the Shield Drone
   770022), Kalamit 770034, Lamontix 770035, the Technician 770036 (pools 770036, 770037), the Ultra Reconstructor 770038
   (upstream had no row for them: to-fix row 51).
+
+## Server data changed by fix job F (20271108001000)
+
+- Upstream Flaregasher pool 540141 (moved by 20271108000300): moved off a lava flow to (-368, 249.68, 70) and made a point
+  (radius 15 to 0); 1149's marker 3 on it.
+- Ours: the mine pools 770014-770016, Warden Bot pools 770009 and 770011, Reconstructor pools 770017 and 770018, the Lasher
+  pools 770012 and 770013, Shield Drone pool 770024 and Molitor's pool 770029 made points (radius 0); 770011, 770012,
+  770013, 770024 and 770029 moved off lava (to (-636, 249.76, 543), (-752, 285.6, 368), (-780, 286.04, 356),
+  (415, 170.08, 113), (-853, 286.64, 359)) with their markers.
+

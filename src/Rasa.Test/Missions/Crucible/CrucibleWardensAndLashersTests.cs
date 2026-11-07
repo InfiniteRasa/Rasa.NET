@@ -97,7 +97,8 @@ namespace Rasa.Test.Missions.Crucible
             foreach (var (pools, creature, cls, level, health, from) in new[]
             {
                 (W.WardenPools, W.WardenBot, W.WardenBotClass, W.WardenBotLevel, W.WardenBotHitPoints, C.LabbnaWaypoint),
-                (W.LasherPools, W.Lasher, W.LasherClass, W.LasherLevel, W.LasherHitPoints, AwolWaypoint)
+                (W.LasherPools.Select(pool => (pool.Pool, At: CrucibleFixFV1.Now(pool.Pool) ?? pool.At)).ToArray(), W.Lasher, W.LasherClass, W.LasherLevel,
+                    W.LasherHitPoints, AwolWaypoint)   // fix job F moved the Lasher pools off the lava
             })
             {
                 Spawn(crucible, pools.Select(pool => pool.Pool).ToArray());
@@ -238,7 +239,7 @@ namespace Rasa.Test.Missions.Crucible
                 foreach (var marker in markers)
                 {
                     Assert.AreEqual(CrucibleMissionDataV1.MapContextId, marker.MapContextId, $"objective {objective} marker {marker.IndicatorId}'s map");
-                    Assert.IsTrue(W.WardenPools.Select(pool => CrucibleWardenPoolsAndVargoV1.Now(pool.Pool) ?? pool.At)
+                    Assert.IsTrue(W.WardenPools.Select(pool => CrucibleFixFV1.Now(pool.Pool) ?? CrucibleWardenPoolsAndVargoV1.Now(pool.Pool) ?? pool.At)
                         .Any(at => Vector2.Distance(new(marker.Position.X, marker.Position.Z), new((float)at.X, (float)at.Z)) < 0.1f),
                         $"objective {objective} marker {marker.IndicatorId} on a Warden Bot pool");
                 }

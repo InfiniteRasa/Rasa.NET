@@ -388,16 +388,147 @@ namespace Rasa.Test.Missions.Crucible
             Assert.IsEmpty(failures, string.Join("; ", failures));
         }
 
+        /// <summary>
+        /// To-fix row 44 (fix job F): the whole ground a bot of the Chaukas pools can reach keeps RoamClearance outside the
+        /// Chaukas Robotics Facility door (map link 98) and every other link's circle, read off the spawned creatures as the
+        /// server moves them: its strolls stay in its wander zone (BehaviorManager.WanderZoneOf: the pool's circle, or
+        /// WanderZoneFallbackRadius round its home for a point pool); a fight it follows ends when it is more than
+        /// MaxChaseDistance from its home (ChasedTooFar, checked on each think), so it can be one think's run (its run speed for
+        /// CreatureThinkInterval, 250 ms) past that before it turns back (Leash). The pools: the Warden Bot pools and every
+        /// Reconstructor pool of 1147, 1202, 1203 and 1204. Their homes are read off the spawned bots and, as a spawn draws
+        /// them, off many draws (a radius pool's reach past its circle: fix job F made four of them points).
+        /// </summary>
+        [TestMethod]
+        public void TheChaukasBotsRoamAndChaseNoNearerThanTenMetresToADoor()
+        {
+            const float RoamClearance = 10, ThinkSeconds = 0.25f; // BehaviorManager.CreatureThinkInterval
+            const uint ChaukasDoor = 98;
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var crucible = CrucibleOutpostIntrepidTests.EnterCrucible(harness);
+            var links = harness.World.Set<MapLinkEntry>().AsNoTracking().Where(link => link.Enabled != 0 && link.MapContextId == Map).ToList();
+            Assert.IsTrue(links.Any(link => link.Id == ChaukasDoor), "the Chaukas Robotics Facility door is a link on the Crucible");
+            float LinkGap(Vector3 at) => links.Min(link => Vector2.Distance(new(at.X, at.Z), new((float)link.PosX, (float)link.PosZ)) - (float)link.Radius);
+            var pools = CrucibleSalvageDutyV1.BotPools.Select(pool => pool.Pool).Concat(CrucibleArchitectsOfDestructionV1.Pools.Select(pool => pool.Pool))
+                .Concat(W.WardenPools.Select(pool => pool.Pool)).Distinct().ToArray();
+            Assert.HasCount(3 + 2 + 2, pools, "three Warden Bot pools, the two Reconstructor pools of set 4 and the two of set 5");
+            MarshesPaludosTests.Respawn(crucible, pools);
+
+            var failures = new List<string>();
+            var bots = 0;
+            foreach (var pool in pools)
+            {
+                var here = MarshesPaludosTests.Alive(crucible).Where(creature => creature.SpawnPool?.DbId == pool).Distinct().ToList();
+                Assert.IsNotEmpty(here, $"pool {pool} spawned");
+                foreach (var bot in here)
+                {
+                    bots++;
+                    var (centre, radius) = BehaviorManager.WanderZoneOf(bot);
+                    var chase = BehaviorManager.MaxChaseDistance + bot.RunSpeed * ThinkSeconds;
+                    foreach (var (what, at, reach) in new[] { ("its wander zone", centre, radius), ("its chase", bot.HomePos.Position, chase) })
+                        if (LinkGap(at) - reach < RoamClearance)
+                            failures.Add(FormattableString.Invariant(
+                                $"pool {pool} bot {bot.EntityId}: {what} ({at.X:0.0}, {at.Z:0.0}) r{reach:0.0} comes {LinkGap(at) - reach:0.0} m outside a link's circle"));
+                }
+            }
+            Assert.IsGreaterThanOrEqualTo(3 * 3 + 4 * 3, bots, "the bots of the seven pools");
+
+            // A pool's creatures are set down at a navmesh random point "around" its point (SpawnPoolManager.SpawnPoint,
+            // NavMeshQuery.RandomPointAround: Detour's findRandomPointAroundCircle, a point anywhere in a polygon the circle
+            // touches, so it can lie well outside the circle). Every home it can draw, as far as Draws draws find, chases
+            // no nearer than RoamClearance to a link's circle.
+            // A point pool (radius 0, fix job F) sets them down on rings round its point (Spacing.OnRings: the second ring a little
+            // over two spacings out), its wander zone WanderZoneFallbackRadius round each home.
+            const int Draws = 2000;
+            const float Rings = 2 * Spacing.Distance * 1.1f;
+            foreach (var pool in pools)
+            {
+                var entry = crucible.SpawnPools.Single(candidate => candidate.DbId == pool);
+                var run = MarshesPaludosTests.Alive(crucible).First(creature => creature.SpawnPool?.DbId == pool).RunSpeed;
+                var reach = BehaviorManager.MaxChaseDistance + run * ThinkSeconds;
+                if (entry.Radius <= 0)
+                {
+                    var far = Rings + Math.Max(reach, BehaviorManager.WanderZoneFallbackRadius);
+                    if (LinkGap(entry.Position) - far < RoamClearance)
+                        failures.Add(FormattableString.Invariant($"point pool {pool}: its rings' chase comes {LinkGap(entry.Position) - far:0.0} m outside a link's circle"));
+                    continue;
+                }
+                var nearest = Enumerable.Range(0, Draws).Select(_ => crucible.NavMesh.RandomPointAround(entry.Position, entry.Radius))
+                    .Where(home => home.HasValue).Select(home => home.Value).MinBy(LinkGap);
+                var gap = LinkGap(nearest) - reach;
+                if (gap < RoamClearance)
+                    failures.Add(FormattableString.Invariant(
+                        $"pool {pool}: a home at ({nearest.X:0.0}, {nearest.Z:0.0}) chases to {gap:0.0} m outside a link's circle"));
+            }
+            Assert.IsEmpty(failures, string.Join("; ", failures));
+        }
+
+        /// <summary>
+        /// To-fix row 60 (fix job F): both Lasher pools of 1157 stood on a lava lake and the real client burned there (192 Fire
+        /// hits in 12 min). The server knows the client's lava (LavaSurfaces, the lakes, and LavaFlows, the rivers and falls,
+        /// both from the client's .map files and meshes; LavaDamage.InLava burns a player there). No Crucible pool (770000-770999,
+        /// and the upstream ones the sets moved or talk to) has lava where its creatures can stand: on the navmesh within its
+        /// circle, at any of Draws spawn draws (SpawnPoolManager.SpawnPoint's RandomPointAround, which reaches past the circle),
+        /// or, for a point pool, within its rings (Spacing.OnRings, two spacings and a little out); no friendly NPC stands in it,
+        /// and no Crucible marker's centre is on it.
+        /// </summary>
+        [TestMethod]
+        public void NoCruciblePoolNpcOrMarkerStandsOnLava()
+        {
+            const int Draws = 500;
+            const float Rings = 2 * Spacing.Distance * 1.1f, Step = 1.5f;
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var crucible = CrucibleOutpostIntrepidTests.EnterCrucible(harness);
+            var nav = crucible.NavMesh;
+            var name = crucible.MapInfo.MapName;
+            Assert.IsTrue(LavaDamage.InLava(name, new Vector3(-785, 284.1f, 390)), "the lake the Lashers stood on is lava to the server");
+
+            var npcs = Npcs().Select(pool => pool.DbId).ToHashSet();
+            var moved = CrucibleMarkersClearOfLinksV2.Pools.Select(pool => pool.Pool).Append(S.DergePool).ToHashSet();
+            var pools = SpawnPoolManager.Instance.LoadedSpawnPools.Values.Where(pool => pool.MapContextId == Map &&
+                (pool.DbId is >= 770000 and <= 770999 || npcs.Contains(pool.DbId) || moved.Contains(pool.DbId))).ToList();
+            Assert.IsGreaterThanOrEqualTo(npcs.Count + 20, pools.Count, "the NPCs and the hostile pools");
+            var failures = new List<string>();
+            foreach (var pool in pools)
+            {
+                var at = pool.Position;
+                var spots = new List<Vector3> { nav.Nearest(at) ?? at };
+                if (npcs.Contains(pool.DbId))
+                    spots.Add(at);
+                else
+                {
+                    var reach = pool.Radius > 0 ? pool.Radius : Rings;
+                    for (var dx = -reach; dx <= reach; dx += Step)
+                        for (var dz = -reach; dz <= reach; dz += Step)
+                            if (dx * dx + dz * dz <= reach * reach && nav.Nearest(at + new Vector3(dx, 0, dz)) is { } ground
+                                && Vector2.Distance(new(ground.X, ground.Z), new(at.X + dx, at.Z + dz)) < 1)
+                                spots.Add(ground);
+                    if (pool.Radius > 0)
+                        spots.AddRange(Enumerable.Range(0, Draws).Select(_ => nav.RandomPointAround(at, pool.Radius)).Where(spot => spot.HasValue).Select(spot => spot.Value));
+                }
+                if (spots.FirstOrDefault(spot => LavaDamage.InLava(name, spot)) is var lava && LavaDamage.InLava(name, lava))
+                    failures.Add(FormattableString.Invariant($"pool {pool.DbId} (r{pool.Radius}): lava at ({lava.X:0.0}, {lava.Y:0.0}, {lava.Z:0.0})"));
+            }
+            foreach (var marker in harness.World.MissionIndicatorEntries.AsNoTracking().Where(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision).ToList())
+            {
+                var at = new Vector3((float)marker.PosX, (float)marker.PosY, (float)marker.PosZ);
+                if (LavaDamage.InLava(name, nav.Nearest(at) ?? at) || LavaDamage.InLava(name, at))
+                    failures.Add(FormattableString.Invariant($"marker {marker.MissionId}.{marker.ObjectiveId}/{marker.IndicatorId} at ({at.X}, {at.Y}, {at.Z}) on lava"));
+            }
+            Assert.IsEmpty(failures, string.Join("; ", failures));
+        }
+
         /// <summary>The Awol Camp waypoint (as CrucibleWardensAndLashersTests.AwolWaypoint).</summary>
         internal static readonly Vector3 AwolCampWaypoint = new(-945.54f, 309.45f, 244.47f);
 
         /// <summary>
         /// To-fix rows 32 and 35: the real client fell through two holes in the y 196.7 floor of Staal (the panopticon room; our
         /// client floor reader finds a floor there, NOTES-upstream-bugs N10), so no check of the client files finds them: they
-        /// are named (CrucibleStaalWalksV1.Holes). No Crucible NPC, scene object or marker on that level reaches into one (its
-        /// circle and 1 m), and the navmesh walks to Munit (from the lower office teleporter, Vitto and Donal), to Vargo (from
-        /// the teleporter and Cugin), to Yeg from Cugin, to Nema (from the teleporter and Donal), to Pico (from the teleporter
-        /// and Munit) and to Deirdre (from the teleporter and the Staal waypoint) keep out of them.
+        /// are named (CrucibleStaalWalksV1.Holes; to-fix row 50 adds the fall by the east stairs, CrucibleFixFV1.Holes). No
+        /// Crucible NPC, scene object or marker on that level reaches into one (its circle and 1 m), and the navmesh walks to
+        /// Munit (from the lower office teleporter, Vitto and Donal), to Vargo (from the teleporter and Cugin), to Yeg from Cugin,
+        /// to Nema (from the teleporter and Donal), to Pico (from the teleporter and Munit), to Deirdre (from the teleporter and
+        /// the Staal waypoint) and between the teleporter and Donal (row 50) keep out of rows 32 and 35's holes; the four that
+        /// the navmesh takes up the east stairs past row 50's fall (upstream N10, no NPC move helps) are pinned by name.
         /// </summary>
         [TestMethod]
         public void NoCrucibleNpcMarkerOrWalkLeadsOverAStaalFloorHole()
@@ -405,9 +536,13 @@ namespace Rasa.Test.Missions.Crucible
             const float Level = 2, Margin = 1;
             using var harness = WildernessRuntimeTestHarness.Create();
             var crucible = CrucibleOutpostIntrepidTests.EnterCrucible(harness);
-            var holes = CrucibleStaalWalksV1.Holes.Select(hole => (At: new Vector3((float)hole.At.X, (float)hole.At.Y, (float)hole.At.Z), R: (float)hole.Radius)).ToList();
-            float? Into(Vector3 at, float radius) => holes.Where(hole => MathF.Abs(at.Y - hole.At.Y) < Level)
+            Assert.HasCount(3, CrucibleFixFV1.Holes, "rows 32 and 35's two holes and row 50's fall by the east stairs");
+            var holes = CrucibleFixFV1.Holes.Select(hole => (At: new Vector3((float)hole.At.X, (float)hole.At.Y, (float)hole.At.Z), R: (float)hole.Radius)).ToList();
+            // Into: how far a place (with its radius) reaches into the holes' circles on its level, but the one left out.
+            float? Into(Vector3 at, float radius, int except = -1) => holes.Where((hole, index) => index != except && MathF.Abs(at.Y - hole.At.Y) < Level)
                 .Select(hole => (float?)(hole.R + radius + Margin - Vector2.Distance(new(at.X, at.Z), new(hole.At.X, hole.At.Z)))).Where(gap => gap > 0).Max();
+            bool OnStairs(Vector3 at) => Into(at, 0) is not null && Into(at, 0, holes.Count - 1) is null; // in row 50's circle only
+            var stairs = new List<string>();
             var failures = new List<string>();
             foreach (var (label, at, _) in Places(harness))
                 if (Into(at, 0) is { } into)
@@ -426,22 +561,32 @@ namespace Rasa.Test.Missions.Crucible
                 (pad, Pool(V.Nema), "the lower teleporter to Nema"), (Pool(N.Donal), Pool(V.Nema), "Donal to Nema"),
                 (pad, Pool(V.Pico), "the lower teleporter to Pico"), (Pool(N.Munit), Pool(V.Pico), "Munit to Pico"),
                 (pad, Pool(A.Deirdre), "the lower teleporter to Deirdre"),
-                (CrucibleOutpostIntrepidTests.StaalWaypoint, Pool(A.Deirdre), "the Staal waypoint to Deirdre")
+                (CrucibleOutpostIntrepidTests.StaalWaypoint, Pool(A.Deirdre), "the Staal waypoint to Deirdre"),
+                (pad, Pool(N.Donal), "the lower teleporter to Donal"), (Pool(N.Donal), pad, "Donal to the lower teleporter")
             })
             {
                 var path = crucible.NavMesh.FindPath(crucible.NavMesh.Nearest(from) ?? from, crucible.NavMesh.Nearest(to) ?? to, out var complete);
                 Assert.IsTrue(path != null && complete, $"{label}: a path");
-                for (var i = 0; i + 1 < path.Count; i++)
-                    for (var k = 0; k <= 20; k++)
-                        if (Into(Vector3.Lerp(path[i], path[i + 1], k / 20f), 0) is { } into)
-                        {
-                            var at = Vector3.Lerp(path[i], path[i + 1], k / 20f);
-                            failures.Add(FormattableString.Invariant($"{label} walks over a hole at ({at.X:0.0}, {at.Y:0.0}, {at.Z:0.0})"));
-                            i = path.Count;
-                            break;
-                        }
+                var points = Enumerable.Range(0, path.Count - 1).SelectMany(i => Enumerable.Range(0, 21).Select(k => Vector3.Lerp(path[i], path[i + 1], k / 20f))).ToList();
+                foreach (var at in points)
+                    if (Into(at, 0, holes.Count - 1) is not null)
+                    {
+                        failures.Add(FormattableString.Invariant($"{label} walks over a hole at ({at.X:0.0}, {at.Y:0.0}, {at.Z:0.0})"));
+                        break;
+                    }
+                if (points.Any(OnStairs))
+                    stairs.Add(label);
             }
             Assert.IsEmpty(failures, string.Join("; ", failures));
+
+            // Row 50 (upstream N10, not fixed): the server navmesh takes these four walks up the east stairs, past the fall at
+            // (-178.8, 194.7, 355.4), as the tester's walk that fell did. No NPC or marker can move them off it (the walks start
+            // and end at the lower office teleporter, Donal, Munit and Nema; the stairs are the mesh's way); a navmesh fix or a
+            // safety floor can. Pinned, so that a fix of the mesh, or another walk going that way, shows here.
+            CollectionAssert.AreEquivalent(new[]
+                {
+                    "Donal to Munit", "the lower teleporter to Nema", "the lower teleporter to Donal", "Donal to the lower teleporter"
+                }, stairs, string.Join(", ", stairs));
         }
 
         /// <summary>

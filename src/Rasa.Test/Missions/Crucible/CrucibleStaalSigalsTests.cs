@@ -118,10 +118,10 @@ namespace Rasa.Test.Missions.Crucible
 
             foreach (var (pools, creature, cls, level, health, count, from) in new[]
             {
-                (V.DronePools, V.ShieldDrone, V.ShieldDroneClass, V.ShieldDroneLevel, V.ShieldDroneHitPoints, V.DronesPerPool, PrometheusWaypoint),
+                (V.DronePools.Select(pool => (pool.Pool, At: CrucibleFixFV1.Now(pool.Pool) ?? pool.At)).ToArray(), V.ShieldDrone, V.ShieldDroneClass, V.ShieldDroneLevel, V.ShieldDroneHitPoints, V.DronesPerPool, PrometheusWaypoint),
                 (V.ReconstructorPools, S.Reconstructor, S.ReconstructorClass, S.ReconstructorLevel, S.ReconstructorHitPoints,
                     S.ReconstructorsPerPool, C.LabbnaWaypoint),
-                (new[] { (Pool: V.MolitorPool, At: V.MolitorAt) }, V.Molitor, 10504U, V.MolitorLevel, V.MolitorHitPoints, 1U, AwolWaypoint)
+                (new[] { (Pool: V.MolitorPool, At: CrucibleFixFV1.Now(V.MolitorPool).Value) }, V.Molitor, 10504U, V.MolitorLevel, V.MolitorHitPoints, 1U, AwolWaypoint)
             })
             {
                 Spawn(crucible, pools.Select(pool => pool.Pool).ToArray());
@@ -248,7 +248,7 @@ namespace Rasa.Test.Missions.Crucible
             Accept(harness, pico, Sight);
             Assert.IsEmpty(Topics(harness, pico, Sight), "Pico hears no objective");
             var markers = harness.Manager.BuildStatusSnapshot(harness.Client.Player)[Sight].ObjectivesList.Single().IndicatorList;
-            CollectionAssert.AreEquivalent(V.DronePools.Select(pool => ((float)pool.At.X, (float)pool.At.Z)).ToArray(),
+            CollectionAssert.AreEquivalent(V.DronePools.Select(pool => CrucibleFixFV1.Now(pool.Pool) ?? pool.At).Select(at => ((float)at.X, (float)at.Z)).ToArray(),
                 markers.Select(marker => (marker.Position.X, marker.Position.Z)).ToArray(), "a marker on each drone pool");
 
             percentile = 0;
@@ -380,7 +380,7 @@ namespace Rasa.Test.Missions.Crucible
             Assert.AreEqual(MissionObjectiveState.Incomplete, Objective(harness, Differences, I.Necklace), "the challenge opens the necklace");
             var marker = harness.Manager.BuildStatusSnapshot(harness.Client.Player)[Differences].ObjectivesList
                 .Single(objective => objective.ObjectiveId == I.Necklace).IndicatorList.Single();
-            Assert.IsLessThan(0.1f, Vector2.Distance(new(marker.Position.X, marker.Position.Z), new((float)V.MolitorAt.X, (float)V.MolitorAt.Z)),
+            Assert.IsLessThan(0.1f, Vector2.Distance(new(marker.Position.X, marker.Position.Z), new((float)CrucibleFixFV1.Now(V.MolitorPool).Value.X, (float)CrucibleFixFV1.Now(V.MolitorPool).Value.Z)),
                 "the marker on Molitor's pool");
             Assert.IsEmpty(Topics(harness, lohen, Differences), "Lohen waits for the necklace");
             Assert.IsFalse(Holds(Kill(harness, crucible, V.ThraxSoldier), I.NecklaceTemplate), "a Thrax Soldier of the pack has none");

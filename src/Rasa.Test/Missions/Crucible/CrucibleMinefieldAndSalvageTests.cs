@@ -460,6 +460,155 @@ namespace Rasa.Test.Missions.Crucible
             Assert.IsFalse(PlateauRetreadCampTests.Offers(harness, haggus, MoreSalvage), "done once");
         }
 
+        /// <summary>
+        /// Fix job F (real client 2026-11-07: three mines that went off by themselves counted 3/20 and paid): a Smart Mine that
+        /// comes up at the player and detonates (its necromite_self_destruct, CreatureBombs.GroundBlast) dies of it, but it was
+        /// not destroyed: no count for 1232, no experience, no corpse loot, no harvest. A mine the player shoots down counts.
+        /// </summary>
+        [TestMethod]
+        public void ASmartMineThatGoesOffByItselfIsNobodysKill()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            C.SeedCompleted(harness, LastMen);
+            C.SeedCompleted(harness, Fort);
+            var crucible = C.EnterCrucible(harness, C.FortWaypoint);
+            Spawn(crucible, MinePools);
+            Accept(harness, Npc(crucible, N.Drake), Minesweeper);
+            harness.Drain();
+
+            var mine = Alive(crucible).First(candidate => candidate.DbId == S.SmartMine);
+            Assert.IsTrue(MawLurk.Lurks(mine) && MawLurk.IsBuried(mine), "a minefield mine lies buried");
+            harness.MoveTo(mine.Position + new Vector3(3, 0, 0));
+            MawLurk.Emerge(crucible, mine, harness.Client.Player.EntityId);
+            var experience = harness.Client.Player.Experience;
+            var detonate = mine.Actions.Single(action => action.ActionId == CreatureBombs.NecromiteSelfDestruct);
+            var info = new ActionLevelInfo { ActionId = CreatureBombs.NecromiteSelfDestruct, Level = 1 };
+            info.Properties[AbilityProperty.DelayTimeMs] = 500;
+            info.Properties[AbilityProperty.EffectRadius] = 5;
+
+            Assert.IsNotNull(CreatureBombs.GroundBlast(crucible, mine, harness.Client.Player, detonate, info), "it goes off");
+            harness.Drain();
+
+            Assert.AreEqual(CharacterState.Dead, mine.State, "spent");
+            Assert.AreEqual(0U, Count(harness, Minesweeper), "not destroyed: no count");
+            Assert.AreEqual(experience, harness.Client.Player.Experience, "no experience");
+            Assert.IsFalse(crucible.LootDispensers.ContainsKey(mine.CorpseLootEntityId), "no corpse loot");
+            Assert.AreEqual((0UL, 0), ((ulong)mine.HarvestOwnerEntityId, mine.HarvestAttemptsLeft), "no harvest");
+
+            KillMine(harness, crucible);
+            Assert.AreEqual(1U, Count(harness, Minesweeper), "one shot down counts");
+        }
+
+        /// <summary>
+        /// Fix job F review: the four mines of a point pool are set down one after the other, each buried at once (MawLurk, in no
+        /// cell). The places they are kept apart by (Spacing.Taken) take the buried pool-mates too, so they lie on different ring
+        /// places round the point (Spacing.OnRings: the point, then 3.3 m out), not all four on the point to rise and go off
+        /// together; each within the 8 m lurk range of the point.
+        /// </summary>
+        [TestMethod]
+        public void TheMinesOfAPointPoolLieApartOnItsRings()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var crucible = C.EnterCrucible(harness, C.FortWaypoint);
+            Spawn(crucible, MinePools);
+            foreach (var (pool, at) in S.MinePools)
+            {
+                var point = new Vector2((float)at.X, (float)at.Z);
+                var mines = Alive(crucible).Where(creature => creature.SpawnPool?.DbId == pool).Distinct().ToList();
+                Assert.HasCount((int)S.MinesPerPool, mines, $"pool {pool}");
+                Assert.IsTrue(mines.All(MawLurk.IsBuried), $"pool {pool}: buried");
+                var places = mines.Select(mine => new Vector2(mine.Position.X, mine.Position.Z)).ToList();
+                var where = string.Join("; ", places.Select(place => System.FormattableString.Invariant($"({place.X:0.0}, {place.Y:0.0})")));
+                for (var a = 0; a < places.Count; a++)
+                {
+                    Assert.IsLessThan(MawLurk.LurkRangeOf(mines[a]), Vector2.Distance(places[a], point), $"pool {pool}: within the lurk range of the point: {where}");
+                    for (var b = a + 1; b < places.Count; b++)
+                        Assert.IsGreaterThanOrEqualTo(Spacing.Distance, Vector2.Distance(places[a], places[b]), $"pool {pool}: apart: {where}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Fix job F (real client 2026-11-07: pools 1 and 3 looked empty three hours after the bot cleared them): a mine pool
+        /// cleared (shot down and gone off) comes back whole after its respawn time, under the ground (MawLurk: in no cell, on no
+        /// client, so the client sees an empty trench). The cause of the "empty" pools: with radius 6 the navmesh draw set the
+        /// mines 16-22 m from the point, out of the 8 m lurk range from the marker's centre; fix job F made the pools points, so
+        /// every mine lies within 8 m of it. A player 20 m off brings none up; at the pool's point all four come up.
+        /// </summary>
+        [TestMethod]
+        public void AClearedMinePoolComesBackBuriedAndRisesAtItsMarker()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var crucible = C.EnterCrucible(harness, C.FortWaypoint);
+            Spawn(crucible, MinePools);
+            var (pool, at) = S.MinePools[0];
+            var point = new Vector3((float)at.X, (float)at.Y, (float)at.Z);
+            List<Creature> Mines() => Alive(crucible).Where(creature => creature.SpawnPool?.DbId == pool).Distinct().ToList();
+            Assert.HasCount((int)S.MinesPerPool, Mines());
+            Assert.IsTrue(Mines().All(MawLurk.IsBuried), "they lie buried");
+            Assert.AreEqual((float)CrucibleFixFV1.PointRadius, crucible.SpawnPools.Single(entry => entry.DbId == pool).Radius, "a point pool (fix job F)");
+            bool NearThePoint() => Mines().All(mine => Vector2.Distance(new(mine.Position.X, mine.Position.Z), new(point.X, point.Z)) < MawLurk.LurkRangeOf(mine));
+            Assert.IsTrue(NearThePoint(), "each mine lies within its lurk range of the pool's point");
+
+            // Cleared: three shot down, one gone off at the player.
+            var mines = Mines();
+            foreach (var mine in mines)
+            {
+                harness.MoveTo(mine.Position + new Vector3(3, 0, 0));
+                MawLurk.Emerge(crucible, mine, harness.Client.Player.EntityId);
+                if (mine == mines[^1])
+                {
+                    var info = new ActionLevelInfo { ActionId = CreatureBombs.NecromiteSelfDestruct, Level = 1 };
+                    CreatureBombs.GroundBlast(crucible, mine, harness.Client.Player,
+                        mine.Actions.Single(action => action.ActionId == CreatureBombs.NecromiteSelfDestruct), info);
+                }
+                else
+                {
+                    mine.Attributes[Attributes.Health].Current = 0;
+                    harness.Creatures.HandleCreatureKill(crucible, mine, harness.Client.Player);
+                }
+                Assert.AreEqual(CharacterState.Dead, mine.State);
+            }
+            harness.Drain();
+            Assert.IsEmpty(Mines(), "cleared");
+            var spawnPool = crucible.SpawnPools.Single(entry => entry.DbId == pool);
+            Assert.AreEqual(0, spawnPool.AliveCreatures + spawnPool.QueuedCreatures + spawnPool.DropshipQueue, "nothing of it left or on its way");
+
+            // Before its respawn time nothing comes; after it, all four, buried.
+            harness.MoveTo(C.FortWaypoint);
+            var others = crucible.SpawnPools.ToArray();
+            crucible.SpawnPools.Clear();
+            crucible.SpawnPools.Add(spawnPool);
+            try
+            {
+                SpawnPoolManager.Instance.SpawnPoolWorker(crucible, S.RespawnTenths * 100L - 1000);
+                Assert.IsEmpty(Mines(), "not before its 120 s");
+                SpawnPoolManager.Instance.SpawnPoolWorker(crucible, 1000);
+                SpawnPoolManager.Instance.SpawnPoolWorker(crucible, 0);
+            }
+            finally
+            {
+                crucible.SpawnPools.Clear();
+                crucible.SpawnPools.AddRange(others);
+            }
+            Assert.HasCount((int)S.MinesPerPool, Mines(), "back after 120 s");
+            Assert.IsTrue(Mines().All(MawLurk.IsBuried), "back under the ground");
+            Assert.IsFalse(Living(crucible).Any(creature => creature.SpawnPool?.DbId == pool), "in no cell: the client sees none");
+
+            Assert.IsTrue(NearThePoint(), "each lies within its lurk range of the pool's point again");
+
+            // 20 m off the point on the road east: out of every mine's 8 m.
+            harness.MoveTo(point + new Vector3(20, 0, 0));
+            MawLurk.Worker(crucible);
+            Assert.IsTrue(Mines().All(MawLurk.IsBuried), "20 m off the pool's point: none comes up");
+
+            harness.MoveTo(point);
+            MawLurk.Worker(crucible);
+            Assert.IsFalse(Mines().Any(MawLurk.IsBuried), "at the marker's centre all four come up: " + string.Join("; ", Mines().Select(mine =>
+                System.FormattableString.Invariant($"{mine.EntityId} at ({mine.Position.X:0.0}, {mine.Position.Z:0.0}), {Vector3.Distance(mine.Position, point):0.0} m"))));
+            Assert.IsTrue(Mines().All(mine => mine.Controller.ActionFighting.TargetEntityId == harness.Client.Player.EntityId), "at the player");
+        }
+
         /// <summary>A Smart Mine killed; the packets it sent.</summary>
         private static List<object> KillMine(WildernessRuntimeTestHarness harness, MapChannel crucible)
         {

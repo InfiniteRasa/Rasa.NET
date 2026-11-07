@@ -463,6 +463,11 @@ namespace Rasa.Managers
         /// <summary>
         /// A Necromite has put its bomb on the one it reached: it is spent, and dies of it - the
         /// kill its target's, as a Fithik's self-destruct is. A summon, it leaves nothing to loot.
+        ///
+        /// A Smart Mine of a minefield pool (MawLurk.Lurks) that goes off is nobody's kill: it was
+        /// not destroyed, it got the player first (client 1232 text 9809: "you'll have a few seconds
+        /// to shoot it out of the air before it explodes"). No experience, loot or mission count;
+        /// the kill goes to the mine itself, as one with no target always did.
         /// </summary>
         public static void Spend(MapChannel mapChannel, Creature necromite, Actor target)
         {
@@ -470,10 +475,12 @@ namespace Rasa.Managers
                 || !necromite.Attributes.TryGetValue(Attributes.Health, out var health) || health.Current <= 0)
                 return;
 
+            var killedBy = MawLurk.Lurks(necromite) ? necromite : target ?? necromite;
+
             health.Current = 0;
             CellManager.Instance.CellCallMethod(mapChannel, necromite, new UpdateHealthPacket(health, necromite.EntityId));
 
-            CreatureManager.Instance.HandleCreatureKill(mapChannel, necromite, target ?? necromite);
+            CreatureManager.Instance.HandleCreatureKill(mapChannel, necromite, killedBy);
         }
 
         /// <summary>
