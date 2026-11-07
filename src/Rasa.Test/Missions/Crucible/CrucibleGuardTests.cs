@@ -28,6 +28,7 @@ namespace Rasa.Test.Missions.Crucible
     using G = CrucibleGrupaChiefsNpcsV1;
     using W = CrucibleWardensAndLashersNpcsV1;
     using S = CrucibleMinefieldAndSalvageNpcsV1;
+    using V = CrucibleStaalSigalsNpcsV1;
     using F = MarshesClientFloorTests;
 
     /// <summary>
@@ -55,7 +56,7 @@ namespace Rasa.Test.Missions.Crucible
             bool Friendly(uint creature) => CreatureManager.Instance.LoadedCreatures.TryGetValue(creature, out var c) && c.TargetCategory != TargetCategory.Hostile;
             var npcs = SpawnPoolManager.Instance.LoadedSpawnPools.Values.Where(pool => (pool.DbId is >= 770000 and <= 770999 || moved.Contains(pool.DbId)) &&
                 pool.SpawnSlot.Count > 0 && pool.SpawnSlot.TrueForAll(slot => Friendly(slot.CreatureId))).ToList();
-            Assert.HasCount(N.New.Length + N.Moves.Length + G.New.Length + G.Moves.Length + G.Kept.Length + W.New.Length, npcs,
+            Assert.HasCount(N.New.Length + N.Moves.Length + G.New.Length + G.Moves.Length + G.Kept.Length + W.New.Length + V.New.Length, npcs,
                 "the Crucible NPCs are read");
             return npcs;
         }
@@ -106,7 +107,7 @@ namespace Rasa.Test.Missions.Crucible
             using var harness = WildernessRuntimeTestHarness.Create();
             var stats = harness.World.CreatureStatEntries.AsNoTracking().Where(row => row.Id >= 770000 && row.Id <= 770999).ToDictionary(row => row.Id);
             var npcs = Npcs().Where(pool => pool.DbId >= 770000).SelectMany(pool => pool.SpawnSlot).Select(slot => slot.CreatureId).Distinct().ToList();
-            Assert.HasCount(N.New.Length + G.New.Length + W.New.Length, npcs);
+            Assert.HasCount(N.New.Length + G.New.Length + W.New.Length + V.New.Length, npcs);
             foreach (var npc in npcs)
             {
                 Assert.IsTrue(stats.TryGetValue(npc, out var stat), $"{npc} has a creature_stat row");
@@ -219,7 +220,8 @@ namespace Rasa.Test.Missions.Crucible
         /// client floor reader finds a floor there, NOTES-upstream-bugs N10), so no check of the client files finds them: they
         /// are named (CrucibleStaalWalksV1.Holes). No Crucible NPC, scene object or marker on that level reaches into one (its
         /// circle and 1 m), and the navmesh walks to Munit (from the lower office teleporter, Vitto and Donal), to Vargo (from
-        /// the teleporter and Cugin) and to Yeg from Cugin keep out of them.
+        /// the teleporter and Cugin), to Yeg from Cugin, to Nema (from the teleporter and Donal) and to Pico (from the teleporter
+        /// and Munit) keep out of them.
         /// </summary>
         [TestMethod]
         public void NoCrucibleNpcMarkerOrWalkLeadsOverAStaalFloorHole()
@@ -244,7 +246,9 @@ namespace Rasa.Test.Missions.Crucible
             {
                 (pad, Pool(N.Munit), "the lower teleporter to Munit"), (Pool(N.Vitto), Pool(N.Munit), "Vitto to Munit"),
                 (Pool(N.Donal), Pool(N.Munit), "Donal to Munit"), (pad, Pool(G.Vargo), "the lower teleporter to Vargo"),
-                (Pool(G.Cugin), Pool(G.Vargo), "Cugin to Vargo"), (Pool(G.Cugin), Pool(G.Yeg), "Cugin to Yeg")
+                (Pool(G.Cugin), Pool(G.Vargo), "Cugin to Vargo"), (Pool(G.Cugin), Pool(G.Yeg), "Cugin to Yeg"),
+                (pad, Pool(V.Nema), "the lower teleporter to Nema"), (Pool(N.Donal), Pool(V.Nema), "Donal to Nema"),
+                (pad, Pool(V.Pico), "the lower teleporter to Pico"), (Pool(N.Munit), Pool(V.Pico), "Munit to Pico")
             })
             {
                 var path = crucible.NavMesh.FindPath(crucible.NavMesh.Nearest(from) ?? from, crucible.NavMesh.Nearest(to) ?? to, out var complete);
@@ -299,9 +303,9 @@ namespace Rasa.Test.Missions.Crucible
                         outside.Add($"{mission}.{objective} {actor.Role}");
                 }
             // Set 2: Lohen; Bunko, Cugin, Vargo (twice: 3 and 6) and Yeg; Fiorella, Haggus and Melching (three times: his three
-            // variants are three talks). Set 3: Munit, Vitto, Donal and Rigs (1170) and DeLisi (1229).
-            Assert.AreEqual(1 + 5 + 21 + 1 + 5 + 2 + 3 + 4 + 1, checkedTargets,
-                "DeLisi, the five of The Wire, the terminal, the twenty fallen, and set 2's and set 3's talks");
+            // variants are three talks). Set 3: Munit, Vitto, Donal and Rigs (1170) and DeLisi (1229). Set 5: Lohen twice (1185).
+            Assert.AreEqual(1 + 5 + 21 + 1 + 5 + 2 + 3 + 4 + 1 + 2, checkedTargets,
+                "DeLisi, the five of The Wire, the terminal, the twenty fallen, and set 2's, set 3's and set 5's talks");
             Assert.IsEmpty(outside, string.Join(", ", outside));
         }
 
@@ -418,8 +422,9 @@ namespace Rasa.Test.Missions.Crucible
         }
 
         /// <summary>
-        /// Set 3's and set 4's new hostile pools (the Warden Bots by the Chaukas Robotics Facility's door, the Lashers north-east
-        /// of the Awol Camp, the Smart Mines west of the Fort Intrepid ruins, the Reconstructor Bots by the facility) and
+        /// Set 3's, set 4's and set 5's new hostile pools (the Warden Bots by the Chaukas Robotics Facility's door, the Lashers
+        /// north-east of the Awol Camp, the Smart Mines west of the Fort Intrepid ruins, the Reconstructor Bots by the facility,
+        /// the Shield Drones north of Khulago Base, Preceptor Molitor's pack north-east of the Awol Camp) and
         /// Executioner Derge on the Fort Intrepid rampart, and the four Flaregasher pools the marker fix moved: each centre on a client floor (a walkable surface at most MaxOver under it, none just over it), and its circle
         /// ReachClearance or more outside every enabled map link's circle, so that a player who comes out of the facility is
         /// not set on at once.
@@ -430,14 +435,17 @@ namespace Rasa.Test.Missions.Crucible
             var dataDir = F.ClientData();
             using var harness = WildernessRuntimeTestHarness.Create();
             var pools = W.WardenPools.Concat(W.LasherPools).Concat(S.MinePools).Concat(S.ReconstructorPools).Append((Pool: S.DergePool, At: S.DergeAt)).Concat(CrucibleMarkersClearOfLinksV2.Pools.Select(pool => (pool.Pool, At: pool.Now)))
-                .Select(pool => (Label: $"pool {pool.Pool}", At: new Vector3((float)pool.At.X, (float)pool.At.Y, (float)pool.At.Z))).ToList();
-            Assert.HasCount(3 + 2 + 3 + 2 + 1 + 4, pools, "set 3's and set 4's pools, Derge and the four Flaregasher pools 20271108000300 moved");
+                .Concat(V.DronePools).Concat(V.ReconstructorPools).Append((Pool: V.MolitorPool, At: V.MolitorAt))
+                .Select(pool => (Label: $"pool {pool.Pool}", Id: pool.Pool, At: new Vector3((float)pool.At.X, (float)pool.At.Y, (float)pool.At.Z))).ToList();
+            Assert.HasCount(3 + 2 + 3 + 2 + 1 + 4 + 3 + 2 + 1, pools,
+                "set 3's, set 4's and set 5's pools, Derge and the four Flaregasher pools 20271108000300 moved");
+            var radii = harness.World.SpawnPoolEntries.AsNoTracking().Where(pool => pool.MapContextId == Map).ToDictionary(pool => pool.Id, pool => (float)pool.Radius);
             var links = harness.World.Set<MapLinkEntry>().AsNoTracking().Where(link => link.Enabled != 0 && link.MapContextId == Map).ToList();
             var near = new List<string>();
-            foreach (var (label, at) in pools)
+            foreach (var (label, id, at) in pools)
                 foreach (var link in links)
                 {
-                    var gap = Vector2.Distance(new(at.X, at.Z), new((float)link.PosX, (float)link.PosZ)) - (float)link.Radius - W.PoolRadius;
+                    var gap = Vector2.Distance(new(at.X, at.Z), new((float)link.PosX, (float)link.PosZ)) - (float)link.Radius - MathF.Max(W.PoolRadius, radii[id]);
                     if (gap < MarshesNpcsStandStillV1.ReachClearance)
                         near.Add($"{label} {gap:F1} m outside link {link.Id}");
                 }
@@ -526,7 +534,7 @@ namespace Rasa.Test.Missions.Crucible
                 foreach (var actor in scene.Actors.Values.Where(actor => actor.Position != null))
                     places.Add(($"{mission} {actor.Role}", new Vector3(actor.Position.X, actor.Position.Y, actor.Position.Z),
                         actor.Kind == SceneActorKind.Creature));
-            Assert.HasCount(N.New.Length + N.Moves.Length + G.New.Length + G.Moves.Length + G.Kept.Length + W.New.Length + 21 + 1, places,
+            Assert.HasCount(N.New.Length + N.Moves.Length + G.New.Length + G.Moves.Length + G.Kept.Length + W.New.Length + V.New.Length + 21 + 1, places,
                 "the NPCs, the terminal, the twenty fallen and Roscoe");
             return places;
         }

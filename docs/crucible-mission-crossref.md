@@ -1,6 +1,6 @@
 # Ligo Crucible missions: sources (cross-reference)
 
-The 16 missions of the Ligo Crucible quest PR, taken from the full mission cross-reference of the 1.16.5.0
+The 19 missions of the Ligo Crucible quest PR, taken from the full mission cross-reference of the 1.16.5.0
 client. For each mission: the client text and objectives, the sources found (TaRapedia, TR MMO DB, Ellatha,
 Ten Ton Hammer, archived fan and official pages, patch notes) and a rebuild summary with the source of each
 value. Values without a source are marked ESTIMATE. "This PR" rows (where present) show the data this PR adds.
@@ -9,7 +9,7 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
 
 | Zone | Missions |
 | --- | ---: |
-| Crucible | 16 |
+| Crucible | 19 |
 
 ## Crucible
 
@@ -291,6 +291,61 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
   - Leads to: Irreconcilable Differences (id 1185) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Irreconcilable_Differences)
   - Leads to: Business Proposal (id 1229) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Business_Proposal), [TaRapedia](https://tabularasa.fandom.com/wiki/Earning_Respect)
 
+### 1185 — Irreconcilable Differences
+
+
+- **Rebuild summary:**
+  - level: 35 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731171503/http://tr.mmodb.com/quests/startingzone-crucible/)
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 160,000 XP; 3,900 credits; Class VII Cryogenic Grenade x3; Class VII Standard Med Pack x3; Class VII Incendiary Grenade x3; Class VII Advanced Med Pack x2 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Irreconcilable_Differences)
+  - drops / mission items: Molitor wears a necklace of bones taken from his victims — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Irreconcilable_Differences)
+  - location: Preceptor Molitor, zone Crucible — Check Northeast of AWOL Camp — source: [Ellatha boss NPC](https://www.ellatha.com/tr/bossnpcview.asp?key=Preceptor+Molitor&id=66)
+- **Client:** Trista, bondservant to Kappa Grupa Lohen, wants you to champion her by asking Lohen for a challenge. If you succeed, her bond to him will be removed and she will be freed.
+  - objectives (client): Speak to Lohen. — Ask Kappa Grupa Lohen for a challenge to win Trista's freedom.; Get Molitor's Bone Necklace. — Kill Thrax Preceptor Molitor and retrieve his Necklace of Bones.; Return to Lohen. — Bring the Bone Necklace back to Kappa Grupa Lohen.
+- **TaRapedia** [Irreconcilable Differences](https://tabularasa.fandom.com/wiki/Irreconcilable_Differences): giver: Trista; at: Staal Detention Center; zone: Crucible; requires: Earning Respect; follow-up: None; XP: 160,000; credits: 3,900; items: Class VII Cryogenic Grenade x3; Class VII Standard Med Pack x3; Class VII Incendiary Grenade x3; Class VII Advanced Med Pack x2; reward from: Trista
+  - overview: Trista, bondservant to Kappa Grupa Lohen, wants you to champion her by asking Lohen for a challenge. If you succeed, her bond to him will be freed.
+  - objectives: • Speak to Lohen • Ask Kappa Grupa Lohen for a challenge to win Trista's freedom. • Get Molitor's Bone Necklace • Kill Thrax Preceptor Molitor and retrieve his Necklace of Bones. • x/1 • Return to Lohen • Bring the Bone Necklace back to Kappa Grupa Lohen.
+- **TaRapedia mission list** [Staal Detention Center mission list](https://tabularasa.fandom.com/wiki/Staal_Detention_Center_mission_list): zone Crucible, area Staal Detention Center, given by Trista
+- **TR MMO DB NPC** [Kappa Grupa Lohen](https://web.archive.org/web/20120731172016/http://tr.mmodb.com/bestiary/kappa-grupa-lohen-1009.php): Quest NPC, zone Crucible (related to this quest)
+- **TR MMO DB NPC** [Trista](https://web.archive.org/web/20081121043756/http://tr.mmodb.com/bestiary/trista-1013.php): Quest NPC, zone Crucible (starts this quest)
+- **Where (locations / coordinates):**
+  - Preceptor Molitor, zone Crucible — Check Northeast of AWOL Camp — source: [Ellatha boss NPC](https://www.ellatha.com/tr/bossnpcview.asp?key=Preceptor+Molitor&id=66)
+- **NPCs (TaRapedia NPC pages):**
+  - [Trista](https://tabularasa.fandom.com/wiki/Trista): Crucible (NPC page lists this mission)
+  - [Kappa Grupa Lohen](https://tabularasa.fandom.com/wiki/Kappa_Grupa_Lohen): Crucible (named in client text)
+- **Ellatha boss NPC** [Preceptor Molitor](https://www.ellatha.com/tr/bossnpcview.asp?key=Preceptor+Molitor&id=66): zone Crucible; Check Northeast of AWOL Camp; needed for: Irreconcilable Differences Crucible Targets of Opportunity (Ellatha lists this mission under "Needed for Quests")
+- **Drops / item sources:**
+  - Molitor wears a necklace of bones taken from his victims — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Irreconcilable_Differences)
+
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 6
+  - Requires: Earning Respect (id 1170) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Irreconcilable_Differences)
+
+### 1202 — Architects Of Destruction
+
+
+- **Rebuild summary:**
+  - level: 35 — source: [TR MMO DB](https://web.archive.org/web/20120731173536/http://tr.mmodb.com/quests/architects-of-destruction-634.php)
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 80,000 XP; 5,850 credits; Vitalius Filament Blade; Vextronics Cryogenic Injector Gun; Vextronics Pulse Cannon; Vextronics Pulse Pistol — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Architects_Of_Destruction)
+  - reward: 5850 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20120731173536/http://tr.mmodb.com/quests/architects-of-destruction-634.php)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Viddia Sigal Nema: Crucible, Staal Infirmary — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Viddia_Sigal_Nema)
+- **Client:** Sigal Nema of the Viddia wants you to hunt and destroy 20 Reconstructor Bots. Reconstructor Bots can be found in the vicinity of the Chaukas Robotics Facility.
+  - objectives (client): Kill 20 reconstructor Bots — Destroy 20 Reconstructor Bots for Sigal Nema of the Viddia syndicate.
+- **TaRapedia** [Architects Of Destruction](https://tabularasa.fandom.com/wiki/Architects_Of_Destruction): giver: Viddia Sigal Nema; at: Staal Infirmary; zone: Crucible; requires: Game Wardens; follow-up: None; XP: 80,000; credits: 5,850; items: Vitalius Filament Blade; Vextronics Cryogenic Injector Gun; Vextronics Pulse Cannon; Vextronics Pulse Pistol
+  - overview: Sigal Nema of the Viddia wants you to hunt and destroy 20 Reconstructor Bots. Reconstructor Bots can be found in the vicinity of the Chaukas Robotics Facility.
+  - objectives: • Kill 20 reconstructor Bots • Destroy 20 Reconstructor Bots for Sigal Nema of the Viddia syndicate. • Reconstructor Bots Killed x/20
+  - walkthrough: For maximum efficiency, do this mission in conjuction with the missions Salvage Duty and Crucible Targets of Opportunity. They also contain objectives that involves killing Reconstructor Bots.
+- **TaRapedia mission list** [Staal Infirmary mission list](https://tabularasa.fandom.com/wiki/Staal_Infirmary_mission_list): zone Crucible, area Staal Infirmary, given by Viddia Sigal Nema
+- **TR MMO DB** [Architects of Destruction](https://web.archive.org/web/20120731173536/http://tr.mmodb.com/quests/architects-of-destruction-634.php): level: 35; starts at npc: Viddia Sigal Nema; starts in zone: Crucible; objectives: Kill 20 Reconstructor Bots, Return to Viddia Sigal Nema; reward: 5850
+- **NPCs (TaRapedia NPC pages):**
+  - [Viddia Sigal Nema](https://tabularasa.fandom.com/wiki/Viddia_Sigal_Nema): Crucible, Staal Infirmary (named as giver/receiver)
+
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 6
+  - Requires: Game Wardens (id 1147) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Architects_Of_Destruction), [TaRapedia](https://tabularasa.fandom.com/wiki/Game_Wardens)
+
 ### 1203 — Salvage Duty
 
 
@@ -337,6 +392,28 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
 
 - **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 7
   - Requires: Salvage Duty (id 1203) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/More_Salvage_Duty), [TaRapedia](https://tabularasa.fandom.com/wiki/Salvage_Duty)
+
+### 1208 — Out Of Sight
+
+
+- **Rebuild summary:**
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 80,000 XP; 5,850 credits — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Out_Of_Sight)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Top Khana Sigal Pico: Crucible, Staal Detention Center — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Top_Khana_Sigal_Pico)
+- **Client:** Hunt Shield Drones and acquire 6 of their Optical Processors for Sigal Pico of the Top Khana syndicate at Staal.
+  - objectives (client): Get 6 Optical Processors. — Acquire 6 Optical Processors for Sigal Pico of the Top Khana syndicate by hunting Bane Shield Drones.
+- **TaRapedia** [Out Of Sight](https://tabularasa.fandom.com/wiki/Out_Of_Sight): giver: Top Khana Sigal Pico; at: Staal Detention Center; zone: Crucible; requires: Smoking Guns; follow-up: None; XP: 80,000; credits: 5,850
+  - overview: Hunt Shield Drones and aqcuire 6 of their Optical Processors for Sigal Pico of the Top Khana Syndicate at Staal.
+  - objectives: • Get 6 Optical Processors • Acquire 6 Optical Processors for Sigal Pico of the Top Khana syndicate by hunting Bane Shield Drones. • x/6
+  - walkthrough: The Optical Processors can also be obtain by killing shield drones on other maps, I did it on Mires. -Snipe
+- **TaRapedia mission list** [Staal Detention Center mission list](https://tabularasa.fandom.com/wiki/Staal_Detention_Center_mission_list): zone Crucible, area Staal Detention Center, given by Top Khana Sigal Pico
+- **NPCs (TaRapedia NPC pages):**
+  - [Top Khana Sigal Pico](https://tabularasa.fandom.com/wiki/Top_Khana_Sigal_Pico): Crucible, Staal Detention Center (named as giver/receiver)
+
+- **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 6
+  - Requires: Smoking Guns (id 1148) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Out_Of_Sight)
 
 ### 1229 — Business Proposal
 

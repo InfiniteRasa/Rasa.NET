@@ -104,6 +104,31 @@ Set 4, the minefield and the salvage (migration `20271108000400_Crucible_minefie
   same bots. Markers as 1203. Turn in at Haggus: 160000 XP, 7800 credits, one of the modules 123041, 122986, 122961,
   123176; he takes the parts. Abandon: the parts stay.
 
+Set 5, the Staal Sigals (migration `20271108000600_Crucible_staal_sigals`). New NPCs 770019 Viddia Sigal Nema, 770020 Top
+Khana Sigal Pico, 770021 Trista; new creatures 770022 (Shield Drone) and 770023 (Preceptor Molitor), the drone's attack
+770022; new pools 770024-770029; next free id 770030. Before it: the Staal walks fix `20271108000500_Crucible_staal_walks`.
+
+- [ ] 1202 Architects Of Destruction (Ligo Crucible): Viddia Sigal Nema (-219.5, 195.62, 474), 4 m from Donal by the
+  Staal Infirmary waypoint, offers it after 1147, level 35. Destroy 20 Reconstructor Bots (class 6960 or 10314; the bots
+  of set 4's pools 770017, 770018 and the new 770027 (-490, 249.72, 480), 770028 (-460, 251.31, 570) by the Chaukas
+  Robotics Facility). A Warden Bot does not count. A marker (r20) on each of the four pools. Turn in at Nema: 80000 XP,
+  5850 credits, one of 47688, 48104, 15437, 14569. Abandon: the count starts again.
+- [ ] 1208 Out Of Sight (Ligo Crucible): Top Khana Sigal Pico (-216, 180.68, 231.5), 4 m from Munit on the lower corridor,
+  offers it after 1148, level 35. 6 Shield Drone Optical Processors (50434, 50 %) from the new Shield Drones 770022 (three
+  in each pool north of Khulago Base: (415, 170.08, 110), (490, 173.48, 65), (535, 172.92, 80)). A marker (r20) on each
+  pool. Turn in at Pico: 80000 XP, 5850 credits, one of 32806, 10637, 20484, 29533; he takes the processors. Abandon: the
+  processors stay.
+- [ ] 1185 Irreconcilable Differences (Ligo Crucible): Trista (-211.5, 244.89, 325.5), next to Lohen in the Kappa Grupa's
+  office, offers it after 1170, level 35. The way in: the north top entrance (-144, 252, 352) and its corridor to the
+  office (the tester passed it in the real client, 2026-11-07); pad 909 -> 910 works only when the player steps or jumps
+  onto the dais centre (to-fix row 31, upstream C10). The way out: pad 910 -> 909 (works). 1 Speak to Lohen (the
+  challenge), 2 get Molitor's Bone Necklace (50360, 100 %, only while 2 is open) from Preceptor Molitor 770023 (with three
+  Thrax Soldiers and a Thrax Grenadier, pool 770029 at (-856, 286.83, 371), north-east of the Awol Camp), 3 return to
+  Lohen (he takes the necklace). Markers on Lohen (1, 3) and the pool (2, r20). Turn in at Trista: 160000 XP, 3900 credits,
+  one of 3x 111048, 3x 45061, 3x 111038, 2x 45062. Abandon: the necklace stays and counts after the challenge again.
+  Once objective 2 is complete, Molitor does not drop the necklace again: a player who loses it (sold or destroyed) can only
+  abandon the mission and do it again from the challenge (as Plateau Cryptic Messages 557).
+
 ## Assumptions and choices (not from a source)
 
 All ESTIMATE (set 1):
@@ -210,6 +235,34 @@ All ESTIMATE (set 4):
   1204: "Modification" = the grade [4] modules: Resist Photonic (Light), Regen Bonus, Armor Recharge (Regen Armor), Debuff
   Fire Resist.
 
+All ESTIMATE (set 5):
+- Levels: 1202 and 1185 35 (TR MMO DB); 1208 35 (no source; the level of 1148 and 1202, which pays the same). Nema and Pico
+  level 35, Trista 37 (TaRapedia).
+- All positions: Nema, Pico, Trista, the three drone pools, the two Reconstructor pools and Molitor's pool. Chosen by a probe
+  (2026-11-07): on the navmesh and a client floor; the NPCs 2 m or more from a wall, nothing over the head, seen from 16/16
+  places 2 m round, 4 m from their Grupa (Nema by Donal, Pico by Munit, Trista by Lohen: TaRapedia "standing next to Lohen"),
+  walked to from the lower office teleporter 909 and their Grupa (Nema, Pico) or from the upper teleporter 910 (Trista)
+  with no walk over a Staal floor hole; the pools walked to from the Prometheus Outpost (drones), Labbna Quarter
+  (Reconstructors) and Awol Camp (Molitor) waypoints, 150 m or more from every friendly NPC. Molitor at the nearest
+  navmesh point 11 m from TaRapedia's x and z (-846, 376.4); TaRapedia's y 266.2 has no floor (the road is at y 286.8).
+  The drones on the approach north of Khulago Base (no source places them; the client says "Bane Shield Drones").
+- Looks and stats: Nema is a copy of Donal 510037, Pico of Vitto 510027, Trista of Lohen 510024 (class 7776). Trista is
+  female on TaRapedia, but the server has no row of the female Brann class 7775 to copy (to-fix row 39). 4500 HP, armour
+  300, stand still, server-only packages.
+- The Shield Drone: a new row of class 7233 (client name 10766 "Shield Drone Aggressor"), level 35, 5473 HP, armour 248
+  (between the Marshes and Plains drones), the drone attack 396/1 at 120-358, damage_type 0, and the drones' heal aura 45.
+  Three per pool, 120 s respawn, radius 6.
+- Preceptor Molitor: a copy of Executioner Derge 520013 (class 10504, his six attacks), level 43, 10905 HP, armour 308 (the
+  Crucible's level 43 Thrax row 531020). His pack: three Thrax Soldiers 531018 and one Thrax Grenadier 531019 in his pool
+  (radius 10, 50 s respawn, Derge's). He stands; his patrol on the road is not built.
+- 1202: any Reconstructor class counts (6960 and its boss 10314, as Targets of Opportunity 1589 objective 71).
+- Drop chances: 1208 50 % (no source); 1185 100 % (TaRapedia: "He drops Molitor's Bone Necklace").
+- 1185: 1 opens 2, 2 opens 3; Lohen takes the necklace at 3 (client 9118); Trista pays (client 9065, TaRapedia).
+- Rewards: no client reward blocks. 1202 and 1208: the lowest Uncommon template of each kind and icon number in the band of
+  level 35 (1202: "Filament Blade" of no kind = the physical blade 47688, Cryogenic Injector Gun = ice injection gun 48104,
+  Pulse Cannon = EMP rocket launcher 15437, Pulse Pistol = EMP pistol 14569; 1208: 32806, 10637, 20484, 29533). 1185:
+  TaRapedia's four stacks by their client names.
+
 ## Deviations (client/server limits)
 
 - 1143: one counter of distinct corpses does the work of the client's twenty per-corpse objectives.
@@ -222,6 +275,9 @@ All ESTIMATE (set 4):
   goes down.
 - 1241: Derge stands on the rampart; his patrol is not built.
 - 1203, 1204: the Reconstructor Bot only shoots: no heal, no shield drain, no micromech clone (TaRapedia).
+- 1208: the processors drop only from the Crucible's Shield Drones. A mission drop names one map (MissionItemDropDefinition),
+  so the drones of other maps (TaRapedia user note: "I did it on Mires") give none.
+- 1185: Molitor and his pack stand in one pool; his patrol on the road is not built.
 
 ## Server data that differs from the sources (not changed)
 
@@ -257,5 +313,10 @@ All ESTIMATE (set 4):
   Thrax Commander 520014 and 27 m from the control point hospital, to the rampart (859, 188.68, 476) (upstream D10).
 - Added: the Smart Mine and the Reconstructor Bot creature rows and their pools (the World DB had no Smart Mine and no
   Reconstructor Bot on any map).
+
+## Server data changed by set 5 (upstream rows)
+
+- None moved. Added: Viddia Sigal Nema, Top Khana Sigal Pico, Trista, a Crucible Shield Drone, Preceptor Molitor and their
+  pools (the World DB had no row for them and no Shield Drone on the Crucible).
 - The marker fix before set 4 (`20271108000300`) moved the upstream Flaregasher pools 540139-540141 (off the Staal Junkyard
   door and off the navmesh) and 540144 (off the Thunderhead border) (upstream D9).
