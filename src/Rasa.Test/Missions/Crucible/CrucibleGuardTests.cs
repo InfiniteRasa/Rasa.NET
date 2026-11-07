@@ -1,0 +1,362 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Numerics;
+using System.Text.RegularExpressions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations.Operations;
+using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Rasa.ClientData;
+using Rasa.Data;
+using Rasa.Managers;
+using Rasa.Missions.Scenes;
+using Rasa.Services.Preloader.Missions.Crucible;
+using Rasa.Services.Preloader.Missions.Marshes;
+using Rasa.Structures;
+using Rasa.Structures.World;
+using Rasa.Test.Missions.Marshes;
+using Rasa.Test.Missions.Wilderness;
+
+namespace Rasa.Test.Missions.Crucible
+{
+    using N = CrucibleOutpostIntrepidNpcsV1;
+    using F = MarshesClientFloorTests;
+
+    /// <summary>
+    /// The Marshes playtest lessons, held for the Crucible from its first set (NOTES-marshes-to-fix rows 1, 4, 14, 15, 17, 21,
+    /// 24, 27, 32, 33 and #205):
+    ///  - every friendly Crucible NPC (pools 770000-770999 and the upstream ones set 1 moved) stands still, outside every
+    ///    hostile automatic pool's circle by a creature's reach, with no floor over its head, and the new ones have their
+    ///    own hit points;
+    ///  - every one of them and every scene object stands on a client collision floor and is seen from a client floor next
+    ///    to it (the client's files, as MarshesClientFloorTests; inconclusive without them);
+    ///  - every talk and use target stands inside its objective's marker and clear of the map links;
+    ///  - the migration's Up and Down are plain SQL, safe to run twice, and the guard's keys are the tables' keys.
+    /// </summary>
+    [TestClass]
+    [DoNotParallelize]
+    public class CrucibleGuardTests
+    {
+        private const uint Map = CrucibleMissionDataV1.MapContextId;
+
+        /// <summary>The friendly NPC pools of the Crucible missions: the block's and the upstream ones set 1 moved.</summary>
+        private static List<SpawnPool> Npcs()
+        {
+            var moved = N.Moves.Select(move => move.Pool).ToHashSet();
+            bool Friendly(uint creature) => CreatureManager.Instance.LoadedCreatures.TryGetValue(creature, out var c) && c.TargetCategory != TargetCategory.Hostile;
+            var npcs = SpawnPoolManager.Instance.LoadedSpawnPools.Values.Where(pool => (pool.DbId is >= 770000 and <= 770999 || moved.Contains(pool.DbId)) &&
+                pool.SpawnSlot.Count > 0 && pool.SpawnSlot.TrueForAll(slot => Friendly(slot.CreatureId))).ToList();
+            Assert.HasCount(N.New.Length + N.Moves.Length, npcs, "the Crucible NPCs are read");
+            return npcs;
+        }
+
+        /// <summary>
+        /// To-fix rows 1, 4, 15 (Marshes): a quest giver inside a hostile pool's reach died and blocked its chain; one that can
+        /// walk wandered into one. Every Crucible NPC stands ReachClearance (an 18 m AggroRange and 2 m) outside every hostile
+        /// automatic pool's circle on its map, never moves, and the start-up check names none of them.
+        /// </summary>
+        [TestMethod]
+        public void TheCrucibleNpcsStandStillAndClearOfEveryHostilePool()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var pools = SpawnPoolManager.Instance.LoadedSpawnPools.Values.ToList();
+            bool Hostile(uint creature) => CreatureManager.Instance.LoadedCreatures.TryGetValue(creature, out var c) && c.TargetCategory == TargetCategory.Hostile;
+            var npcs = Npcs();
+            foreach (var npc in npcs)
+            {
+                foreach (var hostile in pools.Where(pool => pool.MapContextId == npc.MapContextId && pool.Mode == 0 &&
+                             pool.SpawnSlot.Exists(slot => slot.CountMax > 0) && pool.SpawnSlot.TrueForAll(slot => Hostile(slot.CreatureId))))
+                {
+                    var gap = Vector2.Distance(new(npc.Position.X, npc.Position.Z), new(hostile.Position.X, hostile.Position.Z)) - hostile.Radius;
+                    Assert.IsGreaterThanOrEqualTo(MarshesNpcsStandStillV1.ReachClearance, gap, $"NPC pool {npc.DbId} and hostile pool {hostile.DbId}");
+                }
+                foreach (var slot in npc.SpawnSlot)
+                    Assert.IsTrue(BehaviorManager.NeverMoves(CreatureManager.Instance.LoadedCreatures[slot.CreatureId]), $"{slot.CreatureId} stands still");
+            }
+            var found = SpawnPoolManager.Instance.PoolsTooClose(new List<(uint, Vector3, string)>()).Select(entry => entry.Message).ToList();
+            Assert.IsFalse(found.Any(message => message.Contains("of pool 770") || npcs.Any(npc => message.Contains($"of pool {npc.DbId}"))),
+                string.Join("\n", found));
+        }
+
+        /// <summary>To-fix row 17 (Marshes): a quest NPC with no creature_stat row plays with 100 hit points. Each new Crucible NPC has 4500 and armour 300.</summary>
+        [TestMethod]
+        public void EveryNewCrucibleNpcHasItsOwnHitPoints()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var stats = harness.World.CreatureStatEntries.AsNoTracking().Where(row => row.Id >= 770000 && row.Id <= 770999).ToDictionary(row => row.Id);
+            var npcs = Npcs().Where(pool => pool.DbId >= 770000).SelectMany(pool => pool.SpawnSlot).Select(slot => slot.CreatureId).Distinct().ToList();
+            Assert.HasCount(N.New.Length, npcs);
+            foreach (var npc in npcs)
+            {
+                Assert.IsTrue(stats.TryGetValue(npc, out var stat), $"{npc} has a creature_stat row");
+                Assert.AreEqual(((int)N.HitPoints, (int)N.Armor), (stat.Health, stat.Armor), $"{npc}");
+            }
+        }
+
+        /// <summary>To-fix row 21 (Marshes): an NPC on a lower navmesh layer under a floor could not be talked to. No Crucible NPC has a walkable floor within 2.5 m over its head.</summary>
+        [TestMethod]
+        public void NoCrucibleNpcStandsUnderAFloor()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var crucible = CrucibleOutpostIntrepidTests.EnterCrucible(harness);
+            foreach (var npc in Npcs())
+            {
+                var over = crucible.NavMesh.GroundHeight(npc.Position + new Vector3(0, 2.5f, 0));
+                Assert.IsNotNull(over, $"navmesh at {npc.DbId}");
+                Assert.IsLessThan(0.5f, over.Value - npc.Position.Y, $"{npc.DbId} at {npc.Position}: no floor over its head ({over})");
+            }
+        }
+
+        /// <summary>
+        /// To-fix rows 24 and 25 (Marshes): a player next to an NPC that stood where the client has no floor fell through the
+        /// world. Every Crucible NPC (an NPC: a walkable surface) and scene object (any not vertical one) has a client
+        /// collision surface at most MaxOver under it and none from MaxUnder to MaxUnder + 0.3 m over it.
+        /// </summary>
+        [TestMethod]
+        public void EveryCrucibleNpcAndObjectStandsOnAClientFloor()
+        {
+            var dataDir = F.ClientData();
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var places = Places(harness);
+            using var meshes = new MeshLibrary(dataDir, F.MeshCsv());
+            var geometry = MapGeometry.Load(Path.Combine(dataDir, "maps", MapName(harness)), meshes, 1);
+            var (floors, ceilings) = F.Surfaces(geometry, places.Select(place => (place.At, place.Npc ? F.Walkable : F.NotVertical)).ToList());
+            var failures = new List<string>();
+            for (var i = 0; i < places.Count; i++)
+            {
+                var (label, at, _) = places[i];
+                if (at.Y - floors[i] > F.MaxOver || !float.IsPositiveInfinity(ceilings[i]))
+                    failures.Add(FormattableString.Invariant($"{label} at ({at.X}, {at.Y}, {at.Z}): ") +
+                        (float.IsNegativeInfinity(floors[i]) ? "no floor" : FormattableString.Invariant($"{at.Y - floors[i]:0.00} m over its floor")) +
+                        (float.IsPositiveInfinity(ceilings[i]) ? "" : FormattableString.Invariant($", a surface {ceilings[i] - at.Y:0.00} m over it")));
+            }
+            Assert.IsEmpty(failures, string.Join("; ", failures));
+        }
+
+        /// <summary>
+        /// To-fix rows 27, 32 and 33 (Marshes): a target on a client floor that no player place round it could see ("You cannot
+        /// see your target from here"). Every Crucible NPC and scene object is seen, from the eye of a player on a client floor
+        /// Ring m round it, at its middle, from at least one of RingPlaces places.
+        /// </summary>
+        [TestMethod]
+        public void EveryCrucibleNpcAndObjectIsSeenFromAClientFloorNextToIt()
+        {
+            var dataDir = F.ClientData();
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var places = Places(harness);
+            using var meshes = new MeshLibrary(dataDir, F.MeshCsv());
+            var geometry = MapGeometry.Load(Path.Combine(dataDir, "maps", MapName(harness)), meshes, 1);
+            var near = F.Near(geometry, places.Select(place => place.At).ToList(), F.Ring + 1);
+            var failures = new List<string>();
+            for (var i = 0; i < places.Count; i++)
+            {
+                var (label, at, npc) = places[i];
+                var aim = at + new Vector3(0, npc ? F.NpcMiddle : F.ObjectMiddle, 0);
+                var seen = false;
+                for (var k = 0; k < F.RingPlaces && !seen; k++)
+                {
+                    var angle = k * 2 * MathF.PI / F.RingPlaces;
+                    var stand = at + new Vector3(MathF.Sin(angle) * F.Ring, 0, MathF.Cos(angle) * F.Ring);
+                    if (F.FloorAt(near[i], stand, at.Y - F.MaxOver, at.Y + F.MaxUnder) is { } y && F.Clear(near[i], stand with { Y = y + F.Eye }, aim))
+                        seen = true;
+                }
+                if (!seen)
+                    failures.Add(FormattableString.Invariant($"{label} at ({at.X}, {at.Y}, {at.Z})"));
+            }
+            Assert.IsEmpty(failures, "not seen from a client floor " + F.Ring + " m round: " + string.Join("; ", failures));
+        }
+
+        /// <summary>
+        /// Every talk target (an NPC pool of the Crucible with the talk's package, or a talking scene object) and use target
+        /// stands inside a marker of its objective, so the map points the player at it.
+        /// </summary>
+        [TestMethod]
+        public void EveryTalkAndUseTargetStandsInsideItsObjectivesMarker()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            var revision = CrucibleMissionDataV1.Revision;
+            var markers = world.MissionIndicatorEntries.AsNoTracking().Where(entry => entry.ContentRevision == revision).ToList();
+            bool Inside(uint mission, uint objective, Vector3 at) => markers.Any(marker => marker.MissionId == mission && marker.ObjectiveId == objective &&
+                Vector2.Distance(new((float)marker.PosX, (float)marker.PosZ), new(at.X, at.Z)) <= marker.Radius);
+            var packages = world.NpcPackageEntries.AsNoTracking().ToList().ToLookup(entry => entry.PackageId, entry => entry.Id);
+            var pools = world.SpawnPoolEntries.AsNoTracking().Where(pool => pool.MapContextId == Map).ToList();
+            var checkedTargets = 0;
+            var outside = new List<string>();
+            foreach (var talk in world.MissionTriggerEntries.AsNoTracking().Where(entry => entry.ContentRevision == revision &&
+                         entry.Kind == MissionTriggerKind.Conversation).ToList())
+            {
+                var npcs = pools.Where(pool => packages[talk.NpcPackageId.Value].Contains(pool.Creature1Id)).ToList();
+                foreach (var pool in npcs)
+                {
+                    checkedTargets++;
+                    if (!Inside(talk.MissionId, talk.ObjectiveId, new((float)pool.PosX, (float)pool.PosY, (float)pool.PosZ)))
+                        outside.Add($"{talk.MissionId}.{talk.ObjectiveId} NPC pool {pool.Id}");
+                }
+            }
+            foreach (var (mission, scene) in CrucibleMissionTests.Scenes(harness))
+                foreach (var actor in scene.Actors.Values.Where(actor => actor.UseAction != null || actor.Conversation != null))
+                {
+                    checkedTargets++;
+                    var objective = actor.UseAction?.ObjectiveId ?? actor.Conversation.ObjectiveId;
+                    if (!Inside(mission, objective, new(actor.Position.X, actor.Position.Y, actor.Position.Z)))
+                        outside.Add($"{mission}.{objective} {actor.Role}");
+                }
+            Assert.AreEqual(1 + 5 + 21, checkedTargets, "DeLisi, the five of The Wire, the terminal and the twenty fallen");
+            Assert.IsEmpty(outside, string.Join(", ", outside));
+        }
+
+        /// <summary>
+        /// To-fix row 14 (Marshes): a player who walks up to a target in a map link's circle is taken to the other map. No
+        /// Crucible NPC or scene object with a use or a talk stands within an enabled map link's radius and 5 m on its map.
+        /// </summary>
+        [TestMethod]
+        public void NoTargetStandsByAMapLink()
+        {
+            const float LinkClearance = 5;
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var links = harness.World.Set<MapLinkEntry>().AsNoTracking().Where(link => link.Enabled != 0 && link.MapContextId == Map).ToList();
+            Assert.IsNotEmpty(links, "the Crucible's map links");
+            var places = Places(harness);
+            var near = new List<string>();
+            foreach (var (label, at, _) in places)
+                foreach (var link in links)
+                {
+                    var gap = Vector2.Distance(new(at.X, at.Z), new((float)link.PosX, (float)link.PosZ)) - (float)link.Radius;
+                    if (gap < LinkClearance)
+                        near.Add($"{label} {gap:F1} m outside link {link.Id}");
+                }
+            Assert.IsEmpty(near, string.Join(", ", near));
+        }
+
+        /// <summary>CrucibleSql.Keys is each table's primary key in WorldContext's model; the keyless creature_appearance has its index's columns.</summary>
+        [TestMethod]
+        public void TheGuardKeysAreTheTablesKeys()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var model = harness.World.Model;
+            foreach (var (table, keys) in CrucibleSql.Keys)
+            {
+                var entity = model.GetEntityTypes().SingleOrDefault(type => type.GetTableName() == table);
+                Assert.IsNotNull(entity, $"{table} is a table of the model");
+                var store = StoreObjectIdentifier.Table(table, entity.GetSchema());
+                var key = entity.FindPrimaryKey();
+                if (key != null)
+                    CollectionAssert.AreEqual(key.Properties.Select(property => property.GetColumnName(store)).ToArray(), keys, $"{table}: the primary key");
+                else
+                    Assert.IsTrue(entity.GetIndexes().Any(index => index.Properties.Select(property => property.GetColumnName(store)).SequenceEqual(keys)),
+                        $"{table} has no primary key: an index on {string.Join(", ", keys)}");
+            }
+            Assert.AreEqual(MarshesSql.Guard("INSERT INTO creature_stat (id, body, mind, spirit, health, armor) VALUES (770000, 15, 15, 15, 4500, 300);"),
+                CrucibleSql.Guard("INSERT INTO creature_stat (id, body, mind, spirit, health, armor) VALUES (770000, 15, 15, 15, 4500, 300);"),
+                "the same guard as the Marshes'");
+        }
+
+        /// <summary>
+        /// #205: each Crucible World migration, in order: Up, Up again, and the tables it writes are the same; Down (to the
+        /// migration before it, IMigrationsAssembly) and they are as before the Up; Down again and they still are; Up, and
+        /// they are as after the first Up. Its operations are all plain SQL.
+        /// </summary>
+        [TestMethod]
+        public void EachCrucibleMigrationRunsUpTwiceAndDownTwice()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            var assembly = world.GetService<IMigrationsAssembly>();
+            var migrator = world.GetService<IMigrator>();
+            var ids = assembly.Migrations.Keys.OrderBy(id => id, StringComparer.Ordinal).ToList();
+            var crucible = ids.Where(id => id.Contains("_Crucible_")).ToList();
+            Assert.IsGreaterThanOrEqualTo(1, crucible.Count, "the Crucible World migrations");
+
+            migrator.Migrate(ids[ids.IndexOf(crucible[0]) - 1]);
+            foreach (var id in crucible)
+            {
+                var migration = assembly.CreateMigration(assembly.Migrations[id], world.Database.ProviderName);
+                var operations = migration.UpOperations.Concat(migration.DownOperations).ToList();
+                Assert.IsTrue(operations.All(operation => operation is SqlOperation), $"{id}: plain SQL only");
+                var tables = operations.Cast<SqlOperation>()
+                    .SelectMany(operation => Regex.Matches(operation.Sql, @"\b(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+(\w+)", RegexOptions.IgnoreCase))
+                    .Select(match => match.Groups[1].Value).Distinct().OrderBy(table => table, StringComparer.Ordinal).ToList();
+                Assert.IsNotEmpty(tables, $"{id} writes rows");
+
+                var before = Dump(world, tables);
+                migrator.Migrate(id);
+                var after = Dump(world, tables);
+                Run(world, migration.UpOperations);
+                AssertSame(after, Dump(world, tables), $"{id}: Up twice");
+                migrator.Migrate(ids[ids.IndexOf(id) - 1]);
+                AssertSame(before, Dump(world, tables), $"{id}: Down after Up");
+                Run(world, migration.DownOperations);
+                AssertSame(before, Dump(world, tables), $"{id}: Down twice");
+                migrator.Migrate(id);
+                AssertSame(after, Dump(world, tables), $"{id}: Up after Down");
+            }
+            migrator.Migrate(ids[^1]);
+        }
+
+        /// <summary>The set's NPCs (label, place, NPC) and scene objects on the Crucible.</summary>
+        private static List<(string Label, Vector3 At, bool Npc)> Places(WildernessRuntimeTestHarness harness)
+        {
+            var places = Npcs().Select(pool => ($"pool {pool.DbId}", pool.Position, true)).ToList();
+            foreach (var (mission, scene) in CrucibleMissionTests.Scenes(harness))
+                foreach (var actor in scene.Actors.Values.Where(actor => actor.Position != null))
+                    places.Add(($"{mission} {actor.Role}", new Vector3(actor.Position.X, actor.Position.Y, actor.Position.Z),
+                        actor.Kind == SceneActorKind.Creature));
+            Assert.HasCount(N.New.Length + N.Moves.Length + 21, places, "the NPCs, the terminal and the twenty fallen");
+            return places;
+        }
+
+        private static string MapName(WildernessRuntimeTestHarness harness) =>
+            harness.World.MapInfoEntries.AsNoTracking().Single(map => map.Id == Map).MapName;
+
+        private static void Run(DbContext world, IReadOnlyList<MigrationOperation> operations)
+        {
+            var connection = world.GetService<IRelationalConnection>();
+            foreach (var command in world.GetService<IMigrationsSqlGenerator>().Generate(operations))
+                command.ExecuteNonQuery(connection);
+        }
+
+        /// <summary>Every row of each table, each value with its type, sorted (as MarshesMigrationGuardTests).</summary>
+        private static Dictionary<string, string[]> Dump(DbContext world, IEnumerable<string> tables)
+        {
+            var connection = world.Database.GetDbConnection();
+            if (connection.State != System.Data.ConnectionState.Open)
+                connection.Open();
+            var dump = new Dictionary<string, string[]>();
+            foreach (var table in tables)
+            {
+                using var command = connection.CreateCommand();
+                command.CommandText = $"SELECT * FROM {table}";
+                using var reader = command.ExecuteReader();
+                var rows = new List<string>();
+                while (reader.Read())
+                    rows.Add(string.Join("|", Enumerable.Range(0, reader.FieldCount).Select(i => reader.IsDBNull(i) ? "NULL" : reader.GetValue(i) switch
+                    {
+                        double number => "R:" + number.ToString("R", System.Globalization.CultureInfo.InvariantCulture),
+                        byte[] bytes => "B:" + Convert.ToHexString(bytes),
+                        string text => "T:" + text,
+                        var value => value.GetType().Name + ":" + Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture)
+                    })));
+                rows.Sort(StringComparer.Ordinal);
+                dump[table] = rows.ToArray();
+            }
+            return dump;
+        }
+
+        private static void AssertSame(Dictionary<string, string[]> expected, Dictionary<string, string[]> actual, string step)
+        {
+            foreach (var (table, rows) in expected)
+            {
+                var now = actual[table];
+                Assert.IsTrue(rows.SequenceEqual(now),
+                    $"{step}: {table} has {now.Length} rows, {rows.Length} expected; missing {string.Join(" ; ", rows.Except(now).Take(3))}; " +
+                    $"extra {string.Join(" ; ", now.Except(rows).Take(3))}");
+            }
+        }
+    }
+}

@@ -183,7 +183,8 @@ namespace Rasa.Test.World
                 .Concat(Rasa.Services.Preloader.Missions.Plateau.PlateauWedgeRockNpcsV1.Moves.Select(move => move.Pool))
                 .Concat(Rasa.Services.Preloader.Missions.Plateau.PlateauCidNpcsV1.Moves.Select(move => move.Pool))
                 .Append(Rasa.Services.Preloader.Missions.Plateau.PlateauBaileyNpcsV1.McCormick)
-                .Concat(KardashAttaColonyContent.Moved.Select(move => move.Pool)).ToArray());
+                .Concat(KardashAttaColonyContent.Moved.Select(move => move.Pool))
+                .Concat(Rasa.Services.Preloader.Missions.Crucible.CrucibleOutpostIntrepidNpcsV1.Moves.Select(move => move.Pool)).ToArray());
 
             // The vendor of Torcastra Prison was 5.69 m over the floor of the hall; Private
             // Parsons a metre in the ground. General Beacham, in the sandbags beside Cimoch, has
