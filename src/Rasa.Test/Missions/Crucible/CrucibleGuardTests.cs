@@ -25,12 +25,14 @@ using Rasa.Test.Missions.Wilderness;
 namespace Rasa.Test.Missions.Crucible
 {
     using N = CrucibleOutpostIntrepidNpcsV1;
+    using G = CrucibleGrupaChiefsNpcsV1;
     using F = MarshesClientFloorTests;
 
     /// <summary>
     /// The Marshes playtest lessons, held for the Crucible from its first set (NOTES-marshes-to-fix rows 1, 4, 14, 15, 17, 21,
     /// 24, 27, 32, 33 and #205):
-    ///  - every friendly Crucible NPC (pools 770000-770999 and the upstream ones set 1 moved) stands still, outside every
+    ///  - every friendly Crucible NPC (pools 770000-770999, the upstream ones set 1 and set 2 moved, and the upstream ones set 2
+    ///    talks to where they stand: Vargo, Melching) stands still, outside every
     ///    hostile automatic pool's circle by a creature's reach, with no floor over its head, and the new ones have their
     ///    own hit points;
     ///  - every one of them and every scene object stands on a client collision floor and is seen from a client floor next
@@ -44,14 +46,14 @@ namespace Rasa.Test.Missions.Crucible
     {
         private const uint Map = CrucibleMissionDataV1.MapContextId;
 
-        /// <summary>The friendly NPC pools of the Crucible missions: the block's and the upstream ones set 1 moved.</summary>
+        /// <summary>The friendly NPC pools of the Crucible missions: the block's, the upstream ones the sets moved, and the ones set 2 kept.</summary>
         private static List<SpawnPool> Npcs()
         {
-            var moved = N.Moves.Select(move => move.Pool).ToHashSet();
+            var moved = N.Moves.Select(move => move.Pool).Concat(G.Moves.Select(move => move.Pool)).Concat(G.Kept.Select(kept => kept.Pool)).ToHashSet();
             bool Friendly(uint creature) => CreatureManager.Instance.LoadedCreatures.TryGetValue(creature, out var c) && c.TargetCategory != TargetCategory.Hostile;
             var npcs = SpawnPoolManager.Instance.LoadedSpawnPools.Values.Where(pool => (pool.DbId is >= 770000 and <= 770999 || moved.Contains(pool.DbId)) &&
                 pool.SpawnSlot.Count > 0 && pool.SpawnSlot.TrueForAll(slot => Friendly(slot.CreatureId))).ToList();
-            Assert.HasCount(N.New.Length + N.Moves.Length, npcs, "the Crucible NPCs are read");
+            Assert.HasCount(N.New.Length + N.Moves.Length + G.New.Length + G.Moves.Length + G.Kept.Length, npcs, "the Crucible NPCs are read");
             return npcs;
         }
 
@@ -78,6 +80,17 @@ namespace Rasa.Test.Missions.Crucible
                 foreach (var slot in npc.SpawnSlot)
                     Assert.IsTrue(BehaviorManager.NeverMoves(CreatureManager.Instance.LoadedCreatures[slot.CreatureId]), $"{slot.CreatureId} stands still");
             }
+            // A scene hostile (Roscoe, 1146) seeks friendly creatures in its aggro range as a pool's hostile does: it comes out
+            // ReachClearance from every Crucible NPC, or it can attack Vargo (100 hit points) when the player steps back.
+            foreach (var (creature, at) in new[] { (G.Roscoe, G.RoscoeAt) })
+            {
+                Assert.IsTrue(Hostile(creature), $"{creature} is hostile");
+                foreach (var npc in npcs.Where(npc => npc.MapContextId == CrucibleMissionDataV1.MapContextId))
+                {
+                    var gap = Vector2.Distance(new(npc.Position.X, npc.Position.Z), new((float)at.X, (float)at.Z));
+                    Assert.IsGreaterThanOrEqualTo(MarshesNpcsStandStillV1.ReachClearance, gap, $"NPC pool {npc.DbId} and scene hostile {creature}");
+                }
+            }
             var found = SpawnPoolManager.Instance.PoolsTooClose(new List<(uint, Vector3, string)>()).Select(entry => entry.Message).ToList();
             Assert.IsFalse(found.Any(message => message.Contains("of pool 770") || npcs.Any(npc => message.Contains($"of pool {npc.DbId}"))),
                 string.Join("\n", found));
@@ -90,7 +103,7 @@ namespace Rasa.Test.Missions.Crucible
             using var harness = WildernessRuntimeTestHarness.Create();
             var stats = harness.World.CreatureStatEntries.AsNoTracking().Where(row => row.Id >= 770000 && row.Id <= 770999).ToDictionary(row => row.Id);
             var npcs = Npcs().Where(pool => pool.DbId >= 770000).SelectMany(pool => pool.SpawnSlot).Select(slot => slot.CreatureId).Distinct().ToList();
-            Assert.HasCount(N.New.Length, npcs);
+            Assert.HasCount(N.New.Length + G.New.Length, npcs);
             foreach (var npc in npcs)
             {
                 Assert.IsTrue(stats.TryGetValue(npc, out var stat), $"{npc} has a creature_stat row");
@@ -207,7 +220,10 @@ namespace Rasa.Test.Missions.Crucible
                     if (!Inside(mission, objective, new(actor.Position.X, actor.Position.Y, actor.Position.Z)))
                         outside.Add($"{mission}.{objective} {actor.Role}");
                 }
-            Assert.AreEqual(1 + 5 + 21, checkedTargets, "DeLisi, the five of The Wire, the terminal and the twenty fallen");
+            // Set 2: Lohen; Bunko, Cugin, Vargo (twice: 3 and 6) and Yeg; Fiorella, Haggus and Melching (three times: his three
+            // variants are three talks).
+            Assert.AreEqual(1 + 5 + 21 + 1 + 5 + 2 + 3, checkedTargets,
+                "DeLisi, the five of The Wire, the terminal, the twenty fallen, and set 2's talks");
             Assert.IsEmpty(outside, string.Join(", ", outside));
         }
 
@@ -299,7 +315,7 @@ namespace Rasa.Test.Missions.Crucible
             migrator.Migrate(ids[^1]);
         }
 
-        /// <summary>The set's NPCs (label, place, NPC) and scene objects on the Crucible.</summary>
+        /// <summary>The sets' NPCs (label, place, NPC) and scene actors on the Crucible (Roscoe, a creature, as an NPC).</summary>
         private static List<(string Label, Vector3 At, bool Npc)> Places(WildernessRuntimeTestHarness harness)
         {
             var places = Npcs().Select(pool => ($"pool {pool.DbId}", pool.Position, true)).ToList();
@@ -307,7 +323,8 @@ namespace Rasa.Test.Missions.Crucible
                 foreach (var actor in scene.Actors.Values.Where(actor => actor.Position != null))
                     places.Add(($"{mission} {actor.Role}", new Vector3(actor.Position.X, actor.Position.Y, actor.Position.Z),
                         actor.Kind == SceneActorKind.Creature));
-            Assert.HasCount(N.New.Length + N.Moves.Length + 21, places, "the NPCs, the terminal and the twenty fallen");
+            Assert.HasCount(N.New.Length + N.Moves.Length + G.New.Length + G.Moves.Length + G.Kept.Length + 21 + 1, places,
+                "the NPCs, the terminal, the twenty fallen and Roscoe");
             return places;
         }
 
