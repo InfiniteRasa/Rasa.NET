@@ -29,13 +29,14 @@ namespace Rasa.Test.Missions.Crucible
     using W = CrucibleWardensAndLashersNpcsV1;
     using S = CrucibleMinefieldAndSalvageNpcsV1;
     using V = CrucibleStaalSigalsNpcsV1;
+    using A = CrucibleAwolCampNpcsV1;
     using F = MarshesClientFloorTests;
 
     /// <summary>
     /// The Marshes playtest lessons, held for the Crucible from its first set (NOTES-marshes-to-fix rows 1, 4, 14, 15, 17, 21,
     /// 24, 27, 32, 33 and #205):
-    ///  - every friendly Crucible NPC (pools 770000-770999, the upstream ones set 1 and set 2 moved, and the upstream ones set 2
-    ///    talks to where they stand: Vargo, Melching) stands still, outside every
+    ///  - every friendly Crucible NPC (pools 770000-770999, the upstream ones sets 1, 2 and 6 moved, and the upstream ones
+    ///    sets 2 and 6 talk to where they stand: Vargo, Melching, Breiburg) stands still, outside every
     ///    hostile automatic pool's circle by a creature's reach, with no floor over its head, and the new ones have their
     ///    own hit points;
     ///  - every one of them and every scene object stands on a client collision floor and is seen from a client floor next
@@ -52,11 +53,13 @@ namespace Rasa.Test.Missions.Crucible
         /// <summary>The friendly NPC pools of the Crucible missions: the block's, the upstream ones the sets moved, and the ones set 2 kept.</summary>
         private static List<SpawnPool> Npcs()
         {
-            var moved = N.Moves.Select(move => move.Pool).Concat(G.Moves.Select(move => move.Pool)).Concat(G.Kept.Select(kept => kept.Pool)).ToHashSet();
+            var moved = N.Moves.Select(move => move.Pool).Concat(G.Moves.Select(move => move.Pool)).Concat(G.Kept.Select(kept => kept.Pool))
+                .Concat(A.Moves.Select(move => move.Pool)).Concat(A.Kept.Select(kept => kept.Pool)).ToHashSet();
             bool Friendly(uint creature) => CreatureManager.Instance.LoadedCreatures.TryGetValue(creature, out var c) && c.TargetCategory != TargetCategory.Hostile;
             var npcs = SpawnPoolManager.Instance.LoadedSpawnPools.Values.Where(pool => (pool.DbId is >= 770000 and <= 770999 || moved.Contains(pool.DbId)) &&
                 pool.SpawnSlot.Count > 0 && pool.SpawnSlot.TrueForAll(slot => Friendly(slot.CreatureId))).ToList();
-            Assert.HasCount(N.New.Length + N.Moves.Length + G.New.Length + G.Moves.Length + G.Kept.Length + W.New.Length + V.New.Length, npcs,
+            Assert.HasCount(N.New.Length + N.Moves.Length + G.New.Length + G.Moves.Length + G.Kept.Length + W.New.Length + V.New.Length +
+                A.Moves.Length + A.Kept.Length, npcs,
                 "the Crucible NPCs are read");
             return npcs;
         }
@@ -220,8 +223,8 @@ namespace Rasa.Test.Missions.Crucible
         /// client floor reader finds a floor there, NOTES-upstream-bugs N10), so no check of the client files finds them: they
         /// are named (CrucibleStaalWalksV1.Holes). No Crucible NPC, scene object or marker on that level reaches into one (its
         /// circle and 1 m), and the navmesh walks to Munit (from the lower office teleporter, Vitto and Donal), to Vargo (from
-        /// the teleporter and Cugin), to Yeg from Cugin, to Nema (from the teleporter and Donal) and to Pico (from the teleporter
-        /// and Munit) keep out of them.
+        /// the teleporter and Cugin), to Yeg from Cugin, to Nema (from the teleporter and Donal), to Pico (from the teleporter
+        /// and Munit) and to Deirdre (from the teleporter and the Staal waypoint) keep out of them.
         /// </summary>
         [TestMethod]
         public void NoCrucibleNpcMarkerOrWalkLeadsOverAStaalFloorHole()
@@ -248,7 +251,9 @@ namespace Rasa.Test.Missions.Crucible
                 (Pool(N.Donal), Pool(N.Munit), "Donal to Munit"), (pad, Pool(G.Vargo), "the lower teleporter to Vargo"),
                 (Pool(G.Cugin), Pool(G.Vargo), "Cugin to Vargo"), (Pool(G.Cugin), Pool(G.Yeg), "Cugin to Yeg"),
                 (pad, Pool(V.Nema), "the lower teleporter to Nema"), (Pool(N.Donal), Pool(V.Nema), "Donal to Nema"),
-                (pad, Pool(V.Pico), "the lower teleporter to Pico"), (Pool(N.Munit), Pool(V.Pico), "Munit to Pico")
+                (pad, Pool(V.Pico), "the lower teleporter to Pico"), (Pool(N.Munit), Pool(V.Pico), "Munit to Pico"),
+                (pad, Pool(A.Deirdre), "the lower teleporter to Deirdre"),
+                (CrucibleOutpostIntrepidTests.StaalWaypoint, Pool(A.Deirdre), "the Staal waypoint to Deirdre")
             })
             {
                 var path = crucible.NavMesh.FindPath(crucible.NavMesh.Nearest(from) ?? from, crucible.NavMesh.Nearest(to) ?? to, out var complete);
@@ -304,8 +309,9 @@ namespace Rasa.Test.Missions.Crucible
                 }
             // Set 2: Lohen; Bunko, Cugin, Vargo (twice: 3 and 6) and Yeg; Fiorella, Haggus and Melching (three times: his three
             // variants are three talks). Set 3: Munit, Vitto, Donal and Rigs (1170) and DeLisi (1229). Set 5: Lohen twice (1185).
-            Assert.AreEqual(1 + 5 + 21 + 1 + 5 + 2 + 3 + 4 + 1 + 2, checkedTargets,
-                "DeLisi, the five of The Wire, the terminal, the twenty fallen, and set 2's, set 3's and set 5's talks");
+            // Set 6: 1144's ten (each choice is a talk), 1152's two, 1153's two (two choices), 1155's and 1205's three each.
+            Assert.AreEqual(1 + 5 + 21 + 1 + 5 + 2 + 3 + 4 + 1 + 2 + 10 + 2 + 2 + 3 + 3, checkedTargets,
+                "DeLisi, the five of The Wire, the terminal, the twenty fallen, and set 2's, set 3's, set 5's and set 6's talks");
             Assert.IsEmpty(outside, string.Join(", ", outside));
         }
 
@@ -534,7 +540,8 @@ namespace Rasa.Test.Missions.Crucible
                 foreach (var actor in scene.Actors.Values.Where(actor => actor.Position != null))
                     places.Add(($"{mission} {actor.Role}", new Vector3(actor.Position.X, actor.Position.Y, actor.Position.Z),
                         actor.Kind == SceneActorKind.Creature));
-            Assert.HasCount(N.New.Length + N.Moves.Length + G.New.Length + G.Moves.Length + G.Kept.Length + W.New.Length + V.New.Length + 21 + 1, places,
+            Assert.HasCount(N.New.Length + N.Moves.Length + G.New.Length + G.Moves.Length + G.Kept.Length + W.New.Length + V.New.Length +
+                A.Moves.Length + A.Kept.Length + 21 + 1, places,
                 "the NPCs, the terminal, the twenty fallen and Roscoe");
             return places;
         }

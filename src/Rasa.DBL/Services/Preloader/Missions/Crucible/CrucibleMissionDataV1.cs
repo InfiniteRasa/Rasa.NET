@@ -153,6 +153,17 @@ namespace Rasa.Services.Preloader.Missions.Crucible
                 ("required_level", null), ("player_flag_id", null), ("player_flag_value", null),
                 ("comment", $"Requires completed mission {mission}"));
 
+        /// <summary>
+        /// Offered only while <paramref name="mission"/> is in the player's mission log and Active (TaRapedia's "requires ...
+        /// (in mission log)"): MissionAccepted with the state Active, as the Bootcamp's retry row (MissionStateRequirement).
+        /// </summary>
+        public void ActivePrerequisite(uint mission, uint id = 1) =>
+            Insert("mission_prerequisite",
+                ("prerequisite_id", id), ("kind", (byte)MissionPrerequisiteKind.MissionAccepted),
+                ("required_mission_id", mission), ("required_mission_state", (byte)MissionState.Active),
+                ("required_level", null), ("player_flag_id", null), ("player_flag_value", null),
+                ("comment", $"Requires mission {mission} active in the mission log"));
+
         /// <summary>Offered only to a player of level <paramref name="level"/> or above (TaRapedia's "requires level").</summary>
         public void LevelPrerequisite(uint level, uint id = 1) =>
             Insert("mission_prerequisite",

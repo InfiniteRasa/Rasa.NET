@@ -129,6 +129,45 @@ Khana Sigal Pico, 770021 Trista; new creatures 770022 (Shield Drone) and 770023 
   Once objective 2 is complete, Molitor does not drop the necklace again: a player who loses it (sold or destroyed) can only
   abandon the mission and do it again from the challenge (as Plateau Cryptic Messages 557).
 
+Set 6, the AWOL Camp (migration `20271108000700_Crucible_awol_camp`). No new rows (next free id stays 770030). Moved
+upstream NPCs: Awol Captain Cheung 510015 to the Awol Camp (-953, 309.56, 255), Awol Lieutenant Deirdre 510016 to the Staal
+Centrum (-230, 180.86, 324), Lieutenant Sherer 510030 (969, 144.68, 108) and Intelligence Officer D'Ambrose 510023 (975,
+144.68, 110) in Outpost Intrepid. Awol Sergeant Breiburg 510017 stays (-942.2, 309.51, 246.9).
+
+Calendar Girl branches and the flag 1144001 that Melching's Smoking Guns talk (1148, 3) reads:
+
+| Deirdre's choice | D'Ambrose's choice | Flag | Then | Melching's text |
+|---|---|---|---|---|
+| 1 agree | 1 "dead" (helped) | 2 | Deirdre signs (3), Sherer takes it (4) | 178 |
+| 1 agree | 2 "alive" (ratted out) | 1 | Sherer: 1 truth ends it, or 2 lie, then comfort him (9) | 177 |
+| 2 threaten | none | 3 | Deirdre signs (8), Sherer takes it (4) | 203 |
+
+The fork: Stray Cats' report to D'Ambrose fails an open The Other Side Of The Coin; the 1153 promise to Cheung fails an
+open Stray Cats. 1152 done leads to Making Amends (1155), 1153 done leads to Sweet Revenge (1205). The fork is the
+designed one (the client's 1153 log), not the patch-note known issue.
+
+- [ ] 1144 Calendar Girl (Ligo Crucible): Sherer offers it, no requirement, level 40. The Pin-up Girl Calendar (50214) at
+  the accept (a full mission bag refuses the accept). 1 Find Deirdre (Staal Centrum): a choice, agree or threaten. Agree
+  gives her dog tags (50213; a full bag refuses the talk, nothing changes) and opens 5 Speak to D'Ambrose: a choice, "dead" (he takes the dog tags; opens 3, return to Deirdre) or "alive" (opens 6, the unsigned calendar to
+  Sherer: truth or lie; the lie opens 9, comfort Sherer). Threaten opens 8, Deirdre signs. Every path ends at Sherer, who
+  takes the calendar. Markers at the NPC of each open objective. Turn in at Sherer: 75000 XP, 5700 credits, one of 49596,
+  15189, 48712, 14861. Then check Melching's text at the Awol Camp (Smoking Guns objective 3) against the table. Abandon:
+  the calendar goes, the flag stays; taken again, a new calendar.
+- [ ] 1152 Stray Cats (Ligo Crucible): D'Ambrose offers it after 1144, level 40. 1 Locate the leader: talk to Cheung at
+  the Awol Camp. 2 Report back to D'Ambrose. Markers at Cheung and D'Ambrose. Turn in at D'Ambrose: 75000 XP, 5700
+  credits, one of 45796, 15550, 15442, 14699. If 1153 is in the log, it fails a moment after the report. Not offered
+  once 1153 is done.
+- [ ] 1153 The Other Side Of The Coin (Ligo Crucible): Breiburg offers it only while 1152 is in the log, level 40. 1
+  Inform Cheung of your decision: a choice. 1 promise: the mission can be turned in, and 1152 fails a moment later. 2
+  refuse: the mission fails at once; clear it and Breiburg offers it again. A marker at Cheung. Turn in at Breiburg:
+  75000 XP, 5700 credits, one of 15475, 15588, 48680, 49140.
+- [ ] 1155 Making Amends (Ligo Crucible): Breiburg offers it after 1152, level 40. The Top Khana weapons crate (50219) at
+  the accept. 1 Munit (Staal lower corridor) takes the crate and gives the ledger (50432). 2 DeLisi (Outpost Intrepid)
+  keeps the ledger. 3 tell Breiburg. Markers at Munit, DeLisi and Breiburg. Turn in at Breiburg: 80000 XP, 5850 credits,
+  one of 18899, 23828, 32826, 38952. Abandon: crate and ledger go.
+- [ ] 1205 Sweet Revenge (Ligo Crucible): as 1155, but offered after 1153 (never with 1155). Turn in at Breiburg: 80000
+  XP, 5850 credits, one of 19157, 33084, 40373, 36638.
+
 ## Assumptions and choices (not from a source)
 
 All ESTIMATE (set 1):
@@ -263,11 +302,27 @@ All ESTIMATE (set 5):
   Pulse Cannon = EMP rocket launcher 15437, Pulse Pistol = EMP pistol 14569; 1208: 32806, 10637, 20484, 29533). 1185:
   TaRapedia's four stacks by their client names.
 
+All ESTIMATE (set 6):
+- Positions: Cheung, Deirdre, Sherer and D'Ambrose, chosen by a probe (2026-11-07): on the navmesh and a client floor, 2 m
+  or more from a wall, seen from 16/16 places 2 m round, walked to from their area's waypoint (Deirdre also from the lower
+  office teleporter 909, with no walk over a Staal floor hole), 141 m or more from hostile pools, 44 m or more from map
+  links. Cheung is 10.8 m from Melching.
+- 1144: the flag is set at the deed (D'Ambrose's or Deirdre's choice), not at the turn-in; an abandon keeps it. Objective
+  7 is a hidden required outcome; the other objectives are optional. The truth to Sherer ends it at once; the lie needs
+  the comfort talk (9).
+- 1144: the dog tags (class 24589) come at Deirdre's "agree"; D'Ambrose takes them at "dead"; at "alive" the player keeps
+  them until the mission ends (then removed).
+- 1153: Breiburg is the receiver (TaRapedia's "debriefing"; the client names none).
+- 1155 and 1205: the crate is item class 24600, Munit gives the ledger at the same talk, DeLisi keeps it.
+- Rewards: no client reward blocks. The lowest Uncommon template of each named kind in the band of level 40 ("Endothermic"
+  = Ice, "Exothermic" and "Incendiary" = Fire, "Pulse Cannon" = EMP rocket launcher, "Incendiary RPG Launcher" = the
+  physical rocket launcher, Stealth V06 read as V04).
+
 ## Deviations (client/server limits)
 
 - 1143: one counter of distinct corpses does the work of the client's twenty per-corpse objectives.
 - 1145: no failure for being caught with the wire.
-- 1148: until Calendar Girl (1144) is built, every player hears Melching's "neither" text (203).
+- 1148: a player who did Calendar Girl (1144) before set 6 has no flag and hears Melching's "neither" text (203).
 - 1170: a token objective reads the Grupa's mission as completed, not the token in the bag (to-fix row 20).
 - 1232: the Smart Mines lie buried until a player is about 8 m off (ESTIMATE, no source gives the range), then come up
   with their own birth (155/7528) and fight (MawLurk, as the Maws). They go down again with the Maw's despawn (424/1), as
@@ -279,11 +334,14 @@ All ESTIMATE (set 5):
   so the drones of other maps (TaRapedia user note: "I did it on Mires") give none.
 - 1185: Molitor and his pack stand in one pool; his patrol on the road is not built.
 
+- 1152 and 1153: the fork is built as designed (keep the secret fails 1152), not as the retail known issue (refusing
+  completes 1153 and fails 1152).
+
 ## Server data that differs from the sources (not changed)
 
 - Private Drake is female on TaRapedia; the upstream row uses class 3846. Not changed.
-- Awol Captain Cheung 510015 stands in the Staal cluster; the client names him leader of the Awol Camp (upstream D3). Not
-  moved in set 1.
+- Awol Captain Cheung 510015 stood in the Staal cluster; the client names him leader of the Awol Camp (upstream D3).
+  Moved in set 6.
 
 ## Server data changed by set 1 (upstream rows)
 
@@ -320,3 +378,11 @@ All ESTIMATE (set 5):
   pools (the World DB had no row for them and no Shield Drone on the Crucible).
 - The marker fix before set 4 (`20271108000300`) moved the upstream Flaregasher pools 540139-540141 (off the Staal Junkyard
   door and off the navmesh) and 540144 (off the Thunderhead border) (upstream D9).
+
+## Server data changed by set 6 (upstream rows)
+
+- Moved (upstream D3, the placeholder clusters): Awol Captain Cheung 510015 from (-15.7, 187.78, 323.1) to the Awol Camp
+  (-953, 309.56, 255); Awol Lieutenant Deirdre 510016 from (-11, 188.52, 326.5) to the Staal Centrum (-230, 180.86, 324);
+  Lieutenant Sherer 510030 from (944.4, 152, 176.4) to (969, 144.68, 108); Intelligence Officer D'Ambrose 510023 from
+  (942, 152, 180.7) to (975, 144.68, 110).
+- None added. Packages unchanged (D'Ambrose has 1301 from set 1).

@@ -1,6 +1,6 @@
 # Ligo Crucible missions: sources (cross-reference)
 
-The 19 missions of the Ligo Crucible quest PR, taken from the full mission cross-reference of the 1.16.5.0
+The 24 missions of the Ligo Crucible quest PR, taken from the full mission cross-reference of the 1.16.5.0
 client. For each mission: the client text and objectives, the sources found (TaRapedia, TR MMO DB, Ellatha,
 Ten Ton Hammer, archived fan and official pages, patch notes) and a rebuild summary with the source of each
 value. Values without a source are marked ESTIMATE. "This PR" rows (where present) show the data this PR adds.
@@ -9,7 +9,7 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
 
 | Zone | Missions |
 | --- | ---: |
-| Crucible | 19 |
+| Crucible | 24 |
 
 ## Crucible
 
@@ -53,6 +53,33 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
 - **TaRapedia mission list** [Outpost Intrepid mission list](https://tabularasa.fandom.com/wiki/Outpost_Intrepid_mission_list): zone Crucible, area Outpost Intrepid, given by Private Drake
 - **NPCs (TaRapedia NPC pages):**
   - [Private Drake](https://tabularasa.fandom.com/wiki/Private_Drake): Crucible, Outpost Intrepid (named as giver/receiver)
+
+### 1144 — Calendar Girl
+
+
+- **Rebuild summary:**
+  - level: 40 — source: [TR MMO DB](https://web.archive.org/web/20120731173540/http://tr.mmodb.com/quests/calendar-girl-614.php)
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 75,000 XP; 5,700 credits; ChiTech EMP Torqueshell Rifle; Teleract Electric Staff; Vextronics Endothermic Polarity Gun; Vextronics Incendiary Shotgun — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Calendar_Girl)
+  - reward: 5700 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20120731173540/http://tr.mmodb.com/quests/calendar-girl-614.php)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Lieutenant Sherer: Crucible, Outpost Intrepid — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Lieutenant_Sherer)
+- **Client:** Lieutenant Sherer at Outpost Intrepid wants you to locate an AWOL female soldier named Lieutenant Deirdre at Staal and have her sign a pin-up calendar she gave him with her picture on it.
+  - objectives (client): Find Awol Lt. Deirdre at Staal. — Locate Awol Lieutenant Deirdre at Staal and ask her to sign Lieutenant Sherer's calendar.; Return to Deirdre. — Tell Deirdre that D'Ambrose believes her to be dead.; Return to Sherer. — Bring the Calendar back to Sherer.; Speak to D'Ambrose. — Find Intelligence Officer D'Ambrose at Outpost Intrepid and tell him about the AWOL soldier, Lietenant Deirdre.; Return to Lt. Sherer. — Return the unsigned calendar to Lieutenant Sherer.; Give Deirdre the Calendar. — Have Deirdre sign the Calendar for Sherer.; Comfort Lieutenant Sherer. — Lieutenant Sherer is upset beyond words. Try to comfort him.
+- **TaRapedia** [Calendar Girl](https://tabularasa.fandom.com/wiki/Calendar_Girl): giver: Lieutenant Sherer; at: Outpost Intrepid; zone: Crucible; follow-up: None; XP: 75,000; credits: 5,700; items: ChiTech EMP Torqueshell Rifle; Teleract Electric Staff; Vextronics Endothermic Polarity Gun; Vextronics Incendiary Shotgun
+  - overview: Lieutenant Sherer at Outpost Intrepid wants you to locate an AWOL female soldier named Lieutenant Deirdre at Staal and have her sign a pin-up calendar she gave him with her picture on it.
+  - objectives: • Find Awol Lt. Deirdre at Staal • Locate Awol Lieutenant Deirdre at Staal and ask her to sign Lieutenant Sherer's calendar. Option 1: • Agree to help Deirdre fake her own death. • Speak to D'Ambrose • Find Intelligence Officer D'Ambrose at Outpost Intrepid and tell him about the AWOL soldier, Lieutenant Deirdre. • Choice A: Tell him Deirdre is dead and give him her dog tags • Return to …
+  - walkthrough: Run and talk mission. Not much to it. You'll be presented different choices throughout the mission and depending on your choice it might end with a different outcome.
+- **TaRapedia mission list** [Outpost Intrepid mission list](https://tabularasa.fandom.com/wiki/Outpost_Intrepid_mission_list): zone Crucible, area Outpost Intrepid, given by Lieutenant Sherer
+- **TR MMO DB** [Calendar Girl](https://web.archive.org/web/20120731173540/http://tr.mmodb.com/quests/calendar-girl-614.php): level: 40; starts at npc: Lieutenant Sherer; starts in zone: Crucible; objectives: Speak to Awol Lieutenant Deirdre, Return to Lieutenant Sherer; reward: 5700
+  - related mob Awol Lieutenant Deirdre (not in the archived bestiary pages)
+- **TR MMO DB NPC** [Awol Lieutenant Deirdre](https://web.archive.org/web/20081121145722/http://tr.mmodb.com/bestiary/awol-lieutenant-deirdre-996.php): Quest NPC, zone Crucible (related to this quest)
+- **NPCs (TaRapedia NPC pages):**
+  - [Lieutenant Sherer](https://tabularasa.fandom.com/wiki/Lieutenant_Sherer): Crucible, Outpost Intrepid (named as giver/receiver)
+
+- **Chain** (explicit prerequisite links): Calendar Girl chain (2 missions), step 1
+  - Leads to: Stray Cats (id 1152) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Stray_Cats)
 
 ### 1145 — The Wire
 
@@ -211,6 +238,94 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
   - Leads to: Minesweeper (id 1232) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Minesweeper)
   - Leads to: Funeral Derge (id 1241) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Fort_Called_Intrepid), [TaRapedia](https://tabularasa.fandom.com/wiki/Funeral_Derge)
 - **Requires (name not matched to a mission):** The Last Man Standing — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Fort_Called_Intrepid)
+
+### 1152 — Stray Cats
+
+
+- **Rebuild summary:**
+  - level: 40 — source: [TR MMO DB](https://web.archive.org/web/20120731174223/http://tr.mmodb.com/quests/stray-cats-613.php)
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 75,000 XP; 5,700 credits; Vextronics Torqueshell Rifle; Vitalius Electric Polarity Gun; Vextronics Pulse Cannon; Vextronics Laser Rifle — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Stray_Cats)
+  - reward: 5700 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20120731174223/http://tr.mmodb.com/quests/stray-cats-613.php)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Intelligence Officer D'Ambrose: Crucible, Outpost Intrepid — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Intelligence_Officer_D%27Ambrose)
+- **Client:** A group of AWOL soldiers from Fort Intrepid have reportedly formed their own community somewhere to the west of Staal. Intelligence Officer D'Ambrose wants you to infiltrate their ranks and offer them freedom from prosecution if they return to active duty.
+  - objectives (client): Locate the leader of the Awols. — Find the Awol encampment in the hills to the west of Staal and question their leader.; Report back to D'Ambrose. — Tell Intelligence Officer D'Ambrose that the Awols refuse to return to duty.
+- **TaRapedia** [Stray Cats](https://tabularasa.fandom.com/wiki/Stray_Cats): giver: Intelligence Officer D'Ambrose; at: Outpost Intrepid; zone: Crucible; requires: Calendar Girl; follow-up: None; XP: 75,000; credits: 5,700; items: Vextronics Torqueshell Rifle; Vitalius Electric Polarity Gun; Vextronics Pulse Cannon; Vextronics Laser Rifle
+  - overview: A group of AWOL soldiers from Fort Intrepid have reportedly formed their own community somewhere to the west of Staal. Intelligence Officer D'Ambrose wants you to infiltrate their ranks and offer them freedom from prosecution if they return to active duty.
+  - objectives: • Locate the leader of the Awols • Find the Awol encampment in the hills to the west of Staal and question their leader. • Report back to D'Ambrose • Tell Intelligence Officer D'Ambrose that the Awols refuse to return to duty.
+  - walkthrough: If you choose "Option 1: Promise to keep their location a secret" on the mission The Other Side Of The Coin, this mission will fail.
+- **TaRapedia mission list** [Outpost Intrepid mission list](https://tabularasa.fandom.com/wiki/Outpost_Intrepid_mission_list): zone Crucible, area Outpost Intrepid, given by Intelligence Officer D'Ambrose
+- **TR MMO DB** [Stray Cats](https://web.archive.org/web/20120731174223/http://tr.mmodb.com/quests/stray-cats-613.php): level: 40; starts at npc: Intelligence Officer D'Ambrose; starts in zone: Crucible; objectives: Speak to AWOL Captain Cheung, Return to Intelligence Officer D'Ambrose; reward: 5700
+  - related mob Awol Captain Cheung (not in the archived bestiary pages)
+- **IGN TR boards** [vnboards.ign.com/tabula_rasa_general_board/b22750/107144855/p1/](https://web.archive.org/web/20081012141434/http://vnboards.ign.com/tabula_rasa_general_board/b22750/107144855/p1/): “l still appear in front of the character. / Missions: Crucible: Refusing to help the AWOLs completes the Other Side of the Coin mission, and fails the Stray Cats mission. This should be the opposite. / Tooltips for health/armor/buffs disappear when taking damage If you are attempting to mouse over your health bar to get the number read out for example, while a player is shooting you. The tool tip will appear and then disappear rapidly.”
+- **PlayTR EU** [eu.playtr.com/en/news_article/deployment_84_live_server](https://web.archive.org/web/20090106070852/http://eu.playtr.com/en/news_article/deployment_84_live_server): “and reclick it to restart the auto-fire. / Missions: Crucible: Refusing to help the AWOLs completes the Other Side of the Coin mission, and fails the Stray Cats mission. This should be the opposite. / Some tools are appearing with weapon modifiers. Also, players may be able to add weapon modifiers to tools by crafting. In both cases, the modifiers will not work. These issues will be addressed in an upcoming publish.”
+- **PlayTR EU** [eu.playtr.com/en/news_article/deployment_93_patchnotes_and_known_issue …](https://web.archive.org/web/20090105235435/http://eu.playtr.com/en/news_article/deployment_93_patchnotes_and_known_issues_5th_june_2008_test_server): “Known Issues / Missions: Crucible: Refusing to help the AWOLs completes the Other Side of the Coin mission, and fails the Stray Cats mission. This should be the opposite. / Mission: Slay on Target (Logos Research Facility): Slay on Target mission may not be able to be completed.”
+- **PlayTR EU** [eu.rgtr.com:80/en/news_article/patch_notes_and_known_issues_17th_janua …](https://web.archive.org/web/20080122184400/http://eu.rgtr.com:80/en/news_article/patch_notes_and_known_issues_17th_january_2008_test_server): “Plateau – “The Stainless Steel Bloodhound” – Escort now only drops junk loot if killed. / Crucible – “Stray Cats” – If mission fails due to player completing “The Other Side Of The Coin,” mission can no longer be regained. / Plateau – “Array Of Hope” – The Trinity Bridge portal to the Temporal Chamber can now be entered by players without the Trinity Bridge Array Logos, but only if it has been activated by a player who already has all six Logos.”
+- **PlayTR EU** [eu.rgtr.com:80/en/news_article/patchnotes_and_known_issues_monday_28th …](https://web.archive.org/web/20080501145429/http://eu.rgtr.com:80/en/news_article/patchnotes_and_known_issues_monday_28th_april_2008): “still appear in front of the character. / Missions: Crucible: Refusing to help the AWOLs completes the Other Side of the Coin mission, and fails the Stray Cats mission. This should be the opposite. / Tooltips for health/armor/buffs disappear when taking damage If you are attempting to mouse over your health bar to get the number read out for example, while a player is shooting you. The tool tip will appear and then disappear rapidly.”
+- **RGTR official site** [www.rgtr.com/news/patch_notes_public_test/deployment_8_5052008_1.html](https://web.archive.org/web/20081117082202/http://www.rgtr.com/news/patch_notes_public_test/deployment_8_5052008_1.html): “n and reclick it to restart the auto-fire. Missions: Crucible: Refusing to help the AWOLs completes the Other Side of the Coin mission, and fails the Stray Cats mission. This should be the opposite. Some tools are appearing with weapon modifiers. Also, players may be able to add weapon modifiers to tools by crafting. In both cases, the modifiers will not work. These issues will be addressed in an upcoming publish. Shredder Ammo is doing too much …”
+- **NPCs (TaRapedia NPC pages):**
+  - [Intelligence Officer D'Ambrose](https://tabularasa.fandom.com/wiki/Intelligence_Officer_D%27Ambrose): Crucible, Outpost Intrepid (named as giver/receiver)
+
+- **Chain** (explicit prerequisite links): Calendar Girl chain (2 missions), step 2
+  - Requires: Calendar Girl (id 1144) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Stray_Cats)
+
+### 1153 — The Other Side Of The Coin
+
+
+- **Rebuild summary:**
+  - level: 40 — source: [TR MMO DB](https://web.archive.org/web/20081011001325/http://tr.mmodb.com/quests/the-other-side-of-the-coin-601.php)
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 75,000 XP; 5,700 credits; Vextronics Electric Blade; Vextronics Electric Injector Gun; Vextronics Exothermic Polarity Gun; Vextronics Incendiary RPG Launcher — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Other_Side_Of_The_Coin)
+  - reward: 5700 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20081011001325/http://tr.mmodb.com/quests/the-other-side-of-the-coin-601.php)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Awol Sergeant Breiburg: Crucible, AWOL Camp — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Awol_Sergeant_Breiburg)
+- **Client:** Captain Chueng, the leader of the Awol Camp, wants you to disobey your orders from Intelligence Officer D'Ambrose and keep the location of the camp a secret. If you do, your mission for D'Ambrose will fail.
+  - objectives (client): Inform Cheung of your decision. — Will you help protect the Awols or report them? Inform Captain Cheung of your decision.
+- **TaRapedia** [The Other Side Of The Coin](https://tabularasa.fandom.com/wiki/The_Other_Side_Of_The_Coin): giver: Awol Sergeant Breiburg; at: AWOL Camp; zone: Crucible; requires: Stray Cats (in mission log); follow-up: Sweet Revenge (if option 1); XP: 75,000; credits: 5,700; items: Vextronics Electric Blade; Vextronics Electric Injector Gun; Vextronics Exothermic Polarity Gun; Vextronics Incendiary RPG Launcher
+  - overview: Captain Cheung, the leader of the Awol Camp, wants you to disobey your orders from Intelligence Officer D'Ambrose and keep the location of the camp as a secret. If you do, your mission for D'Ambrose will fail. Note: The mission Stray Cats will fail if you decide to keep the location of the camp as …
+  - objectives: • Inform Cheung of your decision • Will you help protect the Awols or report them? Inform Captain Cheung of your decision. • Option 1: Promise to keep their location a secret • Option 2: Refuse to keep their location a secret
+- **TaRapedia mission list** [AWOL Camp mission list](https://tabularasa.fandom.com/wiki/AWOL_Camp_mission_list): zone Crucible, area AWOL Camp, given by Awol Sergeant Breiburg
+- **TR MMO DB** [The Other Side Of The Coin](https://web.archive.org/web/20081011001325/http://tr.mmodb.com/quests/the-other-side-of-the-coin-601.php): level: 40; starts at npc: AWOL Sergeant Breiburg; starts in zone: Crucible; objectives: Inform Cheung of your decision; description: TIP: This quest gives you the option to promise to keep the location a secret or to refuse to. It is a branching situation.; reward: 5700
+  - related mob AWOL Captain Cheung (not in the archived bestiary pages)
+- **PlayTR EU** [eu.rgtr.com:80/en/news_article/patch_notes_and_known_issues_17th_janua …](https://web.archive.org/web/20080122184400/http://eu.rgtr.com:80/en/news_article/patch_notes_and_known_issues_17th_january_2008_test_server): ““The Stainless Steel Bloodhound” – Escort now only drops junk loot if killed. / Crucible – “Stray Cats” – If mission fails due to player completing “The Other Side Of The Coin,” mission can no longer be regained. / Plateau – “Array Of Hope” – The Trinity Bridge portal to the Temporal Chamber can now be entered by players without the Trinity Bridge Array Logos, but only if it has been activated by a player who already has all six Logos.”
+- **NPCs (TaRapedia NPC pages):**
+  - [Awol Sergeant Breiburg](https://tabularasa.fandom.com/wiki/Awol_Sergeant_Breiburg): Crucible, AWOL Camp (named as giver/receiver)
+  - [Intelligence Officer D'Ambrose](https://tabularasa.fandom.com/wiki/Intelligence_Officer_D%27Ambrose): Crucible, Outpost Intrepid (named in client text)
+
+- **Chain** (explicit prerequisite links): Making Amends chain (8 missions), step 1
+  - Leads to: Heads Will Roll (id 1206) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Heads_Will_Roll)
+- **Requires (name not matched to a mission):** Stray Cats (in mission log) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Other_Side_Of_The_Coin)
+
+### 1155 — Making Amends
+
+
+- **Rebuild summary:**
+  - level: 40 — source: [TR MMO DB](https://web.archive.org/web/20080829154542/http://tr.mmodb.com/quests/making-amends-602.php)
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 80,000 XP; 5,850 credits; lvl 40; lvl 40; lvl 40; lvl 40 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Making_Amends)
+  - reward: 5850 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20080829154542/http://tr.mmodb.com/quests/making-amends-602.php)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Awol Sergeant Breiburg: Crucible, AWOL Camp — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Awol_Sergeant_Breiburg)
+- **Client:** To make amends with the Awols, Sergeant Breiburg at the Awol Camp wants you to visit Grupa Munit of the Top Khana syndicate at Staal and offer to trade a crate of Bane weapons for proof that Intelligence Officer D'Ambrose has been illegally selling AFS weapons.
+  - objectives (client): Trade with Grupa Munit — Trade a crate of Bane rifles to Grupa Munit for proof that D'Ambrose has been selling stolen AFS weapons.; Show the ledger to Delisi. — Bring the Top Khana business ledger to Captain DeLisi at Outpost Intrepid, as proof of D'Abrose's treachery.; Inform Sgt. Brieberg. — Return to the Awol Camp and tell Sergeant Breiburg that D'Ambrose has been discredited.
+- **TaRapedia** [Making Amends](https://tabularasa.fandom.com/wiki/Making_Amends): giver: Awol Sergeant Breiburg; at: AWOL Camp; zone: Crucible; requires: Stray Cats (completed); follow-up: Not My Junk; Heads Will Roll; XP: 80,000; credits: 5,850; items: lvl 40; lvl 40; lvl 40; lvl 40; reward from: Awol Sergeant Breiburg
+  - overview: Awol Sergeant Breiburg, in the Awol Camp, wants you to redeem yourself for betraying the location of the Awols' camp to Intelligence Officer D'Ambrose.
+  - objectives: • Trade with Grupa Munit • Show the ledger to Delisi • Inform Sgt. Breiburg.
+- **TR MMO DB** [Making Amends](https://web.archive.org/web/20080829154542/http://tr.mmodb.com/quests/making-amends-602.php): level: 40; starts at npc: AWOL Sergeant Breiburg; starts in zone: Crucible; objectives: Trade with Grupa Munit, Show the Ledger to Delisi, Inform AWOL Sergeant Breiburg; reward: 5850
+  - related mob Grupa Munit (not in the archived bestiary pages)
+- **TR MMO DB NPC** [AWOL Sergeant Breiburg](https://web.archive.org/web/20080829152202/http://tr.mmodb.com/bestiary/awol-sergeant-breiburg-976.php): Quest NPC, zone Crucible (starts this quest)
+- **NPCs (TaRapedia NPC pages):**
+  - [Awol Sergeant Breiburg](https://tabularasa.fandom.com/wiki/Awol_Sergeant_Breiburg): Crucible, AWOL Camp (named as giver/receiver)
+  - [Intelligence Officer D'Ambrose](https://tabularasa.fandom.com/wiki/Intelligence_Officer_D%27Ambrose): Crucible, Outpost Intrepid (named in client text)
+
+- **Chain** (explicit prerequisite links): Making Amends chain (8 missions), step 1
+  - Leads to: Heads Will Roll (id 1206) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Heads_Will_Roll), [TaRapedia](https://tabularasa.fandom.com/wiki/Making_Amends)
+  - Leads to: Not My Junk (id 1538) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Making_Amends), [TaRapedia](https://tabularasa.fandom.com/wiki/Not_My_Junk)
+- **Requires (name not matched to a mission):** Stray Cats (completed) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Making_Amends)
 
 ### 1157 — Whiplash
 
@@ -392,6 +507,34 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
 
 - **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 7
   - Requires: Salvage Duty (id 1203) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/More_Salvage_Duty), [TaRapedia](https://tabularasa.fandom.com/wiki/Salvage_Duty)
+
+### 1205 — Sweet Revenge
+
+
+- **Rebuild summary:**
+  - level: 40 — source: [TR MMO DB](https://web.archive.org/web/20081010234739/http://tr.mmodb.com/quests/sweet-revenge-603.php)
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 80,000 XP; 5,850 credits — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Sweet_Revenge)
+  - reward: 5850 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20081010234739/http://tr.mmodb.com/quests/sweet-revenge-603.php)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Awol Sergeant Breiburg: Crucible, AWOL Camp — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Awol_Sergeant_Breiburg)
+- **Client:** Sergeant Breiburg at the Awol Camp wants you to visit Grupa Munit of the Top Khana syndicate at Staal and offer to trade a crate of Bane weapons for proof that Intelligence Officer D'Ambrose has been illegally selling AFS weapons.
+  - objectives (client): Trade with Grupa Munit — Trade a crate of Bane rifles to Grupa Munit for proof that D'Ambrose has been selling stolen AFS weapons.; Show the ledger to Delisi. — Bring the Top Khana business ledger to Captain DeLisi at Outpost Intrepid, as proof of D'Abrose's treachery.; Inform Sgt. Breiburg. — Return to the Awol Camp and tell Sergeant Brieberg that D'Ambrose has been discredited.
+- **TaRapedia** [Sweet Revenge](https://tabularasa.fandom.com/wiki/Sweet_Revenge): giver: Awol Sergeant Breiburg; at: AWOL Camp; zone: Crucible; requires: The Other Side Of The Coin (option 1); follow-up: Heads Will Roll; XP: 80,000; credits: 5,850
+  - overview: Sergeant Breiburg at the Awol Camp wants you to visit Grupa Munit of the Top Khana Syndicate at Staal and offer to trade a crate of Bane weapons for proof that Intelligence Officer D'Ambrose has been illegally selling AFS weapons.
+  - objectives: • Trade with Grupa Munit • Trade a create of Bane rifles to Grupa Munit for proof that D'Ambrose has been selling stolen AFS weapons. • Show the ledger to DeLisi • Bring the Top Khana business ledger to Captain DeLisi at Outpost Intrepid, as proof of D'Ambrose's treachery. • Inform Sgt. Breiburg • Return to the Awol Camp and tell Sergeant Breiburg that D'Ambrose has been discredited.
+- **TaRapedia mission list** [AWOL Camp mission list](https://tabularasa.fandom.com/wiki/AWOL_Camp_mission_list): zone Crucible, area AWOL Camp, given by Awol Sergeant Breiburg
+- **TR MMO DB** [Sweet Revenge](https://web.archive.org/web/20081010234739/http://tr.mmodb.com/quests/sweet-revenge-603.php): level: 40; starts at npc: AWOL Sergeant Breiburg; starts in zone: Crucible; objectives: Trade with Grupa Munit, Show the Ledger to Delisi, Inform AWOL Sergeant Breiburg; reward: 5850
+  - related mob Grupa Munit (not in the archived bestiary pages)
+- **NPCs (TaRapedia NPC pages):**
+  - [Awol Sergeant Breiburg](https://tabularasa.fandom.com/wiki/Awol_Sergeant_Breiburg): Crucible, AWOL Camp (named as giver/receiver)
+  - [Intelligence Officer D'Ambrose](https://tabularasa.fandom.com/wiki/Intelligence_Officer_D%27Ambrose): Crucible, Outpost Intrepid (named in client text)
+
+- **Chain** (explicit prerequisite links): Making Amends chain (8 missions), step 1
+  - Leads to: Heads Will Roll (id 1206) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Sweet_Revenge)
+  - Leads to: Not My Junk (id 1538) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Not_My_Junk)
+- **Requires (name not matched to a mission):** The Other Side Of The Coin (option 1) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Sweet_Revenge)
 
 ### 1208 — Out Of Sight
 
