@@ -733,7 +733,8 @@ namespace Rasa.Test.Missions.Crucible
         /// and its self-destruct (action 2, row 770016) - and takes out 1232's evidence row 5, and nothing else: every other
         /// Crucible creature and creature_action row and evidence row stays. Up and Down are each safe twice; Up again, the
         /// decay is back. Sets 12b and 15 (20271108002300 and 002400, later migrations: creature 770063 and up, missions 1523, 1525
-        /// and 1401) are rolled back with the fix and not put back: their rows are not compared.
+        /// and 1401) are rolled back with the fix and not put back: their rows are not compared; nor is fix job K's evidence row
+        /// (20271108002500, 1208/6).
         /// </summary>
         [TestMethod]
         public void FixJRollsBackWithItsMigration()
@@ -754,7 +755,8 @@ namespace Rasa.Test.Missions.Crucible
                 .OrderBy(row => row.Id).AsEnumerable()
                 .Select(row => $"{row.Id} {row.ClassId} {row.Level} {row.MaxHitPoints} {row.Action1} {row.Action2} {row.Action3}").ToList();
             List<(uint, uint)> Evidence() => world.MissionEvidenceEntries.AsNoTracking()
-                .Where(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision && !SetTwelveB.Contains(entry.MissionId)).AsEnumerable()
+                .Where(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision && !SetTwelveB.Contains(entry.MissionId) &&
+                    !(entry.MissionId == CrucibleOutOfSightV1.MissionId && entry.EvidenceId == CrucibleFixKV1.Evidence)).AsEnumerable()
                 .OrderBy(entry => entry.MissionId).ThenBy(entry => entry.EvidenceId).Select(entry => (entry.MissionId, entry.EvidenceId)).ToList();
             bool Has(uint mission) => world.MissionContentDefinitionEntries.AsNoTracking()
                 .Any(entry => entry.MissionId == mission && entry.ContentRevision == CrucibleMissionDataV1.Revision);

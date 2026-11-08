@@ -116,8 +116,8 @@ Khana Sigal Pico, 770021 Trista; new creatures 770022 (Shield Drone) and 770023 
   Robotics Facility). A Warden Bot does not count. A marker (r20) on each of the four pools. Turn in at Nema: 80000 XP,
   5850 credits, one of 47688, 48104, 15437, 14569. Abandon: the count starts again.
 - [ ] 1208 Out Of Sight (Ligo Crucible): Top Khana Sigal Pico (-216, 180.68, 231.5), 4 m from Munit on the lower corridor,
-  offers it after 1148, level 35. 6 Shield Drone Optical Processors (50434, 50 %) from the new Shield Drones 770022 (three
-  in each pool north of Khulago Base: (415, 170.08, 110), (490, 173.48, 65), (535, 172.92, 80)). A marker (r20) on each
+  offers it after 1148, level 35. 6 Shield Drone Optical Processors (50434, 50 %) from the new Shield Drones 770022 (one
+  in each pool north of Khulago Base since fix job K: (415, 170.08, 113), (490, 173.48, 65), (568, 172.88, 64)). A marker (r20) on each
   pool. Turn in at Pico: 80000 XP, 5850 credits, one of 32806, 10637, 20484, 29533; he takes the processors. Abandon: the
   processors stay.
 - [ ] 1185 Irreconcilable Differences (Ligo Crucible): Trista (-211.5, 244.89, 325.5), next to Lohen in the Kappa Grupa's
@@ -247,6 +247,12 @@ Prometheus Outpost waypoint (435, 168.05, 407): the walks from the Fort and Outp
 
 Fix job G (migration `20271108001200_Crucible_fix_g`, to-fix row 61): Shield Drone pool 770026 (1208) is a point
 (radius 0): its drones stand within 6.6 m of (535, 172.92, 80), none on the lava 46 m north of it.
+
+Fix job K (migration `20271108002500_Crucible_fix_k`, to-fix row 78): the three Shield Drone pools of 1208 (770024-770026)
+hold one drone each (three before), 770025 is a point (radius 0), and 770026 and its marker move to (568, 172.88, 64),
+78 m from 770025 and 161 m from 770024 (a 167 m walk). No drone stands within another's 60 m heal (no hostile pool on
+the map within 60 m of a drone pool), so a drone heals only itself (100 a second): a 323 a second weapon kills one in
+about 22 s; a weapon of 100 a second or less does not.
 
 Set 8b, Khulago Base for Larai Zupa Madias (migration `20271108001300_Crucible_prometheus_outpost`). New creatures 770041
 Juggernaut (class 7722, level 42) and 770042 Maxxum Ugoretz (name 9317, level 43); attacks 770041, 770042; pools

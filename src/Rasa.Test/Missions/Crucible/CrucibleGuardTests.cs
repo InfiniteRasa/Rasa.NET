@@ -1027,6 +1027,52 @@ namespace Rasa.Test.Missions.Crucible
             Assert.IsEmpty(failures, string.Join("; ", failures));
         }
 
+        /// <summary>
+        /// Fix job K (to-fix row 78): a Shield Drone heals itself and every Bane of its side within its heal's reach (60 m,
+        /// ShieldDrone.Radius) by 500 every 5 s, other drones too, so drones near each other heal each other and a player cannot
+        /// kill one (set 5's pools of three, and pools 770025 and 770026 47 m apart). Every Crucible pool with a drone in it
+        /// (any creature of the drone classes, ShieldDrone.Classes) holds at most one drone if it is ours (770000-770999; upstream
+        /// has at most one a pool), and no two such pools on the Crucible come within the heal's reach of each other: the gap
+        /// between their points, less how far each sets its creatures down (a point pool: its rings, CrucibleFixKV1.PointSpread;
+        /// a radius pool: the farthest point of its <see cref="SpawnReach"/>), is more than 60 m.
+        /// </summary>
+        [TestMethod]
+        public void NoTwoCrucibleShieldDronePoolsStandWithinHealReach()
+        {
+            Assert.AreEqual(CrucibleFixKV1.HealReach, (double)ShieldDrone.Radius, "the heal's reach, upstream's");
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var crucible = CrucibleOutpostIntrepidTests.EnterCrucible(harness);
+            bool Drone(uint creature) => CreatureManager.Instance.LoadedCreatures.TryGetValue(creature, out var c) &&
+                ShieldDrone.Classes.Contains((EntityClasses)(uint)c.EntityClass);
+            var pools = SpawnPoolManager.Instance.LoadedSpawnPools.Values.Where(pool => pool.MapContextId == Map &&
+                pool.SpawnSlot.Exists(slot => slot.CountMax > 0 && Drone(slot.CreatureId))).ToList();
+            CollectionAssert.IsSubsetOf(CrucibleFixKV1.Pools, pools.Select(pool => pool.DbId).ToArray(), "1208's three drone pools are read");
+            var failures = new List<string>();
+            foreach (var pool in pools.Where(pool => pool.DbId is >= 770000 and <= 770999))
+            {
+                var drones = pool.SpawnSlot.Where(slot => Drone(slot.CreatureId)).Sum(slot => slot.CountMax);
+                if (drones > 1)
+                    failures.Add($"pool {pool.DbId}: {drones} drones");
+            }
+            float Spread(SpawnPool pool) => pool.Radius > 0
+                ? SpawnReach(crucible.NavMesh, pool.Position, pool.Radius).Max(at => Vector2.Distance(new(at.X, at.Z), new(pool.Position.X, pool.Position.Z)))
+                : (float)CrucibleFixKV1.PointSpread;
+            var spread = pools.ToDictionary(pool => pool.DbId, Spread);
+            for (var a = 0; a < pools.Count; a++)
+                for (var b = a + 1; b < pools.Count; b++)
+                {
+                    var gap = Vector2.Distance(new(pools[a].Position.X, pools[a].Position.Z), new(pools[b].Position.X, pools[b].Position.Z)) -
+                              spread[pools[a].DbId] - spread[pools[b].DbId];
+                    if (gap <= CrucibleFixKV1.HealReach)
+                        failures.Add(FormattableString.Invariant($"pools {pools[a].DbId} and {pools[b].DbId}: {gap:0.0} m apart past their spread"));
+                }
+            // Drones only: the 1208 problem is drones healing drones. The heal also covers every other creature of the drone's
+            // side (ShieldDrone.Covered: its TargetCategory); that does not make a drone harder to kill and is upstream code over
+            // upstream data, so other pools are not read. Known, accepted: upstream Flaregasher pool 540143 (r15, (477.1, 178.3))
+            // is 90.1 m from 770024, 56.4 m past the drone's ring and its SpawnReach: its Flaregashers can get the heal.
+            Assert.IsEmpty(failures, string.Join("; ", failures));
+        }
+
         /// <summary>CrucibleSql.Keys is each table's primary key in WorldContext's model; the keyless creature_appearance has its index's columns.</summary>
         [TestMethod]
         public void TheGuardKeysAreTheTablesKeys()

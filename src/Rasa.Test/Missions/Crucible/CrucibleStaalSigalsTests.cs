@@ -84,7 +84,7 @@ namespace Rasa.Test.Missions.Crucible
         /// <summary>
         /// Nema, Pico and Trista stand on the navmesh with the client's names, friendly, 4 m from their Grupa, walked to from the
         /// Staal routes (NOTES-crucible-staal-access.md: Nema and Pico from the lower office teleporter and their Grupa, Trista
-        /// from the upper one and Lohen); three Shield Drones come out of each pool north of Khulago Base, three Reconstructor
+        /// from the upper one and Lohen); one Shield Drone comes out of each pool north of Khulago Base (fix job K), three Reconstructor
         /// Bots out of each new pool, and Molitor with three Thrax Soldiers and a Grenadier out of his, hostile, of their
         /// classes, levels and hit points, on the navmesh, walked to from the Prometheus Outpost, Labbna Quarter and Awol Camp
         /// waypoints.
@@ -118,7 +118,7 @@ namespace Rasa.Test.Missions.Crucible
 
             foreach (var (pools, creature, cls, level, health, count, from) in new[]
             {
-                (V.DronePools.Select(pool => (pool.Pool, At: CrucibleFixFV1.Now(pool.Pool) ?? pool.At)).ToArray(), V.ShieldDrone, V.ShieldDroneClass, V.ShieldDroneLevel, V.ShieldDroneHitPoints, V.DronesPerPool, PrometheusWaypoint),
+                (V.DronePools.Select(pool => (pool.Pool, At: CrucibleFixKV1.Now(pool.Pool) ?? CrucibleFixFV1.Now(pool.Pool) ?? pool.At)).ToArray(), V.ShieldDrone, V.ShieldDroneClass, V.ShieldDroneLevel, V.ShieldDroneHitPoints, CrucibleFixKV1.DronesPerPool, PrometheusWaypoint),
                 (V.ReconstructorPools, S.Reconstructor, S.ReconstructorClass, S.ReconstructorLevel, S.ReconstructorHitPoints,
                     S.ReconstructorsPerPool, C.LabbnaWaypoint),
                 (new[] { (Pool: V.MolitorPool, At: CrucibleFixFV1.Now(V.MolitorPool).Value) }, V.Molitor, 10504U, V.MolitorLevel, V.MolitorHitPoints, 1U, AwolWaypoint)
@@ -248,7 +248,7 @@ namespace Rasa.Test.Missions.Crucible
             Accept(harness, pico, Sight);
             Assert.IsEmpty(Topics(harness, pico, Sight), "Pico hears no objective");
             var markers = harness.Manager.BuildStatusSnapshot(harness.Client.Player)[Sight].ObjectivesList.Single().IndicatorList;
-            CollectionAssert.AreEquivalent(V.DronePools.Select(pool => CrucibleFixFV1.Now(pool.Pool) ?? pool.At).Select(at => ((float)at.X, (float)at.Z)).ToArray(),
+            CollectionAssert.AreEquivalent(V.DronePools.Select(pool => CrucibleFixKV1.Now(pool.Pool) ?? CrucibleFixFV1.Now(pool.Pool) ?? pool.At).Select(at => ((float)at.X, (float)at.Z)).ToArray(),
                 markers.Select(marker => (marker.Position.X, marker.Position.Z)).ToArray(), "a marker on each drone pool");
 
             percentile = 0;
