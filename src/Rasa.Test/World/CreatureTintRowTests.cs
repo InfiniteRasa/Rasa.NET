@@ -13,6 +13,7 @@ namespace Rasa.Test.World
     using Rasa.Packets.MapChannel.Server;
     using Rasa.Packets.Protocol;
     using Rasa.Services.Preloader;
+    using Rasa.Services.Preloader.Missions.Crucible;
     using Rasa.Structures;
     using Rasa.Structures.World;
     using Rasa.Test.Missions.Wilderness;
@@ -160,7 +161,8 @@ namespace Rasa.Test.World
             Assert.AreEqual(0xFF1E003Cu, rows[520036].Hue, "Seymour, (60, 0, 30)");
             Assert.IsNull(rows[520053].Hue, "Mox Alpha Male, stock");
 
-            Assert.AreEqual(ValverdeCreatureTints.Rows.Count, rows.Count);
+            // With them the Crucible rows (Crucible_creature_tints, CrucibleCreatureTintsTests), no other.
+            Assert.AreEqual(ValverdeCreatureTints.Rows.Count + CrucibleCreatureTintsV1.Rows.Count, rows.Count);
             foreach (var (id, hue) in ValverdeCreatureTints.Rows)
             {
                 Assert.AreEqual(hue, rows[id].Hue, $"creature {id} hue");
@@ -194,6 +196,8 @@ namespace Rasa.Test.World
             // Up again keeps the GM's rows as they are and puts back the rest.
             migrator.Migrate(Data);
             Run(world, ValverdeCreatureTints.Up());
+            // And the later migrations again (the Crucible rows, which the rollback took too).
+            migrator.Migrate();
 
             var after = Rows(world);
             Assert.AreEqual(before.Count, after.Count);

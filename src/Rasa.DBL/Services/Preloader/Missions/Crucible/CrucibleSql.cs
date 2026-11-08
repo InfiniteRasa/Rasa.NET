@@ -28,6 +28,7 @@ namespace Rasa.Services.Preloader.Missions.Crucible
             ["creature_action"] = new[] { "id" },
             ["creature_appearance"] = new[] { "id", "slot_id" },
             ["creature_stat"] = new[] { "id" },
+            ["creature_tint"] = new[] { "id" },
             ["npc_package"] = new[] { "id" },
             ["spawnpool"] = new[] { "id" },
             ["spawnpool_pose"] = new[] { "id" },
