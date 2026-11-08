@@ -756,7 +756,8 @@ namespace Rasa.Test.Missions.Crucible
                 .Select(row => $"{row.Id} {row.ClassId} {row.Level} {row.MaxHitPoints} {row.Action1} {row.Action2} {row.Action3}").ToList();
             List<(uint, uint)> Evidence() => world.MissionEvidenceEntries.AsNoTracking()
                 .Where(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision && !SetTwelveB.Contains(entry.MissionId) &&
-                    !(entry.MissionId == CrucibleOutOfSightV1.MissionId && entry.EvidenceId == CrucibleFixKV1.Evidence)).AsEnumerable()
+                    !(entry.MissionId == CrucibleOutOfSightV1.MissionId && entry.EvidenceId == CrucibleFixKV1.Evidence) &&
+                    !(entry.MissionId == CrucibleFixLV1.MissionId && entry.EvidenceId == CrucibleFixLV1.Evidence)).AsEnumerable()
                 .OrderBy(entry => entry.MissionId).ThenBy(entry => entry.EvidenceId).Select(entry => (entry.MissionId, entry.EvidenceId)).ToList();
             bool Has(uint mission) => world.MissionContentDefinitionEntries.AsNoTracking()
                 .Any(entry => entry.MissionId == mission && entry.ContentRevision == CrucibleMissionDataV1.Revision);

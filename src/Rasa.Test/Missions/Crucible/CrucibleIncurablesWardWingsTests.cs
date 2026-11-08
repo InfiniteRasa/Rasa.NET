@@ -478,6 +478,43 @@ namespace Rasa.Test.Missions.Crucible
             Assert.AreEqual(MissionObjectiveState.Completed, Objective(harness, Leaky, P.ReturnTools), "1398's talk");
         }
 
+        /// <summary>
+        /// Fix job L (to-fix row 81): Dhimand's copy holds his post while the player fights the Sanctum hub's Incurables
+        /// (pools 770051, 770052) 18 m off it, for 5 minutes: posed Standing (CrucibleFixLV1), within 1 m of (-40, 94.61, 386),
+        /// standing idle, not fighting. Before the fix the copy (no pose, walk 2) joined that fight and stood at pool 770051's
+        /// Incurables, (-24.5, 94.6, 407.4) in the probe, (-25.2, 94.5, 410.1) in the play.
+        /// </summary>
+        [TestMethod]
+        public void DhimandsCopyHoldsHisPostThroughTheHubFight()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create(lootRoll: (minimum, maximum) => maximum == 100 ? 0 : minimum);
+            C.EnterCrucible(harness);
+            var copy = W.IntoWard(harness);
+            Accept(harness, Giver(copy, I.Dhimand), Leaky);
+            Tick(harness, copy, 250);
+            var post = ToVector(I.DhimandAt);
+            var follower = SceneCreature(harness, copy, Leaky, P.DhimandRole);
+            Assert.AreEqual(NpcPose.Standing, follower.Pose, "the copy posed Standing as it comes");
+
+            W.Stand(copy, 770051);
+            W.Stand(copy, 770052);
+            var hub = new Vector3(-30f, 94.69f, 400f);
+            harness.MoveTo(hub);
+            var fought = false;
+            var farthest = 0f;
+            for (var second = 0; second < 300; second++)
+            {
+                Tick(harness, copy, 1000);
+                follower = SceneCreature(harness, copy, Leaky, P.DhimandRole);
+                farthest = Math.Max(farthest, Vector2.Distance(new(follower.Position.X, follower.Position.Z), new(post.X, post.Z)));
+                fought |= Alive(copy).Any(one => one.TargetCategory == TargetCategory.Hostile && one.SpawnPool?.DbId is 770051 or 770052 &&
+                    one.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting);
+            }
+            Assert.IsTrue(fought, "the hub's Incurables fight the player");
+            Assert.IsLessThanOrEqualTo(1f, farthest, "Dhimand's copy within 1 m of his post the whole fight");
+            Assert.AreNotEqual(BehaviorManager.BehaviorActionFighting, follower.Controller.CurrentAction, "not fighting");
+        }
+
         private static uint Chests(WildernessRuntimeTestHarness harness) => WildernessRanjaGorgeTests.Held(harness, P.ChestTemplate);
 
         private static uint Counter(WildernessRuntimeTestHarness harness, uint mission, uint objective) =>

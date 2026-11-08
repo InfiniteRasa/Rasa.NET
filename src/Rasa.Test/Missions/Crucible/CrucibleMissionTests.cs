@@ -127,6 +127,7 @@ namespace Rasa.Test.Missions.Crucible
         private const string ChaukasFactory = "20271108002300_Crucible_chaukas_factory";
         private const string BloodFireSteel = "20271108002400_Crucible_blood_fire_steel";
         private const string FixK = "20271108002500_Crucible_fix_k";
+        private const string FixL = "20271108002600_Crucible_fix_l";
 
         private const uint Shandy = 770000, Mullins = 770001, Munit = 770002;
         private const uint DeLisi = 510019, Drake = 510034, Vitto = 510027, Donal = 510037, Rigs = 510025, DAmbrose = 510023;
@@ -858,12 +859,13 @@ namespace Rasa.Test.Missions.Crucible
             // 20271108000800 (to-fix rows 43, 44) one of the bot pools' and Vargo's new places to 1147, 1203, 1204, 1202 and 1146.
             // 20271108001000 (fix job F) one to 1232, 1147, 1203, 1204, 1202, 1157, 1149, 1208 and 1185; 20271108001200 (fix job G)
             // one to 1208; 20271108001500 (fix job H) one to 1529; 20271108001900 (fix job I) one to 1445, 1402 and 1521;
-            // 20271108002200 (fix job J) one to 1232; 20271108002500 (fix job K) one to 1208. 1401's documentation is 0.7:
+            // 20271108002200 (fix job J) one to 1232; 20271108002500 (fix job K) one to 1208; 20271108002600 (fix job L) one to 1398. 1401's documentation is 0.7:
             // TaRapedia's route checked on the client's geometry (NOTES-crucible-research-group4.md "1401 verify").
             int Fixes(uint mission) => (mission is 1147 or 1149 or 1145 or 1146 or 1170 ? 1 : 0) + (mission is 1147 or 1203 or 1204 or 1202 or 1146 ? 1 : 0)
                 + (CrucibleFixFV1.EvidenceIds.Any(id => id.Mission == mission) ? 1 : 0) + (mission == CrucibleOutOfSightV1.MissionId ? 1 : 0)
                 + (mission == CruciblePartOfTheBargainV1.MissionId ? 1 : 0) + (CrucibleFixIV1.Missions.Contains(mission) ? 1 : 0)
-                + (mission == CrucibleMinesweeperV1.MissionId ? 1 : 0) + (mission == CrucibleOutOfSightV1.MissionId ? 1 : 0);
+                + (mission == CrucibleMinesweeperV1.MissionId ? 1 : 0) + (mission == CrucibleOutOfSightV1.MissionId ? 1 : 0)
+                + (mission == CrucibleFixLV1.MissionId ? 1 : 0);
             foreach (var mission in MissionIds)
                 CollectionAssert.AreEqual(new[]
                     {
@@ -2586,8 +2588,9 @@ namespace Rasa.Test.Missions.Crucible
             var downMarkers = Markers();
             CollectionAssert.AreEqual(pools.Where(row => !Moved(row)).ToList(), downPools.Where(row => !Moved(row)).ToList(), "every other pool stays");
             CollectionAssert.AreEqual(markers.Where(row => !KMarker(row)).ToList(), downMarkers.Where(row => !KMarker(row)).ToList(), "every other marker stays");
-            CollectionAssert.AreEqual(evidence.Where(entry => entry != (CrucibleOutOfSightV1.MissionId, CrucibleFixKV1.Evidence)).ToList(), Evidence(),
-                "only the fix's evidence row goes");
+            CollectionAssert.AreEqual(evidence.Where(entry => entry != (CrucibleOutOfSightV1.MissionId, CrucibleFixKV1.Evidence) &&
+                    entry != (CrucibleFixLV1.MissionId, CrucibleFixLV1.Evidence)).ToList(), Evidence(),
+                "only the fix's evidence row goes (fix job L's, a later migration's, with it)");
             CollectionAssert.AreEqual(drone, Drone(), "the drone and its strike stay (damage_type 0)");
             Assert.AreEqual(AllRows, Rows(world), "no other row comes or goes");
 
@@ -2601,6 +2604,83 @@ namespace Rasa.Test.Missions.Crucible
             Check(true);
             CollectionAssert.AreEqual(pools, Pools());
             CollectionAssert.AreEqual(markers, Markers());
+            CollectionAssert.AreEqual(evidence.Where(entry => entry != (CrucibleFixLV1.MissionId, CrucibleFixLV1.Evidence)).ToList(), Evidence(),
+                "fix job L (a later migration) stays out");
+            migrator.Migrate(FixL);
+            world.ChangeTracker.Clear();
+            CollectionAssert.AreEqual(evidence, Evidence());
+        }
+
+        /// <summary>
+        /// Crucible_fix_l (fix job L, to-fix row 81) puts 1398's scene back as set 11b bound it (no pose on Dhimand's copy) and
+        /// takes out 1398's evidence row 4, and nothing else: every other scene and evidence row stays. Up and Down are each
+        /// safe twice; Up again, the fix is back. Its rollback target is the migration before it (fix job K).
+        /// </summary>
+        [TestMethod]
+        public void FixLRollsBackWithItsMigration()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            var migrator = world.GetService<IMigrator>();
+            Assert.AreEqual(FixK, Previous(world, FixL), "fix job L follows fix job K");
+
+            string Bindings(uint mission) => world.Set<MissionSceneBindingEntry>().AsNoTracking()
+                .Single(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision && entry.MissionId == mission).Bindings;
+            List<(uint, string)> Others() => world.Set<MissionSceneBindingEntry>().AsNoTracking()
+                .Where(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision && entry.MissionId != CrucibleFixLV1.MissionId)
+                .OrderBy(entry => entry.MissionId).AsEnumerable().Select(entry => (entry.MissionId, entry.Bindings)).ToList();
+            List<(uint, uint)> Evidence() => world.MissionEvidenceEntries.AsNoTracking()
+                .Where(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision).AsEnumerable()
+                .OrderBy(entry => entry.MissionId).ThenBy(entry => entry.EvidenceId).Select(entry => (entry.MissionId, entry.EvidenceId)).ToList();
+            void Run(System.Action<MigrationBuilder> step)
+            {
+                var builder = new MigrationBuilder(world.Database.ProviderName);
+                step(builder);
+                foreach (var sql in builder.Operations.OfType<Microsoft.EntityFrameworkCore.Migrations.Operations.SqlOperation>())
+                    world.Database.ExecuteSqlRaw(sql.Sql.Replace("{", "{{").Replace("}", "}}"));   // the JSON's braces are no format items
+                world.ChangeTracker.Clear();
+            }
+            void Check(bool now)
+            {
+                Assert.AreEqual(CrucibleFixLV1.Json(now ? CrucibleFixLV1.After() : CrucibleFixLV1.Before()), Bindings(CrucibleFixLV1.MissionId),
+                    now ? "1398's scene poses Dhimand's copy" : "set 11b's scene");
+                Assert.AreEqual(now, Evidence().Contains((CrucibleFixLV1.MissionId, CrucibleFixLV1.Evidence)), "1398's evidence row 4");
+            }
+
+            Check(true);
+            var pose = Scenes(harness).Single(scene => scene.MissionId == CrucibleFixLV1.MissionId).Scene.Sequences[0].World
+                .OfType<Rasa.Missions.Scenes.PoseActorIntent>().Single();
+            Assert.AreEqual((CrucibleLeakyPipesV1.DhimandRole, (uint)Rasa.Data.NpcPose.Standing), (pose.Role, pose.Pose), "the copy posed Standing as it comes");
+            var row4 = world.MissionEvidenceEntries.AsNoTracking().Single(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision &&
+                entry.MissionId == CrucibleFixLV1.MissionId && entry.EvidenceId == CrucibleFixLV1.Evidence);
+            Assert.AreEqual((MissionEvidenceSourceKind.Reconstruction, CrucibleFixLV1.Source, CrucibleFixLV1.Note, 0.3),
+                (row4.SourceKind, row4.SourceUri, row4.ReconstructionNote, row4.Confidence));
+            var others = Others();
+            var evidence = Evidence();
+
+            // Up twice: nothing more.
+            Run(CrucibleFixLV1.Up);
+            Check(true);
+            CollectionAssert.AreEqual(others, Others());
+            CollectionAssert.AreEqual(evidence, Evidence());
+
+            migrator.Migrate(FixK);
+            world.ChangeTracker.Clear();
+            Check(false);
+            CollectionAssert.AreEqual(others, Others(), "every other scene stays");
+            CollectionAssert.AreEqual(evidence.Where(entry => entry != (CrucibleFixLV1.MissionId, CrucibleFixLV1.Evidence)).ToList(), Evidence(),
+                "only the fix's evidence row goes");
+            Assert.AreEqual(AllRows, Rows(world), "no other row comes or goes");
+
+            // Down twice: nothing more.
+            Run(CrucibleFixLV1.Down);
+            Check(false);
+            CollectionAssert.AreEqual(others, Others());
+
+            migrator.Migrate(FixL);
+            world.ChangeTracker.Clear();
+            Check(true);
+            CollectionAssert.AreEqual(others, Others());
             CollectionAssert.AreEqual(evidence, Evidence());
         }
 
