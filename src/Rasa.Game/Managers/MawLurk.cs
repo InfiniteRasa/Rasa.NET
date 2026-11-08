@@ -70,10 +70,17 @@ namespace Rasa.Managers
             /// <summary>How near, in metres, it looks out from under the ground; null: its own AggroRange.</summary>
             public readonly float? AggroRange;
 
-            public Lurker(uint birthArg, float? aggroRange)
+            /// <summary>
+            /// Whether it fights without the combat stance wherever it is (the Maws, as before the
+            /// Smart Mine came in); false: only while it lurks (<see cref="TakesNoStance"/>).
+            /// </summary>
+            public readonly bool NeverStance;
+
+            public Lurker(uint birthArg, float? aggroRange, bool neverStance)
             {
                 BirthArg = birthArg;
                 AggroRange = aggroRange;
+                NeverStance = neverStance;
             }
         }
 
@@ -85,9 +92,9 @@ namespace Rasa.Managers
         /// </summary>
         public static readonly IReadOnlyDictionary<EntityClasses, Lurker> Classes = new Dictionary<EntityClasses, Lurker>
         {
-            [(EntityClasses)6332] = new Lurker(BirthArg, null),
-            [(EntityClasses)22980] = new Lurker(BirthArg, null),
-            [(EntityClasses)7528] = new Lurker(7528, 8f)
+            [(EntityClasses)6332] = new Lurker(BirthArg, null, neverStance: true),
+            [(EntityClasses)22980] = new Lurker(BirthArg, null, neverStance: true),
+            [(EntityClasses)7528] = new Lurker(7528, 8f, neverStance: false)
         };
 
         /// <summary>The time, in ms, the coming up and going down are timed by: a test sets it.</summary>
@@ -112,6 +119,14 @@ namespace Rasa.Managers
         public static bool Lurks(Creature creature) =>
             Is(creature) && creature.SpawnPool != null && creature.SpawnPool.Mode == SpawnPoolManager.ModeAutomatic
             && creature.MasterEntityId == 0 && !creature.IsScripted;
+
+        /// <summary>
+        /// Whether this creature fights without the combat stance: a Maw or Seymour always (by
+        /// class, as before); a 7528 only while it lurks, so a summoned or scripted Necromite
+        /// (Thrax 570003 and the rest, on any map) still takes it.
+        /// </summary>
+        public static bool TakesNoStance(Creature creature) =>
+            creature != null && Classes.TryGetValue(creature.EntityClass, out var lurker) && (lurker.NeverStance || Lurks(creature));
 
         public static bool IsBuried(Creature creature)
         {
