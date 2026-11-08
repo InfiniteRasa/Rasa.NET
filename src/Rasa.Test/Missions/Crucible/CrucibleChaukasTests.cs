@@ -55,8 +55,11 @@ namespace Rasa.Test.Missions.Crucible
     [DoNotParallelize]
     public class CrucibleChaukasTests
     {
-        /// <summary>The Crucible markers in Chaukas: 1577's on Brian; 1521's mouth, three pools, the container, Brian three times; 1522's two switches.</summary>
-        internal const int ChaukasMarkers = 1 + (1 + 3 + 1 + 3) + 2;
+        /// <summary>
+        /// The Crucible markers in Chaukas: 1577's on Brian; 1521's mouth, three pools, the container, Brian three times; 1522's two
+        /// switches; 1523's on the factory room's floor (1525 has none: its one objective is hidden).
+        /// </summary>
+        internal const int ChaukasMarkers = 1 + (1 + 3 + 1 + 3) + 2 + 1;
 
         private const uint Chaukas = N.Chaukas;
         private const uint GetTo = G.MissionId, Brain = B.MissionId, Factory = X.MissionId;
@@ -64,8 +67,13 @@ namespace Rasa.Test.Missions.Crucible
         private const uint WeaponFiller = 3869;            // inventory category 1 (quest-test-pattern)
         private const uint ModuleFiller = 122983;          // Armor Module: Regen Bonus [1] (inventory category 3)
 
-        /// <summary>A point inside the east (Robotics Assembly) room, on a navmesh island apart from the arrival's (probe 2026-11-07, upstream).</summary>
-        internal static readonly Vector3 EastRoomInside = new(83.5f, 16.04f, -94.1f);
+        /// <summary>
+        /// Points on the east (Robotics Assembly) room's floor: on upstream's navmesh two islands apart from the arrival's part (the
+        /// east half and the west half, NOTES-upstream-bugs.md N14); the local fix v2 joins only the east half (index 0), one way
+        /// in (NOTES-upstream-bugs.md "N14 v2"). Set 12a pinned (83.5, 16.04, -94.1):
+        /// that point is inside the bridge's closed base and stays an island on both meshes, so it says nothing of the room.
+        /// </summary>
+        internal static readonly Vector3[] EastRoomFloor = { new(120f, 16.04f, -150f), new(80.5f, 16.04f, -94.1f) };
 
         private static readonly Vector3 Arrival = ToVector(N.ArrivalAt);
         private static readonly uint[] ClavigerPools = Enumerable.Range(531119, 15).Select(id => (uint)id).ToArray();
@@ -83,7 +91,7 @@ namespace Rasa.Test.Missions.Crucible
         /// circle (and so are Brian at the Brain and the use targets), 5 m or more outside the door's; the scene's places (the Brain room's mouth, Brian's place at the Brain, the
         /// container, the two switches, the three attackers) on the navmesh and walked to from the arrival; the attackers 20 m or
         /// more from Brian at the Brain and clear of the door; Brian's route from the mouth to the Brain complete; the east room's
-        /// inside not joined to the arrival (upstream, pinned) while the factory switch at its entrance is; the Clavigers immune
+        /// floor pinned apart from the arrival on upstream's mesh in TheEastRoomsFloorIsAnIslandOnUpstreamsMesh; the Clavigers immune
         /// to nothing (class 6961 has no IMMUNE_ flag); Ruben on the Crucible with his name and package, friendly, standing still.
         /// </summary>
         [TestMethod]
@@ -141,11 +149,6 @@ namespace Rasa.Test.Missions.Crucible
             }
             AssertPath(copy, nav.Nearest(ToVector(B.MouthAt)).Value, nav.Nearest(ToVector(B.BrainAt)).Value, "Brian's route to the Brain");
 
-            // NOTE: a local rebake of the Chaukas navmesh for set 12b (as N1-N3) joins the east room and breaks this pin: then make
-            // it Assert.Inconclusive (the island is upstream's shipped file only), not a failure.
-            Assert.IsFalse(nav.FindPath(nav.Nearest(Arrival).Value, nav.Nearest(EastRoomInside).Value, out var east) != null && east,
-                "the east room's inside is not joined to the arrival (upstream, NOTES-upstream-bugs.md): if it is now, 1523 can play inside it");
-
             Spawn(copy, BrainRoomPools[0]);
             var claviger = Here(copy).First(one => one.SpawnPool?.DbId == BrainRoomPools[0]);
             Assert.AreEqual((N.Claviger, 6961U, TargetCategory.Hostile), (claviger.DbId, (uint)claviger.EntityClass, claviger.TargetCategory));
@@ -154,9 +157,34 @@ namespace Rasa.Test.Missions.Crucible
         }
 
         /// <summary>
+        /// Upstream N14 (NOTES-upstream-bugs.md): on upstream's shipped Chaukas navmesh the east room's floor (both halves) has no
+        /// walk from the arrival, while its two entrance strips and the bridge to the factory machine have. The tests that must
+        /// pass on upstream's mesh (CI) do not need the room's floor walked. Set 12b's local fix v2 (data/navfix, skip-worktree,
+        /// never committed) joins the east half one way in: with it in the navmesh folder this pin is inconclusive, not a
+        /// failure (CrucibleChaukasFactoryTests walks into the room on it).
+        /// </summary>
+        [TestMethod]
+        public void TheEastRoomsFloorIsAnIslandOnUpstreamsMesh()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            C.EnterCrucible(harness);
+            var copy = IntoChaukas(harness);
+            var nav = copy.NavMesh;
+            var arrival = nav.Nearest(Arrival).Value;
+            foreach (var at in EastRoomFloor)
+                AssertOnGround(copy, at, $"the room's floor at {at}");
+            bool Joined(Vector3 at) => nav.FindPath(arrival, nav.Nearest(at).Value, out var whole) != null && whole;
+            if (EastRoomFloor.Any(Joined))
+                Assert.Inconclusive("the east room's floor is joined to the arrival: a local Chaukas navmesh (the N14 fix) is in place, not upstream's");
+            foreach (var strip in new[] { new Vector3(88f, 17.28f, -64f), ToVector(X.FactorySwitchAt) })
+                Assert.IsTrue(Joined(strip), $"the entrance strip at {strip} is walked to from the arrival");
+        }
+
+        /// <summary>
         /// Every place the spawn draw of a radius Claviger pool (531119-531133) can set a creature down (CrucibleGuardTests.SpawnReach,
         /// Detour's draw over the polygons the circle touches, upstream C11: up to 57 m off for 531129) is ReachClearance or more
-        /// from Brian at the entrance, Brian at the Brain and each use target (the container, the two switches): a Claviger set
+        /// from Brian at the entrance, Brian at the Brain, each use target (the container, the two switches) and 1523's two Refitted
+        /// Warden Bots on the factory room's floor: a Claviger set
         /// down by one would pull it into a fight, or stand on a target the player must use (as set 11a's
         /// TheIncurablePoolsSetTheirCreaturesDownInTheirRoom).
         /// </summary>
@@ -172,6 +200,7 @@ namespace Rasa.Test.Missions.Crucible
             Assert.IsTrue(pools.All(pool => pool.Radius > 0), "all fifteen are radius pools (upstream)");
             var targets = new List<(string Label, Vector3 At)> { ("Brian", ToVector(N.BrianAt)), ("Brian at the Brain", ToVector(B.BrainAt)) };
             targets.AddRange(UseTargets());
+            targets.AddRange(CrucibleFactoryFortificationV1.BotsAt.Select((at, index) => ($"1523's Refitted Warden Bot {index + 1}", ToVector(at))));
             var failures = new List<string>();
             foreach (var pool in pools)
             {
@@ -718,7 +747,7 @@ namespace Rasa.Test.Missions.Crucible
             yield return ("the ore switch", ToVector(X.OreSwitchAt));
         }
 
-        /// <summary>The scene's places in Chaukas (Brian's own is apart).</summary>
+        /// <summary>The scene's places in Chaukas walked to from the arrival on upstream's mesh (Brian's own is apart).</summary>
         private static IEnumerable<(string Label, Vector3 At)> Places()
         {
             yield return ("the Brain room's mouth", ToVector(B.MouthAt));
@@ -728,10 +757,14 @@ namespace Rasa.Test.Missions.Crucible
             yield return ("the ore switch", ToVector(X.OreSwitchAt));
             for (var index = 0; index < B.AttackersAt.Length; index++)
                 yield return ($"attacker {index + 1}", ToVector(B.AttackersAt[index]));
+            // 1523's Thrax, in the south corridor (the arrival's part of the navmesh on upstream's mesh and the local fix's). Its
+            // marker and the Refitted Warden Bots stand on the room's floor: CrucibleChaukasFactoryTests.
+            for (var index = 0; index < CrucibleFactoryFortificationV1.WaveAt.Length; index++)
+                yield return ($"1523's Thrax {index + 1}", ToVector(CrucibleFactoryFortificationV1.WaveAt[index]));
         }
 
         /// <summary>Into the squad's copy of Chaukas through its door on the Crucible, its pools back as after their time, the scenes resumed.</summary>
-        private static MapChannel IntoChaukas(WildernessRuntimeTestHarness harness)
+        internal static MapChannel IntoChaukas(WildernessRuntimeTestHarness harness)
         {
             if (!harness.Maps.MapChannelArray.ContainsKey(Chaukas))
                 LoadMap(harness, Chaukas);
@@ -740,8 +773,9 @@ namespace Rasa.Test.Missions.Crucible
                 pool.ClearedAtUtcMs = 0;
             // A squad copy outlives a test: an earlier test's Brian copy (the same character id, a run this test's database
             // does not hold) would still hide the public Brian (MissionNpcVisibility, ReplaceWhilePresent). Its pool goes.
-            var runs = new[] { GetTo, Brain, Factory }.SelectMany(mission => Runs(harness, mission)).ToHashSet();
-            copy.SpawnPools.RemoveAll(pool => pool.SceneRunId != null && pool.ScenarioMissionId is GetTo or Brain or Factory &&
+            var missions = new[] { GetTo, Brain, Factory, CrucibleFactoryFortificationV1.MissionId, CrucibleInformationIsKeyV1.MissionId };
+            var runs = missions.SelectMany(mission => Runs(harness, mission)).ToHashSet();
+            copy.SpawnPools.RemoveAll(pool => pool.SceneRunId != null && missions.Contains(pool.ScenarioMissionId) &&
                 !runs.Contains(pool.SceneRunId));
             harness.Manager.Scenes.Resume(harness.Client);
             harness.Drain();
@@ -749,7 +783,7 @@ namespace Rasa.Test.Missions.Crucible
         }
 
         /// <summary>The navmesh walk from the arrival to <paramref name="to"/> (one island: complete).</summary>
-        private static List<Vector3> WalkFromArrival(NavMeshQuery nav, Vector3 to, string label)
+        internal static List<Vector3> WalkFromArrival(NavMeshQuery nav, Vector3 to, string label)
         {
             var start = nav.Nearest(Arrival) ?? Arrival;
             var path = nav.FindPath(start, nav.Nearest(to) ?? to, out var complete);
@@ -775,7 +809,7 @@ namespace Rasa.Test.Missions.Crucible
             harness.Drain();
         }
 
-        private static uint Counter(WildernessRuntimeTestHarness harness, uint mission, uint objective) =>
+        internal static uint Counter(WildernessRuntimeTestHarness harness, uint mission, uint objective) =>
             harness.Client.Player.Missions[mission].Objectives[objective].Counters[0];
     }
 }

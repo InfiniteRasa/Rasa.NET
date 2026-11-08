@@ -1,6 +1,6 @@
 # Ligo Crucible missions: sources (cross-reference)
 
-The 48 missions of the Ligo Crucible quest PR, taken from the full mission cross-reference of the 1.16.5.0
+The 50 missions of the Ligo Crucible quest PR, taken from the full mission cross-reference of the 1.16.5.0
 client. For each mission: the client text and objectives, the sources found (TaRapedia, TR MMO DB, Ellatha,
 Ten Ton Hammer, archived fan and official pages, patch notes) and a rebuild summary with the source of each
 value. Values without a source are marked ESTIMATE. "This PR" rows (where present) show the data this PR adds.
@@ -9,7 +9,7 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
 
 | Zone | Missions |
 | --- | ---: |
-| Crucible | 48 |
+| Crucible | 50 |
 
 ## Crucible
 
@@ -1099,6 +1099,63 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
 - **Chain** (explicit prerequisite links): Get to Chaukas chain (5 missions), step 3
   - Requires: Control the Brain (id 1521) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Control_the_Brain), [TaRapedia](https://tabularasa.fandom.com/wiki/Fix_the_Factory)
   - Leads to: Factory Fortification (id 1523) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Factory_Fortification), [TaRapedia](https://tabularasa.fandom.com/wiki/Fix_the_Factory)
+
+### 1523 — Factory Fortification
+
+
+- **Rebuild summary:**
+  - level: 35 — source: [TR MMO DB](https://web.archive.org/web/20090922023023/http://tr.mmodb.com:80/quests/factory-fortification-639.php)
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 45,000 XP; 4,100 credits; Class VIII EMP Bomb (2); Class VIII Basic Med Pack (3); Class VIII Incendiary Grenade (3); Class VIII Res Trauma Kit (3) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Factory_Fortification)
+  - reward: 4100 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20090922023023/http://tr.mmodb.com:80/quests/factory-fortification-639.php)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Cipher Specialist Brian: Crucible, Chaukas Robotics Facility — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Cipher_Specialist_Brian)
+- **Client:** Kill the Bane attackers.
+  - objectives (client): Defend the Factory — The Chaukas Facility has fallen under attack. Do not let any of the bane get to the Factory, and take it over.
+- **TaRapedia** [Factory Fortification](https://tabularasa.fandom.com/wiki/Factory_Fortification): giver: Cipher Specialist Brian; at: Chaukas Robotics Facility; zone: Crucible; requires: Fix the Factory; follow-up: Information is Key; XP: 45,000; credits: 4,100; items: Class VIII EMP Bomb (2); Class VIII Basic Med Pack (3); Class VIII Incendiary Grenade (3); Class VIII Res Trauma Kit (3)
+  - overview: Kill the Bane attackers
+  - objectives: • Defend the Factory
+  - walkthrough: Enter the eastern circular room from the nearby northern entrance, then wait for the Thrax Sodliers to arrive.
+- **TaRapedia mission list** [Chaukas Robotics Facility mission list](https://tabularasa.fandom.com/wiki/Chaukas_Robotics_Facility_mission_list): zone Crucible, given by Cipher Specialist Brian
+- **TR MMO DB** [Factory Fortification](https://web.archive.org/web/20090922023023/http://tr.mmodb.com:80/quests/factory-fortification-639.php): level: 35; starts at npc: Cipher Specialist Brian; starts in zone: Chaukas Robotics Facility; objectives: Defend the Factory; reward: 4100
+- **PlanetTR** [planettr.com:80/forums/archive/index.php/t-3508.html](https://web.archive.org/web/20090116214625/http://planettr.com:80/forums/archive/index.php/t-3508.html): “a LONG time since my engineer actually did the missions in Chaukas, but I remember having no problems with any missions until attempting to turn in 'Factory Fortification', which wouldn't get past the reward dialogue stage.”
+- **PlayTR EU** [eu.rgtr.com:80/en/news_article/patch_notes_and_known_issues_11th_decem …](https://web.archive.org/web/20071218075407/http://eu.rgtr.com:80/en/news_article/patch_notes_and_known_issues_11th_december_2007): “* Fixed repawning Boss / Chaukas Robotics Facility: / * Mission Factory Fortification: Rewards have been added to this mission / Ojasa Atta Hive: / * The Ojasa Defender did not fight back enough”
+- **RGTR official site** [www.rgtr.com/news/patch_notes/patch_notes_and_known_issues_1_8.html](https://web.archive.org/web/20081117172513/http://www.rgtr.com/news/patch_notes/patch_notes_and_known_issues_1_8.html): “t – Mission The Strongest Link: The kill requirement of Linkers has been increased from 10 to 15. / Ligo Crucible Chaukas Robotics Facility – Mission Factory Fortification: Rewards have been added to this mission. / Valverde – Plateau Instance: Maligo Base – fixed issue where players were unable to move after teleporting to the 2nd floor of the map.”
+- **NPCs (TaRapedia NPC pages):**
+  - [Cipher Specialist Brian](https://tabularasa.fandom.com/wiki/Cipher_Specialist_Brian): Crucible, Chaukas Robotics Facility (named as giver/receiver)
+
+- **Chain** (explicit prerequisite links): Get to Chaukas chain (5 missions), step 4
+  - Requires: Fix the Factory (id 1522) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Factory_Fortification), [TaRapedia](https://tabularasa.fandom.com/wiki/Fix_the_Factory)
+  - Leads to: Information is Key (id 1525) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Factory_Fortification), [TaRapedia](https://tabularasa.fandom.com/wiki/Information_is_Key)
+
+### 1525 — Information is Key
+
+
+- **Rebuild summary:**
+  - level: 35 — source: [TR MMO DB](https://web.archive.org/web/20090922013002/http://tr.mmodb.com:80/quests/information-is-key-636.php)
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 42,500 XP; 6,000 credits; Class VIII Standard Med Pack (3); Class VIII Incendiary Grenade (3); Class VIII Advanced Med Pack (2); Class VIII EMP Grenade (3) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Information_is_Key)
+  - reward: 6000 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20090922013002/http://tr.mmodb.com:80/quests/information-is-key-636.php)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Cipher Specialist Brian: Crucible, Chaukas Robotics Facility — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Cipher_Specialist_Brian)
+- **Client:** Report to Information Analyist Ruben.
+- **TaRapedia** [Information is Key](https://tabularasa.fandom.com/wiki/Information_is_Key): giver: Cipher Specialist Brian; at: Chaukas Robotics Facility; zone: Crucible; requires: Factory Fortification; follow-up: None; XP: 42,500; credits: 6,000; items: Class VIII Standard Med Pack (3); Class VIII Incendiary Grenade (3); Class VIII Advanced Med Pack (2); Class VIII EMP Grenade (3); reward from: Information Analyst Ruben
+  - overview: Report to Information Analyst Ruben.
+  - objectives: Dialogue: Briefing: Cipher Specialist Brian: • Take the information we recovered here to Information Analyst Ruben. She can use it to help us create our own fighting robots like these Warden Bots. Debriefing: Information Analyst Ruben: • Well done soldier. This information may prove to be valuable in the fight against the Bane.
+  - walkthrough: Information Analyst Ruben is back in Outpost Intrepid outside the instance.
+- **TaRapedia mission list** [Chaukas Robotics Facility mission list](https://tabularasa.fandom.com/wiki/Chaukas_Robotics_Facility_mission_list): zone Crucible, given by Cipher Specialist Brian
+- **TR MMO DB** [Information Is Key](https://web.archive.org/web/20090922013002/http://tr.mmodb.com:80/quests/information-is-key-636.php): level: 35; starts at npc: Cipher Specialist Brian; starts in zone: Chaukas Robotics Facility; objectives: Speak to Information Analyst Ruben; reward: 6000
+  - related mob Information Analyst Ruben (not in the archived bestiary pages)
+- **TR MMO DB NPC** [Information Analyst Ruben](https://web.archive.org/web/20120731170137/http://tr.mmodb.com/bestiary/information-analyst-ruben-992.php): Quest NPC, zone Crucible (related to this quest)
+- **PlanetTR** [planettr.com:80/forums/archive/index.php/t-2842.html](https://web.archive.org/web/20090116224029/http://planettr.com:80/forums/archive/index.php/t-2842.html): “Has anyone successfully finished the 'Operation' for this one? Once you're finished inside the Instance, you get the 'Information is Key' mission to report to Information Analyst Ruben outside the instance.”
+- **NPCs (TaRapedia NPC pages):**
+  - [Cipher Specialist Brian](https://tabularasa.fandom.com/wiki/Cipher_Specialist_Brian): Crucible, Chaukas Robotics Facility (named as giver/receiver)
+  - [Information Analyst Ruben](https://tabularasa.fandom.com/wiki/Information_Analyst_Ruben): Crucible, Outpost Intrepid (named as giver/receiver)
+
+- **Chain** (explicit prerequisite links): Get to Chaukas chain (5 missions), step 5
+  - Requires: Factory Fortification (id 1523) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Factory_Fortification), [TaRapedia](https://tabularasa.fandom.com/wiki/Information_is_Key)
 
 ### 1529 — Your Part of the Bargain [instance]
 

@@ -335,7 +335,7 @@ Set 12a, the Chaukas Robotics Facility (squad instance 2146; migration `20271108
 770058-770059 (next free id 770060). The facility's door on the Crucible: map link 98 at (-528.6, 249.44, 581.64), north
 of the Awol Camp; arrival (-31.91, 17.23, -282.11). The east (Robotics Assembly) room's inside is a server navmesh island
 apart from the arrival's (upstream, N14): only its north and south entrance strips are joined; the client floor goes on.
-Set 12b (1523 Factory Fortification, in the east room; 1525 Information is Key, no objectives) is not built.
+Set 12b (1523 Factory Fortification, in the east room; 1525 Information is Key, no objectives): below, after set 11b.
 
 - [ ] Chaukas (look): Brian (-38, 17.44, -256), 28 m from the arrival; he keeps his post (pose Standing). Ruben on the
   Crucible (966, 152.73, 156), by Outpost Intrepid's Front Lines exit. Talk to each from each side.
@@ -428,6 +428,26 @@ Fire, and Steel is not built: its wings are shut by client map statics (to-fix r
   Look: does Dhimand keep up through the hip-deep water? Do the waves come in sight and go for him?
 - [ ] Second client (bot checklist): a squad mate in the same copy with 1398 gets his own Dhimand copy and his own chest
   drop (upstream: the killer only)? Does he see your Dhimand copy or your waves (he should not)?
+
+Set 12b, the Chaukas factory (migration `20271108002300_Crucible_chaukas_factory`). New row 770063 (next free id 770064).
+The east room's floor is a server navmesh island on upstream's mesh (N14): there the Thrax stop at the room's south strip
+and bridge; test with a navmesh that joins the room. The real client steps down the south strip's 1.2 m side to the east
+floor at (92.8, 17.18, -176) but does not climb back up; the way out is the room's south rim slope.
+
+- [ ] 1523 Factory Fortification (Chaukas): Brian (public, at the entrance) offers it after 1522, level 35. 1 Defend the
+  Factory: walk into the east (Robotics Assembly) room from outside by the north entrance (the area is a cylinder r60 round
+  (88, 20, -120); a GM teleport into the room does not start it). Three waves of three Thrax Soldiers (531018) from the south
+  corridor at 15 s, 60 s and 120 s go for you; the ninth kill completes 1, and two Refitted Warden Bots (770063, class 26395)
+  stand on the floor at (111, 16.04, -141) and (129, 16.04, -159). Marker: on the floor east of the factory (120, 16.04,
+  -150) r12. Turn in at Brian: 45000 XP, 4100 credits, one of 111233 x2, 45063 x3, 111039 x3, 47600 x3; the bots go.
+  Abandon mid-wave: the waves go, the defence again from the walk-in.
+- [ ] 1523 (look): do the two Refitted Warden Bots show at all (class 26395 has no look row of ours)? Friendly, standing still?
+- [ ] 1523: walk out of the room over its south rim slope after the waves (the strip's 1.2 m side is a step down only).
+- [ ] 1525 Information is Key (Chaukas -> Ligo Crucible): Brian offers it after 1523, level 35. No objective in the tracker;
+  right after the accept Ruben (Crucible, (966, 152.73, 156)) shows the turn-in icon. Turn in at Ruben: 42500 XP, 6000
+  credits, one of 45064 x3, 111039 x3, 45065 x2, 111029 x3.
+- [ ] Second client (bot checklist): two squad mates on 1523 at once: each gets his own waves (18 Thrax in the room)? Do the
+  waves mix, and is the room too full?
 
 ## Assumptions and choices (not from a source)
 
@@ -698,6 +718,12 @@ All ESTIMATE (set 13):
   the client's use reach taken as 3 m (a use at 5.3 m failed, 2.8 m worked).
 - 1398: level 40, 170000 XP, 8000 credits as 1444 (no source); the wave sizes (3 x 3) and places; flag 1398001 for the
   defence; Dhimand's run 7 / walk 2 and his Standing pose.
+- 1523: the walk-in area (r60 round the room's middle) starts the defence; the waves' sizes (3 x 3), times (15 s, 60 s,
+  120 s) and places in the south corridor; the Crucible's Thrax Soldier Mark IX 531018 as the "Thrax Soldier"; the two
+  Refitted Warden Bots (a new friendly row, name 9529, class 26395; PlanetTR-3508, 0.3) and their places; the marker place;
+  "Class VIII" for all four items.
+- 1525: one hidden, not required objective (completeable at the accept; the server needs one objective row), completed on
+  the Crucible; the four items "Class VIII".
 
 ## Deviations (client/server limits)
 
@@ -764,6 +790,10 @@ All ESTIMATE (set 13):
 - 1398: Dhimand cannot die and nothing fails the mission (TaRapedia: too far ahead or his death fails it). He cannot follow
   past the north airlock gap (upstream N13); Sheira's talk does not need him there.
 - 1401 not built: the wings' doors are client map statics (ArchBrannCorridorEndcap01V01) the server cannot open.
+- 1523: on upstream's navmesh the east room's floor is an island (N14): the Thrax cannot reach a player on the floor and
+  stop at the south strip and bridge. Fixed by a local navmesh, not in this branch (one link, one way: south strip down to
+  the east floor; the west half stays an island). The server mesh has no way out of the room: the client walks out over
+  the south rim slope, which the mesh does not have; a creature that follows the player out cannot.
 
 ## Server data that differs from the sources (not changed)
 
@@ -879,3 +909,7 @@ All ESTIMATE (set 13):
 ## Server data changed by set 11b (upstream rows)
 
 - None upstream. Engineer Dhimand 770046 (set 11a's row) gets run 7 / walk 2 and his pool the pose Standing.
+
+## Server data changed by set 12b (upstream rows)
+
+- None upstream. Added: the Refitted Warden Bot 770063 (no pool, no package; a scene spawn of 1523).
