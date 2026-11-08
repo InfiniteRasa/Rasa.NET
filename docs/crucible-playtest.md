@@ -415,6 +415,20 @@ container's south side (-16.4, 1.46, -166.6) r3.
 - [ ] Fix I: from Tempa, walk to the Ward door marker: is the door in sight, and is the door 15 m ahead?
 - [ ] Fix I: 1521 objective 4: walk from the Brain to the marker; does the use of the Spare Parts Container work from there?
 
+Set 11b, the Incurables Ward wings (migration `20271108002000_Crucible_incurables_ward_wings`; no new ids). 1401 Blood,
+Fire, and Steel is not built: its wings are shut by client map statics (to-fix row 71).
+
+- [ ] 1398 Leaky Pipes (Incurables Ward): Engineer Dhimand offers it (no prerequisite), level 40. 1 Recover Dhimand's Tool
+  Chest: Jaikev (-98, 94.61, 332) drops it (100 %, only while 1 is open). 2 Return Tools: Dhimand's talk takes the chest and
+  he follows. 3 Escort: walk him through the Maintenance Tunnels (-234, 87, 222) to the Water Processing System (-366, 87,
+  212), 8 m area; he walks to his repair place (-366, 86.61, 208). 4 Protect: three waves of three Incurables from the hallway
+  east at 15 s, 60 s and 120 s; when all nine are dead his talk opens 5 and he follows. 5 Escort: Sheira's talk completes it
+  (he cannot follow past the north airlock gap). Turn in at Sheira: 170000 XP, 8000 credits, no items. Markers: Jaikev (r10),
+  Dhimand (r8), the water system (r8), the repair place (r15), Sheira (r8). Abandon: the chest is kept, the defence again.
+  Look: does Dhimand keep up through the hip-deep water? Do the waves come in sight and go for him?
+- [ ] Second client (bot checklist): a squad mate in the same copy with 1398 gets his own Dhimand copy and his own chest
+  drop (upstream: the killer only)? Does he see your Dhimand copy or your waves (he should not)?
+
 ## Assumptions and choices (not from a source)
 
 All ESTIMATE (set 1):
@@ -682,6 +696,8 @@ All ESTIMATE (set 13):
 
 - Fix I: the door marker (-216.8, 180.88, 405.2) r3 and the container marker (-16.4, 1.46, -166.6) r3 chosen by probe;
   the client's use reach taken as 3 m (a use at 5.3 m failed, 2.8 m worked).
+- 1398: level 40, 170000 XP, 8000 credits as 1444 (no source); the wave sizes (3 x 3) and places; flag 1398001 for the
+  defence; Dhimand's run 7 / walk 2 and his Standing pose.
 
 ## Deviations (client/server limits)
 
@@ -744,6 +760,10 @@ All ESTIMATE (set 13):
 
 - 1152 and 1153: the fork is built as designed (keep the secret fails 1152), not as the retail known issue (refusing
   completes 1153 and fails 1152).
+
+- 1398: Dhimand cannot die and nothing fails the mission (TaRapedia: too far ahead or his death fails it). He cannot follow
+  past the north airlock gap (upstream N13); Sheira's talk does not need him there.
+- 1401 not built: the wings' doors are client map statics (ArchBrannCorridorEndcap01V01) the server cannot open.
 
 ## Server data that differs from the sources (not changed)
 
@@ -855,3 +875,7 @@ All ESTIMATE (set 13):
 ## Server data changed by fix job I (20271108001900)
 
 - Moved: the four Ward door markers (1445 obj 1, 1402 obj 1-3) and 1521 objective 4's marker (our rows). No upstream row.
+
+## Server data changed by set 11b (upstream rows)
+
+- None upstream. Engineer Dhimand 770046 (set 11a's row) gets run 7 / walk 2 and his pool the pose Standing.

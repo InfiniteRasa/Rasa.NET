@@ -56,8 +56,8 @@ namespace Rasa.Test.Missions.Crucible
     [DoNotParallelize]
     public class CrucibleIncurablesWardTests
     {
-        /// <summary>The Crucible markers in the Ward: 1445's on Sheira, 1444's three, 1402's on the bosses and the nine pools.</summary>
-        internal const int WardMarkers = 1 + 3 + 2 + 9;
+        /// <summary>The Crucible markers in the Ward: 1445's on Sheira, 1444's three, 1402's on the bosses and the nine pools, 1398's five.</summary>
+        internal const int WardMarkers = 1 + 3 + 2 + 9 + 5;
 
         private const uint Ward = I.Ward;
         private const uint GameWardens = CrucibleGameWardensV1.MissionId;
@@ -120,7 +120,9 @@ namespace Rasa.Test.Missions.Crucible
                         $"NPC pool {pool} outside hostile pool {other.Id}'s reach");
             }
             Assert.IsTrue(BehaviorManager.NeverMoves(CreatureManager.Instance.LoadedCreatures[I.Shanul]), "Shanul stands still");
-            Assert.IsTrue(BehaviorManager.NeverMoves(CreatureManager.Instance.LoadedCreatures[I.Dhimand]), "Dhimand stands still");
+            // Set 11b: Dhimand walks (1398's escort copy follows); the public Dhimand keeps his post (pose Standing).
+            Assert.IsFalse(BehaviorManager.NeverMoves(CreatureManager.Instance.LoadedCreatures[I.Dhimand]), "Dhimand can walk (1398)");
+            Assert.IsTrue(NpcPoses.HoldsPost(Giver(copy, I.Dhimand)), "the public Dhimand keeps his post (pose Standing)");
 
             var corpse = ToVector(L.CorpseAt);
             AssertOnGround(copy, corpse, "Paliv's body");
@@ -648,13 +650,18 @@ namespace Rasa.Test.Missions.Crucible
         }
 
         /// <summary>Into the squad's copy of the Ward through its door on the Crucible, its pools back as after their time, the scenes resumed.</summary>
-        private static MapChannel IntoWard(WildernessRuntimeTestHarness harness)
+        internal static MapChannel IntoWard(WildernessRuntimeTestHarness harness)
         {
             if (!harness.Maps.MapChannelArray.ContainsKey(Ward))
                 LoadMap(harness, Ward);
             var copy = ThroughTheDoor(harness, Ward);
             foreach (var pool in copy.SpawnPools.Where(pool => WardPools.Contains(pool.DbId)))
                 pool.ClearedAtUtcMs = 0;
+            // A squad copy outlives a test: an earlier test's 1398 Dhimand copy or wave (a run this test's database does not hold)
+            // would still hide the public Dhimand (MissionNpcVisibility, ReplaceWhilePresent). Its pool goes (as IntoChaukas).
+            var runs = Runs(harness, CrucibleLeakyPipesV1.MissionId);
+            copy.SpawnPools.RemoveAll(pool => pool.SceneRunId != null && pool.ScenarioMissionId == CrucibleLeakyPipesV1.MissionId &&
+                !runs.Contains(pool.SceneRunId));
             harness.Manager.Scenes.Resume(harness.Client);
             harness.Drain();
             return copy;
@@ -665,7 +672,7 @@ namespace Rasa.Test.Missions.Crucible
         /// airlock's south end, straight across its gap, and on from its north end; the direct walk to a north place is not
         /// complete (the islands, pinned).
         /// </summary>
-        private static List<Vector3> WalkFromArrival(NavMeshQuery nav, Vector3 to, bool north, string label)
+        internal static List<Vector3> WalkFromArrival(NavMeshQuery nav, Vector3 to, bool north, string label)
         {
             var start = nav.Nearest(Arrival) ?? Arrival;
             var end = nav.Nearest(to) ?? to;
@@ -686,7 +693,7 @@ namespace Rasa.Test.Missions.Crucible
         }
 
         /// <summary>The navmesh walk back from <paramref name="from"/> to the arrival (north: to the airlock's north end, across, on from its south end).</summary>
-        private static List<Vector3> WalkToArrival(NavMeshQuery nav, Vector3 from, bool north, string label)
+        internal static List<Vector3> WalkToArrival(NavMeshQuery nav, Vector3 from, bool north, string label)
         {
             var start = nav.Nearest(from) ?? from;
             var end = nav.Nearest(Arrival) ?? Arrival;
@@ -705,7 +712,7 @@ namespace Rasa.Test.Missions.Crucible
         }
 
         /// <summary>The boss of <paramref name="pool"/> standing in the copy: spawned, or back after its own time if an earlier kill left it dead.</summary>
-        private static void Stand(MapChannel copy, uint pool)
+        internal static void Stand(MapChannel copy, uint pool)
         {
             Spawn(copy, pool);
             if (!Here(copy).Any(one => one.SpawnPool?.DbId == pool && one.State != CharacterState.Dead))

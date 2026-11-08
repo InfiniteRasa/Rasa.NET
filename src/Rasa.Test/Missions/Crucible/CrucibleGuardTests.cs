@@ -815,17 +815,21 @@ namespace Rasa.Test.Missions.Crucible
                 foreach (var pool in npcs)
                 {
                     checkedTargets++;
-                    // A talk with a scene's copy of the NPC (1521's Brian) is at the copy's place: where its route ends, or where it stands.
-                    var at = new Vector3((float)pool.PosX, (float)pool.PosY, (float)pool.PosZ);
+                    // A talk with a scene's copy of the NPC (1521's Brian, 1398's Dhimand) is at the copy's place: where its route ends,
+                    // or where it stands. 1398's Dhimand is talked to at both (2 where he stands, before his route; 4 at its end): a
+                    // copy with a route counts at either.
+                    var at = new[] { new Vector3((float)pool.PosX, (float)pool.PosY, (float)pool.PosZ) };
                     if (scenes.FirstOrDefault(entry => entry.MissionId == talk.MissionId).Scene is { } scene &&
                         scene.Actors.Values.FirstOrDefault(actor => actor.ReplacesPublicSpawnId == pool.Id && actor.Position != null) is { } copy)
                     {
                         var route = scene.Sequences.Values.SelectMany(sequence => sequence.World).OfType<RunRouteIntent>()
                             .LastOrDefault(intent => intent.Role == copy.Role);
                         var end = route != null && scene.Routes?.TryGetValue(route.Route, out var walk) == true ? walk.Points[^1].Position : copy.Position;
-                        at = new Vector3(end.X, end.Y, end.Z);
+                        at = route != null && talk.MissionId == CrucibleLeakyPipesV1.MissionId
+                            ? new[] { new Vector3(copy.Position.X, copy.Position.Y, copy.Position.Z), new Vector3(end.X, end.Y, end.Z) }
+                            : new[] { new Vector3(end.X, end.Y, end.Z) };
                     }
-                    if (!Inside(talk.MissionId, talk.ObjectiveId, at))
+                    if (!at.Any(place => Inside(talk.MissionId, talk.ObjectiveId, place)))
                         outside.Add($"{talk.MissionId}.{talk.ObjectiveId} NPC pool {pool.Id}");
                 }
             }
@@ -846,9 +850,10 @@ namespace Rasa.Test.Missions.Crucible
             // Set 11a (in the Incurables Ward): Sheira (1445), Shanul, Paliv's body and Dhimand (1444). Set 12a (in Chaukas): Brian
             // (1577 at his place; 1521's 7 and 5 at his copy's, the Brain), 1521's container, 1522's two switches. Set 13: Capriulo
             // (1856,1, 1899,3), Eugin (1856,2, 1899,2), Rigs (1857,15), 1857's eleven piles and 1899's terminal (1899's Skeev, a scene
-            // creature with no pool, stands on his marker's centre: CrucibleHybridArcTests).
-            Assert.AreEqual(1 + 5 + 21 + 1 + 5 + 2 + 3 + 4 + 1 + 2 + 10 + 2 + 2 + 3 + 3 + 1 + 6 + 1 + 3 + 2 + 3 + 4 + 6 + 5 + 12, checkedTargets,
-                "DeLisi, the five of The Wire, the terminal, the twenty fallen, and set 2's, set 3's, set 5's, set 6's, set 7's, set 8a's, set 8b's, set 9's, set 11a's, set 12a's and set 13's talks and uses");
+            // creature with no pool, stands on his marker's centre: CrucibleHybridArcTests). Set 11b (in the Incurables Ward): 1398's
+            // Dhimand twice (2 and 4, at his copy's) and Sheira (5).
+            Assert.AreEqual(1 + 5 + 21 + 1 + 5 + 2 + 3 + 4 + 1 + 2 + 10 + 2 + 2 + 3 + 3 + 1 + 6 + 1 + 3 + 2 + 3 + 4 + 6 + 5 + 12 + 3, checkedTargets,
+                "DeLisi, the five of The Wire, the terminal, the twenty fallen, and set 2's, set 3's, set 5's, set 6's, set 7's, set 8a's, set 8b's, set 9's, set 11a's, set 12a's, set 13's and set 11b's talks and uses");
             Assert.IsEmpty(outside, string.Join(", ", outside));
         }
 

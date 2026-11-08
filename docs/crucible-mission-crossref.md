@@ -1,6 +1,6 @@
 # Ligo Crucible missions: sources (cross-reference)
 
-The 47 missions of the Ligo Crucible quest PR, taken from the full mission cross-reference of the 1.16.5.0
+The 48 missions of the Ligo Crucible quest PR, taken from the full mission cross-reference of the 1.16.5.0
 client. For each mission: the client text and objectives, the sources found (TaRapedia, TR MMO DB, Ellatha,
 Ten Ton Hammer, archived fan and official pages, patch notes) and a rebuild summary with the source of each
 value. Values without a source are marked ESTIMATE. "This PR" rows (where present) show the data this PR adds.
@@ -9,7 +9,7 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
 
 | Zone | Missions |
 | --- | ---: |
-| Crucible | 47 |
+| Crucible | 48 |
 
 ## Crucible
 
@@ -915,6 +915,29 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
 
 - **Chain** (explicit prerequisite links): The Last Men Standing chain (27 missions), step 3
   - Requires: A Fort Called Intrepid (id 1150) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/A_Fort_Called_Intrepid), [TaRapedia](https://tabularasa.fandom.com/wiki/Funeral_Derge)
+
+### 1398 — Leaky Pipes [instance]
+
+
+- **Instance:** Incurables Ward — an objective conversation's NPC package 1640 spawns in this instance (map 2141) — source: client objectiveconversation + data/rasaworld.db
+- **Rebuild summary:**
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: ToDo — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Leaky_Pipes)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Engineer Dhimand: Crucible, Incurables Ward — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Engineer_Dhimand)
+- **Client:** Engineer Dhimand needs your help to repair the damaged water processing system in the Incurables Ward. Recover Dhimand's Tool Chest from Lord Jaikev and return it to Engineer Dhimand. Then escort Engineer Dhimand through the Maintenance Corridors to the water processing system and defend him while …
+  - objectives (client): Recover Dhimand's Tool Chest; Return Tools to Engineer Dhimand; Escort Engineer Dhimand — Protect Engineer Dhimand and take him into the Maintenance Corridors behind Jaikev's throne room. Find the water processing system so that he can repair the …; Protect Engineer Dhimand — Protect Engineer Dhimand while he repairs the water processing system.; Escort Engineer Dhimand — Take Engineer Dhimand back to Supervisor Sheira back at the entrance to the Incurables Ward.
+- **TaRapedia** [Leaky Pipes](https://tabularasa.fandom.com/wiki/Leaky_Pipes) [stub, bug noted]: giver: Engineer Dhimand; at: Incurables Ward; requires: None; follow-up: None; items: ToDo
+  - overview: Get Engineer Dhimand his tools and keep him alive so that he can fix the pipes. Note: Completion of this mission is required for Crucible Targets of Opportunity Note: If you die during the escort part of mission you will fail it and cannot reacquire it without resetting the instance. It is better …
+  - objectives: • Recover Dhimand's Tool Chest • Return Tools to Engineer Dhimand • Escort Engineer Dhimand • Protect Engineer Dhimand • Escort Engineer Dhimand
+  - walkthrough: This mission is fairly straightforward but it has a few quirks. Engineer Dhimand will ask you to retrieve his tools from Jaikev. You'll find Jaikev in his Throne Room in the Jaikev's Sanctum section of the Operation zone. You will have to kill Jaikev and his sister Parvatee and a few Incurables. Jaikev is an Boss-level Incurable Berserker, and Parvatee appears to be a Boss-level Incurable Guardian. Once they are dead, Dhimand will appear in the hallway nearby. Note: The mission Rehabilitation at Gunpoint also requires that you kill Jaikev and Parvatee. The next step is to escort him to the …
+- **TaRapedia mission list** [Incurables Ward mission list](https://tabularasa.fandom.com/wiki/Incurables_Ward_mission_list): zone Crucible, given by Engineer Dhimand
+- **PlanetTR** [planettr.com:80/forums/archive/index.php/t-1365.html](https://web.archive.org/web/20071209022816/http://planettr.com:80/forums/archive/index.php/t-1365.html): “: Mission objective tells the player to complete the mission by leaving the instance but doing that fails the mission. / * Incurables Ward / o Mission: Leaky Pipes / o Issue: Mob that drops required mission object disappears before it can be looted. / * Foreas Valverde Howling Maw”
+- **RGTR official site** [www.rgtr.com/news/patch_notes/patch_notes_and_known_issues_1_4.html](https://web.archive.org/web/20081117172815/http://www.rgtr.com/news/patch_notes/patch_notes_and_known_issues_1_4.html): “sue: Mission objective tells the player to complete the mission by leaving the instance but doing that fails the mission. / Incurables Ward / Mission: Leaky Pipes / Issue: Mob that drops required mission object disappears before it can be looted. / Foreas Valverde Howling Maw”
+- **NPCs (TaRapedia NPC pages):**
+  - [Engineer Dhimand](https://tabularasa.fandom.com/wiki/Engineer_Dhimand): Crucible, Incurables Ward (named as giver/receiver)
+  - [Supervisor Sheira](https://tabularasa.fandom.com/wiki/Supervisor_Sheira): Crucible, Incurables Ward (named in client text)
 
 ### 1402 — Rehabilitation at Gunpoint [instance]
 
