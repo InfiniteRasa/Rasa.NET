@@ -54,6 +54,9 @@ namespace Rasa.Services.Preloader.Missions.Crucible
     ///    up the stairs. Every place on the server navmesh and a client floor, with a complete path from the area's waypoint
     ///    (probe 2026-11-07).
     ///
+    /// Fix job J (20271108002200, CrucibleFixJV1) changed the Smart Mine after this migration: no self-destruct (action 2 0) and
+    /// row 770014 the Thrax's Virulent decay 450/1 (a damage over time) for the weapon 1/109. This class keeps set 4's rows.
+    ///
     /// Plain SQL, valid on SQLite and MySQL; Down takes out only these rows and puts Derge back.
     /// </summary>
     public static class CrucibleMinefieldAndSalvageNpcsV1

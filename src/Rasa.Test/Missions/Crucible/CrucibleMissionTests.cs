@@ -310,24 +310,24 @@ namespace Rasa.Test.Missions.Crucible
                 Assert.IsLessThan(0.01, System.Math.Abs(row.PosX - x) + System.Math.Abs(row.PosZ - z), $"pool {pool} at ({x}, {z})");
             }
 
-            // Set 4's creatures: the Smart Mine, a copy of the Necromite 570003 (client name 433 "Necromite", class 7528) with its
-            // weapon 1/109 and its self-destruct 489 at its own lower damage, damage_type 0 (the client decides); the
+            // Set 4's creatures: the Smart Mine, a copy of the Necromite 570003 (client name 433 "Necromite", class 7528); since
+            // fix job J (CrucibleFixJV1) one attack, row 770014 the Thrax's Virulent decay 450/1 (a damage over time, 20-30 a tick,
+            // reach 0.5-3 m, every 10 s), no self-destruct (set 4's row 770016 stays in the table, on no creature); the
             // Reconstructor Bot (class 6960, client name 8033 "Reconstructor Bot Laborer", one attack 1/152 of the client's
             // Weapon_Creature_Arieki_Bot_Reconstructor 7189, 1500 ms); hostile, their own hit points.
             var mine = world.CreatureEntries.AsNoTracking().Single(row => row.Id == SmartMine);
             var necromite = world.CreatureEntries.AsNoTracking().Single(row => row.Id == 570003);
-            Assert.AreEqual((433U, 40U, 0U, 7528U, 1500U, 770014U, 770016U, 0U), (mine.NameId, mine.Level, mine.Faction, mine.ClassId,
+            Assert.AreEqual((433U, 40U, 0U, 7528U, 1500U, 770014U, 0U, 0U), (mine.NameId, mine.Level, mine.Faction, mine.ClassId,
                 mine.MaxHitPoints, mine.Action1, mine.Action2, mine.Action3));
             Assert.AreEqual((necromite.RunSpeed, necromite.WalkSpeed), (mine.RunSpeed, mine.WalkSpeed), "the Necromite's speeds");
             var mineActions = world.Set<CreatureActionEntry>().AsNoTracking().Where(row => row.Id == 770014 || row.Id == 770016).ToDictionary(row => row.Id);
-            Assert.AreEqual((1U, 109U, 0U), ((uint)mineActions[770014].ActionId, (uint)mineActions[770014].ActionArgId, (uint)mineActions[770014].DamageType),
-                "the Necromite's weapon, damage_type 0");
-            Assert.AreEqual((489U, 1U, 0U), ((uint)mineActions[770016].ActionId, (uint)mineActions[770016].ActionArgId, (uint)mineActions[770016].DamageType),
-                "necromite_self_destruct, damage_type 0");
-            // TaRapedia: "very little damage": well under the Necromite's 320-480 and 733-1448 (ESTIMATE, user review).
-            Assert.AreEqual((80U, 120U, 150U, 300U), ((uint)mineActions[770014].MinDamage, (uint)mineActions[770014].MaxDamage,
-                (uint)mineActions[770016].MinDamage, (uint)mineActions[770016].MaxDamage), "the mines' low damage");
-            Assert.AreEqual(Rasa.Data.DamageType.Physical, Rasa.Data.CreatureWeaponDamage.Of(1, 109), "the client's table: Weapon_Creature_Necromite");
+            var mineAttack = mineActions[770014];
+            // TaRapedia: "very little damage", a small virulent DOT (ESTIMATE: the numbers, user review).
+            Assert.AreEqual(("Smart Mine Crucible thrax_decay 450/1 (fix J)", 450U, 1U, 0.5, 3.0, 10000U, 500U, 20U, 30U, 4U),
+                (mineAttack.Description, mineAttack.ActionId, mineAttack.ActionArgId, mineAttack.RangeMin, mineAttack.RangeMax, mineAttack.Cooldown, mineAttack.Windup,
+                    mineAttack.MinDamage, mineAttack.MaxDamage, mineAttack.DamageType), "the Thrax's decay, Virulent");
+            Assert.AreEqual((489U, 1U, 0U, 150U, 300U), ((uint)mineActions[770016].ActionId, (uint)mineActions[770016].ActionArgId,
+                (uint)mineActions[770016].DamageType, mineActions[770016].MinDamage, mineActions[770016].MaxDamage), "set 4's self-destruct row, unused");
             var reconstructor = world.CreatureEntries.AsNoTracking().Single(row => row.Id == Reconstructor);
             Assert.AreEqual((8033U, 35U, 0U, 6960U, 4970U, 770015U, 0U), (reconstructor.NameId, reconstructor.Level, reconstructor.Faction,
                 reconstructor.ClassId, reconstructor.MaxHitPoints, reconstructor.Action1, reconstructor.Action2));
@@ -823,10 +823,12 @@ namespace Rasa.Test.Missions.Crucible
             // 20271108000500 (to-fix rows 32, 34, 35) one of Munit's and Vargo's new places to 1145, 1146 and 1170;
             // 20271108000800 (to-fix rows 43, 44) one of the bot pools' and Vargo's new places to 1147, 1203, 1204, 1202 and 1146.
             // 20271108001000 (fix job F) one to 1232, 1147, 1203, 1204, 1202, 1157, 1149, 1208 and 1185; 20271108001200 (fix job G)
-            // one to 1208; 20271108001500 (fix job H) one to 1529; 20271108001900 (fix job I) one to 1445, 1402 and 1521.
+            // one to 1208; 20271108001500 (fix job H) one to 1529; 20271108001900 (fix job I) one to 1445, 1402 and 1521;
+            // 20271108002200 (fix job J) one to 1232.
             int Fixes(uint mission) => (mission is 1147 or 1149 or 1145 or 1146 or 1170 ? 1 : 0) + (mission is 1147 or 1203 or 1204 or 1202 or 1146 ? 1 : 0)
                 + (CrucibleFixFV1.EvidenceIds.Any(id => id.Mission == mission) ? 1 : 0) + (mission == CrucibleOutOfSightV1.MissionId ? 1 : 0)
-                + (mission == CruciblePartOfTheBargainV1.MissionId ? 1 : 0) + (CrucibleFixIV1.Missions.Contains(mission) ? 1 : 0);
+                + (mission == CruciblePartOfTheBargainV1.MissionId ? 1 : 0) + (CrucibleFixIV1.Missions.Contains(mission) ? 1 : 0)
+                + (mission == CrucibleMinesweeperV1.MissionId ? 1 : 0);
             foreach (var mission in MissionIds)
                 CollectionAssert.AreEqual(new[]
                     {
@@ -1701,7 +1703,8 @@ namespace Rasa.Test.Missions.Crucible
                 !SetEight.Contains(entry.MissionId) && !SetEightB.Contains(entry.MissionId) && !SetNine.Contains(entry.MissionId) &&
                 !SetElevenA.Contains(entry.MissionId) && !SetTwelveA.Contains(entry.MissionId) && !SetThirteen.Contains(entry.MissionId) && !SetElevenB.Contains(entry.MissionId) &&
                 !(entry.MissionId == CrucibleOutOfSightV1.MissionId && entry.EvidenceId == CrucibleFixGV1.Evidence) &&
-                !(entry.MissionId == CruciblePartOfTheBargainV1.MissionId && entry.EvidenceId == CrucibleFixHV1.Evidence));
+                !(entry.MissionId == CruciblePartOfTheBargainV1.MissionId && entry.EvidenceId == CrucibleFixHV1.Evidence) &&
+                !(entry.MissionId == CrucibleMinesweeperV1.MissionId && entry.EvidenceId == CrucibleFixJV1.Evidence));
             double Radius(uint pool) => world.SpawnPoolEntries.AsNoTracking().Single(entry => entry.Id == pool).Radius;
             var kept = CrucibleFixFV1.Points.Where(point => CrucibleFixFV1.Now(point.Pool) == null).Select(point => point.Pool).ToList();
             Assert.HasCount(6, kept, "six of the twelve stay where they are");
@@ -1819,7 +1822,8 @@ namespace Rasa.Test.Missions.Crucible
                 entry.MissionId == CrucibleOutOfSightV1.MissionId && entry.EvidenceId == CrucibleFixGV1.Evidence);
             int All() => world.MissionEvidenceEntries.AsNoTracking().Count(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision &&
                 !SetEightB.Contains(entry.MissionId) && !SetNine.Contains(entry.MissionId) && !SetElevenA.Contains(entry.MissionId) && !SetTwelveA.Contains(entry.MissionId) && !SetThirteen.Contains(entry.MissionId) && !SetElevenB.Contains(entry.MissionId) &&
-                !(entry.MissionId == CruciblePartOfTheBargainV1.MissionId && entry.EvidenceId == CrucibleFixHV1.Evidence));
+                !(entry.MissionId == CruciblePartOfTheBargainV1.MissionId && entry.EvidenceId == CrucibleFixHV1.Evidence) &&
+                !(entry.MissionId == CrucibleMinesweeperV1.MissionId && entry.EvidenceId == CrucibleFixJV1.Evidence));
             bool Has(uint mission) => world.MissionContentDefinitionEntries.AsNoTracking()
                 .Any(entry => entry.MissionId == mission && entry.ContentRevision == CrucibleMissionDataV1.Revision);
             var place = At(world, pool);
@@ -1967,7 +1971,8 @@ namespace Rasa.Test.Missions.Crucible
                 entry.MissionId == CruciblePartOfTheBargainV1.MissionId && entry.EvidenceId == CrucibleFixHV1.Evidence);
             // Set 11a (a later migration) is rolled back with the fix and not put back: its evidence is not counted.
             int All() => world.MissionEvidenceEntries.AsNoTracking().Count(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision &&
-                !SetElevenA.Contains(entry.MissionId) && !SetTwelveA.Contains(entry.MissionId) && !SetThirteen.Contains(entry.MissionId) && !SetElevenB.Contains(entry.MissionId));
+                !SetElevenA.Contains(entry.MissionId) && !SetTwelveA.Contains(entry.MissionId) && !SetThirteen.Contains(entry.MissionId) && !SetElevenB.Contains(entry.MissionId) &&
+                !(entry.MissionId == CrucibleMinesweeperV1.MissionId && entry.EvidenceId == CrucibleFixJV1.Evidence));
             List<(uint, double, double, double)> Markers() => world.MissionIndicatorEntries.AsNoTracking()
                 .Where(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision && entry.MissionId == CruciblePartOfTheBargainV1.MissionId)
                 .AsEnumerable().OrderBy(entry => entry.IndicatorId).Select(entry => (entry.IndicatorId, entry.PosX, entry.PosY, entry.PosZ)).ToList();
@@ -2218,8 +2223,10 @@ namespace Rasa.Test.Missions.Crucible
                 row == (CrucibleControlTheBrainV1.MissionId, CrucibleFixIV1.ContainerObjective, CrucibleFixIV1.ContainerMarker, row.Item4, row.Item5, row.Item6, row.Item7);
             int Evidence() => world.MissionEvidenceEntries.AsNoTracking().Count(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision &&
                 CrucibleFixIV1.Missions.Contains(entry.MissionId) && entry.EvidenceId == CrucibleFixIV1.Evidence);
+            // Set 11b and fix job J (later migrations) are rolled back with the fix and not put back: their evidence is not counted.
             int All() => world.MissionEvidenceEntries.AsNoTracking().Count(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision &&
-                !SetElevenB.Contains(entry.MissionId));
+                !SetElevenB.Contains(entry.MissionId) &&
+                !(entry.MissionId == CrucibleMinesweeperV1.MissionId && entry.EvidenceId == CrucibleFixJV1.Evidence));
             var markers = Markers();
             Assert.HasCount(Indicators, markers);
             Assert.AreEqual(5, markers.Count(Moved), "four door markers and the container's");

@@ -1,13 +1,19 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Rasa.Data;
 using Rasa.Game;
 using Rasa.Managers;
+using Rasa.Packets.MapChannel.Server;
 using Rasa.Packets.Mission.Server;
 using Rasa.Services.Preloader.Missions.Crucible;
 using Rasa.Structures;
+using Rasa.Structures.World;
 using Rasa.Test.Missions.Marshes;
 using Rasa.Test.Missions.Plateau;
 using Rasa.Test.Missions.Wilderness;
@@ -461,12 +467,141 @@ namespace Rasa.Test.Missions.Crucible
         }
 
         /// <summary>
-        /// Fix job F (real client 2026-11-07: three mines that went off by themselves counted 3/20 and paid): a Smart Mine that
-        /// comes up at the player and detonates (its necromite_self_destruct, CreatureBombs.GroundBlast) dies of it, but it was
-        /// not destroyed: no count for 1232, no experience, no corpse loot, no harvest. A mine the player shoots down counts.
+        /// Fix job J (real client 2026-11-08, to-fix row 75: the mines rose, hit for 80-431 Physical and went off by themselves
+        /// 5-10 s up, none shot down, the count stayed 3/20). TaRapedia: "The mines don't actually explode"; a Necromite follows
+        /// the player. A mine risen 2 m from the player fights for 30 s and does not go off: it has no self-destruct, death
+        /// action or corpse explosion, it winds up nothing but its decay (450/1), it is alive at the end, and it goes after the
+        /// player who walks off. The player's kill of it counts 1/20 for 1232. The test does not run MissileManager's worker,
+        /// so it does not show the decay land; ASmartMinesHitIsASmallVirulentDamageOverTime covers the DECAY on the player.
         /// </summary>
         [TestMethod]
-        public void ASmartMineThatGoesOffByItselfIsNobodysKill()
+        public void ARisenSmartMineFollowsThePlayerAndDoesNotGoOff()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            harness.LoadAbilities();
+            C.SeedCompleted(harness, LastMen);
+            C.SeedCompleted(harness, Fort);
+            var crucible = C.EnterCrucible(harness, C.FortWaypoint);
+            Spawn(crucible, MinePools);
+            Accept(harness, Npc(crucible, N.Drake), Minesweeper);
+            harness.Drain();
+
+            var mine = Alive(crucible).First(candidate => candidate.DbId == S.SmartMine);
+            Assert.IsTrue(MawLurk.Lurks(mine) && MawLurk.IsBuried(mine), "a minefield mine lies buried");
+            var attack = mine.Actions.Single();
+            Assert.AreEqual((CrucibleFixJV1.ThraxDecay, CrucibleFixJV1.ThraxDecayArg), ((uint)attack.ActionId, attack.ActionArgId), "its one attack, the Thrax's decay");
+            Assert.AreEqual(CreatureEffectAttacks.Kind.DamageOverTime, CreatureEffectAttacks.KindOf(attack.ActionId, attack.ActionArgId), "a damage over time");
+            Assert.IsFalse(mine.Actions.Any(action => action.ActionId == CreatureBombs.NecromiteSelfDestruct || CreatureBombs.IsCorpseExplosion(action)
+                || CreatureBombs.IsDeathAction(action)), "nothing that goes off");
+
+            var now = System.Environment.TickCount64;
+            MawLurk.Clock = () => now;
+            var windups = new List<PerformWindupPacket>();
+            void Fight(int milliseconds)
+            {
+                for (var passed = 0; passed < milliseconds; passed += 250)
+                {
+                    now += 250;
+                    BehaviorManager.Instance.MapChannelThink(crucible, 250);
+                    // A windup runs on the wall clock (CreatureWindups.Begin: Environment.TickCount64 + 500), and the
+                    // creature thinks nothing while it lasts: wait it out, as the server would, so the fight goes on.
+                    while (CreatureWindups.IsWindingUp(mine))
+                        System.Threading.Thread.Sleep(50);
+                    CreatureWindups.Worker(crucible);
+                    CreatureBombs.Worker(crucible);
+                    windups.AddRange(harness.Drain().OfType<PerformWindupPacket>());
+                }
+            }
+            try
+            {
+                harness.MoveTo(mine.Position + new Vector3(2, 0, 0));
+                MawLurk.Emerge(crucible, mine, harness.Client.Player.EntityId);
+                Assert.IsFalse(MawLurk.IsBuried(mine), "up at the player");
+                Fight(30000);
+
+                Assert.AreNotEqual(CharacterState.Dead, mine.State, "30 s next to the player: it has not gone off");
+                Assert.IsGreaterThan(0, mine.Attributes[Attributes.Health].Current, "whole");
+                Assert.IsFalse(CreatureBombs.IsSelfDestructing(mine));
+                Assert.IsFalse(windups.Any(windup => windup.ActionId == CreatureBombs.NecromiteSelfDestruct), "no self-destruct wound up");
+                Assert.IsTrue(windups.Any(windup => windup.ActionId == attack.ActionId && windup.ActionArgId == attack.ActionArgId), "its decay, at the player");
+                Assert.AreEqual(harness.Client.Player.EntityId, mine.Controller.ActionFighting.TargetEntityId, "still at the player");
+
+                // The player walks 8 m off: the mine goes after them.
+                var player = harness.Client.Player.Position + new Vector3(8, 0, 0);
+                harness.MoveTo(player);
+                var before = Vector3.Distance(mine.Position, player);
+                Fight(3000);
+                Assert.IsLessThan(before - 1, Vector3.Distance(mine.Position, player), "it follows the player");
+                Assert.AreNotEqual(CharacterState.Dead, mine.State, "and does not go off");
+            }
+            finally
+            {
+                MawLurk.Clock = () => System.Environment.TickCount64;
+            }
+
+            mine.Attributes[Attributes.Health].Current = 0;
+            harness.Creatures.HandleCreatureKill(crucible, mine, harness.Client.Player);
+            harness.Drain();
+            Assert.AreEqual(1U, Count(harness, Minesweeper), "the player's kill counts: 1/20");
+        }
+
+        /// <summary>
+        /// Fix job J: a Smart Mine's hit is a small Virulent damage over time (TaRapedia Necromite: "a small virulent DOT"; the
+        /// walkthrough: "very little damage"), not a Physical hit: the Thrax's DECAY 82 on the player, from the mine, a tick of
+        /// 20-30 Virulent every 2 s for 10 s (client 450/1: DURATION 10, INTERVAL 2, DAMAGE_TYPE 4; ESTIMATE: 20-30). A tick
+        /// lands as Virulent, 30 or less. The mine stays up and whole.
+        /// </summary>
+        [TestMethod]
+        public void ASmartMinesHitIsASmallVirulentDamageOverTime()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            harness.LoadAbilities();
+            var crucible = C.EnterCrucible(harness, C.FortWaypoint);
+            Spawn(crucible, MinePools);
+            var mine = Alive(crucible).First(candidate => candidate.DbId == S.SmartMine);
+            var player = harness.Client.Player;
+            harness.MoveTo(mine.Position + new Vector3(2, 0, 0));
+            MawLurk.Emerge(crucible, mine, player.EntityId);
+            harness.Drain();
+
+            var attack = mine.Actions.Single();
+            Assert.AreEqual((CrucibleFixJV1.Now.DamageMin, CrucibleFixJV1.Now.DamageMax, (uint)DamageType.Virulent), (attack.MinDamage, attack.MaxDamage,
+                (uint)CreatureAttacks.DamageTypeOf(attack)), "the row: 20-30 Virulent a tick");
+            Assert.IsTrue(AbilityManager.Instance.TryGetLevel(attack.ActionId, attack.ActionArgId, out var level));
+            Assert.AreEqual((10, 2, (int)DamageType.Virulent), (level.Get(AbilityProperty.Duration), level.Get(AbilityProperty.Interval),
+                level.Get(AbilityProperty.DamageType)), "the client's 450/1: 10 s, a tick every 2 s, Virulent");
+
+            var start = System.Environment.TickCount64;
+            CreatureEffectAttacks.OnHit(crucible, mine, player, new Missile
+            {
+                ActionId = attack.ActionId, ActionArgId = attack.ActionArgId, Source = mine, CreatureAction = attack
+            });
+            var dot = player.ActiveEffects.Values.Single(effect => effect.TypeId == CreatureEffectAttacks.DecayTypeId);
+            Assert.AreEqual((mine.EntityId, 20, 30, DamageType.Virulent, 2000L, 0), (dot.SourceId, dot.TickDamageMin, dot.TickDamageMax,
+                dot.TickDamageType, dot.TickIntervalMs, dot.TickScaleType), "DECAY from the mine: 20-30 Virulent every 2 s, as the row says");
+            Assert.IsTrue(dot.ExpiresTick - start is >= 10000 and <= 10250 + 1000, "for 10 s");
+
+            // Armour takes a tick first (ActorManager.Damage): the tick is what armour and health lose together.
+            int ArmourAndHealth() => player.Attributes[Attributes.Health].Current
+                + (player.Attributes.TryGetValue(Attributes.Armor, out var armour) ? armour.Current : 0);
+            var before = ArmourAndHealth();
+            dot.NextTickTick = System.Environment.TickCount64 - 1;
+            GameEffectManager.Instance.DoWork(crucible, 0);
+            var ticks = harness.Drain().OfType<GameEffectTickPacket>().Where(tick => tick.EffectId == dot.EffectId).SelectMany(tick => tick.Entries).ToList();
+            Assert.HasCount(1, ticks, "one tick");
+            Assert.AreEqual((player.EntityId, DamageType.Virulent), (ticks[0].EntityId, ticks[0].DamageType), "on the player, Virulent");
+            Assert.IsTrue(ticks[0].Amount is > 0 and <= 30, $"small: {ticks[0].Amount}");
+            Assert.AreEqual(before - ticks[0].Amount, ArmourAndHealth(), "the tick taken off armour and health");
+            Assert.AreNotEqual(CharacterState.Dead, mine.State, "the mine stays up");
+        }
+
+        /// <summary>
+        /// Fix job F's guard, kept by fix job J: no Smart Mine has a self-destruct now, but should one be spent (a World DB
+        /// rolled back to set 4's rows under this code), a lurking mine that goes off is still nobody's kill
+        /// (CreatureBombs.Spend): no count for 1232, no experience. A mine the player shoots down counts.
+        /// </summary>
+        [TestMethod]
+        public void ASpentLurkingMineIsStillNobodysKill()
         {
             using var harness = WildernessRuntimeTestHarness.Create();
             C.SeedCompleted(harness, LastMen);
@@ -477,23 +612,16 @@ namespace Rasa.Test.Missions.Crucible
             harness.Drain();
 
             var mine = Alive(crucible).First(candidate => candidate.DbId == S.SmartMine);
-            Assert.IsTrue(MawLurk.Lurks(mine) && MawLurk.IsBuried(mine), "a minefield mine lies buried");
-            harness.MoveTo(mine.Position + new Vector3(3, 0, 0));
+            harness.MoveTo(mine.Position + new Vector3(2, 0, 0));
             MawLurk.Emerge(crucible, mine, harness.Client.Player.EntityId);
             var experience = harness.Client.Player.Experience;
-            var detonate = mine.Actions.Single(action => action.ActionId == CreatureBombs.NecromiteSelfDestruct);
-            var info = new ActionLevelInfo { ActionId = CreatureBombs.NecromiteSelfDestruct, Level = 1 };
-            info.Properties[AbilityProperty.DelayTimeMs] = 500;
-            info.Properties[AbilityProperty.EffectRadius] = 5;
 
-            Assert.IsNotNull(CreatureBombs.GroundBlast(crucible, mine, harness.Client.Player, detonate, info), "it goes off");
+            CreatureBombs.Spend(crucible, mine, harness.Client.Player);
             harness.Drain();
 
             Assert.AreEqual(CharacterState.Dead, mine.State, "spent");
             Assert.AreEqual(0U, Count(harness, Minesweeper), "not destroyed: no count");
             Assert.AreEqual(experience, harness.Client.Player.Experience, "no experience");
-            Assert.IsFalse(crucible.LootDispensers.ContainsKey(mine.CorpseLootEntityId), "no corpse loot");
-            Assert.AreEqual((0UL, 0), ((ulong)mine.HarvestOwnerEntityId, mine.HarvestAttemptsLeft), "no harvest");
 
             KillMine(harness, crucible);
             Assert.AreEqual(1U, Count(harness, Minesweeper), "one shot down counts");
@@ -530,7 +658,7 @@ namespace Rasa.Test.Missions.Crucible
 
         /// <summary>
         /// Fix job F (real client 2026-11-07: pools 1 and 3 looked empty three hours after the bot cleared them): a mine pool
-        /// cleared (shot down and gone off) comes back whole after its respawn time, under the ground (MawLurk: in no cell, on no
+        /// cleared (shot down) comes back whole after its respawn time, under the ground (MawLurk: in no cell, on no
         /// client, so the client sees an empty trench). The cause of the "empty" pools: with radius 6 the navmesh draw set the
         /// mines 16-22 m from the point, out of the 8 m lurk range from the marker's centre; fix job F made the pools points, so
         /// every mine lies within 8 m of it. A player 20 m off brings none up; at the pool's point all four come up.
@@ -550,23 +678,14 @@ namespace Rasa.Test.Missions.Crucible
             bool NearThePoint() => Mines().All(mine => Vector2.Distance(new(mine.Position.X, mine.Position.Z), new(point.X, point.Z)) < MawLurk.LurkRangeOf(mine));
             Assert.IsTrue(NearThePoint(), "each mine lies within its lurk range of the pool's point");
 
-            // Cleared: three shot down, one gone off at the player.
+            // Cleared: all four shot down (since fix job J a mine does not go off).
             var mines = Mines();
             foreach (var mine in mines)
             {
                 harness.MoveTo(mine.Position + new Vector3(3, 0, 0));
                 MawLurk.Emerge(crucible, mine, harness.Client.Player.EntityId);
-                if (mine == mines[^1])
-                {
-                    var info = new ActionLevelInfo { ActionId = CreatureBombs.NecromiteSelfDestruct, Level = 1 };
-                    CreatureBombs.GroundBlast(crucible, mine, harness.Client.Player,
-                        mine.Actions.Single(action => action.ActionId == CreatureBombs.NecromiteSelfDestruct), info);
-                }
-                else
-                {
-                    mine.Attributes[Attributes.Health].Current = 0;
-                    harness.Creatures.HandleCreatureKill(crucible, mine, harness.Client.Player);
-                }
+                mine.Attributes[Attributes.Health].Current = 0;
+                harness.Creatures.HandleCreatureKill(crucible, mine, harness.Client.Player);
                 Assert.AreEqual(CharacterState.Dead, mine.State);
             }
             harness.Drain();
@@ -608,6 +727,88 @@ namespace Rasa.Test.Missions.Crucible
                 System.FormattableString.Invariant($"{mine.EntityId} at ({mine.Position.X:0.0}, {mine.Position.Z:0.0}), {Vector3.Distance(mine.Position, point):0.0} m"))));
             Assert.IsTrue(Mines().All(mine => mine.Controller.ActionFighting.TargetEntityId == harness.Client.Player.EntityId), "at the player");
         }
+
+        /// <summary>
+        /// Crucible_fix_j (fix job J, to-fix row 75) puts the Smart Mine back as set 4 wrote it - its weapon 1/109 (row 770014)
+        /// and its self-destruct (action 2, row 770016) - and takes out 1232's evidence row 5, and nothing else: every other
+        /// Crucible creature and creature_action row and evidence row stays. Up and Down are each safe twice; Up again, the
+        /// decay is back.
+        /// </summary>
+        [TestMethod]
+        public void FixJRollsBackWithItsMigration()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            var migrator = world.GetService<IMigrator>();
+            Assert.AreEqual(CreatureTints, CrucibleMissionTests.Previous(world, FixJ), "the fix follows set 14");
+            Assert.AreEqual(new CrucibleFixJV1.Row("Smart Mine Crucible weapon 1/109", 1, 109, 0.5, 3, 3000, 0, 80, 120, 0), CrucibleFixJV1.Before,
+                "set 4's row 770014 (CrucibleMinefieldAndSalvageNpcsV1.Up)");
+
+            List<string> Actions() => world.Set<CreatureActionEntry>().AsNoTracking().Where(row => row.Id >= 770000 && row.Id <= 770999)
+                .OrderBy(row => row.Id).AsEnumerable()
+                .Select(row => System.FormattableString.Invariant(
+                    $"{row.Id} {row.Description} {row.ActionId} {row.ActionArgId} {row.RangeMin} {row.RangeMax} {row.Cooldown} {row.Windup} {row.MinDamage} {row.MaxDamage} {row.DamageType}"))
+                .ToList();
+            List<string> Creatures() => world.CreatureEntries.AsNoTracking().Where(row => row.Id >= 770000 && row.Id <= 770999)
+                .OrderBy(row => row.Id).AsEnumerable()
+                .Select(row => $"{row.Id} {row.ClassId} {row.Level} {row.MaxHitPoints} {row.Action1} {row.Action2} {row.Action3}").ToList();
+            List<(uint, uint)> Evidence() => world.MissionEvidenceEntries.AsNoTracking()
+                .Where(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision).AsEnumerable()
+                .OrderBy(entry => entry.MissionId).ThenBy(entry => entry.EvidenceId).Select(entry => (entry.MissionId, entry.EvidenceId)).ToList();
+            CreatureActionEntry Attack() => world.Set<CreatureActionEntry>().AsNoTracking().Single(row => row.Id == CrucibleFixJV1.MineAttack);
+            uint Action2() => world.CreatureEntries.AsNoTracking().Single(row => row.Id == S.SmartMine).Action2;
+            CrucibleFixJV1.Row Of(CreatureActionEntry row) => new(row.Description, row.ActionId, row.ActionArgId, row.RangeMin, row.RangeMax,
+                row.Cooldown, row.Windup, row.MinDamage, row.MaxDamage, row.DamageType);
+            void Run(System.Action<MigrationBuilder> step)
+            {
+                var builder = new MigrationBuilder(world.Database.ProviderName);
+                step(builder);
+                foreach (var sql in builder.Operations.OfType<SqlOperation>())
+                    world.Database.ExecuteSqlRaw(sql.Sql);
+                world.ChangeTracker.Clear();
+            }
+
+            Assert.AreEqual((CrucibleFixJV1.Now, 0U), (Of(Attack()), Action2()), "the decay, no self-destruct");
+            var row5 = world.MissionEvidenceEntries.AsNoTracking().Single(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision &&
+                entry.MissionId == Minesweeper && entry.EvidenceId == CrucibleFixJV1.Evidence);
+            Assert.AreEqual((MissionEvidenceSourceKind.Reconstruction, CrucibleFixJV1.Source, CrucibleFixJV1.Note, 0.3),
+                (row5.SourceKind, row5.SourceUri, row5.ReconstructionNote, row5.Confidence));
+            var actions = Actions();
+            var creatures = Creatures();
+            var evidence = Evidence();
+            string Changed(List<string> rows, uint id) => rows.Single(row => row.StartsWith(id + " ", System.StringComparison.Ordinal));
+
+            // Up twice: nothing more.
+            Run(CrucibleFixJV1.Up);
+            CollectionAssert.AreEqual(actions, Actions());
+            CollectionAssert.AreEqual(creatures, Creatures());
+            CollectionAssert.AreEqual(evidence, Evidence());
+
+            migrator.Migrate(CreatureTints);
+            world.ChangeTracker.Clear();
+            Assert.AreEqual((CrucibleFixJV1.Before, CrucibleFixJV1.Action2Before), (Of(Attack()), Action2()), "set 4's weapon and self-destruct back");
+            var downActions = Actions();
+            var downCreatures = Creatures();
+            CollectionAssert.AreEqual(actions.Where(row => row != Changed(actions, CrucibleFixJV1.MineAttack)).ToList(),
+                downActions.Where(row => row != Changed(downActions, CrucibleFixJV1.MineAttack)).ToList(), "every other action row stays (770016 too)");
+            CollectionAssert.AreEqual(creatures.Where(row => row != Changed(creatures, S.SmartMine)).ToList(),
+                downCreatures.Where(row => row != Changed(downCreatures, S.SmartMine)).ToList(), "every other creature stays");
+            CollectionAssert.AreEqual(evidence.Where(entry => entry != (Minesweeper, CrucibleFixJV1.Evidence)).ToList(), Evidence(), "only the fix's row goes");
+
+            // Down twice: nothing more.
+            Run(CrucibleFixJV1.Down);
+            CollectionAssert.AreEqual(downActions, Actions());
+            CollectionAssert.AreEqual(downCreatures, Creatures());
+
+            migrator.Migrate(FixJ);
+            world.ChangeTracker.Clear();
+            CollectionAssert.AreEqual(actions, Actions());
+            CollectionAssert.AreEqual(creatures, Creatures());
+            CollectionAssert.AreEqual(evidence, Evidence());
+        }
+
+        private const string CreatureTints = "20271108002100_Crucible_creature_tints";
+        private const string FixJ = "20271108002200_Crucible_fix_j";
 
         /// <summary>A Smart Mine killed; the packets it sent.</summary>
         private static List<object> KillMine(WildernessRuntimeTestHarness harness, MapChannel crucible)

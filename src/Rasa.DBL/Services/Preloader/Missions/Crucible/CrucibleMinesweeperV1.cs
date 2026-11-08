@@ -21,9 +21,14 @@ namespace Rasa.Services.Preloader.Missions.Crucible
     ///
     /// Reconstructed (ESTIMATE):
     ///  - The mines the new Smart Mines 770014 (a copy of the Necromite, CrucibleMinefieldAndSalvageNpcsV1) in pools
-    ///    770014-770016; a kill of one counts (CreatureKilled, counter 0, 20). (Set 4 counted the mine's self-destruct on
-    ///    the player too; since fix job F, 20271108001000, a mine that goes off is nobody's kill: CreatureBombs.Spend.) They lie buried until a
-    ///    player is 8 m off (ESTIMATE) and come up with their birth 155/7528 (MawLurk, as the Maws).
+    ///    770014-770016; a player's kill of one counts (CreatureKilled, counter 0, 20). They lie buried until a player is 8 m
+    ///    off (ESTIMATE) and come up with their birth 155/7528 (MawLurk, as the Maws). Since fix job J (20271108002200,
+    ///    CrucibleFixJV1; real client 2026-11-08: the mines went off by themselves 5-10 s after they rose and none was shot
+    ///    down) they do not explode (TaRapedia walkthrough: "The mines don't actually explode and they do very little
+    ///    damage"): no necromite_self_destruct; they follow the player and put a small Virulent damage over time on them
+    ///    (TaRapedia Necromite), the Thrax's decay 450/1 at 20-30 a tick (ESTIMATE). Set 4 had the self-destruct and counted
+    ///    it on the player; fix job F made it nobody's kill; fix job J took it out. The client briefing 9809 ("a few seconds
+    ///    to shoot it out of the air before it explodes") is the design text, a deviation (NOTES-playtest.md).
     ///  - The items the lowest Uncommon templates of the kinds and icon numbers in the band of level 40: Mech V03 Boots
     ///    33342, Stealth V02 Boots 38823, Graviton V04 Legs 25248, Motor Assist V06 Helmet 30474; one to choose. A marker
     ///    (radius 20) on each mine pool.
