@@ -1,6 +1,6 @@
 # Ligo Crucible missions: sources (cross-reference)
 
-The 50 missions of the Ligo Crucible quest PR, taken from the full mission cross-reference of the 1.16.5.0
+The 51 missions of the Ligo Crucible quest PR, taken from the full mission cross-reference of the 1.16.5.0
 client. For each mission: the client text and objectives, the sources found (TaRapedia, TR MMO DB, Ellatha,
 Ten Ton Hammer, archived fan and official pages, patch notes) and a rebuild summary with the source of each
 value. Values without a source are marked ESTIMATE. "This PR" rows (where present) show the data this PR adds.
@@ -9,7 +9,7 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
 
 | Zone | Missions |
 | --- | ---: |
-| Crucible | 50 |
+| Crucible | 51 |
 
 ## Crucible
 
@@ -938,6 +938,23 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
 - **NPCs (TaRapedia NPC pages):**
   - [Engineer Dhimand](https://tabularasa.fandom.com/wiki/Engineer_Dhimand): Crucible, Incurables Ward (named as giver/receiver)
   - [Supervisor Sheira](https://tabularasa.fandom.com/wiki/Supervisor_Sheira): Crucible, Incurables Ward (named in client text)
+
+### 1401 — Blood, Fire, and Steel [instance]
+
+
+- **Instance:** Incurables Ward — NPC Engineer Dhimand (named in client text) is in Incurables Ward — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Engineer_Dhimand)
+- **Rebuild summary:**
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level; zone was inferred, see above)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level (zone was inferred, see above)
+  - reward: not found (not critical)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: zone Crucible only
+- Zone is an ESTIMATE: taken from the TaRapedia page of related NPC Engineer Dhimand.
+- **Client:** Mechanic Shanul knows that Lord Jaikev has locked himself deep in the Incurables Ward using keycards made for him by the kidnapped maintenance crew. Recover the keycards necessary to reach Jaikev's Sanctum and report back to Mechanic Shanul to keep him updated on your progress.
+  - objectives (client): Recover Atali's Keycard; Recover Umank's Keycard; Counter; Report to Mechanic Shanul; Recover Headsman's Keycard; Open the Door to Jaikev's Sanctum
+- **NPCs (TaRapedia NPC pages):**
+  - [Engineer Dhimand](https://tabularasa.fandom.com/wiki/Engineer_Dhimand): Crucible, Incurables Ward (named in client text)
+- No external source found.
 
 ### 1402 — Rehabilitation at Gunpoint [instance]
 

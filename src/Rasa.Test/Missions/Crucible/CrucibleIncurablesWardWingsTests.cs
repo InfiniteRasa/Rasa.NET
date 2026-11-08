@@ -39,8 +39,7 @@ namespace Rasa.Test.Missions.Crucible
     /// climb the client fails, clear of the hostile pools and the door; and the talks that share a package with set 11a's
     /// missions (Dhimand 1700 with 1444, Sheira 1640 with 1445) kept apart by mission.
     ///
-    /// Blood, Fire, and Steel (1401) is not built: its wings sit behind client map statics (ArchBrannCorridorEndcap01V01) the
-    /// server cannot open (NOTES-crucible-triage.md, set 11b); the walks to them are pinned incomplete here.
+    /// Blood, Fire, and Steel (1401, set 15) is CrucibleBloodFireSteelTests'.
     ///
     /// Why these tests: 1398 has a boss drop, an escort copy of an NPC whose row set 11a wrote, a defence counted by scene
     /// defeats on wall-clock timers, a talk gated by a player flag, and two talks on packages 1444 and 1445 also use. A drop
@@ -72,7 +71,6 @@ namespace Rasa.Test.Missions.Crucible
         /// repair place, 20 m and more from it; the repair place walked back to the arrival through the north airlock (the
         /// navmesh gap, upstream N13, pinned in CrucibleIncurablesWardTests); every place ReachClearance and more outside every
         /// hostile pool's circle and 5 m and more outside the door's; the repair place seen from 16 of 16 places 2 m round it.
-        /// 1401: the navmesh walks from the arrival to Atali's and Umank's wings stop at the client's shut doors.
         /// </summary>
         [TestMethod]
         public void TheWaterSystemAndTheWavesStandWhereTheyAreWalkedTo()
@@ -147,13 +145,7 @@ namespace Rasa.Test.Missions.Crucible
                     failures.Add($"Dhimand at his repair place not seen from ({stand.X:F1}, {stand.Z:F1})");
             }
 
-            // 1401 (not built): the walks to Atali's and Umank's wings stop at the client's shut doors (endcap statics).
-            var arrival = nav.Nearest(ToVector(I.ArrivalAt)).Value;
-            foreach (var (wing, at) in new[] { ("Atali's Domain", new Vector3(-18, 62, -6)), ("Umank's Domain", new Vector3(202, 54.5f, 210)) })
-            {
-                var path = nav.FindPath(arrival, nav.Nearest(at) ?? at, out var whole);
-                Assert.IsFalse(path != null && whole, $"{wing}: the navmesh walks there now (the doors opened?): 1401 can be built");
-            }
+            // The walks to Atali's and Umank's wings (1401) are CrucibleBloodFireSteelTests' (the pit stairs, upstream N15).
             Assert.IsEmpty(failures, string.Join("; ", failures));
         }
 

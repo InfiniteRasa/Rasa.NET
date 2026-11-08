@@ -838,6 +838,10 @@ namespace Rasa.Test.Missions.Crucible
                 {
                     checkedTargets++;
                     var objective = actor.UseAction?.ObjectiveId ?? actor.Conversation.ObjectiveId;
+                    // A hidden gate (no marker of its own) is shown by the visible objective it opens with: 1401's north doors
+                    // (8, 9) by 5's door marker.
+                    if (mission == CrucibleBloodFireSteelV1.MissionId && objective is CrucibleBloodFireSteelV1.AtaliDoorUsed or CrucibleBloodFireSteelV1.UmankDoorUsed)
+                        objective = CrucibleBloodFireSteelV1.HeadsmanCard;
                     if (!Inside(mission, objective, new(actor.Position.X, actor.Position.Y, actor.Position.Z)))
                         outside.Add($"{mission}.{objective} {actor.Role}");
                 }
@@ -851,9 +855,10 @@ namespace Rasa.Test.Missions.Crucible
             // (1577 at his place; 1521's 7 and 5 at his copy's, the Brain), 1521's container, 1522's two switches. Set 13: Capriulo
             // (1856,1, 1899,3), Eugin (1856,2, 1899,2), Rigs (1857,15), 1857's eleven piles and 1899's terminal (1899's Skeev, a scene
             // creature with no pool, stands on his marker's centre: CrucibleHybridArcTests). Set 11b (in the Incurables Ward): 1398's
-            // Dhimand twice (2 and 4, at his copy's) and Sheira (5).
-            Assert.AreEqual(1 + 5 + 21 + 1 + 5 + 2 + 3 + 4 + 1 + 2 + 10 + 2 + 2 + 3 + 3 + 1 + 6 + 1 + 3 + 2 + 3 + 4 + 6 + 5 + 12 + 3, checkedTargets,
-                "DeLisi, the five of The Wire, the terminal, the twenty fallen, and set 2's, set 3's, set 5's, set 6's, set 7's, set 8a's, set 8b's, set 9's, set 11a's, set 12a's, set 13's and set 11b's talks and uses");
+            // Dhimand twice (2 and 4, at his copy's) and Sheira (5). Set 15 (in the Incurables Ward): Shanul (1401,4) and 1401's
+            // three doors (the two north doors, gated on hidden 8 and 9, on 5's door marker; the Sanctum door on 6's).
+            Assert.AreEqual(1 + 5 + 21 + 1 + 5 + 2 + 3 + 4 + 1 + 2 + 10 + 2 + 2 + 3 + 3 + 1 + 6 + 1 + 3 + 2 + 3 + 4 + 6 + 5 + 12 + 3 + 4, checkedTargets,
+                "DeLisi, the five of The Wire, the terminal, the twenty fallen, and set 2's, set 3's, set 5's, set 6's, set 7's, set 8a's, set 8b's, set 9's, set 11a's, set 12a's, set 13's, set 11b's and set 15's talks and uses");
             Assert.IsEmpty(outside, string.Join(", ", outside));
         }
 

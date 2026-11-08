@@ -416,7 +416,7 @@ container's south side (-16.4, 1.46, -166.6) r3.
 - [ ] Fix I: 1521 objective 4: walk from the Brain to the marker; does the use of the Spare Parts Container work from there?
 
 Set 11b, the Incurables Ward wings (migration `20271108002000_Crucible_incurables_ward_wings`; no new ids). 1401 Blood,
-Fire, and Steel is not built: its wings are shut by client map statics (to-fix row 71).
+Fire, and Steel: set 15, below (the wings are reached down the centre room's four catwalk stairs into its pit).
 
 - [ ] 1398 Leaky Pipes (Incurables Ward): Engineer Dhimand offers it (no prerequisite), level 40. 1 Recover Dhimand's Tool
   Chest: Jaikev (-98, 94.61, 332) drops it (100 %, only while 1 is open). 2 Return Tools: Dhimand's talk takes the chest and
@@ -448,6 +448,30 @@ floor at (92.8, 17.18, -176) but does not climb back up; the way out is the room
   credits, one of 45064 x3, 111039 x3, 45065 x2, 111029 x3.
 - [ ] Second client (bot checklist): two squad mates on 1523 at once: each gets his own waves (18 Thrax in the room)? Do the
   waves mix, and is the room too full?
+
+Set 15, Blood, Fire, and Steel in the Incurables Ward (migration `20271108002400_Crucible_blood_fire_steel`). New rows
+770070 Atali, 770071 Umank, 770072 the Headsman; pools 770070-770073 (next free id 770074); Incurable pool 770048 made a
+point. On upstream's navmesh the centre room's pit stairs are cut (N15): test with a navmesh that joins them (the local
+rebake, cell 0.2, agent 0.6). The doors are personal scene objects (class 10749): each player sees and is stopped by his
+own.
+
+- [ ] 1401 Blood, Fire, and Steel (Incurables Ward): Mechanic Shanul offers it (no prerequisite), level 40. 1 and 2: kill
+  Atali the Firebrand in the west wing (-18, 62.61, -6) and Umank the Hatchet in the east wing (202, 54.61, 210) (each with
+  two Brutes and two Slayers); each drops his keycard (100 %, only while 1401 is held). The way to the wings: down the
+  centre room's stairs into the pit. 4: report to Shanul (his text: "you may run into more locked doors"). Then the two
+  doors north of the ring: Atali's at the ring's jamb (78, 62, 40), Umank's in the airlock's middle throat (78, 62, 50).
+  Before the talk a door with its card is refused; after it, the use opens the door and takes the card. With both open the
+  Headsman and four Warden Bots wake at (78, 62.61, 62) and come for you. 5: the Headsman's keycard. 6: the door to
+  Jaikev's Sanctum at (94, 78, 400) (south of Paliv's body): the use opens it and takes the card. Turn in at Shanul: 170000
+  XP, 8000 credits, no items. Markers: Atali, Umank (r10), Shanul (r8), the doors (78, 62.6, 45) r8 and the Headsman r10,
+  before the Sanctum door (94, 78.6, 397) r6. Abandon: the cards you hold are kept and count again at the accept.
+- [ ] 1401 (look): the door class 10749 has target_flag 0 in the client: can the player target and use a door at all? Does
+  a locked door show the lock (LockInfo) and the "missing item" message without the card? Does the closed door stop you,
+  and does it open with its animation? Does each door fill its frame (no gap at the sides)?
+- [ ] 1401: a door use without the card: refused (PmMissingReqItem); with the card before the talk: refused.
+- [ ] Second client (bot checklist): two squad mates on 1401: each gets his own cards from the kills; a door one of them
+  opens after both talked opens the other's door too and takes his card; each wakes his own Headsman group (two groups
+  stack north of the doors). The doors stop only their owner: does the mate walk through your shut door?
 
 ## Assumptions and choices (not from a source)
 
@@ -722,6 +746,10 @@ All ESTIMATE (set 13):
   120 s) and places in the south corridor; the Crucible's Thrax Soldier Mark IX 531018 as the "Thrax Soldier"; the two
   Refitted Warden Bots (a new friendly row, name 9529, class 26395; PlanetTR-3508, 0.3) and their places; the marker place;
   "Class VIII" for all four items.
+- 1401: level 40, 170000 XP, 8000 credits, no items (as 1398 and 1444); Atali and Umank as Jaikev (class 25547, level 42,
+  12000 HP, armor 300) with two Brutes and two Slayers each, and their places; the Headsman (class 10315, the Warden Bot's
+  attacks) and his four Warden Bots and their places; the door places (no client source ties a door to the map) and which
+  card opens which door; the doors open only after the talk at Shanul; one hidden counter and trackers.
 - 1525: one hidden, not required objective (completeable at the accept; the server needs one objective row), completed on
   the Crucible; the four items "Class VIII".
 
@@ -737,8 +765,8 @@ All ESTIMATE (set 13):
 - 1521: the escort checks the player at the Brain room's mouth, not Brian (Brian follows); Brian cannot die, so "Keep
   Brian Safe" is the three Clavigers killed; the spare parts are no item.
 
-- 1444: Shanul's text sends the player for the keycards of Atali and Umank (1401, set 11b, not built); Paliv and Dhimand
-  are reached without them, and no Sanctum door stands in the way.
+- 1444: Shanul's text sends the player for the keycards of Atali and Umank (1401); Paliv and Dhimand are reached without
+  them for a player not on 1401 (the doors are 1401's personal scene objects).
 
 - 1143: one counter of distinct corpses does the work of the client's twenty per-corpse objectives.
 - 1145: no failure for being caught with the wire.
@@ -789,7 +817,11 @@ All ESTIMATE (set 13):
 
 - 1398: Dhimand cannot die and nothing fails the mission (TaRapedia: too far ahead or his death fails it). He cannot follow
   past the north airlock gap (upstream N13); Sheira's talk does not need him there.
-- 1401 not built: the wings' doors are client map statics (ArchBrannCorridorEndcap01V01) the server cannot open.
+- 1401: the boss-area doors of patch 2008-03-26 (shut while Atali's or Umank's group lives) are not built: their places are
+  unknown. The keycard doors are personal scene objects: they stop only their owner (other players and creatures pass).
+  Each member on 1401 wakes his own Headsman group. In a squad a door one member opens counts for every member on 1401
+  who has talked to Shanul: each one's card is taken and each one's own door opens. On upstream's navmesh the pit stairs
+  are cut (N15): the server walks to the wings need the local rebake.
 - 1523: on upstream's navmesh the east room's floor is an island (N14): the Thrax cannot reach a player on the floor and
   stop at the south strip and bridge. Fixed by a local navmesh, not in this branch (one link, one way: south strip down to
   the east floor; the west half stays an island). The server mesh has no way out of the room: the client walks out over
@@ -913,3 +945,8 @@ All ESTIMATE (set 13):
 ## Server data changed by set 12b (upstream rows)
 
 - None upstream. Added: the Refitted Warden Bot 770063 (no pool, no package; a scene spawn of 1523).
+
+## Server data changed by set 15 (upstream rows)
+
+- None upstream. Added: Atali 770070, Umank 770071, the Headsman 770072 (rows, stats) and pools 770070-770073. Changed: the
+  Incurable pool 770048 (set 11a's row) made a point (radius 5 to 0: its draw reached into the airlock chamber).

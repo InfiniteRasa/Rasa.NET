@@ -56,8 +56,8 @@ namespace Rasa.Test.Missions.Crucible
     [DoNotParallelize]
     public class CrucibleIncurablesWardTests
     {
-        /// <summary>The Crucible markers in the Ward: 1445's on Sheira, 1444's three, 1402's on the bosses and the nine pools, 1398's five.</summary>
-        internal const int WardMarkers = 1 + 3 + 2 + 9 + 5;
+        /// <summary>The Crucible markers in the Ward: 1445's on Sheira, 1444's three, 1402's on the bosses and the nine pools, 1398's five, 1401's six.</summary>
+        internal const int WardMarkers = 1 + 3 + 2 + 9 + 5 + 6;
 
         private const uint Ward = I.Ward;
         private const uint GameWardens = CrucibleGameWardensV1.MissionId;
@@ -82,7 +82,7 @@ namespace Rasa.Test.Missions.Crucible
         /// ReachClearance or more outside every hostile pool's circle; the Incurables (two Brutes and two Slayers a pool),
         /// Jaikev and Parvatee come out of their pools hostile, of their classes, levels and hit points; Paliv's body and every
         /// one of these places is walked to from the arrival: Sheira and Shanul on the arrival's island, the rest only through
-        /// the north airlock (the server navmesh does not join it: upstream, pinned); none within 5 m of the door's circle,
+        /// the north airlock (upstream's navmesh does not join it, N13; the local N15 rebake does: WalkFromArrival); none within 5 m of the door's circle,
         /// no hostile pool within ReachClearance of it.
         /// </summary>
         [TestMethod]
@@ -276,8 +276,11 @@ namespace Rasa.Test.Missions.Crucible
             }
             if (!F.Clear(across, AirlockSouth + new Vector3(0, F.Eye, 0), AirlockNorth + new Vector3(0, F.Eye, 0)))
                 failures.Add("something in the way through the airlock");
-            Assert.IsFalse(nav.FindPath(nav.Nearest(AirlockSouth).Value, nav.Nearest(AirlockNorth).Value, out var joined) != null && joined,
-                "the server navmesh does not join the airlock (upstream, NOTES-upstream-bugs.md): if it does now, the walks can go direct");
+            // The server navmesh: upstream's has a 1 m gap in the airlock (N13, NOTES-upstream-bugs.md; the walks go across it in
+            // segments), the local N15 rebake joins it (the walks go direct). Either way each side is walked to its end.
+            var south = nav.FindPath(nav.Nearest(Arrival).Value, nav.Nearest(AirlockSouth).Value, out var southWhole);
+            var northSide = nav.FindPath(nav.Nearest(AirlockNorth).Value, nav.Nearest(ToVector(I.DhimandAt)).Value, out var northWhole);
+            Assert.IsTrue(south != null && southWhole && northSide != null && northWhole, "the airlock's two sides are walked to (joined or not)");
 
             // No lava in the Ward: round the point pools 20 m, and every place. NOTE: LavaSurfaces has no entry for the Ward's map
             // (adv_arieki_ligo_crucible_incurablesward), so LavaDamage.InLava is false everywhere here and this check is vacuous
@@ -314,8 +317,11 @@ namespace Rasa.Test.Missions.Crucible
             foreach (var (pool, raw) in I.IncurablePools)
             {
                 var centre = nav.Nearest(ToVector(raw)).Value;
-                // A point pool has no draw (SpawnPoolManager: pool.Radius <= 0 sets it on its point): its reach is the centre.
-                var reach = I.RadiusOf(pool) > 0 ? CrucibleGuardTests.SpawnReach(nav, centre, I.RadiusOf(pool)) : new List<Vector3> { centre };
+                // A point pool has no draw (SpawnPoolManager: pool.Radius <= 0 sets it on its point): its reach is the centre. The
+                // radius as the World DB has it (I.RadiusOf, and set 15 made 770048 a point: CrucibleBloodFireSteelV1.PointedPool).
+                var radius = (float)harness.World.SpawnPoolEntries.AsNoTracking().Single(row => row.Id == pool).Radius;
+                Assert.AreEqual(pool == CrucibleBloodFireSteelV1.PointedPool ? 0f : I.RadiusOf(pool), radius, $"pool {pool}: its radius");
+                var reach = radius > 0 ? CrucibleGuardTests.SpawnReach(nav, centre, radius) : new List<Vector3> { centre };
                 Assert.IsNotEmpty(reach, $"pool {pool}: a reach");
                 var near = F.Near(geometry, new List<Vector3> { centre }, ReachLimit + 2)[0];
                 foreach (var at in reach)
@@ -655,22 +661,25 @@ namespace Rasa.Test.Missions.Crucible
             if (!harness.Maps.MapChannelArray.ContainsKey(Ward))
                 LoadMap(harness, Ward);
             var copy = ThroughTheDoor(harness, Ward);
-            foreach (var pool in copy.SpawnPools.Where(pool => WardPools.Contains(pool.DbId)))
+            foreach (var pool in copy.SpawnPools.Where(pool => WardPools.Contains(pool.DbId) || CrucibleBloodFireSteelTests.Pools.Contains(pool.DbId)))
                 pool.ClearedAtUtcMs = 0;
             // A squad copy outlives a test: an earlier test's 1398 Dhimand copy or wave (a run this test's database does not hold)
             // would still hide the public Dhimand (MissionNpcVisibility, ReplaceWhilePresent). Its pool goes (as IntoChaukas).
-            var runs = Runs(harness, CrucibleLeakyPipesV1.MissionId);
-            copy.SpawnPools.RemoveAll(pool => pool.SceneRunId != null && pool.ScenarioMissionId == CrucibleLeakyPipesV1.MissionId &&
-                !runs.Contains(pool.SceneRunId));
+            // So does 1401's Headsman group.
+            foreach (var mission in new[] { CrucibleLeakyPipesV1.MissionId, CrucibleBloodFireSteelV1.MissionId })
+            {
+                var runs = Runs(harness, mission);
+                copy.SpawnPools.RemoveAll(pool => pool.SceneRunId != null && pool.ScenarioMissionId == mission && !runs.Contains(pool.SceneRunId));
+            }
             harness.Manager.Scenes.Resume(harness.Client);
             harness.Drain();
             return copy;
         }
 
         /// <summary>
-        /// The navmesh walk from the arrival to <paramref name="to"/>: direct on the arrival's island, or (north) to the
-        /// airlock's south end, straight across its gap, and on from its north end; the direct walk to a north place is not
-        /// complete (the islands, pinned).
+        /// The navmesh walk from the arrival to <paramref name="to"/>: direct on the arrival's island, or (north) direct if the
+        /// navmesh joins the airlock (the local N15 rebake), else to the airlock's south end, straight across its gap (upstream
+        /// N13), and on from its north end.
         /// </summary>
         internal static List<Vector3> WalkFromArrival(NavMeshQuery nav, Vector3 to, bool north, string label)
         {
@@ -683,7 +692,8 @@ namespace Rasa.Test.Missions.Crucible
                 return path.Prepend(start).ToList();
             }
             var direct = nav.FindPath(start, end, out var whole);
-            Assert.IsFalse(direct != null && whole, $"{label}: the navmesh walks there direct now (the islands joined?)");
+            if (direct != null && whole)
+                return direct.Prepend(start).ToList();
             var south = nav.FindPath(start, nav.Nearest(AirlockSouth).Value, out var southComplete);
             Assert.IsTrue(south != null && southComplete, $"{label}: a walk from the arrival to the airlock");
             var from = nav.Nearest(AirlockNorth).Value;
@@ -692,7 +702,7 @@ namespace Rasa.Test.Missions.Crucible
             return south.Prepend(start).Concat(on.Prepend(from)).ToList();
         }
 
-        /// <summary>The navmesh walk back from <paramref name="from"/> to the arrival (north: to the airlock's north end, across, on from its south end).</summary>
+        /// <summary>The navmesh walk back from <paramref name="from"/> to the arrival (north: direct if the airlock is joined, else to its north end, across, on from its south end).</summary>
         internal static List<Vector3> WalkToArrival(NavMeshQuery nav, Vector3 from, bool north, string label)
         {
             var start = nav.Nearest(from) ?? from;
@@ -703,6 +713,9 @@ namespace Rasa.Test.Missions.Crucible
                 Assert.IsTrue(path != null && complete, $"{label}: a walk back to the arrival");
                 return path.Prepend(start).ToList();
             }
+            var direct = nav.FindPath(start, end, out var whole);
+            if (direct != null && whole)
+                return direct.Prepend(start).ToList();
             var to = nav.FindPath(start, nav.Nearest(AirlockNorth).Value, out var toComplete);
             Assert.IsTrue(to != null && toComplete, $"{label}: a walk back to the airlock");
             var south = nav.Nearest(AirlockSouth).Value;

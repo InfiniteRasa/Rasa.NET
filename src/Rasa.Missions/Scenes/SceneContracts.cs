@@ -36,7 +36,10 @@ namespace Rasa.Missions.Scenes
         // A captive remains protected until its scene starts a route that resumes after combat.
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool HoldCombatUntilRoute = false,
         // A temporary encounter replaces its public contact only while the personal actor exists.
-        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool ReplaceWhilePresent = false);
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool ReplaceWhilePresent = false,
+        // An object locked in its InitialObjectState that this item template opens (UsableLock.KeyItemTemplateId, sent in
+        // LockInfo): a keycard door. 0 for no lock.
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] uint KeyItemTemplateId = 0);
     public sealed record SceneObjectAction(uint MissionId, uint ObjectiveId, uint SequenceId, uint ActionArgId = 1);
     public sealed record SceneObjectDestruction(uint MissionId, uint ObjectiveId, uint SequenceId,
         uint HitPoints = 100, uint DestroyedState = 2);

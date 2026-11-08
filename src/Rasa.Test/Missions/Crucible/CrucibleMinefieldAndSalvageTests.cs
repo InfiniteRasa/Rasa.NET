@@ -732,8 +732,8 @@ namespace Rasa.Test.Missions.Crucible
         /// Crucible_fix_j (fix job J, to-fix row 75) puts the Smart Mine back as set 4 wrote it - its weapon 1/109 (row 770014)
         /// and its self-destruct (action 2, row 770016) - and takes out 1232's evidence row 5, and nothing else: every other
         /// Crucible creature and creature_action row and evidence row stays. Up and Down are each safe twice; Up again, the
-        /// decay is back. Set 12b (20271108002300, a later migration: creature 770063 and up, missions 1523 and 1525) is rolled
-        /// back with the fix and not put back: its rows are not compared.
+        /// decay is back. Sets 12b and 15 (20271108002300 and 002400, later migrations: creature 770063 and up, missions 1523, 1525
+        /// and 1401) are rolled back with the fix and not put back: their rows are not compared.
         /// </summary>
         [TestMethod]
         public void FixJRollsBackWithItsMigration()
@@ -782,7 +782,7 @@ namespace Rasa.Test.Missions.Crucible
             var evidence = Evidence();
             string Changed(List<string> rows, uint id) => rows.Single(row => row.StartsWith(id + " ", System.StringComparison.Ordinal));
 
-            Assert.AreEqual((true, true), (SetTwelveB.Any(Has), Bot()), "set 12b is in");
+            Assert.AreEqual((true, true), (SetTwelveB.Any(Has), Bot()), "sets 12b and 15 are in");
 
             // Up twice: nothing more.
             Run(CrucibleFixJV1.Up);
@@ -793,7 +793,7 @@ namespace Rasa.Test.Missions.Crucible
             migrator.Migrate(CreatureTints);
             world.ChangeTracker.Clear();
             Assert.AreEqual((CrucibleFixJV1.Before, CrucibleFixJV1.Action2Before), (Of(Attack()), Action2()), "set 4's weapon and self-destruct back");
-            Assert.AreEqual((false, false), (SetTwelveB.Any(Has), Bot()), "set 12b, a later migration, is out");
+            Assert.AreEqual((false, false), (SetTwelveB.Any(Has), Bot()), "sets 12b and 15, later migrations, are out");
             var downActions = Actions();
             var downCreatures = Creatures();
             CollectionAssert.AreEqual(actions.Where(row => row != Changed(actions, CrucibleFixJV1.MineAttack)).ToList(),
@@ -812,11 +812,12 @@ namespace Rasa.Test.Missions.Crucible
             CollectionAssert.AreEqual(actions, Actions());
             CollectionAssert.AreEqual(creatures, Creatures());
             CollectionAssert.AreEqual(evidence, Evidence());
-            Assert.AreEqual((false, false), (SetTwelveB.Any(Has), Bot()), "set 12b stays out");
+            Assert.AreEqual((false, false), (SetTwelveB.Any(Has), Bot()), "sets 12b and 15 stay out");
         }
 
-        /// <summary>Set 12b (20271108002300): missions 1523 and 1525, creature rows from 770063.</summary>
-        private static readonly uint[] SetTwelveB = { CrucibleFactoryFortificationV1.MissionId, CrucibleInformationIsKeyV1.MissionId };
+        /// <summary>Sets 12b (20271108002300) and 15 (002400), later migrations: missions 1523, 1525 and 1401, creature rows from 770063.</summary>
+        private static readonly uint[] SetTwelveB = { CrucibleFactoryFortificationV1.MissionId, CrucibleInformationIsKeyV1.MissionId,
+            CrucibleBloodFireSteelV1.MissionId };
         private const uint SetTwelveBFirstId = 770063;
         private const string CreatureTints = "20271108002100_Crucible_creature_tints";
         private const string FixJ = "20271108002200_Crucible_fix_j";
