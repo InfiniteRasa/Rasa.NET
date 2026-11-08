@@ -1,6 +1,6 @@
 # Ligo Crucible missions: sources (cross-reference)
 
-The 43 missions of the Ligo Crucible quest PR, taken from the full mission cross-reference of the 1.16.5.0
+The 47 missions of the Ligo Crucible quest PR, taken from the full mission cross-reference of the 1.16.5.0
 client. For each mission: the client text and objectives, the sources found (TaRapedia, TR MMO DB, Ellatha,
 Ten Ton Hammer, archived fan and official pages, patch notes) and a rebuild summary with the source of each
 value. Values without a source are marked ESTIMATE. "This PR" rows (where present) show the data this PR adds.
@@ -9,7 +9,7 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
 
 | Zone | Missions |
 | --- | ---: |
-| Crucible | 43 |
+| Crucible | 47 |
 
 ## Crucible
 
@@ -1173,4 +1173,138 @@ Playtest status and the deviations from the original game: `docs/crucible-playte
 
 - **Chain** (explicit prerequisite links): Get to Chaukas chain (5 missions), step 1
   - Leads to: Control the Brain (id 1521) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Control_the_Brain), [TaRapedia](https://tabularasa.fandom.com/wiki/Get_to_Chaukas)
+
+### 1856 — Dark Genesis
+
+
+- **Rebuild summary:**
+  - level: 36 — source: [TR MMO DB](https://web.archive.org/web/20081202023147/http://tr.mmodb.com/quests/dark-genesis-618.php)
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 37,500 XP; 3,800 credits; Class VII Advanced Med Pack x2; Class VII Power Charger x2; Class VII Cryogenic Grenade x4; Class VII Incendiary Grenade x4 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Dark_Genesis)
+  - reward: 3800 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB](https://web.archive.org/web/20081202023147/http://tr.mmodb.com/quests/dark-genesis-618.php)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Special Agent Stark: Crucible, Outpost Intrepid — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Special_Agent_Stark)
+  - location: Dark Genesis : The first mission in the series begins with Special Agent Stark in Outpost Intrepid at 1019,144,63. — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/thrax-hybrid-access-mission)
+  - location: Special Agent Capriulo is hanging out in the nightclub inside the Staal base at -303,196,377. — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/thrax-hybrid-access-mission)
+- **Client:** Special Agent Stark wants you to help Penumbra develop the technology to clone Thrax/Human hybrids. If you want to help, rendezvous with another Penumbra operative, Special Agent Capriulo, at the night club inside the Staal Detention Facility.
+  - objectives (client): Locate Special Agent Capriulo. — Locate Penumbra operative Special Agent Capriulo at the nightclub inside the Staal Detention Facility.; Speak to Zupa Eugin. — Go and speak to the Brann Scientist Zupa Eugin, in the Viddea Quarter at Staal.
+- **TaRapedia** [Dark Genesis](https://tabularasa.fandom.com/wiki/Dark_Genesis) [stub]: giver: Special Agent Stark; at: Outpost Intrepid; zone: Crucible; requires: Level 36; follow-up: The Gene Machine; XP: 37,500; credits: 3,800; items: Class VII Advanced Med Pack x2; Class VII Power Charger x2; Class VII Cryogenic Grenade x4; Class VII Incendiary Grenade x4; reward from: Viddea Scientist Eugin
+  - overview: Special Agent Stark wants you to help Penumbra develop the technology to clone Thrax/Human hybrids. If you want to help, rendezvous with another Penumbra operative, Special Agent Capriulo, at the night club inside the Staal Detention Facility.
+  - objectives: • Locate Special Agent Capriulo. • Locate Penumbra operative Special Agent Capriulo at the nightclub inside the Staal Detention Facility. • Speak to Zupa Eugin • Go and speak to the Brann Scientist Zupa Eugin, in the Viddea Quarter at Staal.
+  - walkthrough: Travel to the Staal Detention center located roughly in the center of the zone. Once there, head to the upper floor and enter the western doorway. Speak to Special Agent Capriulo to get sent to Viddea Scientist Eugin. Head back to the central area and enter the northern doorway. Speak to Eugin to complete the mission.
+- **TaRapedia mission list** [Outpost Intrepid mission list](https://tabularasa.fandom.com/wiki/Outpost_Intrepid_mission_list): zone Crucible, area Outpost Intrepid, given by Special Agent Stark
+- **Ten Ton Hammer** [thrax-hybrid-access-mission](https://www.tentonhammer.com/guides/thrax-hybrid-access-mission): “Dark Genesis : The first mission in the series begins with Special Agent Stark in Outpost Intrepid at 1019,144,63. Stark is excited about the possiblity of a new Thrax hybrid soldier. A Brann scientist has been working with a Penumbra agent on the research, and all they need is a brave test subject (hint hint). If you're available, Stark will have you meet up with the Penumbra …”
+- **TR MMO DB** [Dark Genesis](https://web.archive.org/web/20081202023147/http://tr.mmodb.com/quests/dark-genesis-618.php): level: 36; starts at npc: Special Agent Stark; starts in zone: Crucible; objectives: Speak to Special Agent Capriulo, Speak to Viddea Scientist Eugin; reward: 3800
+  - related mob Special Agent Capriulo (not in the archived bestiary pages)
+- **TR MMO DB NPC** [Viddea Scientist Eugin](https://web.archive.org/web/20081121041624/http://tr.mmodb.com/bestiary/viddea-scientist-eugin-1002.php): Quest NPC, zone Crucible (related to this quest)
+- **Where (locations / coordinates):**
+  - Dark Genesis : The first mission in the series begins with Special Agent Stark in Outpost Intrepid at 1019,144,63. — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/thrax-hybrid-access-mission)
+  - Special Agent Capriulo is hanging out in the nightclub inside the Staal base at -303,196,377. — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/thrax-hybrid-access-mission)
+- **NPCs (TaRapedia NPC pages):**
+  - [Special Agent Stark](https://tabularasa.fandom.com/wiki/Special_Agent_Stark): Crucible, Outpost Intrepid (named as giver/receiver)
+  - [Viddea Scientist Eugin](https://tabularasa.fandom.com/wiki/Viddea_Scientist_Eugin): Crucible, Staal Detention Center (named as giver/receiver)
+  - [Special Agent Capriulo](https://tabularasa.fandom.com/wiki/Special_Agent_Capriulo): Crucible, Staal Detention Center (named in client text)
+
+- **Chain** (explicit prerequisite links): Dark Genesis chain (4 missions), step 1
+  - Leads to: The Gene Machine (id 1857) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Dark_Genesis), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Gene_Machine)
+- **Requires (name not matched to a mission):** Level 36 — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Dark_Genesis)
+
+### 1857 — The Gene Machine
+
+
+- **Rebuild summary:**
+  - level: 35 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731171503/http://tr.mmodb.com/quests/startingzone-crucible/)
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 75,000 XP; 5,700 credits; lvl 36 Hellstrom Pulse Rifle; lvl 35 Vitalius Sonic RPG Launcher; lvl 36 AccuMax Cryogenic Net Gun; lvl 39 Eclipse Virulent Leech Gun; This is a regular mission, so all rewards are Modified quality. — source: [TaRapedia](https://tabularasa.fandom.com/wiki/The_Gene_Machine)
+  - reward: 5700 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB quest series list](https://web.archive.org/web/20120731170342/http://tr.mmodb.com/quests/seriesname-the_gene_machine/)
+  - drops / mission items: Biological Diagnostic Unit: Found at -435 267 this may be a random spawn in the junkyard found in little boxes laying around amongst the junk — source: [TaRapedia item](https://tabularasa.fandom.com/wiki/Biological_Diagnostic_Unit)
+  - drops / mission items: Rendylitic Calibrator: Found at -431 276 — source: [TaRapedia item](https://tabularasa.fandom.com/wiki/Rendylitic_Calibrator)
+  - location: NPC Viddea Scientist Eugin: Crucible, Staal Detention Center — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Viddea_Scientist_Eugin)
+  - location: Grupa Rigs is found near the waypoint here at -392,249,276. — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/thrax-hybrid-access-mission)
+- **Client:** Zupa Eugin in the Viddea Quarter needs a Rendylitic Calibrator, a Biological Diagnostic Wand and three Vanadium Redox Power Cells to finish constructing his Transgenic Splicing Unit.
+  - objectives (client): Obtain a Rendylitic Calibrator — Obtain a Rendylitic Calibrator for Zupa Eugin.; Get a Biological Diagnostic Unit — Get a Biological Diagnostic Unit for Zupa Eugin.; Get 3 Vanadium Redox Power Cells — Get 3 Vanadium Redox Power Cells for Zupa Eugin.; Speak to Grupa Rigs. — Speak to Grupa Rigs in the Labbna Quarter outside Staal, to see if he can give you the parts you need.
+- **TaRapedia** [The Gene Machine](https://tabularasa.fandom.com/wiki/The_Gene_Machine) [stub]: giver: Viddea Scientist Eugin; at: Staal Detention Center; zone: Crucible; requires: Dark Genesis; follow-up: Designer Genes; XP: 75,000; credits: 5,700; items: lvl 36 Hellstrom Pulse Rifle; lvl 35 Vitalius Sonic RPG Launcher; lvl 36 AccuMax Cryogenic Net Gun; lvl 39 Eclipse Virulent Leech Gun; This is a regular mission, so all rewards are Modified quality.; reward from: Viddea Scientist Eugin
+  - overview: Zupa Eugin in the Viddea Quarter needs a Rendylitic Calibrator, a Biological Diagnostic Wand and three Vanadium Redox Power Cells to finish constructing his Transgenic Splicing Unit.
+  - objectives: • Speak to Grupa Rigs. • Speak to Grupa Rigs in the Labbna Quarter outside Staal, to see if he can give you the parts you need. • Obtain a Rendylitic Calibrator • Obtain a Rendylitic Calibrator for Zupa Eugin. • x 1 • Get a Biological Diagnostic Unit • Get a Biological Diagnostic Unit for Zupa Eugin. • x 1 • Get 3 Vanadium Redox Power Cells • Get 3 Vanadium Redox Power Cells for Zupa Eugin. • x 3
+  - walkthrough: On foot or by waypoint, find your way to the Labbna area just west of Staal. Speak to Labbna Grupa Rugs north of the waypoint to 'unlock' the junk strewn about the area. As far as I can tell, you will have to check every single object you can (excluding the locked chest). Cylinders, boxes, and other small devices are littered about the area as well as two larger console-like objects. Check every nook and cranny. At one point, you will be ambushed by four Silver Barb Ticks, though they should pose little threat. Half of what you find will be junk, but once you have finally checked all the …
+- **TaRapedia mission list** [Staal Detention Center mission list](https://tabularasa.fandom.com/wiki/Staal_Detention_Center_mission_list): zone Crucible, area Staal Detention Center, given by Viddea Scientist Eugin
+- **Ten Ton Hammer** [thrax-hybrid-access-mission](https://www.tentonhammer.com/guides/thrax-hybrid-access-mission): “The Gene Machine . His equipment is nearly serviceable, but he needs a few more parts to get it up to speed. His acquaintances with the Labbna Syndicate are master salvagers, and should have everything he needs. style="float: left; " border="1"> src="http://www.tentonhammer.com/image/view/35969/preview" width="200" border="0"> Finding Treasure in the Trash The salvage yard is …”
+- **TR MMO DB quest series** [The Gene Machine](https://web.archive.org/web/20120731170342/http://tr.mmodb.com/quests/seriesname-the_gene_machine/): Designer Genes (level 35, reward 7600) → Genome Sweet Genome (level 35, reward 0) → The Gene Machine (level 35, reward 5700) (series order as listed on the page; reward unit not stated)
+- **TR MMO DB NPC** [Labbna Grupa Rigs](https://web.archive.org/web/20080907091714/http://tr.mmodb.com/bestiary/labbna-grupa-rigs-984.php): Quest NPC, zone Crucible (related to this quest)
+- **Where (locations / coordinates):**
+  - Grupa Rigs is found near the waypoint here at -392,249,276. — source: [Ten Ton Hammer](https://www.tentonhammer.com/guides/thrax-hybrid-access-mission)
+- **NPCs (TaRapedia NPC pages):**
+  - [Viddea Scientist Eugin](https://tabularasa.fandom.com/wiki/Viddea_Scientist_Eugin): Crucible, Staal Detention Center (named as giver/receiver)
+- **Mission items (TaRapedia item pages):**
+  - [Biological Diagnostic Unit](https://tabularasa.fandom.com/wiki/Biological_Diagnostic_Unit): Found at -435 267 this may be a random spawn in the junkyard found in little boxes laying around amongst the junk
+  - [Rendylitic Calibrator](https://tabularasa.fandom.com/wiki/Rendylitic_Calibrator): Found at -431 276
+  - [Vanadium Redox Power Cell](https://tabularasa.fandom.com/wiki/Vanadium_Redox_Power_Cell): Found at -451 247, -401 220, and -413 253
+
+- **Chain** (explicit prerequisite links): Dark Genesis chain (4 missions), step 2
+  - Requires: Dark Genesis (id 1856) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Dark_Genesis), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Gene_Machine)
+  - Leads to: Designer Genes (id 1881) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Designer_Genes), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Gene_Machine)
+- **TR MMO DB quest series:** "The Gene Machine", row 3 of 3 ([list](https://web.archive.org/web/20120731170342/http://tr.mmodb.com/quests/seriesname-the_gene_machine/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+
+### 1881 — Designer Genes
+
+
+- **Rebuild summary:**
+  - level: 35 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731171503/http://tr.mmodb.com/quests/startingzone-crucible/)
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: 150,000 XP; 7,600 credits; lvl 38; lvl 39; lvl 39; lvl 35; This is a regular mission, so all rewards are Modified quality. — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Designer_Genes)
+  - reward: 7600 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB quest series list](https://web.archive.org/web/20120731170342/http://tr.mmodb.com/quests/seriesname-the_gene_machine/)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Viddea Scientist Eugin: Crucible, Staal Detention Center — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Viddea_Scientist_Eugin)
+  - location: (-737, 298, 389) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Designer_Genes)
+- **Client:** Kill five Thrax bosses on Ligo Crucible and retrive samples of their DNA for Zupa Eugin at the Viddea Quarter inside Staal.
+  - objectives (client): Get 5 DNA Samples from Thrax bosses. — Kill 5 Thrax bosses and retrive samples of their DNA for Zupa Eugin.
+- **TaRapedia** [Designer Genes](https://tabularasa.fandom.com/wiki/Designer_Genes) [stub]: giver: Viddea Scientist Eugin; at: Staal Detention Center; zone: Crucible; requires: The Gene Machine; follow-up: Genome Sweet Genome; XP: 150,000; credits: 7,600; items: lvl 38; lvl 39; lvl 39; lvl 35; This is a regular mission, so all rewards are Modified quality.; reward from: Viddea Scientist Eugin
+  - overview: Kill five Thrax bosses on Ligo Crucible and retrieve samples of their DNA for Zupa Eugin at the Viddea Quarter inside Staal.
+  - objectives: • Get 5 DNA Samples from Thrax bosses. • Kill 5 Thrax bosses and retrive samples of their DNA for Zupa Eugin. • x 5
+  - walkthrough: All you need to do for this mission is kill Thrax Bosses. It does not matter which ones as long as they are within Crucible. You can even kill the same boss several times. The one exception is control point-spawned bosses; they do not drop the DNA. Some boss locations are as follows: • Inquisitor Braak can be found outside the outer Fort Intrepid walls - generally to the northwest. • Preceptor Molitor and Coercer Mungrel can be found north of the Awol Camp. • Defiler Sledge and Archfiend Krubb can be found near the Seeds logos northeast of Awol Camp. (-737, 298, 389) For the time being, you …
+- **TaRapedia mission list** [Staal Detention Center mission list](https://tabularasa.fandom.com/wiki/Staal_Detention_Center_mission_list): zone Crucible, area Staal Detention Center, given by Viddea Scientist Eugin
+- **TR MMO DB quest series** [The Gene Machine](https://web.archive.org/web/20120731170342/http://tr.mmodb.com/quests/seriesname-the_gene_machine/): Designer Genes (level 35, reward 7600) → Genome Sweet Genome (level 35, reward 0) → The Gene Machine (level 35, reward 5700) (series order as listed on the page; reward unit not stated)
+- **TR MMO DB NPC** [Viddea Scientist Eugin](https://web.archive.org/web/20081121041624/http://tr.mmodb.com/bestiary/viddea-scientist-eugin-1002.php): Quest NPC, zone Crucible (starts this quest)
+- **Where (locations / coordinates):**
+  - (-737, 298, 389) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Designer_Genes)
+- **NPCs (TaRapedia NPC pages):**
+  - [Viddea Scientist Eugin](https://tabularasa.fandom.com/wiki/Viddea_Scientist_Eugin): Crucible, Staal Detention Center (named as giver/receiver)
+
+- **Chain** (explicit prerequisite links): Dark Genesis chain (4 missions), step 3
+  - Requires: The Gene Machine (id 1857) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Designer_Genes), [TaRapedia](https://tabularasa.fandom.com/wiki/The_Gene_Machine)
+  - Leads to: Genome Sweet Genome (id 1899) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Designer_Genes), [TaRapedia](https://tabularasa.fandom.com/wiki/Genome_Sweet_Genome)
+- **TR MMO DB quest series:** "The Gene Machine", row 1 of 3 ([list](https://web.archive.org/web/20120731170342/http://tr.mmodb.com/quests/seriesname-the_gene_machine/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
+
+### 1899 — Genome Sweet Genome
+
+
+- **Rebuild summary:**
+  - level: 35 — source: [TR MMO DB quest list](https://web.archive.org/web/20120731171503/http://tr.mmodb.com/quests/startingzone-crucible/)
+  - level ESTIMATE from zone: the Crucible zone level range is 38-40 — source: [Ellatha map: Crucible](https://www.ellatha.com/tr/Crucible_Maps_Logos.asp) (a zone range, not this mission's own level)
+  - level ESTIMATE from zone: most Crucible missions are level 35–40 (median 35, 10th–90th percentile) — derived from 38 missions in this file with a sourced level
+  - reward: None credits; Unlocks Thrax Hybrid clones — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Genome_Sweet_Genome)
+  - reward: 0 (the page gives no unit; probably credits — ESTIMATE) — source: [TR MMO DB quest series list](https://web.archive.org/web/20120731170342/http://tr.mmodb.com/quests/seriesname-the_gene_machine/)
+  - drops / mission items: not found (not critical, or not a collect mission)
+  - location: NPC Viddea Scientist Eugin: Crucible, Staal Detention Center — source: [TaRapedia NPC](https://tabularasa.fandom.com/wiki/Viddea_Scientist_Eugin)
+  - location: Kill them or run past them, but eventually you need to enter the teleporter located at (114, 140, -366). — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Genome_Sweet_Genome)
+- **Client:** Inflitrate the Khulago Research Laboratory, retrieve a Map of the Thrax Genome from the lab's database and return it to Zupa Eugin in the Viddia Quarter at Staal.
+  - objectives (client): Return to Zupa Eugin. — Return to Zupa Eugin in the Viddea Quarter at Staal.; Return to Special Agent Capriulo. — Return to Special Agent Capriulo in the nightclub at Staal.; Kill Skeev! — Kill Overseer Skeev!; Download the Genome Map. — Download a map of the Thrax genome form the laboratory database.; hidden failure conditions objective; Get a map of the Thrax Genome. — Retrieve a Map of the Thrax Genome from the database at the Khulago Research Laboratory.
+- **TaRapedia** [Genome Sweet Genome](https://tabularasa.fandom.com/wiki/Genome_Sweet_Genome) [stub]: giver: Viddea Scientist Eugin; at: Staal Detention Center; zone: Crucible; requires: Designer Genes; follow-up: None; credits: None; items: Unlocks Thrax Hybrid clones; reward from: Special Agent Capriulo
+  - overview: Infiltrate the Khulago Research Laboratory, retrieve a Map of the Thrax Genome from the lab's database and return it to Zupa Eugin in the Viddia Quarter at Staal.
+  - objectives: • Get a map of the Thrax Genome. • Retrieve a Map of the Thrax Genome from the database at the Khulago Research Laboratory. • Morality Option Kill Skeev! • Download the Genome Map. • Download a map of the Thrax genome from the laboratory database. • Return to Zupa Eugin. • Return to Zupa Eugin in the Viddea Quarter at Staal. • Return to Special Agent Capriulo. • Return to Special Agent Capriulo …
+  - walkthrough: Eugin will give you the and send you off. Head to Khulago Base as best you can. Take the Prometheus Outpost waypoint if you can. If you've never been to Khulago before, this might be tough. The area is swarming with Bane, and several Juggernauts roam the area. Follow the trench around clockwise where you will eventually come to another area. Two or three Juggernauts are here. Destroy them if you can, but it may be better to simply run into the tunnel just ahead of you. Inside are more Thrax and a few Kael guards. Kill them or run past them, but eventually you need to enter the teleporter …
+- **TaRapedia mission list** [Staal Detention Center mission list](https://tabularasa.fandom.com/wiki/Staal_Detention_Center_mission_list): zone Crucible, area Staal Detention Center, given by Viddea Scientist Eugin
+- **TR MMO DB quest series** [The Gene Machine](https://web.archive.org/web/20120731170342/http://tr.mmodb.com/quests/seriesname-the_gene_machine/): Designer Genes (level 35, reward 7600) → Genome Sweet Genome (level 35, reward 0) → The Gene Machine (level 35, reward 5700) (series order as listed on the page; reward unit not stated)
+- **Where (locations / coordinates):**
+  - Kill them or run past them, but eventually you need to enter the teleporter located at (114, 140, -366). — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Genome_Sweet_Genome)
+- **NPCs (TaRapedia NPC pages):**
+  - [Viddea Scientist Eugin](https://tabularasa.fandom.com/wiki/Viddea_Scientist_Eugin): Crucible, Staal Detention Center (named as giver/receiver)
+  - [Special Agent Capriulo](https://tabularasa.fandom.com/wiki/Special_Agent_Capriulo): Crucible, Staal Detention Center (named as giver/receiver)
+
+- **Chain** (explicit prerequisite links): Dark Genesis chain (4 missions), step 4
+  - Requires: Designer Genes (id 1881) — source: [TaRapedia](https://tabularasa.fandom.com/wiki/Designer_Genes), [TaRapedia](https://tabularasa.fandom.com/wiki/Genome_Sweet_Genome)
+- **TR MMO DB quest series:** "The Gene Machine", row 2 of 3 ([list](https://web.archive.org/web/20120731170342/http://tr.mmodb.com/quests/seriesname-the_gene_machine/)). The row order is an ESTIMATE of the play order. The list does not say which mission unlocks which.
 

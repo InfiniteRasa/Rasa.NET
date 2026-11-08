@@ -37,6 +37,7 @@ namespace Rasa.Test.Missions.Crucible
     using T = CrucibleKhulagoStrikesNpcsV1;
     using I = CrucibleIncurablesWardNpcsV1;
     using H = CrucibleChaukasNpcsV1;
+    using Y = CrucibleHybridArcNpcsV1;
     using F = MarshesClientFloorTests;
 
     /// <summary>
@@ -62,20 +63,20 @@ namespace Rasa.Test.Missions.Crucible
         /// ones set 2 kept. Set 7's Cirkin stands in the Staal Junkyard (CrucibleStaalJunkyardTests holds him to these rules there),
         /// set 8a's Botha on Ashen Desert (CrucibleKardashAndPrometheusTests), set 11a's Sheira, Shanul and Dhimand in the
         /// Incurables Ward (CrucibleIncurablesWardTests); set 11a's Tempa on the Crucible; set 12a's Brian in Chaukas
-        /// (CrucibleChaukasTests), its Ruben on the Crucible.
+        /// (CrucibleChaukasTests), its Ruben on the Crucible; set 13's Stark, Capriulo and Eugin on the Crucible.
         /// </summary>
         private static List<SpawnPool> Npcs()
         {
             var moved = N.Moves.Select(move => move.Pool).Concat(G.Moves.Select(move => move.Pool)).Concat(G.Kept.Select(kept => kept.Pool))
                 .Concat(A.Moves.Select(move => move.Pool)).Concat(A.Kept.Select(kept => kept.Pool)).Concat(K.Moves.Select(move => move.Pool))
-                .Concat(T.Moves.Select(move => move.Pool)).Concat(I.Moves.Select(move => move.Pool)).ToHashSet();
+                .Concat(T.Moves.Select(move => move.Pool)).Concat(I.Moves.Select(move => move.Pool)).Concat(Y.Moves.Select(move => move.Pool)).ToHashSet();
             bool Friendly(uint creature) => CreatureManager.Instance.LoadedCreatures.TryGetValue(creature, out var c) && c.TargetCategory != TargetCategory.Hostile;
             var npcs = SpawnPoolManager.Instance.LoadedSpawnPools.Values.Where(pool => pool.MapContextId == Map &&
                 (pool.DbId is >= 770000 and <= 770999 || moved.Contains(pool.DbId)) &&
                 pool.SpawnSlot.Count > 0 && pool.SpawnSlot.TrueForAll(slot => Friendly(slot.CreatureId))).ToList();
             Assert.HasCount(N.New.Length + N.Moves.Length + G.New.Length + G.Moves.Length + G.Kept.Length + W.New.Length + V.New.Length +
-                A.Moves.Length + A.Kept.Length + K.Moves.Length + K.New.Count(npc => npc.Map == Map) + T.Moves.Length + 1 + 1, npcs,
-                "the Crucible NPCs are read (set 11a: Tempa; Sheira stands in the Ward; set 12a: Ruben; Brian stands in Chaukas)");
+                A.Moves.Length + A.Kept.Length + K.Moves.Length + K.New.Count(npc => npc.Map == Map) + T.Moves.Length + 1 + 1 + 1 + Y.Moves.Length, npcs,
+                "the Crucible NPCs are read (set 11a: Tempa; Sheira stands in the Ward; set 12a: Ruben; Brian stands in Chaukas; set 13: Stark, Capriulo, Eugin)");
             return npcs;
         }
 
@@ -102,9 +103,14 @@ namespace Rasa.Test.Missions.Crucible
                 foreach (var slot in npc.SpawnSlot)
                     Assert.IsTrue(BehaviorManager.NeverMoves(CreatureManager.Instance.LoadedCreatures[slot.CreatureId]), $"{slot.CreatureId} stands still");
             }
-            // A scene hostile (Roscoe, 1146) seeks friendly creatures in its aggro range as a pool's hostile does: it comes out
-            // ReachClearance from every Crucible NPC, or it can attack Vargo (100 hit points) when the player steps back.
-            foreach (var (creature, at) in new[] { (G.Roscoe, G.RoscoeAt) })
+            // A scene hostile (Roscoe, 1146; 1857's four ticks; 1899's Skeev) seeks friendly creatures in its aggro range as a
+            // pool's hostile does: it comes out ReachClearance from every Crucible NPC, or it can attack Vargo (100 hit points) when
+            // the player steps back.
+            var sceneHostiles = new List<(uint Creature, (double X, double Y, double Z) At)> { (G.Roscoe, G.RoscoeAt) };
+            sceneHostiles.AddRange(CrucibleGeneMachineV1.TicksAt.Select(tick => (CrucibleGeneMachineV1.Tick, ((double)tick.X, (double)tick.Y, (double)tick.Z))));
+            var skeev = CrucibleGenomeSweetGenomeV1.SkeevAt;
+            sceneHostiles.Add((Y.SkeevFighter, (skeev.X, skeev.Y, skeev.Z)));
+            foreach (var (creature, at) in sceneHostiles)
             {
                 Assert.IsTrue(Hostile(creature), $"{creature} is hostile");
                 foreach (var npc in npcs.Where(npc => npc.MapContextId == CrucibleMissionDataV1.MapContextId))
@@ -125,8 +131,8 @@ namespace Rasa.Test.Missions.Crucible
             using var harness = WildernessRuntimeTestHarness.Create();
             var stats = harness.World.CreatureStatEntries.AsNoTracking().Where(row => row.Id >= 770000 && row.Id <= 770999).ToDictionary(row => row.Id);
             var npcs = Npcs().Where(pool => pool.DbId >= 770000).SelectMany(pool => pool.SpawnSlot).Select(slot => slot.CreatureId).Distinct().ToList();
-            Assert.HasCount(N.New.Length + G.New.Length + W.New.Length + V.New.Length + K.New.Count(npc => npc.Map == Map) + 1, npcs,
-                "the new NPCs on the Crucible (set 12a: Ruben)");
+            Assert.HasCount(N.New.Length + G.New.Length + W.New.Length + V.New.Length + K.New.Count(npc => npc.Map == Map) + 1 + 1, npcs,
+                "the new NPCs on the Crucible (set 12a: Ruben; set 13: Stark)");
             foreach (var npc in npcs)
             {
                 Assert.IsTrue(stats.TryGetValue(npc, out var stat), $"{npc} has a creature_stat row");
@@ -385,7 +391,9 @@ namespace Rasa.Test.Missions.Crucible
                     }
             }
             var walks = 0;
-            foreach (var ((mission, objective), pools) in groups)
+            // 1881's markers are on six bosses over the whole map (one sample from each kill, anywhere): not one hunting ground,
+            // and Derge's control point and Ugoretz's ridge have no walk to Molitor's trench. Each boss pool is walked to by its own set's tests.
+            foreach (var ((mission, objective), pools) in groups.Where(group => group.Key.MissionId != CrucibleDesignerGenesV1.MissionId))
                 for (var a = 0; a < pools.Count; a++)
                     for (var b = a + 1; b < pools.Count; b++, walks++)
                         Walk($"{mission}.{objective} pool {pools[a].DbId} to {pools[b].DbId}", pools[a].Position, pools[b].Position);
@@ -713,8 +721,9 @@ namespace Rasa.Test.Missions.Crucible
         /// Crucible NPC, scene object or marker on that level reaches into one (its circle and 1 m), and the navmesh walks to
         /// Munit (from the lower office teleporter, Vitto and Donal), to Vargo (from the teleporter and Cugin), to Yeg from Cugin,
         /// to Nema (from the teleporter and Donal), to Pico (from the teleporter and Munit), to Deirdre (from the teleporter and
-        /// the Staal waypoint) and between the teleporter and Donal (row 50) keep out of rows 32 and 35's holes; the four that
-        /// the navmesh takes up the east stairs past row 50's fall (upstream N10, no NPC move helps) are pinned by name.
+        /// the Staal waypoint), between the teleporter and Donal (row 50), to Capriulo and Eugin (from the teleporter and the Staal
+        /// waypoint) and between Capriulo and Eugin (set 13) keep out of rows 32 and 35's holes; the eight that the navmesh takes
+        /// up the east stairs past row 50's fall (upstream N10, no NPC move helps) are pinned by name.
         /// </summary>
         [TestMethod]
         public void NoCrucibleNpcMarkerOrWalkLeadsOverAStaalFloorHole()
@@ -748,7 +757,11 @@ namespace Rasa.Test.Missions.Crucible
                 (pad, Pool(V.Pico), "the lower teleporter to Pico"), (Pool(N.Munit), Pool(V.Pico), "Munit to Pico"),
                 (pad, Pool(A.Deirdre), "the lower teleporter to Deirdre"),
                 (CrucibleOutpostIntrepidTests.StaalWaypoint, Pool(A.Deirdre), "the Staal waypoint to Deirdre"),
-                (pad, Pool(N.Donal), "the lower teleporter to Donal"), (Pool(N.Donal), pad, "Donal to the lower teleporter")
+                (pad, Pool(N.Donal), "the lower teleporter to Donal"), (Pool(N.Donal), pad, "Donal to the lower teleporter"),
+                (CrucibleOutpostIntrepidTests.StaalWaypoint, Pool(Y.Capriulo), "the Staal waypoint to Capriulo"),
+                (pad, Pool(Y.Capriulo), "the lower teleporter to Capriulo"),
+                (CrucibleOutpostIntrepidTests.StaalWaypoint, Pool(Y.Eugin), "the Staal waypoint to Eugin"),
+                (pad, Pool(Y.Eugin), "the lower teleporter to Eugin"), (Pool(Y.Capriulo), Pool(Y.Eugin), "Capriulo to Eugin")
             })
             {
                 var path = crucible.NavMesh.FindPath(crucible.NavMesh.Nearest(from) ?? from, crucible.NavMesh.Nearest(to) ?? to, out var complete);
@@ -765,13 +778,14 @@ namespace Rasa.Test.Missions.Crucible
             }
             Assert.IsEmpty(failures, string.Join("; ", failures));
 
-            // Row 50 (upstream N10, not fixed): the server navmesh takes these four walks up the east stairs, past the fall at
+            // Row 50 (upstream N10, not fixed): the server navmesh takes these walks up the east stairs, past the fall at
             // (-178.8, 194.7, 355.4), as the tester's walk that fell did. No NPC or marker can move them off it (the walks start
-            // and end at the lower office teleporter, Donal, Munit and Nema; the stairs are the mesh's way); a navmesh fix or a
-            // safety floor can. Pinned, so that a fix of the mesh, or another walk going that way, shows here.
+            // and end at the lower office teleporter, Donal, Munit and Nema; set 13's from the Staal waypoint and the lower teleporter
+            // up to Capriulo's and Eugin's floor; the stairs are the mesh's way); a navmesh fix or a safety floor can. Pinned, so that a fix of the mesh, or another walk going that way, shows here.
             CollectionAssert.AreEquivalent(new[]
                 {
-                    "Donal to Munit", "the lower teleporter to Nema", "the lower teleporter to Donal", "Donal to the lower teleporter"
+                    "Donal to Munit", "the lower teleporter to Nema", "the lower teleporter to Donal", "Donal to the lower teleporter",
+                    "the Staal waypoint to Capriulo", "the lower teleporter to Capriulo", "the Staal waypoint to Eugin", "the lower teleporter to Eugin"
                 }, stairs, string.Join(", ", stairs));
         }
 
@@ -830,9 +844,11 @@ namespace Rasa.Test.Missions.Crucible
             // Tiernan (1217, 1218); Botha on Ashen Desert is CrucibleKardashAndPrometheusTests'. Set 8b: 1215's two Bane terminals.
             // Set 9: 1214's three beacon spots (1224's towers are shot, not used; Tiersky and Keplinger hear no objective).
             // Set 11a (in the Incurables Ward): Sheira (1445), Shanul, Paliv's body and Dhimand (1444). Set 12a (in Chaukas): Brian
-            // (1577 at his place; 1521's 7 and 5 at his copy's, the Brain), 1521's container, 1522's two switches.
-            Assert.AreEqual(1 + 5 + 21 + 1 + 5 + 2 + 3 + 4 + 1 + 2 + 10 + 2 + 2 + 3 + 3 + 1 + 6 + 1 + 3 + 2 + 3 + 4 + 6, checkedTargets,
-                "DeLisi, the five of The Wire, the terminal, the twenty fallen, and set 2's, set 3's, set 5's, set 6's, set 7's, set 8a's, set 8b's, set 9's, set 11a's and set 12a's talks and uses");
+            // (1577 at his place; 1521's 7 and 5 at his copy's, the Brain), 1521's container, 1522's two switches. Set 13: Capriulo
+            // (1856,1, 1899,3), Eugin (1856,2, 1899,2), Rigs (1857,15), 1857's eleven piles and 1899's terminal (1899's Skeev, a scene
+            // creature with no pool, stands on his marker's centre: CrucibleHybridArcTests).
+            Assert.AreEqual(1 + 5 + 21 + 1 + 5 + 2 + 3 + 4 + 1 + 2 + 10 + 2 + 2 + 3 + 3 + 1 + 6 + 1 + 3 + 2 + 3 + 4 + 6 + 5 + 12, checkedTargets,
+                "DeLisi, the five of The Wire, the terminal, the twenty fallen, and set 2's, set 3's, set 5's, set 6's, set 7's, set 8a's, set 8b's, set 9's, set 11a's, set 12a's and set 13's talks and uses");
             Assert.IsEmpty(outside, string.Join(", ", outside));
         }
 
@@ -1080,8 +1096,9 @@ namespace Rasa.Test.Missions.Crucible
                     places.Add(($"{mission} {actor.Role}", new Vector3(actor.Position.X, actor.Position.Y, actor.Position.Z),
                         actor.Kind == SceneActorKind.Creature));
             Assert.HasCount(N.New.Length + N.Moves.Length + G.New.Length + G.Moves.Length + G.Kept.Length + W.New.Length + V.New.Length +
-                A.Moves.Length + A.Kept.Length + K.Moves.Length + K.New.Count(npc => npc.Map == Map) + T.Moves.Length + 1 + 1 + 21 + 1 + 1 + 2 + 6 + 3, places,
-                "the NPCs, the terminal, the twenty fallen, Roscoe, 1217's obelisk, 1215's two Bane terminals, 1224's six jamming towers and 1214's three beacon spots");
+                A.Moves.Length + A.Kept.Length + K.Moves.Length + K.New.Count(npc => npc.Map == Map) + T.Moves.Length + 1 + 1 + 1 + Y.Moves.Length + 21 + 1 + 1 + 2 + 6 + 3 + 11 + 4 + 3, places,
+                "the NPCs, the terminal, the twenty fallen, Roscoe, 1217's obelisk, 1215's two Bane terminals, 1224's six jamming towers, 1214's three beacon spots, " +
+                "1857's eleven piles and four ticks, and 1899's two Skeevs and terminal");
             return places;
         }
 

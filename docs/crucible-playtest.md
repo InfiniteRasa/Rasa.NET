@@ -367,6 +367,47 @@ Set 12b (1523 Factory Fortification, in the east room; 1525 Information is Key, 
 - [ ] Second client (bot checklist): a squad mate in the same copy sees his own Brian copy only with his own 1521 (the
   other's copy hidden from him); the room cleared by either counts for both (8); each has his own container and switches.
 
+Set 13, the Thrax hybrid arc (Ligo Crucible; migration `20271108001800_Crucible_hybrid_arc`). New rows 770060-770062 (next
+free id 770063) and teleporters 911-912. The Khulago laboratory is on the Crucible map, under Khulago Base; the server
+navmesh does not join it to the tunnel (upstream), so two new Bane pads (class 8044) join them: 911 in the tunnel's control
+room (114, 139.88, -370), 912 in the laboratory's east end (11, 201.7, -286). Way in (TTH): the Khulago trench, the tunnel
+door at (276, 160, -370), the control room.
+
+- [ ] Look: Stark (1019, 144.75, 50) east of the wormhole at Outpost Intrepid; Capriulo (-303, 196.68, 376) in the Staal
+  nightclub (west upper floor); Eugin (-232, 195.69, 473) in the Viddea Quarter (north upper floor). Talk to each from
+  each side. The walks from the Staal waypoint and the lower Kappa pad to Capriulo and Eugin go up the east stairs, past
+  to-fix row 50's fall (upstream N10): walk them; the Infirmary waypoint's walk to Eugin keeps off them.
+- [ ] 1856 Dark Genesis (Crucible): Special Agent Stark offers it from level 36 (not at 35). 1 Locate Special Agent
+  Capriulo (talk, package 2335) opens 2 Speak to Zupa Eugin (talk, package 2337). Markers on each (r8). Turn in at Eugin:
+  37500 XP, 3800 credits, one of 45062 x2, 118907 x2, 111048 x4, 111038 x4.
+- [ ] 1857 The Gene Machine (Crucible, the Labbna salvage yard): Eugin offers it after 1856, level 35. 15 Speak to Grupa
+  Rigs (package 1231) opens 1, 2 and 3. Eleven piles of your own round (-424, 252) (Brann crates 7931/7934, two consoles
+  24980; name 272 "Salvaged Machine Parts"); none takes a use before Rigs' talk. The calibrator (-431, 250.47, 276) gives
+  it and completes 1; the diagnostic unit (-436, 249.49, 262) completes 2 and four Silver Barb Ticks (540028) come from 30
+  m west; three cells at (-446, 250.58, 272), (-399, 250.42, 221), (-418, 251.69, 255) complete 3 (n/3 on 3); six piles
+  are junk. Marker round the yard (r45) for 1-3 and on Rigs (r8). Turn in at Eugin: 75000 XP, 5700 credits, one of 14780,
+  49168, 48396, 15301; he takes the parts. Look: do the crates and consoles draw and open on a use? Is the n/3 counter shown?
+- [ ] 1881 Designer Genes (Crucible): Eugin offers it after 1857, level 35. 1 Get 5 DNA Samples: one sample at each kill of
+  Preceptor Molitor, Archfiend Krubb, Coercer Mungrel, Defiler Sedge, Maxxum Ugoretz or Executioner Derge (the same boss
+  again counts; the control point's Thrax Commander gives none). An abandon keeps the samples. Markers on Molitor (r20), the
+  rock bridge trench (r60), Ugoretz (r15), Derge (r15). Turn in at Eugin: 150000 XP, 7600 credits, one of 23678, 29247,
+  36188, 20931.
+- [ ] 1899 Genome Sweet Genome (Crucible, the Khulago laboratory): Eugin offers it after 1881, level 35; the Penumbra
+  Intrusion Program at the accept. Take pad 911 to the laboratory (and 912 back). 7 Get a map of the Thrax Genome: your own
+  Skeev at (-136, 199.74, -288) talks. Not helped in 701 (Daghda's Urn flag 530003 not 26): one text, the talk is the battle
+  (4 opens). Helped (flag 26): two choices, refuse (battle) or accept (5 opens, no fight). Battle: the talker goes and a
+  hostile Skeev (level 40, 10905 HP) comes at you; his death completes 4 and opens 5. 5 Download the Genome Map: your own
+  Bane terminal (class 10519, package 2372) at (-131, 199.86, -284) takes the program and gives the Map of the Thrax Genome.
+  2 Return to Zupa Eugin: he takes the map. 3 Return to Special Agent Capriulo: her talk completes it. No XP, no credits;
+  the Thrax hybrid is unlocked for the account. Markers: the tunnel pad (r4), Skeev (r8, 7; r15, 4), the terminal (r6),
+  Eugin, Capriulo (r8). Look: do the pads draw (Bane pad, running) and take you? Does the terminal draw and talk? Does
+  Skeev's fight pull the laboratory's Thrax pools (531107 is 17 m west of him)?
+- [ ] 1899 (look): a player who played 701 and gave Skeev the vaccine: the variant 27 text and its two choices. Is flag
+  26 the right outcome (upstream's 701 sets 26 at the surrender, 27 at a timeout; the 701 texts of both read "you gave it")?
+- [ ] Second client (bot checklist): a second player does not see your Skeev, your terminal, your piles or your ticks;
+  each has his own. A squad mate's kill of a Thrax boss: does a sample drop for each member with 1881 (upstream: the killer
+  only)?
+
 ## Assumptions and choices (not from a source)
 
 All ESTIMATE (set 1):
@@ -610,7 +651,36 @@ All ESTIMATE (set 12a):
   (Blade Physical, Polarity Gun Fire, Rocket Launcher EMP, Shotgun Physical); 1522 the grade [4] modules (Armor
   Absorption, Regen Bonus, Health Regen Bonus, Power Regen Bonus).
 
+All ESTIMATE (set 13):
+- Stats: Stark (copy of DeLisi) level 40, 4500 HP, armor 300. The two Skeevs copies of the Wilderness Skeev 630130 (class
+  28589, its look and rifle 41), level 40, 10905 HP, armor 308 (as Molitor); the talker neutral (faction 3), the fighter
+  hostile, run 9 walk 5 (as Derge).
+- Places: Stark 13 m south of TaRapedia's spot (that spot is 8 m from the arena link's circle); Capriulo 3 m off
+  TaRapedia's; Eugin on it. The piles moved 2 m or less off TTH's five spots onto client floors; the six junk piles, the
+  ticks, Skeev, the terminal and the lab pad chosen by probe (navmesh, client floor, seen from every side, 20 m or more from
+  every hostile pool's reach, no lava). The tunnel pad (114, 139.88, -370) is retail's: TaRapedia names the teleporter at
+  (114, 140, -366) and the client's statics stand there.
+- Classes: piles 7931/7934 (Brann crates) and 24980 (Brann console; TaRapedia's "two larger consoles"); the pads 8044 (Bane
+  pad); the terminal 10519 (as 1215).
+- 1856: the consumable rows (the band of level 35); the stacks (2, 2, 4, 4) are TaRapedia's, not a guess.
+- 1857: the ambush at the diagnostic unit's pile (TaRapedia names the ambush, not when); hidden 4 counts the cells; the
+  client's hidden 5-14 are not written.
+- 1881: the bosses (the server's Thrax officers on the Crucible outside the control point); 100 % a kill; Braak and
+  Druul (TTH) have no row.
+- 1899: variant 27 for Daghda's Urn outcome 26; the talk completes 7; 4 optional; the terminal 5 m from Skeev; 6 (hidden
+  failure conditions) not written.
+- Rewards: 1857 and 1881 the client's Uncommon rows of TaRapedia's kinds in the band of level 35-40 (Rifle EMP 36-40,
+  RocketLauncher Sonic 34-38, NetGun Ice 36-40, LeechGun Virulent 39-43; Graviton V02 Gloves 35-39, MotorAssist V04 Vest
+  38-42, Reflective V02 Vest 39-43, Hazmat V02 Vest 34-38).
+
 ## Deviations (client/server limits)
+
+- 1857: the piles stand at fixed spots (TTH's one sample of the random spawns); the server has no random pile spawn.
+- 1899: Skeev's variant 1 has one choice in the client ("Prepare to do battle"); the server's choice topics need two, so
+  that talk is a completion topic with the client's completion text. The laboratory is reached by two server pads (the
+  server navmesh has no walk from the tunnel). No clone credit at the end (the server has none).
+- Pads, risk accepted: the tunnel pad (114, 139.88, -370) takes any player within 2 m into the laboratory (with or without
+  1899), and both show as running Bane pads (class 8044). Accepted: retail had the same pad there (TaRapedia, client statics).
 
 - 1521: the escort checks the player at the Brain room's mouth, not Brian (Brian follows); Brian cannot die, so "Keep
   Brian Safe" is the three Clavigers killed; the spare parts are no item.
@@ -764,3 +834,10 @@ All ESTIMATE (set 12a):
 
 - Added: Information Analyst Ruben 770058 (Crucible) and Cipher Specialist Brian 770059 (Chaukas), their pools 770058 and
   770059 and Brian's pool pose (upstream had no row for them). No upstream row moved.
+
+## Server data changed by set 13 (upstream rows)
+
+- Moved: Special Agent Capriulo 510035 from (-17.5, 187.77, 317.6) and Viddea Scientist Eugin 510036 from (-13.9, 187.77,
+  317.6) (upstream D3, the Staal placeholder cluster) to (-303, 196.68, 376) and (-232, 195.69, 473), TaRapedia's places.
+- Added: Special Agent Stark 770060 (pool 770060), the two Skeevs 770061 and 770062 (no pool), the Bane pads 911 and 912
+  and their links (upstream had no row for them).
