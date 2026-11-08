@@ -78,8 +78,8 @@ namespace Rasa.Services.Preloader.Missions.Crucible
         /// <summary>The new NPCs: id, comment, the row they copy, name, level, package, map, place.</summary>
         public static readonly (uint Id, string Comment, uint Copy, uint Name, uint Level, uint Package, uint Map, (double X, double Y, double Z) At)[] New =
         {
-            (Tiernan, "Professor Tiernan - Crucible, the Eloh Crash Site (1217, 1218)", Keplinger, TiernanName, TiernanLevel, TiernanPackage, Crucible, TiernanAt),
-            (Botha, "Captain Amandla Botha - Ashen Desert, Ashoka Settlement (1218)", Harris, BothaName, BothaLevel, BothaPackage, AshenDesert, BothaAt)
+            (Tiernan, "Professor Tiernan - Eloh Crash Site (1217, 1218)", Keplinger, TiernanName, TiernanLevel, TiernanPackage, Crucible, TiernanAt),
+            (Botha, "Captain Amandla Botha - Ashoka Settlement (1218)", Harris, BothaName, BothaLevel, BothaPackage, AshenDesert, BothaAt)
         };
 
         /// <summary>Where an NPC of set 8a stands.</summary>

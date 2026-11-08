@@ -106,13 +106,14 @@ namespace Rasa.Test.Gameplay
             // day they have one. (Descent's one is Fortuna and Merrick, who stand there as NPCs;
             // the Mires officers and the Plains' Stalker Overlord are TargetsOfOpportunityGivers';
             // Plateau's fifth, the Prototype Juggernaut, is PlateauPrototypeJuggernautV1's; Pools'
-            // Cainynix, Grumble and Oakril are TargetsOfOpportunitySeed.Valverde's.)
+            // Cainynix, Grumble and Oakril are TargetsOfOpportunitySeed.Valverde's; Crucible's Molitor,
+            // Krubb, Mungrel, Sedge and Ugoretz are the Crucible quests' rows, Derge upstream's.)
             CollectionAssert.AreEquivalent(
                 new Dictionary<string, int>
                 {
                     ["Wilderness"] = 6, ["Divide"] = 5, ["Palisades"] = 8, ["Plateau"] = 5, ["Pools"] = 10, ["Marshes"] = 9,
                     ["Descent"] = 1, ["Plains"] = 4, ["Mires"] = 7, ["Incline"] = 4, ["Ashen Desert"] = 5, ["Thunderhead"] = 2,
-                    ["Abyss"] = 1, ["Crucible"] = 1
+                    ["Abyss"] = 1, ["Crucible"] = 6
                 }.ToArray(),
                 BossTitles.Zones.ToDictionary(
                     zone => zone.Name,

@@ -106,7 +106,7 @@ namespace Rasa.Services.Preloader.Missions.Crucible
         public static readonly (uint Id, string Comment, uint Copy, uint Name, uint Level, uint Package, (double X, double Y, double Z) At)[] New =
         {
             (Nema, "Viddia Sigal Nema - Staal Infirmary (1202)", CrucibleOutpostIntrepidNpcsV1.Donal, NemaName, NemaLevel, NemaPackage, NemaAt),
-            (Pico, "Top Khana Sigal Pico - Staal, Top Khana Quarter (1208)", CrucibleOutpostIntrepidNpcsV1.Vitto, PicoName, PicoLevel, PicoPackage, PicoAt),
+            (Pico, "Top Khana Sigal Pico - Top Khana Quarter (1208)", CrucibleOutpostIntrepidNpcsV1.Vitto, PicoName, PicoLevel, PicoPackage, PicoAt),
             (Trista, "Trista - Staal, the Kappa Grupa's office (1185)", CrucibleGrupaChiefsNpcsV1.Lohen, TristaName, TristaLevel, TristaPackage, TristaAt)
         };
 

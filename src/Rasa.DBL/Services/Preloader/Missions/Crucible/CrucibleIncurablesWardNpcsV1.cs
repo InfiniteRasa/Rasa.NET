@@ -140,8 +140,8 @@ namespace Rasa.Services.Preloader.Missions.Crucible
 
             foreach (var (id, comment, name, package, at) in new[]
             {
-                (Shanul, "Mechanic Shanul - Incurables Ward, the dormitory (1444)", ShanulName, ShanulPackage, ShanulAt),
-                (Dhimand, "Engineer Dhimand - Incurables Ward, by the Sanctum (1444)", DhimandName, DhimandPackage, DhimandAt)
+                (Shanul, "Mechanic Shanul - Incurables Ward dormitory (1444)", ShanulName, ShanulPackage, ShanulAt),
+                (Dhimand, "Engineer Dhimand - Incurables Ward, Sanctum (1444)", DhimandName, DhimandPackage, DhimandAt)
             })
             {
                 yield return "INSERT INTO creature (id, comment, class_id, faction, level, max_hp, name_id, run_speed, walk_speed, " +

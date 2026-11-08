@@ -76,9 +76,9 @@ namespace Rasa.Services.Preloader.Missions.Crucible
         {
             foreach (var (id, comment, copy, name, package, map, at, run, walk) in new[]
             {
-                (Ruben, "Information Analyst Ruben - Outpost Intrepid, the Front Lines exit (1577)", Sherer, RubenName, RubenPackage,
+                (Ruben, "Information Analyst Ruben - Intrepid exit (1577)", Sherer, RubenName, RubenPackage,
                     Crucible, RubenAt, 0U, 0U),
-                (Brian, "Cipher Specialist Brian - Chaukas Robotics Facility, the entrance (1577, 1521, 1522)", DeLisi, BrianName,
+                (Brian, "Cipher Specialist Brian - Chaukas (1577,1521,1522)", DeLisi, BrianName,
                     BrianPackage, Chaukas, BrianAt, BrianRunSpeed, BrianWalkSpeed)
             })
             {

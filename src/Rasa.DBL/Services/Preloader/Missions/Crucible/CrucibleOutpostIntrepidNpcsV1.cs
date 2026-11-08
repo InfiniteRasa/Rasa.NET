@@ -94,7 +94,7 @@ namespace Rasa.Services.Preloader.Missions.Crucible
         {
             (Shandy, "Corporal Shandy - Outpost Intrepid (1142)", DeLisi, ShandyName, ShandyLevel, ShandyPackage, ShandyAt),
             (Mullins, "Recon Sergeant Mullins - Convict Pass (1145)", Sherer, MullinsName, MullinsLevel, MullinsPackage, MullinsAt),
-            (Munit, "Top Khana Grupa Munit - Staal, Top Khana Quarter (1145)", Vitto, MunitName, MunitLevel, MunitPackage, MunitAt)
+            (Munit, "Top Khana Grupa Munit - Top Khana Quarter (1145)", Vitto, MunitName, MunitLevel, MunitPackage, MunitAt)
         };
 
         public static IEnumerable<string> Up()

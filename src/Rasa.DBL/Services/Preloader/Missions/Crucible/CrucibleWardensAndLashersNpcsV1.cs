@@ -91,7 +91,7 @@ namespace Rasa.Services.Preloader.Missions.Crucible
         /// <summary>The new NPCs: id, comment, the row they copy, name, level, package, place.</summary>
         public static readonly (uint Id, string Comment, uint Copy, uint Name, uint Level, uint Package, (double X, double Y, double Z) At)[] New =
         {
-            (Halprin, "Medical Technician Halprin - Outpost Intrepid (1157)", CrucibleOutpostIntrepidNpcsV1.DeLisi, HalprinName,
+            (Halprin, "Medical Technician Halprin - Intrepid (1157)", CrucibleOutpostIntrepidNpcsV1.DeLisi, HalprinName,
                 HalprinLevel, HalprinPackage, HalprinAt)
         };
 
