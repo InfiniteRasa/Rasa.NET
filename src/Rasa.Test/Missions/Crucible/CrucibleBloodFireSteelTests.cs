@@ -680,7 +680,9 @@ namespace Rasa.Test.Missions.Crucible
         /// In the squad's instance a door's use is a scene event every member on 1401 shares (GroupCreditService.
         /// SharedInSquadInstance): with both through the talk, the player's use of Atali's door takes both members' Atali
         /// cards and opens both members' own Atali doors (each one's 8 starts each one's opening), so no member is left with
-        /// the card gone and the door shut; the mate's use of Umank's door the same for both; both Headsman groups wake.
+        /// the card gone and the door shut; the mate's use of Umank's door the same for both; both Headsman groups wake. Both
+        /// Headsmen dead and a card each: the player's use of the Sanctum door takes both cards and opens both members' Sanctum
+        /// doors (anywhere in the copy, not only near), and the mate's 1401 is completeable.
         /// </summary>
         [TestMethod]
         public void BloodFireSteelsDoorOpensForEverySquadMemberWhoseGateIsOpen()
@@ -699,8 +701,9 @@ namespace Rasa.Test.Missions.Crucible
             Use(harness, copy, SceneObject(harness, copy, Blood, B.AtaliDoorRole), B.UseArgument);
             for (var tick = 0; tick < 2; tick++)
                 Tick(harness, copy, 250);
-            Assert.AreEqual((UseObjectState.DoorStateOpen, 0U, MissionObjectiveState.Completed),
-                (SceneObject(harness, copy, Blood, B.AtaliDoorRole).StateId, Held(harness, B.AtaliCardTemplate), Objective(harness, Blood, B.AtaliDoorUsed)), "the player's");
+            Assert.AreEqual((UseObjectState.DoorStateOpen, false, 0U, MissionObjectiveState.Completed),
+                (SceneObject(harness, copy, Blood, B.AtaliDoorRole).StateId, SceneObject(harness, copy, Blood, B.AtaliDoorRole).IsEnabled,
+                    Held(harness, B.AtaliCardTemplate), Objective(harness, Blood, B.AtaliDoorUsed)), "the player's");
             Assert.AreEqual((UseObjectState.DoorStateOpen, false, 0U, MissionObjectiveState.Completed),
                 (mate.Door(B.AtaliDoorRole).StateId, mate.Door(B.AtaliDoorRole).IsEnabled, mate.Held(B.AtaliCardTemplate), mate.Of(B.AtaliDoorUsed)),
                 "the mate's Atali door opens with the player's use, the mate's card taken");
@@ -715,6 +718,29 @@ namespace Rasa.Test.Missions.Crucible
                 "the player's Umank door opens with the mate's use");
             Assert.IsNotNull(SceneCreature(harness, copy, Blood, B.HeadsmanRole), "the player's Headsman wakes");
             Assert.AreEqual(1, mate.Headsmen(), "and the mate's (each member's own group)");
+
+            var headsman = SceneCreature(harness, copy, Blood, B.HeadsmanRole);
+            mate.Beside(headsman.Position + new Vector3(0, 0, 3));
+            var card = KillScene(harness, copy, headsman);
+            mate.Loot(card);
+            PickUp(harness, card);
+            harness.Drain();
+            mate.Loot(mate.KillHeadsman());
+            Tick(harness, copy, 250);
+            Assert.AreEqual((0, 1U, 1U, MissionObjectiveState.Completed, MissionObjectiveState.Completed),
+                (mate.Headsmen(), Held(harness, B.HeadsmanCardTemplate), mate.Held(B.HeadsmanCardTemplate), Objective(harness, Blood, B.HeadsmanCard),
+                    mate.Of(B.HeadsmanCard)), "both Headsmen dead, a card each");
+
+            Use(harness, copy, SceneObject(harness, copy, Blood, B.SanctumDoorRole), B.UseArgument);
+            harness.Drain();
+            for (var tick = 0; tick < 2; tick++)
+                Tick(harness, copy, 250);
+            Assert.AreEqual((UseObjectState.DoorStateOpen, 0U, MissionObjectiveState.Completed),
+                (SceneObject(harness, copy, Blood, B.SanctumDoorRole).StateId, Held(harness, B.HeadsmanCardTemplate), Objective(harness, Blood, B.SanctumDoor)),
+                "the player's Sanctum door");
+            Assert.AreEqual((UseObjectState.DoorStateOpen, 0U, MissionObjectiveState.Completed, true),
+                (mate.Door(B.SanctumDoorRole).StateId, mate.Held(B.HeadsmanCardTemplate), mate.Of(B.SanctumDoor), mate.Client.Player.Missions[Blood].Completeable),
+                "the mate's Sanctum door opens with the player's use, the mate's card taken, the mate's 1401 to be turned in");
         }
 
         /// <summary>
@@ -785,6 +811,20 @@ namespace Rasa.Test.Missions.Crucible
                 using var unit = _harness.CreateChar();
                 var runs = unit.CharacterMissions.Runtime.Scenes(Client.Player.Id, Blood).Select(scene => scene.RunId).ToHashSet();
                 return Here(_copy).Count(one => one.DbId == B.Headsman && one.SpawnPool?.SceneRunId is { } run && runs.Contains(run));
+            }
+
+            /// <summary>The mate's kill of the Headsman of the mate's run, from beside it: its corpse.</summary>
+            internal LootDispenser KillHeadsman()
+            {
+                using var unit = _harness.CreateChar();
+                var runs = unit.CharacterMissions.Runtime.Scenes(Client.Player.Id, Blood).Select(scene => scene.RunId).ToHashSet();
+                var headsman = Here(_copy).Single(one => one.DbId == B.Headsman && one.SpawnPool?.SceneRunId is { } run && runs.Contains(run));
+                Beside(headsman.Position + new Vector3(0, 0, 3));
+                headsman.Attributes[Attributes.Health].Current = 0;
+                _harness.Creatures.HandleCreatureKill(_copy, headsman, Client.Player);
+                Assert.IsTrue(_copy.LootDispensers.TryGetValue(headsman.CorpseLootEntityId, out var loot), "the mate's Headsman's corpse");
+                _harness.Drain();
+                return loot;
             }
 
             internal void Beside(Vector3 at)
