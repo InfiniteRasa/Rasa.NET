@@ -116,6 +116,7 @@ namespace Rasa.Test.Missions.Crucible
         private const string IncurablesWard = "20271108001600_Crucible_incurables_ward";
         private const string Chaukas = "20271108001700_Crucible_chaukas";
         private const string HybridArc = "20271108001800_Crucible_hybrid_arc";
+        private const string FixI = "20271108001900_Crucible_fix_i";
 
         private const uint Shandy = 770000, Mullins = 770001, Munit = 770002;
         private const uint DeLisi = 510019, Drake = 510034, Vitto = 510027, Donal = 510037, Rigs = 510025, DAmbrose = 510023;
@@ -812,10 +813,10 @@ namespace Rasa.Test.Missions.Crucible
             // 20271108000500 (to-fix rows 32, 34, 35) one of Munit's and Vargo's new places to 1145, 1146 and 1170;
             // 20271108000800 (to-fix rows 43, 44) one of the bot pools' and Vargo's new places to 1147, 1203, 1204, 1202 and 1146.
             // 20271108001000 (fix job F) one to 1232, 1147, 1203, 1204, 1202, 1157, 1149, 1208 and 1185; 20271108001200 (fix job G)
-            // one to 1208; 20271108001500 (fix job H) one to 1529.
+            // one to 1208; 20271108001500 (fix job H) one to 1529; 20271108001900 (fix job I) one to 1445, 1402 and 1521.
             int Fixes(uint mission) => (mission is 1147 or 1149 or 1145 or 1146 or 1170 ? 1 : 0) + (mission is 1147 or 1203 or 1204 or 1202 or 1146 ? 1 : 0)
                 + (CrucibleFixFV1.EvidenceIds.Any(id => id.Mission == mission) ? 1 : 0) + (mission == CrucibleOutOfSightV1.MissionId ? 1 : 0)
-                + (mission == CruciblePartOfTheBargainV1.MissionId ? 1 : 0);
+                + (mission == CruciblePartOfTheBargainV1.MissionId ? 1 : 0) + (CrucibleFixIV1.Missions.Contains(mission) ? 1 : 0);
             foreach (var mission in MissionIds)
                 CollectionAssert.AreEqual(new[]
                     {
@@ -1029,16 +1030,16 @@ namespace Rasa.Test.Missions.Crucible
                 (1224, 1, 433, 2, 10), (1224, 2, 523, -68, 10), (1224, 3, 523, -208, 10), (1224, 4, 363, -368, 10),
                 (1224, 5, 323, -258, 10), (1224, 6, 233, -158, 10),
                 (1214, 1, 403, -168, 8), (1214, 2, 363, -208, 8), (1214, 3, 383, -268, 8),
-                // Set 11a: before the Ward's door on the Crucible and Sheira (1445); Shanul, Paliv's body, Dhimand (1444); Jaikev,
-                // Parvatee, the nine Incurable pools and the door for each objective (1402).
-                (1445, 1, -216, 400, 6), (1445, 1, -18, -88, 8),
+                // Set 11a: before the Ward's door on the Crucible (fix job I: 8.5 m outside the door's circle, r3) and Sheira (1445);
+                // Shanul, Paliv's body, Dhimand (1444); Jaikev, Parvatee, the nine Incurable pools and the door for each objective (1402).
+                (1445, 1, -216.8, 405.2, 3), (1445, 1, -18, -88, 8),
                 (1444, 1, 60, -70, 8), (1444, 2, 94, 421, 8), (1444, 3, -40, 386, 8),
-                (1402, 1, -98, 332, 10), (1402, 2, -90, 340, 10), (1402, 1, -216, 400, 6), (1402, 2, -216, 400, 6), (1402, 3, -216, 400, 6),
+                (1402, 1, -98, 332, 10), (1402, 2, -90, 340, 10), (1402, 1, -216.8, 405.2, 3), (1402, 2, -216.8, 405.2, 3), (1402, 3, -216.8, 405.2, 3),
                 // Set 12a: before the Chaukas door on the Crucible and Brian (1577); the Brain room's mouth, its three Claviger pools
                 // (their radius and 4 m), Brian at the Brain (7, 5, 6), the container (1521); the two switches (1522).
                 (1577, 1, -528.6, 563.6, 6), (1577, 1, -38, -256, 8),
                 (1521, 3, -14, 4, 8), (1521, 8, -16, 10.1, 10), (1521, 8, -15.6, 114.5, 10.5), (1521, 8, 23.6, 37.8, 19),
-                (1521, 7, -24, 38, 8), (1521, 4, -16, -164, 3), (1521, 5, -24, 38, 8), (1521, 6, -24, 38, 15),
+                (1521, 7, -24, 38, 8), (1521, 4, -16.4, -166.6, 3) /* fix job I: the container's south side */, (1521, 5, -24, 38, 8), (1521, 6, -24, 38, 15),
                 (1522, 1, 88, -176, 3), (1522, 2, -146, -55, 3),
                 // Set 13: Capriulo and Eugin (1856); Rigs and round the salvage yard's eleven piles (1857); Molitor, the rock bridge
                 // trench, Ugoretz and Derge (1881); the tunnel pad, Skeev (7 and 4), the terminal, Eugin and Capriulo (1899).
@@ -2179,6 +2180,75 @@ namespace Rasa.Test.Missions.Crucible
             world.GetService<IMigrator>().Migrate(HybridArc);
             world.ChangeTracker.Clear();
             Check(true);
+        }
+
+        /// <summary>
+        /// Crucible_fix_i (fix job I, to-fix row 69, triage item 24) puts the Ward door markers of 1445 and 1402 back at
+        /// (-216, 180.83, 400) r6 and 1521's container marker back on the container, and takes out its three evidence rows and
+        /// nothing else: every other marker and row stays. Up again, the moves are back.
+        /// </summary>
+        [TestMethod]
+        public void FixIRollsBackWithItsMigration()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var world = harness.World;
+            Assert.AreEqual(((-216.0, 180.83, 400.0), 6.0), (CrucibleFixIV1.DoorWayBefore, CrucibleFixIV1.DoorRadiusBefore), "set 11a's door marker");
+            Assert.AreEqual((-16.0, -164.0), (CrucibleFixIV1.ContainerMarkerBefore.X, CrucibleFixIV1.ContainerMarkerBefore.Z), "set 12a's container marker");
+            List<(uint, uint, uint, double, double, double, double)> Markers() => world.MissionIndicatorEntries.AsNoTracking()
+                .Where(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision).AsEnumerable()
+                .OrderBy(entry => entry.MissionId).ThenBy(entry => entry.ObjectiveId).ThenBy(entry => entry.IndicatorId)
+                .Select(entry => (entry.MissionId, entry.ObjectiveId, entry.IndicatorId, entry.PosX, entry.PosY, entry.PosZ, entry.Radius)).ToList();
+            bool Moved((uint Mission, uint Objective, uint Indicator, double, double, double, double) row) =>
+                CrucibleFixIV1.DoorMarkers.Contains((row.Mission, row.Objective, row.Indicator)) ||
+                row == (CrucibleControlTheBrainV1.MissionId, CrucibleFixIV1.ContainerObjective, CrucibleFixIV1.ContainerMarker, row.Item4, row.Item5, row.Item6, row.Item7);
+            int Evidence() => world.MissionEvidenceEntries.AsNoTracking().Count(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision &&
+                CrucibleFixIV1.Missions.Contains(entry.MissionId) && entry.EvidenceId == CrucibleFixIV1.Evidence);
+            int All() => world.MissionEvidenceEntries.AsNoTracking().Count(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision);
+            var markers = Markers();
+            Assert.HasCount(Indicators, markers);
+            Assert.AreEqual(5, markers.Count(Moved), "four door markers and the container's");
+            void Check(bool now)
+            {
+                var rows = Markers();
+                var door = now ? CrucibleFixIV1.DoorWayNow : CrucibleFixIV1.DoorWayBefore;
+                var radius = now ? CrucibleFixIV1.DoorRadiusNow : CrucibleFixIV1.DoorRadiusBefore;
+                foreach (var (mission, objective, indicator) in CrucibleFixIV1.DoorMarkers)
+                    Assert.AreEqual((door.X, door.Y, door.Z, radius), rows.Where(row => (row.Item1, row.Item2, row.Item3) == (mission, objective, indicator))
+                        .Select(row => (row.Item4, row.Item5, row.Item6, row.Item7)).Single(), $"{mission}.{objective}/{indicator}");
+                var container = now ? CrucibleFixIV1.ContainerMarkerNow : CrucibleFixIV1.ContainerMarkerBefore;
+                Assert.AreEqual((container.X, container.Y, container.Z, (double)CrucibleControlTheBrainV1.ContainerRadius), rows
+                    .Where(row => (row.Item1, row.Item2, row.Item3) == (CrucibleControlTheBrainV1.MissionId, CrucibleFixIV1.ContainerObjective, CrucibleFixIV1.ContainerMarker))
+                    .Select(row => (row.Item4, row.Item5, row.Item6, row.Item7)).Single(), "1521's container marker");
+                CollectionAssert.AreEqual(markers.Where(row => !Moved(row)).ToList(),
+                    rows.Where(row => !Moved(row)).ToList(), "the other markers stay");
+                Assert.AreEqual(now ? 3 : 0, Evidence());
+                Assert.IsTrue(MissionIds.All(mission => world.MissionContentDefinitionEntries.AsNoTracking()
+                    .Any(entry => entry.MissionId == mission && entry.ContentRevision == CrucibleMissionDataV1.Revision)), "sets 1-13 stay");
+            }
+
+            Check(true);
+            foreach (var mission in CrucibleFixIV1.Missions)
+            {
+                var row = world.MissionEvidenceEntries.AsNoTracking().Single(entry => entry.ContentRevision == CrucibleMissionDataV1.Revision &&
+                    entry.MissionId == mission && entry.EvidenceId == CrucibleFixIV1.Evidence);
+                Assert.AreEqual((MissionEvidenceSourceKind.Reconstruction, CrucibleFixIV1.Source,
+                        mission == CrucibleControlTheBrainV1.MissionId ? CrucibleFixIV1.ContainerNote : CrucibleFixIV1.DoorNote, 0.3),
+                    (row.SourceKind, row.SourceUri, row.ReconstructionNote, row.Confidence), $"{mission}");
+            }
+            var all = All();
+
+            Assert.AreEqual(HybridArc, Previous(world, FixI), "the fix follows set 13");
+            world.GetService<IMigrator>().Migrate(HybridArc);
+            world.ChangeTracker.Clear();
+            Check(false);
+            Assert.AreEqual(all - 3, All(), "only the fix's rows go");
+            Assert.AreEqual(AllRows, Rows(world), "no other row comes or goes");
+
+            world.GetService<IMigrator>().Migrate(FixI);
+            world.ChangeTracker.Clear();
+            Check(true);
+            Assert.AreEqual(all, All());
+            Assert.AreEqual(AllRows, Rows(world));
         }
 
         internal static List<(uint MissionId, Rasa.Missions.Content.MissionSceneDefinition Scene)> Scenes(WildernessRuntimeTestHarness harness) =>

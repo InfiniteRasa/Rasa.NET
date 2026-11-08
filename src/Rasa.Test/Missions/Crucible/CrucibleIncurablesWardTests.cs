@@ -333,8 +333,8 @@ namespace Rasa.Test.Missions.Crucible
 
         /// <summary>
         /// On the Crucible: Tempa (moved to TaRapedia's place by the Larai Arena) and the marker before the Ward's door are
-        /// walked to from the Staal waypoint with no climb the client fails; the door marker's circle 5 m or more outside the
-        /// door's; Tempa seen from 16 of 16 places 2 m round him (his floor, sight and hostile clearance on the Crucible are
+        /// walked to from the Staal waypoint with no climb the client fails; the door marker (fix job I) 5 to 10 m outside the
+        /// door's circle and on the walk from Tempa to the door, its own circle 5 m or more outside the door's; Tempa seen from 16 of 16 places 2 m round him (his floor, sight and hostile clearance on the Crucible are
         /// CrucibleGuardTests').
         /// </summary>
         [TestMethod]
@@ -352,7 +352,7 @@ namespace Rasa.Test.Missions.Crucible
             Assert.AreEqual(ToVector(I.TempaAt).Z, tempa.Position.Z, 0.01f);
             AssertOnGround(crucible, tempa.Position, "Tempa");
             var failures = new List<string>();
-            foreach (var (label, at) in new[] { ("Tempa", tempa.Position), ("the Ward door marker", ToVector(I.DoorWayAt)) })
+            foreach (var (label, at) in new[] { ("Tempa", tempa.Position), ("the Ward door marker", ToVector(CrucibleFixIV1.DoorWayNow)) })
             {
                 var start = nav.Nearest(C.StaalWaypoint) ?? C.StaalWaypoint;
                 var walk = nav.FindPath(start, nav.Nearest(at) ?? at, out var complete);
@@ -363,8 +363,22 @@ namespace Rasa.Test.Missions.Crucible
             }
             var door = harness.World.Set<MapLinkEntry>().AsNoTracking().Single(link => link.MapContextId == CrucibleMissionDataV1.MapContextId &&
                 link.DestMapContextId == Ward && link.Enabled != 0);
-            Assert.IsGreaterThanOrEqualTo(5f, Vector2.Distance(new((float)door.PosX, (float)door.PosZ), new((float)I.DoorWayAt.X, (float)I.DoorWayAt.Z)) -
-                (float)door.Radius - (float)SS.DoorMarkerRadius, "the door marker clear of the door");
+            // Fix job I (to-fix row 69): the marker stood 13.7 m outside the door's circle; now 5 to 10 m outside it (8.5), its own circle
+            // still 5 m or more outside the door's, and on the navmesh walk from Tempa to the door (within 1 m of it).
+            var doorWay = ToVector(CrucibleFixIV1.DoorWayNow);
+            var outside = Vector2.Distance(new((float)door.PosX, (float)door.PosZ), new(doorWay.X, doorWay.Z)) - (float)door.Radius;
+            Assert.IsGreaterThanOrEqualTo(5f, outside, "the door marker 5 m or more outside the door's circle");
+            Assert.IsLessThanOrEqualTo(10f, outside, "the door marker 10 m or less outside the door's circle");
+            Assert.IsGreaterThanOrEqualTo(5f, outside - (float)CrucibleFixIV1.DoorRadiusNow, "the door marker's circle clear of the door");
+            var tempaStart = nav.Nearest(tempa.Position) ?? tempa.Position;
+            var toDoor = nav.FindPath(tempaStart, nav.Nearest(new Vector3((float)door.PosX, (float)door.PosY, (float)door.PosZ)).Value, out var doorComplete);
+            Assert.IsTrue(toDoor != null && doorComplete, "a walk from Tempa to the door");
+            var doorWalk = toDoor.Prepend(tempaStart).ToList();
+            var offWalk = float.MaxValue;
+            for (var i = 0; i + 1 < doorWalk.Count; i++)
+                for (var s = 0; s <= 50; s++)
+                    offWalk = MathF.Min(offWalk, Vector3.Distance(Vector3.Lerp(doorWalk[i], doorWalk[i + 1], s / 50f), doorWay));
+            Assert.IsLessThanOrEqualTo(1f, offWalk, "the door marker on the walk from Tempa to the door");
             var near = F.Near(geometry, new List<Vector3> { tempa.Position }, 8)[0];
             var aim = tempa.Position + new Vector3(0, F.NpcMiddle, 0);
             for (var k = 0; k < F.RingPlaces; k++)

@@ -300,6 +300,18 @@ namespace Rasa.Test.Missions.Crucible
             // 1521: from Brian at the Brain down to the container on the lower level, and back up.
             Climb("Brian at the Brain to the container", Walk(ToVector(B.BrainAt), ToVector(B.ContainerAt), "the Brain to the container"));
             Climb("the container to Brian at the Brain", Walk(ToVector(B.ContainerAt), ToVector(B.BrainAt), "the container to the Brain"));
+            // Fix job I (triage item 24): from the north the real client stopped 5.3 m off the container and its use did nothing.
+            // The walk from the Brain to objective 4's marker ends south of the container, within the client's use reach, and the
+            // container stands inside the marker's circle.
+            var container = ToVector(B.ContainerAt);
+            var marker = ToVector(CrucibleFixIV1.ContainerMarkerNow);
+            var toMarker = Walk(ToVector(B.BrainAt), marker, "the Brain to 1521's container marker");
+            Climb("Brian at the Brain to 1521's container marker", toMarker);
+            var markerEnd = toMarker[^1];
+            Assert.IsLessThanOrEqualTo(CrucibleFixIV1.ClientUseReach, Vector3.Distance(markerEnd, container), "the walk's end within the client's use reach");
+            Assert.IsLessThan(container.Z, markerEnd.Z, "the walk's end south of the container");
+            Assert.IsLessThanOrEqualTo((float)B.ContainerRadius, Vector2.Distance(new(container.X, container.Z), new(marker.X, marker.Z)),
+                "the container inside its marker's circle");
 
             // No lava in Chaukas: 20 m round every place. NOTE: LavaSurfaces may have no entry for this map, so the check can be
             // vacuous (the probe saw no lava model here); it holds the place should the map gain lava data.

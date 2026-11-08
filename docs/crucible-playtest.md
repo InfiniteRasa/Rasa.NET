@@ -408,6 +408,13 @@ door at (276, 160, -370), the control room.
   each has his own. A squad mate's kill of a Thrax boss: does a sample drop for each member with 1881 (upstream: the killer
   only)?
 
+Fix job I (migration `20271108001900_Crucible_fix_i`): the Ward door markers (1445 obj 1, 1402 obj 1-3) moved to
+(-216.8, 180.88, 405.2) r3, 8.5 m outside the door's circle on the walk from Tempa; 1521 objective 4's marker moved to the
+container's south side (-16.4, 1.46, -166.6) r3.
+
+- [ ] Fix I: from Tempa, walk to the Ward door marker: is the door in sight, and is the door 15 m ahead?
+- [ ] Fix I: 1521 objective 4: walk from the Brain to the marker; does the use of the Spare Parts Container work from there?
+
 ## Assumptions and choices (not from a source)
 
 All ESTIMATE (set 1):
@@ -673,6 +680,9 @@ All ESTIMATE (set 13):
   RocketLauncher Sonic 34-38, NetGun Ice 36-40, LeechGun Virulent 39-43; Graviton V02 Gloves 35-39, MotorAssist V04 Vest
   38-42, Reflective V02 Vest 39-43, Hazmat V02 Vest 34-38).
 
+- Fix I: the door marker (-216.8, 180.88, 405.2) r3 and the container marker (-16.4, 1.46, -166.6) r3 chosen by probe;
+  the client's use reach taken as 3 m (a use at 5.3 m failed, 2.8 m worked).
+
 ## Deviations (client/server limits)
 
 - 1857: the piles stand at fixed spots (TTH's one sample of the random spawns); the server has no random pile spawn.
@@ -841,3 +851,7 @@ All ESTIMATE (set 13):
   317.6) (upstream D3, the Staal placeholder cluster) to (-303, 196.68, 376) and (-232, 195.69, 473), TaRapedia's places.
 - Added: Special Agent Stark 770060 (pool 770060), the two Skeevs 770061 and 770062 (no pool), the Bane pads 911 and 912
   and their links (upstream had no row for them).
+
+## Server data changed by fix job I (20271108001900)
+
+- Moved: the four Ward door markers (1445 obj 1, 1402 obj 1-3) and 1521 objective 4's marker (our rows). No upstream row.
