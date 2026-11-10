@@ -200,7 +200,13 @@ namespace Rasa.Managers
             return points;
         }
 
-        private void DropScatterbombs(MapChannel mapChannel, Client client, Manifestation player, ActionLevelInfo info)
+        /// <summary>
+        /// The bombs go into the recovery's hits: the client's resolve package
+        /// (vfx_ability_scatterbombs_resolve_p0N.pkg) throws its bomb projectile at each hit target
+        /// and plays the explosion on it when it lands, so with no hits nothing is thrown or
+        /// explodes. ScatterBombsAction has no DoAbility of its own, so no hitdata is needed.
+        /// </summary>
+        private void DropScatterbombs(MapChannel mapChannel, Client client, Manifestation player, ActionLevelInfo info, AbilityRecoveryPacket recovery)
         {
             var min = info.Get(AbilityProperty.DamageAmountMin);
             var max = Math.Max(min, info.Get(AbilityProperty.DamageAmountMax, min));
@@ -224,6 +230,7 @@ namespace Rasa.Managers
                 };
 
                 CellManager.Instance.AddToWorld(mapChannel, bomb);
+                recovery.Hits.Add(new AbilityHit { EntityId = bomb.EntityId });
 
                 var effectId = GameEffectManager.Instance.NextEffectId(mapChannel);
 
