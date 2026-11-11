@@ -135,8 +135,8 @@ namespace Rasa.Managers
             return (best, percent);
         }
 
-        /// <summary>Opens a rift at the spot the ability was thrown at.</summary>
-        private void OpenRealityRipper(MapChannel mapChannel, Manifestation player, ActionLevelInfo info, ActionData action)
+        /// <summary>Opens a rift at the spot the ability was thrown at; returns it for the recovery to name as its hit.</summary>
+        private Creature OpenRealityRipper(MapChannel mapChannel, Manifestation player, ActionLevelInfo info, ActionData action)
         {
             var level = Math.Max(1u, (uint)player.Level);
             var health = Scale((int)level, RipperBaseHealth, 2);
@@ -199,6 +199,8 @@ namespace Rasa.Managers
 
             lock (RippersLock)
                 Rippers.Add(ripper);
+
+            return rift;
         }
 
         /// <summary>Runs the rifts on this map: take in whoever is in reach, move the hate over, close the spent ones.</summary>

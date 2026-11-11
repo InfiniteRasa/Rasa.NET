@@ -136,8 +136,8 @@ namespace Rasa.Managers
                 return CrabMines.Any(m => m.Creature == creature);
         }
 
-        /// <summary>Puts a crab mine down at the player's feet.</summary>
-        private void DeployCrabMine(MapChannel mapChannel, Manifestation player, ActionLevelInfo info, ActionData action)
+        /// <summary>Puts a crab mine down at the player's feet; returns it for the recovery to name as its hit.</summary>
+        private Creature DeployCrabMine(MapChannel mapChannel, Manifestation player, ActionLevelInfo info, ActionData action)
         {
             var level = Math.Max(1u, (uint)player.Level);
             var health = Scale((int)level, CrabMineBaseHealth, info.Get(AbilityProperty.AttrScaleType, 2));
@@ -194,6 +194,8 @@ namespace Rasa.Managers
                 });
 
             UpdateCrabMineBlock(player);
+
+            return mine;
         }
 
         /// <summary>

@@ -98,6 +98,9 @@ namespace Rasa.Managers
 
                 GameEffectManager.Instance.Attach(mapChannel, target, ion);
                 ManifestationManager.Instance.EnterCombat(client);
+
+                // The client throws the micromech at the recovery's hits.
+                Hit(recovery, target);
                 return;
             }
 
@@ -113,6 +116,10 @@ namespace Rasa.Managers
             };
 
             CellManager.Instance.AddToWorld(mapChannel, beacon);
+
+            // The client throws the micromech at the recovery's hits: the beacon, which is in
+            // the world before the recovery goes out.
+            recovery.Hits.Add(new AbilityHit { EntityId = beacon.EntityId });
 
             var now = Environment.TickCount64;
             var strike = new Strike
