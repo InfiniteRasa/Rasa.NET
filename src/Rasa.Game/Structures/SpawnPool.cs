@@ -9,6 +9,8 @@ namespace Rasa.Structures
     {
         internal bool IsControlPointAssault { get; set; }
         internal bool IsControlPointReinforcement { get; set; }
+        /// <summary>The control point an assault or relief pool fights for (LandingZoneAssaults).</summary>
+        internal uint AssaultPointId { get; set; }
         internal System.Action<IReadOnlyList<Creature>> Delivered { get; set; }
         internal bool SceneOwnerOnly { get; set; }
         internal uint RouteEscortOwnerCharacterId { get; set; }
