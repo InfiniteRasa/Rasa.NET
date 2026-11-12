@@ -26,13 +26,18 @@ namespace Rasa.Managers
     /// is not shown at all: it is taken off its clients and out of its cells, and nothing - no
     /// scan, no area attack, no player coming into view - finds it there.
     ///
-    /// Only a Maw an automatic spawn pool put in the world lurks; one a GM put down, a scene's or
-    /// a minion stands about as any creature does.
+    /// The Smart Mine lurks the same way, with its own birth and a shorter range (<see cref="Classes"/>);
+    /// it goes down with the same CR_DESPAWN 1, as the client has no despawn of its own for it.
+    ///
+    /// Only a Maw (or mine) an automatic spawn pool put in the world lurks; one a GM put down, a
+    /// scene's or a minion (a Necromite a creature summons has a master) stands about as any
+    /// creature does.
     ///
     ///  - It spawns under the ground (<see cref="Bury"/>), registered and counted by its pool,
     ///    but in no cell.
     ///  - Every tick of a map with players on it (<see cref="Worker"/>), a buried Maw looks out
-    ///    with the aggro scan (BehaviorManager.FindAttackableInRange, its AggroRange) from where
+    ///    with the aggro scan (BehaviorManager.FindAttackableInRange, its class's lurk range, else
+    ///    its AggroRange) from where
     ///    it lies. Something there: it is put back in its cell and on the clients around, comes up
     ///    (the birth), and goes for it, doing nothing else until it is up.
     ///  - Out of a fight, standing, with nothing to hate and nothing found for
@@ -56,10 +61,40 @@ namespace Rasa.Managers
         /// <summary>How long after its last fight, with nothing to fight, a Maw stays up. Ours.</summary>
         public const long LingerMs = 10000;
 
-        /// <summary>Creature_Maw and Creature_Maw_Boss.</summary>
-        public static readonly HashSet<EntityClasses> Classes = new HashSet<EntityClasses>
+        /// <summary>What a lurking class comes up with, and how near something must come.</summary>
+        public readonly struct Lurker
         {
-            (EntityClasses)6332, (EntityClasses)22980
+            /// <summary>Its CREATURE_BIRTH argument.</summary>
+            public readonly uint BirthArg;
+
+            /// <summary>How near, in metres, it looks out from under the ground; null: its own AggroRange.</summary>
+            public readonly float? AggroRange;
+
+            /// <summary>
+            /// Whether it fights without the combat stance wherever it is (the Maws, as before the
+            /// Smart Mine came in); false: only while it lurks (<see cref="TakesNoStance"/>).
+            /// </summary>
+            public readonly bool NeverStance;
+
+            public Lurker(uint birthArg, float? aggroRange, bool neverStance)
+            {
+                BirthArg = birthArg;
+                AggroRange = aggroRange;
+                NeverStance = neverStance;
+            }
+        }
+
+        /// <summary>
+        /// The classes that lurk. Creature_Maw and Creature_Maw_Boss (the boss has no birth of its
+        /// own, so it is sent the Maw's). The Smart Mine (7528, a Necromite) has its own
+        /// CREATURE_BIRTH (155/7528, a 4 s recovery, family 622); it lies buried in its minefield
+        /// until a player is about 8 m off (ESTIMATE: no source gives the range).
+        /// </summary>
+        public static readonly IReadOnlyDictionary<EntityClasses, Lurker> Classes = new Dictionary<EntityClasses, Lurker>
+        {
+            [(EntityClasses)6332] = new Lurker(BirthArg, null, neverStance: true),
+            [(EntityClasses)22980] = new Lurker(BirthArg, null, neverStance: true),
+            [(EntityClasses)7528] = new Lurker(7528, 8f, neverStance: false)
         };
 
         /// <summary>The time, in ms, the coming up and going down are timed by: a test sets it.</summary>
@@ -70,12 +105,28 @@ namespace Rasa.Managers
         private static readonly Dictionary<Creature, long> Emerging = new Dictionary<Creature, long>();
         private static readonly Dictionary<Creature, (MapChannel Map, long Until)> Sinking = new Dictionary<Creature, (MapChannel, long)>();
 
-        public static bool Is(Creature creature) => creature != null && Classes.Contains(creature.EntityClass);
+        public static bool Is(Creature creature) => creature != null && Classes.ContainsKey(creature.EntityClass);
+
+        /// <summary>The CREATURE_BIRTH argument this creature comes up with.</summary>
+        public static uint BirthArgOf(Creature creature) =>
+            Classes.TryGetValue(creature.EntityClass, out var lurker) ? lurker.BirthArg : BirthArg;
+
+        /// <summary>How near, in metres, something must come to bring this buried creature up.</summary>
+        public static float LurkRangeOf(Creature creature) =>
+            Classes.TryGetValue(creature.EntityClass, out var lurker) && lurker.AggroRange.HasValue ? lurker.AggroRange.Value : creature.AggroRange;
 
         /// <summary>Whether this creature lurks: a Maw of an automatic spawn pool, nobody's minion.</summary>
         public static bool Lurks(Creature creature) =>
             Is(creature) && creature.SpawnPool != null && creature.SpawnPool.Mode == SpawnPoolManager.ModeAutomatic
             && creature.MasterEntityId == 0 && !creature.IsScripted;
+
+        /// <summary>
+        /// Whether this creature fights without the combat stance: a Maw or Seymour always (by
+        /// class, as before); a 7528 only while it lurks, so a summoned or scripted Necromite
+        /// (Thrax 570003 and the rest, on any map) still takes it.
+        /// </summary>
+        public static bool TakesNoStance(Creature creature) =>
+            creature != null && Classes.TryGetValue(creature.EntityClass, out var lurker) && (lurker.NeverStance || Lurks(creature));
 
         public static bool IsBuried(Creature creature)
         {
@@ -150,7 +201,7 @@ namespace Rasa.Managers
                 if (!Alive(creature))
                     continue;
 
-                var target = BehaviorManager.FindAttackableInRange(mapChannel, creature, creature.AggroRange);
+                var target = BehaviorManager.FindAttackableInRange(mapChannel, creature, LurkRangeOf(creature));
 
                 if (target != 0)
                     Emerge(mapChannel, creature, target);
@@ -171,7 +222,7 @@ namespace Rasa.Managers
                 if (set.Count == 0)
                     Buried.Remove(mapChannel);
 
-                Emerging[creature] = Clock() + RecoveryMs(BirthAction, BirthArg, EmergeMs);
+                Emerging[creature] = Clock() + RecoveryMs(BirthAction, BirthArgOf(creature), EmergeMs);
             }
 
             creature.Cells = CellsAt(mapChannel, creature);
@@ -179,8 +230,8 @@ namespace Rasa.Managers
             CreatureManager.Instance.CellIntroduceCreatureToClients(mapChannel, creature,
                 CellManager.Instance.GetClientsInCells(mapChannel, creature.Cells));
 
-            CellManager.Instance.CellCallMethod(mapChannel, creature, new PerformWindupPacket(PerformType.TwoArgs, BirthAction, BirthArg));
-            CellManager.Instance.CellCallMethod(mapChannel, creature, new PerformRecoveryPacket(PerformType.TwoArgs, BirthAction, BirthArg));
+            CellManager.Instance.CellCallMethod(mapChannel, creature, new PerformWindupPacket(PerformType.TwoArgs, BirthAction, BirthArgOf(creature)));
+            CellManager.Instance.CellCallMethod(mapChannel, creature, new PerformRecoveryPacket(PerformType.TwoArgs, BirthAction, BirthArgOf(creature)));
 
             creature.LastAgression = 0;
             creature.Hate.Ensure(targetId, Threat.NoticedThreat);

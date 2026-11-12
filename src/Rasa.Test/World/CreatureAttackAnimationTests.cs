@@ -41,6 +41,8 @@ namespace Rasa.Test.World
             (24085, 458),   // Bane_Thrax_Machina_Boss: CR_THRAX_TECTONIC_STRIKE
             (21882, 488),   // Bane_Thrax_Grenadier_Boss: CR_THRAX_NECROMITE
             (10612, 488),   // NPC_Bane_Thrax_Grenadier_Boss: CR_THRAX_NECROMITE (Family_abilities)
+            (7528, 450),    // Ability_Bane_Necromite: CR_THRAX_DECAY 450/1, the Crucible Smart Mine's virulent DOT (CrucibleFixJV1;
+                            // families 1342/1343 are the Thrax's, skeleton 13888 has none; FX 419/270 and the DECAY still apply)
         };
 
         /// <summary>

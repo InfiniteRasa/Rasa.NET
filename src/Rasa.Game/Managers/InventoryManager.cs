@@ -3159,6 +3159,22 @@ namespace Rasa.Managers
         }
 
         /// <summary>
+        /// How many items of the template the player carries in their personal inventory, mission items too: the client's
+        /// GetCountPersonalInventoryItemsByItemTemplateId, which its CanUnlock asks of a lock's key (usable.py).
+        /// </summary>
+        public uint CountItemsByTemplate(Client client, uint itemTemplateId)
+        {
+            var total = 0u;
+
+            foreach (var entityId in client.Player.Inventory.PersonalInventory)
+                if (entityId != 0 && EntityManager.Instance.GetItem(entityId) is { ItemTemplate: { } template } item &&
+                    template.ItemTemplateId == itemTemplateId)
+                    total += item.StackSize;
+
+            return total;
+        }
+
+        /// <summary>
         /// Takes <paramref name="quantity"/> items of the entity class out of the personal
         /// inventory, smallest stacks first so partial stacks are used up before full ones are
         /// broken. Returns how many it could not take (0 when the player had enough); check with

@@ -264,6 +264,8 @@ docs/*
 !docs/pools-playtest.md
 !docs/marshes-playtest.md
 !docs/marshes-mission-crossref.md
+!docs/crucible-playtest.md
+!docs/crucible-mission-crossref.md
 !docs/gm-commands.md
 
 # Local runtime files

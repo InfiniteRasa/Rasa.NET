@@ -148,7 +148,9 @@ namespace Rasa.Test.World
             // Pillars ones moved or taken away by Twin_pillars_npcs, Airman Hamilton, moved to
             // Torcastra Prison's research ward (Torcastra_prison), Ranger Porthus (Plateau_going_postal),
             // Peterson, Mauer and McLaughlin (Plateau_defiant_ones), and Lieutenant Donners and the
-            // others Kardash_atta_colony moves.
+            // others Kardash_atta_colony moves; the Crucible NPCs the Crucible sets move (Keplinger and Madias by
+            // Crucible_kardash_and_prometheus, Captain Tiersky by Crucible_khulago_strikes, Supervisor Sheira and Larai Sigal
+            // Tempa by Crucible_incurables_ward, Special Agent Capriulo and Viddea Scientist Eugin by Crucible_hybrid_arc).
             void AssertCorrected(bool expected, params uint[] movedSince)
             {
                 harness.World.ChangeTracker.Clear();
@@ -183,7 +185,16 @@ namespace Rasa.Test.World
                 .Concat(Rasa.Services.Preloader.Missions.Plateau.PlateauWedgeRockNpcsV1.Moves.Select(move => move.Pool))
                 .Concat(Rasa.Services.Preloader.Missions.Plateau.PlateauCidNpcsV1.Moves.Select(move => move.Pool))
                 .Append(Rasa.Services.Preloader.Missions.Plateau.PlateauBaileyNpcsV1.McCormick)
-                .Concat(KardashAttaColonyContent.Moved.Select(move => move.Pool)).ToArray());
+                .Concat(KardashAttaColonyContent.Moved.Select(move => move.Pool))
+                .Concat(Rasa.Services.Preloader.Missions.Crucible.CrucibleOutpostIntrepidNpcsV1.Moves.Select(move => move.Pool))
+                .Concat(Rasa.Services.Preloader.Missions.Crucible.CrucibleGrupaChiefsNpcsV1.Moves.Select(move => move.Pool))
+                .Concat(Rasa.Services.Preloader.Missions.Crucible.CrucibleStaalWalksV1.Moves.Select(move => move.Pool))
+                .Concat(Rasa.Services.Preloader.Missions.Crucible.CrucibleWardenPoolsAndVargoV1.Moves.Select(move => move.Pool))
+                .Concat(Rasa.Services.Preloader.Missions.Crucible.CrucibleAwolCampNpcsV1.Moves.Select(move => move.Pool))
+                .Concat(Rasa.Services.Preloader.Missions.Crucible.CrucibleKardashAndPrometheusNpcsV1.Moves.Select(move => move.Pool))
+                .Concat(Rasa.Services.Preloader.Missions.Crucible.CrucibleKhulagoStrikesNpcsV1.Moves.Select(move => move.Pool))
+                .Concat(Rasa.Services.Preloader.Missions.Crucible.CrucibleIncurablesWardNpcsV1.Moves.Select(move => move.Pool))
+                .Concat(Rasa.Services.Preloader.Missions.Crucible.CrucibleHybridArcNpcsV1.Moves.Select(move => move.Pool)).ToArray());
 
             // The vendor of Torcastra Prison was 5.69 m over the floor of the hall; Private
             // Parsons a metre in the ground. General Beacham, in the sandbags beside Cimoch, has

@@ -94,8 +94,8 @@ namespace Rasa.Managers
                     new PerformRecoveryPacket(PerformType.TwoArgs, draw ? ActionId.WeaponDraw : ActionId.WeaponStow, arg));
         }
 
-        /// <summary>Whether an unarmed creature holds the combat stance through a fight: all but a Maw.</summary>
-        public static bool HoldsStance(Creature creature) => creature != null && !MawLurk.Is(creature);
+        /// <summary>Whether an unarmed creature holds the combat stance through a fight: all but a Maw and a lurking Smart Mine.</summary>
+        public static bool HoldsStance(Creature creature) => creature != null && !MawLurk.TakesNoStance(creature);
 
         /// <summary>The creature draws, if it is armed and has not already; one that is not takes the stance.</summary>
         public static void Draw(MapChannel mapChannel, Creature creature)

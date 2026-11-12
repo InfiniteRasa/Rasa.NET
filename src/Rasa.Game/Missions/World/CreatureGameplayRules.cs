@@ -108,5 +108,17 @@ namespace Rasa.Game.Missions.World
         internal static bool IsInvulnerable(Creature creature) =>
             Policy(creature).Invulnerable || !CanParticipateInCombat(creature);
         internal static bool TracksParticipation(Creature creature) => Policy(creature).TrackParticipation;
+
+        /// <summary>
+        /// A scene's actor that holds a post (a pose, NpcPoses.HoldsPost; its scene gave it one) and that nothing hurts (its
+        /// role's Invulnerable): it does not go looking for a fight when it stands idle (BehaviorManager's wander scan), so a
+        /// fight nearby does not pull it off its post into a fight it cannot lose nor end. Following or on a route it scans as
+        /// before. It does not fight back either: a hit on an Invulnerable actor never reaches Threat.FromDamage (DamageImmunity,
+        /// ActorManager returns early), so it stays out of the fight it is attacked in. 1398's Dhimand (to-fix row 81): at the
+        /// repair place he no longer fights the waves, the player kills them (hidden 6 counts each death, whoever kills it);
+        /// an actor without a pose, or not invulnerable, is unchanged.
+        /// </summary>
+        internal static bool KeepsOutOfFights(Creature creature) =>
+            creature?.GameplayBinding != null && NpcPoses.HoldsPost(creature) && TryRolePolicy(creature, out var policy) && policy.Invulnerable;
     }
 }

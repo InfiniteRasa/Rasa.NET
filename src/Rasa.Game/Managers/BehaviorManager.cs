@@ -568,8 +568,9 @@ namespace Rasa.Managers
 
             if (creature.Controller.CurrentAction == BehaviorActionWander)
             {
-                // scan for enemy
-                if (creature.LastAgression >= AggroScanDelayMs && ScansForEnemies(creature))
+                // scan for enemy (not a scene's posted, unhurt NPC: CreatureGameplayRules.KeepsOutOfFights)
+                if (creature.LastAgression >= AggroScanDelayMs && ScansForEnemies(creature) &&
+                    !Game.Missions.World.CreatureGameplayRules.KeepsOutOfFights(creature))
                     if (CheckForAttackableEntityInRange(mapChannel, creature, creature.AggroRange))
                     {
                         // enemy found!

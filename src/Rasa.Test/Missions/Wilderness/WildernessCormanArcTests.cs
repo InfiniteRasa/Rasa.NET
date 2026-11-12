@@ -904,9 +904,10 @@ namespace Rasa.Test.Missions.Wilderness
 
         private static Creature SpawnSkeev(WildernessRuntimeTestHarness harness)
         {
-            var template = harness.World.Set<CreatureEntry>().SingleOrDefault(entry => entry.ClassId == 28589 && entry.NameId == 6734);
+            // By its id: other zones' copies of Skeev share his class and name.
+            var template = harness.World.Set<CreatureEntry>().SingleOrDefault(entry => entry.Id == 630130);
             Assert.IsNotNull(template, "The coordinator's native Skeev World actor is required; do not substitute another boss.");
-            Assert.AreEqual(630130U, template.Id);
+            Assert.AreEqual((28589U, 6734U), (template.ClassId, template.NameId), "the native Skeev's class and name");
             var spawn = harness.World.Set<SpawnPoolEntry>().SingleOrDefault(entry =>
                 entry.MapContextId == 1220 && entry.Creature1Id == template.Id);
             Assert.IsNotNull(spawn, "Skeev requires one centrally allocated public spawn.");

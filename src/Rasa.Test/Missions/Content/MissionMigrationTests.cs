@@ -96,11 +96,13 @@ namespace Rasa.Test.Missions.Content
             // Opportunity, the Ojasa Atta Hive's five, the Caves of Donn's six, the Devil's Den's
             // eight, Pravus Research's six, Torcastra Prison's five, Minos Caverns' four, Crater Lake's ten, the Energy Weapon Center's five,
             // Timora Mines' six and Stolen History, Magma Caverns' five, Warnet Caverns' eight, the Kardash Atta Colony's ten, the
-            // Phanin Research Facility's seven, the Plateau missions, the Valverde Pools missions and the Valverde Marshes missions.
+            // Phanin Research Facility's seven, the Plateau missions, the Valverde Pools missions, the Valverde Marshes missions and the
+            // Ligo Crucible missions.
             var targets = Rasa.Services.Preloader.TargetsOfOpportunitySeed.Zones.Select(zone => zone.MissionId)
                 .Concat(Rasa.Test.Missions.Plateau.PlateauMissionTests.MissionIds)
                 .Concat(Rasa.Test.Missions.Pools.PoolsMissionTests.MissionIds)
-                .Concat(Rasa.Test.Missions.Marshes.MarshesMissionTests.MissionIds).ToArray();
+                .Concat(Rasa.Test.Missions.Marshes.MarshesMissionTests.MissionIds)
+                .Concat(Rasa.Test.Missions.Crucible.CrucibleMissionTests.MissionIds).ToArray();
             var expected = WildernessMissionCases.ProtectedBootcampMissionIds.Concat(
                 WildernessMissionCases.All.Where(entry => entry.Disposition == WildernessDisposition.OutdoorRelease)
                     .Select(entry => entry.MissionId)).ToArray();

@@ -92,6 +92,15 @@ namespace Rasa.Managers
                     spots.Add(path[^1]);
             }
 
+            // One lying under the ground (MawLurk) is in no cell, but it holds its place: the next of
+            // its pool is not set down on it.
+            if (CellManager.TryGetCellCoordinates(near, out var x, out var z))
+                foreach (var other in MawLurk.BuriedOn(map))
+                    if (other != creature && other.TargetCategory == side && Standing(other)
+                        && CellManager.TryGetCellCoordinates(other.Position, out var ox, out var oz)
+                        && Math.Abs((long)ox - x) <= 1 && Math.Abs((long)oz - z) <= 1)
+                        spots.Add(other.Position);
+
             return spots;
         }
 

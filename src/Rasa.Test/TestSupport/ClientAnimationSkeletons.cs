@@ -41,6 +41,10 @@ namespace Rasa.Test.TestSupport
             [17734] = 13975,    // Creature_Magmonix(_Boss), on the Treeback's skeleton (Magma Caverns' Magmonix and Ember)
             [17409] = 13916,    // Creature_Atta_Queen_Boss (Queen Kardash)
             [16732] = 13892,    // the Treelurker (class 10347), Pools' Oakril (TargetsOfOpportunitySeed.Valverde)
+            [18386] = 13912,    // Creature_Lasher(_Boss) (7477, 10331): the Crucible's Lashers, Kalamit
+            [17689] = 13963,    // Creature_Prison_Bot_Reconstructor(_Boss) (6960, 10314): the Crucible's Reconstructors
+            [36477] = 14014,    // Redshirt_Brann_Incurable_Male(_Boss) (23191, 25547): the Incurables Ward's Brutes, Jaikev, Atali, Umank
+            [37043] = 14017,    // Redshirt_Brann_Incurable_Female(_Boss) (25611, 25617): the Incurables Ward's Slayers, Parvatee
         };
 
         /// <summary>Action animation families with no animation on any skeleton: the client's own gap, played by nothing.</summary>
@@ -137,6 +141,11 @@ namespace Rasa.Test.TestSupport
             [13964] = "176 612 622 650 651 887 1055 1272 1493",
             [13975] = "650 651 853 854 855 927 936 937",
             [13916] = "176 612 622 650 651 875 1059 1272 1401 1402 1455",
+            // The Ligo Crucible's models (animationdata.animationFamilyData, 1.16.5.0 client, read with pyo24 2026-11-08).
+            [13912] = "622 650 651 882 1272",                                                    // Creature_Lasher
+            [13963] = "176 612 622 650 651 887 1052 1053 1054 1272 1285 1286 1287 1294",       // Creature_Prison_Bot_Reconstructor
+            [14014] = "650 651 1265 1272",                                                       // Redshirt_Brann_Incurable_Male
+            [14017] = "650 651 1265 1272",                                                       // Redshirt_Brann_Incurable_Female
         });
 
         private static IReadOnlyDictionary<uint, IReadOnlySet<uint>> Parse(Dictionary<uint, string> rows) =>

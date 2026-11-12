@@ -25,6 +25,7 @@ namespace Rasa.Test.World
     {
         private const EntityClasses Maw = (EntityClasses)6332;
         private const EntityClasses MawBoss = (EntityClasses)22980;
+        private const EntityClasses SmartMine = (EntityClasses)7528;
 
         private readonly List<Creature> _creatures = new List<Creature>();
         private long _now = 1_000_000;
@@ -62,6 +63,75 @@ namespace Rasa.Test.World
             Assert.IsFalse(MawLurk.Lurks(new Creature { EntityClass = Maw, SpawnPool = new SpawnPool { Mode = 1 } }), "a scripted pool's");
             Assert.IsFalse(MawLurk.Lurks(new Creature { EntityClass = Maw, SpawnPool = pool, MasterEntityId = 7 }), "a minion");
             Assert.IsFalse(MawLurk.Lurks(new Creature { EntityClass = EntityClasses.HumanBaseMale, SpawnPool = pool }));
+            Assert.IsTrue(MawLurk.Lurks(new Creature { EntityClass = SmartMine, SpawnPool = pool }), "a minefield's Smart Mine");
+            Assert.IsFalse(MawLurk.Lurks(new Creature { EntityClass = SmartMine, SpawnPool = pool, MasterEntityId = 7 }), "a summoned Necromite");
+            Assert.IsFalse(MawLurk.Lurks(new Creature { EntityClass = SmartMine }), "a summoned Necromite, no pool");
+        }
+
+        [TestMethod]
+        public void ASmartMineComesUpWithItsOwnBirthOnlyWhenAPlayerIsClose() => WithTheSmartMinesBirth(() =>
+        {
+            using var world = new WorldTestContext();
+            var mine = Bury(world, SmartMine);
+            mine.AggroRange = 18;
+            var player = Watch(world, new Vector3(10, 0, 0));
+
+            MawLurk.Worker(world.Map);
+
+            Assert.IsTrue(MawLurk.IsBuried(mine), "10 m off: out of its 8 m, though in its AggroRange");
+            Assert.AreEqual(8f, MawLurk.LurkRangeOf(mine));
+
+            player.Player.Position = new Vector3(6, 0, 0);
+            MawLurk.Worker(world.Map);
+
+            Assert.IsFalse(MawLurk.IsBuried(mine));
+            Assert.AreEqual(player.Player.EntityId, mine.Controller.ActionFighting.TargetEntityId);
+            var sent = Sent(player, mine);
+            Assert.AreEqual((ActionId.CreatureBirth, 7528u),
+                (sent.OfType<PerformWindupPacket>().Single().ActionId, sent.OfType<PerformWindupPacket>().Single().ActionArgId));
+            Assert.AreEqual((ActionId.CreatureBirth, 7528u),
+                (sent.OfType<PerformRecoveryPacket>().Single().ActionId, sent.OfType<PerformRecoveryPacket>().Single().ActionArgId));
+            Assert.IsTrue(MawLurk.IsBusy(mine), "coming up");
+            _now += MawLurk.EmergeMs;
+            Assert.IsTrue(MawLurk.IsBusy(mine), "its own birth's 4 s, not the 1.5 s the Maw's has or the fallback");
+            _now += 4000 - MawLurk.EmergeMs;
+            Assert.IsFalse(MawLurk.IsBusy(mine));
+        });
+
+        /// <summary>CREATURE_BIRTH at 7528 as the World DB has it (action_level 561: recovery 4000 ms, family 622), for the body.</summary>
+        private static void WithTheSmartMinesBirth(Action body)
+        {
+            var actions = (Dictionary<ActionId, ActionInfo>)typeof(AbilityManager)
+                .GetField("_actions", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(AbilityManager.Instance)!;
+            actions.TryGetValue(ActionId.CreatureBirth, out var previous);
+            var birth = new ActionInfo { ActionId = ActionId.CreatureBirth, Name = "CREATURE_BIRTH" };
+            birth.Levels[7528] = new ActionLevelInfo { ActionId = ActionId.CreatureBirth, Level = 7528, RecoveryMs = 4000 };
+            actions[ActionId.CreatureBirth] = birth;
+            try
+            {
+                body();
+            }
+            finally
+            {
+                if (previous != null)
+                    actions[ActionId.CreatureBirth] = previous;
+                else
+                    actions.Remove(ActionId.CreatureBirth);
+            }
+        }
+
+        [TestMethod]
+        public void AMawLooksOutAsFarAsItsAggroRange()
+        {
+            using var world = new WorldTestContext();
+            var maw = Bury(world);
+            maw.AggroRange = 18;
+            Watch(world, new Vector3(10, 0, 0));
+
+            Assert.AreEqual(18f, MawLurk.LurkRangeOf(maw));
+            MawLurk.Worker(world.Map);
+
+            Assert.IsFalse(MawLurk.IsBuried(maw), "10 m off, in its AggroRange");
         }
 
         [TestMethod]
@@ -215,7 +285,7 @@ namespace Rasa.Test.World
             Assert.IsFalse(EntityManager.Instance.Creatures.ContainsKey(maw.EntityId));
         }
 
-        private Creature Bury(WorldTestContext world)
+        private Creature Bury(WorldTestContext world, EntityClasses entityClass = Maw)
         {
             var creature = new Creature
             {
@@ -223,7 +293,7 @@ namespace Rasa.Test.World
                 TargetCategory = TargetCategory.Hostile,
                 MapContextId = world.Map.MapInfo.MapContextId,
                 Position = Vector3.Zero,
-                EntityClass = Maw,
+                EntityClass = entityClass,
                 State = CharacterState.Idle,
                 Level = 34,
                 RunSpeed = 9,
@@ -236,7 +306,7 @@ namespace Rasa.Test.World
             creature.Attributes[Attributes.Armor] = new ActorAttributes(Attributes.Armor, 0, 0, 0, 0, 0);
             BehaviorManager.StartWandering(creature, false);
             EntityManager.Instance.RegisterActor(creature.EntityId, creature);
-            world.AddClass(Maw);
+            world.AddClass(entityClass);
             MawLurk.Bury(world.Map, creature);
             _creatures.Add(creature);
             return creature;
