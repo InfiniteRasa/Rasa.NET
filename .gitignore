@@ -262,6 +262,8 @@ docs/*
 !docs/plateau-playtest.md
 !docs/pools-mission-crossref.md
 !docs/pools-playtest.md
+!docs/marshes-playtest.md
+!docs/marshes-mission-crossref.md
 !docs/gm-commands.md
 
 # Local runtime files

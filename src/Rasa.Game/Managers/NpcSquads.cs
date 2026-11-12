@@ -338,7 +338,8 @@ namespace Rasa.Managers
         /// through BehaviorManager.CanSetActionFighting - and while they fight he stands, as a squad in a fight does, so
         /// they fight by him and a tether holds them to him. When he falls the next of them leads, and fights as any. When
         /// they all fall he walks on alone, and the respawn time after the last of them the squad is taken away and sent
-        /// again in full, he too (Worker) - else, standing, he would keep it from ever coming back.
+        /// again in full, he too (Worker) - else, standing, he would keep it from ever coming back. Those living but lost
+        /// from him, further than <see cref="AssistRange"/>, count as fallen.
         /// </summary>
         public static bool IsBystander(Creature creature) => creature?.SquadMember?.Bystander == true;
 
@@ -507,8 +508,11 @@ namespace Rasa.Managers
                 }
 
                 // A bystander leader whose members have all fallen walks on alone, and the squad
-                // is sent again in full on its time, as one with no one left (IsBystander).
-                if (squad.SentCount > 1 && squad.Arriving.Count == 0 && squad.Living.All(member => member.Bystander))
+                // is sent again in full on its time, as one with no one left (IsBystander). So too
+                // one whose members, living, are all lost from him - further than AssistRange, out
+                // of his fights - for all that time: else one held somewhere, stuck or led off,
+                // would keep him from ever coming back. One back with him in time stops the clock.
+                if (squad.SentCount > 1 && squad.Arriving.Count == 0 && Alone(squad))
                 {
                     if (squad.RespawnAt == 0)
                         squad.RespawnAt = now + spawn.RespawnSeconds * 1000L;
@@ -520,6 +524,8 @@ namespace Rasa.Managers
                         continue;
                     }
                 }
+                else
+                    squad.RespawnAt = 0;
 
                 Think(map, squad, now);
             }
@@ -530,6 +536,19 @@ namespace Rasa.Managers
                 TakeAway(map, state.Squads[gone]);
                 state.Squads.Remove(gone);
             }
+        }
+
+        /// <summary>
+        /// Whether the squad is its bystander leader alone: each of the rest of it fallen, or lost from
+        /// him - further than <see cref="AssistRange"/> across the ground (Worker).
+        /// </summary>
+        private static bool Alone(LiveSquad squad)
+        {
+            var living = squad.Living.ToList();
+            var leader = living.FirstOrDefault(member => member.Bystander);
+
+            return leader != null && living.All(member => member == leader ||
+                Vector3.Distance(Flat(member.Creature.Position), Flat(leader.Creature.Position)) > AssistRange);
         }
 
         /// <summary>A squad of the spawn's type at its place, facing its way. Returns how many came.</summary>

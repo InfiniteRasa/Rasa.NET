@@ -1272,6 +1272,52 @@ namespace Rasa.Test.World
             Assert.AreEqual(2, squad.Living.Count());
         }
 
+        /// <summary>
+        /// Marshes to-fix 30: the Kael prison caravan's leader walked on with no guard by him, and no caravan came again
+        /// while the server ran. Members living but lost from him - held far off, here unable to move - count as fallen:
+        /// the squad is sent again in full on its time, the lost ones taken away too; one back by him stops the clock.
+        /// </summary>
+        [TestMethod]
+        public void ABystanderLeaderWhoseMembersAreLostFromHimIsSentAgainOnItsTime()
+        {
+            using var harness = Create();
+            var road = Road(harness);
+
+            Squad(harness, AfsSoldier, 3, 3, S.Formation.Line, road, S.PathMode.Loop);
+            Say(harness, ".squad type 1 bystander on");
+            Step(harness, 250);
+            var squad = S.On(harness.Map)[1];
+            var leader = squad.Leader;
+            var members = squad.Members.Where(m => m != leader).ToList();
+            Assert.HasCount(3, members);
+
+            // Held 100 m off, and unable to move (stuck or led off): living, but none by him.
+            void Strand(S.Member member)
+            {
+                member.Creature.WalkSpeed = member.Creature.RunSpeed = 0;
+                member.Creature.Position = leader.Creature.Position + new Vector3(100, 0, 0);
+            }
+
+            members.ForEach(Strand);
+            Step(harness, 60_000);
+
+            // One back by him in time stops the clock: a full time from when he is alone again.
+            var back = members[0];
+            back.Creature.Position = leader.Creature.Position + new Vector3(2, 0, 0);
+            Step(harness, 250);
+            Strand(back);
+            Step(harness, 119_000);
+            Assert.AreSame(leader, squad.Leader, "not sent again before its time, counted from when none was by him");
+            Assert.AreEqual(4, squad.Living.Count(), "the lost ones live");
+
+            Step(harness, 1_500);
+            Assert.AreNotSame(leader, squad.Leader, "the squad, he too, is sent again");
+            Assert.IsNull(leader.Creature.SquadMember, "the old leader is taken away");
+            Assert.IsTrue(members.All(m => m.Creature.SquadMember == null), "and the lost ones with him");
+            Assert.AreEqual(4, squad.Living.Count(), "in full");
+            Assert.IsTrue(S.IsBystander(squad.Leader.Creature), "its new leader a bystander");
+        }
+
         private static bool HasColumn(OrdinaryLootTestDatabase database, string table, string column) =>
             Count(database, $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = '{column}'") == 1;
 

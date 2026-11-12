@@ -22,6 +22,8 @@ namespace Rasa.Test.Missions
             "src/Rasa.DBL/Services/Preloader/Missions/Plateau",
             "src/Rasa.Missions/Content/Pools",
             "src/Rasa.DBL/Services/Preloader/Missions/Pools",
+            "src/Rasa.Missions/Content/Marshes",
+            "src/Rasa.DBL/Services/Preloader/Missions/Marshes",
         };
 
         [TestMethod]
