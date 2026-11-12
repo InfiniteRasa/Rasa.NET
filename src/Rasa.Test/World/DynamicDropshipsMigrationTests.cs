@@ -12,16 +12,17 @@ using Rasa.Test.Database;
 
 namespace Rasa.Test.World
 {
-    /// <summary>The dropship migrations of the Plateau, the Pools and the Marshes: Up, Down, Up again, and each Up safe to run twice.</summary>
+    /// <summary>The dropship migrations of the Plateau, the Pools, the Marshes and the Crucible: Up, Down, Up again, and each Up safe to run twice.</summary>
     [TestClass, DoNotParallelize]
     public class DynamicDropshipsMigrationTests
     {
         private const string Plateau = "20271105000000_Plateau_dynamic_dropships";
         private const string Pools = "20271105000100_Pools_dynamic_dropships";
         private const string Marshes = "20271105000200_Marshes_dynamic_dropships";
+        private const string Crucible = "20271109000000_Crucible_dynamic_dropships";
 
         /// <summary>The dropship migrations in the order they must run.</summary>
-        private static readonly string[] Order = { Plateau, Pools, Marshes };
+        private static readonly string[] Order = { Plateau, Pools, Marshes, Crucible };
 
         private static void WithWorld(Action<WorldContext> test)
         {
@@ -80,6 +81,10 @@ namespace Rasa.Test.World
         public void TheMarshesMigrationAddsItsRowsOnceAndItsDownTakesThemOut() =>
             UpDownUp(Marshes, MarshesDynamicDropshipsContent.IdMin, MarshesDynamicDropshipsContent.IdMax, MarshesDynamicDropshipsContent.Garrison.Length, MarshesDynamicDropshipsContent.Up);
 
+        [TestMethod]
+        public void TheCrucibleMigrationAddsItsRowsOnceAndItsDownTakesThemOut() =>
+            UpDownUp(Crucible, CrucibleDynamicDropshipsContent.IdMin, CrucibleDynamicDropshipsContent.IdMax, CrucibleDynamicDropshipsContent.Garrison.Length, CrucibleDynamicDropshipsContent.Up);
+
         /// <summary>The newest migration on development when the dropship migrations were written: each sorts after it.</summary>
         private const string NewestWhenWritten = "20271103000200";
 
@@ -105,8 +110,18 @@ namespace Rasa.Test.World
         [TestMethod]
         public void EveryInsertIsGuardedAndEveryRowItsOwn()
         {
-            foreach (var sql in PlateauDynamicDropshipsContent.Up().Concat(PoolsDynamicDropshipsContent.Up()).Concat(MarshesDynamicDropshipsContent.Up()))
+            foreach (var sql in PlateauDynamicDropshipsContent.Up().Concat(PoolsDynamicDropshipsContent.Up()).Concat(MarshesDynamicDropshipsContent.Up()).Concat(CrucibleDynamicDropshipsContent.Up()))
             {
+                // The Crucible's three updates, each safe to run twice: Derge's move (the same row as the
+                // Crucible quests'), the Thrax Commander's respawn, the boxed-in turret's move (guarded on its old place).
+                if (sql.StartsWith("UPDATE spawnpool SET ", StringComparison.Ordinal))
+                {
+                    Assert.IsTrue(sql == "UPDATE spawnpool SET pos_x = 859, pos_y = 188.68, pos_z = 476 WHERE id = 520013;" ||
+                        sql == "UPDATE spawnpool SET respown_time = 1200 WHERE id = 520014;" ||
+                        sql == "UPDATE spawnpool SET pos_x = 415.27, pos_z = 338.56 WHERE id IN (551265, 551266) AND map_context_id = 1993 " +
+                            "AND abs(pos_x - 416.27) < 0.01 AND abs(pos_y - 177.4) < 0.01 AND abs(pos_z - 339.56) < 0.01;", sql);
+                    continue;
+                }
                 StringAssert.StartsWith(sql, "INSERT INTO ");
                 StringAssert.Contains(sql, " FROM (SELECT 1 AS one) d WHERE NOT EXISTS (SELECT 1 FROM ");
                 Assert.IsFalse(sql.Contains(" VALUES "), sql);

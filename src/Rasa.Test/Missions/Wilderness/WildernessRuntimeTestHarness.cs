@@ -66,7 +66,8 @@ namespace Rasa.Test.Missions.Wilderness
             [2034] = ("adv_arieki_torden_plains_penalresearch", 230, new Vector3(24.1922f, 0.5697f, -0.0818f)),
             [1497] = ("adv_foreas_valverde_plateau", 1556, new Vector3(-191.7f, 423.2f, 869.5f)),
             [1304] = ("adv_foreas_valverde_pools", 520, new Vector3(201.46f, 867.5f, 332.048f)),
-            [1454] = ("adv_foreas_valverde_marshes", 663, new Vector3(-321.1f, 217.066f, -312.847f))
+            [1454] = ("adv_foreas_valverde_marshes", 663, new Vector3(-321.1f, 217.066f, -312.847f)),
+            [1993] = ("adv_arieki_ligo_burningsteps", 406, new Vector3(757.066f, 171.121f, 549.128f))
         };
 
         private uint _mapContextId = 1220;
