@@ -239,6 +239,11 @@ namespace Rasa.Repositories.World
             return _worldContext.CreateNoTrackingQuery(_worldContext.CreatureScaleEntries).ToList();
         }
 
+        public List<CreatureTintEntry> GetTints()
+        {
+            return _worldContext.CreateNoTrackingQuery(_worldContext.CreatureTintEntries).ToList();
+        }
+
         public List<NpcGreetingEntry> GetNpcGreetings()
         {
             return _worldContext.CreateNoTrackingQuery(_worldContext.NpcGreetingEntries).ToList();

@@ -604,6 +604,25 @@ namespace Rasa.Migrations.SqliteWorld
                     b.ToTable("creature_stat");
                 });
 
+            modelBuilder.Entity("Rasa.Structures.World.CreatureTintEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<uint?>("Hue")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("hue");
+
+                    b.Property<uint?>("Hue2")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("hue2");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("creature_tint");
+                });
+
             modelBuilder.Entity("Rasa.Structures.World.EntityClassEntry", b =>
                 {
                     b.Property<uint>("Id")

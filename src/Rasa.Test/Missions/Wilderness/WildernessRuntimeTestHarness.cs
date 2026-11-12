@@ -359,6 +359,11 @@ namespace Rasa.Test.Missions.Wilderness
                     ? GetScales()
                     : new List<Rasa.Structures.World.CreatureScaleEntry>();
 
+            List<Rasa.Structures.World.CreatureTintEntry> ICreatureRepository.GetTints() =>
+                HasTable(Rasa.Structures.World.CreatureTintEntry.TableName)
+                    ? GetTints()
+                    : new List<Rasa.Structures.World.CreatureTintEntry>();
+
             private bool HasTable(string name) => _context.Database
                 .SqlQueryRaw<int>("SELECT COUNT(*) AS Value FROM sqlite_master WHERE type = 'table' AND name = {0}", name)
                 .AsEnumerable().Single() > 0;
