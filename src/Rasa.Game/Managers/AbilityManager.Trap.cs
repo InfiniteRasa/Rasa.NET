@@ -136,9 +136,9 @@ namespace Rasa.Managers
         }
 
         /// <summary>Plants a trap turret at the spot, taking the player's last one away.</summary>
-        private void PlantTrap(MapChannel mapChannel, Manifestation player, ActionLevelInfo info, ActionData action)
+        private Creature PlantTrap(MapChannel mapChannel, Manifestation player, ActionLevelInfo info, ActionData action)
         {
-            PlaceTurret(mapChannel, player, info, action, true);
+            return PlaceTurret(mapChannel, player, info, action, true);
         }
 
         /// <summary>
@@ -147,7 +147,8 @@ namespace Rasa.Managers
         /// place.
         /// </summary>
         /// <param name="defaultDuration">Seconds it lasts when the ability has no DURATION: 60, or the Thrax Technician's Mini Turret's 30.</param>
-        private void PlaceTurret(MapChannel mapChannel, Manifestation player, ActionLevelInfo info, ActionData action, bool decoy, int defaultDuration = 60)
+        /// <returns>The turret, for the recovery to name as its hit (the client throws the micromech at it).</returns>
+        private Creature PlaceTurret(MapChannel mapChannel, Manifestation player, ActionLevelInfo info, ActionData action, bool decoy, int defaultDuration = 60)
         {
             List<Trap> old;
 
@@ -255,6 +256,8 @@ namespace Rasa.Managers
                     ExpiresAt = now + durationSeconds * 1000L,
                     NextShotAt = now + TrapShotMs
                 });
+
+            return turret;
         }
 
         /// <summary>Runs the traps on this map: shoot, draw the hate, run out, clear away.</summary>

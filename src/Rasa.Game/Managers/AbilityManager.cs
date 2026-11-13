@@ -1070,8 +1070,8 @@ namespace Rasa.Managers
 
             if (actionInfo.Module == TurretModule)
             {
-                PlaceTurret(mapChannel, player, info, action, false);
-                CellManager.Instance.CellCallMethod(mapChannel, player, new AbilityRecoveryPacket(action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.None));
+                var turret = PlaceTurret(mapChannel, player, info, action, false);
+                CellManager.Instance.CellCallMethod(mapChannel, player, DeployedRecovery(action, turret.EntityId));
                 return;
             }
 
@@ -1093,8 +1093,8 @@ namespace Rasa.Managers
 
             if (actionInfo.Module == TrapModule)
             {
-                PlantTrap(mapChannel, player, info, action);
-                CellManager.Instance.CellCallMethod(mapChannel, player, new AbilityRecoveryPacket(action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.None));
+                var trap = PlantTrap(mapChannel, player, info, action);
+                CellManager.Instance.CellCallMethod(mapChannel, player, DeployedRecovery(action, trap.EntityId));
                 return;
             }
 
@@ -1159,15 +1159,15 @@ namespace Rasa.Managers
 
             if (actionInfo.Module == RealityRipperModule)
             {
-                OpenRealityRipper(mapChannel, player, info, action);
-                CellManager.Instance.CellCallMethod(mapChannel, player, new AbilityRecoveryPacket(action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.None));
+                var rift = OpenRealityRipper(mapChannel, player, info, action);
+                CellManager.Instance.CellCallMethod(mapChannel, player, DeployedRecovery(action, rift.EntityId));
                 return;
             }
 
             if (actionInfo.Module == CrabMinesModule)
             {
-                DeployCrabMine(mapChannel, player, info, action);
-                CellManager.Instance.CellCallMethod(mapChannel, player, new AbilityRecoveryPacket(action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.None));
+                var mine = DeployCrabMine(mapChannel, player, info, action);
+                CellManager.Instance.CellCallMethod(mapChannel, player, DeployedRecovery(action, mine.EntityId));
                 return;
             }
 
@@ -1199,6 +1199,18 @@ namespace Rasa.Managers
             // Not reachable: RequestPerformAbility refuses what cannot be resolved. Finish the
             // client's action cleanly all the same.
             CellManager.Instance.CellCallMethod(mapChannel, player, new AbilityRecoveryPacket(action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.None));
+        }
+
+        /// <summary>
+        /// The recovery of an ability that puts something down, naming it as the hit: the client's
+        /// resolve package (vfx_ability_micromech_quickthrow_resolve_weap.pkg) throws the micromech
+        /// at each hit and plays the landing there, so a recovery without hits shows nothing.
+        /// </summary>
+        private static AbilityRecoveryPacket DeployedRecovery(ActionData action, ulong deployedId)
+        {
+            var recovery = new AbilityRecoveryPacket(action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.None);
+            recovery.Hits.Add(new AbilityHit { EntityId = deployedId });
+            return recovery;
         }
 
         /// <summary>
