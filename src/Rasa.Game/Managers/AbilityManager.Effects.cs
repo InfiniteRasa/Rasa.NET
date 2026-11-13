@@ -260,7 +260,7 @@ namespace Rasa.Managers
                     break;
 
                 case "abilities.scatterbombs":
-                    DropScatterbombs(mapChannel, client, player, info);
+                    DropScatterbombs(mapChannel, client, player, info, recovery);
                     break;
 
                 case "abilities.firesupport":
