@@ -12,7 +12,7 @@ using Rasa.Test.Database;
 
 namespace Rasa.Test.World
 {
-    /// <summary>The dropship migrations of the Plateau, the Pools, the Marshes and the Crucible: Up, Down, Up again, and each Up safe to run twice.</summary>
+    /// <summary>The dropship migrations of the Plateau, the Pools, the Marshes, the Crucible and the Ashen Desert: Up, Down, Up again, and each Up safe to run twice.</summary>
     [TestClass, DoNotParallelize]
     public class DynamicDropshipsMigrationTests
     {
@@ -20,9 +20,10 @@ namespace Rasa.Test.World
         private const string Pools = "20271105000100_Pools_dynamic_dropships";
         private const string Marshes = "20271105000200_Marshes_dynamic_dropships";
         private const string Crucible = "20271109000000_Crucible_dynamic_dropships";
+        private const string Ashen = "20271114000000_Ashen_dynamic_dropships";
 
         /// <summary>The dropship migrations in the order they must run.</summary>
-        private static readonly string[] Order = { Plateau, Pools, Marshes, Crucible };
+        private static readonly string[] Order = { Plateau, Pools, Marshes, Crucible, Ashen };
 
         private static void WithWorld(Action<WorldContext> test)
         {
@@ -85,6 +86,10 @@ namespace Rasa.Test.World
         public void TheCrucibleMigrationAddsItsRowsOnceAndItsDownTakesThemOut() =>
             UpDownUp(Crucible, CrucibleDynamicDropshipsContent.IdMin, CrucibleDynamicDropshipsContent.IdMax, CrucibleDynamicDropshipsContent.Garrison.Length, CrucibleDynamicDropshipsContent.Up);
 
+        [TestMethod]
+        public void TheAshenMigrationAddsItsRowsOnceAndItsDownTakesThemOut() =>
+            UpDownUp(Ashen, AshenDynamicDropshipsContent.IdMin, AshenDynamicDropshipsContent.IdMax, AshenDynamicDropshipsContent.Garrison.Length, AshenDynamicDropshipsContent.Up);
+
         /// <summary>The newest migration on development when the dropship migrations were written: each sorts after it.</summary>
         private const string NewestWhenWritten = "20271103000200";
 
@@ -110,7 +115,8 @@ namespace Rasa.Test.World
         [TestMethod]
         public void EveryInsertIsGuardedAndEveryRowItsOwn()
         {
-            foreach (var sql in PlateauDynamicDropshipsContent.Up().Concat(PoolsDynamicDropshipsContent.Up()).Concat(MarshesDynamicDropshipsContent.Up()).Concat(CrucibleDynamicDropshipsContent.Up()))
+            foreach (var sql in PlateauDynamicDropshipsContent.Up().Concat(PoolsDynamicDropshipsContent.Up()).Concat(MarshesDynamicDropshipsContent.Up()).Concat(CrucibleDynamicDropshipsContent.Up())
+                .Concat(AshenDynamicDropshipsContent.Up()))
             {
                 // The Crucible's three updates, each safe to run twice: Derge's move (the same row as the
                 // Crucible quests'), the Thrax Commander's respawn, the boxed-in turret's move (guarded on its old place).
