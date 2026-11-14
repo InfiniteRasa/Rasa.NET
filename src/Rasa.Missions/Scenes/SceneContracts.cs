@@ -36,8 +36,18 @@ namespace Rasa.Missions.Scenes
         // A captive remains protected until its scene starts a route that resumes after combat.
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool HoldCombatUntilRoute = false,
         // A temporary encounter replaces its public contact only while the personal actor exists.
-        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool ReplaceWhilePresent = false);
-    public sealed record SceneObjectAction(uint MissionId, uint ObjectiveId, uint SequenceId, uint ActionArgId = 1);
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool ReplaceWhilePresent = false,
+        // An object locked in its InitialObjectState that this item template opens (UsableLock.KeyItemTemplateId, sent in
+        // LockInfo): a keycard door. 0 for no lock.
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] uint KeyItemTemplateId = 0);
+    public sealed record SceneObjectAction(uint MissionId, uint ObjectiveId, uint SequenceId, uint ActionArgId = 1,
+        // The most metres the user's feet may be above or below the object's point: an object on an upper floor is used from
+        // that floor, not from the one under it (the use reach is a 3D distance only). 0: no limit (every other scene).
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] float MaxUseHeight = 0)
+    {
+        /// <summary>Whether a user with feet at <paramref name="userY"/> is off the floor of an object at <paramref name="objectY"/> (MaxUseHeight).</summary>
+        public bool OffTheFloor(float userY, float objectY) => MaxUseHeight > 0 && MathF.Abs(userY - objectY) > MaxUseHeight;
+    }
     public sealed record SceneObjectDestruction(uint MissionId, uint ObjectiveId, uint SequenceId,
         uint HitPoints = 100, uint DestroyedState = 2);
     /// <summary>

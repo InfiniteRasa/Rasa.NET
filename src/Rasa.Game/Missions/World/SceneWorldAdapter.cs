@@ -561,6 +561,13 @@ namespace Rasa.Game.Missions.World
                     obj.CurrentHitPoints = definition.Destruction?.HitPoints ?? 0;
                     obj.ViewRadius = definition.ViewRadius;
                     obj.NameOverrideId = definition.NameOverrideId;
+                    // A keycard door: locked while in its first state, opened by the item (DynamicObjectManager's use check).
+                    if (definition.KeyItemTemplateId != 0)
+                        obj.Lock = new UsableLock
+                        {
+                            LockStateId = (UseObjectState)definition.InitialObjectState,
+                            KeyItemTemplateId = definition.KeyItemTemplateId
+                        };
                     if (definition.Kind == SceneActorKind.PracticeTarget || definition.Destruction != null)
                         obj.DynamicObjectType = DynamicObjectType.PracticeDummy;
                     if (definition.LootMissionId.HasValue && definition.LootRewardId.HasValue && definition.LootObjectiveId.HasValue)
@@ -687,7 +694,8 @@ namespace Rasa.Game.Missions.World
             (uint)obj.EntityClassId == definition.TemplateId && definition.Position != null &&
             obj.Position == SceneRouteController.Position(definition.Position) && obj.Rotation == definition.Orientation &&
             obj.MissionConversation == definition.Conversation &&
-            obj.MissionUseAction == definition.UseAction && obj.MissionDestruction == definition.Destruction;
+            obj.MissionUseAction == definition.UseAction && obj.MissionDestruction == definition.Destruction &&
+            (obj.Lock?.KeyItemTemplateId ?? 0) == definition.KeyItemTemplateId;
 
         private bool IsCurrent(WorldRun world, BoundActor actor) =>
             actor.Handle.Generation == world.Run.Generation && actor.Handle.MapEpoch == world.Map.MissionEpoch &&

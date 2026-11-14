@@ -146,8 +146,83 @@ namespace Rasa.Test.World
 
             Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(maw, watcher.Player.EntityId));
 
+            Assert.IsFalse(MawLurk.Lurks(maw), "a Maw of no pool: by class alone, as upstream");
             Assert.IsFalse(maw.InCombatMode);
             Assert.AreEqual(0, Sent(watcher, maw).OfType<RequestVisualCombatModePacket>().Count());
+        }
+
+        /// <summary>Seymour, too, by class alone: no pool, as before the Smart Mine was a lurker.</summary>
+        [TestMethod]
+        public void SeymourWithNoPoolTakesNoStance()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 30);
+            var seymour = Spawn(world, (EntityClasses)22980);
+
+            Assert.IsFalse(MawLurk.Lurks(seymour), "the fixture: it does not lurk");
+            Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(seymour, watcher.Player.EntityId));
+
+            Assert.IsFalse(seymour.InCombatMode);
+            Assert.AreEqual(0, Sent(watcher, seymour).OfType<RequestVisualCombatModePacket>().Count());
+        }
+
+        /// <summary>
+        /// A Necromite (7528) that does not lurk - a Thrax's summoned one (570003), a scripted one,
+        /// one of no pool - takes the stance on any map (fix M): only a Smart Mine of an automatic
+        /// pool, which lurks, fights without it.
+        /// </summary>
+        [TestMethod]
+        [DataRow("summoned")]
+        [DataRow("scripted")]
+        [DataRow("no pool")]
+        [DataRow("scripted pool")]
+        public void ANecromiteThatDoesNotLurkTakesTheStance(string kind)
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 30);
+            var necromite = Spawn(world, (EntityClasses)7528);
+            var automatic = new SpawnPool { Mode = SpawnPoolManager.ModeAutomatic };
+            switch (kind)
+            {
+                case "summoned":
+                    necromite.SpawnPool = automatic;
+                    necromite.MasterEntityId = 7;
+                    // A minion fights only out of passive and with an attack (BehaviorManager.TrySetActionFighting).
+                    necromite.Stance = MinionStance.Aggressive;
+                    necromite.Actions.Add(new CreatureAction { ActionId = ActionId.WeaponAttack, RangeMax = 30 });
+                    break;
+                case "scripted":
+                    necromite.SpawnPool = automatic;
+                    necromite.IsScripted = true;
+                    break;
+                case "scripted pool":
+                    necromite.SpawnPool = new SpawnPool { Mode = 1 };
+                    break;
+            }
+
+            Assert.IsTrue(MawLurk.Is(necromite), "the fixture: a lurking class");
+            Assert.IsFalse(MawLurk.Lurks(necromite), "the fixture: it does not lurk");
+            Assert.IsTrue(CreatureWeaponDraw.HoldsStance(necromite));
+            Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(necromite, watcher.Player.EntityId));
+
+            Assert.IsTrue(necromite.InCombatMode);
+            Assert.IsTrue(Sent(watcher, necromite).OfType<RequestVisualCombatModePacket>().Single().CombatMode);
+        }
+
+        [TestMethod]
+        public void ALurkingSmartMineTakesNoStance()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 30);
+            var mine = Spawn(world, (EntityClasses)7528);
+            mine.SpawnPool = new SpawnPool { Mode = SpawnPoolManager.ModeAutomatic };
+
+            Assert.IsTrue(MawLurk.Lurks(mine), "the fixture: a minefield's Smart Mine");
+            Assert.IsFalse(CreatureWeaponDraw.HoldsStance(mine));
+            Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(mine, watcher.Player.EntityId));
+
+            Assert.IsFalse(mine.InCombatMode);
+            Assert.AreEqual(0, Sent(watcher, mine).OfType<RequestVisualCombatModePacket>().Count());
         }
 
         [TestMethod]

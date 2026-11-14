@@ -721,7 +721,8 @@ namespace Rasa.Game.Missions
         {
             if (!TryGetObjectSource(client, obj, out var resident, out var definition) ||
                 definition.UseAction is not { } use || use.ActionArgId != argument ||
-                System.Numerics.Vector3.Distance(client.Player.Position, obj.Position) > DynamicObjectManager.MaxUseDistance)
+                System.Numerics.Vector3.Distance(client.Player.Position, obj.Position) > DynamicObjectManager.MaxUseDistance ||
+                use.OffTheFloor(client.Player.Position.Y, obj.Position.Y))
                 return false;
             using var unit = _factory.CreateChar();
             return ObjectObjectiveAvailable(resident, use.MissionId, use.ObjectiveId, unit);

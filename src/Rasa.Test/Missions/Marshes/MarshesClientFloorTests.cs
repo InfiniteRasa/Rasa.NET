@@ -30,10 +30,10 @@ namespace Rasa.Test.Missions.Marshes
     [DoNotParallelize]
     public class MarshesClientFloorTests
     {
-        private const float MaxOver = 0.8f;        // the crates' origin stands 0.57 m over their floor, Dikah 0.74 m over his slope
-        private const float MaxUnder = 0.6f;       // 961's feeders stand 0.53 m into their troughs (to-fix 19)
-        private const float Walkable = 0.5f;       // the floor's normal: |y| at least this (60 degrees), for an NPC
-        private const float NotVertical = 0.1f;    // for an object (a flower on a cliff)
+        internal const float MaxOver = 0.8f;        // the crates' origin stands 0.57 m over their floor, Dikah 0.74 m over his slope
+        internal const float MaxUnder = 0.6f;       // 961's feeders stand 0.53 m into their troughs (to-fix 19)
+        internal const float Walkable = 0.5f;       // the floor's normal: |y| at least this (60 degrees), for an NPC
+        internal const float NotVertical = 0.1f;    // for an object (a flower on a cliff)
 
         /// <summary>
         /// The places this test does not hold, each one reported (ESTIMATE, not moved). None now. Block C's two prisoners
@@ -46,9 +46,9 @@ namespace Rasa.Test.Missions.Marshes
         // The line of sight (to-fix 27, 32, 33: the real client's "You cannot see your target from here", pm 274, for a
         // target that stood on a client floor by this test's first check). ESTIMATE, the client's own test is not known: a
         // player's eye 1.6 m over a client floor, the target's middle (an NPC 1.5 m, an object 0.8 m over its place: 961's feeders sit 0.5 m into their troughs and were used in the real client).
-        private const float Eye = 1.6f, NpcMiddle = 1.5f, ObjectMiddle = 0.8f;
-        private const float Ring = 2f;              // the places round the target a player stands at
-        private const int RingPlaces = 16;
+        internal const float Eye = 1.6f, NpcMiddle = 1.5f, ObjectMiddle = 0.8f;
+        internal const float Ring = 2f;              // the places round the target a player stands at
+        internal const int RingPlaces = 16;
 
         /// <summary>
         /// The places the line-of-sight test does not hold, reported (not moved, not in to-fix 27, 32, 33). None now: 864's
@@ -280,7 +280,7 @@ namespace Rasa.Test.Missions.Marshes
             Assert.IsTrue(Sees(1, inSight, 170, -225, out _), "from the east, as in the client");
         }
 
-        private static string ClientData()
+        internal static string ClientData()
         {
             var dataDir = Environment.GetEnvironmentVariable("RASA_CLIENT_DATA");
             if (string.IsNullOrEmpty(dataDir))
@@ -290,7 +290,7 @@ namespace Rasa.Test.Missions.Marshes
             return dataDir;
         }
 
-        private static string MeshCsv() => Path.Combine(RepositoryRoot(), "src", "Rasa.NavMesh", "data", "entity_meshes.csv");
+        internal static string MeshCsv() => Path.Combine(RepositoryRoot(), "src", "Rasa.NavMesh", "data", "entity_meshes.csv");
 
         /// <summary>Every friendly Marshes pool NPC, friendly or talking scene creature, scene object and Nelg: label, map, place, NPC.</summary>
         private static List<(string Label, uint Map, Vector3 At, bool Npc)> Places(WildernessRuntimeTestHarness harness)
@@ -319,7 +319,7 @@ namespace Rasa.Test.Missions.Marshes
         }
 
         /// <summary>Per place, the triangles whose box comes within <paramref name="reach"/> of it (across; any height).</summary>
-        private static List<(Vector3 A, Vector3 B, Vector3 C)>[] Near(MapGeometry geometry, List<Vector3> places, float reach)
+        internal static List<(Vector3 A, Vector3 B, Vector3 C)>[] Near(MapGeometry geometry, List<Vector3> places, float reach)
         {
             const float Cell = 8;
             var near = places.Select(_ => new List<(Vector3, Vector3, Vector3)>()).ToArray();
@@ -366,7 +366,7 @@ namespace Rasa.Test.Missions.Marshes
         }
 
         /// <summary>The highest walkable surface at (x, z) from <paramref name="low"/> to <paramref name="high"/>, or null.</summary>
-        private static float? FloorAt(List<(Vector3 A, Vector3 B, Vector3 C)> triangles, Vector3 at, float low, float high)
+        internal static float? FloorAt(List<(Vector3 A, Vector3 B, Vector3 C)> triangles, Vector3 at, float low, float high)
         {
             float? best = null;
             var from = at with { Y = high + 0.01f };
@@ -382,7 +382,7 @@ namespace Rasa.Test.Missions.Marshes
         }
 
         /// <summary>Whether the line from <paramref name="from"/> to <paramref name="to"/> meets none of the triangles.</summary>
-        private static bool Clear(List<(Vector3 A, Vector3 B, Vector3 C)> triangles, Vector3 from, Vector3 to)
+        internal static bool Clear(List<(Vector3 A, Vector3 B, Vector3 C)> triangles, Vector3 from, Vector3 to)
         {
             var length = Vector3.Distance(from, to);
             var direction = (to - from) / length;
@@ -393,7 +393,7 @@ namespace Rasa.Test.Missions.Marshes
         }
 
         /// <summary>Möller-Trumbore: how far along the ray it meets the triangle, or null.</summary>
-        private static float? Hit(Vector3 origin, Vector3 direction, Vector3 a, Vector3 b, Vector3 c)
+        internal static float? Hit(Vector3 origin, Vector3 direction, Vector3 a, Vector3 b, Vector3 c)
         {
             Vector3 e1 = b - a, e2 = c - a;
             var p = Vector3.Cross(direction, e2);
@@ -416,7 +416,7 @@ namespace Rasa.Test.Missions.Marshes
         /// Per place, the highest surface (normal |y| at least the place's limit) at most MaxUnder over it, and the lowest
         /// one from there to MaxUnder + 0.3 m over it (a place sunk into a floor).
         /// </summary>
-        private static (float[] Floors, float[] Ceilings) Surfaces(MapGeometry geometry, List<(Vector3 At, float MinNormal)> places)
+        internal static (float[] Floors, float[] Ceilings) Surfaces(MapGeometry geometry, List<(Vector3 At, float MinNormal)> places)
         {
             const float Cell = 8;
             var floors = places.Select(_ => float.NegativeInfinity).ToArray();
@@ -473,7 +473,7 @@ namespace Rasa.Test.Missions.Marshes
             return (floors, ceilings);
         }
 
-        private static string RepositoryRoot()
+        internal static string RepositoryRoot()
         {
             var directory = new DirectoryInfo(AppContext.BaseDirectory);
             while (directory != null && !File.Exists(Path.Combine(directory.FullName, "Rasa.NET.sln")))

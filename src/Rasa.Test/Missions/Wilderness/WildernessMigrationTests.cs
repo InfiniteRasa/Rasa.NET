@@ -33,12 +33,17 @@ namespace Rasa.Test.Missions.Wilderness
         /// Targets of Opportunity (TargetsOfOpportunitySeed, revision targets_1), fourteen, the
         /// fifteenth being the Wilderness missions' own 1449; the Plateau missions
         /// (PlateauMissionDataV1, revision plateau_1_16_5), the Valverde Pools missions (PoolsMissionDataV1,
-        /// revision pools_1_16_5) and the Valverde Marshes missions (MarshesMissionDataV1, revision marshes_1_16_5).
+        /// revision pools_1_16_5) and the Valverde Marshes missions (MarshesMissionDataV1, revision marshes_1_16_5)
+        /// and the Ligo Crucible missions (CrucibleMissionDataV1, revision crucible_1_16_5) and the Ligo Ashen Desert missions
+        /// (AshenMissionDataV1, revision ashen_1_16_5).
         /// </summary>
         private static readonly uint[] BattlefieldMissions =
             TargetsOfOpportunitySeed.Zones.Select(zone => zone.MissionId).Concat(PlateauMissionTests.MissionIds)
                 .Concat(Rasa.Test.Missions.Pools.PoolsMissionTests.MissionIds)
-                .Concat(Rasa.Test.Missions.Marshes.MarshesMissionTests.MissionIds).ToArray();
+                .Concat(Rasa.Test.Missions.Marshes.MarshesMissionTests.MissionIds)
+                .Concat(Rasa.Test.Missions.Crucible.CrucibleMissionTests.MissionIds)
+                .Concat(Rasa.Test.Missions.Ashen.AshenMissionTests.MissionIds)
+                .Concat(Rasa.Test.Missions.Ashen.AshenMissionTests.OnCrucibleRevision).ToArray();
 
         /// <summary>
         /// Every mission enabled by a migration dated after the Wilderness ones: the
@@ -633,7 +638,9 @@ namespace Rasa.Test.Missions.Wilderness
                     entry.ContentRevision != PhaninResearchContent.Revision &&
                     entry.ContentRevision != PlateauMissionDataV1.Revision &&
                     entry.ContentRevision != Rasa.Services.Preloader.Missions.Pools.PoolsMissionDataV1.Revision &&
-                    entry.ContentRevision != Rasa.Services.Preloader.Missions.Marshes.MarshesMissionDataV1.Revision)
+                    entry.ContentRevision != Rasa.Services.Preloader.Missions.Marshes.MarshesMissionDataV1.Revision &&
+                    entry.ContentRevision != Rasa.Services.Preloader.Missions.Crucible.CrucibleMissionDataV1.Revision &&
+                    entry.ContentRevision != Rasa.Services.Preloader.Missions.Ashen.AshenMissionDataV1.Revision)
                 // Wilderness_reward_consumables and Wilderness_reward_modules, dated after the
                 // Wilderness migrations, add their own.
                 .Where(entry => entry.SourceUri != "repository:WildernessRewardConsumables" &&
@@ -672,6 +679,11 @@ namespace Rasa.Test.Missions.Wilderness
             var plateau = rows.Where(row => row.ContentRevision == PlateauMissionDataV1.Revision).ToArray();
             var pools = rows.Where(row => row.ContentRevision == Rasa.Services.Preloader.Missions.Pools.PoolsMissionDataV1.Revision).ToArray();
             var marshes = rows.Where(row => row.ContentRevision == Rasa.Services.Preloader.Missions.Marshes.MarshesMissionDataV1.Revision).ToArray();
+            // Echoes in the Sand (1736), an Ashen Desert mission on the Crucible's revision (the 1218 chain): counted with Ashen's.
+            bool Echoes(Rasa.Structures.World.MissionIndicatorEntry row) => row.ContentRevision == Rasa.Services.Preloader.Missions.Crucible.CrucibleMissionDataV1.Revision &&
+                Rasa.Test.Missions.Ashen.AshenMissionTests.OnCrucibleRevision.Contains(row.MissionId);
+            var crucible = rows.Where(row => row.ContentRevision == Rasa.Services.Preloader.Missions.Crucible.CrucibleMissionDataV1.Revision && !Echoes(row)).ToArray();
+            var ashen = rows.Where(row => row.ContentRevision == Rasa.Services.Preloader.Missions.Ashen.AshenMissionDataV1.Revision || Echoes(row)).ToArray();
 
             Assert.AreEqual(12, bootcamp.Length);
             // 97 from the Wilderness migrations, and Kill Proctor Fulgor's (427/6) from
@@ -680,7 +692,12 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.AreEqual(PlateauMissionTests.Indicators, plateau.Length);
             Assert.AreEqual(Rasa.Test.Missions.Pools.PoolsMissionTests.Indicators, pools.Length);
             Assert.AreEqual(Rasa.Test.Missions.Marshes.MarshesMissionTests.Indicators, marshes.Length);
-            Assert.AreEqual(rows.Length, bootcamp.Length + wilderness.Length + plateau.Length + pools.Length + marshes.Length);
+            Assert.AreEqual(Rasa.Test.Missions.Crucible.CrucibleMissionTests.Indicators, crucible.Length);
+            Assert.AreEqual(Rasa.Test.Missions.Ashen.AshenMissionTests.Indicators + Rasa.Test.Missions.Ashen.AshenMissionTests.EchoesIndicators +
+                Rasa.Test.Missions.Ashen.AshenMissionTests.CavernsIndicators + Rasa.Test.Missions.Ashen.AshenMissionTests.OutpostIndicators +
+                Rasa.Test.Missions.Ashen.AshenMissionTests.HiveIndicators + Rasa.Test.Missions.Ashen.AshenMissionTests.EntryIndicators +
+                Rasa.Test.Missions.Ashen.AshenMissionTests.QueenIndicators, ashen.Length);
+            Assert.AreEqual(rows.Length, bootcamp.Length + wilderness.Length + plateau.Length + pools.Length + marshes.Length + crucible.Length + ashen.Length);
             // Bootcamp's keys are missionobjectiveindicatorlanguage ids: 430 "Eloh Approach" to 439
             // "Cave-in Location".
             foreach (var row in bootcamp)
@@ -693,7 +710,10 @@ namespace Rasa.Test.Missions.Wilderness
             // UnnamedFrom but for those keyed by the client's names: What's that Gas?'s fern marker 5 "Calla Ferns", the
             // harvester fields' 106 "Bane Harvester" and Beware: Buried Gas Lines' 138 "Pipeline Supply Point"
             // (MarshesMissionTests.NamedMarker).
-            foreach (var row in wilderness.Concat(plateau).Concat(pools)
+            // The Crucible's are all keyed above UnnamedFrom: the client has no names for them. Ashen Desert's too, but Eyes on
+            // the Ground's five beacon points 155-159 "Atta Beacon Point 1" .. "5" (AshenMissionTests.NamedMarker).
+            foreach (var row in wilderness.Concat(plateau).Concat(pools).Concat(crucible)
+                .Concat(ashen.Where(row => Rasa.Test.Missions.Ashen.AshenMissionTests.NamedMarker(row.MissionId, row.ObjectiveId) == null))
                 .Concat(marshes.Where(row => Rasa.Test.Missions.Marshes.MarshesMissionTests.NamedMarker(row.MissionId, row.ObjectiveId) == null)))
                 Assert.IsTrue(row.IndicatorId > Rasa.Structures.MissionIndicator.UnnamedFrom,
                     $"mission {row.MissionId} objective {row.ObjectiveId} indicator {row.IndicatorId}");

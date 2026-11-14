@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Rasa.Missions.Content;
 using Rasa.Missions.Content.Marshes;
+using Rasa.Services.Preloader.Missions.Ashen;
 using Rasa.Services.Preloader.Missions.Marshes;
 using Rasa.Structures.World;
 using Rasa.Test.Missions.Wilderness;
@@ -19,12 +20,12 @@ namespace Rasa.Test.Missions.Marshes
     [DoNotParallelize]
     public class MarshesSceneGuardTests
     {
-        private static List<(uint MissionId, MissionSceneDefinition Scene)> Scenes(string script)
+        private static List<(uint MissionId, MissionSceneDefinition Scene)> Scenes(string script, params string[] revisions)
         {
             using var harness = WildernessRuntimeTestHarness.Create();
-            var revision = MarshesMissionDataV1.Revision;
+            var read = revisions.Length == 0 ? new[] { MarshesMissionDataV1.Revision } : revisions;
             return harness.World.Set<MissionSceneBindingEntry>().AsNoTracking()
-                .Where(entry => entry.ContentRevision == revision).ToList()
+                .Where(entry => read.Contains(entry.ContentRevision)).ToList()
                 .Select(entry => (entry.MissionId, Scene: System.Text.Json.JsonSerializer.Deserialize<MissionSceneDefinition>(
                     entry.Bindings, MissionContentCodec.Options)))
                 .Where(entry => entry.Scene.Script == script).ToList();
@@ -53,13 +54,14 @@ namespace Rasa.Test.Missions.Marshes
 
         /// <summary>
         /// MarshesDefenceScene: a wave's timer is dropped when a later wave was already sent, and the hold timer ends the
-        /// defence. So the waves' delays (wave.K.after) must rise with K, and the hold must come after the last wave.
+        /// defence. So the waves' delays (wave.K.after) must rise with K, and the hold must come after the last wave. Ashen's King
+        /// of the Hill (1278) uses the scene too: its waves at 0, 45, 90 and 135 s and its hold at 180 s are written out here.
         /// </summary>
         [TestMethod]
         public void TheDefenceWavesComeInOrderAndBeforeTheHold()
         {
-            var scenes = Scenes("marshes.defence");
-            CollectionAssert.AreEquivalent(new[] { MarshesTrappedV1.MissionId, MarshesHeadEastV2.MissionId },
+            var scenes = Scenes("marshes.defence", MarshesMissionDataV1.Revision, AshenMissionDataV1.Revision);
+            CollectionAssert.AreEquivalent(new[] { MarshesTrappedV1.MissionId, MarshesHeadEastV2.MissionId, AshenKingOfTheHillV1.MissionId },
                 scenes.Select(entry => entry.MissionId).ToArray(), "the defence scenes");
             foreach (var (mission, scene) in scenes)
             {
@@ -71,6 +73,10 @@ namespace Rasa.Test.Missions.Marshes
                 Assert.IsGreaterThan(Name(scene, MarshesDefenceScene.After(waves)), Name(scene, MarshesDefenceScene.Hold),
                     $"{mission} the hold ends after the last wave");
             }
+            var king = scenes.Single(entry => entry.MissionId == AshenKingOfTheHillV1.MissionId).Scene;
+            CollectionAssert.AreEqual(new uint[] { 0, 45000, 90000, 135000, 180000 },
+                Enumerable.Range(1, 4).Select(wave => Name(king, MarshesDefenceScene.After(wave))).Append(Name(king, MarshesDefenceScene.Hold)).ToArray(),
+                "1278: waves at 0, 45, 90, 135 s, the hold at 180 s");
         }
     }
 }

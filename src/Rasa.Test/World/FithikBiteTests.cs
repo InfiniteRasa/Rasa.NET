@@ -51,7 +51,7 @@ namespace Rasa.Test.World
 
                 using var world = (WorldContext)PersistenceIntegrationTests.CreateContext(typeof(SqliteWorldContext), database);
 
-                AssertEveryFithikBites(world, 16);
+                AssertEveryFithikBites(world, 17);
 
                 var rows = world.CreatureActionEntries.AsNoTracking().ToDictionary(row => row.Id);
                 foreach (var bite in FithikBites.Bites)
@@ -66,7 +66,7 @@ namespace Rasa.Test.World
                     world.Database.ExecuteSqlRaw(statement);
 
                 Assert.AreEqual(FithikBites.Bites.Length, world.CreatureActionEntries.AsNoTracking().Count(row => row.Id >= FithikBites.IdMin && row.Id <= FithikBites.IdMax));
-                AssertEveryFithikBites(world, 16);
+                AssertEveryFithikBites(world, 17);
 
                 var migrator = world.GetService<IMigrator>();
                 migrator.Migrate(Previous);
@@ -187,7 +187,8 @@ namespace Rasa.Test.World
 
         /// <summary>
         /// Every Fithik row bites, and there are <paramref name="count"/> of them: nine, and with
-        /// the later migrations the Caves of Donn's one and the Devil's Den's six (DevilsDenContent).
+        /// the later migrations the Caves of Donn's one, the Devil's Den's six (DevilsDenContent) and
+        /// the Ashen Desert's one (790655, Avernus Outpost's Queen's Chamber, AshenAvernusHiveNpcsV1).
         /// </summary>
         private static void AssertEveryFithikBites(WorldContext world, int count)
         {

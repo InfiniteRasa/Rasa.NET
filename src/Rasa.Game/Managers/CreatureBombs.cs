@@ -463,6 +463,11 @@ namespace Rasa.Managers
         /// <summary>
         /// A Necromite has put its bomb on the one it reached: it is spent, and dies of it - the
         /// kill its target's, as a Fithik's self-destruct is. A summon, it leaves nothing to loot.
+        ///
+        /// A lurking creature (MawLurk.Lurks) that goes off is nobody's kill (fix job F): the kill
+        /// goes to the creature itself, so no experience, loot or mission count. No lurking creature
+        /// has a self-destruct since fix job J (the Ligo Crucible Smart Mine, 1232; TaRapedia: "The
+        /// mines don't actually explode"); a guard against a data rollback.
         /// </summary>
         public static void Spend(MapChannel mapChannel, Creature necromite, Actor target)
         {
@@ -470,10 +475,12 @@ namespace Rasa.Managers
                 || !necromite.Attributes.TryGetValue(Attributes.Health, out var health) || health.Current <= 0)
                 return;
 
+            var killedBy = MawLurk.Lurks(necromite) ? necromite : target ?? necromite;
+
             health.Current = 0;
             CellManager.Instance.CellCallMethod(mapChannel, necromite, new UpdateHealthPacket(health, necromite.EntityId));
 
-            CreatureManager.Instance.HandleCreatureKill(mapChannel, necromite, target ?? necromite);
+            CreatureManager.Instance.HandleCreatureKill(mapChannel, necromite, killedBy);
         }
 
         /// <summary>

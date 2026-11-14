@@ -26,10 +26,17 @@ namespace Rasa.Missions.Content.Marshes
     ///    while no player is near. Without it the wards stand from the scene's start;
     ///  - <c>spare</c> (optional, to-fix 29): nonzero, the waves go for the other wards first and for the leader only when
     ///    none of them lives; a ward's death sends the waves' living members at the wards left. Without it the waves'
-    ///    members go for the wards in turn, the leader first.
+    ///    members go for the wards in turn, the leader first;
+    ///  - <c>hide.M</c> (optional, Ashen King of the Hill 1278): a public spawn pool ward M (M &gt; 1) stands in for, hidden
+    ///    from the owner while that ward stands (as <c>hide</c> for the leader);
+    ///  - <c>lost</c> (optional, Ashen King of the Hill 1278): a scenario that hears each ward's death during the defence as
+    ///    its event M (ward-M died), before the defence and during it, so the mission counts the wards lost on its own
+    ///    objective. With it the leader is a ward as the others and no single death fails anything: the scene ends when no
+    ///    ward lives (the waves go), and the mission's count of these events fails it, not the scene. During the defence a
+    ///    ward's death sends the waves' living members at the wards left.
     /// The wards are the actors <c>ward-M</c> (<c>ward-1</c> the leader), wave K's are <c>wave-K-M</c>. A death comes as the
-    /// actor's defeat sequence or as ActorDied; only the leader's matters. The other wards' deaths, and the waves', change
-    /// nothing.
+    /// actor's defeat sequence or as ActorDied; without <c>lost</c> only the leader's matters. The other wards' deaths, and the
+    /// waves', change nothing.
     ///
     /// The actors <c>after-M</c> (optional, Head East, Young Man 920) come when the hold is over, as the wards and the waves go,
     /// and stay: the scene runs on (phase "after") and puts them back at a recovery, until the mission's reward retirement or
@@ -39,7 +46,8 @@ namespace Rasa.Missions.Content.Marshes
     public sealed class MarshesDefenceScene : ISceneScript
     {
         public const string Mission = "mission", Locate = "locate", Defend = "defend", Start = "start", Waves = "waves",
-            Hold = "hold", Outcome = "outcome", Step = "step", Hide = "hide", Approach = "approach", Spare = "spare";
+            Hold = "hold", Outcome = "outcome", Step = "step", Hide = "hide", Approach = "approach", Spare = "spare", Lost = "lost";
+        public static string MoreHidden(int member) => $"hide.{member}";
         public const string Leader = "ward-1";
         public const uint HoldTimerSequence = 999;
         public static string After(int wave) => $"wave.{wave}.after";
@@ -112,6 +120,22 @@ namespace Rasa.Missions.Content.Marshes
                 if (state.Dead.Contains(died))
                     return Unchanged(context);
                 var dead = state.Dead.Append(died).OrderBy(role => role, StringComparer.Ordinal).ToArray();
+                if (Name(Lost) != 0 && wards.Contains(died))
+                {
+                    // Each ward counts as lost on the mission's own objective, before the defence and during it; the scene
+                    // ends with the last one, and the mission's count fails the mission. During the defence the waves go
+                    // for the wards left.
+                    var signal = int.TryParse(died["ward-".Length..], out var member) && member > 0
+                        ? new[] { new SceneMissionSignal(Name(Mission), Name(Lost), (uint)member) }
+                        : Array.Empty<SceneMissionSignal>();
+                    var next = state with { Dead = dead };
+                    if (wards.All(dead.Contains))
+                        return Decide(next with { Phase = "failed" }, Away(context, next, wards), signals: signal, status: SceneStatus.Ended);
+                    return Decide(next, state.Phase == "defending"
+                            ? Enumerable.Range(1, next.Waves).SelectMany(wave => Attackers(context, wave, next)).ToArray()
+                            : null,
+                        signals: signal);
+                }
                 if (died != Leader)
                 {
                     var next = state with { Dead = dead };
@@ -162,14 +186,20 @@ namespace Rasa.Missions.Content.Marshes
             return Unchanged(context);
         }
 
-        /// <summary>The wards stand (and the leader hides the public one he stands in for).</summary>
+        /// <summary>The wards stand (and each hides the public pool it stands in for: the leader <c>hide</c>, ward M <c>hide.M</c>).</summary>
         private static IEnumerable<WorldIntent> Stand(SceneContext context, IEnumerable<string> wards)
         {
             foreach (var role in wards)
             {
                 yield return new EnsureActorIntent($"ensure-{role}", role);
-                if (role == Leader && context.Bindings.Names.TryGetValue(Hide, out var pool) && pool != 0)
-                    yield return new HideSpawnPoolsIntent("public-leader-hidden", Leader, new[] { pool });
+                if (role == Leader)
+                {
+                    if (context.Bindings.Names.TryGetValue(Hide, out var pool) && pool != 0)
+                        yield return new HideSpawnPoolsIntent("public-leader-hidden", Leader, new[] { pool });
+                }
+                else if (int.TryParse(role["ward-".Length..], out var member) &&
+                         context.Bindings.Names.TryGetValue(MoreHidden(member), out var more) && more != 0)
+                    yield return new HideSpawnPoolsIntent($"public-{role}-hidden", role, new[] { more });
             }
         }
 
@@ -179,10 +209,11 @@ namespace Rasa.Missions.Content.Marshes
             var wards = Roles(context, "ward-");
             var targets = wards.Where(role => !state.Dead.Contains(role)).ToArray();
             var spare = context.Bindings.Names.TryGetValue(Spare, out var spared) && spared != 0;
+            var lost = context.Bindings.Names.TryGetValue(Lost, out var counted) && counted != 0;
             if (spare && targets.Any(role => role != Leader))
                 targets = targets.Where(role => role != Leader).ToArray();
-            // With spare a ward's death sends the attackers again: each new order its own operation.
-            var down = spare ? wards.Count(state.Dead.Contains) : 0;
+            // With spare or lost a ward's death sends the attackers again: each new order its own operation.
+            var down = spare || lost ? wards.Count(state.Dead.Contains) : 0;
             var members = Roles(context, $"wave-{wave}-").Where(role => !state.Dead.Contains(role)).ToArray();
             for (var index = 0; index < members.Length; index++)
             {

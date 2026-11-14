@@ -347,6 +347,25 @@ namespace Rasa.Managers
                 ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, phaninRefusal);
                 return;
             }
+            // A lock an item opens (UsableLock.KeyItemTemplateId) in its locked state: refused without the item in the personal
+            // inventory, as the client's own CanUnlock puts it (usable.py). The use itself does what the key does: a scene's
+            // keycard door opens and its mission takes the card (ConsumeMissionItem, so the mission's item receipts stay whole).
+            if (obj.Lock is { KeyItemTemplateId: > 0 } keyLock && !MissionLocks.OpensFor(keyLock, client.Player) && keyLock.IsLockedIn(obj.StateId) &&
+                InventoryManager.Instance.CountItemsByTemplate(client, keyLock.KeyItemTemplateId) == 0)
+            {
+                Logger.WriteLog(LogType.Debug, $"{client.Player.FamilyName} asked to use {obj.EntityId} without its key {keyLock.KeyItemTemplateId}.");
+                ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, PlayerMessage.PmMissingReqItem);
+                return;
+            }
+            // A scene object that keeps its user on its own floor (SceneObjectAction.MaxUseHeight: 1277's tower consoles) is out of
+            // reach from the floor over or under it, as a wall would put it for the client.
+            if (obj.MissionUseAction is { } floorUse && floorUse.OffTheFloor(client.Player.Position.Y, obj.Position.Y))
+            {
+                Logger.WriteLog(LogType.Debug,
+                    $"{client.Player.FamilyName} asked to use scene object {obj.EntityId} from {client.Player.Position.Y - obj.Position.Y:F1} m over its floor. Refused.");
+                ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, PlayerMessage.PmTargetOutOfRange);
+                return;
+            }
             if (obj.MissionUseAction != null &&
                 (!MissionUseAvailable(client, obj) ||
                  !(_missionManager ?? MissionApplication.Instance).Scenes.CanUseObject(client, obj, packet.ActionArgId)))

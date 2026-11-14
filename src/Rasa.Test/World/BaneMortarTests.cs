@@ -82,7 +82,7 @@ namespace Rasa.Test.World
 
                 using var world = (WorldContext)PersistenceIntegrationTests.CreateContext(typeof(SqliteWorldContext), database);
 
-                AssertMortars(world, denRetuned: true);
+                AssertMortars(world, fullyMigrated: true);
 
                 world.GetService<IMigrator>().Migrate(Before);
 
@@ -96,7 +96,7 @@ namespace Rasa.Test.World
 
                 world.GetService<IMigrator>().Migrate(Migration);
 
-                AssertMortars(world, denRetuned: false);
+                AssertMortars(world, fullyMigrated: false);
             }
             finally
             {
@@ -106,9 +106,14 @@ namespace Rasa.Test.World
 
         /// <summary>
         /// The mortars on their pads. The Devil's Den's two are its level 20 Bane Light Howitzers
-        /// once Devils_den has run (DevilsDenContent), as the rest of its pools are its own rows.
+        /// once Devils_den has run (DevilsDenContent), as the rest of its pools are its own rows; the
+        /// Sheitan Highway's four on Ashen Desert each hold their own copy of the Ashen mortar once
+        /// Ashen_sheitan_highway has run (AshenSheitanHighwayNpcsV1: Artillery Annihilation counts
+        /// each mortar on its own objective), and so do the trench's four once Ashen_conscription_base has run
+        /// (AshenConscriptionBaseNpcsV1: Death from Above's Mortar 1-4). All run after Bane_mortars: <paramref name="fullyMigrated"/>, the World DB
+        /// migrated to its last migration (false: to Bane_mortars only).
         /// </summary>
-        private static void AssertMortars(WorldContext world, bool denRetuned)
+        private static void AssertMortars(WorldContext world, bool fullyMigrated)
         {
             var pools = world.SpawnPoolEntries.AsNoTracking().ToList();
             var ours = pools.Where(row => row.Id >= BaneMortars.PoolIdMin && row.Id <= BaneMortars.PoolIdMax).ToDictionary(row => row.Id);
@@ -135,7 +140,12 @@ namespace Rasa.Test.World
 
                 Assert.IsTrue(maps.Contains(pool.MapContextId), $"pool {pool.Id} on a map of the world");
                 Assert.AreEqual((mortar.Map, mortar.X, mortar.Y, mortar.Z, mortar.Rotation), (pool.MapContextId, (double)pool.PosX, (double)pool.PosY, (double)pool.PosZ, (double)pool.Rotation), $"pool {pool.Id}");
-                var creature = denRetuned && pool.MapContextId == DevilsDenContent.Den ? DevilsDenContent.Howitzer : zone.Creature;
+                var highway = Array.FindIndex(Rasa.Services.Preloader.Missions.Ashen.AshenSheitanHighwayNpcsV1.Mortars, entry => entry.Pool == pool.Id);
+                var trench = Array.FindIndex(Rasa.Services.Preloader.Missions.Ashen.AshenConscriptionBaseNpcsV1.Mortars, entry => entry.Pool == pool.Id);
+                var creature = fullyMigrated && pool.MapContextId == DevilsDenContent.Den ? DevilsDenContent.Howitzer
+                    : fullyMigrated && highway >= 0 ? Rasa.Services.Preloader.Missions.Ashen.AshenSheitanHighwayNpcsV1.Mortars[highway].Creature
+                    : fullyMigrated && trench >= 0 ? Rasa.Services.Preloader.Missions.Ashen.AshenConscriptionBaseNpcsV1.Mortars[trench].Creature
+                    : zone.Creature;
                 Assert.AreEqual((creature, (byte)1, (byte)1, 0u), (pool.Creature1Id, pool.Creature1MinCount, pool.Creature1MaxCount, pool.Creature2Id), $"pool {pool.Id}: one mortar");
                 Assert.AreEqual(0.0, pool.Radius, $"pool {pool.Id}: where its pad is");
                 Assert.AreEqual(BaneMortars.Respawn, pool.RespawnTime);
